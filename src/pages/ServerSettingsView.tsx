@@ -616,19 +616,19 @@ export function ServerSettingsView() {
   const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
   return (
-    <div className="max-w-lg mx-auto px-4 py-6 space-y-6">
+    <div className="max-w-3xl mx-auto px-4 py-6 space-y-6">
       <div className="flex items-center gap-3">
         <button onClick={() => navigate("/")} className="text-slate-400 hover:text-white p-1">
           <ArrowLeft className="w-5 h-5" />
         </button>
         <h2 className="text-xl font-bold text-white">Server Settings</h2>
-        {isOwner && <span className="text-[10px] bg-amber-900/50 text-amber-400 px-2 py-0.5 rounded-full">Owner</span>}
+        {isOwner && <span className="text-xs bg-amber-900/50 text-amber-400 px-2 py-0.5 rounded-full">Owner</span>}
       </div>
 
       {/* My Servers — always visible */}
       {servers.length > 0 && (
         <section className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3">
-          <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+          <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
             <Server className="w-3 h-3" /> My Servers
           </h3>
           <div className="space-y-1">
@@ -644,8 +644,8 @@ export function ServerSettingsView() {
               >
                 <span>{s.name}</span>
                 <span className="flex items-center gap-1.5">
-                  {s.role === "owner" && <span className="text-[10px] text-amber-400 bg-amber-900/30 px-1.5 py-0.5 rounded">Owner</span>}
-                  {s.role === "moderator" && <span className="text-[10px] text-slate-400 bg-slate-800 px-1.5 py-0.5 rounded">Mod</span>}
+                  {s.role === "owner" && <span className="text-xs text-amber-400 bg-amber-900/30 px-1.5 py-0.5 rounded">Owner</span>}
+                  {s.role === "moderator" && <span className="text-xs text-slate-400 bg-slate-800 px-1.5 py-0.5 rounded">Mod</span>}
                   {s.id === currentServer.id && <Check className="w-3.5 h-3.5 text-blue-400" />}
                 </span>
               </button>
@@ -653,7 +653,7 @@ export function ServerSettingsView() {
           </div>
 
           <div className="border-t border-slate-800 pt-3 space-y-2">
-            <p className="text-[10px] text-slate-500 uppercase tracking-wider">Add Server</p>
+            <p className="text-xs text-slate-500 uppercase tracking-wider">Add Server</p>
             <div className="flex gap-2">
               <button
                 onClick={() => setShowCreateModal(true)}
@@ -668,7 +668,7 @@ export function ServerSettingsView() {
                   value={inviteCode}
                   onChange={(e) => setInviteCode(e.target.value)}
                   placeholder="Invite code..."
-                  className="w-full bg-slate-800 border border-slate-700 rounded-lg px-2 py-2 text-xs text-white placeholder-slate-500 outline-none focus:border-blue-500 transition"
+                  className="w-full bg-slate-800 border border-slate-700 rounded-lg px-2 py-2 text-sm text-white placeholder-slate-500 outline-none focus:border-blue-500 transition"
                 />
                 <button
                   onClick={handleJoin}
@@ -698,7 +698,7 @@ export function ServerSettingsView() {
           <button
             key={key}
             onClick={() => setTab(key)}
-            className={`flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-md text-[11px] font-medium transition ${
+            className={`flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-md text-sm font-medium transition ${
               tab === key ? "bg-slate-700 text-white" : "text-slate-400 hover:text-slate-200"
             }`}
           >
@@ -714,7 +714,7 @@ export function ServerSettingsView() {
           <section className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3">
             <div className="flex items-center gap-2">
               <h3 className="text-sm font-semibold text-white">Server Name</h3>
-              <span className="text-[10px] text-slate-600 italic">(editing coming soon)</span>
+              <span className="text-xs text-slate-600 italic">(editing coming soon)</span>
             </div>
             <input
               type="text"
@@ -726,14 +726,14 @@ export function ServerSettingsView() {
 
           {isOwner && (
             <section className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3">
-              <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+              <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
                 <Key className="w-3 h-3" /> Invite Code
               </h3>
-              <p className="text-xs text-slate-400">
+              <p className="text-sm text-slate-400">
                 Share this code with others so they can join as moderators.
               </p>
               <div className="flex items-center gap-2">
-                <code className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-blue-400 font-mono tracking-wider text-center select-all">
+                <code className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-base text-blue-400 font-mono tracking-wider text-center select-all">
                   {currentServer.invite_code}
                 </code>
                 <button
@@ -756,15 +756,15 @@ export function ServerSettingsView() {
 
           {isOwner && (
             <section className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3">
-              <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+              <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
                 <Eye className="w-3 h-3" /> Viewer Key
               </h3>
-              <p className="text-xs text-slate-400">
+              <p className="text-sm text-slate-400">
                 Share this key to let others monitor your server without an account. Viewers cannot make changes.
               </p>
               {viewerKey ? (
                 <div className="flex items-center gap-2">
-                  <code className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-xs text-emerald-400 font-mono tracking-wider text-center select-all">
+                  <code className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-base text-emerald-400 font-mono tracking-wider text-center select-all">
                     {viewerKey}
                   </code>
                   <button
@@ -794,7 +794,7 @@ export function ServerSettingsView() {
       {tab === "guilds" && (
         <div className="space-y-4">
           <section className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3">
-            <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+            <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
               <Shield className="w-3 h-3" /> Guilds ({guilds.length})
             </h3>
 
@@ -806,7 +806,7 @@ export function ServerSettingsView() {
                 onChange={(e) => setNewGuildName(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleAddGuild()}
                 placeholder="New guild name..."
-                className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-500 outline-none focus:border-emerald-500 transition"
+                className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 outline-none focus:border-emerald-500 transition"
               />
               <button
                 onClick={handleAddGuild}
@@ -877,13 +877,13 @@ export function ServerSettingsView() {
         <div className="space-y-4">
           <section className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3">
             <div className="flex items-center justify-between">
-              <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+              <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
                 <Swords className="w-3 h-3" /> Boss Guild Assignments
               </h3>
               {guilds.length > 0 && sortedBosses.length > 0 && (
                 <button
                   onClick={() => { if (bossMultiMode) clearBossSelection(); setBossMultiMode(!bossMultiMode); setBulkMode(null); }}
-                  className={`flex items-center gap-1 px-2.5 py-1 rounded text-[10px] font-medium transition ${
+                  className={`flex items-center gap-1 px-2.5 py-1 rounded text-xs font-medium transition ${
                     bossMultiMode ? "bg-blue-900/30 border border-blue-800 text-blue-400" : "bg-slate-800 border border-slate-700 text-slate-400 hover:text-slate-200"
                   }`}
                 >
@@ -896,7 +896,7 @@ export function ServerSettingsView() {
               Assign guilds to bosses. Rotation mode alternates guilds each spawn.
               Schedule mode assigns a guild per day of the week.
             </p>
-            <div className="flex items-center gap-3 text-[10px] text-slate-500">
+            <div className="flex items-center gap-3 text-xs text-slate-500">
               <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-orange-400" /> Fixed Hours</span>
               <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-blue-400" /> Fixed Schedule</span>
             </div>
@@ -930,7 +930,7 @@ export function ServerSettingsView() {
                         )}
                         <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${boss.spawn_type === "fixed_schedule" ? "bg-blue-400" : "bg-orange-400"}`} title={boss.spawn_type === "fixed_schedule" ? "Fixed Schedule" : "Fixed Hours"} />
                         <span className="text-xs text-white font-medium flex-1 truncate">{boss.name}</span>
-                        <span className={`text-[10px] px-1.5 py-0.5 rounded ${
+                        <span className={`text-xs px-1.5 py-0.5 rounded ${
                           mode === "rotation" ? "text-blue-400 bg-blue-900/30" :
                           mode === "daily" ? "text-cyan-400 bg-cyan-900/30" :
                           mode === "schedule" ? "text-purple-400 bg-purple-900/30" :
@@ -948,7 +948,7 @@ export function ServerSettingsView() {
                         <div className="border-t border-slate-700/50 px-3 py-3 space-y-3">
                           {/* Mode selector */}
                           <div className="flex items-center gap-2">
-                            <span className="text-[10px] text-slate-500 w-12">Mode:</span>
+                            <span className="text-xs text-slate-500 w-12">Mode:</span>
                             <select
                               value={mode}
                               onChange={(e) => {
@@ -967,7 +967,7 @@ export function ServerSettingsView() {
                           {/* Daily mode */}
                           {mode === "daily" && (
                             <div className="space-y-1.5">
-                              <p className="text-[10px] text-slate-500">Guilds alternate by day (order matters):</p>
+                              <p className="text-xs text-slate-500">Guilds alternate by day (order matters):</p>
                               {(() => {
                                 const dailyAssignments = bossAssignments
                                   .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
@@ -977,9 +977,9 @@ export function ServerSettingsView() {
                                   const isToday = idx === today % dailyAssignments.length;
                                   return (
                                     <div key={bg.id} className={`flex items-center gap-1 rounded px-2 py-1.5 ${isToday ? "bg-cyan-900/30 border border-cyan-800" : "bg-slate-800/50"}`}>
-                                      <span className="text-[10px] text-slate-500 w-4">{idx + 1}.</span>
-                                      <span className="text-xs text-slate-200 flex-1">{guild?.name ?? "Unknown"}</span>
-                                      {isToday && <span className="text-[9px] text-cyan-400 bg-cyan-900/30 px-1 rounded">Today</span>}
+                                      <span className="text-xs text-slate-500 w-4">{idx + 1}.</span>
+                                      <span className="text-sm text-slate-200 flex-1">{guild?.name ?? "Unknown"}</span>
+                                      {isToday && <span className="text-xs text-cyan-400 bg-cyan-900/30 px-1 rounded">Today</span>}
                                       <button onClick={() => handleMoveDailyGuild(boss.id, bg.id, "up")} disabled={idx === 0} className="p-0.5 text-slate-500 hover:text-white disabled:opacity-30"><ChevronUp className="w-3 h-3" /></button>
                                       <button onClick={() => handleMoveDailyGuild(boss.id, bg.id, "down")} disabled={idx === dailyAssignments.length - 1} className="p-0.5 text-slate-500 hover:text-white disabled:opacity-30"><ChevronDown className="w-3 h-3" /></button>
                                       <button onClick={() => handleRemoveDailyGuild(boss.id, bg.id)} className="p-0.5 text-slate-500 hover:text-red-400"><X className="w-3 h-3" /></button>
@@ -1010,18 +1010,18 @@ export function ServerSettingsView() {
                           {/* Schedule mode */}
                           {mode === "schedule" && (
                             <div className="space-y-1.5">
-                              <p className="text-[10px] text-slate-500">Assign guild per day:</p>
+                              <p className="text-xs text-slate-500">Assign guild per day:</p>
                               <div className="grid grid-cols-7 gap-1">
                                 {DAY_LABELS.map((label, dow) => {
                                   const bg = bossAssignments.find(a => a.day_of_week === dow);
                                   const guild = bg ? guilds.find(g => g.id === bg.guild_id) : null;
                                   return (
                                     <div key={dow} className="text-center space-y-1">
-                                      <span className="text-[9px] text-slate-500 block">{label}</span>
+                                      <span className="text-xs text-slate-500 block">{label}</span>
                                       <select
                                         value={guild?.id ?? ""}
                                         onChange={(e) => handleSetScheduleGuild(boss.id, dow, e.target.value || null)}
-                                        className="w-full bg-slate-800 border border-slate-700 rounded px-1 py-1 text-[10px] text-white outline-none focus:border-purple-500"
+                                        className="w-full bg-slate-800 border border-slate-700 rounded px-1 py-1 text-xs text-white outline-none focus:border-purple-500"
                                       >
                                         <option value="">—</option>
                                         {guilds.map(g => (
@@ -1087,13 +1087,13 @@ export function ServerSettingsView() {
                     <span className="text-xs text-blue-400 font-medium">Rotation — guilds to add to all selected bosses</span>
                     <button onClick={() => setBulkMode(null)} disabled={bulkProcessing} className="text-xs text-slate-400 hover:text-white transition disabled:opacity-50">← Change mode</button>
                   </div>
-                  <p className="text-[10px] text-slate-500">Guild rotation order (first → last):</p>
+                  <p className="text-xs text-slate-500">Guild rotation order (first → last):</p>
                   {bulkRotationAdded.map((gid, idx) => {
                     const guild = guilds.find(g => g.id === gid);
                     return (
                       <div key={`${gid}-${idx}`} className="flex items-center gap-1 bg-slate-800/50 rounded px-2 py-1.5">
-                        <span className="text-[10px] text-slate-500 w-4">{idx + 1}.</span>
-                        <span className="text-xs text-slate-200 flex-1">{guild?.name ?? "Unknown"}</span>
+                        <span className="text-xs text-slate-500 w-4">{idx + 1}.</span>
+                        <span className="text-sm text-slate-200 flex-1">{guild?.name ?? "Unknown"}</span>
                         <button
                           onClick={() => setBulkRotationAdded(prev => { if (idx === 0) return prev; const n = [...prev]; [n[idx], n[idx-1]] = [n[idx-1], n[idx]]; return n; })}
                           disabled={idx === 0 || bulkProcessing}
@@ -1145,7 +1145,7 @@ export function ServerSettingsView() {
                       const selectedGuild = selectedGuildId ? guilds.find(g => g.id === selectedGuildId) : null;
                       return (
                         <div key={dow} className="space-y-1">
-                          <span className="text-[10px] text-slate-500 text-center block">{label}</span>
+                          <span className="text-xs text-slate-500 text-center block">{label}</span>
                           <select
                             value={selectedGuildId ?? ""}
                             disabled={bulkProcessing}
@@ -1178,7 +1178,7 @@ export function ServerSettingsView() {
       {tab === "members" && (
         <div className="space-y-4">
           <section className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3">
-            <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+            <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
               <Users className="w-3 h-3" /> Members ({members.length})
             </h3>
             {membersLoading ? (
@@ -1198,7 +1198,7 @@ export function ServerSettingsView() {
                       {m.email ?? m.user_id}
                     </span>
                     <div className="flex items-center gap-2">
-                      <span className={`text-[10px] px-1.5 py-0.5 rounded ${
+                      <span className={`text-xs px-1.5 py-0.5 rounded ${
                         m.role === "owner" ? "text-amber-400 bg-amber-900/30" : "text-slate-400 bg-slate-800"
                       }`}>
                         {m.role}
@@ -1222,10 +1222,10 @@ export function ServerSettingsView() {
           {/* Add Moderator — owner only */}
           {isOwner && (
           <section className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3">
-            <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+            <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
               <UserPlus className="w-3 h-3" /> Add Moderator
             </h3>
-            <p className="text-xs text-slate-400">
+            <p className="text-sm text-slate-400">
               Moderators can manage bosses, configure Discord webhooks, and edit server settings.
             </p>
             <div className="flex gap-2">
@@ -1235,7 +1235,7 @@ export function ServerSettingsView() {
                 onChange={(e) => setModEmail(e.target.value)}
                 placeholder="user@email.com"
                 onKeyDown={(e) => e.key === "Enter" && handleAddMod()}
-                className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-500 outline-none focus:border-purple-500 transition"
+                className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 outline-none focus:border-purple-500 transition"
               />
               <button
                 onClick={handleAddMod}
@@ -1298,10 +1298,10 @@ export function ServerSettingsView() {
       {/* Integrations Tab */}
       {tab === "integrations" && (
         <section className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3">
-          <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+          <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
             <Bell className="w-3 h-3" /> Discord Webhook
           </h3>
-          <p className="text-xs text-slate-400">
+          <p className="text-sm text-slate-400">
             Get notified in Discord when bosses die or spawn.
           </p>
           <div className="flex gap-2">
@@ -1310,7 +1310,7 @@ export function ServerSettingsView() {
               value={webhookUrl}
               onChange={(e) => setWebhookUrl(e.target.value)}
               placeholder="https://discord.com/api/webhooks/..."
-              className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-500 outline-none focus:border-purple-500 transition font-mono"
+              className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 outline-none focus:border-purple-500 transition font-mono"
             />
             <button
               onClick={handleSaveWebhook}
@@ -1322,7 +1322,7 @@ export function ServerSettingsView() {
             </button>
           </div>
           {currentServer.discord_webhook_url && (
-            <p className="text-[10px] text-emerald-400 flex items-center gap-1">
+            <p className="text-xs text-emerald-400 flex items-center gap-1">
               <Check className="w-3 h-3" /> Webhook configured — notifications active
             </p>
           )}
@@ -1333,7 +1333,7 @@ export function ServerSettingsView() {
       {tab === "danger" && isOwner && (
         <section className="bg-slate-900 border border-red-900/30 rounded-xl p-4 space-y-3">
           <h3 className="text-sm font-semibold text-red-400">Danger Zone</h3>
-          <p className="text-xs text-slate-400">
+          <p className="text-sm text-slate-400">
             Permanently delete this server and all its data. This cannot be undone.
           </p>
 
