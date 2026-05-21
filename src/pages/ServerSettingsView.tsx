@@ -59,12 +59,14 @@ export function ServerSettingsView() {
         setBosses(b);
         setBossGuildsState(bg);
         // Initialize bossModes from data
-        const modes: Record<string, "none" | "rotation" | "schedule"> = {};
+        const modes: Record<string, "none" | "rotation" | "schedule" | "daily"> = {};
         for (const boss of b) {
           const bgs = bg.filter(x => x.boss_id === boss.id);
           if (bgs.length === 0) modes[boss.id] = "none";
+          else if (bgs[0].mode === "daily") modes[boss.id] = "daily";
+          else if (bgs[0].mode === "schedule") modes[boss.id] = "schedule";
           else if (bgs[0].sort_order !== null) modes[boss.id] = "rotation";
-          else modes[boss.id] = "schedule";
+          else modes[boss.id] = "none";
         }
         setBossModes(modes);
       })
@@ -132,7 +134,7 @@ export function ServerSettingsView() {
 
   const [expandedBoss, setExpandedBoss] = useState<string | null>(null);
   // Track user-selected mode per boss (survives clearing assignments)
-  const [bossModes, setBossModes] = useState<Record<string, "none" | "rotation" | "schedule">>({});
+  const [bossModes, setBossModes] = useState<Record<string, "none" | "rotation" | "schedule" | "daily">>({});
   // Track which boss is currently being modified
   const [savingBossId, setSavingBossId] = useState<string | null>(null);
 
@@ -492,16 +494,17 @@ export function ServerSettingsView() {
   // ── Boss-Guild handlers ──
   const getBossGuildsForBoss = (bossId: string) => bossGuilds.filter(bg => bg.boss_id === bossId);
 
-  const getBossMode = (bossId: string): "none" | "rotation" | "schedule" => {
-    // Use user-selected mode from state (survives clearing assignments)
+  const getBossMode = (bossId: string): "none" | "rotation" | "schedule" | "daily" => {
     if (bossModes[bossId]) return bossModes[bossId];
     const bgs = getBossGuildsForBoss(bossId);
     if (bgs.length === 0) return "none";
+    if (bgs[0].mode === "daily") return "daily";
+    if (bgs[0].mode === "schedule") return "schedule";
     if (bgs[0].sort_order !== null) return "rotation";
-    return "schedule";
+    return "none";
   };
 
-  const handleSetBossMode = async (bossId: string, mode: "none" | "rotation" | "schedule") => {
+  const handleSetBossMode = async (bossId: string, mode: "none" | "rotation" | "schedule" | "daily") => {
     // Update state immediately so UI reflects the change
     setBossModes(prev => ({ ...prev, [bossId]: mode }));
     setExpandedBoss(bossId); // keep expanded
@@ -522,7 +525,7 @@ export function ServerSettingsView() {
       const existing = getBossGuildsForBoss(bossId).filter(bg => bg.sort_order !== null);
       const nextOrder = existing.length > 0 ? Math.max(...existing.map(bg => bg.sort_order ?? 0)) + 1 : 1;
       const newAssignments = [...existing.map(bg => ({ guild_id: bg.guild_id, sort_order: bg.sort_order! })), { guild_id: guildId, sort_order: nextOrder }];
-      await setBossGuilds(bossId, newAssignments);
+      await setBossGuilds(bossId, newAssignments, "rotation");
       const updated = await fetchBossGuilds(currentServer!.id);
       setBossGuildsState(updated);
       setBossModes(prev => ({ ...prev, [bossId]: "rotation" }));
@@ -537,7 +540,7 @@ export function ServerSettingsView() {
     // Remove the specific entry by its ID (supports duplicate guilds in rotation)
     const existing = getBossGuildsForBoss(bossId).filter(bg => bg.id !== entryId);
     const reordered = existing.map((bg, i) => ({ guild_id: bg.guild_id, sort_order: i + 1 }));
-    await setBossGuilds(bossId, reordered);
+    await setBossGuilds(bossId, reordered, "rotation");
     const updated = await fetchBossGuilds(currentServer!.id);
     setBossGuildsState(updated);
     if (reordered.length === 0) setBossModes(prev => ({ ...prev, [bossId]: "none" }));
@@ -552,7 +555,48 @@ export function ServerSettingsView() {
     const swapIdx = direction === "up" ? idx - 1 : idx + 1;
     [existing[idx], existing[swapIdx]] = [existing[swapIdx], existing[idx]];
     const reordered = existing.map((bg, i) => ({ guild_id: bg.guild_id, sort_order: i + 1 }));
-    await setBossGuilds(bossId, reordered);
+    await setBossGuilds(bossId, reordered, "rotation");
+    const updated = await fetchBossGuilds(currentServer!.id);
+    setBossGuildsState(updated);
+  };
+
+  // ── Daily mode handlers ──
+  const handleAddDailyGuild = async (bossId: string, guildId: string) => {
+    setSavingBossId(bossId);
+    try {
+      const existing = getBossGuildsForBoss(bossId);
+      const nextOrder = existing.length > 0 ? Math.max(...existing.map(bg => bg.sort_order ?? 0)) + 1 : 1;
+      const newAssignments = [...existing.map(bg => ({ guild_id: bg.guild_id, sort_order: bg.sort_order! })), { guild_id: guildId, sort_order: nextOrder }];
+      await setBossGuilds(bossId, newAssignments, "daily");
+      const updated = await fetchBossGuilds(currentServer!.id);
+      setBossGuildsState(updated);
+      setBossModes(prev => ({ ...prev, [bossId]: "daily" }));
+    } catch (err: any) {
+      toast("error", err?.message ?? "Failed to add guild");
+    } finally {
+      setSavingBossId(null);
+    }
+  };
+
+  const handleRemoveDailyGuild = async (bossId: string, entryId: string) => {
+    const existing = getBossGuildsForBoss(bossId).filter(bg => bg.id !== entryId);
+    const reordered = existing.map((bg, i) => ({ guild_id: bg.guild_id, sort_order: i + 1 }));
+    await setBossGuilds(bossId, reordered, "daily");
+    const updated = await fetchBossGuilds(currentServer!.id);
+    setBossGuildsState(updated);
+    if (reordered.length === 0) setBossModes(prev => ({ ...prev, [bossId]: "none" }));
+  };
+
+  const handleMoveDailyGuild = async (bossId: string, entryId: string, direction: "up" | "down") => {
+    const existing = getBossGuildsForBoss(bossId).sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+    const idx = existing.findIndex(bg => bg.id === entryId);
+    if (idx === -1) return;
+    if (direction === "up" && idx === 0) return;
+    if (direction === "down" && idx === existing.length - 1) return;
+    const swapIdx = direction === "up" ? idx - 1 : idx + 1;
+    [existing[idx], existing[swapIdx]] = [existing[swapIdx], existing[idx]];
+    const reordered = existing.map((bg, i) => ({ guild_id: bg.guild_id, sort_order: i + 1 }));
+    await setBossGuilds(bossId, reordered, "daily");
     const updated = await fetchBossGuilds(currentServer!.id);
     setBossGuildsState(updated);
   };
@@ -888,10 +932,12 @@ export function ServerSettingsView() {
                         <span className="text-xs text-white font-medium flex-1 truncate">{boss.name}</span>
                         <span className={`text-[10px] px-1.5 py-0.5 rounded ${
                           mode === "rotation" ? "text-blue-400 bg-blue-900/30" :
+                          mode === "daily" ? "text-cyan-400 bg-cyan-900/30" :
                           mode === "schedule" ? "text-purple-400 bg-purple-900/30" :
                           "text-slate-500 bg-slate-800"
                         }`}>
                           {mode === "rotation" ? `Rotation (${bossAssignments.length})` :
+                           mode === "daily" ? `Daily (${bossAssignments.length})` :
                            mode === "schedule" ? "Schedule" : "None"}
                         </span>
                         {!bossMultiMode && (isExpanded ? <ChevronUp className="w-4 h-4 text-slate-500" /> : <ChevronDown className="w-4 h-4 text-slate-500" />)}
@@ -906,48 +952,53 @@ export function ServerSettingsView() {
                             <select
                               value={mode}
                               onChange={(e) => {
-                                const newMode = e.target.value as "none" | "rotation" | "schedule";
+                                const newMode = e.target.value as "none" | "rotation" | "schedule" | "daily";
                                 handleSetBossMode(boss.id, newMode);
                               }}
                               className="bg-slate-700 border border-slate-600 rounded px-2 py-1 text-xs text-white outline-none focus:border-blue-500"
                             >
                               <option value="none">None</option>
-                              <option value="rotation">Rotation</option>
+                              <option value="rotation">Rotation (per kill)</option>
+                              <option value="daily">Daily (per day)</option>
                               <option value="schedule">Schedule</option>
                             </select>
                           </div>
 
-                          {/* Rotation mode */}
-                          {mode === "rotation" && (
+                          {/* Daily mode */}
+                          {mode === "daily" && (
                             <div className="space-y-1.5">
-                              <p className="text-[10px] text-slate-500">Guild rotation order (first → last):</p>
-                              {bossAssignments
-                                .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
-                                .map((bg, idx) => {
+                              <p className="text-[10px] text-slate-500">Guilds alternate by day (order matters):</p>
+                              {(() => {
+                                const dailyAssignments = bossAssignments
+                                  .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+                                const today = new Date().getDay();
+                                return dailyAssignments.map((bg, idx) => {
                                   const guild = guilds.find(g => g.id === bg.guild_id);
+                                  const isToday = idx === today % dailyAssignments.length;
                                   return (
-                                    <div key={bg.id} className="flex items-center gap-1 bg-slate-800/50 rounded px-2 py-1.5">
+                                    <div key={bg.id} className={`flex items-center gap-1 rounded px-2 py-1.5 ${isToday ? "bg-cyan-900/30 border border-cyan-800" : "bg-slate-800/50"}`}>
                                       <span className="text-[10px] text-slate-500 w-4">{idx + 1}.</span>
                                       <span className="text-xs text-slate-200 flex-1">{guild?.name ?? "Unknown"}</span>
-                                      <button onClick={() => handleMoveRotationGuild(boss.id, bg.id, "up")} disabled={idx === 0} className="p-0.5 text-slate-500 hover:text-white disabled:opacity-30"><ChevronUp className="w-3 h-3" /></button>
-                                      <button onClick={() => handleMoveRotationGuild(boss.id, bg.id, "down")} disabled={idx === bossAssignments.length - 1} className="p-0.5 text-slate-500 hover:text-white disabled:opacity-30"><ChevronDown className="w-3 h-3" /></button>
-                                      <button onClick={() => handleRemoveRotationGuild(boss.id, bg.id)} className="p-0.5 text-slate-500 hover:text-red-400"><X className="w-3 h-3" /></button>
+                                      {isToday && <span className="text-[9px] text-cyan-400 bg-cyan-900/30 px-1 rounded">Today</span>}
+                                      <button onClick={() => handleMoveDailyGuild(boss.id, bg.id, "up")} disabled={idx === 0} className="p-0.5 text-slate-500 hover:text-white disabled:opacity-30"><ChevronUp className="w-3 h-3" /></button>
+                                      <button onClick={() => handleMoveDailyGuild(boss.id, bg.id, "down")} disabled={idx === dailyAssignments.length - 1} className="p-0.5 text-slate-500 hover:text-white disabled:opacity-30"><ChevronDown className="w-3 h-3" /></button>
+                                      <button onClick={() => handleRemoveDailyGuild(boss.id, bg.id)} className="p-0.5 text-slate-500 hover:text-red-400"><X className="w-3 h-3" /></button>
                                     </div>
                                   );
-                                })}
-                              {/* Add guild dropdown */}
+                                });
+                              })()}
                               {savingBossId === boss.id ? (
                                 <div className="flex items-center gap-2 text-xs text-slate-400 py-1">
                                   <Loader2 className="w-3 h-3 animate-spin" /> Adding...
                                 </div>
                               ) : (
                                 <select
-                                  key={`add-${boss.id}-${bossAssignments.length}`}
+                                  key={`add-daily-${boss.id}-${bossAssignments.length}`}
                                   value=""
-                                  onChange={(e) => { if (e.target.value) handleAddRotationGuild(boss.id, e.target.value); }}
-                                  className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-xs text-slate-400 outline-none focus:border-blue-500"
+                                  onChange={(e) => { if (e.target.value) handleAddDailyGuild(boss.id, e.target.value); }}
+                                  className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-xs text-slate-400 outline-none focus:border-cyan-500"
                                 >
-                                  <option value="">+ Add guild to rotation...</option>
+                                  <option value="">+ Add guild to daily rotation...</option>
                                   {guilds.map(g => (
                                     <option key={g.id} value={g.id}>{g.name}</option>
                                   ))}

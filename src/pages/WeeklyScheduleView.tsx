@@ -61,8 +61,15 @@ export function WeeklyScheduleView() {
     const scheduleEntry = bgs.find(bg => bg.day_of_week === dow);
     if (scheduleEntry) return guilds.find(g => g.id === scheduleEntry.guild_id)?.name ?? null;
 
+    // Daily mode: alternate by day
+    const dailyEntries = bgs.filter(bg => bg.mode === "daily").sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+    if (dailyEntries.length > 0) {
+      const idx = dow % dailyEntries.length;
+      return guilds.find(g => g.id === dailyEntries[idx].guild_id)?.name ?? null;
+    }
+
     // Rotation mode: first guild (rotation order handled server-side)
-    const rotationEntry = bgs.find(bg => bg.sort_order !== null);
+    const rotationEntry = bgs.find(bg => bg.sort_order !== null && bg.mode !== "daily");
     if (rotationEntry) return guilds.find(g => g.id === rotationEntry.guild_id)?.name ?? null;
 
     return null;

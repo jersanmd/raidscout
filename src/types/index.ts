@@ -48,8 +48,9 @@ export interface BossGuild {
   id: string;
   boss_id: string;
   guild_id: string;
-  sort_order: number | null;  // rotation mode
+  sort_order: number | null;  // rotation/daily mode
   day_of_week: number | null;  // schedule mode (0=Sun..6=Sat)
+  mode?: "rotation" | "schedule" | "daily";  // assignment mode
 }
 
 export interface AttendanceRecord {

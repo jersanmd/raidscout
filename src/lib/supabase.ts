@@ -337,7 +337,8 @@ export async function fetchBossGuilds(serverId?: string | null): Promise<BossGui
 
 export async function setBossGuilds(
   bossId: string,
-  assignments: { guild_id: string; sort_order?: number; day_of_week?: number }[]
+  assignments: { guild_id: string; sort_order?: number; day_of_week?: number }[],
+  mode: "rotation" | "schedule" | "daily" = "rotation"
 ): Promise<void> {
   // Delete existing assignments for this boss, then insert new ones
   const { error: delErr } = await supabase
@@ -353,6 +354,7 @@ export async function setBossGuilds(
     guild_id: a.guild_id,
     sort_order: a.sort_order ?? null,
     day_of_week: a.day_of_week ?? null,
+    mode,
   }));
 
   const { error } = await supabase.from("boss_guilds").insert(rows);

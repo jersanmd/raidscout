@@ -127,12 +127,21 @@ export function BossListView() {
     const bgs = bossGuilds.filter(bg => bg.boss_id === bossId);
     if (bgs.length === 0) return undefined;
 
+    // Schedule mode: fixed day assignments
     const scheduleEntry = bgs.find(bg => bg.day_of_week === new Date().getDay());
     if (scheduleEntry) {
       return guilds.find(g => g.id === scheduleEntry.guild_id)?.name;
     }
 
-    const rotationEntries = bgs.filter(bg => bg.sort_order !== null).sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+    // Daily mode: alternate by day of week
+    const dailyEntries = bgs.filter(bg => bg.mode === "daily").sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+    if (dailyEntries.length > 0) {
+      const idx = new Date().getDay() % dailyEntries.length;
+      return guilds.find(g => g.id === dailyEntries[idx].guild_id)?.name;
+    }
+
+    // Rotation mode: first guild in order
+    const rotationEntries = bgs.filter(bg => bg.sort_order !== null && bg.mode !== "daily").sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
     if (rotationEntries.length > 0) {
       return guilds.find(g => g.id === rotationEntries[0].guild_id)?.name;
     }
