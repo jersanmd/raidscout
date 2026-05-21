@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#dc2626"/>
+      <stop offset="100%" style="stop-color:#f97316"/>
+    </linearGradient>
+  </defs>
+  <!-- Skull shape -->
+  <circle cx="50" cy="55" r="30" fill="url(#g)"/>
+  <circle cx="38" cy="48" r="7" fill="#0f172a"/>
+  <circle cx="62" cy="48" r="7" fill="#0f172a"/>
+  <rect x="38" y="62" width="24" height="8" rx="2" fill="#0f172a"/>
+  <line x1="42" y1="66" x2="46" y2="66" stroke="url(#g)" stroke-width="2"/>
+  <line x1="50" y1="66" x2="54" y2="66" stroke="url(#g)" stroke-width="2"/>
+  <line x1="58" y1="66" x2="62" y2="66" stroke="url(#g)" stroke-width="2"/>
+</svg>
