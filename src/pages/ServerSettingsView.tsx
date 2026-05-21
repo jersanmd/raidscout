@@ -1024,6 +1024,44 @@ export function ServerSettingsView() {
                             </div>
                           )}
 
+                          {/* Rotation mode */}
+                          {mode === "rotation" && (
+                            <div className="space-y-1.5">
+                              <p className="text-xs text-slate-500">Guild rotation order (first → last):</p>
+                              {bossAssignments
+                                .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+                                .map((bg, idx) => {
+                                  const guild = guilds.find(g => g.id === bg.guild_id);
+                                  return (
+                                    <div key={bg.id} className="flex items-center gap-1 bg-slate-800/50 rounded px-2 py-1.5">
+                                      <span className="text-xs text-slate-500 w-4">{idx + 1}.</span>
+                                      <span className="text-sm text-slate-200 flex-1">{guild?.name ?? "Unknown"}</span>
+                                      <button onClick={() => handleMoveRotationGuild(boss.id, bg.id, "up")} disabled={idx === 0} className="p-0.5 text-slate-500 hover:text-white disabled:opacity-30"><ChevronUp className="w-3 h-3" /></button>
+                                      <button onClick={() => handleMoveRotationGuild(boss.id, bg.id, "down")} disabled={idx === bossAssignments.length - 1} className="p-0.5 text-slate-500 hover:text-white disabled:opacity-30"><ChevronDown className="w-3 h-3" /></button>
+                                      <button onClick={() => handleRemoveRotationGuild(boss.id, bg.id)} className="p-0.5 text-slate-500 hover:text-red-400"><X className="w-3 h-3" /></button>
+                                    </div>
+                                  );
+                                })}
+                              {savingBossId === boss.id ? (
+                                <div className="flex items-center gap-2 text-xs text-slate-400 py-1">
+                                  <Loader2 className="w-3 h-3 animate-spin" /> Adding...
+                                </div>
+                              ) : (
+                                <select
+                                  key={`add-${boss.id}-${bossAssignments.length}`}
+                                  value=""
+                                  onChange={(e) => { if (e.target.value) handleAddRotationGuild(boss.id, e.target.value); }}
+                                  className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-xs text-slate-400 outline-none focus:border-blue-500"
+                                >
+                                  <option value="">+ Add guild to rotation...</option>
+                                  {guilds.map(g => (
+                                    <option key={g.id} value={g.id}>{g.name}</option>
+                                  ))}
+                                </select>
+                              )}
+                            </div>
+                          )}
+
                           {/* Schedule mode */}
                           {mode === "schedule" && (
                             <div className="space-y-1.5">
