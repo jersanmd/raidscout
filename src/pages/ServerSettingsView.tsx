@@ -141,9 +141,10 @@ export function ServerSettingsView() {
   // Multi-select for Boss Guilds
   const [selectedBossIds, setSelectedBossIds] = useState<Set<string>>(new Set());
   const [bossMultiMode, setBossMultiMode] = useState(false);
-  const [bulkMode, setBulkMode] = useState<"rotation" | "schedule" | null>(null);
+  const [bulkMode, setBulkMode] = useState<"rotation" | "schedule" | "daily" | null>(null);
   const [bulkProcessing, setBulkProcessing] = useState(false);
   const [bulkRotationAdded, setBulkRotationAdded] = useState<string[]>([]);
+  const [bulkDailyAdded, setBulkDailyAdded] = useState<string[]>([]);
   const [bulkScheduleDays, setBulkScheduleDays] = useState<Record<number, string | null>>({});
 
   const toggleBossSelect = (bossId: string) => {
@@ -154,10 +155,10 @@ export function ServerSettingsView() {
     });
   };
 
-  const clearBossSelection = () => { setSelectedBossIds(new Set()); setBulkMode(null); setBulkRotationAdded([]); setBulkScheduleDays({}); };
+  const clearBossSelection = () => { setSelectedBossIds(new Set()); setBulkMode(null); setBulkRotationAdded([]); setBulkDailyAdded([]); setBulkScheduleDays({}); };
 
   // Bulk set mode for all selected bosses
-  const handleBulkSetMode = async (mode: "none" | "rotation" | "schedule") => {
+  const handleBulkSetMode = async (mode: "none" | "rotation" | "schedule" | "daily") => {
     setBulkProcessing(true);
     try {
       if (mode === "none") {
@@ -176,6 +177,7 @@ export function ServerSettingsView() {
       }
       setBulkMode(mode);
       setBulkRotationAdded([]);
+      setBulkDailyAdded([]);
       setBulkScheduleDays({});
     } catch (err: any) {
       toast("error", err?.message ?? "Failed to set mode");
@@ -196,6 +198,26 @@ export function ServerSettingsView() {
         const newAssignments = newList.map((gid, i) => ({ guild_id: gid, sort_order: i + 1 }));
         await setBossGuilds(bossId, newAssignments);
         setBossModes(prev => ({ ...prev, [bossId]: "rotation" }));
+      }
+      const updated = await fetchBossGuilds(currentServer!.id);
+      setBossGuildsState(updated);
+    } catch (err: any) {
+      toast("error", err?.message ?? "Failed to add guild");
+    } finally {
+      setBulkProcessing(false);
+    }
+  };
+
+  // Bulk add guild to daily rotation for all selected bosses
+  const handleBulkAddDailyGuild = async (guildId: string) => {
+    setBulkProcessing(true);
+    const newList = [...bulkDailyAdded, guildId];
+    setBulkDailyAdded(newList);
+    try {
+      for (const bossId of selectedBossIds) {
+        const newAssignments = newList.map((gid, i) => ({ guild_id: gid, sort_order: i + 1 }));
+        await setBossGuilds(bossId, newAssignments, "daily");
+        setBossModes(prev => ({ ...prev, [bossId]: "daily" }));
       }
       const updated = await fetchBossGuilds(currentServer!.id);
       setBossGuildsState(updated);
@@ -1074,9 +1096,62 @@ export function ServerSettingsView() {
                   <span className="text-xs text-slate-400 font-medium">Choose assignment mode:</span>
                   <div className="flex gap-2">
                     <button onClick={() => handleBulkSetMode("rotation")} disabled={bulkProcessing} className="flex-1 py-2.5 rounded-lg text-sm font-medium bg-blue-600 text-white hover:bg-blue-500 transition disabled:opacity-50">🔄 Rotation</button>
+                    <button onClick={() => handleBulkSetMode("daily")} disabled={bulkProcessing} className="flex-1 py-2.5 rounded-lg text-sm font-medium bg-cyan-600 text-white hover:bg-cyan-500 transition disabled:opacity-50">📆 Daily</button>
                     <button onClick={() => handleBulkSetMode("schedule")} disabled={bulkProcessing} className="flex-1 py-2.5 rounded-lg text-sm font-medium bg-purple-600 text-white hover:bg-purple-500 transition disabled:opacity-50">📅 Schedule</button>
                     <button onClick={() => handleBulkSetMode("none")} disabled={bulkProcessing} className="py-2.5 px-4 rounded-lg text-sm font-medium bg-slate-700 text-slate-300 hover:bg-slate-600 transition disabled:opacity-50">Clear</button>
                   </div>
+                </div>
+              )}
+
+              {/* Step 2b: Daily */}
+              {bulkMode === "daily" && guilds.length > 0 && (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-cyan-400 font-medium">Daily — guilds alternate by day across all selected bosses</span>
+                    <button onClick={() => setBulkMode(null)} disabled={bulkProcessing} className="text-xs text-slate-400 hover:text-white transition disabled:opacity-50">← Change mode</button>
+                  </div>
+                  <p className="text-xs text-slate-500">Guild alternation order (first → last):</p>
+                  {bulkDailyAdded.map((gid, idx) => {
+                    const guild = guilds.find(g => g.id === gid);
+                    return (
+                      <div key={`daily-${gid}-${idx}`} className="flex items-center gap-1 bg-slate-800/50 rounded px-2 py-1.5">
+                        <span className="text-xs text-slate-500 w-4">{idx + 1}.</span>
+                        <span className="text-sm text-slate-200 flex-1">{guild?.name ?? "Unknown"}</span>
+                        <button
+                          onClick={() => setBulkDailyAdded(prev => { if (idx === 0) return prev; const n = [...prev]; [n[idx], n[idx-1]] = [n[idx-1], n[idx]]; return n; })}
+                          disabled={idx === 0 || bulkProcessing}
+                          className="p-0.5 text-slate-500 hover:text-white disabled:opacity-30"
+                        ><ChevronUp className="w-3 h-3" /></button>
+                        <button
+                          onClick={() => setBulkDailyAdded(prev => { if (idx === prev.length-1) return prev; const n = [...prev]; [n[idx], n[idx+1]] = [n[idx+1], n[idx]]; return n; })}
+                          disabled={idx === bulkDailyAdded.length - 1 || bulkProcessing}
+                          className="p-0.5 text-slate-500 hover:text-white disabled:opacity-30"
+                        ><ChevronDown className="w-3 h-3" /></button>
+                        <button
+                          onClick={() => setBulkDailyAdded(prev => prev.filter((_, i) => i !== idx))}
+                          disabled={bulkProcessing}
+                          className="p-0.5 text-slate-500 hover:text-red-400 disabled:opacity-50"
+                        ><X className="w-3 h-3" /></button>
+                      </div>
+                    );
+                  })}
+                  {bulkProcessing ? (
+                    <div className="flex items-center gap-2 text-xs text-slate-400 py-1">
+                      <Loader2 className="w-3 h-3 animate-spin" /> Adding...
+                    </div>
+                  ) : (
+                    <select
+                      key={`bulk-add-daily-${bulkDailyAdded.length}`}
+                      value=""
+                      onChange={(e) => { if (e.target.value) handleBulkAddDailyGuild(e.target.value); }}
+                      className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-xs text-slate-400 outline-none focus:border-cyan-500"
+                    >
+                      <option value="">+ Add guild to daily rotation...</option>
+                      {guilds.map(g => (
+                        <option key={g.id} value={g.id}>{g.name}</option>
+                      ))}
+                    </select>
+                  )}
                 </div>
               )}
 
