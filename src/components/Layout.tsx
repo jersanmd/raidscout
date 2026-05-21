@@ -35,7 +35,7 @@ export function Layout() {
           <div className="flex items-center gap-3 shrink-0">
             {/* Logo */}
             <img
-              src="/logo.svg"
+              src="/logo.png"
               alt="RaidScout"
               className="w-8 h-8 rounded-lg object-contain"
               onError={(e) => {
@@ -225,7 +225,7 @@ export function Layout() {
       <footer className="border-t border-slate-800 bg-slate-900/50">
         <div className="max-w-6xl mx-auto px-4 py-4 space-y-3">
           <div className="flex items-center gap-2 text-xs text-slate-600">
-            <img src="/logo.svg" alt="" className="w-4 h-4 rounded opacity-50" />
+            <img src="/logo.png" alt="" className="w-4 h-4 rounded opacity-50" />
             <span>RaidScout — Track LordNine boss respawn timers, schedule hunts, and monitor member performance across your guild. <span className="text-emerald-500">100% Free.</span></span>
           </div>
           <div className="flex items-center gap-4 text-xs text-slate-600 flex-wrap">

@@ -79,7 +79,7 @@ export function AuthForm() {
         <div className="relative space-y-8">
           {/* Logo */}
           <div className="flex items-center gap-3">
-            <img src="/logo.svg" alt="" className="w-10 h-10 rounded-lg" />
+            <img src="/logo.png" alt="" className="w-10 h-10 rounded-lg" />
             <div>
               <h1 className="text-2xl font-bold text-white">RaidScout</h1>
               <p className="text-xs text-slate-500">Your LordNine Companion</p>
@@ -123,7 +123,7 @@ export function AuthForm() {
         <div className="w-full max-w-sm">
           {/* Mobile logo (hidden on desktop) */}
           <div className="text-center mb-8 lg:hidden">
-            <img src="/logo.svg" alt="RaidScout" className="w-14 h-14 mx-auto rounded-xl mb-3" />
+            <img src="/logo.png" alt="RaidScout" className="w-14 h-14 mx-auto rounded-xl mb-3" />
             <h1 className="text-2xl font-bold text-white">RaidScout</h1>
             <p className="text-slate-400 text-sm mt-1">Your LordNine Companion · <span className="text-emerald-400 font-medium">Free</span></p>
           </div>
