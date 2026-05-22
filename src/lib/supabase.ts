@@ -1003,20 +1003,17 @@ export async function notifyDiscord(
   event: "boss_died" | "boss_spawned",
   data: { boss_name: string; attendees?: string[]; spawn_time?: string; guild_name?: string }
 ) {
-  const functionUrl = `${supabaseUrl}/functions/v1/discord-notify`;
-  fetch(functionUrl, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
+  supabase.functions.invoke("discord-notify", {
+    body: {
       server_id: serverId,
       event,
       boss_name: data.boss_name,
       attendees: data.attendees,
       spawn_time: data.spawn_time,
       guild_name: data.guild_name,
-    }),
-  }).then(async (res) => {
-    if (!res.ok) console.error("Discord notification failed:", res.status, await res.text());
+    },
+  }).then(({ error }) => {
+    if (error) console.error("Discord notification failed:", error);
   }).catch((err) => {
     console.error("Discord notification failed:", err);
   }); // fire-and-forget, don't block the UI
@@ -1037,18 +1034,37 @@ export async function announceSpawns(
   serverId: string,
   bosses: SpawnAnnounceBoss[]
 ) {
-  const functionUrl = `${supabaseUrl}/functions/v1/discord-notify`;
-  fetch(functionUrl, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
+  const { data, error } = await supabase.functions.invoke("discord-notify", {
+    body: {
       server_id: serverId,
       event: "spawn_announce",
       bosses,
-    }),
-  }).then(async (res) => {
-    if (!res.ok) console.error("Spawn announcement failed:", res.status, await res.text());
-  }).catch((err) => {
-    console.error("Spawn announcement failed:", err);
-  }); // fire-and-forget
+    },
+  });
+  if (error) throw new Error(`Discord announce failed: ${error.message}`);
+  return data;
+}
+
+/**
+ * Adjust a boss's guild rotation position forward (+1) or backward (-1).
+ * Returns the new rotation_adjustment value.
+ */
+export async function adjustBossRotation(bossId: string, direction: number): Promise<number> {
+  const { data, error } = await supabase.rpc("adjust_boss_rotation", {
+    p_boss_id: bossId,
+    p_direction: direction,
+  });
+  if (error) throw new Error(error.message);
+  return data as number;
+}
+
+/**
+ * Edit a death record's death time.
+ */
+export async function editDeathTime(deathRecordId: string, newDeathTime: Date): Promise<void> {
+  const { error } = await supabase.rpc("edit_death_record_time", {
+    p_death_record_id: deathRecordId,
+    p_new_death_time: newDeathTime.toISOString(),
+  });
+  if (error) throw new Error(error.message);
 }

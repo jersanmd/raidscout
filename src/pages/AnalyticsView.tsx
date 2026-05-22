@@ -22,6 +22,8 @@ export function AnalyticsView() {
   const serverId = useServerId();
   const configured = isSupabaseConfigured();
   const [period, setPeriod] = useState<"month" | "all">("month");
+  const [huntersPage, setHuntersPage] = useState(1);
+  const HUNTERS_PER_PAGE = 10;
 
   // Guild & member data for badges
   const [guilds, setGuilds] = useState<Guild[]>([]);
@@ -78,7 +80,7 @@ export function AnalyticsView() {
   const maxDaily = Math.max(...data.killsByDay.map((d) => d.count), 1);
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-6 space-y-6">
+    <div className="max-w-[90rem] mx-auto px-4 py-6 space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-pink-400">
@@ -90,7 +92,7 @@ export function AnalyticsView() {
           {(["month", "all"] as const).map((p) => (
             <button
               key={p}
-              onClick={() => setPeriod(p)}
+              onClick={() => { setPeriod(p); setHuntersPage(1); }}
               className={`px-3 py-1.5 rounded-md text-xs font-medium transition ${
                 period === p ? "bg-slate-700 text-white" : "text-slate-400 hover:text-slate-200"
               }`}
@@ -138,7 +140,7 @@ export function AnalyticsView() {
 
       <Section title="Most Active Hunters" icon={<Users className="w-4 h-4" />}>
         <div className="space-y-1.5">
-          {data.topHunters.slice(0, 10).map((h, i) => {
+          {data.topHunters.slice(0, huntersPage * HUNTERS_PER_PAGE).map((h, i) => {
             const gid = memberGuildMap.get(h.name);
             const guild = gid ? guilds.find(g => g.id === gid) : null;
             const c = guild ? guildColor(guild.name) : null;
@@ -157,6 +159,22 @@ export function AnalyticsView() {
               <span className="text-slate-400 w-8 shrink-0 font-mono">{h.attended}</span>
             </div>
           )})}
+          {data.topHunters.length > huntersPage * HUNTERS_PER_PAGE && (
+            <button
+              onClick={() => setHuntersPage(p => p + 1)}
+              className="w-full py-1.5 text-xs text-blue-400 hover:text-blue-300 hover:bg-slate-800/50 rounded transition"
+            >
+              Show more ({data.topHunters.length - huntersPage * HUNTERS_PER_PAGE} remaining)
+            </button>
+          )}
+          {huntersPage > 1 && (
+            <button
+              onClick={() => setHuntersPage(1)}
+              className="w-full py-1.5 text-xs text-slate-500 hover:text-slate-300 hover:bg-slate-800/50 rounded transition"
+            >
+              Show less
+            </button>
+          )}
         </div>
       </Section>
 

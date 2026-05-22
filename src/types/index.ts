@@ -19,6 +19,8 @@ export interface Boss {
   created_at: string;
   /** Points awarded per attendance (default 1) */
   boss_points?: number;
+  /** Manual offset for guild rotation (+n forward, -n back) */
+  rotation_adjustment?: number;
 }
 
 export interface DeathRecord {

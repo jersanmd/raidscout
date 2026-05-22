@@ -62,7 +62,7 @@ export function LeaderboardView() {
 
   // Point adjustment modal state
   const { currentServer } = useServer();
-  const isStaff = currentServer?.role === "owner" || currentServer?.role === "moderator";
+  const isStaff = !isViewer && (currentServer?.role === "owner" || currentServer?.role === "moderator");
   const [adjustMember, setAdjustMember] = useState<{ id: string; name: string; points: number } | null>(null);
   const [adjustValue, setAdjustValue] = useState(0);
   const [adjustReason, setAdjustReason] = useState("");

@@ -15,8 +15,9 @@ import {
   notifyDiscord,
   fetchBossGuilds,
   fetchGuilds,
+  editDeathTime,
 } from "@/lib/supabase";
-import { Loader2, ChevronLeft, ChevronRight, Users, Shield } from "lucide-react";
+import { Loader2, ChevronLeft, ChevronRight, Users, Shield, Pencil, X, Check } from "lucide-react";
 import { SavingOverlay } from "@/components/SavingOverlay";
 import type { WeekDaySpawns, SpawnInfo, Boss, BossGuild, Guild } from "@/types";
 
@@ -39,6 +40,31 @@ export function WeeklyScheduleView() {
 
   // Global saving overlay
   const [savingMessage, setSavingMessage] = useState<string | null>(null);
+
+  // Edit death time modal
+  const [editDeath, setEditDeath] = useState<{ deathRecordId: string; bossName: string; deathTime: string } | null>(null);
+  const [editDeathDate, setEditDeathDate] = useState("");
+  const [editDeathSaving, setEditDeathSaving] = useState(false);
+  const [editToast, setEditToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
+
+  const handleEditDeathTime = useCallback(async () => {
+    if (!editDeath || !editDeathDate) return;
+    setEditDeathSaving(true);
+    try {
+      const [datePart, timePart] = editDeathDate.split("T");
+      const [y, m, d] = datePart.split("-").map(Number);
+      const [hh, mm] = timePart.split(":").map(Number);
+      const newTime = new Date(y, m - 1, d, hh, mm);
+      await editDeathTime(editDeath.deathRecordId, newTime);
+      queryClient.invalidateQueries({ queryKey: ["death_records"] });
+      setEditToast({ type: "success", message: "Death time updated!" });
+      setEditDeath(null);
+    } catch (err: any) {
+      setEditToast({ type: "error", message: err?.message ?? "Failed to update death time" });
+    } finally {
+      setEditDeathSaving(false);
+    }
+  }, [editDeath, editDeathDate, queryClient]);
 
   // Guild data for ownership display
   const [guilds, setGuilds] = useState<Guild[]>([]);
@@ -243,7 +269,7 @@ export function WeeklyScheduleView() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-6">
+    <div className="max-w-[90rem] mx-auto px-4 py-6">
       {/* Saving overlay � blocks all interaction */}
       {savingMessage && <SavingOverlay message={savingMessage} />}
 
@@ -327,12 +353,29 @@ export function WeeklyScheduleView() {
                         <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-red-900/40 text-red-400 inline-flex items-center gap-1">Killed <Users className="w-3 h-3" /></span>
                       )}
                     </div>
-                    <span className="text-slate-400 text-sm">
-                      {s.nextSpawn?.toLocaleTimeString(undefined, {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-slate-400 text-sm">
+                        {s.nextSpawn?.toLocaleTimeString(undefined, {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </span>
+                      {isDeathEvent && s.deathRecord && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const dt = new Date(s.deathRecord!.death_time);
+                            const local = new Date(dt.getTime() - dt.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+                            setEditDeathDate(local);
+                            setEditDeath({ deathRecordId: s.deathRecord!.id, bossName: s.boss.name, deathTime: s.deathRecord!.death_time });
+                          }}
+                          className="p-0.5 rounded text-slate-500 hover:text-blue-400 hover:bg-blue-900/20 transition"
+                          title="Edit death time"
+                        >
+                          <Pencil className="w-3 h-3" />
+                        </button>
+                      )}
+                    </div>
                   </div>
                 )})}
               </div>
@@ -412,12 +455,29 @@ export function WeeklyScheduleView() {
                       <span className="text-white font-medium truncate">
                         {s.boss.name}
                       </span>
-                      <span className="text-slate-400 shrink-0 ml-1">
-                        {s.nextSpawn?.toLocaleTimeString(undefined, {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </span>
+                      <div className="flex items-center gap-1 shrink-0 ml-1">
+                        <span className="text-slate-400">
+                          {s.nextSpawn?.toLocaleTimeString(undefined, {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </span>
+                        {isDeathEvent && s.deathRecord && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const dt = new Date(s.deathRecord!.death_time);
+                              const local = new Date(dt.getTime() - dt.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+                              setEditDeathDate(local);
+                              setEditDeath({ deathRecordId: s.deathRecord!.id, bossName: s.boss.name, deathTime: s.deathRecord!.death_time });
+                            }}
+                            className="p-0.5 rounded text-slate-500 hover:text-blue-400 hover:bg-blue-900/20 transition"
+                            title="Edit death time"
+                          >
+                            <Pencil className="w-3 h-3" />
+                          </button>
+                        )}
+                      </div>
                     </div>
                     {(() => { const gName = getOwnerGuildName(s.boss.id, day.day); if (!gName) return null; const c = guildColor(gName); return (
                       <span className={`text-[9px] px-1 py-0.5 rounded flex items-center gap-0.5 w-fit border ${c.bg} ${c.text} ${c.border}`}><Shield className="w-2 h-2" />{gName}</span>
@@ -473,6 +533,56 @@ export function WeeklyScheduleView() {
             setMarkBoss(null);
           }}
         />
+      )}
+
+      {/* Edit death time modal */}
+      {editDeath && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60" onClick={() => setEditDeath(null)} />
+          <div className="relative bg-slate-800 border border-slate-700 rounded-xl p-6 w-full max-w-sm shadow-2xl">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-white">Edit Death Time</h3>
+              <button onClick={() => setEditDeath(null)} className="p-1 rounded-md text-slate-400 hover:text-white hover:bg-slate-700 transition">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <p className="text-sm text-slate-400 mb-3">
+              Change the recorded death time for <span className="text-white font-medium">{editDeath.bossName}</span>
+            </p>
+            <input
+              type="datetime-local"
+              value={editDeathDate}
+              onChange={(e) => setEditDeathDate(e.target.value)}
+              className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-blue-500 mb-4"
+              autoFocus
+            />
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setEditDeath(null)}
+                className="px-4 py-2 rounded-md text-sm text-slate-300 hover:bg-slate-700 transition"
+                disabled={editDeathSaving}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleEditDeathTime}
+                disabled={editDeathSaving}
+                className="px-4 py-2 rounded-md text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 transition disabled:opacity-50"
+              >
+                {editDeathSaving ? "Saving..." : "Save"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit death time toast */}
+      {editToast && (
+        <div className="fixed bottom-4 right-4 z-50">
+          <div className={`px-4 py-2 rounded-lg text-sm text-white shadow-lg ${editToast.type === "success" ? "bg-emerald-600" : "bg-red-600"}`}>
+            {editToast.message}
+          </div>
+        </div>
       )}
     </div>
   );

@@ -4,7 +4,7 @@ import { useServer } from "@/contexts/ServerContext";
 import { CountdownTimer } from "./CountdownTimer";
 import { DeathRecordModal } from "./DeathRecordModal";
 import { BossImage } from "./BossImage";
-import { Repeat, Timer, Skull, CheckSquare, Square, Shield, Pencil, X, Check } from "lucide-react";
+import { Repeat, Timer, Skull, CheckSquare, Square, Shield, Pencil, X } from "lucide-react";
 import { useServerTimezone, formatInTimezone } from "@/hooks/useServerTimezone";
 import { guildColor } from "@/lib/constants";
 import type { BossWithSpawn } from "@/types";
@@ -20,17 +20,25 @@ interface BossCardProps {
   selected?: boolean;
   onToggleSelect?: (bossId: string) => void;
   ownerGuildName?: string;
+  /** Guild rotation — ordered list of guild names with colors */
+  rotationGuilds?: { name: string; color: { bg: string; text: string; border: string } }[];
+  /** Current rotation index */
+  rotationCurrentIndex?: number;
+  /** Rotation mode label ("rotation" or "daily") */
+  rotationMode?: string;
+  /** Called when user clicks a guild to set rotation to that index */
+  onSetRotation?: (targetIndex: number) => void;
 }
 
-export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, onCriticalSpawn, compact = false, multiMode = false, selected = false, onToggleSelect, ownerGuildName }: BossCardProps) {
+export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, onCriticalSpawn, compact = false, multiMode = false, selected = false, onToggleSelect, ownerGuildName, rotationGuilds, rotationCurrentIndex, rotationMode, onSetRotation }: BossCardProps) {
   const { isViewer } = useAuth();
   const { currentServer } = useServer();
   const tz = useServerTimezone();
   const [showModal, setShowModal] = useState(false);
-  const [editingSpawn, setEditingSpawn] = useState(false);
+  const [showEditSpawnModal, setShowEditSpawnModal] = useState(false);
   const [editSpawnDate, setEditSpawnDate] = useState("");
   const { boss, status, nextSpawn } = spawn;
-  const canEdit = !isViewer && currentServer && !!onSetSpawnDate && (
+  const canEdit = currentServer && !!onSetSpawnDate && (
     boss.spawn_type === "fixed_hours" || status === "unknown" || (boss.spawn_type === "fixed_schedule" && !!spawn.deathRecord)
   );
 
@@ -120,125 +128,83 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
                   <span className="text-slate-500">
                     {status === "alive" ? "SPAWN" : "Spawning"}
                   </span>
-                  {editingSpawn ? (
-                    <div className="flex items-center gap-1.5">
-                      <input
-                        type="datetime-local"
-                        value={editSpawnDate}
-                        onChange={(e) => setEditSpawnDate(e.target.value)}
-                        className="bg-slate-700 border border-slate-600 rounded-md px-2 py-1 text-xs text-white outline-none focus:border-blue-500 w-[180px]"
-                        autoFocus
-                      />
-                      <button onClick={() => {
-                        if (editSpawnDate && onSetSpawnDate) {
-                          const [datePart, timePart] = editSpawnDate.split("T");
-                          const [y, m, d] = datePart.split("-").map(Number);
-                          const [hh, mm] = timePart.split(":").map(Number);
-                          const localDate = new Date(y, m - 1, d, hh, mm);
-                          localStorage.setItem(`alert-urgent-${boss.name}-${localDate.getTime()}`, "1");
-                          localStorage.setItem(`alert-critical-${boss.name}-${localDate.getTime()}`, "1");
-                          onSetSpawnDate(boss.id, localDate);
-                        }
-                        setEditingSpawn(false);
-                      }} className="p-1.5 rounded-md text-emerald-400 hover:bg-emerald-900/30 transition" title="Apply">
-                        <Check className="w-4 h-4" />
-                      </button>
-                      <button onClick={() => setEditingSpawn(false)} className="p-1.5 rounded-md text-slate-400 hover:bg-slate-700 transition" title="Cancel">
-                        <X className="w-4 h-4" />
-                      </button>
-                    </div>
-                  ) : (
-                    <>
-                      <span className="text-slate-400">{formatDateTime(nextSpawn)}</span>
-                      {canEdit && (
-                        <button
-                          onClick={(e) => { e.stopPropagation(); 
-                            const d = nextSpawn;
-                            const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
-                            setEditSpawnDate(local); setEditingSpawn(true); 
-                          }}
-                          className="p-0.5 rounded text-slate-500 hover:text-blue-400 hover:bg-blue-900/20 transition"
-                          title="Set spawn date"
-                        >
-                          <Pencil className="w-3 h-3" />
-                        </button>
-                      )}
-                    </>
-                  )}
+                  <span className="text-slate-400">{formatDateTime(nextSpawn)}</span>
                 </div>
               </div>
             ) : (
               <div className="flex items-center gap-1.5 text-xs">
-                {editingSpawn ? (
-                  <div className="flex items-center gap-1.5">
-                    <input
-                      type="datetime-local"
-                      value={editSpawnDate}
-                      onChange={(e) => setEditSpawnDate(e.target.value)}
-                      className="bg-slate-700 border border-slate-600 rounded-md px-2 py-1 text-xs text-white outline-none focus:border-blue-500 w-[180px]"
-                      autoFocus
-                    />
-                    <button onClick={() => {
-                      if (editSpawnDate && onSetSpawnDate) {
-                        const [datePart, timePart] = editSpawnDate.split("T");
-                        const [y, m, d] = datePart.split("-").map(Number);
-                        const [hh, mm] = timePart.split(":").map(Number);
-                        const localDate = new Date(y, m - 1, d, hh, mm);
-                        onSetSpawnDate(boss.id, localDate);
-                      }
-                      setEditingSpawn(false);
-                    }} className="p-1.5 rounded-md text-emerald-400 hover:bg-emerald-900/30 transition" title="Apply">
-                      <Check className="w-4 h-4" />
-                    </button>
-                    <button onClick={() => setEditingSpawn(false)} className="p-1.5 rounded-md text-slate-400 hover:bg-slate-700 transition" title="Cancel">
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
-                ) : (
-                  <>
-                    <span className="text-slate-500">Set spawn time to start timer</span>
-                    {canEdit && (
-                      <button
-                        onClick={(e) => { e.stopPropagation();
-                          const now = new Date();
-                          const local = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
-                          setEditSpawnDate(local); setEditingSpawn(true);
-                        }}
-                        className="p-0.5 rounded text-slate-500 hover:text-blue-400 hover:bg-blue-900/20 transition"
-                        title="Set spawn time"
-                      >
-                        <Pencil className="w-3 h-3" />
-                      </button>
-                    )}
-                  </>
-                )}
+                <span className="text-slate-500">Set spawn time to start timer</span>
               </div>
             )}
 
-            {/* Row 3: Respawn / schedule info (left) + actions (right) */}
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2 text-xs text-slate-600">
-                {boss.respawn_hours && <span>+{boss.respawn_hours}h respawn</span>}
-                {boss.schedule && (
-                  <span>
-                    {boss.schedule
-                      .map((s) => `${["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][s.day]} ${s.time}`)
-                      .join("  ·  ")}
-                  </span>
-                )}
-              </div>
-              {!compact && !multiMode && (
-                <button
-                  onClick={() => setShowModal(true)}
-                  className="flex items-center gap-1 px-2.5 py-1 rounded-md bg-red-900/30 border border-red-800 text-red-400 text-xs font-medium hover:bg-red-900/50 transition shrink-0"
-                >
-                  <Skull className="w-3 h-3" />
-                  Mark Died
-                </button>
+            {/* Row 3: Respawn / schedule info */}
+            <div className="flex items-center gap-2 text-xs text-slate-600">
+              {boss.respawn_hours && <span>+{boss.respawn_hours}h respawn</span>}
+              {boss.schedule && (
+                <span>
+                  {boss.schedule
+                    .map((s) => `${["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][s.day]} ${s.time}`)
+                    .join("  ·  ")}
+                </span>
               )}
             </div>
           </div>
         </div>
+
+        {/* Bottom action buttons */}
+        {!compact && !multiMode && (
+          <div className="flex items-center justify-end gap-1.5 mt-3 pt-3 border-t border-slate-700/50">
+            {canEdit && (
+              <button
+                onClick={() => {
+                  const d = nextSpawn || new Date();
+                  const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+                  setEditSpawnDate(local);
+                  setShowEditSpawnModal(true);
+                }}
+                className="flex items-center justify-center gap-1 px-2.5 py-1 rounded-md bg-blue-900/30 border border-blue-800 text-blue-400 text-xs font-medium hover:bg-blue-900/50 transition shrink-0 w-[130px]"
+              >
+                <Pencil className="w-3 h-3" />
+                Edit Spawn Time
+              </button>
+            )}
+            <button
+              onClick={() => setShowModal(true)}
+              className="flex items-center justify-center gap-1 px-2.5 py-1 rounded-md bg-red-900/30 border border-red-800 text-red-400 text-xs font-medium hover:bg-red-900/50 transition shrink-0 w-[130px]"
+            >
+              <Skull className="w-3 h-3" />
+              Mark Died
+            </button>
+          </div>
+        )}
+
+        {/* Rotation guild row */}
+        {!compact && !multiMode && !isViewer && rotationGuilds && rotationGuilds.length > 1 && (
+          <div className="mt-2 pt-2 border-t border-slate-700/50">
+            <span className="text-[10px] text-slate-500 font-medium uppercase tracking-wider">
+              Rotation {rotationMode ? `· ${rotationMode}` : ""}
+            </span>
+            <div className="flex items-center gap-1 mt-1.5">
+              {rotationGuilds.map((g, i) => {
+                const isCurrent = i === rotationCurrentIndex;
+                return (
+                  <button
+                    key={i}
+                    onClick={(e) => { e.stopPropagation(); onSetRotation?.(i); }}
+                    className={`flex-1 text-center px-2 py-1 rounded text-[10px] font-medium border transition ${
+                      isCurrent
+                        ? `${g.color.bg} ${g.color.text} ${g.color.border}`
+                        : "bg-slate-800/50 border-slate-700 text-slate-500 hover:text-slate-300 hover:border-slate-600"
+                    }`}
+                    title={isCurrent ? `Current: ${g.name}` : `Set rotation to ${g.name}`}
+                  >
+                    {g.name}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
 
       {showModal && (
@@ -250,6 +216,55 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
             setShowModal(false);
           }}
         />
+      )}
+
+      {showEditSpawnModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60" onClick={() => setShowEditSpawnModal(false)} />
+          <div className="relative bg-slate-800 border border-slate-700 rounded-xl p-6 w-full max-w-sm shadow-2xl">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-white">Edit Spawn Time</h3>
+              <button onClick={() => setShowEditSpawnModal(false)} className="p-1 rounded-md text-slate-400 hover:text-white hover:bg-slate-700 transition">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <p className="text-sm text-slate-400 mb-3">
+              Set a new spawn time for <span className="text-white font-medium">{boss.name}</span>
+            </p>
+            <input
+              type="datetime-local"
+              value={editSpawnDate}
+              onChange={(e) => setEditSpawnDate(e.target.value)}
+              className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-blue-500 mb-4"
+              autoFocus
+            />
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setShowEditSpawnModal(false)}
+                className="px-4 py-2 rounded-md text-sm text-slate-300 hover:bg-slate-700 transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  if (editSpawnDate && onSetSpawnDate) {
+                    const [datePart, timePart] = editSpawnDate.split("T");
+                    const [y, m, d] = datePart.split("-").map(Number);
+                    const [hh, mm] = timePart.split(":").map(Number);
+                    const localDate = new Date(y, m - 1, d, hh, mm);
+                    localStorage.setItem(`alert-urgent-${boss.name}-${localDate.getTime()}`, "1");
+                    localStorage.setItem(`alert-critical-${boss.name}-${localDate.getTime()}`, "1");
+                    onSetSpawnDate(boss.id, localDate);
+                  }
+                  setShowEditSpawnModal(false);
+                }}
+                className="px-4 py-2 rounded-md text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 transition"
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </>
   );

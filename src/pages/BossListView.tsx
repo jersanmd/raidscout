@@ -14,6 +14,7 @@ import {
   fetchBossGuilds,
   fetchGuilds,
   setBossSpawnTime,
+  adjustBossRotation,
 } from "@/lib/supabase";
 import { BossCard } from "@/components/BossCard";
 import { DeathRecordModal } from "@/components/DeathRecordModal";
@@ -22,6 +23,7 @@ import { UpcomingStrip } from "@/components/UpcomingStrip";
 import { SavingOverlay } from "@/components/SavingOverlay";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { emitSpawnAlert } from "@/hooks/useSpawnAlerts";
+import { guildColor } from "@/lib/constants";
 import { Skull, Loader2, Zap, X, CheckCircle, AlertTriangle, CheckSquare, Square, Megaphone, Volume2 } from "lucide-react";
 import type { BossWithSpawn, BossGuild, Guild, DeathRecord } from "@/types";
 
@@ -168,20 +170,82 @@ export function BossListView() {
       if (!lastGuildId) return guilds.find(g => g.id === dailyEntries[0].guild_id)?.name;
       
       const lastIdx = dailyEntries.findIndex(bg => bg.guild_id === lastGuildId);
-      const nextIdx = lastIdx >= 0 ? (lastIdx + 1) % dailyEntries.length : 0;
+      const adjustment = bossData?.rotation_adjustment ?? 0;
+      let nextIdx = (lastIdx >= 0 ? lastIdx + 1 : 0) + adjustment;
+      nextIdx = ((nextIdx % dailyEntries.length) + dailyEntries.length) % dailyEntries.length;
       return guilds.find(g => g.id === dailyEntries[nextIdx].guild_id)?.name;
     }
 
-    // Rotation mode: advance by number of kills
+    // Rotation mode: advance by number of kills (with manual adjustment)
     const rotationEntries = bgs.filter(bg => bg.sort_order !== null && bg.mode !== "daily").sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
     if (rotationEntries.length > 0) {
+      const bossData = spawns.find(s => s.boss.id === bossId)?.boss;
       const killCount = deathRecords.filter(dr => dr.boss_id === bossId && !dr.is_initial_spawn).length;
-      const idx = killCount % rotationEntries.length;
+      const adjustment = bossData?.rotation_adjustment ?? 0;
+      let idx = (killCount + adjustment) % rotationEntries.length;
+      if (idx < 0) idx += rotationEntries.length;
       return guilds.find(g => g.id === rotationEntries[idx].guild_id)?.name;
     }
 
     return undefined;
   }, [bossGuilds, guilds, deathRecords, spawns]);
+
+  // Compute rotation info for a boss (guild names + current index)
+  const getBossRotationInfo = useCallback((bossId: string): { guilds: { name: string; color: { bg: string; text: string; border: string } }[]; currentIndex: number; mode: string } | null => {
+    const bgs = bossGuilds.filter(bg => bg.boss_id === bossId);
+    if (bgs.length === 0) return null;
+    
+    const bossData = spawns.find(s => s.boss.id === bossId)?.boss;
+    const adjustment = bossData?.rotation_adjustment ?? 0;
+
+    // Rotation mode
+    const rotationEntries = bgs.filter(bg => bg.sort_order !== null && bg.mode !== "daily").sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+    if (rotationEntries.length > 1) {
+      const killCount = deathRecords.filter(dr => dr.boss_id === bossId && !dr.is_initial_spawn).length;
+      let idx = (killCount + adjustment) % rotationEntries.length;
+      if (idx < 0) idx += rotationEntries.length;
+      const guildList = rotationEntries.map(bg => {
+        const g = guilds.find(g => g.id === bg.guild_id);
+        return { name: g?.name ?? "?", color: guildColor(g?.name ?? "?") };
+      });
+      return { guilds: guildList, currentIndex: idx, mode: "per kill" };
+    }
+
+    // Daily mode
+    const dailyEntries = bgs.filter(bg => bg.mode === "daily").sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+    if (dailyEntries.length > 1) {
+      const lastDeath = deathRecords
+        .filter(dr => dr.boss_id === bossId && !dr.is_initial_spawn)
+        .sort((a, b) => new Date(b.death_time).getTime() - new Date(a.death_time).getTime())[0];
+      const lastGuildId = lastDeath ? (lastDeath as any).owner_guild_id : null;
+      const lastIdx = lastGuildId ? dailyEntries.findIndex(bg => bg.guild_id === lastGuildId) : -1;
+      let idx = (lastIdx >= 0 ? lastIdx + 1 : 0) + adjustment;
+      idx = ((idx % dailyEntries.length) + dailyEntries.length) % dailyEntries.length;
+      const guildList = dailyEntries.map(bg => {
+        const g = guilds.find(g => g.id === bg.guild_id);
+        return { name: g?.name ?? "?", color: guildColor(g?.name ?? "?") };
+      });
+      return { guilds: guildList, currentIndex: idx, mode: "daily" };
+    }
+
+    return null;
+  }, [bossGuilds, guilds, deathRecords, spawns]);
+
+  // Set boss rotation to a specific guild index
+  const handleSetRotation = useCallback(async (bossId: string, targetIndex: number) => {
+    const info = getBossRotationInfo(bossId);
+    if (!info) return;
+    const delta = targetIndex - info.currentIndex;
+    if (delta === 0) return;
+    try {
+      await adjustBossRotation(bossId, delta);
+      queryClient.invalidateQueries({ queryKey: ["bosses"] });
+      queryClient.invalidateQueries({ queryKey: ["death_records"] });
+      setRefreshKey(k => k + 1);
+    } catch (err: any) {
+      setToast({ type: "error", message: err?.message ?? "Failed to adjust rotation" });
+    }
+  }, [getBossRotationInfo, queryClient]);
 
   const handleRecordDeath = useCallback(
     async (bossId: string, deathTime: Date, rallyImages: File[], attendeeIds: string[]) => {
@@ -421,7 +485,7 @@ export function BossListView() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-6 space-y-6">
+    <div className="max-w-[90rem] mx-auto px-4 py-6 space-y-6">
       {/* Saving overlay — blocks all interaction */}
       {savingMessage && <SavingOverlay message={savingMessage} />}
 
@@ -488,15 +552,15 @@ export function BossListView() {
           </button>
           )}
         </div>
-        {(!isViewer && (hasWebhook || currentServer?.discord_webhook_url)) && (
+        {(hasWebhook || currentServer?.discord_webhook_url) && (
         <button
           onClick={() => setShowAnnounceConfirm(true)}
           disabled={spawnsIn24h.length === 0}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-900/20 border border-purple-800 text-purple-400 text-xs font-medium hover:bg-purple-900/40 transition disabled:opacity-40 disabled:cursor-not-allowed"
-          title={spawnsIn24h.length === 0 ? "No bosses spawning in the next 24 hours" : `Announce ${spawnsIn24h.length} boss spawns to Discord`}
+          title={spawnsIn24h.length === 0 ? "No bosses spawning in the next 24 hours" : `Post ${spawnsIn24h.length} spawns to Discord`}
         >
           <Megaphone className="w-3.5 h-3.5" />
-          Announce Bosses in 24h
+          Post 24h Spawns to Discord
         </button>
         )}
       </div>
@@ -555,8 +619,10 @@ export function BossListView() {
                 </span>
               </h3>
 
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {group.spawns.map((s) => (
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                {group.spawns.map((s) => {
+                  const rot = getBossRotationInfo(s.boss.id);
+                  return (
                   <BossCard
                     key={s.boss.id}
                     spawn={s}
@@ -568,8 +634,13 @@ export function BossListView() {
                     ownerGuildName={getOwnerGuildName(s.boss.id)}
                     onUrgentSpawn={emitSpawnAlert}
                     onCriticalSpawn={(name) => emitSpawnAlert(`⚠️ ${name} spawning in 5s!`)}
+                    rotationGuilds={rot?.guilds}
+                    rotationCurrentIndex={rot?.currentIndex}
+                    rotationMode={rot?.mode}
+                    onSetRotation={(idx) => handleSetRotation(s.boss.id, idx)}
                   />
-                ))}
+                  );
+                })}
               </div>
             </section>
           ))}

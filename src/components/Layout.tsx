@@ -61,7 +61,7 @@ export function Layout() {
     <div className="min-h-screen bg-slate-950 flex flex-col">
       {/* Header */}
       <header className="sticky top-0 z-50 bg-slate-900/80 backdrop-blur border-b border-slate-800">
-        <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between gap-2">
+        <div className="max-w-[90rem] mx-auto px-4 h-14 flex items-center justify-between gap-2">
           <div className="flex items-center gap-3 shrink-0">
             {/* Logo */}
             <img
@@ -253,7 +253,7 @@ export function Layout() {
 
       {/* Footer */}
       <footer className="border-t border-slate-800 bg-slate-900/50">
-        <div className="max-w-6xl mx-auto px-4 py-4 space-y-3">
+        <div className="max-w-[90rem] mx-auto px-4 py-4 space-y-3">
           <div className="flex items-center gap-2 text-xs text-slate-600">
             <img src="/logo.png" alt="" className="w-4 h-4 rounded opacity-50" />
             <span>RaidScout — Track LordNine boss respawn timers, schedule hunts, and monitor member performance across your guild. <span className="text-emerald-500">100% Free.</span></span>

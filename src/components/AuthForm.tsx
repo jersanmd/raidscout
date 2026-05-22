@@ -67,14 +67,18 @@ export function AuthForm() {
   };
 
   return (
-    <div className="min-h-screen flex bg-slate-950">
-      {/* ── Left: Hero / Features ── */}
-      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-slate-900 via-slate-950 to-red-950/20 flex-col justify-between p-12 relative overflow-hidden">
-        {/* Background decoration */}
+    <div className="min-h-screen flex justify-center bg-slate-950 relative overflow-hidden">
+      {/* ── Full-screen gradient background ── */}
+      <div className="hidden lg:block absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-950 to-red-950/20">
         <div className="absolute inset-0 opacity-10">
           <div className="absolute top-1/4 left-1/4 w-64 h-64 rounded-full bg-red-500 blur-3xl" />
           <div className="absolute bottom-1/3 right-1/4 w-48 h-48 rounded-full bg-amber-500 blur-3xl" />
         </div>
+      </div>
+
+      <div className="flex w-full max-w-[90rem] relative z-10">
+      {/* ── Left: Hero / Features ── */}
+      <div className="hidden lg:flex lg:w-1/2 flex-col justify-center p-12">
 
         <div className="relative space-y-8">
           {/* Logo */}
@@ -109,7 +113,7 @@ export function AuthForm() {
         </div>
 
         {/* Bottom links */}
-        <div className="relative flex items-center gap-4 text-xs text-slate-600">
+        <div className="relative flex items-center gap-4 text-xs text-slate-600 mt-12">
           <a href="https://discord.gg/738AmkeQtU" target="_blank" rel="noopener noreferrer" className="hover:text-indigo-400 transition">Discord Community</a>
           <span className="text-slate-800">|</span>
           <a href="https://www.facebook.com/profile.php?id=61590144185090" target="_blank" rel="noopener noreferrer" className="hover:text-blue-400 transition">Facebook Page</a>
@@ -119,7 +123,7 @@ export function AuthForm() {
       </div>
 
       {/* ── Right: Login Form ── */}
-      <div className="flex-1 flex items-center justify-center p-8">
+      <div className="flex-1 flex items-center justify-center p-8 relative z-10">
         <div className="w-full max-w-sm">
           {/* Mobile logo (hidden on desktop) */}
           <div className="text-center mb-8 lg:hidden">
@@ -312,6 +316,7 @@ export function AuthForm() {
             <Link to="/privacy" className="hover:text-slate-400 transition">Privacy Policy</Link>
           </p>
         </div>
+      </div>
       </div>
     </div>
   );

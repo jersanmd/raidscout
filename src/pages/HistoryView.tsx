@@ -1,11 +1,11 @@
 ﻿import { useState, useMemo, useEffect } from "react";
 import { type HistoryEntry } from "@/lib/history";
-import { fetchHistoryFromSupabase, deleteDeathRecord, isSupabaseConfigured } from "@/lib/supabase";
+import { fetchHistoryFromSupabase, deleteDeathRecord, isSupabaseConfigured, editDeathTime } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { useServerId } from "@/contexts/ServerContext";
 import { useQueryClient } from "@tanstack/react-query";
 import { ParticipantModal } from "@/components/ParticipantModal";
-import { Clock, Trash2, Skull, Repeat, Timer, Users, Loader2 } from "lucide-react";
+import { Clock, Trash2, Skull, Repeat, Timer, Users, Loader2, Pencil, X, Search } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
 export function HistoryView() {
@@ -37,8 +37,38 @@ export function HistoryView() {
   const [deleting, setDeleting] = useState(false);
   const queryClient = useQueryClient();
 
+  // Edit death time
+  const [editEntry, setEditEntry] = useState<HistoryEntry | null>(null);
+  const [editDate, setEditDate] = useState("");
+  const [editSaving, setEditSaving] = useState(false);
+  const [editToast, setEditToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
+
+  const handleEditDeathTime = async () => {
+    if (!editEntry?.deathRecordId || !editDate) return;
+    setEditSaving(true);
+    try {
+      const [datePart, timePart] = editDate.split("T");
+      const [y, m, d] = datePart.split("-").map(Number);
+      const [hh, mm] = timePart.split(":").map(Number);
+      const newTime = new Date(y, m - 1, d, hh, mm);
+      await editDeathTime(editEntry.deathRecordId, newTime);
+      queryClient.invalidateQueries({ queryKey: ["death_records"] });
+      // Refresh local history
+      if (serverId) {
+        fetchHistoryFromSupabase(serverId).then(setSupabaseHistory).catch(() => {});
+      }
+      setEditToast({ type: "success", message: "Death time updated!" });
+      setEditEntry(null);
+    } catch (err: any) {
+      setEditToast({ type: "error", message: err?.message ?? "Failed to update death time" });
+    } finally {
+      setEditSaving(false);
+    }
+  };
+
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+  const [searchText, setSearchText] = useState("");
 
   // Auto-open participant modal from URL (linked from Leaderboard)
   useEffect(() => {
@@ -56,11 +86,17 @@ export function HistoryView() {
     }
   }, [history, searchParams, setSearchParams]);
 
+  const filtered = useMemo(() => {
+    if (!searchText.trim()) return history;
+    const q = searchText.toLowerCase();
+    return history.filter(e => e.bossName.toLowerCase().includes(q));
+  }, [history, searchText]);
+
   const grouped = useMemo(() => {
     const groups: { label: string; entries: HistoryEntry[] }[] = [];
     const now = new Date();
 
-    for (const entry of history) {
+    for (const entry of filtered) {
       const entryDate = new Date(entry.createdAt);
       let label: string;
 
@@ -89,7 +125,7 @@ export function HistoryView() {
     }
 
     return groups;
-  }, [history]);
+  }, [filtered]);
 
   const handleClear = () => {
     setSupabaseHistory([]);
@@ -125,17 +161,37 @@ export function HistoryView() {
     });
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
+    <div className="max-w-[90rem] mx-auto px-4 py-6 space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-2 shrink-0">
           <Clock className="w-5 h-5 text-amber-400" />
-          <h2 className="text-xl font-bold text-white">Respawn History</h2>
+          <h2 className="text-xl font-bold text-white">Death History</h2>
+        </div>
+        <div className="flex items-center gap-3 flex-1 max-w-md">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+            <input
+              type="text"
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+              placeholder="Search boss name..."
+              className="w-full bg-slate-800 border border-slate-700 rounded-lg pl-9 pr-3 py-2 text-sm text-white placeholder-slate-500 outline-none focus:border-blue-500 transition"
+            />
+            {searchText && (
+              <button
+                onClick={() => setSearchText("")}
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-500 hover:text-white transition"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
         </div>
         {history.length > 0 && !isViewer && (
           <button
             onClick={() => setShowClearConfirm(true)}
-            className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-red-400 transition"
+            className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-red-400 transition shrink-0"
           >
             <Trash2 className="w-3.5 h-3.5" />
             Clear
@@ -154,6 +210,14 @@ export function HistoryView() {
           <p className="text-slate-600 text-sm mt-1">
             Mark a boss as died to start recording your hunt history.
           </p>
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="text-center py-16">
+          <Search className="w-12 h-12 text-slate-700 mx-auto mb-3" />
+          <p className="text-slate-500 text-lg">No results for "{searchText}"</p>
+          <button onClick={() => setSearchText("")} className="text-sm text-blue-400 hover:text-blue-300 mt-1 transition">
+            Clear search
+          </button>
         </div>
       ) : (
         <div className="space-y-6">
@@ -220,18 +284,33 @@ export function HistoryView() {
                           </span>
                         </div>
                       </div>
-                      {/* Delete button */}
+                      {/* Edit + Delete buttons */}
                       {!isViewer && entry.deathRecordId && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setDeleteTarget(entry);
-                          }}
-                          className="text-slate-600 hover:text-red-400 transition opacity-0 group-hover:opacity-100 shrink-0 p-1"
-                          title="Delete entry"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+                        <div className="flex items-center gap-0.5">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const dt = new Date(entry.deathTime);
+                              const local = new Date(dt.getTime() - dt.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+                              setEditDate(local);
+                              setEditEntry(entry);
+                            }}
+                            className="text-slate-600 hover:text-blue-400 transition opacity-0 group-hover:opacity-100 shrink-0 p-1"
+                            title="Edit death time"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setDeleteTarget(entry);
+                            }}
+                            className="text-slate-600 hover:text-red-400 transition opacity-0 group-hover:opacity-100 shrink-0 p-1"
+                            title="Delete entry"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       )}
                     </div>
                   );
@@ -310,6 +389,56 @@ export function HistoryView() {
           navigate={navigate}
           readOnly={false}
         />
+      )}
+
+      {/* Edit death time modal */}
+      {editEntry && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60" onClick={() => setEditEntry(null)} />
+          <div className="relative bg-slate-800 border border-slate-700 rounded-xl p-6 w-full max-w-sm shadow-2xl">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-white">Edit Death Time</h3>
+              <button onClick={() => setEditEntry(null)} className="p-1 rounded-md text-slate-400 hover:text-white hover:bg-slate-700 transition">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <p className="text-sm text-slate-400 mb-3">
+              Change the death time for <span className="text-white font-medium">{editEntry.bossName}</span>
+            </p>
+            <input
+              type="datetime-local"
+              value={editDate}
+              onChange={(e) => setEditDate(e.target.value)}
+              className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-blue-500 mb-4"
+              autoFocus
+            />
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setEditEntry(null)}
+                className="px-4 py-2 rounded-md text-sm text-slate-300 hover:bg-slate-700 transition"
+                disabled={editSaving}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleEditDeathTime}
+                disabled={editSaving}
+                className="px-4 py-2 rounded-md text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 transition disabled:opacity-50"
+              >
+                {editSaving ? "Saving..." : "Save"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit toast */}
+      {editToast && (
+        <div className="fixed bottom-4 right-4 z-50 animate-in fade-in">
+          <div className={`px-4 py-2 rounded-lg text-sm text-white shadow-lg ${editToast.type === "success" ? "bg-emerald-600" : "bg-red-600"}`}>
+            {editToast.message}
+          </div>
+        </div>
       )}
     </div>
   );

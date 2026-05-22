@@ -106,7 +106,7 @@ function AppRoutes() {
         element={
           ready && !isAdmin && !hasServer ? (
             <div className="min-h-screen bg-slate-950">
-              <div className="max-w-6xl mx-auto px-4 h-14 flex items-center">
+              <div className="max-w-[90rem] mx-auto px-4 h-14 flex items-center">
                 <div className="flex items-center gap-3">
                   <span className="font-bold text-white">RaidScout</span>
                 </div>

@@ -27,7 +27,7 @@ export function DiscordWebhookBanner() {
 
   return (
     <div className="bg-amber-950/60 border-b border-amber-800/60">
-      <div className="max-w-6xl mx-auto px-4 py-2.5 flex items-center gap-3">
+      <div className="max-w-[90rem] mx-auto px-4 py-2.5 flex items-center gap-3">
         {/* Icon */}
         <div className="shrink-0 flex items-center justify-center w-8 h-8 rounded-lg bg-amber-900/50">
           <Webhook className="w-4 h-4 text-amber-400" />

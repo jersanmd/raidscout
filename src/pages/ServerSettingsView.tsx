@@ -263,6 +263,7 @@ export function ServerSettingsView() {
 
   // Determine ownership early (before conditional returns — hooks rule)
   const isOwner = currentServer?.role === "owner";
+  const isOwnerOrModerator = currentServer?.role === "owner" || currentServer?.role === "moderator";
 
   // Redirect moderators away from owner-only tabs
   useEffect(() => {
@@ -840,7 +841,7 @@ export function ServerSettingsView() {
             </section>
           )}
 
-          {isOwner && (
+          {isOwnerOrModerator && (
             <section className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3">
               <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
                 <Eye className="w-3 h-3" /> Viewer Key
@@ -885,6 +886,7 @@ export function ServerSettingsView() {
               ) : (
                 <p className="text-xs text-slate-500">Loading...</p>
               )}
+              {isOwner && (
               <button
                 onClick={handleRegenerateViewerKey}
                 className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-amber-400 transition"
@@ -892,6 +894,7 @@ export function ServerSettingsView() {
                 <RefreshCw className="w-3 h-3" />
                 Regenerate key
               </button>
+              )}
             </section>
           )}
         </div>
