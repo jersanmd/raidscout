@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { Clock, Zap, X, Upload, Check, Plus, Search, Users, ClipboardPaste, Sparkles, Loader2, Pencil, ImagePlus } from "lucide-react";
 import { useMembers } from "@/hooks/useMembers";
 import { useAuth } from "@/contexts/AuthContext";
+import { useServerId } from "@/contexts/ServerContext";
 import { extractNamesWithAI } from "@/lib/vision";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import type { Boss, Member } from "@/types";
@@ -18,6 +19,7 @@ interface DeathRecordModalProps {
 
 export function DeathRecordModal({ boss, onClose, onSubmit, defaultDeathTime, hideCustomTime }: DeathRecordModalProps) {
   const { user } = useAuth();
+  const serverId = useServerId();
   const configured = isSupabaseConfigured();
 
   // Step tracking

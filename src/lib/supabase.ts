@@ -22,6 +22,11 @@ let _currentServerId: string | null = null;
 export function setCurrentServerId(id: string | null) { _currentServerId = id; }
 export function getCurrentServerId(): string | null { return _currentServerId; }
 
+// ── Viewer key helper (set by AuthContext, used for viewer writes) ──
+let _currentViewerKey: string | null = null;
+export function setCurrentViewerKey(key: string | null) { _currentViewerKey = key; }
+export function getCurrentViewerKey(): string | null { return _currentViewerKey; }
+
 // ── Server Management ──────────────────────────────────────
 
 import { BOSSES } from "./constants";
@@ -183,6 +188,20 @@ export async function insertDeathRecord(
   deathTime: Date,
   ownerGuildId?: string | null
 ): Promise<DeathRecord> {
+  // Viewer mode: use viewer-authorized RPC
+  if (_currentViewerKey) {
+    const { data, error } = await supabase
+      .rpc("viewer_insert_death_record", {
+        p_boss_id: bossId,
+        p_death_time: deathTime.toISOString(),
+        p_server_id: _currentServerId,
+        p_viewer_key: _currentViewerKey,
+        p_owner_guild_id: ownerGuildId ?? null,
+      });
+    if (error) throw error;
+    return (data as any[])[0] as DeathRecord;
+  }
+
   const { data: { user } } = await supabase.auth.getUser();
   const { data, error } = await supabase
     .from("death_records")
@@ -201,6 +220,16 @@ export async function insertDeathRecord(
 }
 
 export async function deleteDeathRecord(recordId: string): Promise<void> {
+  if (_currentViewerKey) {
+    const { error } = await supabase
+      .rpc("viewer_delete_death_record", {
+        p_record_id: recordId,
+        p_viewer_key: _currentViewerKey,
+      });
+    if (error) throw error;
+    return;
+  }
+
   const { error } = await supabase.from("death_records").delete().eq("id", recordId);
   if (error) throw error;
 }
@@ -325,6 +354,18 @@ export async function fetchMembers(serverId?: string | null): Promise<Member[]> 
 
 export async function upsertMember(name: string): Promise<Member> {
   const trimmed = name.trim();
+
+  if (_currentViewerKey) {
+    const { data, error } = await supabase
+      .rpc("viewer_upsert_member", {
+        p_name: trimmed,
+        p_server_id: _currentServerId,
+        p_viewer_key: _currentViewerKey,
+      });
+    if (error) throw error;
+    return (data as any[])[0] as Member;
+  }
+
   const { data: existing } = await supabase
     .from("members")
     .select("*")
@@ -654,6 +695,17 @@ export async function addAttendance(
   deathRecordId: string,
   memberId: string
 ): Promise<AttendanceRecord> {
+  if (_currentViewerKey) {
+    const { data, error } = await supabase
+      .rpc("viewer_add_attendance", {
+        p_death_record_id: deathRecordId,
+        p_member_id: memberId,
+        p_viewer_key: _currentViewerKey,
+      });
+    if (error) throw error;
+    return (data as any[])[0] as AttendanceRecord;
+  }
+
   const { data, error } = await supabase
     .from("attendance_records")
     .insert({
@@ -669,6 +721,16 @@ export async function addAttendance(
 }
 
 export async function removeAttendance(attendanceId: string): Promise<void> {
+  if (_currentViewerKey) {
+    const { error } = await supabase
+      .rpc("viewer_remove_attendance", {
+        p_attendance_id: attendanceId,
+        p_viewer_key: _currentViewerKey,
+      });
+    if (error) throw error;
+    return;
+  }
+
   const { error } = await supabase
     .from("attendance_records")
     .delete()

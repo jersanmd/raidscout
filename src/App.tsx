@@ -6,6 +6,7 @@ import { ServerProvider, useServer } from "@/contexts/ServerContext";
 import { Layout } from "@/components/Layout";
 import { AuthForm } from "@/components/AuthForm";
 import { ResetPasswordForm } from "@/components/ResetPasswordForm";
+import { ViewerRoute } from "@/components/ViewerRoute";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { ToastProvider } from "@/contexts/ToastContext";
 import { NoServerView } from "@/components/NoServerView";
@@ -75,6 +76,9 @@ function AppContent() {
         {/* Public pages — accessible without login */}
         <Route path="/terms" element={<Suspense fallback={<PageLoader />}><TermsOfServiceView /></Suspense>} />
         <Route path="/privacy" element={<Suspense fallback={<PageLoader />}><PrivacyPolicyView /></Suspense>} />
+
+        {/* Viewer key auto-login route */}
+        <Route path="/view/:viewerKey" element={<ViewerRoute />} />
 
         {/* Authenticated routes */}
         <Route path="*" element={!user && !isViewer ? <AuthForm /> : <AppRoutes />} />

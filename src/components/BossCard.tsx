@@ -181,7 +181,7 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
                   </span>
                 )}
               </div>
-              {!compact && !multiMode && !isViewer && (
+              {!compact && !multiMode && (
                 <button
                   onClick={() => setShowModal(true)}
                   className="flex items-center gap-1 px-2.5 py-1 rounded-md bg-red-900/30 border border-red-800 text-red-400 text-xs font-medium hover:bg-red-900/50 transition shrink-0"

@@ -193,7 +193,7 @@ export function BossListView() {
 
       let deathRecordId: string;
 
-      if (user) {
+      if (user || isViewer) {
         setSavingMessage("Recording death...");
         try {
           const ownerGuildName = getOwnerGuildName(boss.id);
@@ -216,7 +216,7 @@ export function BossListView() {
           if (attendanceErrors.length > 0) {
             setToast({
               type: "error",
-              message: `Attendance partially saved: ${attendeeIds.length - attendanceErrors.length}/${attendeeIds.length} succeeded. Check that the Supabase migration has been run.`,
+              message: `Attendance partially saved: ${attendeeIds.length - attendanceErrors.length}/${attendeeIds.length} succeeded.`,
             });
           } else {
             setToast({
@@ -230,12 +230,14 @@ export function BossListView() {
           queryClient.invalidateQueries({ queryKey: ["members"] });
           queryClient.invalidateQueries({ queryKey: ["analytics"] });
 
-          // Send Discord notification
-          notifyDiscord(getCurrentServerId()!, "boss_died", {
-            boss_name: boss.name,
-            attendees: attendeeIds.length > 0 ? [`${attendeeIds.length} participant(s)`] : undefined,
-            guild_name: getOwnerGuildName(boss.id),
-          });
+          // Send Discord notification (only for authenticated users, not viewers)
+          if (user) {
+            notifyDiscord(getCurrentServerId()!, "boss_died", {
+              boss_name: boss.name,
+              attendees: attendeeIds.length > 0 ? [`${attendeeIds.length} participant(s)`] : undefined,
+              guild_name: getOwnerGuildName(boss.id),
+            });
+          }
         } catch (err) {
           console.error("Failed to record death:", err);
           setToast({ type: "error", message: "Failed to save death record. Check the console for details." });
@@ -246,7 +248,7 @@ export function BossListView() {
         setToast({ type: "error", message: "Supabase not configured. Cannot record death." });
       }
     },
-    [user, queryClient, spawns, getOwnerGuildName]
+    [user, isViewer, queryClient, spawns, getOwnerGuildName, guilds]
   );
 
   const handleSetSpawnDate = useCallback(

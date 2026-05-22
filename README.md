@@ -41,6 +41,18 @@ VITE_SUPABASE_URL=https://your-project.supabase.co
 VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_your-key-here
 ```
 
+> **Production (Vercel):** Add the above `VITE_*` variables in **Project Settings → Environment Variables**, then redeploy.
+
+### AI Rally Screenshot Scanner (optional)
+
+The "Scan Image" feature uses OpenAI vision via a Supabase Edge Function.
+The API key is stored as a Supabase secret — never exposed to the browser.
+
+```bash
+supabase secrets set OPENAI_API_KEY=sk-...
+supabase functions deploy ai-vision
+```
+
 6. Go to **Database → Replication** and enable Realtime on the `death_records` table (for live sync across devices)
 
 7. Restart the dev server — the auth screen will appear.

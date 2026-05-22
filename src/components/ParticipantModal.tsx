@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useAttendance, useAddAttendance, useRemoveAttendance } from "@/hooks/useAttendance";
 import { useMembers } from "@/hooks/useMembers";
+import { useServerId } from "@/contexts/ServerContext";
 import { extractNamesWithAI } from "@/lib/vision";
 import { Loader2, X, Users, Plus, MinusCircle, Check, Pencil, Sparkles, ImagePlus } from "lucide-react";
 
@@ -69,11 +70,13 @@ export function ParticipantModal({
 }: ParticipantModalProps) {
   const { data: attendance = [], isLoading } = useAttendance(deathRecordId);
   const { data: members = [] } = useMembers();
+  const serverId = useServerId();
   const addAttendance = useAddAttendance();
   const removeAttendance = useRemoveAttendance();
 
   const [showAdd, setShowAdd] = useState(false);
-  const [selectedMember, setSelectedMember] = useState("");
+  const [selectedMembers, setSelectedMembers] = useState<Set<string>>(new Set());
+  const [memberSearch, setMemberSearch] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // AI rally scan state
@@ -119,13 +122,30 @@ export function ParticipantModal({
   const memberMap = new Map(members.map((m) => [m.id, m.name]));
   const attendedIds = new Set(attendance.map((a) => a.member_id));
   const availableMembers = members.filter((m) => !attendedIds.has(m.id));
+  const searchLower = memberSearch.toLowerCase().trim();
+  const filteredMembers = searchLower
+    ? availableMembers.filter((m) => m.name.toLowerCase().includes(searchLower))
+    : availableMembers;
 
-  const handleAdd = async () => {
-    if (!selectedMember || attendedIds.has(selectedMember)) return;
-    try {
-      await addAttendance.mutateAsync({ deathRecordId, memberId: selectedMember });
-      setSelectedMember("");
-    } catch { /* handled by mutation */ }
+  const toggleMember = (memberId: string) => {
+    setSelectedMembers((prev) => {
+      const next = new Set(prev);
+      if (next.has(memberId)) next.delete(memberId);
+      else next.add(memberId);
+      return next;
+    });
+  };
+
+  const handleAddSelected = async () => {
+    if (selectedMembers.size === 0) return;
+    const toAdd = [...selectedMembers];
+    setSelectedMembers(new Set());
+    for (const memberId of toAdd) {
+      if (attendedIds.has(memberId)) continue;
+      try {
+        await addAttendance.mutateAsync({ deathRecordId, memberId });
+      } catch { /* handled by mutation */ }
+    }
   };
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -569,18 +589,51 @@ export function ParticipantModal({
                     {availableMembers.length === 0 ? (
                       <p className="text-xs text-slate-500">All members are already participants.</p>
                     ) : (
-                      <>
-                        <select value={selectedMember} onChange={(e) => setSelectedMember(e.target.value)}
-                          className="w-full bg-slate-800 border border-slate-700 rounded-lg px-2 py-2 text-xs text-white outline-none focus:border-emerald-500 transition">
-                          <option value="">Select member...</option>
-                          {availableMembers.map((m) => <option key={m.id} value={m.id} className="bg-slate-900">{m.name}</option>)}
-                        </select>
-                        <button onClick={handleAdd} disabled={!selectedMember || addAttendance.isPending}
-                          className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium bg-emerald-600 text-white hover:bg-emerald-500 transition disabled:opacity-50 mt-2">
-                          {addAttendance.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />}
-                          Add Participant
+                      <div className="space-y-1.5">
+                        <input
+                          type="text"
+                          placeholder="Search members…"
+                          value={memberSearch}
+                          onChange={(e) => setMemberSearch(e.target.value)}
+                          className="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white placeholder-slate-500 outline-none focus:border-emerald-500 transition"
+                        />
+                        <div className="max-h-48 overflow-y-auto space-y-0.5 rounded-lg border border-slate-700 bg-slate-800/50 p-1">
+                          {filteredMembers.length === 0 ? (
+                            <p className="text-xs text-slate-500 text-center py-3">No members found.</p>
+                          ) : (
+                            filteredMembers.map((m) => {
+                              const checked = selectedMembers.has(m.id);
+                              return (
+                                <label
+                                  key={m.id}
+                                  className={`flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer transition text-xs ${checked ? "bg-emerald-600/20 text-emerald-300" : "text-slate-300 hover:bg-slate-700/50"}`}
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={checked}
+                                    onChange={() => toggleMember(m.id)}
+                                    className="w-3.5 h-3.5 rounded border-slate-600 bg-slate-700 text-emerald-500 focus:ring-emerald-500 focus:ring-offset-0 cursor-pointer"
+                                  />
+                                  <Users className="w-3 h-3 shrink-0" />
+                                  <span className="truncate">{m.name}</span>
+                                </label>
+                              );
+                            })
+                          )}
+                        </div>
+                        <button
+                          onClick={handleAddSelected}
+                          disabled={selectedMembers.size === 0 || addAttendance.isPending}
+                          className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium bg-emerald-600 text-white hover:bg-emerald-500 transition disabled:opacity-50"
+                        >
+                          {addAttendance.isPending ? (
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                          ) : (
+                            <Plus className="w-3 h-3" />
+                          )}
+                          Add Selected{selectedMembers.size > 0 ? ` (${selectedMembers.size})` : ""}
                         </button>
-                      </>
+                      </div>
                     )}
                   </div>
                 </div>

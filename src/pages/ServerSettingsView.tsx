@@ -849,25 +849,39 @@ export function ServerSettingsView() {
                 Share this key to let others monitor your server without an account. Viewers cannot make changes.
               </p>
               {viewerKey ? (
-                <div className="flex items-center gap-2">
-                  <code className={`flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-base font-mono tracking-wider text-center select-all transition ${showViewerKey ? "text-emerald-400" : "text-slate-500"}`}>
-                    {showViewerKey ? viewerKey : "••••••••"}
-                  </code>
-                  <button
-                    onClick={() => setShowViewerKey(!showViewerKey)}
-                    className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition"
-                    title={showViewerKey ? "Hide" : "Show"}
-                  >
-                    {showViewerKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                  <button
-                    onClick={() => { navigator.clipboard.writeText(viewerKey); toast("success", "Viewer key copied!"); }}
-                    className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition"
-                    title="Copy viewer key"
-                  >
-                    <Copy className="w-4 h-4" />
-                  </button>
-                </div>
+                <>
+                  <div className="flex items-center gap-2">
+                    <code className={`flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-base font-mono tracking-wider text-center select-all transition ${showViewerKey ? "text-emerald-400" : "text-slate-500"}`}>
+                      {showViewerKey ? viewerKey : "••••••••"}
+                    </code>
+                    <button
+                      onClick={() => setShowViewerKey(!showViewerKey)}
+                      className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition"
+                      title={showViewerKey ? "Hide" : "Show"}
+                    >
+                      {showViewerKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                    <button
+                      onClick={() => { navigator.clipboard.writeText(viewerKey); toast("success", "Viewer key copied!"); }}
+                      className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition"
+                      title="Copy viewer key"
+                    >
+                      <Copy className="w-4 h-4" />
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <code className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-400 truncate select-all">
+                      {window.location.origin}/view/{viewerKey}
+                    </code>
+                    <button
+                      onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/view/${viewerKey}`); toast("success", "Viewer link copied!"); }}
+                      className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition shrink-0"
+                      title="Copy viewer link"
+                    >
+                      <Link className="w-4 h-4" />
+                    </button>
+                  </div>
+                </>
               ) : (
                 <p className="text-xs text-slate-500">Loading...</p>
               )}
