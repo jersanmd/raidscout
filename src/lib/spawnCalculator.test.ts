@@ -32,14 +32,14 @@ function makeDeath(overrides: Partial<DeathRecord> = {}): DeathRecord {
 // ── Fixed Hours ─────────────────────────────────────────────
 
 describe("calculateSpawnInfo — fixed_hours", () => {
-  it("returns alive when there is no death record (default alive)", () => {
+  it("returns unknown when there is no death record (not killed yet)", () => {
     const boss = makeBoss({ spawn_type: "fixed_hours", respawn_hours: 24 });
     const now = new Date(2025, 5, 1, 12, 0, 0);
 
     const result = calculateSpawnInfo(boss, null, now);
 
-    expect(result.status).toBe("alive");
-    expect(result.nextSpawn).toEqual(now);
+    expect(result.status).toBe("unknown");
+    expect(result.nextSpawn).toBeNull();
     expect(result.deathRecord).toBeNull();
   });
 
@@ -105,19 +105,20 @@ describe("calculateSpawnInfo — fixed_schedule", () => {
     expect(result.nextSpawn).not.toBeNull();
   });
 
-  it("returns alive when within the 2-hour alive window after spawn", () => {
+  it("returns countdown when no death record — alive window only after a kill", () => {
     const boss = makeBoss({
       spawn_type: "fixed_schedule",
       respawn_hours: null,
       schedule: [{ day: 1, time: "19:00" }], // Monday 7pm
     });
-    // Monday 20:30 — 1.5 hours after the 7pm spawn (within 2h alive window)
+    // Monday 20:30 — 1.5 hours after the 7pm spawn
+    // Without a death record, it should NOT be "alive" — just show next slot
     const now = new Date(2025, 5, 2, 20, 30, 0); // June 2, 2025 Monday 8:30pm
 
     const result = calculateSpawnInfo(boss, null, now);
 
-    expect(result.status).toBe("alive");
-    // nextSpawn should be set (next week's slot)
+    expect(result.status).toBe("countdown");
+    // nextSpawn should be set (next week's slot since today's passed)
     expect(result.nextSpawn).not.toBeNull();
   });
 
@@ -151,13 +152,13 @@ describe("calculateSpawnInfo — fixed_schedule", () => {
 // ── Edge cases ──────────────────────────────────────────────
 
 describe("calculateSpawnInfo — edge cases", () => {
-  it("returns alive for fixed_hours boss with respawn_hours=null", () => {
+  it("returns unknown for fixed_hours boss with respawn_hours=null (even with death)", () => {
     const boss = makeBoss({ spawn_type: "fixed_hours", respawn_hours: null });
     const death = makeDeath();
 
     const result = calculateSpawnInfo(boss, death, new Date());
 
-    expect(result.status).toBe("alive");
+    expect(result.status).toBe("unknown");
   });
 
   it("handles 48h respawn correctly", () => {

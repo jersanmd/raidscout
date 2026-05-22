@@ -28,6 +28,9 @@ export interface DeathRecord {
   death_time: string;
   rally_image_url: string | null;
   created_at: string;
+  server_id?: string | null;
+  owner_guild_id?: string | null;
+  is_initial_spawn?: boolean | null;
 }
 
 // ── Attendance System ───────────────────────────────────────

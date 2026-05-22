@@ -97,13 +97,14 @@ export function BossListView() {
     return firstSpawn?.boss ?? null;
   }, [selectedIds, spawns]);
 
-  // Apply window filter client-side — always keep alive bosses visible
+  // Apply window filter client-side — always keep alive & unknown bosses visible
   const filteredSpawns = useMemo(() => {
     if (filterWindow === null) return spawns;
     const cutoff = Date.now() + filterWindow * 3600_000;
     return spawns.filter(
       (s) =>
         s.status === "alive" ||
+        s.status === "unknown" ||
         (s.status === "countdown" && s.nextSpawn && s.nextSpawn.getTime() <= cutoff)
     );
   }, [spawns, filterWindow]);
@@ -146,7 +147,7 @@ export function BossListView() {
     const dailyEntries = bgs.filter(bg => bg.mode === "daily").sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
     if (dailyEntries.length > 0) {
       const lastDeath = deathRecords
-        .filter(dr => dr.boss_id === bossId)
+        .filter(dr => dr.boss_id === bossId && !dr.is_initial_spawn)
         .sort((a, b) => new Date(b.death_time).getTime() - new Date(a.death_time).getTime())[0];
       
       if (!lastDeath) {
@@ -174,7 +175,7 @@ export function BossListView() {
     // Rotation mode: advance by number of kills
     const rotationEntries = bgs.filter(bg => bg.sort_order !== null && bg.mode !== "daily").sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
     if (rotationEntries.length > 0) {
-      const killCount = deathRecords.filter(dr => dr.boss_id === bossId).length;
+      const killCount = deathRecords.filter(dr => dr.boss_id === bossId && !dr.is_initial_spawn).length;
       const idx = killCount % rotationEntries.length;
       return guilds.find(g => g.id === rotationEntries[idx].guild_id)?.name;
     }
@@ -402,10 +403,10 @@ export function BossListView() {
       groups.shift();
     }
 
-    // Add unknown spawns at the end
+    // Add unknown spawns at the top
     const unknownSpawns = filteredSpawns.filter((s) => !s.nextSpawn);
     if (unknownSpawns.length > 0) {
-      groups.push({ label: "Unknown", date: new Date(0), spawns: unknownSpawns });
+      groups.unshift({ label: "Unknown", date: new Date(0), spawns: unknownSpawns });
     }
 
     return groups;

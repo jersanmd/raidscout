@@ -42,9 +42,9 @@ export function useBossSpawns(filterText: string = "", filterType: string = "all
       return { ...info, remainingMs };
     });
 
-    // Sort: alive first, then countdown (soonest), then unknown
+    // Sort: unknown first, then alive, then countdown (soonest)
     result.sort((a, b) => {
-      const order = { alive: 0, countdown: 1, unknown: 2 };
+      const order = { unknown: 0, alive: 1, countdown: 2 };
       const aOrd = order[a.status] ?? 2;
       const bOrd = order[b.status] ?? 2;
       if (aOrd !== bOrd) return aOrd - bOrd;

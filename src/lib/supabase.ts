@@ -265,6 +265,7 @@ export async function setBossSpawnTime(bossId: string, spawnDate: Date): Promise
         user_id: user?.id,
         server_id: serverId,
         death_time: newDeathTime.toISOString(),
+        is_initial_spawn: true,
       })
       .select()
       .single();
@@ -839,6 +840,7 @@ export async function fetchHistoryFromSupabase(serverId?: string | null): Promis
       bosses!inner(id, name, spawn_type, respawn_hours, schedule),
       attendance_records(id)
     `)
+    .or("is_initial_spawn.is.null,is_initial_spawn.eq.false")
     .order("death_time", { ascending: false })
     .limit(500);
   if (sid) query = query.eq("server_id", sid);

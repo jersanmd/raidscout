@@ -30,7 +30,7 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
   const [editingSpawn, setEditingSpawn] = useState(false);
   const [editSpawnDate, setEditSpawnDate] = useState("");
   const { boss, status, nextSpawn } = spawn;
-  const canEdit = !isViewer && currentServer && boss.spawn_type === "fixed_hours" && !!onSetSpawnDate;
+  const canEdit = !isViewer && currentServer && (boss.spawn_type === "fixed_hours" || status === "unknown") && !!onSetSpawnDate;
 
   const statusConfig = {
     unknown: {
@@ -166,7 +166,51 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
                 </div>
               </div>
             ) : (
-              <p className="text-sm text-slate-500">Record a death to start the timer</p>
+              <div className="flex items-center gap-1.5 text-xs">
+                {editingSpawn ? (
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      type="datetime-local"
+                      value={editSpawnDate}
+                      onChange={(e) => setEditSpawnDate(e.target.value)}
+                      className="bg-slate-700 border border-slate-600 rounded-md px-2 py-1 text-xs text-white outline-none focus:border-blue-500 w-[180px]"
+                      autoFocus
+                    />
+                    <button onClick={() => {
+                      if (editSpawnDate && onSetSpawnDate) {
+                        const [datePart, timePart] = editSpawnDate.split("T");
+                        const [y, m, d] = datePart.split("-").map(Number);
+                        const [hh, mm] = timePart.split(":").map(Number);
+                        const localDate = new Date(y, m - 1, d, hh, mm);
+                        onSetSpawnDate(boss.id, localDate);
+                      }
+                      setEditingSpawn(false);
+                    }} className="p-1.5 rounded-md text-emerald-400 hover:bg-emerald-900/30 transition" title="Apply">
+                      <Check className="w-4 h-4" />
+                    </button>
+                    <button onClick={() => setEditingSpawn(false)} className="p-1.5 rounded-md text-slate-400 hover:bg-slate-700 transition" title="Cancel">
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <span className="text-slate-500">Set spawn time to start timer</span>
+                    {canEdit && (
+                      <button
+                        onClick={(e) => { e.stopPropagation();
+                          const now = new Date();
+                          const local = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+                          setEditSpawnDate(local); setEditingSpawn(true);
+                        }}
+                        className="p-0.5 rounded text-slate-500 hover:text-blue-400 hover:bg-blue-900/20 transition"
+                        title="Set spawn time"
+                      >
+                        <Pencil className="w-3 h-3" />
+                      </button>
+                    )}
+                  </>
+                )}
+              </div>
             )}
 
             {/* Row 3: Respawn / schedule info (left) + actions (right) */}

@@ -65,7 +65,7 @@ export function WeeklyScheduleView() {
     const dailyEntries = bgs.filter(bg => bg.mode === "daily").sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
     if (dailyEntries.length > 0) {
       const lastDeath = deathRecords
-        .filter(dr => dr.boss_id === bossId)
+        .filter(dr => dr.boss_id === bossId && !dr.is_initial_spawn)
         .sort((a, b) => new Date(b.death_time).getTime() - new Date(a.death_time).getTime())[0];
       
       if (!lastDeath) {
@@ -93,7 +93,7 @@ export function WeeklyScheduleView() {
     // Rotation mode: advance by number of kills
     const rotationEntries = bgs.filter(bg => bg.sort_order !== null && bg.mode !== "daily").sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
     if (rotationEntries.length > 0) {
-      const killCount = deathRecords.filter(dr => dr.boss_id === bossId).length;
+      const killCount = deathRecords.filter(dr => dr.boss_id === bossId && !dr.is_initial_spawn).length;
       const idx = killCount % rotationEntries.length;
       return guilds.find(g => g.id === rotationEntries[idx].guild_id)?.name ?? null;
     }
@@ -161,6 +161,7 @@ export function WeeklyScheduleView() {
 
       // ── 1. Death events (from history) for ALL boss types ──
       for (const dr of deathRecords) {
+        if (dr.is_initial_spawn) continue;
         if (new Date(dr.death_time).toDateString() !== date.toDateString()) continue;
         const boss = bossMap.get(dr.boss_id);
         if (!boss) continue;
@@ -243,7 +244,7 @@ export function WeeklyScheduleView() {
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-6">
-      {/* Saving overlay � blocks all interaction */}
+      {/* Saving overlay � blocks all interaction */}
       {savingMessage && <SavingOverlay message={savingMessage} />}
 
       <h2 className="text-xl font-bold text-white mb-6">Weekly Schedule</h2>

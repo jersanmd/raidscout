@@ -65,6 +65,7 @@ export function DeathRecordModal({ boss, onClose, onSubmit, defaultDeathTime, hi
   const [aiScanned, setAiScanned] = useState(false);
   const [aiDetectedNames, setAiDetectedNames] = useState<string[] | null>(null);
   const [aiCreating, setAiCreating] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   // Fuzzy match suggestions: detected name → suggested existing member id & name
   const [aiSuggestions, setAiSuggestions] = useState<Map<string, { id: string; name: string }> | null>(null);
 
@@ -423,9 +424,29 @@ export function DeathRecordModal({ boss, onClose, onSubmit, defaultDeathTime, hi
     setPasteMode(false);
   };
 
-  const handleFinalSubmit = () => {
-    if (!deathTime) return;
-    onSubmit(deathTime, rallyImages, [...selectedIds]);
+  const handleFinalSubmit = async () => {
+    if (!deathTime || submitting) return;
+    setSubmitting(true);
+
+    const finalIds = [...selectedIds];
+
+    // Auto-create any AI-detected new members before submitting
+    if (aiDetectedNames && aiDetectedNames.length > 0) {
+      const existingLower = new Set(members.map((m) => m.name.toLowerCase()));
+      const newNames = aiDetectedNames.filter((n) => !existingLower.has(n.toLowerCase()));
+
+      if (newNames.length > 0) {
+        const { upsertMember } = await import("@/lib/supabase");
+        for (const name of newNames) {
+          try {
+            const member = await upsertMember(name);
+            finalIds.push(member.id);
+          } catch { /* skip failed creates */ }
+        }
+      }
+    }
+
+    onSubmit(deathTime, rallyImages, finalIds);
   };
 
   const filteredMembers = members.filter((m) =>
@@ -925,9 +946,17 @@ export function DeathRecordModal({ boss, onClose, onSubmit, defaultDeathTime, hi
           <div className="p-4 border-t border-slate-800 shrink-0">
             <button
               onClick={handleFinalSubmit}
-              className="w-full py-2.5 rounded-lg font-medium bg-gradient-to-r from-red-600 to-orange-500 text-white hover:from-red-500 hover:to-orange-400 transition text-sm"
+              disabled={submitting}
+              className="w-full py-2.5 rounded-lg font-medium bg-gradient-to-r from-red-600 to-orange-500 text-white hover:from-red-500 hover:to-orange-400 transition text-sm disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Save Attendance{selectedIds.size > 0 ? ` (${selectedIds.size})` : ""}
+              {submitting ? (
+                <span className="flex items-center justify-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Saving...
+                </span>
+              ) : (
+                <>Save Attendance{selectedIds.size > 0 ? ` (${selectedIds.size})` : ""}</>
+              )}
             </button>
           </div>
         )}
