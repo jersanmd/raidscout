@@ -10,12 +10,16 @@ if (!supabaseUrl || !supabaseKey) {
   );
 }
 
-export const supabase = createClient(supabaseUrl || "", supabaseKey || "");
-
 /** Check if Supabase is configured (not the placeholder values) */
 export function isSupabaseConfigured(): boolean {
   return !!supabaseUrl && !!supabaseKey && !supabaseUrl.includes("your-project") && !supabaseKey.includes("your-key");
 }
+
+// Only create the client when properly configured, otherwise use a no-op placeholder
+// that won't crash but will fail gracefully on any actual calls.
+export const supabase = isSupabaseConfigured()
+  ? createClient(supabaseUrl!, supabaseKey!)
+  : createClient("https://placeholder.supabase.co", "placeholder-key");
 
 // ── Server ID helper (set by ServerContext, used by inserts) ──
 let _currentServerId: string | null = null;
@@ -188,7 +192,25 @@ export async function insertDeathRecord(
   deathTime: Date,
   ownerGuildId?: string | null
 ): Promise<DeathRecord> {
-  // Viewer mode: use viewer-authorized RPC
+  // Prefer direct insert when user has a valid session
+  const { data: { session } } = await supabase.auth.getSession();
+  if (session?.user) {
+    const { data, error } = await supabase
+      .from("death_records")
+      .insert({
+        boss_id: bossId,
+        user_id: session.user.id,
+        server_id: _currentServerId,
+        death_time: deathTime.toISOString(),
+        owner_guild_id: ownerGuildId ?? null,
+      })
+      .select()
+      .single();
+    if (error) throw error;
+    return data as DeathRecord;
+  }
+
+  // Fall back to viewer RPC
   if (_currentViewerKey) {
     const { data, error } = await supabase
       .rpc("viewer_insert_death_record", {
@@ -202,24 +224,19 @@ export async function insertDeathRecord(
     return (data as any[])[0] as DeathRecord;
   }
 
-  const { data: { user } } = await supabase.auth.getUser();
-  const { data, error } = await supabase
-    .from("death_records")
-    .insert({
-      boss_id: bossId,
-      user_id: user?.id,
-      server_id: _currentServerId,
-      death_time: deathTime.toISOString(),
-      owner_guild_id: ownerGuildId ?? null,
-    })
-    .select()
-    .single();
-
-  if (error) throw error;
-  return data as DeathRecord;
+  throw new Error("Not authenticated");
 }
 
 export async function deleteDeathRecord(recordId: string): Promise<void> {
+  // Prefer direct delete when user has a valid session
+  const { data: { session } } = await supabase.auth.getSession();
+  if (session?.user) {
+    const { error } = await supabase.from("death_records").delete().eq("id", recordId);
+    if (error) throw error;
+    return;
+  }
+
+  // Fall back to viewer RPC
   if (_currentViewerKey) {
     const { error } = await supabase
       .rpc("viewer_delete_death_record", {
@@ -230,8 +247,7 @@ export async function deleteDeathRecord(recordId: string): Promise<void> {
     return;
   }
 
-  const { error } = await supabase.from("death_records").delete().eq("id", recordId);
-  if (error) throw error;
+  throw new Error("Not authenticated");
 }
 
 /** Adjust the last death record's time to set a new spawn date. Returns the updated record. */
@@ -356,6 +372,29 @@ export async function fetchMembers(serverId?: string | null): Promise<Member[]> 
 export async function upsertMember(name: string): Promise<Member> {
   const trimmed = name.trim();
 
+  // Prefer direct upsert when user has a valid session
+  const { data: { session } } = await supabase.auth.getSession();
+  if (session?.user) {
+    const { data: existing } = await supabase
+      .from("members")
+      .select("*")
+      .eq("name", trimmed)
+      .eq("server_id", _currentServerId)
+      .maybeSingle();
+
+    if (existing) return existing as Member;
+
+    const { data, error } = await supabase
+      .from("members")
+      .insert({ name: trimmed, server_id: _currentServerId })
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data as Member;
+  }
+
+  // Fall back to viewer RPC
   if (_currentViewerKey) {
     const { data, error } = await supabase
       .rpc("viewer_upsert_member", {
@@ -367,23 +406,7 @@ export async function upsertMember(name: string): Promise<Member> {
     return (data as any[])[0] as Member;
   }
 
-  const { data: existing } = await supabase
-    .from("members")
-    .select("*")
-    .eq("name", trimmed)
-    .eq("server_id", _currentServerId)
-    .maybeSingle();
-
-  if (existing) return existing as Member;
-
-  const { data, error } = await supabase
-    .from("members")
-    .insert({ name: trimmed, server_id: _currentServerId })
-    .select()
-    .single();
-
-  if (error) throw error;
-  return data as Member;
+  throw new Error("Not authenticated");
 }
 
 export async function updateMemberName(id: string, name: string): Promise<void> {
@@ -696,6 +719,23 @@ export async function addAttendance(
   deathRecordId: string,
   memberId: string
 ): Promise<AttendanceRecord> {
+  // Prefer direct insert when user has a valid session
+  const { data: { session } } = await supabase.auth.getSession();
+  if (session?.user) {
+    const { data, error } = await supabase
+      .from("attendance_records")
+      .insert({
+        death_record_id: deathRecordId,
+        member_id: memberId,
+        server_id: _currentServerId,
+      })
+      .select()
+      .single();
+    if (error) throw error;
+    return data as AttendanceRecord;
+  }
+
+  // Fall back to viewer RPC
   if (_currentViewerKey) {
     const { data, error } = await supabase
       .rpc("viewer_add_attendance", {
@@ -707,21 +747,22 @@ export async function addAttendance(
     return (data as any[])[0] as AttendanceRecord;
   }
 
-  const { data, error } = await supabase
-    .from("attendance_records")
-    .insert({
-      death_record_id: deathRecordId,
-      member_id: memberId,
-      server_id: _currentServerId,
-    })
-    .select()
-    .single();
-
-  if (error) throw error;
-  return data as AttendanceRecord;
+  throw new Error("Not authenticated");
 }
 
 export async function removeAttendance(attendanceId: string): Promise<void> {
+  // Prefer direct delete when user has a valid session
+  const { data: { session } } = await supabase.auth.getSession();
+  if (session?.user) {
+    const { error } = await supabase
+      .from("attendance_records")
+      .delete()
+      .eq("id", attendanceId);
+    if (error) throw error;
+    return;
+  }
+
+  // Fall back to viewer RPC
   if (_currentViewerKey) {
     const { error } = await supabase
       .rpc("viewer_remove_attendance", {
@@ -732,12 +773,7 @@ export async function removeAttendance(attendanceId: string): Promise<void> {
     return;
   }
 
-  const { error } = await supabase
-    .from("attendance_records")
-    .delete()
-    .eq("id", attendanceId);
-
-  if (error) throw error;
+  throw new Error("Not authenticated");
 }
 
 // ── Clear All Data ──────────────────────────────────────────

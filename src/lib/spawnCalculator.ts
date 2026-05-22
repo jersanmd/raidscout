@@ -77,7 +77,6 @@ function calculateFixedScheduleSpawn(boss: Boss, deathRecord: DeathRecord | null
  */
 function findMostRecentSlot(schedule: ScheduleSlot[], now: Date): ScheduleSlot | null {
   if (!now) return null;
-  if (!now) return null;
   const currentDay = now.getDay();
   const currentMinutes = now.getHours() * 60 + now.getMinutes();
 

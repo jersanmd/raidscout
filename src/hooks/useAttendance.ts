@@ -73,6 +73,9 @@ export function useRemoveAttendance() {
       queryClient.invalidateQueries({ queryKey: ["leaderboard"] });
       queryClient.invalidateQueries({ queryKey: ["analytics"] });
     },
+    onError: (error) => {
+      console.error("Failed to remove attendance:", error);
+    },
   });
 }
 

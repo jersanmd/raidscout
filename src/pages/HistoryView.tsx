@@ -1,13 +1,11 @@
-﻿import { useState, useMemo, useEffect, useRef } from "react";
+﻿import { useState, useMemo, useEffect } from "react";
 import { type HistoryEntry } from "@/lib/history";
-import { fetchHistoryFromSupabase, isSupabaseConfigured } from "@/lib/supabase";
-import { useAttendance, useAddAttendance, useRemoveAttendance } from "@/hooks/useAttendance";
-import { useMembers } from "@/hooks/useMembers";
+import { fetchHistoryFromSupabase, deleteDeathRecord, isSupabaseConfigured } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { useServerId } from "@/contexts/ServerContext";
-import { extractNamesWithAI } from "@/lib/vision";
+import { useQueryClient } from "@tanstack/react-query";
 import { ParticipantModal } from "@/components/ParticipantModal";
-import { Clock, Trash2, Skull, Repeat, Timer, Users, X, Loader2, Plus, MinusCircle, Upload, Sparkles, ImagePlus, Check, Pencil } from "lucide-react";
+import { Clock, Trash2, Skull, Repeat, Timer, Users, Loader2 } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
 export function HistoryView() {
@@ -35,6 +33,9 @@ export function HistoryView() {
 
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [selectedEntry, setSelectedEntry] = useState<HistoryEntry | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<HistoryEntry | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const queryClient = useQueryClient();
 
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -93,6 +94,22 @@ export function HistoryView() {
   const handleClear = () => {
     setSupabaseHistory([]);
     setShowClearConfirm(false);
+  };
+
+  const handleDelete = async () => {
+    if (!deleteTarget || !deleteTarget.deathRecordId) return;
+    setDeleting(true);
+    try {
+      await deleteDeathRecord(deleteTarget.deathRecordId);
+      setSupabaseHistory(prev => prev.filter(e => e.id !== deleteTarget.id));
+      queryClient.invalidateQueries({ queryKey: ["boss-spawns"] });
+      queryClient.invalidateQueries({ queryKey: ["leaderboard"] });
+    } catch (err) {
+      console.error("Failed to delete death record:", err);
+    } finally {
+      setDeleting(false);
+      setDeleteTarget(null);
+    }
   };
 
   const formatTime = (iso: string) =>
@@ -158,7 +175,7 @@ export function HistoryView() {
                     <div
                       key={entry.id}
                       onClick={() => entry.deathRecordId && setSelectedEntry(entry)}
-                      className={`flex items-center gap-3 px-4 py-3 rounded-lg bg-slate-900/50 border border-slate-800/50 transition ${
+                      className={`flex items-center gap-3 px-4 py-3 rounded-lg bg-slate-900/50 border border-slate-800/50 transition group ${
                         entry.deathRecordId
                           ? "cursor-pointer hover:border-slate-600 hover:bg-slate-900/80"
                           : ""
@@ -203,6 +220,19 @@ export function HistoryView() {
                           </span>
                         </div>
                       </div>
+                      {/* Delete button */}
+                      {!isViewer && entry.deathRecordId && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDeleteTarget(entry);
+                          }}
+                          className="text-slate-600 hover:text-red-400 transition opacity-0 group-hover:opacity-100 shrink-0 p-1"
+                          title="Delete entry"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
                     </div>
                   );
                 })}
@@ -237,6 +267,39 @@ export function HistoryView() {
           </div>
         </div>
       )}
+      {/* Delete single entry confirmation */}
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60" onClick={() => setDeleteTarget(null)} />
+          <div className="relative bg-slate-900 border border-slate-700 rounded-xl w-full max-w-xs shadow-2xl p-4 space-y-4">
+            <p className="text-white text-sm text-center">
+              Delete <span className="font-semibold text-red-400">{deleteTarget.bossName}</span> entry? This will also remove all participant records for this kill.
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setDeleteTarget(null)}
+                disabled={deleting}
+                className="flex-1 py-2 rounded-lg bg-slate-800 text-slate-300 text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={deleting}
+                className="flex-1 py-2 rounded-lg bg-red-900/30 border border-red-800 text-red-400 text-sm flex items-center justify-center gap-1.5"
+              >
+                {deleting ? (
+                  <span className="w-3.5 h-3.5 border-2 border-red-400/30 border-t-red-400 rounded-full animate-spin" />
+                ) : (
+                  <Trash2 className="w-3.5 h-3.5" />
+                )}
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Participant modal */}
       {selectedEntry && selectedEntry.deathRecordId && (
         <ParticipantModal

@@ -15,6 +15,7 @@
  */
 export async function extractNamesWithAI(file: File): Promise<string[]> {
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
   if (!supabaseUrl) {
     throw new Error("Supabase URL not configured.");
   }
@@ -24,7 +25,11 @@ export async function extractNamesWithAI(file: File): Promise<string[]> {
   const functionUrl = `${supabaseUrl}/functions/v1/ai-vision`;
   const response = await fetch(functionUrl, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${supabaseKey}`,
+      "apikey": supabaseKey,
+    },
     body: JSON.stringify({ imageBase64: base64 }),
   });
 

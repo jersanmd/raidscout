@@ -65,8 +65,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
+      if (session?.user) {
+        // Clear any leftover viewer state when a real session exists
+        setIsViewer(false);
+        setViewerServerId(null);
+        setViewerServerName(null);
+        setViewerKey(null);
+        localStorage.removeItem(VIEWER_KEY_STORAGE);
+        fetchRole(session.user.id);
+      }
       setLoading(false);
-      if (session?.user) fetchRole(session.user.id);
     });
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {

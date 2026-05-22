@@ -93,32 +93,6 @@ export function ParticipantModal({
   const [aiEditingIndex, setAiEditingIndex] = useState<number | null>(null);
   const [aiEditValue, setAiEditValue] = useState("");
 
-  // ── Clipboard paste support for rally images ──────────────
-  useEffect(() => {
-    if (!showAdd) return;
-
-    const handlePaste = (e: ClipboardEvent) => {
-      const items = e.clipboardData?.items;
-      if (!items) return;
-      for (let i = 0; i < items.length; i++) {
-        const blob = items[i].getAsFile();
-        if (blob && blob.type.startsWith("image/")) {
-          e.preventDefault();
-          setRallyImages(prev => [...prev, blob]);
-          setRallyPreviews(prev => [...prev, URL.createObjectURL(blob)]);
-          setAiScanned(false);
-          setAiError(null);
-          setAiDetectedNames(null);
-          setAiSuggestions(null);
-          return;
-        }
-      }
-    };
-
-    document.addEventListener("paste", handlePaste);
-    return () => document.removeEventListener("paste", handlePaste);
-  }, [showAdd]);
-
   const memberMap = new Map(members.map((m) => [m.id, m.name]));
   const attendedIds = new Set(attendance.map((a) => a.member_id));
   const availableMembers = members.filter((m) => !attendedIds.has(m.id));
@@ -219,6 +193,34 @@ export function ParticipantModal({
       setAiLoading(false);
     }
   };
+
+  // ── Clipboard paste support for rally images ──────────────
+  useEffect(() => {
+    if (!showAdd) return;
+
+    const handlePaste = (e: ClipboardEvent) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      for (let i = 0; i < items.length; i++) {
+        const blob = items[i].getAsFile();
+        if (blob && blob.type.startsWith("image/")) {
+          e.preventDefault();
+          const updated = [...rallyImages, blob];
+          setRallyImages(updated);
+          setRallyPreviews(prev => [...prev, URL.createObjectURL(blob)]);
+          setAiScanned(false);
+          setAiError(null);
+          setAiDetectedNames(null);
+          setAiSuggestions(null);
+          scanImages(updated);
+          return;
+        }
+      }
+    };
+
+    document.addEventListener("paste", handlePaste);
+    return () => document.removeEventListener("paste", handlePaste);
+  }, [showAdd, rallyImages]);
 
   const handleConfirmAIAdds = async () => {
     if (!aiDetectedNames) return;

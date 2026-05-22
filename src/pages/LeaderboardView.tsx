@@ -183,7 +183,7 @@ export function LeaderboardView() {
 
         {entries.length > 0 && (
           <div className="flex items-center gap-2">
-            {(isStaff || isViewer) && (
+            {isStaff && (
               <button
                 onClick={async () => {
                   setShowAdjustHistory(true);
@@ -324,9 +324,12 @@ export function LeaderboardView() {
             };
 
             return (
-              <button
+              <div
                 key={entry.id}
                 onClick={handleClick}
+                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleClick(); } }}
+                role="button"
+                tabIndex={0}
                 className={`w-full flex items-center gap-4 px-4 py-3 rounded-xl border transition cursor-pointer hover:border-slate-500 ${
                   style?.bg ?? "bg-slate-900/50 border-slate-800/50"
                 }`}
@@ -391,7 +394,7 @@ export function LeaderboardView() {
                     </button>
                   )}
                 </div>
-              </button>
+              </div>
             );
           })}
         </div>
