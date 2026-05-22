@@ -594,7 +594,7 @@ export function BossListView() {
         </button>
         )}
         {!isViewer && (
-          <div className="flex items-center gap-4 ml-auto">
+          <>
             {viewerKey && (
               <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800/50 border border-slate-700">
                 <Eye className="w-3.5 h-3.5 text-slate-500" />
@@ -608,6 +608,7 @@ export function BossListView() {
                 </button>
               </div>
             )}
+            <div className="flex items-center gap-4 ml-auto">
             <span className="text-[10px] text-slate-500 uppercase tracking-wider">Viewer Permissions</span>
             <label className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-800/50 border border-slate-700 cursor-pointer hover:border-slate-600 transition">
               <span className="text-xs text-slate-400">Allow editing spawn time</span>
@@ -624,6 +625,7 @@ export function BossListView() {
               </div>
             </label>
           </div>
+          </>
         )}
       </div>
 
