@@ -1068,3 +1068,14 @@ export async function editDeathTime(deathRecordId: string, newDeathTime: Date): 
   });
   if (error) throw new Error(error.message);
 }
+
+/**
+ * Set the display guild on a death record (cosmetic only — does not affect rotation).
+ */
+export async function setDeathDisplayGuild(deathRecordId: string, guildId: string): Promise<void> {
+  const { error } = await supabase.rpc("set_death_display_guild", {
+    p_death_record_id: deathRecordId,
+    p_guild_id: guildId,
+  });
+  if (error) throw new Error(error.message);
+}

@@ -33,6 +33,7 @@ export interface DeathRecord {
   server_id?: string | null;
   owner_guild_id?: string | null;
   is_initial_spawn?: boolean | null;
+  display_owner_guild_id?: string | null;
 }
 
 // ── Attendance System ───────────────────────────────────────

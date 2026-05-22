@@ -16,8 +16,11 @@ import {
   fetchBossGuilds,
   fetchGuilds,
   editDeathTime,
+  setDeathDisplayGuild,
+  deleteDeathRecord,
+  supabase,
 } from "@/lib/supabase";
-import { Loader2, ChevronLeft, ChevronRight, Users, Shield, Pencil, X, Check } from "lucide-react";
+import { Loader2, ChevronLeft, ChevronRight, Users, Shield, X } from "lucide-react";
 import { SavingOverlay } from "@/components/SavingOverlay";
 import type { WeekDaySpawns, SpawnInfo, Boss, BossGuild, Guild } from "@/types";
 
@@ -46,6 +49,36 @@ export function WeeklyScheduleView() {
   const [editDeathDate, setEditDeathDate] = useState("");
   const [editDeathSaving, setEditDeathSaving] = useState(false);
   const [editToast, setEditToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
+
+  // Edit display guild on death record
+  const [editGuildDeath, setEditGuildDeath] = useState<{ deathRecordId: string; bossName: string } | null>(null);
+  const [editGuildSaving, setEditGuildSaving] = useState(false);
+
+  const handleSetDisplayGuild = async (guildId: string | null) => {
+    if (!editGuildDeath) return;
+    setEditGuildSaving(true);
+    try {
+      // For "None" selection, we need to clear the display_owner_guild_id
+      // We'll use the RPC with a special case — pass null to clear
+      if (guildId) {
+        await setDeathDisplayGuild(editGuildDeath.deathRecordId, guildId);
+      } else {
+        // Clear the override by setting to null via a raw update
+        const { error } = await supabase
+          .from("death_records")
+          .update({ display_owner_guild_id: null })
+          .eq("id", editGuildDeath.deathRecordId);
+        if (error) throw error;
+      }
+      queryClient.invalidateQueries({ queryKey: ["death_records"] });
+      setEditToast({ type: "success", message: "Guild updated!" });
+      setEditGuildDeath(null);
+    } catch (err: any) {
+      setEditToast({ type: "error", message: err?.message ?? "Failed to update guild" });
+    } finally {
+      setEditGuildSaving(false);
+    }
+  };
 
   const handleEditDeathTime = useCallback(async () => {
     if (!editDeath || !editDeathDate) return;
@@ -350,36 +383,29 @@ export function WeeklyScheduleView() {
                         }`}
                       />
                       <span className="text-white text-sm">{s.boss.name}</span>
-                      {(() => { const gName = getOwnerGuildName(s.boss.id, day.day); if (!gName) return null; const c = guildColor(gName); return (
+                      {(() => {
+                        // For killed bosses, use display override if set
+                        let gName: string | null | undefined;
+                        if (isDeathEvent && s.deathRecord?.display_owner_guild_id) {
+                          gName = guilds.find(g => g.id === s.deathRecord!.display_owner_guild_id)?.name;
+                        } else {
+                          gName = getOwnerGuildName(s.boss.id, day.day);
+                        }
+                        if (!gName) return null;
+                        const c = guildColor(gName);
+                        return (
                         <span className={`text-[10px] px-1.5 py-0.5 rounded flex items-center gap-0.5 border ${c.bg} ${c.text} ${c.border}`}><Shield className="w-2.5 h-2.5" />{gName}</span>
                       ); })()}
                       {isDeathEvent && (
                         <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-red-900/40 text-red-400 inline-flex items-center gap-1">Killed <Users className="w-3 h-3" /></span>
                       )}
                     </div>
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-slate-400 text-sm">
+                    <span className="text-slate-400 text-sm">
                         {s.nextSpawn?.toLocaleTimeString(undefined, {
                           hour: "2-digit",
                           minute: "2-digit",
                         })}
                       </span>
-                      {isDeathEvent && s.deathRecord && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            const dt = new Date(s.deathRecord!.death_time);
-                            const local = new Date(dt.getTime() - dt.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
-                            setEditDeathDate(local);
-                            setEditDeath({ deathRecordId: s.deathRecord!.id, bossName: s.boss.name, deathTime: s.deathRecord!.death_time });
-                          }}
-                          className="p-0.5 rounded text-slate-500 hover:text-blue-400 hover:bg-blue-900/20 transition"
-                          title="Edit death time"
-                        >
-                          <Pencil className="w-3 h-3" />
-                        </button>
-                      )}
-                    </div>
                   </div>
                 )})}
               </div>
@@ -459,31 +485,23 @@ export function WeeklyScheduleView() {
                       <span className="text-white font-medium truncate">
                         {s.boss.name}
                       </span>
-                      <div className="flex items-center gap-1 shrink-0 ml-1">
-                        <span className="text-slate-400">
-                          {s.nextSpawn?.toLocaleTimeString(undefined, {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
-                        </span>
-                        {isDeathEvent && s.deathRecord && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              const dt = new Date(s.deathRecord!.death_time);
-                              const local = new Date(dt.getTime() - dt.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
-                              setEditDeathDate(local);
-                              setEditDeath({ deathRecordId: s.deathRecord!.id, bossName: s.boss.name, deathTime: s.deathRecord!.death_time });
-                            }}
-                            className="p-0.5 rounded text-slate-500 hover:text-blue-400 hover:bg-blue-900/20 transition"
-                            title="Edit death time"
-                          >
-                            <Pencil className="w-3 h-3" />
-                          </button>
-                        )}
-                      </div>
+                      <span className="text-slate-400 shrink-0 ml-1">
+                        {s.nextSpawn?.toLocaleTimeString(undefined, {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </span>
                     </div>
-                    {(() => { const gName = getOwnerGuildName(s.boss.id, day.day); if (!gName) return null; const c = guildColor(gName); return (
+                    {(() => {
+                      let gName: string | null | undefined;
+                      if (isDeathEvent && s.deathRecord?.display_owner_guild_id) {
+                        gName = guilds.find(g => g.id === s.deathRecord!.display_owner_guild_id)?.name;
+                      } else {
+                        gName = getOwnerGuildName(s.boss.id, day.day);
+                      }
+                      if (!gName) return null;
+                      const c = guildColor(gName);
+                      return (
                       <span className={`text-[9px] px-1 py-0.5 rounded flex items-center gap-0.5 w-fit border ${c.bg} ${c.text} ${c.border}`}><Shield className="w-2 h-2" />{gName}</span>
                     ); })()}
                     {isDeathEvent && (
@@ -522,6 +540,25 @@ export function WeeklyScheduleView() {
           bossName={selectedDeath.bossName}
           deathTime={selectedDeath.deathTime}
           onClose={() => setSelectedDeath(null)}
+          onEditDeathTime={() => {
+            const dt = new Date(selectedDeath.deathTime);
+            const local = new Date(dt.getTime() - dt.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+            setEditDeathDate(local);
+            setEditDeath({ deathRecordId: selectedDeath.deathRecordId, bossName: selectedDeath.bossName, deathTime: selectedDeath.deathTime });
+          }}
+          onChangeGuild={() => {
+            setEditGuildDeath({ deathRecordId: selectedDeath.deathRecordId, bossName: selectedDeath.bossName });
+          }}
+          onDelete={async () => {
+            try {
+              await deleteDeathRecord(selectedDeath.deathRecordId);
+              queryClient.invalidateQueries({ queryKey: ["death_records"] });
+              setEditToast({ type: "success", message: "Death record removed!" });
+              setSelectedDeath(null);
+            } catch (err: any) {
+              setEditToast({ type: "error", message: err?.message ?? "Failed to remove" });
+            }
+          }}
         />
       )}
 
@@ -585,6 +622,48 @@ export function WeeklyScheduleView() {
         <div className="fixed bottom-4 right-4 z-50">
           <div className={`px-4 py-2 rounded-lg text-sm text-white shadow-lg ${editToast.type === "success" ? "bg-emerald-600" : "bg-red-600"}`}>
             {editToast.message}
+          </div>
+        </div>
+      )}
+
+      {/* Edit display guild modal */}
+      {editGuildDeath && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60" onClick={() => setEditGuildDeath(null)} />
+          <div className="relative bg-slate-800 border border-slate-700 rounded-xl p-6 w-full max-w-xs shadow-2xl">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-white">Change Guild</h3>
+              <button onClick={() => setEditGuildDeath(null)} className="p-1 rounded-md text-slate-400 hover:text-white hover:bg-slate-700 transition">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <p className="text-sm text-slate-400 mb-3">
+              Select who killed <span className="text-white font-medium">{editGuildDeath.bossName}</span>
+            </p>
+            <p className="text-[10px] text-slate-500 mb-3">This does not affect the guild rotation sequence.</p>
+            <div className="space-y-1 max-h-48 overflow-y-auto">
+              <button
+                onClick={() => handleSetDisplayGuild(null)}
+                disabled={editGuildSaving}
+                className="w-full text-left px-3 py-2 rounded-md text-sm text-slate-400 hover:bg-slate-700 transition"
+              >
+                None (use rotation)
+              </button>
+              {guilds.map((g) => {
+                const c = guildColor(g.name);
+                return (
+                  <button
+                    key={g.id}
+                    onClick={() => handleSetDisplayGuild(g.id)}
+                    disabled={editGuildSaving}
+                    className={`w-full text-left px-3 py-2 rounded-md text-sm transition flex items-center gap-2 ${c.bg} ${c.text} border ${c.border} hover:opacity-80`}
+                  >
+                    <Shield className="w-3.5 h-3.5" />
+                    {g.name}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </div>
       )}

@@ -62,6 +62,12 @@ interface ParticipantModalProps {
   onClose: () => void;
   navigate?: (path: string) => void;
   readOnly?: boolean;
+  /** Optional: called when user wants to edit death time */
+  onEditDeathTime?: () => void;
+  /** Optional: called when user wants to change displayed guild */
+  onChangeGuild?: () => void;
+  /** Optional: called when user wants to delete this death record */
+  onDelete?: () => void;
 }
 
 export function ParticipantModal({
@@ -71,6 +77,9 @@ export function ParticipantModal({
   onClose,
   navigate,
   readOnly = false,
+  onEditDeathTime,
+  onChangeGuild,
+  onDelete,
 }: ParticipantModalProps) {
   const { data: attendance = [], isLoading } = useAttendance(deathRecordId);
   const { data: members = [] } = useMembers();
@@ -284,9 +293,26 @@ export function ParticipantModal({
             <h3 className="text-sm font-bold text-white">{bossName}</h3>
             <p className="text-[10px] text-slate-500">{new Date(deathTime).toLocaleString()}</p>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-white transition p-1">
-            <X className="w-4 h-4" />
-          </button>
+          <div className="flex items-center gap-2">
+            {onChangeGuild && (
+              <button onClick={onChangeGuild} className="text-xs text-purple-400 hover:text-purple-300 transition px-2 py-1 rounded hover:bg-purple-900/20">
+                Change Guild
+              </button>
+            )}
+            {onEditDeathTime && (
+              <button onClick={onEditDeathTime} className="text-xs text-blue-400 hover:text-blue-300 transition px-2 py-1 rounded hover:bg-blue-900/20">
+                Edit Time
+              </button>
+            )}
+            {onDelete && (
+              <button onClick={onDelete} className="text-xs text-red-400 hover:text-red-300 transition px-2 py-1 rounded hover:bg-red-900/20">
+                Remove
+              </button>
+            )}
+            <button onClick={onClose} className="text-slate-400 hover:text-white transition p-1">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
         <div className="p-4 overflow-y-auto flex-1 space-y-3">
