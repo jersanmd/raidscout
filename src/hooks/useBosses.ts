@@ -12,7 +12,7 @@ export function useBosses() {
       if (!isSupabaseConfigured()) return [];
       return await fetchBosses(serverId);
     },
-    staleTime: 5 * 60_000,
+    staleTime: 10_000,
     retry: 2,
     enabled: isSupabaseConfigured() && !!serverId,
   });

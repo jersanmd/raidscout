@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Clock, Zap, X, Upload, Check, Plus, Search, Users, ClipboardPaste, Sparkles, Loader2, Pencil, ImagePlus } from "lucide-react";
 import { useMembers } from "@/hooks/useMembers";
 import { useAuth } from "@/contexts/AuthContext";
@@ -20,6 +21,7 @@ interface DeathRecordModalProps {
 export function DeathRecordModal({ boss, onClose, onSubmit, defaultDeathTime, hideCustomTime }: DeathRecordModalProps) {
   const { user } = useAuth();
   const serverId = useServerId();
+  const queryClient = useQueryClient();
   const configured = isSupabaseConfigured();
 
   // Step tracking
@@ -118,6 +120,7 @@ export function DeathRecordModal({ boss, onClose, onSubmit, defaultDeathTime, hi
     const member = await upsertMember(name);
     setSelectedIds((prev) => new Set(prev).add(member.id));
     setNewMemberName("");
+    queryClient.invalidateQueries({ queryKey: ["members"] });
   };
 
   const handleNewMemberKeyDown = (e: React.KeyboardEvent) => {
@@ -213,6 +216,7 @@ export function DeathRecordModal({ boss, onClose, onSubmit, defaultDeathTime, hi
       }
 
       const exactIds: string[] = [];
+      const fuzzyIds: string[] = [];
       const suggestions = new Map<string, { id: string; name: string }>();
 
       for (const name of names) {
@@ -224,6 +228,7 @@ export function DeathRecordModal({ boss, onClose, onSubmit, defaultDeathTime, hi
         } else {
           const close = findClosestMember(name, members);
           if (close) {
+            fuzzyIds.push(close.id);
             suggestions.set(name, close);
           }
         }
@@ -231,10 +236,12 @@ export function DeathRecordModal({ boss, onClose, onSubmit, defaultDeathTime, hi
 
       setAiSuggestions(suggestions);
 
-      if (exactIds.length > 0) {
+      // Auto-select both exact and fuzzy matches
+      const autoSelectIds = [...exactIds, ...fuzzyIds];
+      if (autoSelectIds.length > 0) {
         setSelectedIds((prev) => {
           const next = new Set(prev);
-          exactIds.forEach((id) => next.add(id));
+          autoSelectIds.forEach((id) => next.add(id));
           return next;
         });
       }
@@ -265,10 +272,13 @@ export function DeathRecordModal({ boss, onClose, onSubmit, defaultDeathTime, hi
     setAiCreating(false);
     setAiDetectedNames(null);
     setAiSuggestions(null);
+    queryClient.invalidateQueries({ queryKey: ["members"] });
   };
 
   /** Resolve a fuzzy suggestion: select the existing member instead of creating new */
   const resolveSuggestion = (detectedName: string, member: { id: string; name: string }) => {
+    // Auto-select the resolved member
+    setSelectedIds((prev) => new Set(prev).add(member.id));
     // Replace the AI-misread name with the actual member name
     setAiDetectedNames((prev) => {
       if (!prev) return prev;
@@ -422,6 +432,7 @@ export function DeathRecordModal({ boss, onClose, onSubmit, defaultDeathTime, hi
 
     setPasteText("");
     setPasteMode(false);
+    queryClient.invalidateQueries({ queryKey: ["members"] });
   };
 
   const handleFinalSubmit = async () => {
@@ -463,7 +474,7 @@ export function DeathRecordModal({ boss, onClose, onSubmit, defaultDeathTime, hi
       <div className="absolute inset-0 bg-black/60" onClick={onClose} />
 
       {/* Modal */}
-      <div className="relative bg-slate-900 border border-slate-700 rounded-xl w-full max-w-sm shadow-2xl max-h-[90vh] flex flex-col">
+      <div className="relative bg-slate-900 border border-slate-700 rounded-xl w-full max-w-2xl shadow-2xl max-h-[90vh] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-slate-800 shrink-0">
           <h2 className="text-lg font-bold text-white">
@@ -671,167 +682,34 @@ export function DeathRecordModal({ boss, onClose, onSubmit, defaultDeathTime, hi
                   </div>
                 )}
 
-                {/* AI scan results — grouped into exact, fuzzy, and new */}
+                {/* AI scan status — just show scan progress, results are auto-checked in the list */}
+                {aiLoading && (
+                  <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-purple-900/20 border border-purple-800 mb-3">
+                    <Loader2 className="w-4 h-4 text-purple-400 animate-spin" />
+                    <span className="text-xs text-purple-400">Scanning rally image...</span>
+                  </div>
+                )}
                 {aiScanned && !aiError && aiDetectedNames && aiDetectedNames.length > 0 && (() => {
                   const existingLower = new Set(members.map((m) => m.name.toLowerCase()));
-                  const suggestionNames = new Set(aiSuggestions?.keys() ?? []);
-                  const exactNames = aiDetectedNames.filter((n) =>
-                    existingLower.has(n.toLowerCase())
-                  );
-                  const fuzzyNames = aiDetectedNames.filter((n) =>
-                    !existingLower.has(n.toLowerCase()) && suggestionNames.has(n)
-                  );
-                  const newNames = aiDetectedNames.filter((n) =>
-                    !existingLower.has(n.toLowerCase()) && !suggestionNames.has(n)
-                  );
-
+                  const matchedCount = aiDetectedNames.filter(n => {
+                    const lower = n.toLowerCase();
+                    return existingLower.has(lower) || (aiSuggestions?.has(n) ?? false);
+                  }).length;
+                  const missingCount = aiDetectedNames.length - matchedCount;
                   return (
-                    <div className="space-y-3 mb-3">
-                      {/* Header */}
-                      <div className="flex items-center gap-2">
-                        <Sparkles className="w-4 h-4 text-violet-400" />
-                        <span className="text-sm font-medium text-violet-300">
-                          AI detected {aiDetectedNames.length} name{aiDetectedNames.length !== 1 ? "s" : ""}
-                        </span>
-                      </div>
-
-                      {/* Already in Ranks (exact match) */}
-                      {exactNames.length > 0 && (
-                        <div>
-                          <p className="text-[11px] font-medium text-emerald-400/80 uppercase tracking-wider mb-1.5">
-                            ✓ Already in Ranks ({exactNames.length})
-                          </p>
-                          <div className="flex flex-wrap gap-1">
-                            {exactNames.map((name) => {
-                              const globalIdx = aiDetectedNames.indexOf(name);
-                              const isEditing = editingIndex === globalIdx;
-                              return isEditing ? (
-                                <span key={name} className="inline-flex items-center gap-1">
-                                  <input
-                                    ref={editInputRef}
-                                    value={editValue}
-                                    onChange={(e) => setEditValue(e.target.value)}
-                                    onKeyDown={handleEditKeyDown}
-                                    onBlur={saveEdit}
-                                    className="w-24 px-2 py-0.5 rounded text-xs font-medium bg-slate-800 text-white border border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                                  />
-                                </span>
-                              ) : (
-                                <span
-                                  key={name}
-                                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-emerald-900/30 text-emerald-400 border border-emerald-800/50 group cursor-pointer hover:border-emerald-700"
-                                  onClick={() => startEditing(globalIdx)}
-                                  title="Click to edit"
-                                >
-                                  <Check className="w-3 h-3" />
-                                  {name}
-                                  <button
-                                    onClick={(e) => { e.stopPropagation(); removeDetectedName(name); }}
-                                    className="opacity-0 group-hover:opacity-100 transition text-red-400 hover:text-red-300"
-                                    title="Mark as absent"
-                                  >
-                                    <X className="w-3 h-3" />
-                                  </button>
-                                  <Pencil className="w-3 h-3 opacity-0 group-hover:opacity-100 transition" />
-                                </span>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Possible Matches (fuzzy) */}
-                      {fuzzyNames.length > 0 && (
-                        <div>
-                          <p className="text-[11px] font-medium text-blue-400/80 uppercase tracking-wider mb-1.5">
-                            ≈ Possible Matches ({fuzzyNames.length})
-                          </p>
-                          <div className="flex flex-wrap gap-1.5">
-                            {fuzzyNames.map((name) => {
-                              const suggestion = aiSuggestions?.get(name);
-                              return (
-                                <span
-                                  key={name}
-                                  className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium bg-blue-900/20 text-blue-300 border border-blue-800/50"
-                                >
-                                  <span className="text-slate-500 line-through">{name}</span>
-                                  <span className="text-slate-500">→</span>
-                                  {suggestion && (
-                                    <button
-                                      onClick={() => resolveSuggestion(name, suggestion)}
-                                      className="inline-flex items-center gap-1 text-blue-400 hover:text-blue-300 transition"
-                                      title={`Click to select "${suggestion.name}" instead`}
-                                    >
-                                      <Check className="w-3 h-3" />
-                                      {suggestion.name}
-                                    </button>
-                                  )}
-                                </span>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* New Players */}
-                      {newNames.length > 0 && (
-                        <div>
-                          <p className="text-[11px] font-medium text-amber-400/80 uppercase tracking-wider mb-1.5">
-                            ✦ New Players ({newNames.length})
-                          </p>
-                          <div className="flex flex-wrap gap-1 mb-2">
-                            {newNames.map((name) => {
-                              const globalIdx = aiDetectedNames.indexOf(name);
-                              const isEditing = editingIndex === globalIdx;
-                              return isEditing ? (
-                                <span key={name} className="inline-flex items-center gap-1">
-                                  <input
-                                    ref={editInputRef}
-                                    value={editValue}
-                                    onChange={(e) => setEditValue(e.target.value)}
-                                    onKeyDown={handleEditKeyDown}
-                                    onBlur={saveEdit}
-                                    className="w-24 px-2 py-0.5 rounded text-xs font-medium bg-slate-800 text-white border border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
-                                  />
-                                </span>
-                              ) : (
-                                <span
-                                  key={name}
-                                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-slate-800 text-slate-400 border border-slate-700 group cursor-pointer hover:border-slate-500"
-                                  onClick={() => startEditing(globalIdx)}
-                                  title="Click to edit"
-                                >
-                                  <Users className="w-3 h-3" />
-                                  {name}
-                                  <button
-                                    onClick={(e) => { e.stopPropagation(); removeDetectedName(name); }}
-                                    className="opacity-0 group-hover:opacity-100 transition text-red-400 hover:text-red-300"
-                                    title="Mark as absent"
-                                  >
-                                    <X className="w-3 h-3" />
-                                  </button>
-                                  <Pencil className="w-3 h-3 opacity-0 group-hover:opacity-100 transition" />
-                                </span>
-                              );
-                            })}
-                          </div>
-                          <button
-                            onClick={handleCreateNewFromAI}
-                            disabled={aiCreating}
-                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-900/30 border border-amber-800 text-amber-400 text-xs font-medium hover:bg-amber-900/50 transition disabled:opacity-50"
-                          >
-                            {aiCreating ? (
-                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            ) : (
-                              <Plus className="w-3.5 h-3.5" />
-                            )}
-                            {aiCreating
-                              ? "Creating..."
-                              : `Create ${newNames.length} player${newNames.length !== 1 ? "s" : ""} & add to ranks`}
-                          </button>
-                        </div>
-                      )}
+                  <div className={`px-3 py-2 rounded-lg border mb-3 ${missingCount > 0 ? "bg-amber-900/20 border-amber-800" : "bg-emerald-900/20 border-emerald-800"}`}>
+                    <div className="flex items-center gap-2">
+                      <Check className={`w-4 h-4 ${missingCount > 0 ? "text-amber-400" : "text-emerald-400"}`} />
+                      <span className={`text-xs ${missingCount > 0 ? "text-amber-400" : "text-emerald-400"}`}>
+                        {matchedCount} of {aiDetectedNames.length} name{aiDetectedNames.length !== 1 ? "s" : ""} added to checklist
+                      </span>
                     </div>
+                    {missingCount > 0 && (
+                      <p className="text-[11px] text-slate-400 mt-1 ml-6">
+                        {missingCount} name{missingCount !== 1 ? "s" : ""} not found — check manually below
+                      </p>
+                    )}
+                  </div>
                   );
                 })()}
 
@@ -870,22 +748,23 @@ export function DeathRecordModal({ boss, onClose, onSubmit, defaultDeathTime, hi
                 </div>
 
                 {selectedIds.size > 0 && (
-                  <p className="text-xs text-amber-400 mb-2">
+                  <p className="text-sm text-amber-400 mb-2">
                     {selectedIds.size} member{selectedIds.size > 1 ? "s" : ""} selected
                   </p>
                 )}
 
-                <div className="max-h-40 overflow-y-auto space-y-1 border border-slate-800 rounded-lg p-1">
+                <div className="max-h-64 overflow-y-auto border border-slate-800 rounded-lg p-2">
                   {filteredMembers.length === 0 ? (
                     <p className="text-sm text-slate-600 text-center py-3">
                       No members found
                     </p>
                   ) : (
-                    filteredMembers.map((m) => (
+                    <div className="flex flex-wrap gap-1.5">
+                    {filteredMembers.map((m) => (
                       <button
                         key={m.id}
                         onClick={() => toggleMember(m.id)}
-                        className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition ${
+                        className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-sm transition ${
                           selectedIds.has(m.id)
                             ? "bg-amber-900/30 text-amber-300 border border-amber-800"
                             : "text-slate-300 hover:bg-slate-800 border border-transparent"
@@ -900,10 +779,10 @@ export function DeathRecordModal({ boss, onClose, onSubmit, defaultDeathTime, hi
                         >
                           {selectedIds.has(m.id) && <Check className="w-3 h-3 text-white" />}
                         </div>
-                        <Users className="w-3.5 h-3.5 text-slate-500" />
                         <span>{m.name}</span>
                       </button>
-                    ))
+                    ))}
+                    </div>
                   )}
                 </div>
               </div>

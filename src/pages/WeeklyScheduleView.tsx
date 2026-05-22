@@ -87,6 +87,9 @@ export function WeeklyScheduleView() {
     const scheduleEntry = bgs.find(bg => bg.day_of_week === dow);
     if (scheduleEntry) return guilds.find(g => g.id === scheduleEntry.guild_id)?.name ?? null;
 
+    const bossData = bosses.find(b => b.id === bossId);
+    const adjustment = bossData?.rotation_adjustment ?? 0;
+
     // Daily mode: advance guild only when spawn crosses into a new day
     const dailyEntries = bgs.filter(bg => bg.mode === "daily").sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
     if (dailyEntries.length > 0) {
@@ -98,7 +101,6 @@ export function WeeklyScheduleView() {
         return guilds.find(g => g.id === dailyEntries[0].guild_id)?.name ?? null;
       }
 
-      const bossData = bosses.find(b => b.id === bossId);
       const respawnHours = bossData?.respawn_hours ?? 0;
       const deathDate = new Date(lastDeath.death_time);
       const spawnDate = new Date(deathDate.getTime() + respawnHours * 3600000);
@@ -112,20 +114,22 @@ export function WeeklyScheduleView() {
       if (!lastGuildId) return guilds.find(g => g.id === dailyEntries[0].guild_id)?.name ?? null;
       
       const lastIdx = dailyEntries.findIndex(bg => bg.guild_id === lastGuildId);
-      const nextIdx = lastIdx >= 0 ? (lastIdx + 1) % dailyEntries.length : 0;
+      let nextIdx = (lastIdx >= 0 ? lastIdx + 1 : 0) + adjustment;
+      nextIdx = ((nextIdx % dailyEntries.length) + dailyEntries.length) % dailyEntries.length;
       return guilds.find(g => g.id === dailyEntries[nextIdx].guild_id)?.name ?? null;
     }
 
-    // Rotation mode: advance by number of kills
+    // Rotation mode: advance by number of kills (with manual adjustment)
     const rotationEntries = bgs.filter(bg => bg.sort_order !== null && bg.mode !== "daily").sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
     if (rotationEntries.length > 0) {
       const killCount = deathRecords.filter(dr => dr.boss_id === bossId && !dr.is_initial_spawn).length;
-      const idx = killCount % rotationEntries.length;
+      let idx = (killCount + adjustment) % rotationEntries.length;
+      if (idx < 0) idx += rotationEntries.length;
       return guilds.find(g => g.id === rotationEntries[idx].guild_id)?.name ?? null;
     }
 
     return null;
-  }, [bossGuilds, guilds, deathRecords]);
+  }, [bossGuilds, guilds, deathRecords, bosses]);
 
   const handleRecordDeath = useCallback(
     async (bossId: string, deathTime: Date, rallyImages: File[], attendeeIds: string[]) => {
@@ -308,7 +312,7 @@ export function WeeklyScheduleView() {
             ) : (
               <div className="space-y-2">
                 {day.spawns.map((s, i) => {
-                  const isDeathEvent = s.deathRecord !== null && s.nextSpawn?.getTime() === new Date(s.deathRecord.death_time).getTime();
+                  const isDeathEvent = s.deathRecord !== null && !s.deathRecord.is_initial_spawn && s.nextSpawn?.getTime() === new Date(s.deathRecord.death_time).getTime();
                   const isScheduleBoss = s.boss.spawn_type === "fixed_schedule";
 
                   return (
@@ -421,7 +425,7 @@ export function WeeklyScheduleView() {
                 <p className="text-slate-700 text-xs text-center py-4">—</p>
               ) : (
                 day.spawns.map((s, i) => {
-                  const isDeathEvent = s.deathRecord !== null && s.nextSpawn?.getTime() === new Date(s.deathRecord.death_time).getTime();
+                  const isDeathEvent = s.deathRecord !== null && !s.deathRecord.is_initial_spawn && s.nextSpawn?.getTime() === new Date(s.deathRecord.death_time).getTime();
                   const isScheduleBoss = s.boss.spawn_type === "fixed_schedule";
 
                   return (

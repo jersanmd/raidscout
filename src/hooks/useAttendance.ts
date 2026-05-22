@@ -106,7 +106,9 @@ export function useLeaderboard(period: LeaderboardPeriod = "all") {
       const since = period === "monthly" ? periodStart : (resetAt && resetAt > periodStart ? resetAt : periodStart);
       return await fetchLeaderboardByPeriod(since, serverId);
     },
-    staleTime: 30_000,
+    staleTime: 0,
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
     retry: 2,
     enabled: configured && !!serverId,
   });
