@@ -30,7 +30,9 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
   const [editingSpawn, setEditingSpawn] = useState(false);
   const [editSpawnDate, setEditSpawnDate] = useState("");
   const { boss, status, nextSpawn } = spawn;
-  const canEdit = !isViewer && currentServer && (boss.spawn_type === "fixed_hours" || status === "unknown") && !!onSetSpawnDate;
+  const canEdit = !isViewer && currentServer && !!onSetSpawnDate && (
+    boss.spawn_type === "fixed_hours" || status === "unknown" || (boss.spawn_type === "fixed_schedule" && !!spawn.deathRecord)
+  );
 
   const statusConfig = {
     unknown: {
