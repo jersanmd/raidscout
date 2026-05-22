@@ -1079,3 +1079,26 @@ export async function setDeathDisplayGuild(deathRecordId: string, guildId: strin
   });
   if (error) throw new Error(error.message);
 }
+
+/**
+ * Toggle whether viewers can edit spawn times and mark bosses as died.
+ * Returns the new value.
+ */
+export async function toggleViewerCanEdit(serverId: string): Promise<boolean> {
+  const { data, error } = await supabase.rpc("toggle_viewer_can_edit", {
+    p_server_id: serverId,
+  });
+  if (error) throw new Error(error.message);
+  return data as boolean;
+}
+
+/**
+ * Toggle whether viewers can mark bosses as died.
+ */
+export async function toggleViewerCanMarkDied(serverId: string): Promise<boolean> {
+  const { data, error } = await supabase.rpc("toggle_viewer_can_mark_died", {
+    p_server_id: serverId,
+  });
+  if (error) throw new Error(error.message);
+  return data as boolean;
+}

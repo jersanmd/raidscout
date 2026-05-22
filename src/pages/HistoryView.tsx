@@ -387,7 +387,7 @@ export function HistoryView() {
           deathTime={selectedEntry.deathTime}
           onClose={() => setSelectedEntry(null)}
           navigate={navigate}
-          readOnly={false}
+          readOnly={isViewer}
         />
       )}
 

@@ -15,6 +15,8 @@ import {
   fetchGuilds,
   setBossSpawnTime,
   adjustBossRotation,
+  toggleViewerCanEdit,
+  toggleViewerCanMarkDied,
 } from "@/lib/supabase";
 import { BossCard } from "@/components/BossCard";
 import { DeathRecordModal } from "@/components/DeathRecordModal";
@@ -24,7 +26,7 @@ import { SavingOverlay } from "@/components/SavingOverlay";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { emitSpawnAlert } from "@/hooks/useSpawnAlerts";
 import { guildColor } from "@/lib/constants";
-import { Skull, Loader2, Zap, X, CheckCircle, AlertTriangle, CheckSquare, Square, Megaphone, Volume2 } from "lucide-react";
+import { Skull, Loader2, Zap, X, CheckCircle, AlertTriangle, CheckSquare, Square, Megaphone, Volume2, Eye, Copy } from "lucide-react";
 import type { BossWithSpawn, BossGuild, Guild, DeathRecord } from "@/types";
 
 export function BossListView() {
@@ -51,6 +53,9 @@ export function BossListView() {
   const [guilds, setGuilds] = useState<Guild[]>([]);
   const [bossGuilds, setBossGuilds] = useState<BossGuild[]>([]);
   const [hasWebhook, setHasWebhook] = useState(false);
+  const [viewerCanEdit, setViewerCanEdit] = useState(false);
+  const [viewerCanMarkDied, setViewerCanMarkDied] = useState(false);
+  const [viewerKey, setViewerKey] = useState("");
 
   useEffect(() => {
     const sid = currentServer?.id;
@@ -58,14 +63,17 @@ export function BossListView() {
     Promise.all([fetchGuilds(sid), fetchBossGuilds(sid)])
       .then(([g, bg]) => { setGuilds(g); setBossGuilds(bg); })
       .catch(() => { setGuilds([]); setBossGuilds([]); });
-    // Check if server has a Discord webhook
-    const checkWebhook = async () => {
+    // Check if server has a Discord webhook and viewer edit setting
+    const checkServer = async () => {
       try {
-        const { data } = await supabase.from("servers").select("discord_webhook_url").eq("id", sid).single();
+        const { data } = await supabase.from("servers").select("discord_webhook_url, viewer_can_edit, viewer_can_mark_died, viewer_key").eq("id", sid).single();
         setHasWebhook(!!(data as any)?.discord_webhook_url);
-      } catch { setHasWebhook(false); }
+        setViewerCanEdit(!!(data as any)?.viewer_can_edit);
+        setViewerCanMarkDied(!!(data as any)?.viewer_can_mark_died);
+        setViewerKey((data as any)?.viewer_key || "");
+      } catch { setHasWebhook(false); setViewerCanEdit(false); setViewerCanMarkDied(false); setViewerKey(""); }
     };
-    checkWebhook();
+    checkServer();
   }, [currentServer?.id]);
 
   const toggleSelect = (bossId: string) => {
@@ -79,6 +87,28 @@ export function BossListView() {
 
   const clearSelection = () => {
     setSelectedIds(new Set());
+  };
+
+  const handleToggleViewerEdit = async () => {
+    const sid = getCurrentServerId();
+    if (!sid) return;
+    try {
+      const newVal = await toggleViewerCanEdit(sid);
+      setViewerCanEdit(newVal);
+    } catch (err: any) {
+      setToast({ type: "error", message: err?.message ?? "Failed to toggle setting" });
+    }
+  };
+
+  const handleToggleViewerMarkDied = async () => {
+    const sid = getCurrentServerId();
+    if (!sid) return;
+    try {
+      const newVal = await toggleViewerCanMarkDied(sid);
+      setViewerCanMarkDied(newVal);
+    } catch (err: any) {
+      setToast({ type: "error", message: err?.message ?? "Failed to toggle setting" });
+    }
   };
 
   // Global saving overlay
@@ -563,6 +593,38 @@ export function BossListView() {
           Post 24h Spawns to Discord
         </button>
         )}
+        {!isViewer && (
+          <div className="flex items-center gap-4 ml-auto">
+            {viewerKey && (
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800/50 border border-slate-700">
+                <Eye className="w-3.5 h-3.5 text-slate-500" />
+                <code className="text-xs text-slate-400 font-mono select-all">{window.location.origin}/view/{viewerKey}</code>
+                <button
+                  onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/view/${viewerKey}`); setToast({ type: "success", message: "Viewer link copied!" }); }}
+                  className="p-1 rounded text-slate-500 hover:text-white hover:bg-slate-700 transition"
+                  title="Copy viewer link"
+                >
+                  <Copy className="w-3 h-3" />
+                </button>
+              </div>
+            )}
+            <span className="text-[10px] text-slate-500 uppercase tracking-wider">Viewer Permissions</span>
+            <label className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-800/50 border border-slate-700 cursor-pointer hover:border-slate-600 transition">
+              <span className="text-xs text-slate-400">Allow editing spawn time</span>
+              <div className="relative">
+                <input type="checkbox" checked={viewerCanEdit} onChange={handleToggleViewerEdit} className="sr-only peer" />
+                <div className="w-8 h-4 bg-slate-600 rounded-full peer-checked:bg-emerald-600 transition after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:w-3 after:h-3 after:bg-white after:rounded-full after:transition peer-checked:after:translate-x-4" />
+              </div>
+            </label>
+            <label className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-800/50 border border-slate-700 cursor-pointer hover:border-slate-600 transition">
+              <span className="text-xs text-slate-400">Allow marking as died</span>
+              <div className="relative">
+                <input type="checkbox" checked={viewerCanMarkDied} onChange={handleToggleViewerMarkDied} className="sr-only peer" />
+                <div className="w-8 h-4 bg-slate-600 rounded-full peer-checked:bg-emerald-600 transition after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:w-3 after:h-3 after:bg-white after:rounded-full after:transition peer-checked:after:translate-x-4" />
+              </div>
+            </label>
+          </div>
+        )}
       </div>
 
       {/* Upcoming strip — next 3 bosses to spawn */}
@@ -638,6 +700,8 @@ export function BossListView() {
                     rotationCurrentIndex={rot?.currentIndex}
                     rotationMode={rot?.mode}
                     onSetRotation={(idx) => handleSetRotation(s.boss.id, idx)}
+                    viewerCanEdit={viewerCanEdit}
+                    viewerCanMarkDied={viewerCanMarkDied}
                   />
                   );
                 })}

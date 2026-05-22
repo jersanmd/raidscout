@@ -11,6 +11,8 @@ export interface Server {
   timezone?: string;
   notification_prefix?: string;
   role: "owner" | "moderator";
+  viewer_can_edit?: boolean;
+  viewer_can_mark_died?: boolean;
 }
 
 interface ServerState {

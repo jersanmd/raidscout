@@ -540,16 +540,17 @@ export function WeeklyScheduleView() {
           bossName={selectedDeath.bossName}
           deathTime={selectedDeath.deathTime}
           onClose={() => setSelectedDeath(null)}
-          onEditDeathTime={() => {
+          readOnly={isViewer}
+          onEditDeathTime={!isViewer ? () => {
             const dt = new Date(selectedDeath.deathTime);
             const local = new Date(dt.getTime() - dt.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
             setEditDeathDate(local);
             setEditDeath({ deathRecordId: selectedDeath.deathRecordId, bossName: selectedDeath.bossName, deathTime: selectedDeath.deathTime });
-          }}
-          onChangeGuild={() => {
+          } : undefined}
+          onChangeGuild={!isViewer ? () => {
             setEditGuildDeath({ deathRecordId: selectedDeath.deathRecordId, bossName: selectedDeath.bossName });
-          }}
-          onDelete={async () => {
+          } : undefined}
+          onDelete={!isViewer ? async () => {
             try {
               await deleteDeathRecord(selectedDeath.deathRecordId);
               queryClient.invalidateQueries({ queryKey: ["death_records"] });
@@ -558,7 +559,7 @@ export function WeeklyScheduleView() {
             } catch (err: any) {
               setEditToast({ type: "error", message: err?.message ?? "Failed to remove" });
             }
-          }}
+          } : undefined}
         />
       )}
 

@@ -396,8 +396,8 @@ export function ParticipantModal({
                         {group.members.map((m) => {
                           const isAttending = attendedIds.has(m.id);
                           return (
-                            <label key={m.id} className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded cursor-pointer transition text-sm ${isAttending ? "bg-emerald-600/20 text-emerald-300 border border-emerald-800" : "text-slate-400 hover:bg-slate-700/50 border border-transparent"}`}>
-                              <input type="checkbox" checked={isAttending} disabled={readOnly} onChange={() => {
+                            <label key={m.id} title={readOnly ? "Only moderators can update participants" : undefined} className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded transition text-sm ${readOnly ? "cursor-default" : "cursor-pointer"} ${isAttending ? "bg-emerald-600/20 text-emerald-300 border border-emerald-800" : "text-slate-400 hover:bg-slate-700/50 border border-transparent"}`}>
+                              <input type="checkbox" checked={isAttending} disabled={readOnly} title={readOnly ? "Only moderators can update participants" : undefined} onChange={() => {
                                 if (readOnly) return;
                                 if (isAttending) { const att = attendance.find(a => a.member_id === m.id); if (att) removeAttendance.mutate({ attendanceId: att.id, deathRecordId }); }
                                 else { addAttendance.mutate({ deathRecordId, memberId: m.id }); }

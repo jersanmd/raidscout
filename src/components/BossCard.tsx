@@ -28,9 +28,13 @@ interface BossCardProps {
   rotationMode?: string;
   /** Called when user clicks a guild to set rotation to that index */
   onSetRotation?: (targetIndex: number) => void;
+  /** Whether viewers are allowed to edit spawn time */
+  viewerCanEdit?: boolean;
+  /** Whether viewers are allowed to mark as died */
+  viewerCanMarkDied?: boolean;
 }
 
-export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, onCriticalSpawn, compact = false, multiMode = false, selected = false, onToggleSelect, ownerGuildName, rotationGuilds, rotationCurrentIndex, rotationMode, onSetRotation }: BossCardProps) {
+export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, onCriticalSpawn, compact = false, multiMode = false, selected = false, onToggleSelect, ownerGuildName, rotationGuilds, rotationCurrentIndex, rotationMode, onSetRotation, viewerCanEdit, viewerCanMarkDied }: BossCardProps) {
   const { isViewer } = useAuth();
   const { currentServer } = useServer();
   const tz = useServerTimezone();
@@ -38,9 +42,10 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
   const [showEditSpawnModal, setShowEditSpawnModal] = useState(false);
   const [editSpawnDate, setEditSpawnDate] = useState("");
   const { boss, status, nextSpawn } = spawn;
-  const canEdit = currentServer && !!onSetSpawnDate && (
+  const canEdit = (viewerCanEdit || !isViewer) && currentServer && !!onSetSpawnDate && (
     boss.spawn_type === "fixed_hours" || status === "unknown" || (boss.spawn_type === "fixed_schedule" && !!spawn.deathRecord)
   );
+  const canMarkDied = viewerCanMarkDied || !isViewer;
 
   const statusConfig = {
     unknown: {
@@ -168,6 +173,7 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
                 Edit Spawn Time
               </button>
             )}
+            {canMarkDied && (
             <button
               onClick={() => setShowModal(true)}
               className="flex items-center justify-center gap-1 px-2.5 py-1 rounded-md bg-red-900/30 border border-red-800 text-red-400 text-xs font-medium hover:bg-red-900/50 transition shrink-0 w-[130px]"
@@ -175,6 +181,7 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
               <Skull className="w-3 h-3" />
               Mark Died
             </button>
+            )}
           </div>
         )}
 
