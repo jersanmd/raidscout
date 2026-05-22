@@ -4,7 +4,7 @@ import { useMembers } from "@/hooks/useMembers";
 import { useAuth } from "@/contexts/AuthContext";
 import { updateMemberName, deleteMember, upsertMember, isSupabaseConfigured, fetchGuilds, setMemberGuild } from "@/lib/supabase";
 import type { Guild } from "@/types";
-import { Users, Plus, Pencil, Trash2, Loader2, X, Check, UserPlus, CheckCircle, AlertTriangle, Image, Upload } from "lucide-react";
+import { Users, Plus, Pencil, Trash2, Loader2, X, Check, UserPlus, CheckCircle, AlertTriangle, Image, Upload, Copy } from "lucide-react";
 import type { Member } from "@/types";
 
 export function MembersView() {
@@ -163,6 +163,19 @@ export function MembersView() {
             </p>
           </div>
         </div>
+        {members.length > 0 && (
+          <button
+            onClick={() => {
+              const names = members.map(m => m.name).join(", ");
+              navigator.clipboard.writeText(names);
+              setToast({ type: "success", message: `${members.length} names copied!` });
+            }}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-400 text-xs font-medium hover:bg-slate-700 hover:text-white transition"
+          >
+            <Copy className="w-3.5 h-3.5" />
+            Copy All
+          </button>
+        )}
       </div>
 
       {/* Toast notification */}

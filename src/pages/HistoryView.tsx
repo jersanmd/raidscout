@@ -31,7 +31,6 @@ export function HistoryView() {
 
   const history = supabaseHistory;
 
-  const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [selectedEntry, setSelectedEntry] = useState<HistoryEntry | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<HistoryEntry | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -127,11 +126,6 @@ export function HistoryView() {
     return groups;
   }, [filtered]);
 
-  const handleClear = () => {
-    setSupabaseHistory([]);
-    setShowClearConfirm(false);
-  };
-
   const handleDelete = async () => {
     if (!deleteTarget || !deleteTarget.deathRecordId) return;
     setDeleting(true);
@@ -188,15 +182,6 @@ export function HistoryView() {
             )}
           </div>
         </div>
-        {history.length > 0 && !isViewer && (
-          <button
-            onClick={() => setShowClearConfirm(true)}
-            className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-red-400 transition shrink-0"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-            Clear
-          </button>
-        )}
       </div>
 
       {loading ? (
@@ -321,31 +306,6 @@ export function HistoryView() {
         </div>
       )}
 
-      {/* Clear confirmation */}
-      {showClearConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/60" onClick={() => setShowClearConfirm(false)} />
-          <div className="relative bg-slate-900 border border-slate-700 rounded-xl w-full max-w-xs shadow-2xl p-4 space-y-4">
-            <p className="text-white text-sm text-center">
-              Clear all {history.length} history entries?
-            </p>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setShowClearConfirm(false)}
-                className="flex-1 py-2 rounded-lg bg-slate-800 text-slate-300 text-sm"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleClear}
-                className="flex-1 py-2 rounded-lg bg-red-900/30 border border-red-800 text-red-400 text-sm"
-              >
-                Clear All
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
       {/* Delete single entry confirmation */}
       {deleteTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
