@@ -1,16 +1,17 @@
 import { useState, useEffect } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { useLeaderboard, type LeaderboardPeriod } from "@/hooks/useAttendance";
 import { useLeaderboardSnapshots, getLastFinalized, getLeaderboardResetAt } from "@/hooks/useLeaderboardSnapshots";
 import { guildColor } from "@/lib/constants";
 import { useAuth } from "@/contexts/AuthContext";
-import { useServerId } from "@/contexts/ServerContext";
-import { fetchMemberKills, type MemberBossKill, isSupabaseConfigured, fetchGuilds } from "@/lib/supabase";
+import { useServerId, useServer } from "@/contexts/ServerContext";
+import { fetchMemberKills, type MemberBossKill, isSupabaseConfigured, fetchGuilds, adjustMemberPoints, fetchPointAdjustments } from "@/lib/supabase";
 import { useAttendance } from "@/hooks/useAttendance";
 import { useMembers } from "@/hooks/useMembers";
-import type { Guild } from "@/types";
+import type { Guild, PointAdjustment } from "@/types";
 import { shouldAutoFinalize, setLastAutoFinalize, getMondayISO } from "@/hooks/useAutoFinalize";
-import { Trophy, Medal, Crown, Users, Loader2, X, Skull, CheckCheck, History, ChevronRight, ChevronLeft, Search, Shield } from "lucide-react";
+import { Trophy, Medal, Crown, Users, Loader2, X, Skull, CheckCheck, History, ChevronRight, ChevronLeft, Search, Shield, Plus, Minus, Edit3 } from "lucide-react";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 
 const rankColors: Record<number, { icon: React.ReactNode; text: string; bg: string }> = {
@@ -36,6 +37,7 @@ export function LeaderboardView() {
   const { data: entries = [], isLoading } = useLeaderboard(period);
   const { user, isViewer } = useAuth();
   const serverId = useServerId();
+  const queryClient = useQueryClient();
   const configured = isSupabaseConfigured();
 
   // Selected member for kill history modal
@@ -57,6 +59,17 @@ export function LeaderboardView() {
   const [searchQuery, setSearchQuery] = useState("");
   const [guildFilter, setGuildFilter] = useState<string>("all");
   const [showFinalizeConfirm, setShowFinalizeConfirm] = useState(false);
+
+  // Point adjustment modal state
+  const { currentServer } = useServer();
+  const isStaff = currentServer?.role === "owner" || currentServer?.role === "moderator";
+  const [adjustMember, setAdjustMember] = useState<{ id: string; name: string; points: number } | null>(null);
+  const [adjustValue, setAdjustValue] = useState(0);
+  const [adjustReason, setAdjustReason] = useState("");
+  const [adjustLoading, setAdjustLoading] = useState(false);
+  const [adjustError, setAdjustError] = useState<string | null>(null);
+  const [adjustHistory, setAdjustHistory] = useState<PointAdjustment[]>([]);
+  const [showAdjustHistory, setShowAdjustHistory] = useState(false);
 
   // Fetch guilds and members for filtering
   const { data: members = [] } = useMembers();
@@ -168,8 +181,25 @@ export function LeaderboardView() {
           </div>
         </div>
 
-        {entries.length > 0 && !isViewer && (
+        {entries.length > 0 && (
           <div className="flex items-center gap-2">
+            {(isStaff || isViewer) && (
+              <button
+                onClick={async () => {
+                  setShowAdjustHistory(true);
+                  if (serverId) {
+                    try {
+                      setAdjustHistory(await fetchPointAdjustments(serverId));
+                    } catch { setAdjustHistory([]); }
+                  }
+                }}
+                className="flex items-center gap-1.5 text-xs text-purple-400 hover:text-purple-300 transition"
+              >
+                <Edit3 className="w-3 h-3" />
+                Point History
+              </button>
+            )}
+            {!isViewer && (
             <button
               onClick={() => setShowFinalizeConfirm(true)}
               disabled={finalizing}
@@ -182,6 +212,7 @@ export function LeaderboardView() {
               )}
               Finalize
             </button>
+            )}
           </div>
         )}
       </div>
@@ -344,6 +375,21 @@ export function LeaderboardView() {
                   <span className="text-xs text-slate-500">
                     pt{entry.points !== 1 ? "s" : ""}
                   </span>
+                  {isStaff && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setAdjustMember({ id: entry.id, name: entry.name, points: entry.points });
+                        setAdjustValue(0);
+                        setAdjustReason("");
+                        setAdjustError(null);
+                      }}
+                      className="p-0.5 rounded text-slate-600 hover:text-amber-400 hover:bg-amber-900/20 transition"
+                      title="Adjust points"
+                    >
+                      <Edit3 className="w-3 h-3" />
+                    </button>
+                  )}
                 </div>
               </button>
             );
@@ -542,6 +588,164 @@ export function LeaderboardView() {
           deathTime={participantDeathTime}
           onClose={() => { setParticipantDeathId(null); setParticipantBossName(""); setParticipantDeathTime(""); }}
         />
+      )}
+
+      {/* Point adjustment modal */}
+      {adjustMember && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60" onClick={() => setAdjustMember(null)} />
+          <div className="relative bg-slate-900 border border-slate-700 rounded-xl w-full max-w-sm shadow-2xl">
+            <div className="flex items-center justify-between p-4 border-b border-slate-800">
+              <div>
+                <h3 className="text-sm font-bold text-white">Adjust Points</h3>
+                <p className="text-xs text-slate-400">{adjustMember.name} · Current: {adjustMember.points} pt{adjustMember.points !== 1 ? "s" : ""}</p>
+              </div>
+              <button onClick={() => setAdjustMember(null)} className="text-slate-400 hover:text-white transition p-1">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="p-4 space-y-4">
+              {/* Quick buttons */}
+              <div className="flex gap-2">
+                {[-3, -1, 1, 3, 5].map(v => (
+                  <button
+                    key={v}
+                    onClick={() => setAdjustValue(v)}
+                    className={`flex-1 py-1.5 rounded-md text-xs font-medium transition ${
+                      adjustValue === v
+                        ? (v > 0 ? "bg-emerald-900/40 border border-emerald-700 text-emerald-400" : "bg-red-900/40 border border-red-700 text-red-400")
+                        : "bg-slate-800 text-slate-400 hover:text-white border border-slate-700"
+                    }`}
+                  >
+                    {v > 0 ? `+${v}` : v}
+                  </button>
+                ))}
+              </div>
+
+              {/* Custom value */}
+              <div>
+                <label className="text-xs text-slate-400 block mb-1">Custom value</label>
+                <input
+                  type="number"
+                  value={adjustValue}
+                  onChange={(e) => setAdjustValue(parseInt(e.target.value) || 0)}
+                  className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                  placeholder="e.g. -2 or 5"
+                />
+              </div>
+
+              {/* Reason */}
+              <div>
+                <label className="text-xs text-slate-400 block mb-1">Reason (optional)</label>
+                <input
+                  type="text"
+                  value={adjustReason}
+                  onChange={(e) => setAdjustReason(e.target.value)}
+                  className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                  placeholder="e.g. Not following instructions"
+                />
+              </div>
+
+              {adjustError && (
+                <p className="text-xs text-red-400 bg-red-900/20 rounded-lg px-3 py-2">{adjustError}</p>
+              )}
+
+              {/* New total preview */}
+              <div className="flex items-center justify-between bg-slate-800 rounded-lg px-3 py-2">
+                <span className="text-xs text-slate-400">New total</span>
+                <span className={`text-sm font-bold tabular-nums ${adjustMember.points + adjustValue > adjustMember.points ? "text-emerald-400" : adjustMember.points + adjustValue < adjustMember.points ? "text-red-400" : "text-white"}`}>
+                  {adjustMember.points + adjustValue} pt{(adjustMember.points + adjustValue) !== 1 ? "s" : ""}
+                </span>
+              </div>
+
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setAdjustMember(null)}
+                  className="flex-1 py-2 rounded-lg font-medium bg-slate-800 text-slate-300 hover:bg-slate-700 transition text-sm"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={async () => {
+                    if (!serverId || adjustValue === 0) return;
+                    setAdjustLoading(true);
+                    setAdjustError(null);
+                    try {
+                      await adjustMemberPoints(adjustMember.id, serverId, adjustValue, adjustReason);
+                      // Refresh leaderboard
+                      queryClient.invalidateQueries({ queryKey: ["leaderboard"] });
+                      setAdjustMember(null);
+                    } catch (err: any) {
+                      setAdjustError(err?.message ?? "Failed to adjust points");
+                    } finally {
+                      setAdjustLoading(false);
+                    }
+                  }}
+                  disabled={adjustValue === 0 || adjustLoading}
+                  className={`flex-1 py-2 rounded-lg font-medium text-sm transition disabled:opacity-40 ${
+                    adjustValue > 0
+                      ? "bg-emerald-900/30 border border-emerald-800 text-emerald-400 hover:bg-emerald-900/50"
+                      : adjustValue < 0
+                        ? "bg-red-900/30 border border-red-800 text-red-400 hover:bg-red-900/50"
+                        : "bg-slate-800 text-slate-500"
+                  }`}
+                >
+                  {adjustLoading ? (
+                    <span className="w-4 h-4 border-2 border-current/30 border-t-current rounded-full animate-spin mx-auto" />
+                  ) : adjustValue > 0 ? (
+                    `Add ${adjustValue} pt${adjustValue !== 1 ? "s" : ""}`
+                  ) : (
+                    `Deduct ${Math.abs(adjustValue)} pt${Math.abs(adjustValue) !== 1 ? "s" : ""}`
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Point adjustment history modal */}
+      {showAdjustHistory && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60" onClick={() => setShowAdjustHistory(false)} />
+          <div className="relative bg-slate-900 border border-slate-700 rounded-xl w-full max-w-md shadow-2xl max-h-[80vh] flex flex-col">
+            <div className="flex items-center justify-between p-4 border-b border-slate-800 shrink-0">
+              <h3 className="text-white font-bold text-sm flex items-center gap-2">
+                <Edit3 className="w-4 h-4 text-purple-400" />
+                Point Adjustments History
+              </h3>
+              <button onClick={() => setShowAdjustHistory(false)} className="text-slate-400 hover:text-white p-1">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="overflow-y-auto p-4 space-y-2 flex-1">
+              {adjustHistory.length === 0 ? (
+                <p className="text-sm text-slate-500 text-center py-8">No adjustments yet.</p>
+              ) : (
+                adjustHistory.map((adj) => (
+                  <div key={adj.id} className="flex items-start gap-3 px-3 py-2 rounded-lg bg-slate-800/50 border border-slate-700/50">
+                    <div className={`mt-0.5 w-7 h-7 rounded-full flex items-center justify-center shrink-0 text-xs font-bold ${
+                      adj.points > 0 ? "bg-emerald-900/30 text-emerald-400" : "bg-red-900/30 text-red-400"
+                    }`}>
+                      {adj.points > 0 ? `+${adj.points}` : adj.points}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-white font-medium">{adj.member_name}</span>
+                      </div>
+                      {adj.reason && (
+                        <p className="text-xs text-slate-400 mt-0.5">{adj.reason}</p>
+                      )}
+                      <p className="text-[10px] text-slate-600 mt-0.5">
+                        by {adj.adjusted_by_name} · {new Date(adj.created_at).toLocaleString()}
+                      </p>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
       )}
 
       <ConfirmDialog

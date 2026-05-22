@@ -160,6 +160,12 @@ export async function fetchBosses(serverId?: string | null): Promise<Boss[]> {
   return data as Boss[];
 }
 
+export async function setBossPoints(bossId: string, points: number): Promise<void> {
+  const { error } = await supabase
+    .rpc("set_boss_points", { p_boss_id: bossId, p_points: points });
+  if (error) throw error;
+}
+
 // ── Death Records ───────────────────────────────────────────
 
 export async function fetchDeathRecords(serverId?: string | null): Promise<DeathRecord[]> {
@@ -174,7 +180,8 @@ export async function fetchDeathRecords(serverId?: string | null): Promise<Death
 
 export async function insertDeathRecord(
   bossId: string,
-  deathTime: Date
+  deathTime: Date,
+  ownerGuildId?: string | null
 ): Promise<DeathRecord> {
   const { data: { user } } = await supabase.auth.getUser();
   const { data, error } = await supabase
@@ -184,6 +191,7 @@ export async function insertDeathRecord(
       user_id: user?.id,
       server_id: _currentServerId,
       death_time: deathTime.toISOString(),
+      owner_guild_id: ownerGuildId ?? null,
     })
     .select()
     .single();
@@ -197,6 +205,54 @@ export async function deleteDeathRecord(recordId: string): Promise<void> {
   if (error) throw error;
 }
 
+/** Adjust the last death record's time to set a new spawn date. Returns the updated record. */
+export async function setBossSpawnTime(bossId: string, spawnDate: Date): Promise<DeathRecord | null> {
+  const { data: { user } } = await supabase.auth.getUser();
+  
+  const { data: bossData, error: bossErr } = await supabase
+    .from("bosses")
+    .select("respawn_hours, server_id")
+    .eq("id", bossId)
+    .single();
+  if (bossErr) throw bossErr;
+  
+  const respawnHours = (bossData as any)?.respawn_hours ?? 0;
+  const serverId = (bossData as any)?.server_id ?? _currentServerId;
+  const newDeathTime = new Date(spawnDate.getTime() - respawnHours * 3600000);
+
+  const { data: deaths, error: fetchErr } = await supabase
+    .from("death_records")
+    .select("id")
+    .eq("boss_id", bossId)
+    .order("death_time", { ascending: false })
+    .limit(1);
+
+  if (fetchErr) throw fetchErr;
+
+  if (!deaths || deaths.length === 0) {
+    const { data: inserted, error } = await supabase.from("death_records")
+      .insert({
+        boss_id: bossId,
+        user_id: user?.id,
+        server_id: serverId,
+        death_time: newDeathTime.toISOString(),
+      })
+      .select()
+      .single();
+    if (error) throw error;
+    return inserted as DeathRecord;
+  } else {
+    const { data: updated, error } = await supabase
+      .from("death_records")
+      .update({ death_time: newDeathTime.toISOString() })
+      .eq("id", deaths[0].id)
+      .select()
+      .single();
+    if (error) throw error;
+    return updated as DeathRecord;
+  }
+}
+
 // ── Realtime ────────────────────────────────────────────────
 
 export function subscribeToDeathRecords(
@@ -204,8 +260,9 @@ export function subscribeToDeathRecords(
   onUpdate: (record: DeathRecord) => void,
   onDelete: (record: { id: string }) => void
 ) {
+  const chanName = `death_records_changes_${Date.now()}`;
   return supabase
-    .channel("death_records_changes")
+    .channel(chanName)
     .on(
       "postgres_changes",
       { event: "INSERT", schema: "public", table: "death_records" },
@@ -221,6 +278,36 @@ export function subscribeToDeathRecords(
       { event: "DELETE", schema: "public", table: "death_records" },
       (payload) => onDelete(payload.old as { id: string })
     )
+    .subscribe();
+}
+
+/** Broadcast a spawn alert to all clients on the same server */
+export function broadcastSpawnAlert(serverId: string, bossName: string) {
+  const channel = supabase.channel(`spawn-alerts-${serverId}`, {
+    config: { broadcast: { self: true } },
+  });
+  channel.subscribe((status) => {
+    if (status === "SUBSCRIBED") {
+      channel.send({
+        type: "broadcast",
+        event: "boss_spawned",
+        payload: { bossName },
+      });
+      setTimeout(() => channel.unsubscribe(), 1000);
+    }
+  });
+}
+
+/** Listen for spawn alerts from other clients on the same server */
+export function subscribeToSpawnAlerts(
+  serverId: string,
+  onSpawn: (bossName: string) => void
+) {
+  return supabase
+    .channel(`spawn-alerts-${serverId}`)
+    .on("broadcast", { event: "boss_spawned" }, ({ payload }) => {
+      onSpawn(payload.bossName);
+    })
     .subscribe();
 }
 
@@ -401,28 +488,111 @@ export async function fetchLeaderboardByPeriod(
   if (!sid) return [];
   let query = supabase
     .from("attendance_records")
-    .select("member_id, members!inner(name), created_at")
+    .select("member_id, members!inner(name), created_at, death_record_id")
     .gte("created_at", since);
   if (sid) query = query.eq("server_id", sid);
   const { data, error } = await query;
 
   if (error) throw error;
 
-  // Aggregate in JS since Supabase doesn't support GROUP BY via REST
+  // Fetch boss points for all referenced death records
+  const deathRecordIds = [...new Set((data as any[]).map(r => r.death_record_id).filter(Boolean))];
+  let bossPointsMap = new Map<string, number>(); // death_record_id → boss_points
+  if (deathRecordIds.length > 0) {
+    try {
+      const { data: drData } = await supabase
+        .from("death_records")
+        .select("id, boss_id")
+        .in("id", deathRecordIds);
+      if (drData) {
+        const bossIds = [...new Set((drData as any[]).map(d => d.boss_id).filter(Boolean))];
+        if (bossIds.length > 0) {
+          const { data: bossData } = await supabase
+            .from("bosses")
+            .select("id, boss_points")
+            .in("id", bossIds);
+          if (bossData) {
+            const bossPointMap = new Map((bossData as any[]).map(b => [b.id, b.boss_points ?? 1]));
+            for (const dr of drData as any[]) {
+              bossPointsMap.set(dr.id, bossPointMap.get(dr.boss_id) ?? 1);
+            }
+          }
+        }
+      }
+    } catch { /* ignore — fall back to 1 point per attendance */ }
+  }
+
+  // Aggregate in JS
   const pointMap = new Map<string, { name: string; points: number; last: string }>();
   for (const row of data as any[]) {
     const id = row.member_id;
+    const bossPts = bossPointsMap.get(row.death_record_id) ?? 1;
     const existing = pointMap.get(id);
     if (existing) {
-      existing.points++;
+      existing.points += bossPts;
       if (row.created_at > existing.last) existing.last = row.created_at;
     } else {
       pointMap.set(id, {
         name: row.members.name,
-        points: 1,
+        points: bossPts,
         last: row.created_at,
       });
     }
+  }
+
+  // Fetch point adjustments for the same period and merge
+  if (sid) {
+    try {
+      const { data: adjustments, error: adjErr } = await supabase
+        .from("point_adjustments")
+        .select("member_id, points, created_at")
+        .eq("server_id", sid)
+        .gte("created_at", since);
+
+      if (!adjErr && adjustments) {
+        for (const adj of adjustments as any[]) {
+          const existing = pointMap.get(adj.member_id);
+          if (existing) {
+            existing.points += adj.points;
+            if (adj.created_at > existing.last) existing.last = adj.created_at;
+          }
+          // If member has no attendance but has adjustments, still show them
+          // (fetch name via members lookup below)
+          if (!existing && adj.points > 0) {
+            pointMap.set(adj.member_id, {
+              name: "", // will be filled below
+              points: adj.points,
+              last: adj.created_at,
+            });
+          }
+        }
+      }
+    } catch { /* adjustments optional — don't break leaderboard if they fail */ }
+  }
+
+  // Fill in names for adjustment-only entries
+  const memberIds = Array.from(pointMap.entries())
+    .filter(([, v]) => !v.name)
+    .map(([id]) => id);
+
+  if (memberIds.length > 0) {
+    try {
+      const { data: members } = await supabase
+        .from("members")
+        .select("id, name")
+        .in("id", memberIds);
+      if (members) {
+        for (const m of members as any[]) {
+          const entry = pointMap.get(m.id);
+          if (entry && !entry.name) entry.name = m.name;
+        }
+      }
+    } catch { /* ignore */ }
+  }
+
+  // Remove entries that ended up with ≤0 points or no name
+  for (const [id, val] of pointMap) {
+    if (val.points <= 0 || !val.name) pointMap.delete(id);
   }
 
   return Array.from(pointMap.entries())
@@ -434,6 +604,38 @@ export async function fetchLeaderboardByPeriod(
     }))
     .filter((e) => e.points > 0)
     .sort((a, b) => b.points - a.points || b.last_attended.localeCompare(a.last_attended));
+}
+
+// ── Point Adjustments ───────────────────────────────────────
+
+export async function adjustMemberPoints(
+  memberId: string,
+  serverId: string,
+  points: number,
+  reason: string = ""
+): Promise<string> {
+  const { data, error } = await supabase
+    .rpc("adjust_member_points", {
+      p_member_id: memberId,
+      p_server_id: serverId,
+      p_points: points,
+      p_reason: reason,
+    });
+  if (error) throw error;
+  return data as string;
+}
+
+export async function fetchPointAdjustments(
+  serverId: string,
+  memberId?: string | null
+): Promise<import("@/types").PointAdjustment[]> {
+  const { data, error } = await supabase
+    .rpc("fetch_point_adjustments", {
+      p_server_id: serverId,
+      p_member_id: memberId ?? null,
+    });
+  if (error) throw error;
+  return (data ?? []) as import("@/types").PointAdjustment[];
 }
 
 // ── Attendance ──────────────────────────────────────────────

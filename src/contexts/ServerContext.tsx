@@ -8,6 +8,8 @@ export interface Server {
   owner_id: string;
   invite_code: string;
   discord_webhook_url?: string;
+  timezone?: string;
+  notification_prefix?: string;
   role: "owner" | "moderator";
 }
 
@@ -71,7 +73,7 @@ export function ServerProvider({ children }: { children: ReactNode }) {
 
       // Fetch servers and user's roles in parallel
       const [srvRes, roleRes] = await Promise.all([
-        supabase.from("servers").select("id, name, owner_id, invite_code, discord_webhook_url").in("id", uniqueIds),
+        supabase.from("servers").select("id, name, owner_id, invite_code, discord_webhook_url, timezone, notification_prefix").in("id", uniqueIds),
         supabase.from("server_members").select("server_id, role").eq("user_id", user.id).in("server_id", uniqueIds),
       ]);
 
@@ -99,6 +101,8 @@ export function ServerProvider({ children }: { children: ReactNode }) {
             owner_id: s.owner_id,
             invite_code: s.invite_code || s.id.substring(0, 8),
             discord_webhook_url: s.discord_webhook_url,
+            timezone: s.timezone || 'Asia/Manila',
+            notification_prefix: s.notification_prefix || '@everyone',
             role: role as "owner" | "moderator",
           });
         }

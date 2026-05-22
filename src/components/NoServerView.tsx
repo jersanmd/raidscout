@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { supabase, createServer } from "@/lib/supabase";
+import { supabase, createServer, createGuild } from "@/lib/supabase";
 import { useServer } from "@/contexts/ServerContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { Loader2, Plus, Key, Server, ArrowRight, LogOut } from "lucide-react";
@@ -9,6 +9,7 @@ export function NoServerView() {
   const { signOut } = useAuth();
   const [mode, setMode] = useState<"choose" | "create" | "join">("choose");
   const [serverName, setServerName] = useState("");
+  const [guildName, setGuildName] = useState("");
   const [inviteCode, setInviteCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -18,7 +19,10 @@ export function NoServerView() {
     setLoading(true);
     setError(null);
     try {
-      await createServer(serverName.trim());
+      const server = await createServer(serverName.trim());
+      if (guildName.trim()) {
+        try { await createGuild(guildName.trim(), server.id); } catch { /* optional */ }
+      }
       await refreshServers();
     } catch (err: any) {
       setError(err?.message ?? "Failed to create server");
@@ -108,7 +112,7 @@ export function NoServerView() {
           </div>
           <h2 className="text-lg font-bold text-white">Create a Server</h2>
           <p className="text-sm text-slate-400">
-            Your server will come with 39 bosses pre-loaded. You'll be the owner.
+            Your server will come with 39 bosses pre-loaded. Optionally create an initial guild.
           </p>
           <input
             type="text"
@@ -118,6 +122,14 @@ export function NoServerView() {
             autoFocus
             onKeyDown={(e) => e.key === "Enter" && handleCreate()}
             className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 outline-none focus:border-emerald-500 transition"
+          />
+          <input
+            type="text"
+            value={guildName}
+            onChange={(e) => setGuildName(e.target.value)}
+            placeholder="Initial guild name (optional)..."
+            onKeyDown={(e) => e.key === "Enter" && handleCreate()}
+            className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 outline-none focus:border-purple-500 transition"
           />
           {error && <p className="text-xs text-red-400">{error}</p>}
           <button

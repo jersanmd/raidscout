@@ -1,6 +1,7 @@
 import { useState, useCallback, useMemo, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useBossSpawns } from "@/hooks/useBossSpawns";
+import { useDeathRecords } from "@/hooks/useDeathRecords";
 import { useAuth } from "@/contexts/AuthContext";
 import { useServer } from "@/contexts/ServerContext";
 import {
@@ -12,6 +13,7 @@ import {
   supabase,
   fetchBossGuilds,
   fetchGuilds,
+  setBossSpawnTime,
 } from "@/lib/supabase";
 import { BossCard } from "@/components/BossCard";
 import { DeathRecordModal } from "@/components/DeathRecordModal";
@@ -19,8 +21,9 @@ import { FilterBar } from "@/components/FilterBar";
 import { UpcomingStrip } from "@/components/UpcomingStrip";
 import { SavingOverlay } from "@/components/SavingOverlay";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
-import { Skull, Loader2, Zap, X, CheckCircle, AlertTriangle, CheckSquare, Square, Megaphone } from "lucide-react";
-import type { BossWithSpawn, BossGuild, Guild } from "@/types";
+import { emitSpawnAlert } from "@/hooks/useSpawnAlerts";
+import { Skull, Loader2, Zap, X, CheckCircle, AlertTriangle, CheckSquare, Square, Megaphone, Volume2 } from "lucide-react";
+import type { BossWithSpawn, BossGuild, Guild, DeathRecord } from "@/types";
 
 export function BossListView() {
   const { user, isViewer } = useAuth();
@@ -31,6 +34,7 @@ export function BossListView() {
   const [filterType, setFilterType] = useState("all");
   const [filterWindow, setFilterWindow] = useState<number | null>(null);
   const [showBulkModal, setShowBulkModal] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
   const [bulkLoading, setBulkLoading] = useState(false);
 
   // Multi-select state
@@ -76,7 +80,7 @@ export function BossListView() {
   };
 
   // Global saving overlay
-  const [saving, setSaving] = useState(false);
+  const [savingMessage, setSavingMessage] = useState<string | null>(null);
 
   // Bulk death modal
   const [showBulkDeathModal, setShowBulkDeathModal] = useState(false);
@@ -84,7 +88,8 @@ export function BossListView() {
   // Toast notification
   const [toast, setToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
-  const { spawns, isLoading } = useBossSpawns(searchText, filterType);
+  const { spawns, isLoading } = useBossSpawns(searchText, filterType, refreshKey);
+  const { data: deathRecords = [] } = useDeathRecords();
 
   const bulkBoss = useMemo(() => {
     if (selectedIds.size === 0) return null;
@@ -127,27 +132,55 @@ export function BossListView() {
     const bgs = bossGuilds.filter(bg => bg.boss_id === bossId);
     if (bgs.length === 0) return undefined;
 
-    // Schedule mode: fixed day assignments
-    const scheduleEntry = bgs.find(bg => bg.day_of_week === new Date().getDay());
-    if (scheduleEntry) {
-      return guilds.find(g => g.id === scheduleEntry.guild_id)?.name;
+    // Schedule mode: guild based on boss's spawn day of week
+    const scheduleEntries = bgs.filter(bg => bg.day_of_week !== null);
+    if (scheduleEntries.length > 0) {
+      const spawn = spawns.find(s => s.boss.id === bossId);
+      const spawnDate = spawn?.status === "alive" ? new Date() : (spawn?.nextSpawn ?? new Date());
+      const dow = spawnDate.getDay();
+      const match = scheduleEntries.find(bg => bg.day_of_week === dow);
+      if (match) return guilds.find(g => g.id === match.guild_id)?.name;
     }
 
-    // Daily mode: alternate by day of week
+    // Daily mode: advance guild only when spawn crosses into a new day
     const dailyEntries = bgs.filter(bg => bg.mode === "daily").sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
     if (dailyEntries.length > 0) {
-      const idx = new Date().getDay() % dailyEntries.length;
-      return guilds.find(g => g.id === dailyEntries[idx].guild_id)?.name;
+      const lastDeath = deathRecords
+        .filter(dr => dr.boss_id === bossId)
+        .sort((a, b) => new Date(b.death_time).getTime() - new Date(a.death_time).getTime())[0];
+      
+      if (!lastDeath) {
+        return guilds.find(g => g.id === dailyEntries[0].guild_id)?.name;
+      }
+
+      const bossData = spawns.find(s => s.boss.id === bossId)?.boss;
+      const respawnHours = bossData?.respawn_hours ?? 0;
+      const deathDate = new Date(lastDeath.death_time);
+      const spawnDate = new Date(deathDate.getTime() + respawnHours * 3600000);
+
+      if (deathDate.toDateString() === spawnDate.toDateString()) {
+        const lastGuildId = (lastDeath as any).owner_guild_id;
+        return lastGuildId ? guilds.find(g => g.id === lastGuildId)?.name : guilds.find(g => g.id === dailyEntries[0].guild_id)?.name;
+      }
+
+      const lastGuildId = (lastDeath as any).owner_guild_id;
+      if (!lastGuildId) return guilds.find(g => g.id === dailyEntries[0].guild_id)?.name;
+      
+      const lastIdx = dailyEntries.findIndex(bg => bg.guild_id === lastGuildId);
+      const nextIdx = lastIdx >= 0 ? (lastIdx + 1) % dailyEntries.length : 0;
+      return guilds.find(g => g.id === dailyEntries[nextIdx].guild_id)?.name;
     }
 
-    // Rotation mode: first guild in order
+    // Rotation mode: advance by number of kills
     const rotationEntries = bgs.filter(bg => bg.sort_order !== null && bg.mode !== "daily").sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
     if (rotationEntries.length > 0) {
-      return guilds.find(g => g.id === rotationEntries[0].guild_id)?.name;
+      const killCount = deathRecords.filter(dr => dr.boss_id === bossId).length;
+      const idx = killCount % rotationEntries.length;
+      return guilds.find(g => g.id === rotationEntries[idx].guild_id)?.name;
     }
 
     return undefined;
-  }, [bossGuilds, guilds]);
+  }, [bossGuilds, guilds, deathRecords, spawns]);
 
   const handleRecordDeath = useCallback(
     async (bossId: string, deathTime: Date, rallyImages: File[], attendeeIds: string[]) => {
@@ -161,9 +194,11 @@ export function BossListView() {
       let deathRecordId: string;
 
       if (user) {
-        setSaving(true);
+        setSavingMessage("Recording death...");
         try {
-          const record = await insertDeathRecord(bossId, deathTime);
+          const ownerGuildName = getOwnerGuildName(boss.id);
+          const ownerGuildId = ownerGuildName ? guilds.find(g => g.name === ownerGuildName)?.id ?? null : null;
+          const record = await insertDeathRecord(bossId, deathTime, ownerGuildId);
           deathRecordId = record.id;
 
           // Record attendance — collect errors instead of silently swallowing
@@ -205,7 +240,7 @@ export function BossListView() {
           console.error("Failed to record death:", err);
           setToast({ type: "error", message: "Failed to save death record. Check the console for details." });
         } finally {
-          setSaving(false);
+          setSavingMessage(null);
         }
       } else {
         setToast({ type: "error", message: "Supabase not configured. Cannot record death." });
@@ -214,9 +249,28 @@ export function BossListView() {
     [user, queryClient, spawns, getOwnerGuildName]
   );
 
+  const handleSetSpawnDate = useCallback(
+    async (bossId: string, spawnDate: Date) => {
+      setSavingMessage("Updating spawn time...");
+      try {
+        await setBossSpawnTime(bossId, spawnDate);
+        const sid = getCurrentServerId();
+        queryClient.invalidateQueries({ queryKey: ["death_records", sid] });
+        queryClient.invalidateQueries({ queryKey: ["boss_spawns"] });
+        setRefreshKey(k => k + 1);
+      } catch (err: any) {
+        console.error("Failed to set spawn date:", err);
+        setToast({ type: "error", message: err?.message ?? "Failed to set spawn date" });
+      } finally {
+        setSavingMessage(null);
+      }
+    },
+    [queryClient]
+  );
+
   const handleBulkRecordDeath = useCallback(
     async (deathTime: Date, rallyImages: File[], attendeeIds: string[]) => {
-      setSaving(true);
+      setSavingMessage("Recording deaths...");
       const bossIds = [...selectedIds];
       let successCount = 0;
       for (const bossId of bossIds) {
@@ -233,7 +287,7 @@ export function BossListView() {
       });
       clearSelection();
       setMultiMode(false);
-      setSaving(false);
+      setSavingMessage(null);
     },
     [selectedIds, handleRecordDeath, clearSelection]
   );
@@ -241,11 +295,11 @@ export function BossListView() {
   // Bulk mark all fixed-hours bosses as alive (maintenance reset)
   const handleMarkAllDied = useCallback(async () => {
     setBulkLoading(true);
-    setSaving(true);
+    setSavingMessage("Making all bosses alive...");
     const serverId = getCurrentServerId();
     if (!serverId) {
       setBulkLoading(false);
-      setSaving(false);
+      setSavingMessage(null);
       setShowBulkModal(false);
       return;
     }
@@ -266,7 +320,7 @@ export function BossListView() {
       queryClient.invalidateQueries({ queryKey: ["analytics"] });
       setShowBulkModal(false);
       setBulkLoading(false);
-      setSaving(false);
+      setSavingMessage(null);
     }
   }, [queryClient]);
 
@@ -366,7 +420,7 @@ export function BossListView() {
   return (
     <div className="max-w-6xl mx-auto px-4 py-6 space-y-6">
       {/* Saving overlay — blocks all interaction */}
-      {saving && <SavingOverlay />}
+      {savingMessage && <SavingOverlay message={savingMessage} />}
 
       {/* Stats banner */}
       <div className="flex items-center gap-4 flex-wrap">
@@ -390,15 +444,47 @@ export function BossListView() {
             {spawns.filter((s) => s.status === "unknown").length} Unknown
           </span>
         </div>
-        {!isViewer && (
-        <button
-          onClick={() => setShowBulkModal(true)}
-          className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-900/20 border border-amber-800 text-amber-400 text-xs font-medium hover:bg-amber-900/40 transition"
-        >
-          <Zap className="w-3.5 h-3.5" />
-          Make Alive All Bosses After Maintenance
-        </button>
-        )}
+        <div className="flex items-center gap-2 ml-auto">
+          <div className="flex items-center gap-1.5 text-xs text-slate-400">
+            <Volume2 className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Notification volume</span>
+            <input
+              type="range"
+              min="0"
+              max="100"
+              defaultValue={parseFloat(localStorage.getItem("raidscout-alert-volume") || "0.5") * 100}
+              onChange={(e) => { 
+                localStorage.setItem("raidscout-alert-volume", String(parseInt(e.target.value) / 100));
+              }}
+              onMouseUp={() => {
+                try {
+                  const vol = parseFloat(localStorage.getItem("raidscout-alert-volume") || "0.5");
+                  const ctx = new AudioContext();
+                  const osc = ctx.createOscillator();
+                  const gain = ctx.createGain();
+                  osc.connect(gain); gain.connect(ctx.destination);
+                  osc.type = "square";
+                  gain.gain.setValueAtTime(0.3 * vol, ctx.currentTime);
+                  gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
+                  osc.frequency.setValueAtTime(800, ctx.currentTime);
+                  osc.frequency.linearRampToValueAtTime(1200, ctx.currentTime + 0.5);
+                  osc.start(ctx.currentTime);
+                  osc.stop(ctx.currentTime + 0.5);
+                } catch {}
+              }}
+              className="w-16 h-1.5 accent-amber-400 cursor-pointer"
+            />
+          </div>
+          {!isViewer && (
+          <button
+            onClick={() => setShowBulkModal(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-900/20 border border-amber-800 text-amber-400 text-xs font-medium hover:bg-amber-900/40 transition"
+          >
+            <Zap className="w-3.5 h-3.5" />
+            Make Alive All Bosses After Maintenance
+          </button>
+          )}
+        </div>
         {(!isViewer && (hasWebhook || currentServer?.discord_webhook_url)) && (
         <button
           onClick={() => setShowAnnounceConfirm(true)}
@@ -472,10 +558,13 @@ export function BossListView() {
                     key={s.boss.id}
                     spawn={s}
                     onRecordDeath={handleRecordDeath}
+                    onSetSpawnDate={handleSetSpawnDate}
                     multiMode={multiMode}
                     selected={selectedIds.has(s.boss.id)}
                     onToggleSelect={toggleSelect}
                     ownerGuildName={getOwnerGuildName(s.boss.id)}
+                    onUrgentSpawn={emitSpawnAlert}
+                    onCriticalSpawn={(name) => emitSpawnAlert(`⚠️ ${name} spawning in 5s!`)}
                   />
                 ))}
               </div>

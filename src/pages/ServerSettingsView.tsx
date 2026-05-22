@@ -3,9 +3,9 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { useServer } from "@/contexts/ServerContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { deleteServer, transferServerOwnership, removeServerModerator, addServerModerator, supabase, fetchServerMembers, type ServerMember, fetchGuilds, createGuild, updateGuildName, deleteGuild, fetchBossGuilds, setBossGuilds, fetchBosses } from "@/lib/supabase";
+import { deleteServer, transferServerOwnership, removeServerModerator, addServerModerator, supabase, fetchServerMembers, type ServerMember, fetchGuilds, createGuild, updateGuildName, deleteGuild, fetchBossGuilds, setBossGuilds, fetchBosses, setBossPoints } from "@/lib/supabase";
 import type { Guild, BossGuild, Boss } from "@/types";
-import { Loader2, Trash2, Crown, ArrowLeft, Server, Check, Key, Copy, RefreshCw, Plus, LogIn, Users, Bell, Link, Settings, AlertTriangle, X, Shield, Pencil, Swords, ChevronUp, ChevronDown, CheckSquare, Square, Eye, UserPlus } from "lucide-react";
+import { Loader2, Trash2, Crown, ArrowLeft, Server, Check, Key, Copy, RefreshCw, Plus, LogIn, Users, Bell, Link, Settings, AlertTriangle, X, Shield, Pencil, Swords, ChevronUp, ChevronDown, CheckSquare, Square, Eye, EyeOff, UserPlus, Minus } from "lucide-react";
 import { CreateServerModal } from "@/components/CreateServerModal";
 import { useToast } from "@/contexts/ToastContext";
 
@@ -88,9 +88,13 @@ export function ServerSettingsView() {
   const [membersLoading, setMembersLoading] = useState(false);
   const [webhookUrl, setWebhookUrl] = useState(currentServer?.discord_webhook_url ?? "");
   const [savingWebhook, setSavingWebhook] = useState(false);
+  const [notifPrefix, setNotifPrefix] = useState(currentServer?.notification_prefix ?? "@everyone");
+  const [savingPrefix, setSavingPrefix] = useState(false);
   const [modEmail, setModEmail] = useState("");
   const [addingMod, setAddingMod] = useState(false);
   const [viewerKey, setViewerKey] = useState("");
+  const [showInviteCode, setShowInviteCode] = useState(false);
+  const [showViewerKey, setShowViewerKey] = useState(false);
   const [searchParams] = useSearchParams();
   const tabParam = searchParams.get("tab");
   const initialTab = (tabParam === "general" || tabParam === "members" || tabParam === "integrations" || tabParam === "danger")
@@ -237,7 +241,7 @@ export function ServerSettingsView() {
         const existing = getBossGuildsForBoss(bossId).filter(bg => bg.day_of_week !== dayOfWeek);
         const newAssignments = existing.map(bg => ({ guild_id: bg.guild_id, day_of_week: bg.day_of_week! }));
         if (guildId) newAssignments.push({ guild_id: guildId, day_of_week: dayOfWeek });
-        await setBossGuilds(bossId, newAssignments);
+        await setBossGuilds(bossId, newAssignments, "schedule");
         setBossModes(prev => ({ ...prev, [bossId]: newAssignments.length > 0 ? "schedule" : "none" }));
       }
       const updated = await fetchBossGuilds(currentServer!.id);
@@ -251,7 +255,10 @@ export function ServerSettingsView() {
 
   // Sync webhook URL when server changes
   useEffect(() => {
-    if (currentServer) setWebhookUrl(currentServer.discord_webhook_url ?? "");
+    if (currentServer) {
+      setWebhookUrl(currentServer.discord_webhook_url ?? "");
+      setNotifPrefix(currentServer.notification_prefix ?? "@everyone");
+    }
   }, [currentServer?.id]);
 
   // Determine ownership early (before conditional returns — hooks rule)
@@ -463,6 +470,22 @@ export function ServerSettingsView() {
     }
   };
 
+  const handleSavePrefix = async () => {
+    setSavingPrefix(true);
+    try {
+      const { error } = await supabase
+        .rpc("set_notification_prefix", { p_server_id: currentServer.id, p_prefix: notifPrefix.trim() || "@everyone" });
+      if (error) throw error;
+      await refreshServers();
+      setCurrentServer({ ...currentServer, notification_prefix: notifPrefix.trim() || "@everyone" });
+      toast("success", "Notification prefix saved!");
+    } catch (err: any) {
+      toast("error", err?.message ?? "Failed to save prefix");
+    } finally {
+      setSavingPrefix(false);
+    }
+  };
+
   // ── Guild handlers ──
   const handleAddGuild = async () => {
     const name = newGuildName.trim();
@@ -629,7 +652,7 @@ export function ServerSettingsView() {
     if (guildId) {
       newAssignments.push({ guild_id: guildId, day_of_week: dayOfWeek });
     }
-    await setBossGuilds(bossId, newAssignments);
+    await setBossGuilds(bossId, newAssignments, "schedule");
     const updated = await fetchBossGuilds(currentServer!.id);
     setBossGuildsState(updated);
     setBossModes(prev => ({ ...prev, [bossId]: newAssignments.length > 0 ? "schedule" : "none" }));
@@ -746,6 +769,40 @@ export function ServerSettingsView() {
             />
           </section>
 
+          <section className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3">
+            <h3 className="text-sm font-semibold text-white">Server Timezone</h3>
+            <p className="text-sm text-slate-400">All spawn times will display in this timezone.</p>
+            <select
+              value={currentServer.timezone || "Asia/Manila"}
+              onChange={async (e) => {
+                const tz = e.target.value;
+                await supabase.from("servers").update({ timezone: tz }).eq("id", currentServer.id);
+                setCurrentServer({ ...currentServer, timezone: tz });
+                toast("success", "Timezone updated");
+              }}
+              className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-purple-500 transition"
+            >
+              <option value="Asia/Manila">GMT+8 — Asia/Manila</option>
+              <option value="Asia/Singapore">GMT+8 — Asia/Singapore</option>
+              <option value="Asia/Tokyo">GMT+9 — Asia/Tokyo</option>
+              <option value="Asia/Seoul">GMT+9 — Asia/Seoul</option>
+              <option value="Australia/Sydney">GMT+10 — Australia/Sydney</option>
+              <option value="Pacific/Auckland">GMT+12 — Pacific/Auckland</option>
+              <option value="Asia/Jakarta">GMT+7 — Asia/Jakarta</option>
+              <option value="Asia/Bangkok">GMT+7 — Asia/Bangkok</option>
+              <option value="Asia/Dhaka">GMT+6 — Asia/Dhaka</option>
+              <option value="Asia/Kolkata">GMT+5:30 — Asia/Kolkata</option>
+              <option value="Asia/Dubai">GMT+4 — Asia/Dubai</option>
+              <option value="Europe/Moscow">GMT+3 — Europe/Moscow</option>
+              <option value="Europe/London">GMT+1 — Europe/London</option>
+              <option value="UTC">GMT+0 — UTC</option>
+              <option value="America/New_York">GMT-4 — America/New York</option>
+              <option value="America/Chicago">GMT-5 — America/Chicago</option>
+              <option value="America/Denver">GMT-6 — America/Denver</option>
+              <option value="America/Los_Angeles">GMT-7 — America/Los Angeles</option>
+            </select>
+          </section>
+
           {isOwner && (
             <section className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3">
               <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
@@ -755,9 +812,16 @@ export function ServerSettingsView() {
                 Share this code with others so they can join as moderators.
               </p>
               <div className="flex items-center gap-2">
-                <code className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-base text-blue-400 font-mono tracking-wider text-center select-all">
-                  {currentServer.invite_code}
+                <code className={`flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-base font-mono tracking-wider text-center select-all transition ${showInviteCode ? "text-blue-400" : "text-slate-500"}`}>
+                  {showInviteCode ? currentServer.invite_code : "••••••••"}
                 </code>
+                <button
+                  onClick={() => setShowInviteCode(!showInviteCode)}
+                  className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition"
+                  title={showInviteCode ? "Hide" : "Show"}
+                >
+                  {showInviteCode ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
                 <button
                   onClick={() => { navigator.clipboard.writeText(currentServer.invite_code); toast("success", "Invite code copied!"); }}
                   className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition"
@@ -786,9 +850,16 @@ export function ServerSettingsView() {
               </p>
               {viewerKey ? (
                 <div className="flex items-center gap-2">
-                  <code className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-base text-emerald-400 font-mono tracking-wider text-center select-all">
-                    {viewerKey}
+                  <code className={`flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-base font-mono tracking-wider text-center select-all transition ${showViewerKey ? "text-emerald-400" : "text-slate-500"}`}>
+                    {showViewerKey ? viewerKey : "••••••••"}
                   </code>
+                  <button
+                    onClick={() => setShowViewerKey(!showViewerKey)}
+                    className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition"
+                    title={showViewerKey ? "Hide" : "Show"}
+                  >
+                    {showViewerKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
                   <button
                     onClick={() => { navigator.clipboard.writeText(viewerKey); toast("success", "Viewer key copied!"); }}
                     className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition"
@@ -915,7 +986,8 @@ export function ServerSettingsView() {
               )}
             </div>
             <p className="text-xs text-slate-500">
-              Assign guilds to bosses. Rotation mode alternates guilds each spawn.
+              Assign guilds to bosses and set custom points per boss.
+              Rotation mode alternates guilds each spawn.
               Schedule mode assigns a guild per day of the week.
             </p>
             <div className="flex items-center gap-3 text-xs text-slate-500">
@@ -930,7 +1002,7 @@ export function ServerSettingsView() {
             ) : guilds.length === 0 ? (
               <p className="text-xs text-amber-400 text-center py-4">Create guilds first (in the Guilds tab) before assigning them to bosses.</p>
             ) : (
-              <div className={`space-y-1 max-h-[60vh] overflow-y-auto ${bossMultiMode && selectedBossIds.size > 0 ? "pb-32" : ""}`}>
+              <div className={`space-y-2 max-h-[60vh] overflow-y-auto ${bossMultiMode && selectedBossIds.size > 0 ? "pb-32" : ""}`}>
                 {sortedBosses.map((boss) => {
                   const mode = getBossMode(boss.id);
                   const bossAssignments = getBossGuildsForBoss(boss.id);
@@ -938,14 +1010,14 @@ export function ServerSettingsView() {
                   const isSelected = selectedBossIds.has(boss.id);
 
                   return (
-                    <div key={boss.id} className={`bg-slate-800/30 rounded-lg overflow-hidden ${isSelected ? "ring-1 ring-blue-500" : ""}`}>
+                    <div key={boss.id} className={`bg-slate-800/30 rounded-lg overflow-hidden ${isSelected ? "ring-2 ring-blue-500 ring-inset" : ""}`}>
                       {/* Boss header row */}
                       <button
                         onClick={() => {
                           if (bossMultiMode) { toggleBossSelect(boss.id); return; }
                           setExpandedBoss(isExpanded ? null : boss.id);
                         }}
-                        className="w-full flex items-center gap-2 px-3 py-2.5 hover:bg-slate-700/30 transition text-left"
+                        className="w-full flex items-center gap-2 px-4 py-3 hover:bg-slate-700/30 transition text-left"
                       >
                         {bossMultiMode && (
                           isSelected ? <CheckSquare className="w-4 h-4 text-blue-400 shrink-0" /> : <Square className="w-4 h-4 text-slate-600 shrink-0" />
@@ -962,12 +1034,44 @@ export function ServerSettingsView() {
                            mode === "daily" ? `Daily (${bossAssignments.length})` :
                            mode === "schedule" ? "Schedule" : "None"}
                         </span>
+                        {/* Boss Points */}
+                        <span className="flex items-center gap-0.5 shrink-0" onClick={(e) => e.stopPropagation()}>
+                          <button
+                            onClick={async () => {
+                              const val = Math.max(0, (boss.boss_points ?? 1) - 1);
+                              try {
+                                await setBossPoints(boss.id, val);
+                                queryClient.invalidateQueries({ queryKey: ["bosses"] });
+                                setBosses(prev => prev.map(b => b.id === boss.id ? { ...b, boss_points: val } : b));
+                              } catch { /* ignore */ }
+                            }}
+                            disabled={(boss.boss_points ?? 1) <= 0}
+                            className="p-0.5 rounded text-slate-500 hover:text-red-400 disabled:opacity-20 transition"
+                          >
+                            <Minus className="w-3 h-3" />
+                          </button>
+                          <span className="text-xs text-white font-mono w-5 text-center tabular-nums">{boss.boss_points ?? 1}</span>
+                          <button
+                            onClick={async () => {
+                              const val = Math.min(99, (boss.boss_points ?? 1) + 1);
+                              try {
+                                await setBossPoints(boss.id, val);
+                                queryClient.invalidateQueries({ queryKey: ["bosses"] });
+                                setBosses(prev => prev.map(b => b.id === boss.id ? { ...b, boss_points: val } : b));
+                              } catch { /* ignore */ }
+                            }}
+                            disabled={(boss.boss_points ?? 1) >= 99}
+                            className="p-0.5 rounded text-slate-500 hover:text-emerald-400 disabled:opacity-20 transition"
+                          >
+                            <Plus className="w-3 h-3" />
+                          </button>
+                        </span>
                         {!bossMultiMode && (isExpanded ? <ChevronUp className="w-4 h-4 text-slate-500" /> : <ChevronDown className="w-4 h-4 text-slate-500" />)}
                       </button>
 
                       {/* Expanded config (hidden in multi-mode) */}
                       {!bossMultiMode && isExpanded && (
-                        <div className="border-t border-slate-700/50 px-3 py-3 space-y-3">
+                        <div className="border-t border-slate-700/50 px-4 py-3 space-y-3">
                           {/* Mode selector */}
                           <div className="flex items-center gap-2">
                             <span className="text-xs text-slate-500 w-12">Mode:</span>
@@ -998,8 +1102,8 @@ export function ServerSettingsView() {
                                     <div key={bg.id} className="flex items-center gap-1 bg-slate-800/50 rounded px-2 py-1.5">
                                       <span className="text-xs text-slate-500 w-4">{idx + 1}.</span>
                                       <span className="text-sm text-slate-200 flex-1">{guild?.name ?? "Unknown"}</span>
-                                      <button onClick={() => handleMoveDailyGuild(boss.id, bg.id, "up")} disabled={idx === 0} className="p-0.5 text-slate-500 hover:text-white disabled:opacity-30"><ChevronUp className="w-3 h-3" /></button>
-                                      <button onClick={() => handleMoveDailyGuild(boss.id, bg.id, "down")} disabled={idx === bossAssignments.length - 1} className="p-0.5 text-slate-500 hover:text-white disabled:opacity-30"><ChevronDown className="w-3 h-3" /></button>
+                                      <button onClick={() => handleMoveDailyGuild(boss.id, bg.id, "up")} disabled={idx === 0} className="p-0.5 text-slate-500 hover:text-emerald-400 disabled:opacity-30"><Plus className="w-3 h-3" /></button>
+                                      <button onClick={() => handleMoveDailyGuild(boss.id, bg.id, "down")} disabled={idx === bossAssignments.length - 1} className="p-0.5 text-slate-500 hover:text-red-400 disabled:opacity-30"><Minus className="w-3 h-3" /></button>
                                       <button onClick={() => handleRemoveDailyGuild(boss.id, bg.id)} className="p-0.5 text-slate-500 hover:text-red-400"><X className="w-3 h-3" /></button>
                                     </div>
                                   );
@@ -1036,8 +1140,8 @@ export function ServerSettingsView() {
                                     <div key={bg.id} className="flex items-center gap-1 bg-slate-800/50 rounded px-2 py-1.5">
                                       <span className="text-xs text-slate-500 w-4">{idx + 1}.</span>
                                       <span className="text-sm text-slate-200 flex-1">{guild?.name ?? "Unknown"}</span>
-                                      <button onClick={() => handleMoveRotationGuild(boss.id, bg.id, "up")} disabled={idx === 0} className="p-0.5 text-slate-500 hover:text-white disabled:opacity-30"><ChevronUp className="w-3 h-3" /></button>
-                                      <button onClick={() => handleMoveRotationGuild(boss.id, bg.id, "down")} disabled={idx === bossAssignments.length - 1} className="p-0.5 text-slate-500 hover:text-white disabled:opacity-30"><ChevronDown className="w-3 h-3" /></button>
+                                      <button onClick={() => handleMoveRotationGuild(boss.id, bg.id, "up")} disabled={idx === 0} className="p-0.5 text-slate-500 hover:text-emerald-400 disabled:opacity-30"><Plus className="w-3 h-3" /></button>
+                                      <button onClick={() => handleMoveRotationGuild(boss.id, bg.id, "down")} disabled={idx === bossAssignments.length - 1} className="p-0.5 text-slate-500 hover:text-red-400 disabled:opacity-30"><Minus className="w-3 h-3" /></button>
                                       <button onClick={() => handleRemoveRotationGuild(boss.id, bg.id)} className="p-0.5 text-slate-500 hover:text-red-400"><X className="w-3 h-3" /></button>
                                     </div>
                                   );
@@ -1434,6 +1538,36 @@ export function ServerSettingsView() {
               <Check className="w-3 h-3" /> Webhook configured — notifications active
             </p>
           )}
+        </section>
+      )}
+
+      {/* Integrations Tab — Notification Prefix */}
+      {tab === "integrations" && (
+        <section className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3">
+          <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+            <Bell className="w-3 h-3" /> Notification Prefix
+          </h3>
+          <p className="text-sm text-slate-400">
+            Customize the ping text that appears at the start of every Discord notification.
+            Defaults to <code className="bg-slate-800 px-1 rounded text-amber-400">@everyone</code>.
+          </p>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={notifPrefix}
+              onChange={(e) => setNotifPrefix(e.target.value)}
+              placeholder="@everyone"
+              className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 outline-none focus:border-purple-500 transition"
+            />
+            <button
+              onClick={handleSavePrefix}
+              disabled={savingPrefix || !notifPrefix.trim() || notifPrefix === (currentServer.notification_prefix ?? "@everyone")}
+              className="flex items-center gap-1 px-3 py-2 rounded-lg text-xs font-medium bg-purple-600 text-white hover:bg-purple-500 transition disabled:opacity-50"
+            >
+              {savingPrefix ? <Loader2 className="w-3 h-3 animate-spin" /> : <Link className="w-3 h-3" />}
+              Save
+            </button>
+          </div>
         </section>
       )}
 

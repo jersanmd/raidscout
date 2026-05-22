@@ -1,4 +1,4 @@
-﻿import { useMemo, useState, useCallback, useEffect } from "react";
+import { useMemo, useState, useCallback, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useBosses } from "@/hooks/useBosses";
 import { useDeathRecords } from "@/hooks/useDeathRecords";
@@ -38,7 +38,7 @@ export function WeeklyScheduleView() {
   const [markBoss, setMarkBoss] = useState<{ boss: Boss; spawnTime?: Date } | null>(null);
 
   // Global saving overlay
-  const [saving, setSaving] = useState(false);
+  const [savingMessage, setSavingMessage] = useState<string | null>(null);
 
   // Guild data for ownership display
   const [guilds, setGuilds] = useState<Guild[]>([]);
@@ -56,32 +56,61 @@ export function WeeklyScheduleView() {
     const bgs = bossGuilds.filter(bg => bg.boss_id === bossId);
     if (bgs.length === 0) return null;
 
-    // Schedule mode: look up by day_of_week
+    // Schedule mode: look up by day_of_week (uses the provided dayOfWeek for grid display)
     const dow = dayOfWeek ?? new Date().getDay();
     const scheduleEntry = bgs.find(bg => bg.day_of_week === dow);
     if (scheduleEntry) return guilds.find(g => g.id === scheduleEntry.guild_id)?.name ?? null;
 
-    // Daily mode: alternate by day
+    // Daily mode: advance guild only when spawn crosses into a new day
     const dailyEntries = bgs.filter(bg => bg.mode === "daily").sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
     if (dailyEntries.length > 0) {
-      const idx = dow % dailyEntries.length;
-      return guilds.find(g => g.id === dailyEntries[idx].guild_id)?.name ?? null;
+      const lastDeath = deathRecords
+        .filter(dr => dr.boss_id === bossId)
+        .sort((a, b) => new Date(b.death_time).getTime() - new Date(a.death_time).getTime())[0];
+      
+      if (!lastDeath) {
+        return guilds.find(g => g.id === dailyEntries[0].guild_id)?.name ?? null;
+      }
+
+      const bossData = bosses.find(b => b.id === bossId);
+      const respawnHours = bossData?.respawn_hours ?? 0;
+      const deathDate = new Date(lastDeath.death_time);
+      const spawnDate = new Date(deathDate.getTime() + respawnHours * 3600000);
+
+      if (deathDate.toDateString() === spawnDate.toDateString()) {
+        const lastGuildId = (lastDeath as any).owner_guild_id;
+        return lastGuildId ? guilds.find(g => g.id === lastGuildId)?.name ?? null : guilds.find(g => g.id === dailyEntries[0].guild_id)?.name ?? null;
+      }
+
+      const lastGuildId = (lastDeath as any).owner_guild_id;
+      if (!lastGuildId) return guilds.find(g => g.id === dailyEntries[0].guild_id)?.name ?? null;
+      
+      const lastIdx = dailyEntries.findIndex(bg => bg.guild_id === lastGuildId);
+      const nextIdx = lastIdx >= 0 ? (lastIdx + 1) % dailyEntries.length : 0;
+      return guilds.find(g => g.id === dailyEntries[nextIdx].guild_id)?.name ?? null;
     }
 
-    // Rotation mode: first guild (rotation order handled server-side)
-    const rotationEntry = bgs.find(bg => bg.sort_order !== null && bg.mode !== "daily");
-    if (rotationEntry) return guilds.find(g => g.id === rotationEntry.guild_id)?.name ?? null;
+    // Rotation mode: advance by number of kills
+    const rotationEntries = bgs.filter(bg => bg.sort_order !== null && bg.mode !== "daily").sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+    if (rotationEntries.length > 0) {
+      const killCount = deathRecords.filter(dr => dr.boss_id === bossId).length;
+      const idx = killCount % rotationEntries.length;
+      return guilds.find(g => g.id === rotationEntries[idx].guild_id)?.name ?? null;
+    }
 
     return null;
-  }, [bossGuilds, guilds]);
+  }, [bossGuilds, guilds, deathRecords]);
 
   const handleRecordDeath = useCallback(
     async (bossId: string, deathTime: Date, rallyImages: File[], attendeeIds: string[]) => {
       if (!user) return;
       const boss = bosses.find((b) => b.id === bossId);
-      setSaving(true);
+      if (!boss) return;
+      setSavingMessage("Recording death...");
       try {
-        const record = await insertDeathRecord(bossId, deathTime);
+        const ownerGuildName = getOwnerGuildName(boss.id);
+        const ownerGuildId = ownerGuildName ? guilds.find(g => g.name === ownerGuildName)?.id ?? null : null;
+        const record = await insertDeathRecord(bossId, deathTime, ownerGuildId);
 
         for (const memberId of attendeeIds) {
           try { await addAttendance(record.id, memberId); } catch {}
@@ -101,7 +130,7 @@ export function WeeklyScheduleView() {
       } catch (err) {
         console.error("Failed to record death:", err);
       } finally {
-        setSaving(false);
+        setSavingMessage(null);
       }
     },
     [user, queryClient, bosses, getOwnerGuildName]
@@ -112,7 +141,7 @@ export function WeeklyScheduleView() {
     const deathMap = new Map([...deathRecords].reverse().map((d) => [d.boss_id, d]));
     const bossMap = new Map(bosses.map((b) => [b.id, b]));
 
-    // Build 7 days: Monday â†’ Sunday
+    // Build 7 days: Monday → Sunday
     const monday = new Date(now);
     const dayOfWeek = now.getDay();
     const daysFromMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
@@ -130,7 +159,7 @@ export function WeeklyScheduleView() {
       const daySpawns: SpawnInfo[] = [];
       const addedBossIds = new Set<string>();
 
-      // â”€â”€ 1. Death events (from history) for ALL boss types â”€â”€
+      // ── 1. Death events (from history) for ALL boss types ──
       for (const dr of deathRecords) {
         if (new Date(dr.death_time).toDateString() !== date.toDateString()) continue;
         const boss = bossMap.get(dr.boss_id);
@@ -145,7 +174,7 @@ export function WeeklyScheduleView() {
         addedBossIds.add(boss.id);
       }
 
-      // â”€â”€ 2. Spawn events â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+      // ── 2. Spawn events ──────────────────────────────────
       for (const boss of bosses) {
         if (boss.spawn_type === "fixed_schedule" && boss.schedule) {
           for (const slot of boss.schedule) {
@@ -214,8 +243,8 @@ export function WeeklyScheduleView() {
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-6">
-      {/* Saving overlay — blocks all interaction */}
-      {saving && <SavingOverlay />}
+      {/* Saving overlay � blocks all interaction */}
+      {savingMessage && <SavingOverlay message={savingMessage} />}
 
       <h2 className="text-xl font-bold text-white mb-6">Weekly Schedule</h2>
 
@@ -345,7 +374,7 @@ export function WeeklyScheduleView() {
             {/* Spawns */}
             <div className="p-2 space-y-1.5 min-h-[120px]">
               {day.spawns.length === 0 ? (
-                <p className="text-slate-700 text-xs text-center py-4">â€”</p>
+                <p className="text-slate-700 text-xs text-center py-4">—</p>
               ) : (
                 day.spawns.map((s, i) => {
                   const isDeathEvent = s.deathRecord !== null && s.nextSpawn?.getTime() === new Date(s.deathRecord.death_time).getTime();

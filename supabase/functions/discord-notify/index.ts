@@ -54,7 +54,7 @@ serve(async (req: Request) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     
     const dbRes = await fetch(
-      `${supabaseUrl}/rest/v1/servers?select=name,discord_webhook_url&id=eq.${server_id}`,
+      `${supabaseUrl}/rest/v1/servers?select=name,discord_webhook_url,notification_prefix&id=eq.${server_id}`,
       { headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` } }
     );
     const servers = await dbRes.json();
@@ -68,6 +68,7 @@ serve(async (req: Request) => {
     }
 
     const serverName = server.name || "Unknown Server";
+    const ping = server.notification_prefix || "@everyone";
     let content: string;
     let embed: DiscordEmbed | null = null;
 
@@ -76,7 +77,7 @@ serve(async (req: Request) => {
         ? attendees.join(", ")
         : "No participants recorded";
       const guildLine = guild_name ? ` - ${guild_name}` : "";
-      content = `@everyone ${boss_name} has been defeated!`;
+      content = `${ping} ${boss_name} has been defeated!`;
       embed = {
         title: `☠️ ${boss_name}${guildLine} has been defeated!`,
         description: `**${boss_name}** has been killed on **${serverName}**.`,
@@ -92,9 +93,9 @@ serve(async (req: Request) => {
       const guildLine = guild_name ? ` - ${guild_name}` : "";
       const desc = `**${boss_name}** is now alive on **${serverName}**.` +
         (spawn_time ? "\nSpawn time: " + spawn_time : "");
-      content = `@everyone ${boss_name} has spawned!`;
+      content = `${ping} ${boss_name} is spawning!!!`;
       embed = {
-        title: `⚔️ ${boss_name}${guildLine} has spawned!`,
+        title: `⚔️ ${boss_name}${guildLine} is spawning!!!`,
         description: desc,
         color: 0x22c55e, // green
         fields: [
@@ -117,7 +118,7 @@ serve(async (req: Request) => {
         };
       });
 
-      content = "@everyone";
+      content = ping;
       embed = {
         title: "📋 Next 24h Boss Spawns",
         description: `Upcoming boss spawns on **${serverName}**:`,

@@ -5,13 +5,36 @@ import { useServer } from "@/contexts/ServerContext";
 import { CreateServerModal } from "@/components/CreateServerModal";
 import { DiscordWebhookBanner } from "@/components/DiscordWebhookBanner";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
-import { Skull, List, Calendar, LogOut, Clock, Trophy, Users, BarChart3, Server, Settings, Plus, Shield, ExternalLink, Eye } from "lucide-react";
+import { useSpawnAlerts } from "@/hooks/useSpawnAlerts";
+import { Skull, List, Calendar, LogOut, Clock, Trophy, Users, BarChart3, Server, Settings, Plus, Shield, ExternalLink, Eye, Bell, Volume2 } from "lucide-react";
+
+function playAlertSound() {
+  try {
+    const vol = parseFloat(localStorage.getItem("raidscout-alert-volume") || "0.5");
+    const ctx = new AudioContext();
+    for (let i = 0; i < 5; i++) {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.type = "square";
+      const t = ctx.currentTime + i * 1.2;
+      gain.gain.setValueAtTime(0.3 * vol, t);
+      gain.gain.exponentialRampToValueAtTime(0.01, t + 0.8);
+      osc.frequency.setValueAtTime(800, t);
+      osc.frequency.linearRampToValueAtTime(1200, t + 0.8);
+      osc.start(t);
+      osc.stop(t + 0.8);
+    }
+  } catch {}
+}
 
 export function Layout() {
   const { user, signOut, userRole, isViewer, viewerServerName } = useAuth();
   const { servers, currentServer, setCurrentServer } = useServer();
   const [showCreate, setShowCreate] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [spawnToast, setSpawnToast] = useState<string | null>(null);
   const navigate = useNavigate();
   const location = useLocation();
   const isAdmin = userRole === "admin";
@@ -26,6 +49,13 @@ export function Layout() {
 
   // Admin without a server: show admin panel button, hide data nav + create
   const showDataNav = !isAdmin || hasServer;
+
+  // Spawn alerts — listen for boss spawns from other clients
+  useSpawnAlerts((bossName) => {
+    setSpawnToast(`⚡ ${bossName} spawning in ≤ 5 min!`);
+    playAlertSound();
+    setTimeout(() => setSpawnToast(null), 8000);
+  });
 
   return (
     <div className="min-h-screen bg-slate-950 flex flex-col">
@@ -260,6 +290,14 @@ export function Layout() {
         onConfirm={signOut}
         onCancel={() => setShowLogoutConfirm(false)}
       />
+
+      {/* Spawn Alert Toast */}
+      {spawnToast && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-emerald-900/90 border border-emerald-700 rounded-xl px-4 py-2.5 shadow-lg flex items-center gap-2 animate-bounce">
+          <Bell className="w-4 h-4 text-emerald-400" />
+          <span className="text-sm text-white font-medium">{spawnToast}</span>
+        </div>
+      )}
     </div>
   );
 }

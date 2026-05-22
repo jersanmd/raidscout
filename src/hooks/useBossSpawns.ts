@@ -8,7 +8,7 @@ import { calculateSpawnInfo } from "@/lib/spawnCalculator";
  * Combines boss data + death records into computed spawn info.
  * Recomputes when either data source changes.
  */
-export function useBossSpawns(filterText: string = "", filterType: string = "all") {
+export function useBossSpawns(filterText: string = "", filterType: string = "all", _refreshKey?: number) {
   const { data: bosses = [], isLoading: bossesLoading } = useBosses();
   const { data: deathRecords = [], isLoading: recordsLoading } = useDeathRecords();
 
@@ -55,7 +55,7 @@ export function useBossSpawns(filterText: string = "", filterType: string = "all
     });
 
     return result;
-  }, [bosses, deathRecords, filterText, filterType]);
+  }, [bosses, deathRecords, filterText, filterType, _refreshKey]);
 
   return {
     spawns,

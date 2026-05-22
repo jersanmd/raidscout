@@ -17,6 +17,8 @@ export interface Boss {
   schedule: ScheduleSlot[] | null;
   server_id?: string;
   created_at: string;
+  /** Points awarded per attendance (default 1) */
+  boss_points?: number;
 }
 
 export interface DeathRecord {
@@ -65,6 +67,17 @@ export interface LeaderboardEntry {
   name: string;
   points: number;
   last_attended: string | null;
+}
+
+/** A manual point adjustment by a moderator/owner */
+export interface PointAdjustment {
+  id: string;
+  member_id: string;
+  member_name: string;
+  points: number;
+  reason: string;
+  adjusted_by_name: string;
+  created_at: string;
 }
 
 /** A single ranked member in a leaderboard snapshot */
