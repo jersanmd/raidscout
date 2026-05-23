@@ -343,6 +343,29 @@ export function subscribeToDeathRecords(
     .subscribe();
 }
 
+/** Realtime subscription for boss table changes (rotation_counter, schedule, etc.) */
+export function subscribeToBosses(onChange: () => void) {
+  const chanName = `bosses_changes_${Date.now()}`;
+  return supabase
+    .channel(chanName)
+    .on(
+      "postgres_changes",
+      { event: "INSERT", schema: "public", table: "bosses" },
+      () => onChange()
+    )
+    .on(
+      "postgres_changes",
+      { event: "UPDATE", schema: "public", table: "bosses" },
+      () => onChange()
+    )
+    .on(
+      "postgres_changes",
+      { event: "DELETE", schema: "public", table: "bosses" },
+      () => onChange()
+    )
+    .subscribe();
+}
+
 /** Broadcast a spawn alert to all clients on the same server */
 export function broadcastSpawnAlert(serverId: string, bossName: string) {
   const channel = supabase.channel(`spawn-alerts-${serverId}`, {

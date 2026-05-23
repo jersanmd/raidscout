@@ -40,8 +40,8 @@ function calculateFixedHoursSpawn(
   return { boss, nextSpawn, status, deathRecord };
 }
 
-/** How long a schedule boss stays "alive" after its spawn time (in hours) */
-const ALIVE_WINDOW_HOURS = 2;
+/** Schedule bosses stay alive until 1 hour before their next scheduled slot */
+const ALIVE_BUFFER_HOURS = 1;
 
 function calculateFixedScheduleSpawn(boss: Boss, deathRecord: DeathRecord | null, now: Date): SpawnInfo {
   if (!boss.schedule || boss.schedule.length === 0) {
@@ -52,7 +52,9 @@ function calculateFixedScheduleSpawn(boss: Boss, deathRecord: DeathRecord | null
   const recentSlot = findMostRecentSlot(boss.schedule, now);
   if (recentSlot) {
     const slotTime = buildDate(now, recentSlot.day, recentSlot.time);
-    const aliveUntil = new Date(slotTime.getTime() + ALIVE_WINDOW_HOURS * 3600_000);
+    // Alive until 1 hour before the NEXT scheduled slot
+    const nextSlot = findNextScheduleSlot(boss.schedule, new Date(slotTime.getTime() + 60_000));
+    const aliveUntil = new Date(nextSlot.getTime() - ALIVE_BUFFER_HOURS * 3600_000);
 
     // If there's a death record, check if the boss was killed AFTER this slot started
     const wasKilledAfterSlot = deathRecord
@@ -122,7 +124,9 @@ function findMostRecentSlot(schedule: ScheduleSlot[], now: Date): ScheduleSlot |
         timeToMinutes(best.time) % 60,
         0, 0
       );
-      const aliveUntil = new Date(slotTime.getTime() + ALIVE_WINDOW_HOURS * 3600_000);
+      // Alive until 1 hour before the next slot (which is the first slot this week)
+      const nextSlot = findNextScheduleSlot(schedule, new Date(slotTime.getTime() + 60_000));
+      const aliveUntil = new Date(nextSlot.getTime() - ALIVE_BUFFER_HOURS * 3600_000);
       if (now < aliveUntil) {
         return best; // Still alive from last week's slot
       }

@@ -32,7 +32,7 @@ insert into bosses (name, spawn_type, respawn_hours, schedule) values
 ('Roderick',       'fixed_schedule', null, '[{"day":5,"time":"19:00"}]'),
 ('Chaiflock',      'fixed_schedule', null, '[{"day":6,"time":"15:00"}]'),
 ('Benji',          'fixed_schedule', null, '[{"day":0,"time":"21:00"}]'),
-('Nevaeh',         'fixed_schedule', null, '[{"day":6,"time":"22:00"}]'),
+('Nevaeh',         'fixed_schedule', null, '[{"day":0,"time":"22:00"}]'),
 ('Tumier',         'fixed_schedule', null, '[{"day":0,"time":"19:00"}]'),
 ('Lucus',          'fixed_schedule', null, '[{"day":6,"time":"22:00"}]'),
 
