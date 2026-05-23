@@ -60,6 +60,7 @@ export function LeaderboardView() {
   const [guildFilter, setGuildFilter] = useState<string>("all");
   const [showFinalizeConfirm, setShowFinalizeConfirm] = useState(false);
   const [copiedShare, setCopiedShare] = useState(false);
+  const [showShareMenu, setShowShareMenu] = useState(false);
 
   // Point adjustment modal state
   const { currentServer } = useServer();
@@ -188,6 +189,15 @@ export function LeaderboardView() {
     );
   }
 
+  const buildShareText = () => {
+    const periodLabel = period === "weekly" ? "This Week" : period === "monthly" ? "This Month" : "All Time";
+    const lines = entries.slice(0, 20).map((e, i) => {
+      const medal = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i + 1}.`;
+      return `${medal} ${e.name} — ${e.points} pts`;
+    });
+    return `🏆 ${currentServer?.name} Leaderboard — ${periodLabel}\n\n${lines.join("\n")}\n\n📊 raidscout.com`;
+  };
+
   return (
     <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
       {/* Header */}
@@ -224,26 +234,70 @@ export function LeaderboardView() {
                 Point History
               </button>
             )}
-            <button
-              onClick={() => {
-                const periodLabel = period === "weekly" ? "This Week" : period === "monthly" ? "This Month" : "All Time";
-                const lines = entries.slice(0, 20).map((e, i) => {
-                  const medal = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i + 1}.`;
-                  return `${medal} ${e.name} — ${e.points} pts`;
-                });
-                const text = `🏆 ${currentServer?.name} Leaderboard — ${periodLabel}\n\n${lines.join("\n")}\n\n📊 raidscout.com`;
-                navigator.clipboard.writeText(text);
-                setCopiedShare(true);
-                setTimeout(() => setCopiedShare(false), 2000);
-              }}
-              className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-white transition"
-            >
-              {copiedShare ? (
-                <><CheckCheck className="w-3.5 h-3.5 text-emerald-400" /> Copied!</>
-              ) : (
-                <><Share2 className="w-3.5 h-3.5" /> Share</>
+            <div className="relative">
+              <button
+                onClick={() => setShowShareMenu(!showShareMenu)}
+                className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-white transition"
+              >
+                <Share2 className="w-3.5 h-3.5" /> Share
+              </button>
+              {showShareMenu && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setShowShareMenu(false)} />
+                  <div className="absolute right-0 top-full mt-1 w-48 bg-slate-800 border border-slate-700 rounded-lg shadow-xl z-50 py-1">
+                    <button
+                      onClick={() => {
+                        const text = buildShareText();
+                        setShowShareMenu(false);
+                        try {
+                          (navigator as any).share?.({ title: `${currentServer?.name} Leaderboard`, text });
+                        } catch {
+                          navigator.clipboard.writeText(text);
+                        }
+                      }}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-300 hover:bg-slate-700 transition"
+                    >
+                      <Share2 className="w-3.5 h-3.5" /> Share via...
+                    </button>
+                    <button
+                      onClick={() => {
+                        const text = buildShareText();
+                        setShowShareMenu(false);
+                        const url = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent("https://www.raidscout.com")}&quote=${encodeURIComponent(text)}`;
+                        window.open(url, "_blank", "width=600,height=400");
+                      }}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-300 hover:bg-slate-700 transition"
+                    >
+                      <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+                      Facebook
+                    </button>
+                    <button
+                      onClick={() => {
+                        const text = buildShareText();
+                        setShowShareMenu(false);
+                        const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`;
+                        window.open(url, "_blank", "width=600,height=400");
+                      }}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-300 hover:bg-slate-700 transition"
+                    >
+                      <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+                      X / Twitter
+                    </button>
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(buildShareText());
+                        setShowShareMenu(false);
+                        setCopiedShare(true);
+                        setTimeout(() => setCopiedShare(false), 2000);
+                      }}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-300 hover:bg-slate-700 transition"
+                    >
+                      <CheckCheck className="w-3.5 h-3.5" /> Copy Text
+                    </button>
+                  </div>
+                </>
               )}
-            </button>
+            </div>
             {!isViewer && (
             <button
               onClick={() => setShowFinalizeConfirm(true)}
