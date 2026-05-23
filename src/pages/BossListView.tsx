@@ -504,7 +504,7 @@ export function BossListView() {
           </button>
           )}
         </div>
-        {(hasWebhook || currentServer?.discord_webhook_url) && (
+        {(hasWebhook || currentServer?.discord_webhook_url) && !isViewer && (
         <button
           onClick={() => setShowAnnounceConfirm(true)}
           disabled={spawnsIn24h.length === 0}
