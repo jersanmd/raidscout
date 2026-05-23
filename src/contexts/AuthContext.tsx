@@ -116,7 +116,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setViewerKey(null);
       return;
     }
-    await supabase.auth.signOut({ scope: "local" });
+    try {
+      await supabase.auth.signOut();
+    } catch {
+      // Sign-out failed server-side — clear local state anyway
+      setSession(null);
+      setUser(null);
+      setUserRole(null);
+    }
   };
 
   const viewerSignIn = async (key: string) => {
