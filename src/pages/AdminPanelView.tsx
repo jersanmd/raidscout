@@ -304,27 +304,44 @@ export function AdminPanelView() {
               {auditServerFilter !== "all" ? `No audit events for "${auditServerFilter}".` : "No audit events yet."}
             </p>
           ) : (
-            filteredLog.map((entry: any) => (
+            filteredLog.map((entry: any) => {
+              const actionLabel: Record<string, string> = {
+                set_role: 'Role Changed',
+                delete_role: 'Role Removed',
+                transfer_ownership: 'Ownership Transferred',
+                delete_server: 'Server Deleted',
+                record_death: 'Boss Killed',
+                add_member: 'Member Added',
+                update_settings: 'Settings Updated',
+              };
+              const actionColor: Record<string, string> = {
+                set_role: 'bg-purple-400',
+                delete_role: 'bg-red-400',
+                transfer_ownership: 'bg-amber-400',
+                delete_server: 'bg-red-500',
+                record_death: 'bg-emerald-400',
+                add_member: 'bg-blue-400',
+                update_settings: 'bg-slate-400',
+              };
+              const serverName = entry.details?.server_name || entry.details?.name;
+              const isViewer = !!entry.viewer_key;
+
+              return (
               <div key={entry.id} className="bg-slate-900 border border-slate-800 rounded-lg px-4 py-3 flex items-start gap-3">
-                <div className={`shrink-0 w-2 h-2 mt-1.5 rounded-full ${
-                  entry.action === 'set_role' ? 'bg-purple-400' :
-                  entry.action === 'delete_role' ? 'bg-red-400' :
-                  entry.action === 'transfer_ownership' ? 'bg-amber-400' :
-                  entry.action === 'delete_server' ? 'bg-red-500' :
-                  'bg-slate-400'
-                }`} />
+                <div className={`shrink-0 w-2 h-2 mt-1.5 rounded-full ${actionColor[entry.action] || 'bg-slate-400'}`} />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-sm font-medium text-white">
-                      {entry.action === 'set_role' ? 'Role Changed' :
-                       entry.action === 'delete_role' ? 'Role Removed' :
-                       entry.action === 'transfer_ownership' ? 'Ownership Transferred' :
-                       entry.action === 'delete_server' ? 'Server Deleted' :
-                       entry.action}
+                      {actionLabel[entry.action] || entry.action}
                     </span>
-                    {(entry.details?.server_name || entry.details?.name) && (
+                    {serverName && (
                       <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 font-medium">
-                        {entry.details.server_name || entry.details.name}
+                        {serverName}
+                      </span>
+                    )}
+                    {isViewer && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-cyan-900/50 text-cyan-400 font-medium">
+                        Viewer
                       </span>
                     )}
                     <span className="text-[10px] text-slate-500 font-mono">
@@ -332,20 +349,27 @@ export function AdminPanelView() {
                     </span>
                   </div>
                   <p className="text-xs text-slate-400 mt-0.5 truncate">
-                    {entry.action === 'transfer_ownership' && entry.details?.old_owner
-                      ? `${entry.details.old_owner?.substring(0,8)}... → ${entry.details.new_owner?.substring(0,8)}...`
-                      : entry.action === 'set_role' && entry.details
-                        ? `${entry.details.old_role ? entry.details.old_role + ' → ' : ''}${entry.details.role || entry.details.new_role}`
-                        : entry.target_type
-                          ? `${entry.target_type}: ${entry.target_id?.substring(0, 8)}...`
-                          : ''}
+                    {entry.action === 'record_death' && entry.details?.boss_name
+                      ? entry.details.boss_name
+                      : entry.action === 'add_member' && entry.details?.name
+                        ? entry.details.name
+                        : entry.action === 'update_settings'
+                          ? Object.entries(entry.details || {}).map(([k, v]) => `${k}: ${v}`).join(', ')
+                          : entry.action === 'transfer_ownership' && entry.details?.old_owner
+                            ? `${entry.details.old_owner?.substring(0,8)}... → ${entry.details.new_owner?.substring(0,8)}...`
+                            : entry.action === 'set_role' && entry.details
+                              ? `${entry.details.old_role ? entry.details.old_role + ' → ' : ''}${entry.details.role || entry.details.new_role}`
+                              : entry.target_type
+                                ? `${entry.target_type}: ${entry.target_id?.substring(0, 8)}...`
+                                : ''}
                   </p>
                   <p className="text-[10px] text-slate-600 font-mono mt-0.5">
-                    by {entry.actor_id?.substring(0, 8)}...
+                    by {isViewer ? entry.viewer_key?.substring(0, 8) + '...' : entry.actor_id?.substring(0, 8) + '...'}
                   </p>
                 </div>
               </div>
-            ))
+              );
+            })
           )}
         </div>
         );
