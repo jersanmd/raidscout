@@ -962,7 +962,7 @@ export async function fetchHistoryFromSupabase(serverId?: string | null): Promis
       spawnType: boss.spawn_type,
       deathRecordId: d.id,
       createdAt: d.death_time,
-      ownerGuildName: guildMap.get(d.display_owner_guild_id ?? d.owner_guild_id),
+      ownerGuildName: guildMap.get(d.owner_guild_id),
     };
   });
 }

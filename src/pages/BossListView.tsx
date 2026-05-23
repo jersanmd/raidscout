@@ -268,15 +268,25 @@ export function BossListView() {
 
   // Set boss rotation to a specific guild index
   const handleSetRotation = useCallback(async (bossId: string, targetIndex: number) => {
+    const info = getBossRotationInfo(bossId);
+    if (!info) return;
+    const delta = targetIndex - info.currentIndex;
+    if (delta === 0) return;
     try {
-      await setBossRotation(bossId, targetIndex);
+      if (info.mode === "daily") {
+        // Daily mode: adjust rotation_adjustment so targetIndex = (lastIdx + 1 + adj) % N
+        await adjustBossRotation(bossId, delta);
+      } else {
+        // Rotation (per kill) mode: set rotation_counter directly
+        await setBossRotation(bossId, targetIndex);
+      }
       queryClient.invalidateQueries({ queryKey: ["bosses"] });
       queryClient.invalidateQueries({ queryKey: ["death_records"] });
       setRefreshKey(k => k + 1);
     } catch (err: any) {
       setToast({ type: "error", message: err?.message ?? "Failed to set rotation" });
     }
-  }, [queryClient]);
+  }, [getBossRotationInfo, queryClient, guilds, deathRecords]);
 
   const handleRecordDeath = useCallback(
     async (bossId: string, deathTime: Date, rallyImages: File[], attendeeIds: string[]) => {
