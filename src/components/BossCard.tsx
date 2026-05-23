@@ -34,9 +34,10 @@ interface BossCardProps {
   viewerCanMarkDied?: boolean;
   /** Whether this boss has any guild assignments at all */
   hasGuilds?: boolean;
+  justKilled?: boolean;
 }
 
-export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, onCriticalSpawn, compact = false, multiMode = false, selected = false, onToggleSelect, ownerGuildName, rotationGuilds, rotationCurrentIndex, rotationMode, onSetRotation, viewerCanEdit, viewerCanMarkDied, hasGuilds }: BossCardProps) {
+export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, onCriticalSpawn, compact = false, multiMode = false, selected = false, onToggleSelect, ownerGuildName, rotationGuilds, rotationCurrentIndex, rotationMode, onSetRotation, viewerCanEdit, viewerCanMarkDied, hasGuilds, justKilled }: BossCardProps) {
   const { isViewer } = useAuth();
   const { currentServer } = useServer();
   const tz = useServerTimezone();
@@ -93,7 +94,7 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
     <>
       <div
         onClick={() => multiMode && onToggleSelect?.(boss.id)}
-        className={`relative rounded-xl border ${statusConfig.border} ${statusConfig.bg} p-4 transition-all duration-300 animate-[fadeIn_0.3s_ease-out] hover:-translate-y-0.5 hover:shadow-lg hover:shadow-black/20 ${
+        className={`relative rounded-xl border ${statusConfig.border} ${statusConfig.bg} p-4 transition-all duration-300 animate-[fadeIn_0.5s_ease-out] hover:-translate-y-0.5 hover:shadow-lg hover:shadow-black/20 ${justKilled ? "animate-[fadeOut_0.4s_ease-out]" : ""} ${
           multiMode ? "cursor-pointer" : ""
         } hover:border-slate-500 ${
           selected ? "ring-2 ring-blue-500 border-blue-500" : ""

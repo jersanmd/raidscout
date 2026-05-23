@@ -48,6 +48,9 @@ export function BossListView() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [multiMode, setMultiMode] = useState(false);
 
+  // Track which boss just got killed for exit animation
+  const [justKilledId, setJustKilledId] = useState<string | null>(null);
+
   // Announce bosses in 24h state
   const [showAnnounceConfirm, setShowAnnounceConfirm] = useState(false);
   const [announceLoading, setAnnounceLoading] = useState(false);
@@ -207,7 +210,6 @@ export function BossListView() {
       let deathRecordId: string;
 
       if (user || isViewer) {
-        setSavingMessage("Recording death...");
         try {
           const ownerGuildNameStr = ownerGuildName(boss.id);
           const ownerGuildId = ownerGuildNameStr ? guilds.find(g => g.name === ownerGuildNameStr)?.id ?? null : null;
@@ -243,6 +245,10 @@ export function BossListView() {
           queryClient.invalidateQueries({ queryKey: ["members"] });
           queryClient.invalidateQueries({ queryKey: ["analytics"] });
 
+          // Trigger exit animation
+          setJustKilledId(bossId);
+          setTimeout(() => setJustKilledId(null), 600);
+
           // Advance rotation counter on kill
           try { await advanceBossRotation(bossId); } catch {}
           queryClient.invalidateQueries({ queryKey: ["bosses"] });
@@ -258,8 +264,6 @@ export function BossListView() {
         } catch (err) {
           console.error("Failed to record death:", err);
           setToast({ type: "error", message: "Failed to save death record. Check the console for details." });
-        } finally {
-          setSavingMessage(null);
         }
       } else {
         setToast({ type: "error", message: "Supabase not configured. Cannot record death." });
@@ -428,10 +432,10 @@ export function BossListView() {
     return groups;
   }, [filteredSpawns]);
 
-  if (isLoading) {
+  if (isLoading || !spawns.length) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <Loader2 className="w-8 h-8 text-slate-400 animate-spin" />
+      <div className="flex items-center justify-center py-32">
+        <div className="w-8 h-8 border-2 border-slate-600 border-t-red-500 rounded-full animate-spin" />
       </div>
     );
   }
@@ -626,6 +630,7 @@ export function BossListView() {
                     onSetRotation={(idx) => handleSetRotation(s.boss.id, idx)}
                     viewerCanEdit={viewerCanEdit}
                     viewerCanMarkDied={viewerCanMarkDied}
+                    justKilled={justKilledId === s.boss.id}
                     hasGuilds={bossGuilds.some(bg => bg.boss_id === s.boss.id)}
                   />
                   );

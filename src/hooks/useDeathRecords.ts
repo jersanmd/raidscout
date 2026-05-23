@@ -15,21 +15,17 @@ export function useDeathRecords() {
   const queryClient = useQueryClient();
   const configured = isSupabaseConfigured();
 
-  useEffect(() => {
-    return () => {
-      if (serverId) {
-        queryClient.removeQueries({ queryKey: ["death_records", serverId] });
-      }
-    };
-  }, [serverId, queryClient]);
-
   const query = useQuery<DeathRecord[]>({
     queryKey: ["death_records", serverId],
     queryFn: async () => {
       if (!configured || (!user && !isViewer)) return [];
       return await fetchDeathRecords(serverId);
     },
-    staleTime: 10_000,
+    staleTime: 60_000,
+    gcTime: 30 * 60_000,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+    placeholderData: (prev) => prev,
     retry: 2,
     enabled: configured && (!!user || isViewer) && !!serverId,
   });

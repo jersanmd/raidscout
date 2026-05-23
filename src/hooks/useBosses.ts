@@ -35,7 +35,11 @@ export function useBosses() {
       if (!configured) return [];
       return await fetchBosses(serverId);
     },
-    staleTime: 10_000,
+    staleTime: 60_000,
+    gcTime: 30 * 60_000,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+    placeholderData: (prev) => prev,
     retry: 2,
     enabled: configured && !!serverId,
   });
