@@ -21,6 +21,18 @@ export function NoServerView() {
     setLoading(true);
     setError(null);
     try {
+      // Check for duplicate server name
+      const { data: existing } = await supabase
+        .from("servers")
+        .select("id")
+        .eq("name", serverTrimmed)
+        .maybeSingle();
+      if (existing) {
+        setError("A server with this name already exists. Choose a different name.");
+        setLoading(false);
+        return;
+      }
+
       const server = await createServer(serverTrimmed);
       const guild = await createGuild(guildTrimmed, server.id);
       // Assign all bosses to this guild
@@ -55,6 +67,24 @@ export function NoServerView() {
       setLoading(false);
     }
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center p-4">
+        <div className="text-center space-y-6">
+          <div className="relative mx-auto w-16 h-16">
+            <div className="absolute inset-0 rounded-full border-4 border-slate-800" />
+            <div className="absolute inset-0 rounded-full border-4 border-t-emerald-400 border-r-emerald-400/30 border-b-emerald-400/10 border-l-emerald-400/60 animate-spin" />
+          </div>
+          <div>
+            <h2 className="text-lg font-bold text-white">Creating your server</h2>
+            <p className="text-sm text-slate-400 mt-1">Seeding 39 bosses and setting up your guild...</p>
+            <p className="text-xs text-slate-600 mt-2">This may take a few seconds</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (mode === "choose") {
     return (

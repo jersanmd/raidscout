@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { createServer, createGuild, fetchBosses, setBossGuilds } from "@/lib/supabase";
+import { supabase, createServer, createGuild, fetchBosses, setBossGuilds } from "@/lib/supabase";
 import { useServer } from "@/contexts/ServerContext";
 import { Loader2, Plus, X, Server, Shield } from "lucide-react";
 
@@ -17,6 +17,18 @@ export function CreateServerModal({ onClose }: { onClose: () => void }) {
     setLoading(true);
     setError(null);
     try {
+      // Check for duplicate server name
+      const { data: existing } = await supabase
+        .from("servers")
+        .select("id")
+        .eq("name", trimmed)
+        .maybeSingle();
+      if (existing) {
+        setError("A server with this name already exists. Choose a different name.");
+        setLoading(false);
+        return;
+      }
+
       const server = await createServer(trimmed);
       // Create the initial guild (required)
       const guild = await createGuild(guildTrimmed, server.id);
@@ -39,6 +51,22 @@ export function CreateServerModal({ onClose }: { onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/60" onClick={onClose} />
+
+      {loading ? (
+        <div className="relative bg-slate-900 border border-slate-700 rounded-xl w-full max-w-sm shadow-2xl p-8">
+          <div className="text-center space-y-6">
+            <div className="relative mx-auto w-16 h-16">
+              <div className="absolute inset-0 rounded-full border-4 border-slate-800" />
+              <div className="absolute inset-0 rounded-full border-4 border-t-emerald-400 border-r-emerald-400/30 border-b-emerald-400/10 border-l-emerald-400/60 animate-spin" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-white">Creating your server</h3>
+              <p className="text-sm text-slate-400 mt-1">Seeding 39 bosses and setting up your guild...</p>
+              <p className="text-xs text-slate-600 mt-2">This may take a few seconds</p>
+            </div>
+          </div>
+        </div>
+      ) : (
       <div className="relative bg-slate-900 border border-slate-700 rounded-xl w-full max-w-sm shadow-2xl">
         <div className="flex items-center justify-between p-4 border-b border-slate-800">
           <h3 className="text-sm font-bold text-white flex items-center gap-2">
@@ -88,6 +116,7 @@ export function CreateServerModal({ onClose }: { onClose: () => void }) {
           </button>
         </div>
       </div>
+      )}
     </div>
   );
 }
