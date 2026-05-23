@@ -1,5 +1,5 @@
 import { Suspense, lazy, useEffect } from "react";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ServerProvider, useServer } from "@/contexts/ServerContext";
@@ -125,7 +125,15 @@ function AppRoutes() {
         <Route path="/members" element={<Suspense fallback={<PageLoader />}><MembersView /></Suspense>} />
         <Route path="/analytics" element={<Suspense fallback={<PageLoader />}><AnalyticsView /></Suspense>} />
         <Route path="/server-settings" element={<Suspense fallback={<PageLoader />}><ServerSettingsView /></Suspense>} />
-        <Route path="/admin" element={<Suspense fallback={<PageLoader />}><AdminPanelView /></Suspense>} />
+        <Route path="/admin" element={
+          userRole === null ? (
+            <PageLoader />
+          ) : isAdmin ? (
+            <Suspense fallback={<PageLoader />}><AdminPanelView /></Suspense>
+          ) : (
+            <Navigate to="/" replace />
+          )
+        } />
       </Route>
     </Routes>
   );

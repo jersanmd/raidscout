@@ -1,26 +1,20 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { fetchAllServers, fetchAllUsers, supabase } from "@/lib/supabase";
+import { fetchAllServers, fetchAllUsers, fetchAuditLog, supabase } from "@/lib/supabase";
 import { useServer } from "@/contexts/ServerContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { Loader2, Shield, Server, Users, Eye, ChevronDown, ChevronUp } from "lucide-react";
+import { Loader2, Shield, Server, Users, Eye, ChevronDown, ChevronUp, ClipboardList } from "lucide-react";
 
 export function AdminPanelView() {
-  const [tab, setTab] = useState<"servers" | "users">("servers");
+  const [tab, setTab] = useState<"servers" | "users" | "audit">("servers");
   const { setCurrentServer } = useServer();
   const { userRole } = useAuth();
   const [expandedUser, setExpandedUser] = useState<string | null>(null);
   const [userServers, setUserServers] = useState<Record<string, { server_id: string; server_name: string; role: string }[]>>({});
   const [loadingServers, setLoadingServers] = useState(false);
+  const [auditServerFilter, setAuditServerFilter] = useState<string>("all");
   const navigate = useNavigate();
-
-  // Redirect non-admin users away
-  useEffect(() => {
-    if (userRole && userRole !== "admin") {
-      navigate("/", { replace: true });
-    }
-  }, [userRole, navigate]);
 
   // Always call hooks at the top level
   const { data: servers = [], isLoading: srvLoading } = useQuery({
@@ -37,14 +31,12 @@ export function AdminPanelView() {
     enabled: userRole === "admin",
   });
 
-  // Show loading while role is being determined
-  if (userRole !== "admin") {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <Loader2 className="w-8 h-8 text-slate-400 animate-spin" />
-      </div>
-    );
-  }
+  const { data: auditLog = [], isLoading: auditLoading } = useQuery({
+    queryKey: ["admin", "audit"],
+    queryFn: () => fetchAuditLog(200),
+    staleTime: 15_000,
+    enabled: userRole === "admin" && tab === "audit",
+  });
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-6 space-y-6">
@@ -77,6 +69,15 @@ export function AdminPanelView() {
         >
           <Users className="w-4 h-4" />
           Users ({users.length})
+        </button>
+        <button
+          onClick={() => setTab("audit")}
+          className={`flex items-center gap-1.5 px-4 py-1.5 rounded-md text-sm font-medium transition ${
+            tab === "audit" ? "bg-slate-700 text-white" : "text-slate-400 hover:text-slate-200"
+          }`}
+        >
+          <ClipboardList className="w-4 h-4" />
+          Audit Log
         </button>
       </div>
 
@@ -201,6 +202,98 @@ export function AdminPanelView() {
           )}
         </div>
       )}
+
+      {/* Audit Log Tab */}
+      {tab === "audit" && (() => {
+        // Extract unique server names from audit entries
+        const serverNames = [...new Set(
+          auditLog
+            .map((e: any) => e.details?.server_name || e.details?.name)
+            .filter(Boolean)
+        )] as string[];
+
+        const filteredLog = auditServerFilter === "all"
+          ? auditLog
+          : auditLog.filter((e: any) =>
+              e.details?.server_name === auditServerFilter ||
+              e.details?.name === auditServerFilter
+            );
+
+        return (
+        <div className="space-y-3">
+          {/* Server filter */}
+          {serverNames.length > 0 && (
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-slate-500">Filter by server:</span>
+              <select
+                value={auditServerFilter}
+                onChange={(e) => setAuditServerFilter(e.target.value)}
+                className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white outline-none focus:border-slate-500"
+              >
+                <option value="all">All Servers</option>
+                {serverNames.map(name => (
+                  <option key={name} value={name}>{name}</option>
+                ))}
+              </select>
+              <span className="text-[10px] text-slate-600">
+                {filteredLog.length} event{filteredLog.length !== 1 ? "s" : ""}
+              </span>
+            </div>
+          )}
+
+          {auditLoading ? (
+            <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 text-slate-500 animate-spin" /></div>
+          ) : filteredLog.length === 0 ? (
+            <p className="text-slate-500 text-sm text-center py-12">
+              {auditServerFilter !== "all" ? `No audit events for "${auditServerFilter}".` : "No audit events yet."}
+            </p>
+          ) : (
+            filteredLog.map((entry: any) => (
+              <div key={entry.id} className="bg-slate-900 border border-slate-800 rounded-lg px-4 py-3 flex items-start gap-3">
+                <div className={`shrink-0 w-2 h-2 mt-1.5 rounded-full ${
+                  entry.action === 'set_role' ? 'bg-purple-400' :
+                  entry.action === 'delete_role' ? 'bg-red-400' :
+                  entry.action === 'transfer_ownership' ? 'bg-amber-400' :
+                  entry.action === 'delete_server' ? 'bg-red-500' :
+                  'bg-slate-400'
+                }`} />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-sm font-medium text-white">
+                      {entry.action === 'set_role' ? 'Role Changed' :
+                       entry.action === 'delete_role' ? 'Role Removed' :
+                       entry.action === 'transfer_ownership' ? 'Ownership Transferred' :
+                       entry.action === 'delete_server' ? 'Server Deleted' :
+                       entry.action}
+                    </span>
+                    {(entry.details?.server_name || entry.details?.name) && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 font-medium">
+                        {entry.details.server_name || entry.details.name}
+                      </span>
+                    )}
+                    <span className="text-[10px] text-slate-500 font-mono">
+                      {new Date(entry.created_at).toLocaleString()}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-400 mt-0.5 truncate">
+                    {entry.action === 'transfer_ownership' && entry.details?.old_owner
+                      ? `${entry.details.old_owner?.substring(0,8)}... → ${entry.details.new_owner?.substring(0,8)}...`
+                      : entry.action === 'set_role' && entry.details
+                        ? `${entry.details.old_role ? entry.details.old_role + ' → ' : ''}${entry.details.role || entry.details.new_role}`
+                        : entry.target_type
+                          ? `${entry.target_type}: ${entry.target_id?.substring(0, 8)}...`
+                          : ''}
+                  </p>
+                  <p className="text-[10px] text-slate-600 font-mono mt-0.5">
+                    by {entry.actor_id?.substring(0, 8)}...
+                  </p>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+        );
+      })()}
     </div>
   );
 }

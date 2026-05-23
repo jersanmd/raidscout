@@ -113,6 +113,16 @@ export async function removeServerModerator(serverId: string, userId: string): P
 
 // ── Admin Queries ──────────────────────────────────────────
 
+export async function fetchAuditLog(limit = 100): Promise<any[]> {
+  const { data, error } = await supabase
+    .from("admin_audit_log")
+    .select("*")
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return data ?? [];
+}
+
 export async function fetchAllServers(): Promise<any[]> {
   const { data, error } = await supabase
     .from("servers")
