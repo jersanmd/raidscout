@@ -87,7 +87,7 @@ serve(async (req: Request) => {
           { name: "Server", value: serverName, inline: true },
         ],
         timestamp: new Date().toISOString(),
-        footer: { text: "RaidScout" },
+        footer: { text: "Powered by RaidScout" },
       };
     } else if (event === "boss_spawned") {
       const guildLine = guild_name ? ` - ${guild_name}` : "";
@@ -102,7 +102,7 @@ serve(async (req: Request) => {
           { name: "Server", value: serverName, inline: true },
         ],
         timestamp: new Date().toISOString(),
-        footer: { text: "RaidScout" },
+        footer: { text: "Powered by RaidScout" },
       };
     } else if (event === "spawn_announce") {
       const bossList = Array.isArray(bosses) ? bosses : [];
@@ -125,7 +125,7 @@ serve(async (req: Request) => {
         color: 0x8b5cf6,
         fields,
         timestamp: new Date().toISOString(),
-        footer: { text: "RaidScout" },
+        footer: { text: "Powered by RaidScout" },
       };
     } else {
       return new Response(
