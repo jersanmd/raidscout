@@ -6,7 +6,7 @@ import { useLeaderboardSnapshots, getLastFinalized, getLeaderboardResetAt } from
 import { guildColor } from "@/lib/constants";
 import { useAuth } from "@/contexts/AuthContext";
 import { useServerId, useServer } from "@/contexts/ServerContext";
-import { fetchMemberKills, type MemberBossKill, isSupabaseConfigured, fetchGuilds, adjustMemberPoints, fetchPointAdjustments } from "@/lib/supabase";
+import { fetchMemberKills, type MemberBossKill, isSupabaseConfigured, fetchGuilds, adjustMemberPoints, fetchPointAdjustments, supabase } from "@/lib/supabase";
 import { useAttendance } from "@/hooks/useAttendance";
 import { useMembers } from "@/hooks/useMembers";
 import type { Guild, PointAdjustment } from "@/types";
@@ -144,6 +144,26 @@ export function LeaderboardView() {
     return () => clearInterval(interval);
   }, [entries, finalizeResults, serverId]);
 
+  // ── Realtime: refresh leaderboard when any boss is killed ──
+  useEffect(() => {
+    if (!configured || !serverId) return;
+
+    const channel = supabase
+      .channel(`leaderboard-live-${serverId}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "death_records", filter: `server_id=eq.${serverId}` },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["leaderboard"] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [configured, serverId, queryClient]);
+
   const formatDate = (iso: string | null) => {
     if (!iso) return "Never";
     const d = new Date(iso);
@@ -176,7 +196,7 @@ export function LeaderboardView() {
             <p className="text-sm text-slate-400">
               {entries.length} member{entries.length !== 1 ? "s" : ""}
               {period === "all" ? "" : period === "weekly" ? " · This Week" : " · This Month"}
-              {" · "}1 point per boss attended
+              {" · "}Points per boss set in Settings
             </p>
           </div>
         </div>

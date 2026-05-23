@@ -535,13 +535,9 @@ export async function fetchLeaderboardResetAt(): Promise<string | null> {
 
 
 export async function fetchLeaderboard(serverId?: string | null): Promise<LeaderboardEntry[]> {
-  const sid = serverId ?? getCurrentServerId();
-  if (!sid) return [];
-  let query = supabase.from("leaderboard").select("*").gt("points", 0).order("points", { ascending: false });
-  if (sid) query = query.eq("server_id", sid);
-  const { data, error } = await query;
-  if (error) throw error;
-  return data as LeaderboardEntry[];
+  // Use same boss_points-aware logic as fetchLeaderboardByPeriod,
+  // just with an epoch start to include all records
+  return fetchLeaderboardByPeriod("1970-01-01T00:00:00Z", serverId);
 }
 
 export async function fetchLeaderboardByPeriod(
