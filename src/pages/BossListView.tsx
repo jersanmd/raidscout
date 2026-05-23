@@ -51,6 +51,11 @@ export function BossListView() {
   // Track which boss just got killed for exit animation
   const [justKilledId, setJustKilledId] = useState<string | null>(null);
 
+  // Onboarding banner dismiss state
+  const [onboardingDismissed, setOnboardingDismissed] = useState(
+    () => localStorage.getItem("raidscout-onboarding-dismissed") === "1"
+  );
+
   // Announce bosses in 24h state
   const [showAnnounceConfirm, setShowAnnounceConfirm] = useState(false);
   const [announceLoading, setAnnounceLoading] = useState(false);
@@ -128,6 +133,8 @@ export function BossListView() {
 
   const { spawns, isLoading } = useBossSpawns(searchText, filterType, refreshKey);
   const { data: deathRecords = [] } = useDeathRecords();
+
+  const unknownCount = spawns.filter(s => s.status === "unknown" && s.boss.spawn_type === "fixed_hours").length;
 
   const bulkBoss = useMemo(() => {
     if (selectedIds.size === 0) return null;
@@ -291,6 +298,29 @@ export function BossListView() {
     [queryClient]
   );
 
+  // Mark all unknown fixed-hours bosses alive at once using setBossSpawnTime
+  const handleMarkAllAlive = useCallback(async () => {
+    const unknown = spawns.filter(s => s.status === "unknown" && s.boss.spawn_type === "fixed_hours");
+    if (unknown.length === 0) return;
+
+    setBulkLoading(true);
+    const now = new Date();
+    let success = 0;
+    for (const s of unknown) {
+      try {
+        await setBossSpawnTime(s.boss.id, now);
+        success++;
+      } catch { /* skip individual failures */ }
+    }
+    queryClient.invalidateQueries({ queryKey: ["death_records"] });
+    setRefreshKey(k => k + 1);
+    setBulkLoading(false);
+
+    // Dismiss the banner after marking all
+    localStorage.setItem("raidscout-onboarding-dismissed", "1");
+    setOnboardingDismissed(true);
+  }, [spawns, queryClient]);
+
   const handleBulkRecordDeath = useCallback(
     async (deathTime: Date, rallyImages: File[], attendeeIds: string[]) => {
       setSavingMessage("Recording deaths...");
@@ -444,6 +474,33 @@ export function BossListView() {
     <div className="max-w-[90rem] mx-auto px-4 py-6 space-y-6">
       {/* Saving overlay — blocks all interaction */}
       {savingMessage && <SavingOverlay message={savingMessage} />}
+
+      {/* Onboarding banner — only for owners, only when unknown fixed-hours bosses exist */}
+      {!isViewer && !onboardingDismissed && unknownCount > 0 && (
+        <div className="flex items-center justify-between gap-4 px-4 py-3 rounded-xl bg-amber-900/20 border border-amber-800 animate-[fadeIn_0.4s_ease-out]">
+          <div className="flex items-center gap-2">
+            <Zap className="w-4 h-4 text-amber-400 shrink-0" />
+            <span className="text-sm text-amber-300">
+              <strong>{unknownCount}</strong> boss{unknownCount !== 1 ? "es" : ""} need{unknownCount === 1 ? "s" : ""} initial data — mark them alive to start timers.
+            </span>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={handleMarkAllAlive}
+              disabled={bulkLoading}
+              className="px-3 py-1.5 rounded-lg bg-amber-600 text-white text-xs font-semibold hover:bg-amber-500 transition disabled:opacity-50"
+            >
+              {bulkLoading ? "Working…" : `Mark All Alive`}
+            </button>
+            <button
+              onClick={() => { localStorage.setItem("raidscout-onboarding-dismissed", "1"); setOnboardingDismissed(true); }}
+              className="p-1.5 rounded-lg text-slate-500 hover:text-slate-300 hover:bg-slate-800 transition"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Stats banner */}
       <div className="flex items-center gap-4 flex-wrap">
