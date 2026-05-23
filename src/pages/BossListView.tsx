@@ -254,8 +254,26 @@ export function BossListView() {
         .sort((a, b) => new Date(b.death_time).getTime() - new Date(a.death_time).getTime())[0];
       const lastGuildId = lastDeath ? (lastDeath as any).owner_guild_id : null;
       const lastIdx = lastGuildId ? dailyEntries.findIndex(bg => bg.guild_id === lastGuildId) : -1;
-      let idx = (lastIdx >= 0 ? lastIdx + 1 : 1) + adjustment;
+
+      let idx: number;
+      if (lastDeath && lastGuildId) {
+        // Check if spawn is on the same day as death (no rotation advance)
+        const bossData = spawns.find(s => s.boss.id === bossId)?.boss;
+        const respawnHours = bossData?.respawn_hours ?? 0;
+        const deathDate = new Date(lastDeath.death_time);
+        const spawnDate = new Date(deathDate.getTime() + respawnHours * 3600000);
+        if (deathDate.toDateString() === spawnDate.toDateString()) {
+          // Same day — same guild keeps the boss (no advance)
+          idx = lastIdx;
+        } else {
+          // Different day — advance rotation
+          idx = (lastIdx + 1 + adjustment) % dailyEntries.length;
+        }
+      } else {
+        idx = (1 + adjustment) % dailyEntries.length;
+      }
       idx = ((idx % dailyEntries.length) + dailyEntries.length) % dailyEntries.length;
+
       const guildList = dailyEntries.map(bg => {
         const g = guilds.find(g => g.id === bg.guild_id);
         return { name: g?.name ?? "?", color: guildColor(g?.name ?? "?") };
