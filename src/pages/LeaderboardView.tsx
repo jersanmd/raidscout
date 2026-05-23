@@ -11,7 +11,7 @@ import { useAttendance } from "@/hooks/useAttendance";
 import { useMembers } from "@/hooks/useMembers";
 import type { Guild, PointAdjustment } from "@/types";
 import { shouldAutoFinalize, setLastAutoFinalize, getMondayISO } from "@/hooks/useAutoFinalize";
-import { Trophy, Medal, Crown, Users, Loader2, X, Skull, CheckCheck, History, ChevronRight, ChevronLeft, Search, Shield, Plus, Minus, Edit3 } from "lucide-react";
+import { Trophy, Medal, Crown, Users, Loader2, X, Skull, CheckCheck, History, ChevronRight, ChevronLeft, Search, Shield, Plus, Minus, Edit3, Share2 } from "lucide-react";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 
 const rankColors: Record<number, { icon: React.ReactNode; text: string; bg: string }> = {
@@ -59,6 +59,7 @@ export function LeaderboardView() {
   const [searchQuery, setSearchQuery] = useState("");
   const [guildFilter, setGuildFilter] = useState<string>("all");
   const [showFinalizeConfirm, setShowFinalizeConfirm] = useState(false);
+  const [copiedShare, setCopiedShare] = useState(false);
 
   // Point adjustment modal state
   const { currentServer } = useServer();
@@ -223,6 +224,26 @@ export function LeaderboardView() {
                 Point History
               </button>
             )}
+            <button
+              onClick={() => {
+                const periodLabel = period === "weekly" ? "This Week" : period === "monthly" ? "This Month" : "All Time";
+                const lines = entries.slice(0, 20).map((e, i) => {
+                  const medal = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i + 1}.`;
+                  return `${medal} ${e.name} — ${e.points} pts`;
+                });
+                const text = `🏆 ${currentServer?.name} Leaderboard — ${periodLabel}\n\n${lines.join("\n")}\n\n📊 raidscout.com`;
+                navigator.clipboard.writeText(text);
+                setCopiedShare(true);
+                setTimeout(() => setCopiedShare(false), 2000);
+              }}
+              className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-white transition"
+            >
+              {copiedShare ? (
+                <><CheckCheck className="w-3.5 h-3.5 text-emerald-400" /> Copied!</>
+              ) : (
+                <><Share2 className="w-3.5 h-3.5" /> Share</>
+              )}
+            </button>
             {!isViewer && (
             <button
               onClick={() => setShowFinalizeConfirm(true)}
