@@ -1,10 +1,17 @@
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
+import { SEOHead } from "@/components/SEOHead";
 
 export function PrivacyPolicyView() {
   const navigate = useNavigate();
   return (
     <div className="min-h-screen bg-slate-950">
+      <SEOHead
+        title="Privacy Policy"
+        description="Privacy policy for RaidScout boss timer application."
+        canonicalUrl="/privacy"
+        noindex
+      />
       <div className="max-w-2xl mx-auto px-4 py-8 space-y-6 text-slate-300 text-sm leading-relaxed">
         <button onClick={() => navigate(-1)} className="flex items-center gap-1 text-slate-500 hover:text-white transition text-xs mb-2">
           <ArrowLeft className="w-3.5 h-3.5" />

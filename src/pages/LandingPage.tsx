@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
+import { SEOHead } from "@/components/SEOHead";
 import {
   Timer, Shield, BarChart3, Sparkles, MessageSquare, Calendar, Skull, Eye, Trophy,
   LogIn, UserPlus, Mail, CheckCircle, AlertTriangle, Key, ChevronDown
@@ -64,6 +65,30 @@ export function LandingPage() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-white overflow-x-hidden scroll-smooth">
+      <SEOHead
+        title="RaidScout — Boss Spawn Timer & Hunt Scheduler"
+        description="Track 39+ boss spawns, rotate multi-guild kills, scan rallies with AI, and compete on leaderboards. Forever free."
+        canonicalUrl="/"
+      />
+
+      {/* JSON-LD Structured Data */}
+      <script type="application/ld+json">
+        {JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "WebApplication",
+          name: "RaidScout",
+          description: "Track 39+ boss spawns, rotate multi-guild kills, scan rallies with AI, and compete on leaderboards. Forever free.",
+          url: "https://www.raidscout.com",
+          applicationCategory: "GameApplication",
+          operatingSystem: "Web",
+          offers: {
+            "@type": "Offer",
+            price: "0",
+            priceCurrency: "USD",
+          },
+        })}
+      </script>
+
       {/* ── Hero ── */}
       <section className="relative px-6 pt-24 pb-16 text-center overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-b from-red-950/20 via-transparent to-transparent" />
