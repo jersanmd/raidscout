@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
@@ -266,13 +266,67 @@ const phoneSlides = [
 
 function ScreenshotShowcase() {
   const [active, setActive] = useState(0);
+  const dragStartX = useRef(0);
+  const dragCurrentX = useRef(0);
+  const isDragging = useRef(false);
+  const autoTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pauseUntil = useRef(0);
 
+  const goNext = useCallback(() => setActive(prev => (prev + 1) % phoneSlides.length), []);
+  const goPrev = useCallback(() => setActive(prev => (prev - 1 + phoneSlides.length) % phoneSlides.length), []);
+
+  const pauseAuto = useCallback(() => { pauseUntil.current = Date.now() + 15_000; }, []);
+
+  // Auto-advance (pauses 15s after user interaction)
   useEffect(() => {
-    const timer = setInterval(() => {
-      setActive(prev => (prev + 1) % phoneSlides.length);
+    autoTimer.current = setInterval(() => {
+      if (Date.now() < pauseUntil.current) return;
+      goNext();
     }, 4000);
-    return () => clearInterval(timer);
-  }, []);
+    return () => { if (autoTimer.current) clearInterval(autoTimer.current); };
+  }, [goNext]);
+
+  // Mouse drag
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isDragging.current) return;
+      dragCurrentX.current = e.clientX;
+    };
+    const handleMouseUp = () => {
+      if (!isDragging.current) return;
+      isDragging.current = false;
+      pauseAuto();
+      const diff = dragStartX.current - dragCurrentX.current;
+      if (Math.abs(diff) > 40) {
+        if (diff > 0) goNext(); else goPrev();
+      }
+    };
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [goNext, goPrev, pauseAuto]);
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    isDragging.current = true;
+    dragStartX.current = e.clientX;
+    dragCurrentX.current = e.clientX;
+  };
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    dragStartX.current = e.touches[0].clientX;
+    dragCurrentX.current = e.touches[0].clientX;
+  };
+  const handleTouchMove = (e: React.TouchEvent) => { dragCurrentX.current = e.touches[0].clientX; };
+  const handleTouchEnd = () => {
+    pauseAuto();
+    const diff = dragStartX.current - dragCurrentX.current;
+    if (Math.abs(diff) > 40) {
+      if (diff > 0) goNext(); else goPrev();
+    }
+  };
 
   return (
     <section className="max-w-6xl mx-auto px-6 pb-24 overflow-hidden">
@@ -297,18 +351,27 @@ function ScreenshotShowcase() {
       </div>
 
       {/* Phone carousel */}
-      <div className="relative flex items-center justify-center h-[540px]">
+      <div
+        className="relative flex items-center justify-center h-[540px] select-none cursor-grab active:cursor-grabbing"
+        onMouseDown={handleMouseDown}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+      >
         {phoneSlides.map((slide, i) => {
-          const offset = i - active;
-          const isActive = i === active;
+          const half = Math.floor(phoneSlides.length / 2);
+          let rawOffset = i - active;
+          if (rawOffset < -half) rawOffset += phoneSlides.length;
+          if (rawOffset > half) rawOffset -= phoneSlides.length;
+          const isActive = rawOffset === 0;
           return (
             <div
               key={i}
-              className="absolute transition-all duration-700 ease-in-out"
+              className="absolute transition-all duration-700 ease-in-out pointer-events-none"
               style={{
-                transform: `translateX(${offset * 280}px) scale(${isActive ? 1 : 0.85})`,
-                opacity: Math.abs(offset) > 1 ? 0 : isActive ? 1 : 0.4,
-                zIndex: isActive ? 10 : 5 - Math.abs(offset),
+                transform: `translateX(${rawOffset * 280}px) scale(${isActive ? 1 : 0.85})`,
+                opacity: Math.abs(rawOffset) > 1 ? 0 : isActive ? 1 : 0.4,
+                zIndex: isActive ? 10 : 5 - Math.abs(rawOffset),
                 filter: isActive ? "blur(0)" : "blur(1px)",
               }}
             >
