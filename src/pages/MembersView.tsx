@@ -262,26 +262,6 @@ export function MembersView() {
                 <span className="flex-1 text-white text-sm font-medium">{member.name}</span>
               )}
 
-              {/* Guild assignment */}
-              {editingId !== member.id && guilds.length > 0 && (
-                <select
-                  value={member.guild_id ?? ""}
-                  onChange={async (e) => {
-                    const gid = e.target.value || null;
-                    try {
-                      await setMemberGuild(member.id, gid);
-                      invalidate();
-                    } catch { /* ignore */ }
-                  }}
-                  className="bg-slate-800 border border-slate-700 rounded px-2 py-1 text-xs text-slate-400 outline-none focus:border-blue-500 transition max-w-[120px] truncate"
-                >
-                  <option value="">No guild</option>
-                  {guilds.map((g) => (
-                    <option key={g.id} value={g.id}>{g.name}</option>
-                  ))}
-                </select>
-              )}
-
               {/* Actions */}
               {editingId !== member.id && (
                 <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition">
@@ -300,6 +280,26 @@ export function MembersView() {
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 </div>
+              )}
+
+              {/* Guild assignment */}
+              {editingId !== member.id && guilds.length > 0 && (
+                <select
+                  value={member.guild_id ?? ""}
+                  onChange={async (e) => {
+                    const gid = e.target.value || null;
+                    try {
+                      await setMemberGuild(member.id, gid);
+                      invalidate();
+                    } catch { /* ignore */ }
+                  }}
+                  className="bg-slate-800 border border-slate-700 rounded px-2 py-1 text-xs text-slate-400 outline-none focus:border-blue-500 transition max-w-[120px] truncate"
+                >
+                  <option value="">No guild</option>
+                  {guilds.map((g) => (
+                    <option key={g.id} value={g.id}>{g.name}</option>
+                  ))}
+                </select>
               )}
             </div>
           ))}
