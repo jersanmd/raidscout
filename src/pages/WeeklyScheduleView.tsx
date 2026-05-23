@@ -400,7 +400,7 @@ export function WeeklyScheduleView() {
                       {(() => {
                         let gName: string | null | undefined;
                         if (isDeathEvent && s.deathRecord) {
-                          gName = guilds.find(g => g.id === s.deathRecord!.owner_guild_id)?.name;
+                          gName = guilds.find(g => g.id === (s.deathRecord!.display_owner_guild_id ?? s.deathRecord!.owner_guild_id))?.name;
                         } else {
                           gName = getOwnerGuildName(s.boss.id, day.day);
                         }
@@ -508,7 +508,7 @@ export function WeeklyScheduleView() {
                     {(() => {
                       let gName: string | null | undefined;
                       if (isDeathEvent && s.deathRecord) {
-                        gName = guilds.find(g => g.id === s.deathRecord!.owner_guild_id)?.name;
+                        gName = guilds.find(g => g.id === (s.deathRecord!.display_owner_guild_id ?? s.deathRecord!.owner_guild_id))?.name;
                       } else {
                         gName = getOwnerGuildName(s.boss.id, day.day);
                       }
