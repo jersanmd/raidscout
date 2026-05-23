@@ -236,6 +236,7 @@ const phoneSlides = [
   { src: "/screenshots/3.png", label: "Guild Rotation" },
   { src: "/screenshots/4.png", label: "Death History" },
   { src: "/screenshots/5.png", label: "Weekly Schedule" },
+  { src: "/screenshots/discord-notify.png", label: "Discord Alerts" },
 ];
 
 function ScreenshotShowcase() {
