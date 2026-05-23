@@ -589,7 +589,7 @@ export async function fetchBossGuilds(serverId?: string | null): Promise<BossGui
   if (!sid) return [];
   const { data, error } = await supabase
     .from("boss_guilds")
-    .select("id, boss_id, guild_id, sort_order, day_of_week, rotation_mode, bosses!inner(server_id)")
+    .select("*, bosses!inner(server_id)")
     .eq("bosses.server_id", sid)
     .order("sort_order", { ascending: true })
     .order("day_of_week", { ascending: true });
