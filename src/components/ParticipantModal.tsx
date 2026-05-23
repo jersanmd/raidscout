@@ -6,7 +6,7 @@ import { useServerId } from "@/contexts/ServerContext";
 import { extractNamesWithAI } from "@/lib/vision";
 import { fetchGuilds } from "@/lib/supabase";
 import { guildColor } from "@/lib/constants";
-import { Loader2, X, Plus, Check, Sparkles, ImagePlus, Shield } from "lucide-react";
+import { Loader2, X, Plus, Check, Sparkles, ImagePlus, Shield, Pencil } from "lucide-react";
 import type { Guild, Member } from "@/types";
 
 // ── Helpers ─────────────────────────────────────────────────
@@ -100,10 +100,16 @@ export function ParticipantModal({
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
   const [aiDetectedNames, setAiDetectedNames] = useState<string[] | null>(null);
-  const [aiCreating, setAiCreating] = useState(false);
-  const [aiSuggestions, setAiSuggestions] = useState<Map<string, { id: string; name: string }> | null>(null);
-  const [aiExcludedNames, setAiExcludedNames] = useState<Set<string>>(new Set());
-  const [aiResolvedMatches, setAiResolvedMatches] = useState<Map<string, string>>(new Map());
+  // Three-way categorization
+  const [exactMatchNames, setExactMatchNames] = useState<string[]>([]);
+  const [fuzzyMatchNames, setFuzzyMatchNames] = useState<Map<string, { id: string; name: string }>>(new Map());
+  const [unmatchedNames, setUnmatchedNames] = useState<string[]>([]);
+  // Already-attended names (excluded from results)
+  const [alreadyAttendedNames, setAlreadyAttendedNames] = useState<string[]>([]);
+  // Inline edit for unmatched names
+  const [editingUnmatched, setEditingUnmatched] = useState<string | null>(null);
+  const [editUnmatchedValue, setEditUnmatchedValue] = useState("");
+  const editUnmatchedRef = useRef<HTMLInputElement>(null);
 
   const memberMap = new Map(members.map((m) => [m.id, m.name]));
   const attendedIds = new Set(attendance.map((a) => a.member_id));
@@ -142,7 +148,10 @@ export function ParticipantModal({
     setRallyPreviews(prev => [...prev, ...files.map(f => URL.createObjectURL(f))]);
     setAiError(null);
     setAiDetectedNames(null);
-    setAiSuggestions(null);
+    setExactMatchNames([]);
+    setFuzzyMatchNames(new Map());
+    setUnmatchedNames([]);
+    setAlreadyAttendedNames([]);
     e.target.value = "";
     scanImages(updated);
   };
@@ -151,8 +160,10 @@ export function ParticipantModal({
     if (images.length === 0) return;
     setAiLoading(true);
     setAiError(null);
-    setAiExcludedNames(new Set());
-    setAiResolvedMatches(new Map());
+    setExactMatchNames([]);
+    setFuzzyMatchNames(new Map());
+    setUnmatchedNames([]);
+    setAlreadyAttendedNames([]);
 
     try {
       const allNames = new Set<string>();
@@ -175,39 +186,51 @@ export function ParticipantModal({
         attendance.map((a) => memberMap.get(a.member_id)?.toLowerCase()).filter(Boolean) as string[]
       );
 
-      const suggestions = new Map<string, { id: string; name: string }>();
-      const exclude = new Set<string>();
-      const autoAddIds: string[] = [];
+      const exactNames: string[] = [];
+      const fuzzyMap = new Map<string, { id: string; name: string }>();
+      const unmatched: string[] = [];
+      const alreadyThere: string[] = [];
 
       for (const name of names) {
         const lower = name.toLowerCase();
         if (alreadyAttendedLower.has(lower)) {
-          exclude.add(name);
+          alreadyThere.push(name);
           continue;
         }
         const existingId = existingLower.get(lower);
         if (existingId) {
-          // Exact match — auto-add
-          autoAddIds.push(existingId);
-          exclude.add(name);
+          exactNames.push(name);
         } else {
           const close = findClosestMember(name, members);
           if (close) {
-            // Fuzzy match — auto-add too
-            autoAddIds.push(close.id);
-            exclude.add(name);
+            fuzzyMap.set(name, close);
+          } else {
+            unmatched.push(name);
           }
         }
       }
 
-      // Auto-add all matches immediately
-      for (const memberId of autoAddIds) {
+      // Auto-add exact + fuzzy matches to attendance (existing members only)
+      const idsToAdd: string[] = [];
+      for (const name of exactNames) {
+        const id = existingLower.get(name.toLowerCase());
+        if (id && !attendedIds.has(id)) idsToAdd.push(id);
+      }
+      for (const [, member] of fuzzyMap) {
+        if (!attendedIds.has(member.id)) idsToAdd.push(member.id);
+      }
+      for (const memberId of idsToAdd) {
         try { await addAttendance.mutateAsync({ deathRecordId, memberId }); } catch {}
       }
 
-      setAiSuggestions(null);
-      setAiDetectedNames(names);
-      setAiExcludedNames(exclude);
+      setExactMatchNames([]);
+      setFuzzyMatchNames(new Map());
+      setUnmatchedNames(unmatched);
+      setAlreadyAttendedNames(alreadyThere);
+      setAiDetectedNames(unmatched.length > 0 ? unmatched : null);
+      if (idsToAdd.length > 0) {
+        queryClient.invalidateQueries({ queryKey: ["attendance"] });
+      }
     } catch (err) {
       setAiError(err instanceof Error ? err.message : "AI scan failed");
     } finally {
@@ -229,7 +252,10 @@ export function ParticipantModal({
           setRallyPreviews(prev => [...prev, URL.createObjectURL(blob)]);
           setAiError(null);
           setAiDetectedNames(null);
-          setAiSuggestions(null);
+          setExactMatchNames([]);
+          setFuzzyMatchNames(new Map());
+          setUnmatchedNames([]);
+          setAlreadyAttendedNames([]);
           scanImages(updated);
           return;
         }
@@ -239,49 +265,52 @@ export function ParticipantModal({
     return () => document.removeEventListener("paste", handlePaste);
   }, [rallyImages]);
 
-  const handleConfirmAIAdds = async () => {
-    if (!aiDetectedNames) return;
-    setAiCreating(true);
+  /** User clicks to create new members and add them to attendance */
+  const handleCreateAndAddNew = async () => {
+    if (unmatchedNames.length === 0) return;
+    setAiLoading(true);
 
-    const existingLower = new Map<string, string>();
-    for (const m of members) existingLower.set(m.name.toLowerCase(), m.id);
-
-    for (const name of aiDetectedNames) {
-      if (aiExcludedNames.has(name)) continue;
-      const lower = name.toLowerCase();
-      let memberId = aiResolvedMatches.get(name) ?? existingLower.get(lower);
-
-      if (memberId && !attendedIds.has(memberId)) {
-        try { await addAttendance.mutateAsync({ deathRecordId, memberId }); } catch {}
-      } else if (!memberId) {
+    for (const name of unmatchedNames) {
+      try {
         const { upsertMember } = await import("@/lib/supabase");
         const member = await upsertMember(name);
-        try { await addAttendance.mutateAsync({ deathRecordId, memberId: member.id }); } catch {}
-      }
+        if (!attendedIds.has(member.id)) {
+          try { await addAttendance.mutateAsync({ deathRecordId, memberId: member.id }); } catch {}
+        }
+      } catch {}
     }
 
-    setAiCreating(false);
+    setUnmatchedNames([]);
     setAiDetectedNames(null);
-    setAiSuggestions(null);
-    setAiExcludedNames(new Set());
-    setAiResolvedMatches(new Map());
-    setRallyImages([]);
-    setRallyPreviews([]);
+    setAiLoading(false);
     queryClient.invalidateQueries({ queryKey: ["members"] });
+    queryClient.invalidateQueries({ queryKey: ["attendance"] });
   };
 
-  const resolveSuggestion = (detectedName: string, member: { id: string; name: string }) => {
-    // Immediately add to participants
-    if (!attendedIds.has(member.id)) {
-      addAttendance.mutate({ deathRecordId, memberId: member.id });
+  // Inline edit for unmatched names
+  const startEditUnmatched = (name: string) => {
+    setEditingUnmatched(name);
+    setEditUnmatchedValue(name);
+    setTimeout(() => editUnmatchedRef.current?.focus(), 0);
+  };
+
+  const saveEditUnmatched = () => {
+    const trimmed = editUnmatchedValue.trim();
+    if (trimmed && editingUnmatched && trimmed !== editingUnmatched) {
+      setUnmatchedNames(prev => prev.map(n => n === editingUnmatched ? trimmed : n));
     }
-    setAiResolvedMatches((prev) => new Map(prev).set(detectedName, member.id));
-    setAiSuggestions((prev) => {
-      if (!prev) return prev;
-      const next = new Map(prev);
-      next.delete(detectedName);
-      return next.size > 0 ? next : null;
-    });
+    setEditingUnmatched(null);
+    setEditUnmatchedValue("");
+  };
+
+  const handleEditUnmatchedKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      saveEditUnmatched();
+    } else if (e.key === "Escape") {
+      setEditingUnmatched(null);
+      setEditUnmatchedValue("");
+    }
   };
 
   return (
@@ -340,28 +369,83 @@ export function ParticipantModal({
                       </div>
                       {aiLoading && <span className="inline-flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium bg-purple-900/30 text-purple-400"><Loader2 className="w-3 h-3 animate-spin" /> Scanning...</span>}
                       {aiError && <p className="text-[10px] text-red-400">{aiError}</p>}
-                      {aiDetectedNames && aiDetectedNames.length > 0 && (() => {
-                        const existingLower = new Set(members.map((m) => m.name.toLowerCase()));
-                        const alreadyAttendedLower = new Set(attendance.map((a) => memberMap.get(a.member_id)?.toLowerCase()).filter(Boolean) as string[]);
-                        const autoAddedCount = aiDetectedNames.filter((n) => {
-                          const lower = n.toLowerCase();
-                          return existingLower.has(lower) || alreadyAttendedLower.has(lower) || aiSuggestions?.has(n);
-                        }).length;
-                        const newNames = aiDetectedNames.filter((n) => !existingLower.has(n.toLowerCase()) && !aiSuggestions?.has(n) && !alreadyAttendedLower.has(n.toLowerCase()));
-                        return (
-                          <div className="space-y-2 p-2 rounded-lg bg-slate-800/30 border border-slate-700/50">
-                            <div className="flex items-center gap-1.5">
-                              <Sparkles className="w-3 h-3 text-violet-400" />
-                              <span className="text-[10px] font-medium text-violet-300">
-                                {autoAddedCount} of {aiDetectedNames.length} name{aiDetectedNames.length !== 1 ? "s" : ""} auto-added
-                                {newNames.length > 0 && <span className="text-amber-400"> · {newNames.length} new</span>}
-                              </span>
+                      {aiDetectedNames && aiDetectedNames.length > 0 && (
+                        <div className="space-y-1.5 p-2 rounded-lg bg-slate-800/30 border border-slate-700/50">
+                          {/* Already attended — gray */}
+                          {alreadyAttendedNames.length > 0 && (
+                            <div className="text-[10px] text-slate-500 px-1">
+                              <Sparkles className="w-2.5 h-2.5 inline mr-1" />
+                              {alreadyAttendedNames.length} already attending
                             </div>
-                            {newNames.length > 0 && <NameGroup label={`New Players — add manually (${newNames.length})`} color="amber">{newNames.map((name) => <span key={name} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-900/20 text-amber-400 border border-amber-800/50"><Plus className="w-2.5 h-2.5" />{name}</span>)}</NameGroup>}
-                            {newNames.length > 0 && <button onClick={handleConfirmAIAdds} disabled={aiCreating} className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 rounded text-[10px] font-medium bg-violet-600 text-white hover:bg-violet-500 transition disabled:opacity-50">{aiCreating ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />}Create {newNames.length} New Player{newNames.length !== 1 ? "s" : ""}</button>}
-                          </div>
-                        );
-                      })()}
+                          )}
+
+                          {/* Unmatched — amber, individual add + edit */}
+                          {unmatchedNames.length > 0 && (
+                            <div className="px-2 py-1.5 rounded bg-amber-900/20 border border-amber-800/50">
+                              <span className="text-xs font-medium text-amber-400">
+                                {unmatchedNames.length} new name{unmatchedNames.length !== 1 ? "s" : ""} — click + to add, name to edit
+                              </span>
+                              <div className="flex flex-wrap gap-1.5 mt-1.5">
+                                {unmatchedNames.map((name) => (
+                                  editingUnmatched === name ? (
+                                    <input
+                                      key={name}
+                                      ref={editUnmatchedRef}
+                                      value={editUnmatchedValue}
+                                      onChange={(e) => setEditUnmatchedValue(e.target.value)}
+                                      onBlur={saveEditUnmatched}
+                                      onKeyDown={handleEditUnmatchedKeyDown}
+                                      className="px-2 py-1 rounded text-xs font-medium bg-amber-900/50 text-amber-200 border border-amber-600 outline-none w-28"
+                                    />
+                                  ) : (
+                                    <span key={name} className="inline-flex items-center rounded text-xs font-medium bg-amber-900/30 text-amber-300 border border-amber-800/50 overflow-hidden">
+                                      <button
+                                        onClick={async () => {
+                                          try {
+                                            const { upsertMember } = await import("@/lib/supabase");
+                                            const member = await upsertMember(name);
+                                            if (!attendedIds.has(member.id)) {
+                                              try { await addAttendance.mutateAsync({ deathRecordId, memberId: member.id }); } catch {}
+                                            }
+                                            setUnmatchedNames(prev => prev.filter(n => n !== name));
+                                            if (unmatchedNames.length === 1) setAiDetectedNames(null);
+                                            queryClient.invalidateQueries({ queryKey: ["members"] });
+                                            queryClient.invalidateQueries({ queryKey: ["attendance"] });
+                                          } catch {}
+                                        }}
+                                        className="px-1.5 py-1.5 hover:bg-amber-900/50 transition"
+                                        title="Add to attendance"
+                                      >
+                                        <Plus className="w-3.5 h-3.5" />
+                                      </button>
+                                      <button
+                                        onClick={() => startEditUnmatched(name)}
+                                        className="flex items-center gap-1 px-2 py-1.5 hover:bg-amber-900/40 transition border-l border-amber-800/50"
+                                        title="Click to edit name"
+                                      >
+                                        {name}
+                                        <Pencil className="w-3 h-3 text-amber-500/60" />
+                                      </button>
+                                    </span>
+                                  )
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Bulk create button — only if many unmatched */}
+                          {unmatchedNames.length > 3 && (
+                            <button
+                              onClick={handleCreateAndAddNew}
+                              disabled={aiLoading}
+                              className="w-full flex items-center justify-center gap-1.5 px-2 py-1.5 rounded text-xs font-medium bg-violet-600 text-white hover:bg-violet-500 transition disabled:opacity-50"
+                            >
+                              {aiLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />}
+                              Create & add all {unmatchedNames.length} new
+                            </button>
+                          )}
+                        </div>
+                      )}
                     </div>
                   ) : (
                     <button onClick={() => fileInputRef.current?.click()} className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border-2 border-dashed border-slate-700 text-slate-500 hover:text-slate-300 hover:border-slate-600 transition text-xs"><ImagePlus className="w-3.5 h-3.5" />Upload rally screenshot for AI scan</button>
@@ -416,18 +500,6 @@ export function ParticipantModal({
           )}
         </div>
       </div>
-    </div>
-  );
-}
-
-// ── Sub-components ──────────────────────────────────────────
-
-function NameGroup({ label, color, children }: { label: string; color: string; children: React.ReactNode }) {
-  const c: Record<string, string> = { emerald: "text-emerald-400/80", blue: "text-blue-400/80", amber: "text-amber-400/80", slate: "text-slate-400" };
-  return (
-    <div>
-      <p className={`text-[10px] font-medium uppercase tracking-wider mb-1 ${c[color] ?? "text-slate-400"}`}>{label}</p>
-      <div className="flex flex-wrap gap-1">{children}</div>
     </div>
   );
 }

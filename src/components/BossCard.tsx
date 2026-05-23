@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useServer } from "@/contexts/ServerContext";
 import { CountdownTimer } from "./CountdownTimer";
@@ -41,6 +41,16 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
   const [showModal, setShowModal] = useState(false);
   const [showEditSpawnModal, setShowEditSpawnModal] = useState(false);
   const [editSpawnDate, setEditSpawnDate] = useState("");
+  const [optimisticOwner, setOptimisticOwner] = useState<string | null>(null);
+
+  // Clear optimistic override once the parent prop catches up
+  useEffect(() => {
+    if (optimisticOwner && ownerGuildName === optimisticOwner) {
+      setOptimisticOwner(null);
+    }
+  }, [ownerGuildName, optimisticOwner]);
+
+  const displayOwner = optimisticOwner ?? ownerGuildName;
   const { boss, status, nextSpawn } = spawn;
   const canEdit = (viewerCanEdit || !isViewer) && currentServer && !!onSetSpawnDate && (
     boss.spawn_type === "fixed_hours" || status === "unknown" || (boss.spawn_type === "fixed_schedule" && !!spawn.deathRecord)
@@ -110,10 +120,10 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
               ) : (
                 <span title="Fixed hours"><Timer className="w-3.5 h-3.5 text-orange-400 shrink-0" /></span>
               )}
-              {ownerGuildName && (() => { const c = guildColor(ownerGuildName); return (
+              {displayOwner && (() => { const c = guildColor(displayOwner); return (
                 <span className={`flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded border shrink-0 ${c.bg} ${c.text} ${c.border}`}>
                   <Shield className="w-3 h-3" />
-                  {ownerGuildName}
+                  {displayOwner}
                 </span>
               ); })()}
               <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full shrink-0 ${statusConfig.badge}`}>
@@ -197,7 +207,7 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
                 return (
                   <button
                     key={i}
-                    onClick={(e) => { e.stopPropagation(); onSetRotation?.(i); }}
+                    onClick={(e) => { e.stopPropagation(); setOptimisticOwner(g.name); onSetRotation?.(i); }}
                     className={`flex-1 text-center px-2 py-1 rounded text-[10px] font-medium border transition ${
                       isCurrent
                         ? `${g.color.bg} ${g.color.text} ${g.color.border}`

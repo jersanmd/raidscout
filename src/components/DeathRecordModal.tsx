@@ -66,15 +66,25 @@ export function DeathRecordModal({ boss, onClose, onSubmit, defaultDeathTime, hi
   const [aiError, setAiError] = useState<string | null>(null);
   const [aiScanned, setAiScanned] = useState(false);
   const [aiDetectedNames, setAiDetectedNames] = useState<string[] | null>(null);
-  const [aiCreating, setAiCreating] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  // Fuzzy match suggestions: detected name → suggested existing member id & name
-  const [aiSuggestions, setAiSuggestions] = useState<Map<string, { id: string; name: string }> | null>(null);
+  // Three-way categorization of AI results
+  const [exactMatchNames, setExactMatchNames] = useState<string[]>([]);
+  // Fuzzy match: detected name → suggested existing member
+  const [fuzzyMatchNames, setFuzzyMatchNames] = useState<Map<string, { id: string; name: string }>>(new Map());
+  // Names with no match at all
+  const [unmatchedNames, setUnmatchedNames] = useState<string[]>([]);
+  // Pending members (not yet in DB) added to checklist from unmatched names
+  const [pendingMembers, setPendingMembers] = useState<{ tempId: string; name: string }[]>([]);
+  const [selectedPendingIds, setSelectedPendingIds] = useState<Set<string>>(new Set());
 
   // Inline edit state for AI-detected names
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editValue, setEditValue] = useState("");
   const editInputRef = useRef<HTMLInputElement>(null);
+  // Inline edit for unmatched names
+  const [editingUnmatched, setEditingUnmatched] = useState<string | null>(null);
+  const [editUnmatchedValue, setEditUnmatchedValue] = useState("");
+  const editUnmatchedRef = useRef<HTMLInputElement>(null);
 
   // ── Step 1: Confirm Death ──────────────────────────────────
 
@@ -140,7 +150,11 @@ export function DeathRecordModal({ boss, onClose, onSubmit, defaultDeathTime, hi
     setAiScanned(false);
     setAiError(null);
     setAiDetectedNames(null);
-    setAiSuggestions(null);
+    setExactMatchNames([]);
+    setFuzzyMatchNames(new Map());
+    setUnmatchedNames([]);
+    setPendingMembers([]);
+    setSelectedPendingIds(new Set());
     // Auto-trigger AI scan with the updated image list
     scanImages(updated);
   }, [rallyImages]);
@@ -193,7 +207,11 @@ export function DeathRecordModal({ boss, onClose, onSubmit, defaultDeathTime, hi
     setAiLoading(true);
     setAiError(null);
     setAiDetectedNames(null);
-    setAiSuggestions(null);
+    setExactMatchNames([]);
+    setFuzzyMatchNames(new Map());
+    setUnmatchedNames([]);
+    setPendingMembers([]);
+    setSelectedPendingIds(new Set());
 
     try {
       const allNames = new Set<string>();
@@ -216,8 +234,10 @@ export function DeathRecordModal({ boss, onClose, onSubmit, defaultDeathTime, hi
       }
 
       const exactIds: string[] = [];
+      const exactNames: string[] = [];
       const fuzzyIds: string[] = [];
-      const suggestions = new Map<string, { id: string; name: string }>();
+      const fuzzyMap = new Map<string, { id: string; name: string }>();
+      const unmatched: string[] = [];
 
       for (const name of names) {
         const lower = name.toLowerCase();
@@ -225,18 +245,23 @@ export function DeathRecordModal({ boss, onClose, onSubmit, defaultDeathTime, hi
 
         if (existingId) {
           exactIds.push(existingId);
+          exactNames.push(name);
         } else {
           const close = findClosestMember(name, members);
           if (close) {
             fuzzyIds.push(close.id);
-            suggestions.set(name, close);
+            fuzzyMap.set(name, close);
+          } else {
+            unmatched.push(name);
           }
         }
       }
 
-      setAiSuggestions(suggestions);
+      setExactMatchNames(exactNames);
+      setFuzzyMatchNames(fuzzyMap);
+      setUnmatchedNames(unmatched);
 
-      // Auto-select both exact and fuzzy matches
+      // Auto-select both exact and fuzzy matches in the checklist
       const autoSelectIds = [...exactIds, ...fuzzyIds];
       if (autoSelectIds.length > 0) {
         setSelectedIds((prev) => {
@@ -255,31 +280,18 @@ export function DeathRecordModal({ boss, onClose, onSubmit, defaultDeathTime, hi
     }
   };
 
-  /** Create all new (not-yet-existing) AI-detected players and select them */
-  const handleCreateNewFromAI = async () => {
-    if (!aiDetectedNames) return;
-    setAiCreating(true);
-
-    const existingLower = new Set(members.map((m) => m.name.toLowerCase()));
-    const newNames = aiDetectedNames.filter((n) => !existingLower.has(n.toLowerCase()));
-
-    for (const name of newNames) {
-      const { upsertMember } = await import("@/lib/supabase");
-      const member = await upsertMember(name);
-      setSelectedIds((prev) => new Set(prev).add(member.id));
-    }
-
-    setAiCreating(false);
-    setAiDetectedNames(null);
-    setAiSuggestions(null);
-    queryClient.invalidateQueries({ queryKey: ["members"] });
+  /** Add a single unmatched name to the pending checklist (no DB write) */
+  const addUnmatchedToChecklist = (name: string) => {
+    const tempId = `pending_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+    setPendingMembers(prev => [...prev, { tempId, name }]);
+    setSelectedPendingIds(prev => new Set(prev).add(tempId));
+    // Remove from unmatched list
+    setUnmatchedNames(prev => prev.filter(n => n !== name));
   };
 
-  /** Resolve a fuzzy suggestion: select the existing member instead of creating new */
+  /** Resolve a fuzzy suggestion: use the existing member instead of the detected name */
   const resolveSuggestion = (detectedName: string, member: { id: string; name: string }) => {
-    // Auto-select the resolved member
-    setSelectedIds((prev) => new Set(prev).add(member.id));
-    // Replace the AI-misread name with the actual member name
+    // The member is already auto-selected, just update the displayed name
     setAiDetectedNames((prev) => {
       if (!prev) return prev;
       const idx = prev.indexOf(detectedName);
@@ -288,15 +300,12 @@ export function DeathRecordModal({ boss, onClose, onSubmit, defaultDeathTime, hi
       updated[idx] = member.name;
       return updated;
     });
-    // Remove from suggestions
-    setAiSuggestions((prev) => {
-      if (!prev) return prev;
+    // Remove from fuzzy match map
+    setFuzzyMatchNames((prev) => {
       const next = new Map(prev);
       next.delete(detectedName);
       return next;
     });
-    // Select the existing member
-    setSelectedIds((prev) => new Set(prev).add(member.id));
   };
 
   /** Mark a detected name as absent — remove from list and deselect if selected */
@@ -345,6 +354,36 @@ export function DeathRecordModal({ boss, onClose, onSubmit, defaultDeathTime, hi
       saveEdit();
     } else if (e.key === "Escape") {
       cancelEdit();
+    }
+  };
+
+  // Inline edit for unmatched names
+  const startEditUnmatched = (name: string) => {
+    setEditingUnmatched(name);
+    setEditUnmatchedValue(name);
+    setTimeout(() => editUnmatchedRef.current?.focus(), 0);
+  };
+
+  const saveEditUnmatched = () => {
+    const trimmed = editUnmatchedValue.trim();
+    if (trimmed && editingUnmatched && trimmed !== editingUnmatched) {
+      setUnmatchedNames(prev => prev.map(n => n === editingUnmatched ? trimmed : n));
+    }
+    setEditingUnmatched(null);
+    setEditUnmatchedValue("");
+  };
+
+  const cancelEditUnmatched = () => {
+    setEditingUnmatched(null);
+    setEditUnmatchedValue("");
+  };
+
+  const handleEditUnmatchedKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      saveEditUnmatched();
+    } else if (e.key === "Escape") {
+      cancelEditUnmatched();
     }
   };
 
@@ -401,7 +440,7 @@ export function DeathRecordModal({ boss, onClose, onSubmit, defaultDeathTime, hi
   /**
    * Process pasted names: create missing members and auto-select all.
    */
-  const handleProcessPastedNames = async () => {
+  const handleProcessPastedNames = () => {
     const parsedNames = parsePastedNames(pasteText);
     if (parsedNames.length === 0) return;
 
@@ -410,29 +449,30 @@ export function DeathRecordModal({ boss, onClose, onSubmit, defaultDeathTime, hi
       existingLower.set(m.name.toLowerCase(), m.id);
     }
 
-    const newIds: string[] = [];
+    const matchedIds: string[] = [];
 
     for (const name of parsedNames) {
       const existingId = existingLower.get(name.toLowerCase());
       if (existingId) {
-        newIds.push(existingId);
+        matchedIds.push(existingId);
       } else {
-        // Create the member
-        const { upsertMember } = await import("@/lib/supabase");
-        const member = await upsertMember(name);
-        newIds.push(member.id);
+        // Add as pending — no DB write
+        const tempId = `paste_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+        setPendingMembers(prev => [...prev, { tempId, name }]);
+        setSelectedPendingIds(prev => new Set(prev).add(tempId));
       }
     }
 
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      newIds.forEach((id) => next.add(id));
-      return next;
-    });
+    if (matchedIds.length > 0) {
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        matchedIds.forEach((id) => next.add(id));
+        return next;
+      });
+    }
 
     setPasteText("");
     setPasteMode(false);
-    queryClient.invalidateQueries({ queryKey: ["members"] });
   };
 
   const handleFinalSubmit = async () => {
@@ -441,16 +481,13 @@ export function DeathRecordModal({ boss, onClose, onSubmit, defaultDeathTime, hi
 
     const finalIds = [...selectedIds];
 
-    // Auto-create any AI-detected new members before submitting
-    if (aiDetectedNames && aiDetectedNames.length > 0) {
-      const existingLower = new Set(members.map((m) => m.name.toLowerCase()));
-      const newNames = aiDetectedNames.filter((n) => !existingLower.has(n.toLowerCase()));
-
-      if (newNames.length > 0) {
-        const { upsertMember } = await import("@/lib/supabase");
-        for (const name of newNames) {
+    // Create pending members (from unmatched AI names) before submitting
+    if (pendingMembers.length > 0) {
+      const { upsertMember } = await import("@/lib/supabase");
+      for (const pm of pendingMembers) {
+        if (selectedPendingIds.has(pm.tempId)) {
           try {
-            const member = await upsertMember(name);
+            const member = await upsertMember(pm.name);
             finalIds.push(member.id);
           } catch { /* skip failed creates */ }
         }
@@ -682,36 +719,107 @@ export function DeathRecordModal({ boss, onClose, onSubmit, defaultDeathTime, hi
                   </div>
                 )}
 
-                {/* AI scan status — just show scan progress, results are auto-checked in the list */}
+                {/* AI scan in progress */}
                 {aiLoading && (
                   <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-purple-900/20 border border-purple-800 mb-3">
                     <Loader2 className="w-4 h-4 text-purple-400 animate-spin" />
                     <span className="text-xs text-purple-400">Scanning rally image...</span>
                   </div>
                 )}
-                {aiScanned && !aiError && aiDetectedNames && aiDetectedNames.length > 0 && (() => {
-                  const existingLower = new Set(members.map((m) => m.name.toLowerCase()));
-                  const matchedCount = aiDetectedNames.filter(n => {
-                    const lower = n.toLowerCase();
-                    return existingLower.has(lower) || (aiSuggestions?.has(n) ?? false);
-                  }).length;
-                  const missingCount = aiDetectedNames.length - matchedCount;
-                  return (
-                  <div className={`px-3 py-2 rounded-lg border mb-3 ${missingCount > 0 ? "bg-amber-900/20 border-amber-800" : "bg-emerald-900/20 border-emerald-800"}`}>
-                    <div className="flex items-center gap-2">
-                      <Check className={`w-4 h-4 ${missingCount > 0 ? "text-amber-400" : "text-emerald-400"}`} />
-                      <span className={`text-xs ${missingCount > 0 ? "text-amber-400" : "text-emerald-400"}`}>
-                        {matchedCount} of {aiDetectedNames.length} name{aiDetectedNames.length !== 1 ? "s" : ""} added to checklist
-                      </span>
-                    </div>
-                    {missingCount > 0 && (
-                      <p className="text-[11px] text-slate-400 mt-1 ml-6">
-                        {missingCount} name{missingCount !== 1 ? "s" : ""} not found — check manually below
-                      </p>
+
+                {/* AI scan results — three groups: exact (blue), fuzzy (green), unmatched (yellow) */}
+                {aiScanned && !aiError && aiDetectedNames && aiDetectedNames.length > 0 && (
+                  <div className="space-y-2 mb-3">
+                    {/* Exact matches — blue */}
+                    {exactMatchNames.length > 0 && (
+                      <div className="px-3 py-2 rounded-lg bg-blue-900/20 border border-blue-800">
+                        <div className="flex items-center gap-2">
+                          <Check className="w-4 h-4 text-blue-400" />
+                          <span className="text-xs text-blue-400">
+                            {exactMatchNames.length} exact match{exactMatchNames.length !== 1 ? "es" : ""} auto-checked
+                          </span>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5 mt-1.5">
+                          {exactMatchNames.map((name) => (
+                            <span key={name} className="px-2 py-1 rounded text-xs font-medium bg-blue-900/30 text-blue-300 border border-blue-800/50">
+                              {name}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Fuzzy matches — green */}
+                    {fuzzyMatchNames.size > 0 && (
+                      <div className="px-3 py-2 rounded-lg bg-emerald-900/20 border border-emerald-800">
+                        <div className="flex items-center gap-2">
+                          <Check className="w-4 h-4 text-emerald-400" />
+                          <span className="text-xs text-emerald-400">
+                            {fuzzyMatchNames.size} fuzzy match{fuzzyMatchNames.size !== 1 ? "es" : ""} auto-checked
+                          </span>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5 mt-1.5">
+                          {[...fuzzyMatchNames.entries()].map(([detected, member]) => (
+                            <button
+                              key={detected}
+                              onClick={() => resolveSuggestion(detected, member)}
+                              className="flex items-center gap-1 px-2 py-1 rounded text-xs font-medium bg-emerald-900/30 text-emerald-300 border border-emerald-800/50 hover:bg-emerald-900/50 transition"
+                              title={`Click to use "${member.name}" instead of "${detected}"`}
+                            >
+                              <Pencil className="w-3 h-3" />
+                              {detected} → {member.name}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Unmatched names — amber/yellow */}
+                    {unmatchedNames.length > 0 && (
+                      <div className="px-3 py-2 rounded-lg bg-amber-900/20 border border-amber-800">
+                        <div className="flex items-center gap-2">
+                          <Users className="w-4 h-4 text-amber-400" />
+                          <span className="text-xs text-amber-400">
+                            {unmatchedNames.length} new name{unmatchedNames.length !== 1 ? "s" : ""} — click + to add, name to edit
+                          </span>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5 mt-1.5">
+                          {unmatchedNames.map((name) => (
+                            editingUnmatched === name ? (
+                              <input
+                                key={name}
+                                ref={editUnmatchedRef}
+                                value={editUnmatchedValue}
+                                onChange={(e) => setEditUnmatchedValue(e.target.value)}
+                                onBlur={saveEditUnmatched}
+                                onKeyDown={handleEditUnmatchedKeyDown}
+                                className="px-2 py-1 rounded text-xs font-medium bg-amber-900/50 text-amber-200 border border-amber-600 outline-none w-28"
+                              />
+                            ) : (
+                              <span key={name} className="inline-flex items-center rounded text-xs font-medium bg-amber-900/30 text-amber-300 border border-amber-800/50 overflow-hidden">
+                                <button
+                                  onClick={() => addUnmatchedToChecklist(name)}
+                                  className="px-1.5 py-1.5 hover:bg-amber-900/50 transition"
+                                  title="Add to checklist"
+                                >
+                                  <Plus className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  onClick={() => startEditUnmatched(name)}
+                                  className="flex items-center gap-1 px-2 py-1.5 hover:bg-amber-900/40 transition border-l border-amber-800/50"
+                                  title="Click to edit name"
+                                >
+                                  {name}
+                                  <Pencil className="w-3 h-3 text-amber-500/60" />
+                                </button>
+                              </span>
+                            )
+                          ))}
+                        </div>
+                      </div>
                     )}
                   </div>
-                  );
-                })()}
+                )}
 
                 {pasteMode && (
                   <div className="space-y-2 mb-3">
@@ -749,12 +857,49 @@ export function DeathRecordModal({ boss, onClose, onSubmit, defaultDeathTime, hi
 
                 {selectedIds.size > 0 && (
                   <p className="text-sm text-amber-400 mb-2">
-                    {selectedIds.size} member{selectedIds.size > 1 ? "s" : ""} selected
+                    {selectedIds.size + selectedPendingIds.size} member{selectedIds.size + selectedPendingIds.size > 1 ? "s" : ""} selected
                   </p>
                 )}
 
                 <div className="max-h-64 overflow-y-auto border border-slate-800 rounded-lg p-2">
-                  {filteredMembers.length === 0 ? (
+                  {/* Pending (new) members — not yet in DB */}
+                  {pendingMembers.length > 0 && (
+                    <div className="mb-2">
+                      <p className="text-[10px] font-medium text-purple-400 uppercase tracking-wider mb-1 px-1">New</p>
+                      <div className="flex flex-wrap gap-1.5">
+                      {pendingMembers.map((pm) => (
+                        <button
+                          key={pm.tempId}
+                          onClick={() => {
+                            setSelectedPendingIds(prev => {
+                              const next = new Set(prev);
+                              if (next.has(pm.tempId)) next.delete(pm.tempId);
+                              else next.add(pm.tempId);
+                              return next;
+                            });
+                          }}
+                          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-sm transition ${
+                            selectedPendingIds.has(pm.tempId)
+                              ? "bg-purple-900/30 text-purple-300 border border-purple-800"
+                              : "text-purple-400/70 hover:bg-purple-900/20 border border-purple-800/30"
+                          }`}
+                        >
+                          <div
+                            className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${
+                              selectedPendingIds.has(pm.tempId)
+                                ? "bg-purple-500 border-purple-500"
+                                : "border-purple-700"
+                            }`}
+                          >
+                            {selectedPendingIds.has(pm.tempId) && <Check className="w-3 h-3 text-white" />}
+                          </div>
+                          <span>{pm.name}</span>
+                        </button>
+                      ))}
+                      </div>
+                    </div>
+                  )}
+                  {filteredMembers.length === 0 && pendingMembers.length === 0 ? (
                     <p className="text-sm text-slate-600 text-center py-3">
                       No members found
                     </p>
@@ -834,7 +979,7 @@ export function DeathRecordModal({ boss, onClose, onSubmit, defaultDeathTime, hi
                   Saving...
                 </span>
               ) : (
-                <>Save Attendance{selectedIds.size > 0 ? ` (${selectedIds.size})` : ""}</>
+                <>Save Attendance{selectedIds.size + selectedPendingIds.size > 0 ? ` (${selectedIds.size + selectedPendingIds.size})` : ""}</>
               )}
             </button>
           </div>
