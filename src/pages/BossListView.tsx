@@ -552,7 +552,7 @@ export function BossListView() {
       </div>
 
       {/* Upcoming strip — next 3 bosses to spawn */}
-      <UpcomingStrip />
+      <UpcomingStrip ownerGuildName={ownerGuildName} />
 
       {/* Filters */}
       <FilterBar

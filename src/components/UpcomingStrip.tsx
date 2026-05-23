@@ -2,14 +2,15 @@ import { useMemo } from "react";
 import { useBossSpawns } from "@/hooks/useBossSpawns";
 import { CountdownTimer } from "./CountdownTimer";
 import { BossImage } from "./BossImage";
-import { Clock } from "lucide-react";
+import { Clock, Shield } from "lucide-react";
+import { guildColor } from "@/lib/constants";
 import type { BossWithSpawn } from "@/types";
 
 /**
  * Compact horizontal strip showing the next 3 upcoming bosses.
  * Only shows "countdown" status — no already-spawned/alive bosses.
  */
-export function UpcomingStrip() {
+export function UpcomingStrip({ ownerGuildName }: { ownerGuildName: (bossId: string) => string | undefined }) {
   const { spawns } = useBossSpawns();
 
   const upcoming = useMemo(() => {
@@ -47,6 +48,7 @@ export function UpcomingStrip() {
             spawn={s}
             isFirst={i === 0}
             formatTime={formatTime}
+            guildName={ownerGuildName(s.boss.id)}
           />
         ))}
         {/* Fill empty slots so the strip always has 3 columns */}
@@ -67,10 +69,12 @@ function UpcomingSlot({
   spawn,
   isFirst,
   formatTime,
+  guildName,
 }: {
   spawn: BossWithSpawn;
   isFirst: boolean;
   formatTime: (d: Date) => string;
+  guildName?: string;
 }) {
   return (
     <div
@@ -83,10 +87,16 @@ function UpcomingSlot({
 
       {/* Name + time */}
       <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1.5 flex-wrap">
           <span className="text-white font-semibold text-sm truncate">
             {spawn.boss.name}
           </span>
+          {guildName && (() => { const c = guildColor(guildName); return (
+            <span className={`flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded border shrink-0 ${c.bg} ${c.text} ${c.border}`}>
+              <Shield className="w-3 h-3" />
+              {guildName}
+            </span>
+          ); })()}
           {isFirst && (
             <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-amber-900/50 text-amber-400 shrink-0">
               NEXT
