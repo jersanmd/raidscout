@@ -261,24 +261,20 @@ export function AdminPanelView() {
 
       {/* Audit Log Tab */}
       {tab === "audit" && (() => {
-        // Extract unique server names from audit entries
-        const serverNames = [...new Set(
-          auditLog
-            .map((e: any) => e.details?.server_name || e.details?.name)
-            .filter(Boolean)
-        )] as string[];
+        // Build server ID → name map from already-loaded servers list
+        const serverMap: Record<string, string> = {};
+        for (const s of servers) {
+          serverMap[s.id] = s.name;
+        }
 
         const filteredLog = auditServerFilter === "all"
           ? auditLog
-          : auditLog.filter((e: any) =>
-              e.details?.server_name === auditServerFilter ||
-              e.details?.name === auditServerFilter
-            );
+          : auditLog.filter((e: any) => e.server_id === auditServerFilter);
 
         return (
         <div className="space-y-3">
           {/* Server filter */}
-          {serverNames.length > 0 && (
+          {servers.length > 0 && (
             <div className="flex items-center gap-2">
               <span className="text-xs text-slate-500">Filter by server:</span>
               <select
@@ -287,8 +283,8 @@ export function AdminPanelView() {
                 className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white outline-none focus:border-slate-500"
               >
                 <option value="all">All Servers</option>
-                {serverNames.map(name => (
-                  <option key={name} value={name}>{name}</option>
+                {servers.map(s => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
                 ))}
               </select>
               <span className="text-[10px] text-slate-600">
@@ -301,7 +297,7 @@ export function AdminPanelView() {
             <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 text-slate-500 animate-spin" /></div>
           ) : filteredLog.length === 0 ? (
             <p className="text-slate-500 text-sm text-center py-12">
-              {auditServerFilter !== "all" ? `No audit events for "${auditServerFilter}".` : "No audit events yet."}
+              {auditServerFilter !== "all" ? `No audit events for "${serverMap[auditServerFilter] || auditServerFilter}".` : "No audit events yet."}
             </p>
           ) : (
             filteredLog.map((entry: any) => {
@@ -323,7 +319,7 @@ export function AdminPanelView() {
                 add_member: 'bg-blue-400',
                 update_settings: 'bg-slate-400',
               };
-              const serverName = entry.details?.server_name || entry.details?.name;
+              const serverName = entry.server_id ? serverMap[entry.server_id] || entry.details?.server_name || entry.details?.name : null;
               const isViewer = !!entry.viewer_key;
 
               return (
