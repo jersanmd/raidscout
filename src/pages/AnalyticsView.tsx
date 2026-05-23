@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchAnalytics, type AnalyticsData, isSupabaseConfigured, fetchGuilds, fetchMembers } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
@@ -25,14 +25,19 @@ export function AnalyticsView() {
   const [huntersPage, setHuntersPage] = useState(1);
   const HUNTERS_PER_PAGE = 10;
 
-  // Guild & member data for badges
-  const [guilds, setGuilds] = useState<Guild[]>([]);
-  const [members, setMembers] = useState<Member[]>([]);
-  useEffect(() => {
-    Promise.all([fetchGuilds(), fetchMembers()])
-      .then(([g, m]) => { setGuilds(g); setMembers(m); })
-      .catch(() => {});
-  }, []);
+  // Guild & member data for badges — cached via React Query
+  const { data: guilds = [] } = useQuery({
+    queryKey: ["guilds", serverId],
+    queryFn: () => fetchGuilds(serverId),
+    staleTime: 60_000,
+    enabled: !!serverId,
+  });
+  const { data: members = [] } = useQuery({
+    queryKey: ["members", serverId],
+    queryFn: () => fetchMembers(serverId),
+    staleTime: 60_000,
+    enabled: !!serverId,
+  });
   const memberGuildMap = new Map(members.map(m => [m.name, m.guild_id]));
 
   const { data, isLoading } = useQuery<AnalyticsUIData>({

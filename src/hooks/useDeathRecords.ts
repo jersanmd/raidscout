@@ -5,8 +5,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useServerId } from "@/contexts/ServerContext";
 import type { DeathRecord } from "@/types";
 
-/** Prevent duplicate realtime subscriptions across components */
-let globalSubscribed = false;
+/** Track active subscriptions to prevent duplicates across concurrent mounts */
+const activeSubscriptions = new Set<string>();
 
 /** Fetch death records from Supabase with realtime subscription. */
 export function useDeathRecords() {
@@ -30,10 +30,12 @@ export function useDeathRecords() {
     enabled: configured && (!!user || isViewer) && !!serverId,
   });
 
-  // Realtime subscription — only subscribe once globally
+  // Realtime subscription — per server, deduplicated across components
   useEffect(() => {
-    if ((!user && !isViewer) || !configured || globalSubscribed) return;
-    globalSubscribed = true;
+    if ((!user && !isViewer) || !configured || !serverId) return;
+    const subKey = `deaths-${serverId}`;
+    if (activeSubscriptions.has(subKey)) return;
+    activeSubscriptions.add(subKey);
 
     const channel = subscribeToDeathRecords(
       () => queryClient.invalidateQueries({ queryKey: ["death_records"] }),
@@ -42,7 +44,7 @@ export function useDeathRecords() {
     );
 
     return () => {
-      globalSubscribed = false;
+      activeSubscriptions.delete(subKey);
       supabase.removeChannel(channel).catch(() => {});
     };
   }, [user?.id]);

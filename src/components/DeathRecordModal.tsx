@@ -19,7 +19,7 @@ interface DeathRecordModalProps {
 }
 
 export function DeathRecordModal({ boss, onClose, onSubmit, defaultDeathTime, hideCustomTime }: DeathRecordModalProps) {
-  const { user } = useAuth();
+  const { user, isViewer } = useAuth();
   const serverId = useServerId();
   const queryClient = useQueryClient();
   const configured = isSupabaseConfigured();
@@ -710,6 +710,7 @@ export function DeathRecordModal({ boss, onClose, onSubmit, defaultDeathTime, hi
                         Scanned ✓
                       </span>
                     )}
+                    {!isViewer && (
                     <button
                       onClick={() => setPasteMode(!pasteMode)}
                       className={`flex items-center gap-1 text-xs transition ${
@@ -719,6 +720,7 @@ export function DeathRecordModal({ boss, onClose, onSubmit, defaultDeathTime, hi
                       <ClipboardPaste className="w-3.5 h-3.5" />
                       Paste names
                     </button>
+                    )}
                   </div>
                 </div>
 
@@ -784,8 +786,8 @@ export function DeathRecordModal({ boss, onClose, onSubmit, defaultDeathTime, hi
                       </div>
                     )}
 
-                    {/* Unmatched names — amber/yellow */}
-                    {unmatchedNames.length > 0 && (
+                    {/* Unmatched names — amber/yellow — hidden for viewers */}
+                    {!isViewer && unmatchedNames.length > 0 && (
                       <div className="px-3 py-2 rounded-lg bg-amber-900/20 border border-amber-800">
                         <div className="flex items-center gap-2">
                           <Users className="w-4 h-4 text-amber-400" />
@@ -872,8 +874,8 @@ export function DeathRecordModal({ boss, onClose, onSubmit, defaultDeathTime, hi
                 )}
 
                 <div className="max-h-64 overflow-y-auto border border-slate-800 rounded-lg p-2">
-                  {/* Pending (new) members — not yet in DB */}
-                  {pendingMembers.length > 0 && (
+                  {/* Pending (new) members — not yet in DB — hidden for viewers */}
+                  {!isViewer && pendingMembers.length > 0 && (
                     <div className="mb-2">
                       <p className="text-[10px] font-medium text-purple-400 uppercase tracking-wider mb-1 px-1">New</p>
                       <div className="flex flex-wrap gap-1.5">
@@ -942,7 +944,8 @@ export function DeathRecordModal({ boss, onClose, onSubmit, defaultDeathTime, hi
                 </div>
               </div>
 
-              {/* Add new member */}
+              {/* Add new member — hidden for viewers */}
+              {!isViewer && (
               <div>
                 <label className="block text-sm font-medium text-slate-400 mb-1">
                   Add new member
@@ -971,6 +974,7 @@ export function DeathRecordModal({ boss, onClose, onSubmit, defaultDeathTime, hi
                   </p>
                 )}
               </div>
+              )}
             </>
           )}
         </div>

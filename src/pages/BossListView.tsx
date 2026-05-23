@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useEffect } from "react";
+import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useBossSpawns } from "@/hooks/useBossSpawns";
 import { useDeathRecords } from "@/hooks/useDeathRecords";
@@ -19,6 +19,7 @@ import {
   toggleViewerCanMarkDied,
   setBossRotation,
   advanceBossRotation,
+  subscribeToServerSettings,
 } from "@/lib/supabase";
 import { BossCard } from "@/components/BossCard";
 import { DeathRecordModal } from "@/components/DeathRecordModal";
@@ -85,7 +86,30 @@ export function BossListView() {
       } catch { setHasWebhook(false); setViewerCanEdit(false); setViewerCanMarkDied(false); setViewerKey(""); }
     };
     checkServer();
+
+    // Realtime subscription — update viewer permissions without refresh
+    const channel = subscribeToServerSettings(sid, (payload: any) => {
+      const updated = payload.new;
+      if (updated?.id !== sid) return;
+      setViewerCanEdit(!!updated?.viewer_can_edit);
+      setViewerCanMarkDied(!!updated?.viewer_can_mark_died);
+      setHasWebhook(!!updated?.discord_webhook_url);
+    });
+
+    return () => { supabase.removeChannel(channel); };
   }, [currentServer?.id]);
+
+  // Debounced leaderboard/analytics invalidation — batches rapid kills
+  const debouncedInvalidateLeaderboard = useMemo(() => {
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    return () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ["leaderboard"] });
+        queryClient.invalidateQueries({ queryKey: ["analytics"] });
+      }, 2000);
+    };
+  }, [queryClient]);
 
   const toggleSelect = (bossId: string) => {
     setSelectedIds((prev) => {
@@ -103,10 +127,12 @@ export function BossListView() {
   const handleToggleViewerEdit = async () => {
     const sid = getCurrentServerId();
     if (!sid) return;
+    const previous = viewerCanEdit;
+    setViewerCanEdit(!previous);
     try {
-      const newVal = await toggleViewerCanEdit(sid);
-      setViewerCanEdit(newVal);
+      await toggleViewerCanEdit(sid);
     } catch (err: any) {
+      setViewerCanEdit(previous);
       setToast({ type: "error", message: err?.message ?? "Failed to toggle setting" });
     }
   };
@@ -114,10 +140,12 @@ export function BossListView() {
   const handleToggleViewerMarkDied = async () => {
     const sid = getCurrentServerId();
     if (!sid) return;
+    const previous = viewerCanMarkDied;
+    setViewerCanMarkDied(!previous);
     try {
-      const newVal = await toggleViewerCanMarkDied(sid);
-      setViewerCanMarkDied(newVal);
+      await toggleViewerCanMarkDied(sid);
     } catch (err: any) {
+      setViewerCanMarkDied(previous);
       setToast({ type: "error", message: err?.message ?? "Failed to toggle setting" });
     }
   };
@@ -248,9 +276,8 @@ export function BossListView() {
           }
 
           queryClient.invalidateQueries({ queryKey: ["death_records"] });
-          queryClient.invalidateQueries({ queryKey: ["leaderboard"] });
+          debouncedInvalidateLeaderboard();
           queryClient.invalidateQueries({ queryKey: ["members"] });
-          queryClient.invalidateQueries({ queryKey: ["analytics"] });
 
           // Trigger exit animation
           setJustKilledId(bossId);
@@ -816,10 +843,13 @@ function ToastMessage({
   toast: { type: "success" | "error"; message: string };
   onDismiss: () => void;
 }) {
+  const onDismissRef = useRef(onDismiss);
+  onDismissRef.current = onDismiss;
+
   useEffect(() => {
-    const timer = setTimeout(onDismiss, 4000);
+    const timer = setTimeout(() => onDismissRef.current(), 4000);
     return () => clearTimeout(timer);
-  }, [onDismiss]);
+  }, [toast]);
 
   const isSuccess = toast.type === "success";
 

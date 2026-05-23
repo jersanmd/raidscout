@@ -64,52 +64,34 @@ export function ServerProvider({ children }: { children: ReactNode }) {
   const refreshServers = useCallback(async () => {
     if (!user) return;
     try {
-      const { data } = await supabase.from("bosses").select("id, server_id");
+      // Single query: server_members joined with servers — no boss table scan needed
+      const { data, error } = await supabase
+        .from("server_members")
+        .select("server_id, role, servers!inner(id, name, owner_id, invite_code, discord_webhook_url, timezone, notification_prefix)")
+        .eq("user_id", user.id);
+
+      if (error) throw error;
+
       if (!data || data.length === 0) {
         setServers([]);
         setCurrentServerWrapped(null);
         return;
       }
 
-      const uniqueIds = [...new Set((data as any[]).map(b => b.server_id))];
-
-      // Fetch servers and user's roles in parallel
-      const [srvRes, roleRes] = await Promise.all([
-        supabase.from("servers").select("id, name, owner_id, invite_code, discord_webhook_url, timezone, notification_prefix").in("id", uniqueIds),
-        supabase.from("server_members").select("server_id, role").eq("user_id", user.id).in("server_id", uniqueIds),
-      ]);
-
-      const srvData = srvRes.data as any[] | null;
-      const roleData = roleRes.data as any[] | null;
-
-      // Build role map: server_id → role
-      const roleMap = new Map<string, "owner" | "moderator">();
-      if (roleData) {
-        for (const r of roleData) {
-          roleMap.set(r.server_id, r.role);
-        }
-      }
-
       const list: Server[] = [];
-      if (srvData && srvData.length > 0) {
-        for (const s of srvData) {
-          // Determine role: check server_members first, fall back to owner_id match
-          const role = roleMap.get(s.id) ?? (s.owner_id === user.id ? "owner" : undefined);
-          // Only include servers where the user has a role
-          if (!role) continue;
-          list.push({
-            id: s.id,
-            name: s.name,
-            owner_id: s.owner_id,
-            invite_code: s.invite_code || s.id.substring(0, 8),
-            discord_webhook_url: s.discord_webhook_url,
-            timezone: s.timezone || 'Asia/Manila',
-            notification_prefix: s.notification_prefix || '@everyone',
-            role: role as "owner" | "moderator",
-          });
-        }
-      } else {
-        uniqueIds.forEach((id, i) => list.push({ id, name: `Server ${i + 1}`, owner_id: user.id, invite_code: id.substring(0, 8), role: "owner" as const }));
+      for (const row of data as any[]) {
+        const s = row.servers;
+        if (!s) continue;
+        list.push({
+          id: s.id,
+          name: s.name,
+          owner_id: s.owner_id,
+          invite_code: s.invite_code || s.id.substring(0, 8),
+          discord_webhook_url: s.discord_webhook_url,
+          timezone: s.timezone || 'Asia/Manila',
+          notification_prefix: s.notification_prefix || '@everyone',
+          role: (row.role as "owner" | "moderator") ?? (s.owner_id === user.id ? "owner" : "moderator"),
+        });
       }
       
       setServers(list);

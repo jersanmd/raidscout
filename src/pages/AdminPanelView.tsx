@@ -1,13 +1,13 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { fetchAllServers, fetchAllUsers, fetchAuditLog, fetchServerStats, supabase } from "@/lib/supabase";
+import { fetchAllServers, fetchAllUsers, fetchAuditLog, fetchServerStats, fetchDatabaseStats, fetchPlanUsage, supabase } from "@/lib/supabase";
 import { useServer } from "@/contexts/ServerContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { Loader2, Shield, Server, Users, Eye, ChevronDown, ChevronUp, ClipboardList } from "lucide-react";
+import { Loader2, Shield, Server, Users, Eye, ChevronDown, ChevronUp, ClipboardList, HardDrive, BarChart3 } from "lucide-react";
 
 export function AdminPanelView() {
-  const [tab, setTab] = useState<"servers" | "users" | "audit">("servers");
+  const [tab, setTab] = useState<"servers" | "users" | "audit" | "database" | "plan">("servers");
   const { setCurrentServer } = useServer();
   const { userRole } = useAuth();
   const [expandedUser, setExpandedUser] = useState<string | null>(null);
@@ -16,6 +16,9 @@ export function AdminPanelView() {
   const [expandedServer, setExpandedServer] = useState<string | null>(null);
   const [serverStats, setServerStats] = useState<Record<string, any>>({});
   const [auditServerFilter, setAuditServerFilter] = useState<string>("all");
+  const [auditTimeRange, setAuditTimeRange] = useState<string>("1d");
+  const [auditCustomSince, setAuditCustomSince] = useState("");
+  const [auditCustomUntil, setAuditCustomUntil] = useState("");
   const navigate = useNavigate();
 
   // Always call hooks at the top level
@@ -33,12 +36,49 @@ export function AdminPanelView() {
     enabled: userRole === "admin" && tab === "users",
   });
 
+  const { data: dbStats, isLoading: dbLoading } = useQuery({
+    queryKey: ["admin", "database"],
+    queryFn: fetchDatabaseStats,
+    staleTime: 30_000,
+    enabled: userRole === "admin" && tab === "database",
+  });
+
+  const { data: planUsage, isLoading: planLoading } = useQuery({
+    queryKey: ["admin", "plan"],
+    queryFn: fetchPlanUsage,
+    staleTime: 30_000,
+    enabled: userRole === "admin" && tab === "plan",
+  });
+
   const { data: auditLog = [], isLoading: auditLoading } = useQuery({
-    queryKey: ["admin", "audit"],
-    queryFn: () => fetchAuditLog(200),
+    queryKey: ["admin", "audit", auditTimeRange, auditCustomSince, auditCustomUntil],
+    queryFn: () => {
+      let since: string | null = null;
+      let until: string | null = null;
+      
+      if (auditTimeRange === "custom") {
+        since = auditCustomSince ? new Date(auditCustomSince).toISOString() : null;
+        until = auditCustomUntil ? new Date(auditCustomUntil).toISOString() : null;
+      } else if (auditTimeRange !== "all") {
+        const days: Record<string, number> = { "1d": 1, "3d": 3, "5d": 5, "7d": 7, "1month": 30 };
+        const d = days[auditTimeRange] || 7;
+        since = new Date(Date.now() - d * 86400_000).toISOString();
+      }
+      
+      // Default to first server if "all" is selected
+      const serverId = auditServerFilter !== "all" ? auditServerFilter : null;
+      return fetchAuditLog(500, serverId, since, until);
+    },
     staleTime: 15_000,
     enabled: userRole === "admin" && tab === "audit",
   });
+
+  // Auto-select first server when opening audit tab
+  useEffect(() => {
+    if (tab === "audit" && auditServerFilter === "all" && servers.length > 0) {
+      setAuditServerFilter(servers[0].id);
+    }
+  }, [tab, servers, auditServerFilter]);
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-6 space-y-6">
@@ -80,6 +120,24 @@ export function AdminPanelView() {
         >
           <ClipboardList className="w-4 h-4" />
           Audit Log
+        </button>
+        <button
+          onClick={() => setTab("database")}
+          className={`flex items-center gap-1.5 px-4 py-1.5 rounded-md text-sm font-medium transition ${
+            tab === "database" ? "bg-slate-700 text-white" : "text-slate-400 hover:text-slate-200"
+          }`}
+        >
+          <HardDrive className="w-4 h-4" />
+          Database
+        </button>
+        <button
+          onClick={() => setTab("plan")}
+          className={`flex items-center gap-1.5 px-4 py-1.5 rounded-md text-sm font-medium transition ${
+            tab === "plan" ? "bg-slate-700 text-white" : "text-slate-400 hover:text-slate-200"
+          }`}
+        >
+          <BarChart3 className="w-4 h-4" />
+          Usage
         </button>
       </div>
 
@@ -293,6 +351,51 @@ export function AdminPanelView() {
             </div>
           )}
 
+          {/* Time range filter */}
+          <div className="flex items-center gap-1 flex-wrap">
+            <span className="text-xs text-slate-500 mr-1">Time:</span>
+            {["1d", "3d", "5d", "7d", "1month", "all"].map(range => (
+              <button
+                key={range}
+                onClick={() => setAuditTimeRange(range)}
+                className={`px-2.5 py-1 rounded text-[11px] font-medium transition ${
+                  auditTimeRange === range && auditTimeRange !== "custom"
+                    ? "bg-slate-700 text-white"
+                    : "text-slate-400 hover:text-slate-200 hover:bg-slate-800"
+                }`}
+              >
+                {range === "1month" ? "1M" : range === "all" ? "All" : range}
+              </button>
+            ))}
+            <button
+              onClick={() => setAuditTimeRange("custom")}
+              className={`px-2.5 py-1 rounded text-[11px] font-medium transition ${
+                auditTimeRange === "custom"
+                  ? "bg-slate-700 text-white"
+                  : "text-slate-400 hover:text-slate-200 hover:bg-slate-800"
+              }`}
+            >
+              Custom
+            </button>
+            {auditTimeRange === "custom" && (
+              <div className="flex items-center gap-1.5 ml-1">
+                <input
+                  type="date"
+                  value={auditCustomSince}
+                  onChange={(e) => setAuditCustomSince(e.target.value)}
+                  className="bg-slate-800 border border-slate-700 rounded px-2 py-1 text-[11px] text-white outline-none focus:border-slate-500"
+                />
+                <span className="text-[10px] text-slate-600">to</span>
+                <input
+                  type="date"
+                  value={auditCustomUntil}
+                  onChange={(e) => setAuditCustomUntil(e.target.value)}
+                  className="bg-slate-800 border border-slate-700 rounded px-2 py-1 text-[11px] text-white outline-none focus:border-slate-500"
+                />
+              </div>
+            )}
+          </div>
+
           {auditLoading ? (
             <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 text-slate-500 animate-spin" /></div>
           ) : filteredLog.length === 0 ? (
@@ -370,6 +473,140 @@ export function AdminPanelView() {
         </div>
         );
       })()}
+
+      {/* Database Tab */}
+      {tab === "database" && (
+        <div className="space-y-4">
+          {dbLoading ? (
+            <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 text-slate-500 animate-spin" /></div>
+          ) : !dbStats ? (
+            <p className="text-slate-500 text-sm text-center py-12">Failed to load database stats.</p>
+          ) : (
+            <>
+              {/* Overview cards */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 text-center">
+                  <p className="text-2xl font-bold text-white">{dbStats.db_size || '—'}</p>
+                  <p className="text-[10px] text-slate-500 mt-1">Total Size</p>
+                </div>
+                <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 text-center">
+                  <p className="text-2xl font-bold text-emerald-400">{dbStats.cache_hit_ratio ?? '—'}%</p>
+                  <p className="text-[10px] text-slate-500 mt-1">Cache Hit Ratio</p>
+                </div>
+                <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 text-center">
+                  <p className="text-2xl font-bold text-blue-400">{dbStats.active_connections ?? '—'}</p>
+                  <p className="text-[10px] text-slate-500 mt-1">Active Connections</p>
+                </div>
+                <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 text-center">
+                  <p className="text-2xl font-bold text-slate-400">{dbStats.total_connections ?? '—'}</p>
+                  <p className="text-[10px] text-slate-500 mt-1">Total Connections</p>
+                </div>
+              </div>
+
+              {/* Table sizes */}
+              <div>
+                <h4 className="text-sm font-semibold text-white mb-2">Table Sizes</h4>
+                <div className="space-y-1">
+                  {(dbStats.table_stats || []).map((t: any) => (
+                    <div key={t.table_name} className="flex items-center justify-between bg-slate-900 border border-slate-800 rounded-lg px-4 py-2.5">
+                      <div>
+                        <span className="text-sm text-white font-medium">{t.table_name}</span>
+                        <span className="text-[10px] text-slate-500 ml-2">~{t.row_estimate} rows</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="w-24 h-2 bg-slate-800 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-emerald-500/60 rounded-full"
+                            style={{
+                              width: `${Math.min(100, ((t.size_bytes || 0) / Math.max(1, ...(dbStats.table_stats || []).map((x: any) => x.size_bytes || 0))) * 100)}%`
+                            }}
+                          />
+                        </div>
+                        <span className="text-[10px] text-slate-500 w-16 text-right">{t.size}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <p className="text-[10px] text-slate-600 text-right">
+                Snapshot at {new Date(dbStats.timestamp).toLocaleString()}
+              </p>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Plan Usage Tab */}
+      {tab === "plan" && (
+        <div className="space-y-4">
+          {planLoading ? (
+            <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 text-slate-500 animate-spin" /></div>
+          ) : !planUsage ? (
+            <p className="text-slate-500 text-sm text-center py-12">Failed to load usage data.</p>
+          ) : (
+            <>
+              {/* Resource cards */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                <div className="bg-slate-900 border border-slate-800 rounded-xl p-4">
+                  <p className="text-xs text-slate-500 mb-1">Database Size</p>
+                  <p className="text-xl font-bold text-white">{planUsage.db_size || '—'}</p>
+                  <div className="w-full h-1.5 bg-slate-800 rounded-full mt-2 overflow-hidden">
+                    <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${Math.min(100, ((planUsage.db_size_bytes || 0) / (8 * 1024 * 1024 * 1024)) * 100)}%` }} />
+                  </div>
+                  <p className="text-[10px] text-slate-600 mt-1">Pro plan (8 GB)</p>
+                </div>
+                <div className="bg-slate-900 border border-slate-800 rounded-xl p-4">
+                  <p className="text-xs text-slate-500 mb-1">Auth Users</p>
+                  <p className="text-xl font-bold text-white">{planUsage.auth_users ?? '—'}</p>
+                  <p className="text-[10px] text-slate-600 mt-2">{planUsage.active_auth_users_30d ?? 0} active last 30d</p>
+                </div>
+                <div className="bg-slate-900 border border-slate-800 rounded-xl p-4">
+                  <p className="text-xs text-slate-500 mb-1">Connections</p>
+                  <p className="text-xl font-bold text-white">{planUsage.total_connections}/{planUsage.max_connections}</p>
+                  <div className="w-full h-1.5 bg-slate-800 rounded-full mt-2 overflow-hidden flex">
+                    <div className="h-full bg-blue-500 rounded-l-full" style={{ width: `${((planUsage.active_connections || 0) / (planUsage.max_connections || 1)) * 100}%` }} />
+                    <div className="h-full bg-slate-600 rounded-r-full" style={{ width: `${((planUsage.idle_connections || 0) / (planUsage.max_connections || 1)) * 100}%` }} />
+                  </div>
+                  <div className="flex items-center gap-3 mt-1.5 text-[10px]">
+                    <span className="text-blue-400 flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-blue-500 inline-block" />Active: {planUsage.active_connections ?? 0}</span>
+                    <span className="text-slate-500 flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-slate-600 inline-block" />Idle: {planUsage.idle_connections ?? 0}</span>
+                  </div>
+                </div>
+                <div className="bg-slate-900 border border-slate-800 rounded-xl p-4">
+                  <p className="text-xs text-slate-500 mb-1">Storage</p>
+                  <p className="text-xl font-bold text-white">{planUsage.storage_size_pretty || '0 bytes'}</p>
+                  <p className="text-[10px] text-slate-600 mt-2">{planUsage.storage_objects ?? 0} objects</p>
+                </div>
+                <div className="bg-slate-900 border border-slate-800 rounded-xl p-4">
+                  <p className="text-xs text-slate-500 mb-1">Total Rows</p>
+                  <p className="text-xl font-bold text-white">{planUsage.total_rows?.toLocaleString() ?? '—'}</p>
+                  <p className="text-[10px] text-slate-600 mt-2">{planUsage.table_count ?? 0} tables</p>
+                </div>
+              </div>
+
+              {/* Free tier limits reference */}
+              <div className="bg-slate-900 border border-slate-800 rounded-xl p-4">
+                <h4 className="text-sm font-semibold text-white mb-2">Plan Limits (Pro)</h4>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                  <div><span className="text-slate-500">Database:</span> <span className="text-white">8 GB</span></div>
+                  <div><span className="text-slate-500">Auth Users:</span> <span className="text-white">100K</span></div>
+                  <div><span className="text-slate-500">Storage:</span> <span className="text-white">100 GB</span></div>
+                  <div><span className="text-slate-500">Bandwidth:</span> <span className="text-white">250 GB</span></div>
+                  <div className="mt-1"><span className="text-slate-500">Edge Functions:</span> <span className="text-white">2M/mo</span></div>
+                  <div className="mt-1"><span className="text-slate-500">Realtime:</span> <span className="text-white">500 concurrent</span></div>
+                  <div className="mt-1"><span className="text-slate-500">API Requests:</span> <span className="text-white">Unlimited</span></div>
+                  <div className="mt-1"><span className="text-slate-500">Daily Backups:</span> <span className="text-white">7 days</span></div>
+                </div>
+              </div>
+
+              <p className="text-[10px] text-slate-600 text-right">
+                Snapshot at {new Date(planUsage.timestamp).toLocaleString()}
+              </p>
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }

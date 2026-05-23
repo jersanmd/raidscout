@@ -5,7 +5,7 @@ import { useServerId } from "@/contexts/ServerContext";
 import { useAuth } from "@/contexts/AuthContext";
 import type { Boss } from "@/types";
 
-let globalBossSubscribed = false;
+const activeBossSubscriptions = new Set<string>();
 
 /** Fetch bosses for the current server only, with realtime updates. */
 export function useBosses() {
@@ -14,20 +14,22 @@ export function useBosses() {
   const queryClient = useQueryClient();
   const configured = isSupabaseConfigured();
 
-  // Realtime subscription for boss table changes
+  // Realtime subscription for boss table changes — per server
   useEffect(() => {
-    if ((!user && !isViewer) || !configured || globalBossSubscribed) return;
-    globalBossSubscribed = true;
+    if ((!user && !isViewer) || !configured || !serverId) return;
+    const subKey = `bosses-${serverId}`;
+    if (activeBossSubscriptions.has(subKey)) return;
+    activeBossSubscriptions.add(subKey);
 
     const channel = subscribeToBosses(() => {
       queryClient.invalidateQueries({ queryKey: ["bosses"] });
     });
 
     return () => {
-      globalBossSubscribed = false;
+      activeBossSubscriptions.delete(subKey);
       supabase.removeChannel(channel).catch(() => {});
     };
-  }, [user, configured, queryClient]);
+  }, [user, configured, queryClient, serverId]);
 
   return useQuery<Boss[]>({
     queryKey: ["bosses", serverId],

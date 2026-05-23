@@ -113,7 +113,7 @@ export async function removeServerModerator(serverId: string, userId: string): P
 
 // ── Admin Queries ──────────────────────────────────────────
 
-export async function fetchAuditLog(limit = 100, serverId?: string | null): Promise<any[]> {
+export async function fetchAuditLog(limit = 200, serverId?: string | null, since?: string | null, until?: string | null): Promise<any[]> {
   let query = supabase
     .from("admin_audit_log")
     .select("*")
@@ -122,6 +122,12 @@ export async function fetchAuditLog(limit = 100, serverId?: string | null): Prom
   
   if (serverId) {
     query = query.eq("server_id", serverId);
+  }
+  if (since) {
+    query = query.gte("created_at", since);
+  }
+  if (until) {
+    query = query.lte("created_at", until);
   }
   
   const { data, error } = await query;
@@ -139,6 +145,20 @@ export async function fetchServerStats(serverId: string): Promise<{
     .rpc("get_server_stats", { p_server_id: serverId });
   if (error) throw error;
   return (data as any) ?? { member_count: 0, boss_count: 0, death_count: 0, has_webhook: false };
+}
+
+export async function fetchDatabaseStats(): Promise<any> {
+  const { data, error } = await supabase
+    .rpc("get_database_stats");
+  if (error) throw error;
+  return data ?? {};
+}
+
+export async function fetchPlanUsage(): Promise<any> {
+  const { data, error } = await supabase
+    .rpc("get_plan_usage");
+  if (error) throw error;
+  return data ?? {};
 }
 
 export async function fetchAllServers(): Promise<any[]> {
@@ -345,53 +365,76 @@ export async function setBossSpawnTime(bossId: string, spawnDate: Date): Promise
 
 // ── Realtime ────────────────────────────────────────────────
 
+/** Track active channels to prevent duplicate subscriptions */
+const activeChannels = new Map<string, ReturnType<typeof supabase.channel>>();
+
+function getOrCreateChannel(chanName: string): { channel: ReturnType<typeof supabase.channel>; isNew: boolean } {
+  const existing = activeChannels.get(chanName);
+  if (existing) return { channel: existing, isNew: false };
+  const channel = supabase.channel(chanName);
+  activeChannels.set(chanName, channel);
+  return { channel, isNew: true };
+}
+
 export function subscribeToDeathRecords(
   onInsert: (record: DeathRecord) => void,
   onUpdate: (record: DeathRecord) => void,
   onDelete: (record: { id: string }) => void
 ) {
-  const chanName = `death_records_changes_${Date.now()}`;
-  return supabase
-    .channel(chanName)
-    .on(
-      "postgres_changes",
-      { event: "INSERT", schema: "public", table: "death_records" },
-      (payload) => onInsert(payload.new as DeathRecord)
-    )
-    .on(
-      "postgres_changes",
-      { event: "UPDATE", schema: "public", table: "death_records" },
-      (payload) => onUpdate(payload.new as DeathRecord)
-    )
-    .on(
-      "postgres_changes",
-      { event: "DELETE", schema: "public", table: "death_records" },
-      (payload) => onDelete(payload.old as { id: string })
-    )
-    .subscribe();
+  const sid = _currentServerId || "unknown";
+  const chanName = `deaths-${sid}`;
+  const { channel, isNew } = getOrCreateChannel(chanName);
+  
+  if (isNew) {
+    channel.on("postgres_changes", { event: "INSERT", schema: "public", table: "death_records" },
+      (payload) => onInsert(payload.new as DeathRecord));
+    channel.on("postgres_changes", { event: "UPDATE", schema: "public", table: "death_records" },
+      (payload) => onUpdate(payload.new as DeathRecord));
+    channel.on("postgres_changes", { event: "DELETE", schema: "public", table: "death_records" },
+      (payload) => onDelete(payload.old as { id: string }));
+    channel.subscribe((status) => {
+      if (status === "CLOSED" || status === "CHANNEL_ERROR") activeChannels.delete(chanName);
+    });
+  }
+  
+  return channel;
 }
 
 /** Realtime subscription for boss table changes (rotation_counter, schedule, etc.) */
 export function subscribeToBosses(onChange: () => void) {
-  const chanName = `bosses_changes_${Date.now()}`;
-  return supabase
-    .channel(chanName)
-    .on(
-      "postgres_changes",
-      { event: "INSERT", schema: "public", table: "bosses" },
-      () => onChange()
-    )
-    .on(
-      "postgres_changes",
-      { event: "UPDATE", schema: "public", table: "bosses" },
-      () => onChange()
-    )
-    .on(
-      "postgres_changes",
-      { event: "DELETE", schema: "public", table: "bosses" },
-      () => onChange()
-    )
-    .subscribe();
+  const sid = _currentServerId || "unknown";
+  const chanName = `bosses-${sid}`;
+  const { channel, isNew } = getOrCreateChannel(chanName);
+  
+  if (isNew) {
+    channel.on("postgres_changes", { event: "INSERT", schema: "public", table: "bosses" }, () => onChange());
+    channel.on("postgres_changes", { event: "UPDATE", schema: "public", table: "bosses" }, () => onChange());
+    channel.on("postgres_changes", { event: "DELETE", schema: "public", table: "bosses" }, () => onChange());
+    channel.subscribe((status) => {
+      if (status === "CLOSED" || status === "CHANNEL_ERROR") activeChannels.delete(chanName);
+    });
+  }
+  
+  return channel;
+}
+
+/** Realtime subscription for server settings changes (viewer permissions, webhook) */
+export function subscribeToServerSettings(
+  serverId: string,
+  onUpdate: (payload: any) => void
+) {
+  const chanName = `servers-${serverId}`;
+  const { channel, isNew } = getOrCreateChannel(chanName);
+  
+  if (isNew) {
+    channel.on("postgres_changes", { event: "UPDATE", schema: "public", table: "servers" },
+      (payload) => onUpdate(payload));
+    channel.subscribe((status) => {
+      if (status === "CLOSED" || status === "CHANNEL_ERROR") activeChannels.delete(chanName);
+    });
+  }
+  
+  return channel;
 }
 
 /** Broadcast a spawn alert to all clients on the same server */
@@ -546,7 +589,7 @@ export async function fetchBossGuilds(serverId?: string | null): Promise<BossGui
   if (!sid) return [];
   const { data, error } = await supabase
     .from("boss_guilds")
-    .select("*, bosses!inner(server_id)")
+    .select("id, boss_id, guild_id, sort_order, day_of_week, rotation_mode, bosses!inner(server_id)")
     .eq("bosses.server_id", sid)
     .order("sort_order", { ascending: true })
     .order("day_of_week", { ascending: true });
