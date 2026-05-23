@@ -209,7 +209,18 @@ export function BossListView() {
     // Rotation mode: advance by number of kills (with manual adjustment)
     const rotationEntries = bgs.filter(bg => bg.sort_order !== null && bg.mode !== "daily").sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
     if (rotationEntries.length > 0) {
-      const bossData = spawns.find(s => s.boss.id === bossId)?.boss;
+      const bossSpawn = spawns.find(s => s.boss.id === bossId);
+      const bossData = bossSpawn?.boss;
+      
+      // If boss is dead, show the guild that actually killed it (from last death record)
+      if (bossSpawn?.status === "countdown") {
+        const lastDeath = deathRecords
+          .filter(dr => dr.boss_id === bossId && !dr.is_initial_spawn)
+          .sort((a, b) => new Date(b.death_time).getTime() - new Date(a.death_time).getTime())[0];
+        const lastGuildId = (lastDeath as any)?.owner_guild_id;
+        if (lastGuildId) return guilds.find(g => g.id === lastGuildId)?.name;
+      }
+
       const killCount = deathRecords.filter(dr => dr.boss_id === bossId && !dr.is_initial_spawn).length;
       const adjustment = bossData?.rotation_adjustment ?? 0;
       let idx = (killCount + adjustment) % rotationEntries.length;

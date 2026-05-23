@@ -155,6 +155,21 @@ export function WeeklyScheduleView() {
     // Rotation mode: advance by number of kills (with manual adjustment)
     const rotationEntries = bgs.filter(bg => bg.sort_order !== null && bg.mode !== "daily").sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
     if (rotationEntries.length > 0) {
+      const lastDeath = deathRecords
+        .filter(dr => dr.boss_id === bossId && !dr.is_initial_spawn)
+        .sort((a, b) => new Date(b.death_time).getTime() - new Date(a.death_time).getTime())[0];
+
+      // If boss is dead, show the guild that actually killed it (from last death record)
+      if (lastDeath) {
+        const respawnHours = bossData?.respawn_hours ?? 0;
+        const deathTime = new Date(lastDeath.death_time);
+        const spawnTime = new Date(deathTime.getTime() + respawnHours * 3600000);
+        if (new Date() < spawnTime) {
+          const lastGuildId = (lastDeath as any)?.owner_guild_id;
+          if (lastGuildId) return guilds.find(g => g.id === lastGuildId)?.name ?? null;
+        }
+      }
+
       const killCount = deathRecords.filter(dr => dr.boss_id === bossId && !dr.is_initial_spawn).length;
       let idx = (killCount + adjustment) % rotationEntries.length;
       if (idx < 0) idx += rotationEntries.length;
