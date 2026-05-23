@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { fetchAllServers, fetchAllUsers, fetchAuditLog, supabase } from "@/lib/supabase";
+import { fetchAllServers, fetchAllUsers, fetchAuditLog, fetchServerStats, supabase } from "@/lib/supabase";
 import { useServer } from "@/contexts/ServerContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { Loader2, Shield, Server, Users, Eye, ChevronDown, ChevronUp, ClipboardList } from "lucide-react";
@@ -13,6 +13,8 @@ export function AdminPanelView() {
   const [expandedUser, setExpandedUser] = useState<string | null>(null);
   const [userServers, setUserServers] = useState<Record<string, { server_id: string; server_name: string; role: string }[]>>({});
   const [loadingServers, setLoadingServers] = useState(false);
+  const [expandedServer, setExpandedServer] = useState<string | null>(null);
+  const [serverStats, setServerStats] = useState<Record<string, any>>({});
   const [auditServerFilter, setAuditServerFilter] = useState<string>("all");
   const navigate = useNavigate();
 
@@ -28,7 +30,7 @@ export function AdminPanelView() {
     queryKey: ["admin", "users"],
     queryFn: fetchAllUsers,
     staleTime: 10_000,
-    enabled: userRole === "admin",
+    enabled: userRole === "admin" && tab === "users",
   });
 
   const { data: auditLog = [], isLoading: auditLoading } = useQuery({
@@ -89,30 +91,84 @@ export function AdminPanelView() {
           ) : servers.length === 0 ? (
             <p className="text-slate-500 text-sm text-center py-12">No servers yet.</p>
           ) : (
-            servers.map((s: any) => (
-              <div key={s.id} className="bg-slate-900 border border-slate-800 rounded-xl p-4 flex items-center justify-between">
-                <div>
-                  <h4 className="text-sm font-semibold text-white">{s.name}</h4>
-                  <p className="text-[10px] text-slate-500 font-mono">{s.id}</p>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="text-right">
-                    <p className="text-[10px] text-slate-400">Created {new Date(s.created_at).toLocaleDateString()}</p>
-                    <p className="text-[10px] text-slate-500 font-mono">Owner: {s.owner_id?.substring(0, 8)}...</p>
+            servers.map((s: any) => {
+              const isExpanded = expandedServer === s.id;
+              const stats = serverStats[s.id];
+              return (
+              <div key={s.id} className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+                <button
+                  onClick={async () => {
+                    if (isExpanded) {
+                      setExpandedServer(null);
+                    } else {
+                      setExpandedServer(s.id);
+                      if (!serverStats[s.id]) {
+                        try {
+                          const stats = await fetchServerStats(s.id);
+                          setServerStats(prev => ({ ...prev, [s.id]: stats }));
+                        } catch { /* ignore */ }
+                      }
+                    }
+                  }}
+                  className="w-full p-4 flex items-center justify-between hover:bg-slate-800/50 transition text-left"
+                >
+                  <div>
+                    <h4 className="text-sm font-semibold text-white">{s.name}</h4>
+                    <p className="text-[10px] text-slate-500 font-mono">{s.id?.substring(0, 12)}...</p>
                   </div>
-                  <button
-                    onClick={() => {
-                      setCurrentServer({ id: s.id, name: s.name, owner_id: s.owner_id, invite_code: s.id?.substring(0, 8) ?? "", role: "owner" });
-                      navigate("/");
-                    }}
-                    className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium bg-blue-600 text-white hover:bg-blue-500 transition"
-                  >
-                    <Eye className="w-3 h-3" />
-                    View
-                  </button>
-                </div>
+                  <div className="flex items-center gap-3">
+                    <div className="text-right hidden sm:block">
+                      <p className="text-[10px] text-slate-400">Created {new Date(s.created_at).toLocaleDateString()}</p>
+                    </div>
+                    {isExpanded ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
+                  </div>
+                </button>
+                {isExpanded && (
+                  <div className="border-t border-slate-800 px-4 py-3 space-y-2">
+                    {!stats ? (
+                      <Loader2 className="w-4 h-4 text-slate-500 animate-spin" />
+                    ) : (
+                      <>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                          <div className="bg-slate-800/50 rounded-lg px-3 py-2 text-center">
+                            <p className="text-lg font-bold text-white">{stats.member_count ?? 0}</p>
+                            <p className="text-[10px] text-slate-500">Members</p>
+                          </div>
+                          <div className="bg-slate-800/50 rounded-lg px-3 py-2 text-center">
+                            <p className="text-lg font-bold text-white">{stats.boss_count ?? 0}</p>
+                            <p className="text-[10px] text-slate-500">Bosses</p>
+                          </div>
+                          <div className="bg-slate-800/50 rounded-lg px-3 py-2 text-center">
+                            <p className="text-lg font-bold text-white">{stats.death_count ?? 0}</p>
+                            <p className="text-[10px] text-slate-500">Kills</p>
+                          </div>
+                          <div className="bg-slate-800/50 rounded-lg px-3 py-2 text-center">
+                            <p className={`text-lg font-bold ${stats.has_webhook ? 'text-emerald-400' : 'text-slate-500'}`}>
+                              {stats.has_webhook ? 'ON' : 'OFF'}
+                            </p>
+                            <p className="text-[10px] text-slate-500">Webhook</p>
+                          </div>
+                        </div>
+                        <div className="flex justify-end">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setCurrentServer({ id: s.id, name: s.name, owner_id: s.owner_id, invite_code: s.id?.substring(0, 8) ?? "", role: "owner" });
+                              navigate("/");
+                            }}
+                            className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium bg-blue-600 text-white hover:bg-blue-500 transition"
+                          >
+                            <Eye className="w-3 h-3" />
+                            View Server
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
               </div>
-            ))
+              );
+            })
           )}
         </div>
       )}

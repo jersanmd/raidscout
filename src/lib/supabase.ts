@@ -123,6 +123,18 @@ export async function fetchAuditLog(limit = 100): Promise<any[]> {
   return data ?? [];
 }
 
+export async function fetchServerStats(serverId: string): Promise<{
+  member_count: number;
+  boss_count: number;
+  death_count: number;
+  has_webhook: boolean;
+}> {
+  const { data, error } = await supabase
+    .rpc("get_server_stats", { p_server_id: serverId });
+  if (error) throw error;
+  return (data as any) ?? { member_count: 0, boss_count: 0, death_count: 0, has_webhook: false };
+}
+
 export async function fetchAllServers(): Promise<any[]> {
   const { data, error } = await supabase
     .from("servers")
