@@ -105,21 +105,19 @@ describe("calculateSpawnInfo — fixed_schedule", () => {
     expect(result.nextSpawn).not.toBeNull();
   });
 
-  it("returns countdown when no death record — alive window only after a kill", () => {
+  it("returns alive when no death record and within alive window of most recent slot", () => {
     const boss = makeBoss({
       spawn_type: "fixed_schedule",
       respawn_hours: null,
       schedule: [{ day: 1, time: "19:00" }], // Monday 7pm
     });
-    // Monday 20:30 — 1.5 hours after the 7pm spawn
-    // Without a death record, it should NOT be "alive" — just show next slot
+    // Monday 20:30 — 1.5 hours after the 7pm spawn, within 2h alive window
     const now = new Date(2025, 5, 2, 20, 30, 0); // June 2, 2025 Monday 8:30pm
 
     const result = calculateSpawnInfo(boss, null, now);
 
-    expect(result.status).toBe("countdown");
-    // nextSpawn should be set (next week's slot since today's passed)
-    expect(result.nextSpawn).not.toBeNull();
+    expect(result.status).toBe("alive");
+    expect(result.nextSpawn).not.toBeNull(); // next week's slot
   });
 
   it("returns unknown when schedule is empty", () => {
