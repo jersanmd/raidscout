@@ -36,7 +36,7 @@ export function useDeathRecords() {
 
   // Realtime subscription — only subscribe once globally
   useEffect(() => {
-    if (!user || !configured || globalSubscribed) return;
+    if ((!user && !isViewer) || !configured || globalSubscribed) return;
     globalSubscribed = true;
 
     const channel = subscribeToDeathRecords(

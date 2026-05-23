@@ -196,11 +196,11 @@ export async function advanceBossRotation(bossId: string): Promise<number> {
 export async function fetchDeathRecords(serverId?: string | null): Promise<DeathRecord[]> {
   const sid = serverId ?? getCurrentServerId();
   if (!sid) return [];
-  let query = supabase.from("death_records").select("*").order("death_time", { ascending: false });
-  if (sid) query = query.eq("server_id", sid);
-  const { data, error } = await query;
+  // Optimized: only fetch latest death per boss — 39 rows instead of 800+
+  const { data, error } = await supabase
+    .rpc("get_latest_deaths", { p_server_id: sid });
   if (error) throw error;
-  return data as DeathRecord[];
+  return (data as DeathRecord[]) ?? [];
 }
 
 export async function insertDeathRecord(
@@ -580,130 +580,23 @@ export async function fetchLeaderboard(serverId?: string | null): Promise<Leader
 }
 
 export async function fetchLeaderboardByPeriod(
-  since: string, // ISO date string
+  since: string,
   serverId?: string | null
 ): Promise<LeaderboardEntry[]> {
-  // Count attendance records per member within the date range
   const sid = serverId ?? getCurrentServerId();
   if (!sid) return [];
-  let query = supabase
-    .from("attendance_records")
-    .select("member_id, members!inner(name), created_at, death_record_id")
-    .gte("created_at", since);
-  if (sid) query = query.eq("server_id", sid);
-  const { data, error } = await query;
+
+  const { data, error } = await supabase
+    .rpc("get_leaderboard", { p_server_id: sid, p_since: since });
 
   if (error) throw error;
 
-  // Fetch boss points for all referenced death records
-  const deathRecordIds = [...new Set((data as any[]).map(r => r.death_record_id).filter(Boolean))];
-  let bossPointsMap = new Map<string, number>(); // death_record_id → boss_points
-  if (deathRecordIds.length > 0) {
-    try {
-      const { data: drData } = await supabase
-        .from("death_records")
-        .select("id, boss_id")
-        .in("id", deathRecordIds);
-      if (drData) {
-        const bossIds = [...new Set((drData as any[]).map(d => d.boss_id).filter(Boolean))];
-        if (bossIds.length > 0) {
-          const { data: bossData } = await supabase
-            .from("bosses")
-            .select("id, boss_points")
-            .in("id", bossIds);
-          if (bossData) {
-            const bossPointMap = new Map((bossData as any[]).map(b => [b.id, b.boss_points ?? 1]));
-            for (const dr of drData as any[]) {
-              bossPointsMap.set(dr.id, bossPointMap.get(dr.boss_id) ?? 1);
-            }
-          }
-        }
-      }
-    } catch { /* ignore — fall back to 1 point per attendance */ }
-  }
-
-  // Aggregate in JS
-  const pointMap = new Map<string, { name: string; points: number; last: string }>();
-  for (const row of data as any[]) {
-    const id = row.member_id;
-    const bossPts = bossPointsMap.get(row.death_record_id) ?? 1;
-    const existing = pointMap.get(id);
-    if (existing) {
-      existing.points += bossPts;
-      if (row.created_at > existing.last) existing.last = row.created_at;
-    } else {
-      pointMap.set(id, {
-        name: row.members.name,
-        points: bossPts,
-        last: row.created_at,
-      });
-    }
-  }
-
-  // Fetch point adjustments for the same period and merge
-  if (sid) {
-    try {
-      const { data: adjustments, error: adjErr } = await supabase
-        .from("point_adjustments")
-        .select("member_id, points, created_at")
-        .eq("server_id", sid)
-        .gte("created_at", since);
-
-      if (!adjErr && adjustments) {
-        for (const adj of adjustments as any[]) {
-          const existing = pointMap.get(adj.member_id);
-          if (existing) {
-            existing.points += adj.points;
-            if (adj.created_at > existing.last) existing.last = adj.created_at;
-          }
-          // If member has no attendance but has adjustments, still show them
-          // (fetch name via members lookup below)
-          if (!existing && adj.points > 0) {
-            pointMap.set(adj.member_id, {
-              name: "", // will be filled below
-              points: adj.points,
-              last: adj.created_at,
-            });
-          }
-        }
-      }
-    } catch { /* adjustments optional — don't break leaderboard if they fail */ }
-  }
-
-  // Fill in names for adjustment-only entries
-  const memberIds = Array.from(pointMap.entries())
-    .filter(([, v]) => !v.name)
-    .map(([id]) => id);
-
-  if (memberIds.length > 0) {
-    try {
-      const { data: members } = await supabase
-        .from("members")
-        .select("id, name")
-        .in("id", memberIds);
-      if (members) {
-        for (const m of members as any[]) {
-          const entry = pointMap.get(m.id);
-          if (entry && !entry.name) entry.name = m.name;
-        }
-      }
-    } catch { /* ignore */ }
-  }
-
-  // Remove entries that ended up with ≤0 points or no name
-  for (const [id, val] of pointMap) {
-    if (val.points <= 0 || !val.name) pointMap.delete(id);
-  }
-
-  return Array.from(pointMap.entries())
-    .map(([id, val]) => ({
-      id,
-      name: val.name,
-      points: val.points,
-      last_attended: val.last,
-    }))
-    .filter((e) => e.points > 0)
-    .sort((a, b) => b.points - a.points || b.last_attended.localeCompare(a.last_attended));
+  return ((data as any[]) ?? []).map((row: any) => ({
+    id: row.member_id,
+    name: row.member_name,
+    points: row.points,
+    last_attended: row.last_attended,
+  }));
 }
 
 // ── Point Adjustments ───────────────────────────────────────
@@ -904,9 +797,9 @@ export async function fetchAnalytics(since: string, serverId?: string | null): P
 
 import type { HistoryEntry } from "./history";
 
-export async function fetchHistoryFromSupabase(serverId?: string | null): Promise<HistoryEntry[]> {
+export async function fetchHistoryFromSupabase(serverId?: string | null, since?: string, until?: string): Promise<HistoryEntry[]> {
   const sid = serverId ?? getCurrentServerId();
-  if (!sid) return []; // never fetch unfiltered
+  if (!sid) return [];
   let query = supabase
     .from("death_records")
     .select(`
@@ -915,9 +808,11 @@ export async function fetchHistoryFromSupabase(serverId?: string | null): Promis
       attendance_records(id)
     `)
     .or("is_initial_spawn.is.null,is_initial_spawn.eq.false")
-    .order("death_time", { ascending: false })
-    .limit(500);
+    .order("death_time", { ascending: false });
   if (sid) query = query.eq("server_id", sid);
+  if (since) query = query.gte("death_time", since);
+  if (until) query = query.lte("death_time", until);
+  if (!since && !until) query = query.limit(500);
   const { data: deaths, error } = await query;
 
   if (error) throw error;

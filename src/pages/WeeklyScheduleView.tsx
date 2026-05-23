@@ -566,16 +566,6 @@ export function WeeklyScheduleView() {
           onChangeGuild={!isViewer ? () => {
             setEditGuildDeath({ deathRecordId: selectedDeath.deathRecordId, bossName: selectedDeath.bossName });
           } : undefined}
-          onDelete={!isViewer ? async () => {
-            try {
-              await deleteDeathRecord(selectedDeath.deathRecordId);
-              queryClient.invalidateQueries({ queryKey: ["death_records"] });
-              setEditToast({ type: "success", message: "Death record removed!" });
-              setSelectedDeath(null);
-            } catch (err: any) {
-              setEditToast({ type: "error", message: err?.message ?? "Failed to remove" });
-            }
-          } : undefined}
         />
       )}
 

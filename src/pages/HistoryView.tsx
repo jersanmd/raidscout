@@ -1,4 +1,4 @@
-﻿import { useState, useMemo, useEffect } from "react";
+﻿import { useState, useMemo, useEffect, useCallback } from "react";
 import { type HistoryEntry } from "@/lib/history";
 import { fetchHistoryFromSupabase, deleteDeathRecord, isSupabaseConfigured, editDeathTime } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
@@ -9,6 +9,8 @@ import { Clock, Trash2, Skull, Repeat, Timer, Users, Loader2, Pencil, X, Search,
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { guildColor } from "@/lib/constants";
 
+const daysAgo = (n: number) => new Date(Date.now() - n * 86400000).toISOString().split("T")[0];
+
 export function HistoryView() {
   const [supabaseHistory, setSupabaseHistory] = useState<HistoryEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -16,19 +18,36 @@ export function HistoryView() {
   const serverId = useServerId();
   const configured = isSupabaseConfigured();
 
-  // Fetch from Supabase only
-  useEffect(() => {
+  // Date range — default last 7 days
+  const [dateRange, setDateRange] = useState<"7d" | "30d" | "custom">("7d");
+  const [dateFrom, setDateFrom] = useState(() => daysAgo(7));
+  const [dateTo, setDateTo] = useState(() => new Date().toISOString().split("T")[0]);
+
+  const handleDatePreset = (preset: "7d" | "30d" | "custom") => {
+    setDateRange(preset);
+    if (preset === "7d") { setDateFrom(daysAgo(7)); setDateTo(new Date().toISOString().split("T")[0]); }
+    else if (preset === "30d") { setDateFrom(daysAgo(30)); setDateTo(new Date().toISOString().split("T")[0]); }
+  };
+
+  const fetchHistory = useCallback((since?: string, until?: string) => {
     if (!configured || (!user && !isViewer) || !serverId) {
       setSupabaseHistory([]);
-      setLoading(!configured || (!user && !isViewer) ? false : !serverId);
+      setLoading(false);
       return;
     }
     setLoading(true);
-    fetchHistoryFromSupabase(serverId)
+    fetchHistoryFromSupabase(serverId, since, until)
       .then(setSupabaseHistory)
       .catch(() => setSupabaseHistory([]))
       .finally(() => setLoading(false));
   }, [configured, user, isViewer, serverId]);
+
+  // Fetch with date range
+  useEffect(() => {
+    const since = dateFrom ? new Date(dateFrom + "T00:00:00Z").toISOString() : undefined;
+    const until = dateTo ? new Date(dateTo + "T23:59:59Z").toISOString() : undefined;
+    fetchHistory(since, until);
+  }, [fetchHistory, dateFrom, dateTo]);
 
   const history = supabaseHistory;
 
@@ -55,7 +74,9 @@ export function HistoryView() {
       queryClient.invalidateQueries({ queryKey: ["death_records"] });
       // Refresh local history
       if (serverId) {
-        fetchHistoryFromSupabase(serverId).then(setSupabaseHistory).catch(() => {});
+        const since = dateFrom ? new Date(dateFrom + "T00:00:00Z").toISOString() : undefined;
+        const until = dateTo ? new Date(dateTo + "T23:59:59Z").toISOString() : undefined;
+        fetchHistory(since, until);
       }
       setEditToast({ type: "success", message: "Death time updated!" });
       setEditEntry(null);
@@ -163,6 +184,21 @@ export function HistoryView() {
           <Clock className="w-5 h-5 text-amber-400" />
           <h2 className="text-xl font-bold text-white">Death History</h2>
         </div>
+        <div className="flex items-center gap-2">
+          {(["7d", "30d", "custom"] as const).map(p => (
+            <button
+              key={p}
+              onClick={() => handleDatePreset(p)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition border ${
+                dateRange === p
+                  ? "bg-blue-900/20 border-blue-800 text-blue-400"
+                  : "bg-slate-800 border-slate-700 text-slate-400 hover:text-white"
+              }`}
+            >
+              {p === "7d" ? "Last 7d" : p === "30d" ? "Last Month" : "Custom"}
+            </button>
+          ))}
+        </div>
         <div className="flex items-center gap-3 flex-1 max-w-md">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
@@ -184,6 +220,31 @@ export function HistoryView() {
           </div>
         </div>
       </div>
+
+      {/* Custom date range picker */}
+      {dateRange === "custom" && (
+        <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex items-center gap-2">
+            <label className="text-xs text-slate-500">From</label>
+            <input
+              type="date"
+              value={dateFrom}
+              onChange={(e) => setDateFrom(e.target.value)}
+              className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white outline-none focus:border-blue-500"
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <label className="text-xs text-slate-500">To</label>
+            <input
+              type="date"
+              value={dateTo}
+              onChange={(e) => setDateTo(e.target.value)}
+              max={new Date().toISOString().split("T")[0]}
+              className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white outline-none focus:border-blue-500"
+            />
+          </div>
+        </div>
+      )}
 
       {loading ? (
         <div className="flex items-center justify-center py-20">
@@ -295,16 +356,6 @@ export function HistoryView() {
                           >
                             <Pencil className="w-3.5 h-3.5" />
                           </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setDeleteTarget(entry);
-                            }}
-                            className="text-slate-600 hover:text-red-400 transition opacity-0 group-hover:opacity-100 shrink-0 p-1"
-                            title="Delete entry"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
                         </div>
                       )}
                     </div>
@@ -313,39 +364,6 @@ export function HistoryView() {
               </div>
             </section>
           ))}
-        </div>
-      )}
-
-      {/* Delete single entry confirmation */}
-      {deleteTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/60" onClick={() => setDeleteTarget(null)} />
-          <div className="relative bg-slate-900 border border-slate-700 rounded-xl w-full max-w-xs shadow-2xl p-4 space-y-4">
-            <p className="text-white text-sm text-center">
-              Delete <span className="font-semibold text-red-400">{deleteTarget.bossName}</span> entry? This will also remove all participant records for this kill.
-            </p>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setDeleteTarget(null)}
-                disabled={deleting}
-                className="flex-1 py-2 rounded-lg bg-slate-800 text-slate-300 text-sm"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleDelete}
-                disabled={deleting}
-                className="flex-1 py-2 rounded-lg bg-red-900/30 border border-red-800 text-red-400 text-sm flex items-center justify-center gap-1.5"
-              >
-                {deleting ? (
-                  <span className="w-3.5 h-3.5 border-2 border-red-400/30 border-t-red-400 rounded-full animate-spin" />
-                ) : (
-                  <Trash2 className="w-3.5 h-3.5" />
-                )}
-                Delete
-              </button>
-            </div>
-          </div>
         </div>
       )}
 

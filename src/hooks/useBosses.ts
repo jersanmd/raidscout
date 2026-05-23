@@ -10,13 +10,13 @@ let globalBossSubscribed = false;
 /** Fetch bosses for the current server only, with realtime updates. */
 export function useBosses() {
   const serverId = useServerId();
-  const { user } = useAuth();
+  const { user, isViewer } = useAuth();
   const queryClient = useQueryClient();
   const configured = isSupabaseConfigured();
 
   // Realtime subscription for boss table changes
   useEffect(() => {
-    if (!user || !configured || globalBossSubscribed) return;
+    if ((!user && !isViewer) || !configured || globalBossSubscribed) return;
     globalBossSubscribed = true;
 
     const channel = subscribeToBosses(() => {

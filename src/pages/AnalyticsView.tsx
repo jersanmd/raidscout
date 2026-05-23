@@ -21,7 +21,7 @@ export function AnalyticsView() {
   const { user, isViewer } = useAuth();
   const serverId = useServerId();
   const configured = isSupabaseConfigured();
-  const [period, setPeriod] = useState<"month" | "all">("month");
+  const [period, setPeriod] = useState<"week" | "month" | "all">("week");
   const [huntersPage, setHuntersPage] = useState(1);
   const HUNTERS_PER_PAGE = 10;
 
@@ -38,9 +38,18 @@ export function AnalyticsView() {
   const { data, isLoading } = useQuery<AnalyticsUIData>({
     queryKey: ["analytics", period, serverId],
     queryFn: async () => {
-      const since = period === "month"
-        ? new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString()
-        : "2020-01-01";
+      const now = new Date();
+      let since: string;
+      if (period === "week") {
+        const d = new Date(now);
+        d.setDate(d.getDate() - d.getDay()); // Sunday
+        d.setHours(0, 0, 0, 0); // Midnight
+        since = d.toISOString();
+      } else if (period === "month") {
+        since = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+      } else {
+        since = "2020-01-01";
+      }
 
       if (!configured || (!user && !isViewer)) {
         return emptyAnalytics();
@@ -89,7 +98,7 @@ export function AnalyticsView() {
           <h2 className="text-xl font-bold text-white">Analytics</h2>
         </div>
         <div className="flex bg-slate-800 rounded-lg p-0.5">
-          {(["month", "all"] as const).map((p) => (
+          {(["week", "month", "all"] as const).map((p) => (
             <button
               key={p}
               onClick={() => { setPeriod(p); setHuntersPage(1); }}
@@ -97,7 +106,7 @@ export function AnalyticsView() {
                 period === p ? "bg-slate-700 text-white" : "text-slate-400 hover:text-slate-200"
               }`}
             >
-              {p === "month" ? "This Month" : "All Time"}
+              {p === "week" ? "This Week" : p === "month" ? "This Month" : "All Time"}
             </button>
           ))}
         </div>
