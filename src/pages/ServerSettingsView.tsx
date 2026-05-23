@@ -1057,7 +1057,7 @@ export function ServerSettingsView() {
                         </span>
                         {/* Boss Points */}
                         <span className="flex items-center gap-0.5 shrink-0" onClick={(e) => e.stopPropagation()}>
-                          <button
+                          <span
                             onClick={async () => {
                               const val = Math.max(0, (boss.boss_points ?? 1) - 1);
                               try {
@@ -1066,13 +1066,15 @@ export function ServerSettingsView() {
                                 setBosses(prev => prev.map(b => b.id === boss.id ? { ...b, boss_points: val } : b));
                               } catch { /* ignore */ }
                             }}
-                            disabled={(boss.boss_points ?? 1) <= 0}
-                            className="p-0.5 rounded text-slate-500 hover:text-red-400 disabled:opacity-20 transition"
+                            className={`p-0.5 rounded cursor-pointer transition ${(boss.boss_points ?? 1) <= 0 ? "text-slate-700 cursor-default" : "text-slate-500 hover:text-red-400"}`}
+                            role="button"
+                            tabIndex={0}
+                            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.currentTarget.click(); } }}
                           >
                             <Minus className="w-3 h-3" />
-                          </button>
+                          </span>
                           <span className="text-xs text-white font-mono w-5 text-center tabular-nums">{boss.boss_points ?? 1}</span>
-                          <button
+                          <span
                             onClick={async () => {
                               const val = Math.min(99, (boss.boss_points ?? 1) + 1);
                               try {
@@ -1081,11 +1083,13 @@ export function ServerSettingsView() {
                                 setBosses(prev => prev.map(b => b.id === boss.id ? { ...b, boss_points: val } : b));
                               } catch { /* ignore */ }
                             }}
-                            disabled={(boss.boss_points ?? 1) >= 99}
-                            className="p-0.5 rounded text-slate-500 hover:text-emerald-400 disabled:opacity-20 transition"
+                            className={`p-0.5 rounded cursor-pointer transition ${(boss.boss_points ?? 1) >= 99 ? "text-slate-700 cursor-default" : "text-slate-500 hover:text-emerald-400"}`}
+                            role="button"
+                            tabIndex={0}
+                            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.currentTarget.click(); } }}
                           >
                             <Plus className="w-3 h-3" />
-                          </button>
+                          </span>
                         </span>
                         {!bossMultiMode && (isExpanded ? <ChevronUp className="w-4 h-4 text-slate-500" /> : <ChevronDown className="w-4 h-4 text-slate-500" />)}
                       </button>

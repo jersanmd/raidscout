@@ -7,6 +7,8 @@ export interface HistoryEntry {
   /** Supabase death_record id — used to look up attendees */
   deathRecordId?: string;
   createdAt: string;
+  /** Guild that killed the boss (from owner_guild_id) */
+  ownerGuildName?: string;
 }
 
 const HISTORY_KEY = "lordnine-history";

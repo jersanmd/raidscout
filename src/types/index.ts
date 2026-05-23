@@ -19,8 +19,10 @@ export interface Boss {
   created_at: string;
   /** Points awarded per attendance (default 1) */
   boss_points?: number;
-  /** Manual offset for guild rotation (+n forward, -n back) */
+  /** Manual offset for guild rotation (+n forward, -n back) — deprecated, use rotation_counter */
   rotation_adjustment?: number;
+  /** Current rotation index (0-based), wraps within guild count on each kill */
+  rotation_counter?: number;
 }
 
 export interface DeathRecord {

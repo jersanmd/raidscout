@@ -32,9 +32,11 @@ interface BossCardProps {
   viewerCanEdit?: boolean;
   /** Whether viewers are allowed to mark as died */
   viewerCanMarkDied?: boolean;
+  /** Whether this boss has any guild assignments at all */
+  hasGuilds?: boolean;
 }
 
-export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, onCriticalSpawn, compact = false, multiMode = false, selected = false, onToggleSelect, ownerGuildName, rotationGuilds, rotationCurrentIndex, rotationMode, onSetRotation, viewerCanEdit, viewerCanMarkDied }: BossCardProps) {
+export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, onCriticalSpawn, compact = false, multiMode = false, selected = false, onToggleSelect, ownerGuildName, rotationGuilds, rotationCurrentIndex, rotationMode, onSetRotation, viewerCanEdit, viewerCanMarkDied, hasGuilds }: BossCardProps) {
   const { isViewer } = useAuth();
   const { currentServer } = useServer();
   const tz = useServerTimezone();
@@ -192,6 +194,16 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
               Mark Died
             </button>
             )}
+          </div>
+        )}
+
+        {/* No guild assigned notice */}
+        {!compact && !multiMode && !isViewer && !hasGuilds && (
+          <div className="mt-2 pt-2 border-t border-slate-700/50">
+            <span className="text-[10px] text-amber-500/80 flex items-center gap-1">
+              <Shield className="w-3 h-3" />
+              No guild assigned — set up in Server Settings → Boss Guilds
+            </span>
           </div>
         )}
 

@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
-import { fetchDeathRecords, subscribeToDeathRecords, isSupabaseConfigured } from "@/lib/supabase";
+import { fetchDeathRecords, subscribeToDeathRecords, isSupabaseConfigured, supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { useServerId } from "@/contexts/ServerContext";
 import type { DeathRecord } from "@/types";
@@ -47,7 +47,7 @@ export function useDeathRecords() {
 
     return () => {
       globalSubscribed = false;
-      channel.unsubscribe();
+      supabase.removeChannel(channel).catch(() => {});
     };
   }, [user?.id]);
 

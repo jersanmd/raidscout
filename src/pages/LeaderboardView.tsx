@@ -157,10 +157,14 @@ export function LeaderboardView() {
           queryClient.invalidateQueries({ queryKey: ["leaderboard"] });
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        if (status === "CHANNEL_ERROR") {
+          console.error("Leaderboard realtime channel error");
+        }
+      });
 
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(channel).catch(() => {});
     };
   }, [configured, serverId, queryClient]);
 
@@ -587,7 +591,8 @@ export function LeaderboardView() {
                     >
                       <Skull className="w-3.5 h-3.5 text-red-400 shrink-0" />
                       <span className="text-sm text-slate-200">{kill.boss_name}</span>
-                      <span className="text-[10px] text-slate-600 ml-auto">
+                      <span className="text-[10px] text-amber-400 font-medium ml-auto mr-2">+{kill.points ?? 1}</span>
+                      <span className="text-[10px] text-slate-600">
                         {new Date(kill.killed_at).toLocaleDateString(undefined, {
                           month: "short",
                           day: "numeric",

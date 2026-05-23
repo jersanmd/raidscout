@@ -5,8 +5,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useServerId } from "@/contexts/ServerContext";
 import { useQueryClient } from "@tanstack/react-query";
 import { ParticipantModal } from "@/components/ParticipantModal";
-import { Clock, Trash2, Skull, Repeat, Timer, Users, Loader2, Pencil, X, Search } from "lucide-react";
+import { Clock, Trash2, Skull, Repeat, Timer, Users, Loader2, Pencil, X, Search, Shield } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { guildColor } from "@/lib/constants";
 
 export function HistoryView() {
   const [supabaseHistory, setSupabaseHistory] = useState<HistoryEntry[]>([]);
@@ -252,6 +253,15 @@ export function HistoryView() {
                           <span className="text-white font-medium text-sm">
                             {entry.bossName}
                           </span>
+                          {entry.ownerGuildName && (() => {
+                            const c = guildColor(entry.ownerGuildName!);
+                            return (
+                              <span className={`text-[10px] px-1.5 py-0.5 rounded flex items-center gap-0.5 border ${c.bg} ${c.text} ${c.border}`}>
+                                <Shield className="w-2.5 h-2.5" />
+                                {entry.ownerGuildName}
+                              </span>
+                            );
+                          })()}
                           <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-slate-800 text-slate-400">
                             {entry.spawnType === "fixed_schedule" ? "Schedule" : `+${diffH}h`}
                           </span>

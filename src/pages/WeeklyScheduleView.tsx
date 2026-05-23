@@ -19,15 +19,22 @@ import {
   setDeathDisplayGuild,
   deleteDeathRecord,
   supabase,
+  advanceBossRotation,
 } from "@/lib/supabase";
 import { Loader2, ChevronLeft, ChevronRight, Users, Shield, X } from "lucide-react";
 import { SavingOverlay } from "@/components/SavingOverlay";
 import type { WeekDaySpawns, SpawnInfo, Boss, BossGuild, Guild } from "@/types";
 
 export function WeeklyScheduleView() {
-  const { data: bosses = [], isLoading: bossesLoading } = useBosses();
-  const { data: deathRecords = [], isLoading: recordsLoading } = useDeathRecords();
+  const { data: bosses = [], isLoading: bossesLoading, refetch: refetchBosses } = useBosses();
+  const { data: deathRecords = [], isLoading: recordsLoading, refetch: refetchDeaths } = useDeathRecords();
   const { user, isViewer } = useAuth();
+
+  // Always fetch fresh data on mount so rotation adjustments from Bosses tab are reflected
+  useEffect(() => {
+    refetchBosses();
+    refetchDeaths();
+  }, []);
   const { currentServer } = useServer();
   const queryClient = useQueryClient();
 
@@ -144,7 +151,12 @@ export function WeeklyScheduleView() {
       }
 
       const lastGuildId = (lastDeath as any).owner_guild_id;
-      if (!lastGuildId) return guilds.find(g => g.id === dailyEntries[0].guild_id)?.name ?? null;
+      if (!lastGuildId) {
+        // No owner_guild_id — advance from first guild since spawn crossed into new day
+        let idx = (1 + adjustment) % dailyEntries.length;
+        if (idx < 0) idx += dailyEntries.length;
+        return guilds.find(g => g.id === dailyEntries[idx].guild_id)?.name ?? null;
+      }
       
       const lastIdx = dailyEntries.findIndex(bg => bg.guild_id === lastGuildId);
       let nextIdx = (lastIdx >= 0 ? lastIdx + 1 : 0) + adjustment;
@@ -152,27 +164,11 @@ export function WeeklyScheduleView() {
       return guilds.find(g => g.id === dailyEntries[nextIdx].guild_id)?.name ?? null;
     }
 
-    // Rotation mode: advance by number of kills (with manual adjustment)
+    // Rotation mode: use rotation_counter
     const rotationEntries = bgs.filter(bg => bg.sort_order !== null && bg.mode !== "daily").sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
     if (rotationEntries.length > 0) {
-      const lastDeath = deathRecords
-        .filter(dr => dr.boss_id === bossId && !dr.is_initial_spawn)
-        .sort((a, b) => new Date(b.death_time).getTime() - new Date(a.death_time).getTime())[0];
-
-      // If boss is dead, show the guild that actually killed it (from last death record)
-      if (lastDeath) {
-        const respawnHours = bossData?.respawn_hours ?? 0;
-        const deathTime = new Date(lastDeath.death_time);
-        const spawnTime = new Date(deathTime.getTime() + respawnHours * 3600000);
-        if (new Date() < spawnTime) {
-          const lastGuildId = (lastDeath as any)?.owner_guild_id;
-          if (lastGuildId) return guilds.find(g => g.id === lastGuildId)?.name ?? null;
-        }
-      }
-
-      const killCount = deathRecords.filter(dr => dr.boss_id === bossId && !dr.is_initial_spawn).length;
-      let idx = (killCount + adjustment) % rotationEntries.length;
-      if (idx < 0) idx += rotationEntries.length;
+      const counter = bossData?.rotation_counter ?? 1;
+      const idx = counter - 1;
       return guilds.find(g => g.id === rotationEntries[idx].guild_id)?.name ?? null;
     }
 
@@ -198,6 +194,9 @@ export function WeeklyScheduleView() {
         queryClient.invalidateQueries({ queryKey: ["leaderboard"] });
         queryClient.invalidateQueries({ queryKey: ["members"] });
         queryClient.invalidateQueries({ queryKey: ["analytics"] });
+
+        // Advance rotation counter on kill
+        try { await advanceBossRotation(bossId); } catch {}
 
         const sid = getCurrentServerId();
         if (sid && boss) notifyDiscord(sid, "boss_died", {
@@ -399,10 +398,9 @@ export function WeeklyScheduleView() {
                       />
                       <span className="text-white text-sm">{s.boss.name}</span>
                       {(() => {
-                        // For killed bosses, use display override if set
                         let gName: string | null | undefined;
-                        if (isDeathEvent && s.deathRecord?.display_owner_guild_id) {
-                          gName = guilds.find(g => g.id === s.deathRecord!.display_owner_guild_id)?.name;
+                        if (isDeathEvent && s.deathRecord) {
+                          gName = guilds.find(g => g.id === (s.deathRecord.display_owner_guild_id ?? s.deathRecord.owner_guild_id))?.name;
                         } else {
                           gName = getOwnerGuildName(s.boss.id, day.day);
                         }
@@ -509,8 +507,8 @@ export function WeeklyScheduleView() {
                     </div>
                     {(() => {
                       let gName: string | null | undefined;
-                      if (isDeathEvent && s.deathRecord?.display_owner_guild_id) {
-                        gName = guilds.find(g => g.id === s.deathRecord!.display_owner_guild_id)?.name;
+                      if (isDeathEvent && s.deathRecord) {
+                        gName = guilds.find(g => g.id === (s.deathRecord.display_owner_guild_id ?? s.deathRecord.owner_guild_id))?.name;
                       } else {
                         gName = getOwnerGuildName(s.boss.id, day.day);
                       }

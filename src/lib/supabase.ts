@@ -175,6 +175,22 @@ export async function setBossPoints(bossId: string, points: number): Promise<voi
   if (error) throw error;
 }
 
+/** Set boss rotation to a specific guild index (0-based) */
+export async function setBossRotation(bossId: string, index: number): Promise<number> {
+  const { data, error } = await supabase
+    .rpc("set_boss_rotation", { p_boss_id: bossId, p_index: index });
+  if (error) throw error;
+  return data as number;
+}
+
+/** Advance boss rotation by 1 on kill (wraps within guild count). Returns new index. */
+export async function advanceBossRotation(bossId: string): Promise<number> {
+  const { data, error } = await supabase
+    .rpc("advance_boss_rotation", { p_boss_id: bossId });
+  if (error) throw error;
+  return data as number;
+}
+
 // ── Death Records ───────────────────────────────────────────
 
 export async function fetchDeathRecords(serverId?: string | null): Promise<DeathRecord[]> {
@@ -809,6 +825,8 @@ export interface MemberBossKill {
   boss_name: string;
   killed_at: string;
   death_record_id: string;
+  /** Points earned for this boss kill */
+  points?: number;
 }
 
 /** Get all bosses a specific member participated in killing */
@@ -817,7 +835,7 @@ export async function fetchMemberKills(memberId: string, since?: string, serverI
   if (!sid) return [];
   let query = supabase
     .from("attendance_records")
-    .select("death_record_id, death_records!inner(death_time, bosses!inner(name))")
+    .select("death_record_id, death_records!inner(death_time, boss_id, bosses!inner(name, boss_points))")
     .eq("member_id", memberId)
     .order("created_at", { ascending: false });
 
@@ -834,6 +852,7 @@ export async function fetchMemberKills(memberId: string, since?: string, serverI
     boss_name: row.death_records.bosses.name,
     killed_at: row.death_records.death_time,
     death_record_id: row.death_record_id,
+    points: row.death_records.bosses.boss_points ?? 1,
   }));
 }
 
@@ -868,7 +887,7 @@ export async function fetchHistoryFromSupabase(serverId?: string | null): Promis
   let query = supabase
     .from("death_records")
     .select(`
-      id, death_time,
+      id, death_time, owner_guild_id, display_owner_guild_id,
       bosses!inner(id, name, spawn_type, respawn_hours, schedule),
       attendance_records(id)
     `)
@@ -887,6 +906,23 @@ export async function fetchHistoryFromSupabase(serverId?: string | null): Promis
     seen.add(d.id);
     return true;
   });
+
+  // Fetch guild names for owner_guild_id + display_owner_guild_id references
+  const guildIds = [...new Set(
+    unique.flatMap((d: any) => [d.owner_guild_id, d.display_owner_guild_id]).filter(Boolean)
+  )];
+  const guildMap = new Map<string, string>();
+  if (guildIds.length > 0) {
+    try {
+      const { data: guildData } = await supabase
+        .from("guilds")
+        .select("id, name")
+        .in("id", guildIds as string[]);
+      if (guildData) {
+        for (const g of guildData as any[]) guildMap.set(g.id, g.name);
+      }
+    } catch { /* ignore — guild names are cosmetic */ }
+  }
 
   return unique.map((d: any) => {
     const boss = d.bosses;
@@ -926,6 +962,7 @@ export async function fetchHistoryFromSupabase(serverId?: string | null): Promis
       spawnType: boss.spawn_type,
       deathRecordId: d.id,
       createdAt: d.death_time,
+      ownerGuildName: guildMap.get(d.display_owner_guild_id ?? d.owner_guild_id),
     };
   });
 }

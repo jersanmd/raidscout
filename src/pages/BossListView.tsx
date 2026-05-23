@@ -17,6 +17,8 @@ import {
   adjustBossRotation,
   toggleViewerCanEdit,
   toggleViewerCanMarkDied,
+  setBossRotation,
+  advanceBossRotation,
 } from "@/lib/supabase";
 import { BossCard } from "@/components/BossCard";
 import { DeathRecordModal } from "@/components/DeathRecordModal";
@@ -197,7 +199,13 @@ export function BossListView() {
       }
 
       const lastGuildId = (lastDeath as any).owner_guild_id;
-      if (!lastGuildId) return guilds.find(g => g.id === dailyEntries[0].guild_id)?.name;
+      if (!lastGuildId) {
+        // No owner_guild_id — advance from first guild since spawn crossed into new day
+        const adjustment = bossData?.rotation_adjustment ?? 0;
+        let idx = (1 + adjustment) % dailyEntries.length;
+        if (idx < 0) idx += dailyEntries.length;
+        return guilds.find(g => g.id === dailyEntries[idx].guild_id)?.name;
+      }
       
       const lastIdx = dailyEntries.findIndex(bg => bg.guild_id === lastGuildId);
       const adjustment = bossData?.rotation_adjustment ?? 0;
@@ -206,25 +214,12 @@ export function BossListView() {
       return guilds.find(g => g.id === dailyEntries[nextIdx].guild_id)?.name;
     }
 
-    // Rotation mode: advance by number of kills (with manual adjustment)
+    // Rotation mode: use rotation_counter
     const rotationEntries = bgs.filter(bg => bg.sort_order !== null && bg.mode !== "daily").sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
     if (rotationEntries.length > 0) {
-      const bossSpawn = spawns.find(s => s.boss.id === bossId);
-      const bossData = bossSpawn?.boss;
-      
-      // If boss is dead, show the guild that actually killed it (from last death record)
-      if (bossSpawn?.status === "countdown") {
-        const lastDeath = deathRecords
-          .filter(dr => dr.boss_id === bossId && !dr.is_initial_spawn)
-          .sort((a, b) => new Date(b.death_time).getTime() - new Date(a.death_time).getTime())[0];
-        const lastGuildId = (lastDeath as any)?.owner_guild_id;
-        if (lastGuildId) return guilds.find(g => g.id === lastGuildId)?.name;
-      }
-
-      const killCount = deathRecords.filter(dr => dr.boss_id === bossId && !dr.is_initial_spawn).length;
-      const adjustment = bossData?.rotation_adjustment ?? 0;
-      let idx = (killCount + adjustment) % rotationEntries.length;
-      if (idx < 0) idx += rotationEntries.length;
+      const bossData = spawns.find(s => s.boss.id === bossId)?.boss;
+      const counter = bossData?.rotation_counter ?? 1;
+      const idx = counter - 1;
       return guilds.find(g => g.id === rotationEntries[idx].guild_id)?.name;
     }
 
@@ -242,9 +237,8 @@ export function BossListView() {
     // Rotation mode
     const rotationEntries = bgs.filter(bg => bg.sort_order !== null && bg.mode !== "daily").sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
     if (rotationEntries.length > 1) {
-      const killCount = deathRecords.filter(dr => dr.boss_id === bossId && !dr.is_initial_spawn).length;
-      let idx = (killCount + adjustment) % rotationEntries.length;
-      if (idx < 0) idx += rotationEntries.length;
+      const counter = bossData?.rotation_counter ?? 1;
+      const idx = counter - 1
       const guildList = rotationEntries.map(bg => {
         const g = guilds.find(g => g.id === bg.guild_id);
         return { name: g?.name ?? "?", color: guildColor(g?.name ?? "?") };
@@ -260,7 +254,7 @@ export function BossListView() {
         .sort((a, b) => new Date(b.death_time).getTime() - new Date(a.death_time).getTime())[0];
       const lastGuildId = lastDeath ? (lastDeath as any).owner_guild_id : null;
       const lastIdx = lastGuildId ? dailyEntries.findIndex(bg => bg.guild_id === lastGuildId) : -1;
-      let idx = (lastIdx >= 0 ? lastIdx + 1 : 0) + adjustment;
+      let idx = (lastIdx >= 0 ? lastIdx + 1 : 1) + adjustment;
       idx = ((idx % dailyEntries.length) + dailyEntries.length) % dailyEntries.length;
       const guildList = dailyEntries.map(bg => {
         const g = guilds.find(g => g.id === bg.guild_id);
@@ -274,19 +268,15 @@ export function BossListView() {
 
   // Set boss rotation to a specific guild index
   const handleSetRotation = useCallback(async (bossId: string, targetIndex: number) => {
-    const info = getBossRotationInfo(bossId);
-    if (!info) return;
-    const delta = targetIndex - info.currentIndex;
-    if (delta === 0) return;
     try {
-      await adjustBossRotation(bossId, delta);
+      await setBossRotation(bossId, targetIndex);
       queryClient.invalidateQueries({ queryKey: ["bosses"] });
       queryClient.invalidateQueries({ queryKey: ["death_records"] });
       setRefreshKey(k => k + 1);
     } catch (err: any) {
-      setToast({ type: "error", message: err?.message ?? "Failed to adjust rotation" });
+      setToast({ type: "error", message: err?.message ?? "Failed to set rotation" });
     }
-  }, [getBossRotationInfo, queryClient]);
+  }, [queryClient]);
 
   const handleRecordDeath = useCallback(
     async (bossId: string, deathTime: Date, rallyImages: File[], attendeeIds: string[]) => {
@@ -335,6 +325,10 @@ export function BossListView() {
           queryClient.invalidateQueries({ queryKey: ["leaderboard"] });
           queryClient.invalidateQueries({ queryKey: ["members"] });
           queryClient.invalidateQueries({ queryKey: ["analytics"] });
+
+          // Advance rotation counter on kill
+          try { await advanceBossRotation(bossId); } catch {}
+          queryClient.invalidateQueries({ queryKey: ["bosses"] });
 
           // Send Discord notification (only for authenticated users, not viewers)
           if (user) {
@@ -715,6 +709,7 @@ export function BossListView() {
                     onSetRotation={(idx) => handleSetRotation(s.boss.id, idx)}
                     viewerCanEdit={viewerCanEdit}
                     viewerCanMarkDied={viewerCanMarkDied}
+                    hasGuilds={bossGuilds.some(bg => bg.boss_id === s.boss.id)}
                   />
                   );
                 })}

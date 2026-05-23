@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { createServer, createGuild } from "@/lib/supabase";
+import { createServer, createGuild, fetchBosses, setBossGuilds } from "@/lib/supabase";
 import { useServer } from "@/contexts/ServerContext";
 import { Loader2, Plus, X, Server, Shield } from "lucide-react";
 
@@ -12,14 +12,20 @@ export function CreateServerModal({ onClose }: { onClose: () => void }) {
 
   const handleCreate = async () => {
     const trimmed = name.trim();
-    if (!trimmed) return;
+    const guildTrimmed = guildName.trim();
+    if (!trimmed || !guildTrimmed) return;
     setLoading(true);
     setError(null);
     try {
       const server = await createServer(trimmed);
-      // Create initial guild if name provided
-      if (guildName.trim()) {
-        try { await createGuild(guildName.trim(), server.id); } catch { /* guild creation is optional */ }
+      // Create the initial guild (required)
+      const guild = await createGuild(guildTrimmed, server.id);
+      // Assign all bosses to this guild
+      const bosses = await fetchBosses(server.id);
+      for (const boss of bosses) {
+        try {
+          await setBossGuilds(boss.id, [{ guild_id: guild.id, sort_order: 0 }], "rotation");
+        } catch { /* skip individual assignment errors */ }
       }
       await refreshServers();
       onClose();
@@ -60,20 +66,21 @@ export function CreateServerModal({ onClose }: { onClose: () => void }) {
             />
           </div>
           <div>
-            <label className="block text-xs text-slate-500 mb-1">Initial Guild Name (optional)</label>
+            <label className="block text-xs text-slate-500 mb-1">Default Guild Name (required)</label>
             <input
               type="text"
               value={guildName}
               onChange={(e) => setGuildName(e.target.value)}
-              placeholder="First guild..."
+              placeholder="My Guild"
               onKeyDown={(e) => e.key === "Enter" && handleCreate()}
               className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 outline-none focus:border-purple-500 transition"
             />
+            <p className="text-[10px] text-slate-600 mt-1">All 39 bosses will be assigned to this guild by default.</p>
           </div>
           {error && <p className="text-xs text-red-400">{error}</p>}
           <button
             onClick={handleCreate}
-            disabled={loading || !name.trim()}
+            disabled={loading || !name.trim() || !guildName.trim()}
             className="w-full py-2.5 rounded-lg font-medium text-sm bg-gradient-to-r from-emerald-600 to-green-500 text-white hover:from-emerald-500 hover:to-green-400 transition disabled:opacity-50 flex items-center justify-center gap-2"
           >
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Server className="w-4 h-4" />}
