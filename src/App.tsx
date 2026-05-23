@@ -4,7 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ServerProvider, useServer } from "@/contexts/ServerContext";
 import { Layout } from "@/components/Layout";
-import { AuthForm } from "@/components/AuthForm";
+import { LandingPage } from "@/pages/LandingPage";
 import { ResetPasswordForm } from "@/components/ResetPasswordForm";
 import { ViewerRoute } from "@/components/ViewerRoute";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
@@ -81,7 +81,7 @@ function AppContent() {
         <Route path="/view/:viewerKey" element={<ViewerRoute />} />
 
         {/* Authenticated routes */}
-        <Route path="*" element={!user && !isViewer ? <AuthForm /> : <AppRoutes />} />
+        <Route path="*" element={!user && !isViewer ? <LandingPage /> : <AppRoutes />} />
       </Routes>
     </ServerProvider>
   );

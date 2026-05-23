@@ -327,14 +327,14 @@ export function WeeklyScheduleView() {
       <h2 className="text-xl font-bold text-white mb-6">Weekly Schedule</h2>
 
       {/* Mobile: list view */}
-      <div className="lg:hidden space-y-4">
+      <div className="lg:hidden space-y-3">
         {weekDays.map((day) => (
           <div
             key={day.day}
-            className={`rounded-xl border p-4 ${
+            className={`rounded-xl border p-4 transition-all duration-300 ${
               day.isToday
-                ? "border-red-800 bg-red-900/10"
-                : "border-slate-800 bg-slate-900"
+                ? "border-red-800 bg-red-900/10 shadow-lg shadow-red-900/5"
+                : "border-slate-800 bg-slate-900 hover:border-slate-700"
             }`}
           >
             <div className="flex items-center justify-between mb-3">
@@ -346,6 +346,9 @@ export function WeeklyScheduleView() {
                     day: "numeric",
                   })}
                 </span>
+                {day.isToday && (
+                  <span className="ml-2 text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-red-900/50 text-red-400">Today</span>
+                )}
               </div>
               {day.isToday && (
                 <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-red-900/50 text-red-400">
@@ -379,7 +382,7 @@ export function WeeklyScheduleView() {
                         });
                       }
                     }}
-                    className={`flex items-center justify-between py-1.5 px-2 rounded transition ${
+                    className={`flex items-center justify-between py-1.5 px-2 rounded transition-all duration-200 hover:scale-[1.01] ${
                       isDeathEvent
                         ? "bg-red-900/20 border border-red-900/30 cursor-pointer hover:bg-red-900/30"
                         : isViewer
@@ -432,15 +435,15 @@ export function WeeklyScheduleView() {
         {weekDays.map((day) => (
           <div
             key={day.day}
-            className={`rounded-xl border overflow-hidden ${
+            className={`rounded-xl border overflow-hidden transition-all duration-300 hover:shadow-lg ${
               day.isToday
-                ? "border-red-800 bg-red-900/10"
-                : "border-slate-800 bg-slate-900"
+                ? "border-red-800 bg-red-900/10 shadow-lg shadow-red-900/5"
+                : "border-slate-800 bg-slate-900 hover:border-slate-700"
             }`}
           >
             {/* Day header */}
             <div
-              className={`text-center py-2 border-b ${
+              className={`text-center py-2.5 border-b transition-colors ${
                 day.isToday ? "border-red-800 bg-red-900/20" : "border-slate-800"
               }`}
             >
@@ -452,7 +455,7 @@ export function WeeklyScheduleView() {
                 })}
               </div>
               {day.isToday && (
-                <span className="inline-block mt-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-red-900/50 text-red-400">
+                <span className="inline-block mt-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-red-900/50 text-red-400 animate-pulse">
                   Today
                 </span>
               )}
@@ -484,14 +487,14 @@ export function WeeklyScheduleView() {
                         });
                       }
                     }}
-                    className={`text-xs rounded px-1.5 py-1 transition ${
+                    className={`text-xs rounded px-1.5 py-1 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] ${
                       isDeathEvent
-                        ? "bg-red-900/20 border border-red-900/30 cursor-pointer hover:bg-red-900/30"
+                        ? "bg-red-900/20 border border-red-900/30 cursor-pointer hover:bg-red-900/30 hover:border-red-800"
                         : isViewer
                         ? "bg-slate-800/50 cursor-default"
                         : isScheduleBoss
-                        ? "bg-blue-900/20 border border-blue-900/30 cursor-pointer hover:bg-blue-900/30"
-                        : "bg-orange-900/20 border border-orange-900/30 cursor-pointer hover:bg-orange-900/30"
+                        ? "bg-blue-900/20 border border-blue-900/30 cursor-pointer hover:bg-blue-900/30 hover:border-blue-800"
+                        : "bg-orange-900/20 border border-orange-900/30 cursor-pointer hover:bg-orange-900/30 hover:border-orange-800"
                     }`}
                   >
                     <div className="flex items-center justify-between">

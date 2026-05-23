@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
-import { LogIn, UserPlus, Mail, CheckCircle, AlertTriangle, Timer, Users, BarChart3, MessageSquare, Eye, Key } from "lucide-react";
+import { LogIn, UserPlus, Mail, CheckCircle, AlertTriangle, Timer, Users, BarChart3, MessageSquare, Eye, Key, Shield, Trophy, Calendar, Sparkles, Skull } from "lucide-react";
 
 export function AuthForm() {
   const { signIn, signUp, viewerSignIn } = useAuth();
@@ -104,11 +104,16 @@ export function AuthForm() {
           </div>
 
           {/* Feature list */}
-          <div className="space-y-4 pt-4">
-            <Feature icon={<Timer className="w-5 h-5" />} color="text-amber-400" bg="bg-amber-900/20 border-amber-800/30" title="Live Spawn Timers" desc="See exactly when each boss spawns. No more guessing or camping." />
-            <Feature icon={<Users className="w-5 h-5" />} color="text-blue-400" bg="bg-blue-900/20 border-blue-800/30" title="Fair Guild Rotation" desc="Rotate boss ownership between guilds. Everyone gets their fair share." />
-            <Feature icon={<BarChart3 className="w-5 h-5" />} color="text-purple-400" bg="bg-purple-900/20 border-purple-800/30" title="Member Stats" desc="Track who shows up. Celebrate your top performers." />
-            <Feature icon={<MessageSquare className="w-5 h-5" />} color="text-emerald-400" bg="bg-emerald-900/20 border-emerald-800/30" title="Discord Alerts" desc="Let Discord notify your team. No need to keep checking the site." />
+          <div className="space-y-4 pt-4 max-h-[55vh] overflow-y-auto pr-1">
+            <Feature icon={<Timer className="w-5 h-5" />} color="text-amber-400" bg="bg-amber-900/20 border-amber-800/30" title="Live Countdown Timers" desc="Real-time spawn timers for 39+ bosses. See exactly when each boss spawns." />
+            <Feature icon={<Shield className="w-5 h-5" />} color="text-blue-400" bg="bg-blue-900/20 border-blue-800/30" title="Multi-Guild Rotation" desc="Assign bosses to guilds with per-kill or daily rotation. Weighted turns." />
+            <Feature icon={<BarChart3 className="w-5 h-5" />} color="text-purple-400" bg="bg-purple-900/20 border-purple-800/30" title="Leaderboard &amp; Points" desc="Configurable boss points. Track top performers weekly, monthly, or all-time." />
+            <Feature icon={<Sparkles className="w-5 h-5" />} color="text-violet-400" bg="bg-violet-900/20 border-violet-800/30" title="AI Rally Scanning" desc="Upload a rally screenshot — AI detects player names automatically." />
+            <Feature icon={<MessageSquare className="w-5 h-5" />} color="text-emerald-400" bg="bg-emerald-900/20 border-emerald-800/30" title="Discord Notifications" desc="Auto-post to Discord when bosses die or spawn. @everyone pings included." />
+            <Feature icon={<Calendar className="w-5 h-5" />} color="text-cyan-400" bg="bg-cyan-900/20 border-cyan-800/30" title="Weekly Schedule View" desc="See the entire week at a glance. Which guild owns which boss per day." />
+            <Feature icon={<Skull className="w-5 h-5" />} color="text-red-400" bg="bg-red-900/20 border-red-800/30" title="Death History" desc="Full kill log with guild badges. Attendance tracking per boss kill." />
+            <Feature icon={<Eye className="w-5 h-5" />} color="text-orange-400" bg="bg-orange-900/20 border-orange-800/30" title="Viewer Mode" desc="Share a link so guild members can watch timers without an account." />
+            <Feature icon={<Trophy className="w-5 h-5" />} color="text-yellow-400" bg="bg-yellow-900/20 border-yellow-800/30" title="Forever Free" desc="No paywalls. No limits. All features included. Your guild, your rules." />
           </div>
         </div>
 

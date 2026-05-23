@@ -93,9 +93,9 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
     <>
       <div
         onClick={() => multiMode && onToggleSelect?.(boss.id)}
-        className={`relative rounded-xl border ${statusConfig.border} ${statusConfig.bg} p-4 transition ${
+        className={`relative rounded-xl border ${statusConfig.border} ${statusConfig.bg} p-4 transition-all duration-300 animate-[fadeIn_0.3s_ease-out] hover:-translate-y-0.5 hover:shadow-lg hover:shadow-black/20 ${
           multiMode ? "cursor-pointer" : ""
-        } hover:border-slate-600 ${
+        } hover:border-slate-500 ${
           selected ? "ring-2 ring-blue-500 border-blue-500" : ""
         }`}
       >
@@ -155,6 +155,7 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
             )}
 
             {/* Row 3: Respawn / schedule info */}
+            {(boss.respawn_hours || boss.schedule) && (
             <div className="flex items-center gap-2 text-xs text-slate-600">
               {boss.respawn_hours && <span>+{boss.respawn_hours}h respawn</span>}
               {boss.schedule && (
@@ -165,11 +166,12 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
                 </span>
               )}
             </div>
+            )}
           </div>
         </div>
 
         {/* Bottom action buttons */}
-        {!compact && !multiMode && (
+        {!compact && !multiMode && (canEdit || canMarkDied) && (
           <div className="flex items-center justify-end gap-1.5 mt-3 pt-3 border-t border-slate-700/50">
             {canEdit && (
               <button
@@ -179,7 +181,7 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
                   setEditSpawnDate(local);
                   setShowEditSpawnModal(true);
                 }}
-                className="flex items-center justify-center gap-1 px-2.5 py-1 rounded-md bg-blue-900/30 border border-blue-800 text-blue-400 text-xs font-medium hover:bg-blue-900/50 transition shrink-0 w-[130px]"
+                className="flex items-center justify-center gap-1 px-2.5 py-1 rounded-md bg-blue-900/30 border border-blue-800 text-blue-400 text-xs font-medium hover:bg-blue-900/50 hover:scale-105 active:scale-95 transition-all duration-200 shrink-0 w-[130px]"
               >
                 <Pencil className="w-3 h-3" />
                 Edit Spawn Time
@@ -188,7 +190,7 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
             {canMarkDied && (
             <button
               onClick={() => setShowModal(true)}
-              className="flex items-center justify-center gap-1 px-2.5 py-1 rounded-md bg-red-900/30 border border-red-800 text-red-400 text-xs font-medium hover:bg-red-900/50 transition shrink-0 w-[130px]"
+              className="flex items-center justify-center gap-1 px-2.5 py-1 rounded-md bg-red-900/30 border border-red-800 text-red-400 text-xs font-medium hover:bg-red-900/50 hover:scale-105 active:scale-95 transition-all duration-200 shrink-0 w-[130px]"
             >
               <Skull className="w-3 h-3" />
               Mark Died
@@ -220,10 +222,10 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
                   <button
                     key={i}
                     onClick={(e) => { e.stopPropagation(); setOptimisticOwner(g.name); onSetRotation?.(i); }}
-                    className={`flex-1 text-center px-2 py-1 rounded text-[10px] font-medium border transition ${
+                    className={`flex-1 text-center px-2 py-1 rounded text-[10px] font-medium border transition-all duration-200 hover:scale-105 active:scale-95 ${
                       isCurrent
                         ? `${g.color.bg} ${g.color.text} ${g.color.border}`
-                        : "bg-slate-800/50 border-slate-700 text-slate-500 hover:text-slate-300 hover:border-slate-600"
+                        : "bg-slate-800/50 border-slate-700 text-slate-500 hover:text-slate-300 hover:border-slate-500"
                     }`}
                     title={isCurrent ? `Current: ${g.name}` : `Set rotation to ${g.name}`}
                   >
