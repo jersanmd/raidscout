@@ -219,7 +219,7 @@ export function BossListView() {
     if (rotationEntries.length > 0) {
       const bossData = spawns.find(s => s.boss.id === bossId)?.boss;
       const counter = bossData?.rotation_counter ?? 1;
-      const idx = counter - 1;
+      const idx = ((counter - 1) % rotationEntries.length + rotationEntries.length) % rotationEntries.length;
       return guilds.find(g => g.id === rotationEntries[idx].guild_id)?.name;
     }
 
@@ -238,7 +238,7 @@ export function BossListView() {
     const rotationEntries = bgs.filter(bg => bg.sort_order !== null && bg.mode !== "daily").sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
     if (rotationEntries.length > 1) {
       const counter = bossData?.rotation_counter ?? 1;
-      const idx = counter - 1
+      const idx = ((counter - 1) % rotationEntries.length + rotationEntries.length) % rotationEntries.length;
       const guildList = rotationEntries.map(bg => {
         const g = guilds.find(g => g.id === bg.guild_id);
         return { name: g?.name ?? "?", color: guildColor(g?.name ?? "?") };

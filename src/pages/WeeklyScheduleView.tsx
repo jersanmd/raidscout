@@ -168,7 +168,7 @@ export function WeeklyScheduleView() {
     const rotationEntries = bgs.filter(bg => bg.sort_order !== null && bg.mode !== "daily").sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
     if (rotationEntries.length > 0) {
       const counter = bossData?.rotation_counter ?? 1;
-      const idx = counter - 1;
+      const idx = ((counter - 1) % rotationEntries.length + rotationEntries.length) % rotationEntries.length;
       return guilds.find(g => g.id === rotationEntries[idx].guild_id)?.name ?? null;
     }
 
