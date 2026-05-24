@@ -277,8 +277,8 @@ export function ServerSettingsView() {
     if (!currentServer) return;
     const fetchKey = async () => {
       try {
-        const { data } = await supabase.from("servers").select("viewer_key").eq("id", currentServer.id).single();
-        if (data) setViewerKey((data as any).viewer_key);
+        const { data } = await supabase.rpc("get_server_viewer_key", { s_id: currentServer.id });
+        if (data) setViewerKey(data as string);
       } catch {}
     };
     fetchKey();
