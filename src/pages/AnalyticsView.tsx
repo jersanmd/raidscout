@@ -127,12 +127,13 @@ export function AnalyticsView() {
       <Section title="Kills per Week" icon={<TrendingUp className="w-4 h-4" />}>
         <div className="space-y-1.5">
           {data.killsByWeek.slice(-12).map((w) => (
-            <div key={w.week} className="flex items-center gap-2 text-xs">
-              <span className="text-slate-500 w-20 shrink-0 text-right">{w.week}</span>
-              <div className="flex-1 h-5 bg-slate-800 rounded overflow-hidden">
-                <div className="h-full bg-gradient-to-r from-purple-600 to-pink-500 rounded" style={{ width: `${(w.count / maxWeeklyKills) * 100}%` }} />
+            <div key={w.week} className="flex items-center gap-2 text-sm">
+              <span className="text-slate-400 w-20 shrink-0 text-left">{w.week}</span>
+              <div className="flex-1 h-6 bg-slate-800 rounded overflow-hidden">
+                <div className="h-full bg-gradient-to-r from-purple-600 to-pink-500 rounded flex items-center justify-end px-2" style={{ width: `${Math.max((w.count / maxWeeklyKills) * 100, 8)}%` }}>
+                  <span className="text-xs text-white font-mono font-bold drop-shadow">{w.count}</span>
+                </div>
               </div>
-              <span className="text-slate-300 w-8 shrink-0 font-mono">{w.count}</span>
             </div>
           ))}
         </div>
@@ -141,12 +142,12 @@ export function AnalyticsView() {
       <Section title="Most Killed Bosses" icon={<Skull className="w-4 h-4" />}>
         <div className="space-y-1.5">
           {data.topBosses.map((b, i) => (
-            <div key={b.name} className="flex items-center gap-2 text-xs">
-              <span className="text-slate-500 w-5 shrink-0 text-right">{i + 1}.</span>
-              <span className="text-white w-24 shrink-0 truncate">{b.name}</span>
-              <div className="flex-1 h-5 bg-slate-800 rounded overflow-hidden">
+            <div key={b.name} className="flex items-center gap-2 text-sm">
+              <span className="text-slate-400 w-5 shrink-0 text-left">{i + 1}.</span>
+              <span className="text-white w-24 shrink-0 truncate text-left">{b.name}</span>
+              <div className="flex-1 h-6 bg-slate-800 rounded overflow-hidden">
                 <div className="h-full bg-gradient-to-r from-red-600 to-orange-500 rounded flex items-center justify-end px-2" style={{ width: `${Math.max((b.kills / maxBossKills) * 100, 8)}%` }}>
-                  <span className="text-[10px] text-white font-mono font-bold drop-shadow">{b.kills}</span>
+                  <span className="text-xs text-white font-mono font-bold drop-shadow">{b.kills}</span>
                 </div>
               </div>
             </div>
@@ -161,17 +162,17 @@ export function AnalyticsView() {
             const guild = gid ? guilds.find(g => g.id === gid) : null;
             const c = guild ? guildColor(guild.name) : null;
             return (
-            <div key={h.name} className="flex items-center gap-2 text-xs">
-              <span className="text-slate-500 w-5 shrink-0 text-right">{i + 1}.</span>
-              <span className="text-white w-24 shrink-0 truncate">{h.name}</span>
+            <div key={h.name} className="flex items-center gap-2 text-sm">
+              <span className="text-slate-400 w-5 shrink-0 text-left">{i + 1}.</span>
+              <span className="text-white w-24 shrink-0 truncate text-left">{h.name}</span>
               {guild && c && (
-                <span className={`text-[9px] px-1 py-0.5 rounded border shrink-0 ${c.bg} ${c.text} ${c.border}`}>
-                  <Shield className="w-2 h-2 inline mr-0.5" />{guild.name}
+                <span className={`text-[10px] px-1.5 py-0.5 rounded border shrink-0 ${c.bg} ${c.text} ${c.border}`}>
+                  <Shield className="w-2.5 h-2.5 inline mr-0.5" />{guild.name}
                 </span>
               )}
-              <div className="flex-1 h-5 bg-slate-800 rounded overflow-hidden">
+              <div className="flex-1 h-6 bg-slate-800 rounded overflow-hidden">
                 <div className="h-full bg-gradient-to-r from-blue-600 to-cyan-500 rounded flex items-center justify-end px-2" style={{ width: `${Math.max((h.attended / maxAttended) * 100, 8)}%` }}>
-                  <span className="text-[10px] text-white font-mono font-bold drop-shadow">{h.attended}</span>
+                  <span className="text-xs text-white font-mono font-bold drop-shadow">{h.attended}</span>
                 </div>
               </div>
             </div>
@@ -198,12 +199,13 @@ export function AnalyticsView() {
       <Section title="Activity by Day" icon={<Activity className="w-4 h-4" />}>
         <div className="space-y-1.5">
           {data.killsByDay.map((d) => (
-            <div key={d.day} className="flex items-center gap-2 text-xs">
-              <span className="text-slate-500 w-10 shrink-0">{d.day}</span>
-              <div className="flex-1 h-5 bg-slate-800 rounded overflow-hidden">
-                <div className="h-full bg-gradient-to-r from-amber-600 to-yellow-500 rounded" style={{ width: `${(d.count / maxDaily) * 100}%` }} />
+            <div key={d.day} className="flex items-center gap-2 text-sm">
+              <span className="text-slate-400 w-10 shrink-0">{d.day}</span>
+              <div className="flex-1 h-6 bg-slate-800 rounded overflow-hidden">
+                <div className="h-full bg-gradient-to-r from-amber-600 to-yellow-500 rounded flex items-center justify-end px-2" style={{ width: `${Math.max((d.count / maxDaily) * 100, 8)}%` }}>
+                  <span className="text-xs text-white font-mono font-bold drop-shadow">{d.count}</span>
+                </div>
               </div>
-              <span className="text-slate-300 w-8 shrink-0 font-mono">{d.count}</span>
             </div>
           ))}
         </div>
@@ -217,7 +219,7 @@ function StatCard({ icon, label, value, color, bg }: { icon: React.ReactNode; la
     <div className={`rounded-xl border ${bg} p-3 text-center`}>
       <div className={`flex justify-center mb-1 ${color}`}>{icon}</div>
       <div className="text-lg font-bold text-white tabular-nums">{value}</div>
-      <div className="text-[10px] text-slate-500">{label}</div>
+      <div className="text-xs text-slate-500">{label}</div>
     </div>
   );
 }
@@ -225,7 +227,7 @@ function StatCard({ icon, label, value, color, bg }: { icon: React.ReactNode; la
 function Section({ title, icon, children }: { title: string; icon: React.ReactNode; children: React.ReactNode }) {
   return (
     <div className="space-y-2">
-      <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-2">{icon} {title}</h3>
+      <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-2">{icon} {title}</h3>
       {children}
     </div>
   );

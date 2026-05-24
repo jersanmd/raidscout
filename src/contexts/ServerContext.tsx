@@ -26,7 +26,7 @@ interface ServerState {
 const ServerContext = createContext<ServerState | undefined>(undefined);
 
 export function ServerProvider({ children }: { children: ReactNode }) {
-  const { user, isViewer, viewerServerId, viewerServerName } = useAuth();
+  const { user, isViewer, viewerServerId, viewerServerName, userRole } = useAuth();
   const [servers, setServers] = useState<Server[]>([]);
   const [currentServer, setCurrentServer] = useState<Server | null>(null);
   const [loading, setLoading] = useState(true);
@@ -94,7 +94,7 @@ export function ServerProvider({ children }: { children: ReactNode }) {
       if (srvData && srvData.length > 0) {
         for (const s of srvData) {
           const role = roleMap.get(s.id) ?? (s.owner_id === user.id ? "owner" : undefined);
-          if (!role) continue;
+          if (!role && userRole !== "admin") continue;
           list.push({
             id: s.id,
             name: s.name,
@@ -103,7 +103,7 @@ export function ServerProvider({ children }: { children: ReactNode }) {
             discord_webhook_url: s.discord_webhook_url,
             timezone: s.timezone || 'Asia/Manila',
             notification_prefix: s.notification_prefix || '@everyone',
-            role: role as "owner" | "moderator",
+            role: (role ?? "owner") as "owner" | "moderator",
           });
         }
       } else {
@@ -122,7 +122,7 @@ export function ServerProvider({ children }: { children: ReactNode }) {
         setCurrentServerWrapped(null);
       }
     } catch (err) { console.error("Failed to refresh servers:", err); }
-  }, [user, setCurrentServerWrapped]);
+  }, [user, setCurrentServerWrapped, userRole]);
 
   useEffect(() => {
     // Skip server loading for viewer mode (handled above)

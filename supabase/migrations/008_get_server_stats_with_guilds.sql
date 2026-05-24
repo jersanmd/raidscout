@@ -10,7 +10,7 @@ AS $$
 DECLARE
   result JSONB;
 BEGIN
-  IF NOT is_admin() THEN
+  IF NOT public.is_admin() THEN
     RAISE EXCEPTION 'Access denied: admin only';
   END IF;
 

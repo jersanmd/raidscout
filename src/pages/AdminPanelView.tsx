@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { fetchAllServers, fetchAllUsers, fetchAuditLog, fetchServerStats, fetchDatabaseStats, fetchPlanUsage, supabase } from "@/lib/supabase";
 import { useServer } from "@/contexts/ServerContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { Loader2, Shield, Server, Users, Eye, ChevronDown, ChevronUp, ClipboardList, HardDrive, BarChart3 } from "lucide-react";
+import { Loader2, Shield, Server, Users, Eye, ChevronDown, ChevronUp, ClipboardList, HardDrive, BarChart3, Crosshair, Skull, Activity, Radio } from "lucide-react";
 
 export function AdminPanelView() {
   const [tab, setTab] = useState<"servers" | "users" | "audit" | "database" | "plan">("servers");
@@ -177,7 +177,7 @@ export function AdminPanelView() {
                   <div className="flex items-center gap-3">
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-800 text-[11px] text-slate-300">
                       <Users className="w-3 h-3" />
-                      {s.member_count ?? 0}
+                      {s.raid_member_count ?? 0}
                     </span>
                     <div className="text-right hidden sm:block">
                       <p className="text-[10px] text-slate-400">Created {new Date(s.created_at).toLocaleDateString()}</p>
@@ -191,56 +191,91 @@ export function AdminPanelView() {
                       <Loader2 className="w-4 h-4 text-slate-500 animate-spin" />
                     ) : (
                       <>
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                          <div className="bg-slate-800/50 rounded-lg px-3 py-2 text-center">
-                            <p className="text-lg font-bold text-white">{stats.member_count ?? 0}</p>
-                            <p className="text-[10px] text-slate-500">Members</p>
+                        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+                          <div className="bg-gradient-to-br from-violet-500/10 to-purple-500/5 border border-violet-500/20 rounded-lg px-3 py-2.5 text-center">
+                            <Users className="w-3.5 h-3.5 text-violet-400 mx-auto mb-0.5" />
+                            <p className="text-lg font-bold text-violet-300">{stats.total_raid_members ?? 0}</p>
+                            <p className="text-[10px] text-violet-400/60">Raid Members</p>
                           </div>
-                          <div className="bg-slate-800/50 rounded-lg px-3 py-2 text-center">
-                            <p className="text-lg font-bold text-white">{stats.boss_count ?? 0}</p>
-                            <p className="text-[10px] text-slate-500">Bosses</p>
+                          <div className="bg-gradient-to-br from-blue-500/10 to-cyan-500/5 border border-blue-500/20 rounded-lg px-3 py-2.5 text-center">
+                            <Shield className="w-3.5 h-3.5 text-blue-400 mx-auto mb-0.5" />
+                            <p className="text-lg font-bold text-blue-300">{stats.member_count ?? 0}</p>
+                            <p className="text-[10px] text-blue-400/60">Members</p>
                           </div>
-                          <div className="bg-slate-800/50 rounded-lg px-3 py-2 text-center">
-                            <p className="text-lg font-bold text-white">{stats.death_count ?? 0}</p>
-                            <p className="text-[10px] text-slate-500">Kills</p>
+                          <div className="bg-gradient-to-br from-amber-500/10 to-orange-500/5 border border-amber-500/20 rounded-lg px-3 py-2.5 text-center">
+                            <Crosshair className="w-3.5 h-3.5 text-amber-400 mx-auto mb-0.5" />
+                            <p className="text-lg font-bold text-amber-300">{stats.boss_count ?? 0}</p>
+                            <p className="text-[10px] text-amber-400/60">Bosses</p>
                           </div>
-                          <div className="bg-slate-800/50 rounded-lg px-3 py-2 text-center">
-                            <p className={`text-lg font-bold ${stats.has_webhook ? 'text-emerald-400' : 'text-slate-500'}`}>
+                          <div className="bg-gradient-to-br from-rose-500/10 to-red-500/5 border border-rose-500/20 rounded-lg px-3 py-2.5 text-center">
+                            <Skull className="w-3.5 h-3.5 text-rose-400 mx-auto mb-0.5" />
+                            <p className="text-lg font-bold text-rose-300">{stats.death_count ?? 0}</p>
+                            <p className="text-[10px] text-rose-400/60">Kills</p>
+                          </div>
+                          <div className={`bg-gradient-to-br rounded-lg border px-3 py-2.5 text-center ${
+                            stats.has_webhook
+                              ? 'from-emerald-500/10 to-green-500/5 border-emerald-500/30'
+                              : 'from-slate-500/10 to-slate-500/5 border-slate-500/20'
+                          }`}>
+                            <Radio className={`w-3.5 h-3.5 mx-auto mb-0.5 ${stats.has_webhook ? 'text-emerald-400' : 'text-slate-500'}`} />
+                            <p className={`text-lg font-bold ${stats.has_webhook ? 'text-emerald-300' : 'text-slate-500'}`}>
                               {stats.has_webhook ? 'ON' : 'OFF'}
                             </p>
-                            <p className="text-[10px] text-slate-500">Webhook</p>
+                            <p className={`text-[10px] ${stats.has_webhook ? 'text-emerald-400/60' : 'text-slate-600'}`}>Webhook</p>
                           </div>
                         </div>
-                        {stats.guild_members && stats.guild_members.length > 0 && (
-                          <div className="bg-slate-800/30 rounded-lg px-3 py-2">
-                            <p className="text-[10px] text-slate-500 mb-1.5">Raid Members by Guild ({stats.total_raid_members ?? 0} total)</p>
-                            <div className="flex flex-wrap gap-2">
-                              {stats.guild_members.map((g: any) => (
+                        {stats.guild_members && stats.guild_members.length > 0 && (() => {
+                          const guildColors = [
+                            'bg-amber-500/15 text-amber-300 border-amber-500/20',
+                            'bg-violet-500/15 text-violet-300 border-violet-500/20',
+                            'bg-emerald-500/15 text-emerald-300 border-emerald-500/20',
+                            'bg-rose-500/15 text-rose-300 border-rose-500/20',
+                            'bg-cyan-500/15 text-cyan-300 border-cyan-500/20',
+                            'bg-orange-500/15 text-orange-300 border-orange-500/20',
+                            'bg-pink-500/15 text-pink-300 border-pink-500/20',
+                            'bg-lime-500/15 text-lime-300 border-lime-500/20',
+                            'bg-indigo-500/15 text-indigo-300 border-indigo-500/20',
+                            'bg-teal-500/15 text-teal-300 border-teal-500/20',
+                          ];
+                          return (
+                          <div className="bg-slate-800/40 border border-slate-700/50 rounded-lg px-3 py-2.5">
+                            <div className="flex items-center gap-1.5 mb-2">
+                              <Users className="w-3 h-3 text-violet-400" />
+                              <p className="text-[11px] font-medium text-slate-300">
+                                Raid Members by Guild
+                                <span className="text-slate-500 ml-1">({stats.total_raid_members ?? 0} total)</span>
+                              </p>
+                            </div>
+                            <div className="flex flex-wrap gap-1.5">
+                              {stats.guild_members.map((g: any, i: number) => {
+                                const isNoGuild = g.guild === 'No Guild';
+                                const colorClass = isNoGuild
+                                  ? 'bg-slate-700/50 text-slate-400 border-slate-600/30'
+                                  : guildColors[i % guildColors.length];
+                                return (
                                 <span
                                   key={g.guild}
-                                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium ${
-                                    g.guild === 'No Guild'
-                                      ? 'bg-slate-700 text-slate-400'
-                                      : 'bg-slate-700 text-slate-200'
-                                  }`}
+                                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium border ${colorClass}`}
                                 >
-                                  {g.guild}
-                                  <span className="text-slate-500">{g.count}</span>
+                                  <span className="truncate max-w-[120px]">{g.guild}</span>
+                                  <span className={`tabular-nums font-bold ${isNoGuild ? 'text-slate-500' : ''}`}>{g.count}</span>
                                 </span>
-                              ))}
+                                );
+                              })}
                             </div>
                           </div>
-                        )}
-                        <div className="flex justify-end">
+                          );
+                        })()}
+                        <div className="flex items-center justify-end gap-2 pt-1 border-t border-slate-800">
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
                               setCurrentServer({ id: s.id, name: s.name, owner_id: s.owner_id, invite_code: s.id?.substring(0, 8) ?? "", role: "owner" });
                               navigate("/");
                             }}
-                            className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium bg-blue-600 text-white hover:bg-blue-500 transition"
+                            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:from-blue-500 hover:to-indigo-500 transition shadow-sm shadow-blue-900/20"
                           >
-                            <Eye className="w-3 h-3" />
+                            <Eye className="w-3.5 h-3.5" />
                             View Server
                           </button>
                         </div>
