@@ -992,8 +992,10 @@ export function DeathRecordModal({ boss, onClose, onSubmit, defaultDeathTime, hi
                   <Loader2 className="w-4 h-4 animate-spin" />
                   Saving...
                 </span>
+              ) : selectedIds.size + selectedPendingIds.size > 0 ? (
+                <>Confirm and Save Attendance ({selectedIds.size + selectedPendingIds.size})</>
               ) : (
-                <>Save Attendance{selectedIds.size + selectedPendingIds.size > 0 ? ` (${selectedIds.size + selectedPendingIds.size})` : ""}</>
+                <>Proceed (skip attendance)</>
               )}
             </button>
           </div>
