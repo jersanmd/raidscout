@@ -14,15 +14,15 @@ DECLARE
 BEGIN
   invite := upper(substring(replace(gen_random_uuid()::text, '-', '') from 1 for 8));
   
-  INSERT INTO servers (name, owner_id, invite_code)
+  INSERT INTO public.servers (name, owner_id, invite_code)
   VALUES (server_name, auth.uid(), invite)
   RETURNING id INTO srv_id;
 
-  INSERT INTO server_members (server_id, user_id, role)
+  INSERT INTO public.server_members (server_id, user_id, role)
   VALUES (srv_id, auth.uid(), 'owner');
 
   -- Seed 39 default bosses (22 fixed_hours + 17 fixed_schedule)
-  INSERT INTO bosses (server_id, name, spawn_type, respawn_hours, schedule)
+  INSERT INTO public.bosses (server_id, name, spawn_type, respawn_hours, schedule)
   VALUES 
     (srv_id, 'Amentis', 'fixed_hours', 29, NULL),
     (srv_id, 'Araneo', 'fixed_hours', 24, NULL),
