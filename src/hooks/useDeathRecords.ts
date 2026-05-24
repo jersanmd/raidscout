@@ -56,7 +56,7 @@ export function useDeathRecords() {
       activeSubscriptions.delete(subKey);
       supabase.removeChannel(channel).catch(() => {});
     };
-  }, [user?.id]);
+  }, [user?.id, configured, serverId, queryClient, isViewer]);
 
   return query;
 }

@@ -437,7 +437,7 @@ export function BossListView() {
     return groups;
   }, [filteredSpawns]);
 
-  if (isLoading || !spawns.length) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center py-32">
         <div className="w-8 h-8 border-2 border-slate-600 border-t-red-500 rounded-full animate-spin" />
