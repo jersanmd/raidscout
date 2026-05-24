@@ -34,7 +34,7 @@ import { Skull, Loader2, X, CheckCircle, AlertTriangle, CheckSquare, Megaphone, 
 import type { BossWithSpawn, BossGuild, Guild, DeathRecord } from "@/types";
 
 export function BossListView() {
-  const { user, isViewer } = useAuth();
+  const { user, isViewer, viewerCanEdit: ctxViewerCanEdit, viewerCanMarkDied: ctxViewerCanMarkDied, viewerDiscordWebhookUrl: ctxDiscordWebhookUrl } = useAuth();
   const { currentServer } = useServer();
   const queryClient = useQueryClient();
 
@@ -68,17 +68,26 @@ export function BossListView() {
     Promise.all([fetchGuilds(sid), fetchBossGuilds(sid)])
       .then(([g, bg]) => { setGuilds(g); setBossGuilds(bg); })
       .catch(() => { setGuilds([]); setBossGuilds([]); });
-    // Check if server has a Discord webhook and viewer edit setting
-    const checkServer = async () => {
-      try {
-        const { data } = await supabase.from("servers").select("discord_webhook_url, viewer_can_edit, viewer_can_mark_died, viewer_key").eq("id", sid).single();
-        setHasWebhook(!!(data as any)?.discord_webhook_url);
-        setViewerCanEdit(!!(data as any)?.viewer_can_edit);
-        setViewerCanMarkDied(!!(data as any)?.viewer_can_mark_died);
-        setViewerKey((data as any)?.viewer_key || "");
-      } catch { setHasWebhook(false); setViewerCanEdit(false); setViewerCanMarkDied(false); setViewerKey(""); }
-    };
-    checkServer();
+
+    if (isViewer) {
+      // Viewers get settings from AuthContext (fetched via get_server_by_viewer_key RPC)
+      setHasWebhook(!!ctxDiscordWebhookUrl);
+      setViewerCanEdit(ctxViewerCanEdit);
+      setViewerCanMarkDied(ctxViewerCanMarkDied);
+      setViewerKey("");
+    } else {
+      // Check if server has a Discord webhook and viewer edit setting
+      const checkServer = async () => {
+        try {
+          const { data } = await supabase.from("servers").select("discord_webhook_url, viewer_can_edit, viewer_can_mark_died, viewer_key").eq("id", sid).single();
+          setHasWebhook(!!(data as any)?.discord_webhook_url);
+          setViewerCanEdit(!!(data as any)?.viewer_can_edit);
+          setViewerCanMarkDied(!!(data as any)?.viewer_can_mark_died);
+          setViewerKey((data as any)?.viewer_key || "");
+        } catch { setHasWebhook(false); setViewerCanEdit(false); setViewerCanMarkDied(false); setViewerKey(""); }
+      };
+      checkServer();
+    }
 
     // Realtime subscription — update viewer permissions without refresh
     const channel = subscribeToServerSettings(sid, (payload: any) => {
@@ -90,7 +99,7 @@ export function BossListView() {
     });
 
     return () => { supabase.removeChannel(channel); };
-  }, [currentServer?.id]);
+  }, [currentServer?.id, isViewer, ctxViewerCanEdit, ctxViewerCanMarkDied, ctxDiscordWebhookUrl]);
 
   // Debounced leaderboard/analytics invalidation — batches rapid kills
   const debouncedInvalidateLeaderboard = useMemo(() => {

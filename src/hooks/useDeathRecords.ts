@@ -21,10 +21,10 @@ export function useDeathRecords() {
       if (!configured || (!user && !isViewer)) return [];
       return await fetchDeathRecords(serverId);
     },
-    staleTime: 60_000,
+    staleTime: 0,
     gcTime: 30 * 60_000,
-    refetchOnMount: false,
-    refetchOnWindowFocus: false,
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
     placeholderData: (prev) => prev,
     retry: 2,
     enabled: configured && (!!user || isViewer) && !!serverId,

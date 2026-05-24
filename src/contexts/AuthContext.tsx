@@ -11,6 +11,9 @@ interface AuthState {
   viewerServerId: string | null;
   viewerServerName: string | null;
   viewerKey: string | null;
+  viewerCanEdit: boolean;
+  viewerCanMarkDied: boolean;
+  viewerDiscordWebhookUrl: string | null;
   viewerSignIn: (key: string) => Promise<{ error: string | null }>;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   signUp: (email: string, password: string) => Promise<{ error: string | null }>;
@@ -30,6 +33,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [viewerServerId, setViewerServerId] = useState<string | null>(null);
   const [viewerServerName, setViewerServerName] = useState<string | null>(null);
   const [viewerKey, setViewerKey] = useState<string | null>(null);
+  const [viewerCanEdit, setViewerCanEdit] = useState(false);
+  const [viewerCanMarkDied, setViewerCanMarkDied] = useState(false);
+  const [viewerDiscordWebhookUrl, setViewerDiscordWebhookUrl] = useState<string | null>(null);
 
   // Sync viewer key to supabase module for write operations
   useEffect(() => {
@@ -58,6 +64,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setViewerServerId(parsed.serverId);
         setViewerServerName(parsed.serverName || null);
         setViewerKey(parsed.viewerKey || null);
+        setViewerCanEdit(!!parsed.viewerCanEdit);
+        setViewerCanMarkDied(!!parsed.viewerCanMarkDied);
+        setViewerDiscordWebhookUrl(parsed.discordWebhookUrl || null);
       } catch { localStorage.removeItem(VIEWER_KEY_STORAGE); }
     }
 
@@ -71,6 +80,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setViewerServerId(null);
         setViewerServerName(null);
         setViewerKey(null);
+        setViewerCanEdit(false);
+        setViewerCanMarkDied(false);
+        setViewerDiscordWebhookUrl(null);
         localStorage.removeItem(VIEWER_KEY_STORAGE);
         fetchRole(session.user.id);
       }
@@ -86,6 +98,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setViewerServerId(null);
         setViewerServerName(null);
         setViewerKey(null);
+        setViewerCanEdit(false);
+        setViewerCanMarkDied(false);
+        setViewerDiscordWebhookUrl(null);
         localStorage.removeItem(VIEWER_KEY_STORAGE);
         fetchRole(session.user.id);
       } else {
@@ -114,6 +129,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setViewerServerId(null);
       setViewerServerName(null);
       setViewerKey(null);
+      setViewerCanEdit(false);
+      setViewerCanMarkDied(false);
+      setViewerDiscordWebhookUrl(null);
       return;
     }
     try {
@@ -136,13 +154,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsViewer(true);
     setViewerServerId(server.id);
     setViewerServerName(server.name);
+    setViewerCanEdit(!!server.viewer_can_edit);
+    setViewerCanMarkDied(!!server.viewer_can_mark_died);
+    setViewerDiscordWebhookUrl(server.discord_webhook_url || null);
     setViewerKey(key.trim());
-    localStorage.setItem(VIEWER_KEY_STORAGE, JSON.stringify({ serverId: server.id, serverName: server.name, viewerKey: key.trim() }));
+    localStorage.setItem(VIEWER_KEY_STORAGE, JSON.stringify({
+      serverId: server.id,
+      serverName: server.name,
+      viewerKey: key.trim(),
+      viewerCanEdit: !!server.viewer_can_edit,
+      viewerCanMarkDied: !!server.viewer_can_mark_died,
+      discordWebhookUrl: server.discord_webhook_url || null,
+    }));
     return { error: null };
   };
 
   return (
-    <AuthContext.Provider value={{ session, user, userRole, loading, isViewer, viewerServerId, viewerServerName, viewerKey, viewerSignIn, signIn, signUp, signOut }}>
+    <AuthContext.Provider value={{ session, user, userRole, loading, isViewer, viewerServerId, viewerServerName, viewerKey, viewerCanEdit, viewerCanMarkDied, viewerDiscordWebhookUrl, viewerSignIn, signIn, signUp, signOut }}>
       {children}
     </AuthContext.Provider>
   );
