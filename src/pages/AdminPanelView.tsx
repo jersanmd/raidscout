@@ -356,7 +356,7 @@ export function AdminPanelView() {
                             </div>
                             <button
                               onClick={() => {
-                                setCurrentServer({ id: s.server_id, name: s.server_name, owner_id: u.user_id, invite_code: s.server_id?.substring(0, 8) ?? "", created_at: s.created_at, role: s.role as "owner" | "moderator" });
+                                setCurrentServer({ id: s.server_id, name: s.server_name, owner_id: u.user_id, invite_code: s.server_id?.substring(0, 8) ?? "", created_at: (s as any).created_at, role: s.role as "owner" | "moderator" });
                                 navigate("/");
                               }}
                               className="flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-medium bg-blue-600 text-white hover:bg-blue-500 transition"
