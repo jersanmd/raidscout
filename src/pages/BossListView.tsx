@@ -275,7 +275,7 @@ export function BossListView() {
             });
           }
 
-          queryClient.refetchQueries({ queryKey: ["death_records"] });
+          await queryClient.refetchQueries({ queryKey: ["death_records"] });
           debouncedInvalidateLeaderboard();
           queryClient.invalidateQueries({ queryKey: ["members"] });
 
