@@ -163,10 +163,9 @@ export async function fetchPlanUsage(): Promise<any> {
 
 export async function fetchAllServers(): Promise<any[]> {
   const { data, error } = await supabase
-    .from("servers")
-    .select("id, name, owner_id, created_at");
+    .rpc("get_all_servers_with_counts");
   if (error) throw error;
-  return data;
+  return data ?? [];
 }
 
 export async function fetchAllUsers(): Promise<any[]> {

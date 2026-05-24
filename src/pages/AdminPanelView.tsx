@@ -175,6 +175,10 @@ export function AdminPanelView() {
                     <p className="text-[10px] text-slate-500 font-mono">{s.id?.substring(0, 12)}...</p>
                   </div>
                   <div className="flex items-center gap-3">
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-800 text-[11px] text-slate-300">
+                      <Users className="w-3 h-3" />
+                      {s.member_count ?? 0}
+                    </span>
                     <div className="text-right hidden sm:block">
                       <p className="text-[10px] text-slate-400">Created {new Date(s.created_at).toLocaleDateString()}</p>
                     </div>
