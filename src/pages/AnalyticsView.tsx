@@ -95,7 +95,7 @@ export function AnalyticsView() {
   const maxDaily = Math.max(...data.killsByDay.map((d) => d.count), 1);
 
   return (
-    <div className="max-w-[90rem] mx-auto px-4 py-6 space-y-6">
+    <div className="max-w-3xl mx-auto px-4 py-6 space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-pink-400">
@@ -143,11 +143,12 @@ export function AnalyticsView() {
           {data.topBosses.map((b, i) => (
             <div key={b.name} className="flex items-center gap-2 text-xs">
               <span className="text-slate-500 w-5 shrink-0 text-right">{i + 1}.</span>
-              <span className="text-slate-300 flex-1 truncate">{b.name}</span>
-              <div className="flex-1 h-4 bg-slate-800 rounded overflow-hidden max-w-[120px]">
-                <div className="h-full bg-gradient-to-r from-red-600 to-orange-500 rounded" style={{ width: `${(b.kills / maxBossKills) * 100}%` }} />
+              <span className="text-white w-24 shrink-0 truncate">{b.name}</span>
+              <div className="flex-1 h-5 bg-slate-800 rounded overflow-hidden">
+                <div className="h-full bg-gradient-to-r from-red-600 to-orange-500 rounded flex items-center justify-end px-2" style={{ width: `${Math.max((b.kills / maxBossKills) * 100, 8)}%` }}>
+                  <span className="text-[10px] text-white font-mono font-bold drop-shadow">{b.kills}</span>
+                </div>
               </div>
-              <span className="text-slate-400 w-8 shrink-0 font-mono">{b.kills}</span>
             </div>
           ))}
         </div>
@@ -162,16 +163,17 @@ export function AnalyticsView() {
             return (
             <div key={h.name} className="flex items-center gap-2 text-xs">
               <span className="text-slate-500 w-5 shrink-0 text-right">{i + 1}.</span>
-              <span className="text-slate-300 flex-1 truncate">{h.name}</span>
+              <span className="text-white w-24 shrink-0 truncate">{h.name}</span>
               {guild && c && (
                 <span className={`text-[9px] px-1 py-0.5 rounded border shrink-0 ${c.bg} ${c.text} ${c.border}`}>
                   <Shield className="w-2 h-2 inline mr-0.5" />{guild.name}
                 </span>
               )}
-              <div className="flex-1 h-4 bg-slate-800 rounded overflow-hidden max-w-[120px]">
-                <div className="h-full bg-gradient-to-r from-blue-600 to-cyan-500 rounded" style={{ width: `${(h.attended / maxAttended) * 100}%` }} />
+              <div className="flex-1 h-5 bg-slate-800 rounded overflow-hidden">
+                <div className="h-full bg-gradient-to-r from-blue-600 to-cyan-500 rounded flex items-center justify-end px-2" style={{ width: `${Math.max((h.attended / maxAttended) * 100, 8)}%` }}>
+                  <span className="text-[10px] text-white font-mono font-bold drop-shadow">{h.attended}</span>
+                </div>
               </div>
-              <span className="text-slate-400 w-8 shrink-0 font-mono">{h.attended}</span>
             </div>
           )})}
           {data.topHunters.length > huntersPage * HUNTERS_PER_PAGE && (
