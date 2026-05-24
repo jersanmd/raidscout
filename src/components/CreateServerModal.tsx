@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { supabase, createServer, createGuild, fetchBosses, setBossGuilds } from "@/lib/supabase";
+import { supabase, createServer } from "@/lib/supabase";
 import { useServer } from "@/contexts/ServerContext";
 import { Loader2, Plus, X, Server, Shield } from "lucide-react";
 
@@ -29,16 +29,7 @@ export function CreateServerModal({ onClose }: { onClose: () => void }) {
         return;
       }
 
-      const server = await createServer(trimmed);
-      // Create the initial guild (required)
-      const guild = await createGuild(guildTrimmed, server.id);
-      // Assign all bosses to this guild
-      const bosses = await fetchBosses(server.id);
-      for (const boss of bosses) {
-        try {
-          await setBossGuilds(boss.id, [{ guild_id: guild.id, sort_order: 0 }], "rotation");
-        } catch { /* skip individual assignment errors */ }
-      }
+      const server = await createServer(trimmed, guildTrimmed);
       await refreshServers();
       onClose();
     } catch (err: any) {

@@ -33,7 +33,7 @@ export function AdminPanelView() {
     queryKey: ["admin", "users"],
     queryFn: fetchAllUsers,
     staleTime: 10_000,
-    enabled: userRole === "admin" && tab === "users",
+    enabled: userRole === "admin",
   });
 
   const { data: dbStats, isLoading: dbLoading } = useQuery({
@@ -93,50 +93,50 @@ export function AdminPanelView() {
       </div>
 
       {/* Tabs */}
-      <div className="flex bg-slate-800 rounded-lg p-0.5 w-fit">
+      <div className="flex flex-wrap bg-slate-800 rounded-lg p-0.5 gap-0.5">
         <button
           onClick={() => setTab("servers")}
-          className={`flex items-center gap-1.5 px-4 py-1.5 rounded-md text-sm font-medium transition ${
+          className={`flex items-center gap-1.5 px-3 sm:px-4 py-1.5 rounded-md text-xs sm:text-sm font-medium transition whitespace-nowrap ${
             tab === "servers" ? "bg-slate-700 text-white" : "text-slate-400 hover:text-slate-200"
           }`}
         >
-          <Server className="w-4 h-4" />
+          <Server className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           Servers ({servers.length})
         </button>
         <button
           onClick={() => setTab("users")}
-          className={`flex items-center gap-1.5 px-4 py-1.5 rounded-md text-sm font-medium transition ${
+          className={`flex items-center gap-1.5 px-3 sm:px-4 py-1.5 rounded-md text-xs sm:text-sm font-medium transition whitespace-nowrap ${
             tab === "users" ? "bg-slate-700 text-white" : "text-slate-400 hover:text-slate-200"
           }`}
         >
-          <Users className="w-4 h-4" />
+          <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           Users ({users.length})
         </button>
         <button
           onClick={() => setTab("audit")}
-          className={`flex items-center gap-1.5 px-4 py-1.5 rounded-md text-sm font-medium transition ${
+          className={`flex items-center gap-1.5 px-3 sm:px-4 py-1.5 rounded-md text-xs sm:text-sm font-medium transition whitespace-nowrap ${
             tab === "audit" ? "bg-slate-700 text-white" : "text-slate-400 hover:text-slate-200"
           }`}
         >
-          <ClipboardList className="w-4 h-4" />
+          <ClipboardList className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           Audit Log
         </button>
         <button
           onClick={() => setTab("database")}
-          className={`flex items-center gap-1.5 px-4 py-1.5 rounded-md text-sm font-medium transition ${
+          className={`flex items-center gap-1.5 px-3 sm:px-4 py-1.5 rounded-md text-xs sm:text-sm font-medium transition whitespace-nowrap ${
             tab === "database" ? "bg-slate-700 text-white" : "text-slate-400 hover:text-slate-200"
           }`}
         >
-          <HardDrive className="w-4 h-4" />
+          <HardDrive className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           Database
         </button>
         <button
           onClick={() => setTab("plan")}
-          className={`flex items-center gap-1.5 px-4 py-1.5 rounded-md text-sm font-medium transition ${
+          className={`flex items-center gap-1.5 px-3 sm:px-4 py-1.5 rounded-md text-xs sm:text-sm font-medium transition whitespace-nowrap ${
             tab === "plan" ? "bg-slate-700 text-white" : "text-slate-400 hover:text-slate-200"
           }`}
         >
-          <BarChart3 className="w-4 h-4" />
+          <BarChart3 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           Usage
         </button>
       </div>
@@ -168,18 +168,18 @@ export function AdminPanelView() {
                       }
                     }
                   }}
-                  className="w-full p-4 flex items-center justify-between hover:bg-slate-800/50 transition text-left"
+                  className="w-full p-3 sm:p-4 flex items-center justify-between hover:bg-slate-800/50 transition text-left"
                 >
-                  <div>
-                    <h4 className="text-sm font-semibold text-white">{s.name}</h4>
+                  <div className="min-w-0 flex-1 mr-2">
+                    <h4 className="text-sm font-semibold text-white truncate">{s.name}</h4>
                     <p className="text-[10px] text-slate-500 font-mono">{s.id?.substring(0, 12)}...</p>
                   </div>
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2 shrink-0">
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-800 text-[11px] text-slate-300">
                       <Users className="w-3 h-3" />
                       {s.raid_member_count ?? 0}
                     </span>
-                    <div className="text-right hidden sm:block">
+                    <div className="hidden sm:block text-right">
                       <p className="text-[10px] text-slate-400">Created {new Date(s.created_at).toLocaleDateString()}</p>
                     </div>
                     {isExpanded ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
@@ -270,7 +270,7 @@ export function AdminPanelView() {
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              setCurrentServer({ id: s.id, name: s.name, owner_id: s.owner_id, invite_code: s.id?.substring(0, 8) ?? "", role: "owner" });
+                              setCurrentServer({ id: s.id, name: s.name, owner_id: s.owner_id, invite_code: s.id?.substring(0, 8) ?? "", created_at: s.created_at, role: "owner" });
                               navigate("/");
                             }}
                             className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:from-blue-500 hover:to-indigo-500 transition shadow-sm shadow-blue-900/20"
@@ -356,7 +356,7 @@ export function AdminPanelView() {
                             </div>
                             <button
                               onClick={() => {
-                                setCurrentServer({ id: s.server_id, name: s.server_name, owner_id: u.user_id, invite_code: s.server_id?.substring(0, 8) ?? "", role: s.role as "owner" | "moderator" });
+                                setCurrentServer({ id: s.server_id, name: s.server_name, owner_id: u.user_id, invite_code: s.server_id?.substring(0, 8) ?? "", created_at: s.created_at, role: s.role as "owner" | "moderator" });
                                 navigate("/");
                               }}
                               className="flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-medium bg-blue-600 text-white hover:bg-blue-500 transition"
@@ -392,8 +392,8 @@ export function AdminPanelView() {
         <div className="space-y-3">
           {/* Server filter */}
           {servers.length > 0 && (
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-slate-500">Filter by server:</span>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs text-slate-500">Server:</span>
               <select
                 value={auditServerFilter}
                 onChange={(e) => setAuditServerFilter(e.target.value)}
@@ -567,13 +567,13 @@ export function AdminPanelView() {
                 <h4 className="text-sm font-semibold text-white mb-2">Table Sizes</h4>
                 <div className="space-y-1">
                   {(dbStats.table_stats || []).map((t: any) => (
-                    <div key={t.table_name} className="flex items-center justify-between bg-slate-900 border border-slate-800 rounded-lg px-4 py-2.5">
-                      <div>
-                        <span className="text-sm text-white font-medium">{t.table_name}</span>
-                        <span className="text-[10px] text-slate-500 ml-2">~{t.row_estimate} rows</span>
+                    <div key={t.table_name} className="bg-slate-900 border border-slate-800 rounded-lg px-3 sm:px-4 py-2.5">
+                      <div className="flex items-center justify-between gap-2 mb-1.5">
+                        <span className="text-sm text-white font-medium truncate">{t.table_name}</span>
+                        <span className="text-[10px] text-slate-500 shrink-0">~{t.row_estimate} rows</span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <div className="w-24 h-2 bg-slate-800 rounded-full overflow-hidden">
+                        <div className="flex-1 h-2 bg-slate-800 rounded-full overflow-hidden">
                           <div
                             className="h-full bg-emerald-500/60 rounded-full"
                             style={{
@@ -581,7 +581,7 @@ export function AdminPanelView() {
                             }}
                           />
                         </div>
-                        <span className="text-[10px] text-slate-500 w-16 text-right">{t.size}</span>
+                        <span className="text-[10px] text-slate-500 w-14 text-right shrink-0">{t.size}</span>
                       </div>
                     </div>
                   ))}

@@ -7,6 +7,7 @@ export interface Server {
   name: string;
   owner_id: string;
   invite_code: string;
+  created_at?: string;
   discord_webhook_url?: string;
   timezone?: string;
   notification_prefix?: string;
@@ -40,6 +41,7 @@ export function ServerProvider({ children }: { children: ReactNode }) {
         name: viewerServerName || "Server",
         owner_id: "",
         invite_code: "",
+        created_at: undefined,
         role: "moderator",
       };
       setServers([viewerServer]);
@@ -75,7 +77,7 @@ export function ServerProvider({ children }: { children: ReactNode }) {
 
       // Fetch servers and user's roles in parallel
       const [srvRes, roleRes] = await Promise.all([
-        supabase.from("servers").select("id, name, owner_id, invite_code, discord_webhook_url, timezone, notification_prefix").in("id", uniqueIds),
+        supabase.from("servers").select("id, name, owner_id, invite_code, created_at, discord_webhook_url, timezone, notification_prefix").in("id", uniqueIds),
         supabase.from("server_members").select("server_id, role").eq("user_id", user.id).in("server_id", uniqueIds),
       ]);
 
@@ -100,6 +102,7 @@ export function ServerProvider({ children }: { children: ReactNode }) {
             name: s.name,
             owner_id: s.owner_id,
             invite_code: s.invite_code || s.id.substring(0, 8),
+            created_at: s.created_at,
             discord_webhook_url: s.discord_webhook_url,
             timezone: s.timezone || 'Asia/Manila',
             notification_prefix: s.notification_prefix || '@everyone',

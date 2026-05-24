@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { supabase, createServer, createGuild, fetchBosses, setBossGuilds } from "@/lib/supabase";
+import { supabase, createServer } from "@/lib/supabase";
 import { useServer } from "@/contexts/ServerContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { Loader2, Plus, Key, Server, ArrowRight, LogOut } from "lucide-react";
@@ -33,13 +33,7 @@ export function NoServerView() {
         return;
       }
 
-      const server = await createServer(serverTrimmed);
-      const guild = await createGuild(guildTrimmed, server.id);
-      // Assign all bosses to this guild
-      const bosses = await fetchBosses(server.id);
-      for (const boss of bosses) {
-        try { await setBossGuilds(boss.id, [{ guild_id: guild.id, sort_order: 0 }], "rotation"); } catch {}
-      }
+      const server = await createServer(serverTrimmed, guildTrimmed);
       await refreshServers();
     } catch (err: any) {
       setError(err?.message ?? "Failed to create server");

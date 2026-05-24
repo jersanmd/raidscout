@@ -35,16 +35,16 @@ export function getCurrentViewerKey(): string | null { return _currentViewerKey;
 
 import { BOSSES } from "./constants";
 
-export async function createServer(name: string): Promise<{ id: string; name: string }> {
+export async function createServer(name: string, guildName?: string): Promise<{ id: string; name: string; guild_id?: string }> {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Not authenticated");
 
-  // Use RPC function that creates server + seeds bosses in one transaction
+  // Use RPC function that creates server + seeds bosses + creates guild in one transaction
   const { data, error } = await supabase
-    .rpc("create_server_with_bosses", { server_name: name.trim() });
+    .rpc("create_server_with_bosses", { server_name: name.trim(), guild_name: guildName?.trim() || null });
 
   if (error) throw error;
-  return data as { id: string; name: string };
+  return data as { id: string; name: string; guild_id?: string };
 }
 
 export async function updateServerName(serverId: string, name: string): Promise<void> {
@@ -313,10 +313,8 @@ export async function deleteDeathRecord(recordId: string): Promise<void> {
   throw new Error("Not authenticated");
 }
 
-/** Adjust the last death record's time to set a new spawn date. Returns the updated record. */
-export async function setBossSpawnTime(bossId: string, spawnDate: Date): Promise<DeathRecord | null> {
-  const { data: { user } } = await supabase.auth.getUser();
-  
+/** Adjust spawn time by upserting a spawn override. Kill records are never touched. */
+export async function setBossSpawnTime(bossId: string, spawnDate: Date): Promise<void> {
   const { data: bossData, error: bossErr } = await supabase
     .from("bosses")
     .select("respawn_hours, server_id")
@@ -325,41 +323,37 @@ export async function setBossSpawnTime(bossId: string, spawnDate: Date): Promise
   if (bossErr) throw bossErr;
   
   const respawnHours = (bossData as any)?.respawn_hours ?? 0;
-  const serverId = (bossData as any)?.server_id ?? _currentServerId;
+  const serverId = (bossData as any)?.server_id ?? getCurrentServerId();
   const newDeathTime = new Date(spawnDate.getTime() - respawnHours * 3600000);
 
-  const { data: deaths, error: fetchErr } = await supabase
-    .from("death_records")
-    .select("id")
+  // Delete any existing override for this boss in this server
+  await supabase
+    .from("boss_spawn_overrides")
+    .delete()
     .eq("boss_id", bossId)
-    .order("death_time", { ascending: false })
-    .limit(1);
+    .eq("server_id", serverId);
 
-  if (fetchErr) throw fetchErr;
+  // Insert the new override
+  const { error } = await supabase
+    .from("boss_spawn_overrides")
+    .insert({ boss_id: bossId, server_id: serverId, death_time: newDeathTime.toISOString() });
+  if (error) throw error;
+}
 
-  if (!deaths || deaths.length === 0) {
-    const { data: inserted, error } = await supabase.from("death_records")
-      .insert({
-        boss_id: bossId,
-        user_id: user?.id,
-        server_id: serverId,
-        death_time: newDeathTime.toISOString(),
-        is_initial_spawn: true,
-      })
-      .select()
-      .single();
-    if (error) throw error;
-    return inserted as DeathRecord;
-  } else {
-    const { data: updated, error } = await supabase
-      .from("death_records")
-      .update({ death_time: newDeathTime.toISOString() })
-      .eq("id", deaths[0].id)
-      .select()
-      .single();
-    if (error) throw error;
-    return updated as DeathRecord;
-  }
+export async function fetchSpawnOverrides(serverId: string): Promise<{ boss_id: string; death_time: string }[]> {
+  const { data, error } = await supabase
+    .from("boss_spawn_overrides")
+    .select("boss_id, death_time")
+    .eq("server_id", serverId);
+  if (error) throw error;
+  return data ?? [];
+}
+
+export async function markAllUnknownAlive(serverId: string): Promise<number> {
+  const { data, error } = await supabase
+    .rpc("bulk_mark_bosses_alive", { p_server_id: serverId });
+  if (error) throw error;
+  return data ?? 0;
 }
 
 // ── Realtime ────────────────────────────────────────────────

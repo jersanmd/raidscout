@@ -9,7 +9,7 @@ import {
   isSupabaseConfigured,
 } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
-import { useServerId } from "@/contexts/ServerContext";
+import { useServerId, useServer } from "@/contexts/ServerContext";
 import { getLeaderboardResetAt } from "@/hooks/useLeaderboardSnapshots";
 import type { AttendanceRecord, LeaderboardEntry } from "@/types";
 
@@ -86,13 +86,14 @@ export type LeaderboardPeriod = "all" | "weekly" | "monthly";
 export function useLeaderboard(period: LeaderboardPeriod = "all") {
   const configured = isSupabaseConfigured();
   const serverId = useServerId();
+  const { currentServer } = useServer();
 
   return useQuery<LeaderboardEntry[]>({
     queryKey: ["leaderboard", period, serverId],
     queryFn: async () => {
       if (!configured) return [];
 
-      let resetAt: string | null = getLeaderboardResetAt(serverId);
+      let resetAt: string | null = getLeaderboardResetAt(serverId, currentServer?.created_at);
       try {
         const dbReset = await fetchLeaderboardResetAt();
         if (dbReset) resetAt = dbReset;

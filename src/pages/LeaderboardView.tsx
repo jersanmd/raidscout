@@ -10,7 +10,6 @@ import { fetchMemberKills, type MemberBossKill, isSupabaseConfigured, fetchGuild
 import { useAttendance } from "@/hooks/useAttendance";
 import { useMembers } from "@/hooks/useMembers";
 import type { Guild, PointAdjustment } from "@/types";
-import { shouldAutoFinalize, setLastAutoFinalize, getMondayISO } from "@/hooks/useAutoFinalize";
 import { Trophy, Medal, Crown, Users, Loader2, X, Skull, CheckCheck, History, ChevronRight, ChevronLeft, Search, Shield, Plus, Minus, Edit3, Share2 } from "lucide-react";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 
@@ -123,28 +122,6 @@ export function LeaderboardView() {
       }
     }
   }, [entries]);
-
-  // ── Auto-finalize every Monday at midnight ──
-  useEffect(() => {
-    const check = async () => {
-      if (!shouldAutoFinalize(serverId) || entries.length === 0) return;
-
-      const rankings = entries.map((e, i) => ({
-        rank: i + 1,
-        memberId: e.id,
-        memberName: e.name,
-        points: e.points,
-      }));
-
-      const periodStart = getLeaderboardResetAt(serverId) || getMondayISO(new Date());
-      await finalizeResults("weekly", rankings, periodStart);
-      setLastAutoFinalize(serverId, getMondayISO(new Date()));
-    };
-
-    check();
-    const interval = setInterval(check, 60_000);
-    return () => clearInterval(interval);
-  }, [entries, finalizeResults, serverId]);
 
   // ── Realtime: refresh leaderboard when any boss is killed ──
   useEffect(() => {
@@ -867,21 +844,14 @@ export function LeaderboardView() {
             memberName: e.name,
             points: e.points,
           }));
-          const resetAt = getLeaderboardResetAt(serverId);
+          const resetAt = getLeaderboardResetAt(serverId, currentServer?.created_at);
           const now = new Date();
           let periodStart: string;
           if (resetAt) {
             periodStart = resetAt;
-          } else if (period === "weekly") {
-            const d = new Date(now);
-            d.setDate(d.getDate() - 7);
-            periodStart = d.toISOString();
-          } else if (period === "monthly") {
-            const d = new Date(now);
-            d.setMonth(d.getMonth() - 1);
-            periodStart = d.toISOString();
           } else {
-            periodStart = new Date(0).toISOString();
+            // First finalization (week 0): capture from server creation onward
+            periodStart = currentServer?.created_at ?? new Date(0).toISOString();
           }
           await finalizeResults(
             period === "all" ? "all_time" : period === "weekly" ? "weekly" : "monthly",

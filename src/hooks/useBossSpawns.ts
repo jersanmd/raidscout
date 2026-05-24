@@ -1,16 +1,29 @@
 import { useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useBosses } from "./useBosses";
 import { useDeathRecords } from "./useDeathRecords";
+import { fetchSpawnOverrides } from "@/lib/supabase";
+import { useServerId } from "@/contexts/ServerContext";
 import type { Boss, DeathRecord, BossWithSpawn } from "@/types";
 import { calculateSpawnInfo } from "@/lib/spawnCalculator";
 
-/**
- * Combines boss data + death records into computed spawn info.
- * Recomputes when either data source changes.
- */
 export function useBossSpawns(filterText: string = "", filterType: string = "all", _refreshKey?: number) {
   const { data: bosses = [], isLoading: bossesLoading } = useBosses();
   const { data: deathRecords = [], isLoading: recordsLoading } = useDeathRecords();
+  const serverId = useServerId();
+
+  const { data: overrides = [] } = useQuery({
+    queryKey: ["spawn_overrides", serverId],
+    queryFn: () => fetchSpawnOverrides(serverId!),
+    staleTime: 0,
+    enabled: !!serverId,
+  });
+
+  const overrideMap = useMemo(() => {
+    const map = new Map<string, { death_time: string }>();
+    for (const o of overrides) map.set(o.boss_id, o);
+    return map;
+  }, [overrides]);
 
   const spawns = useMemo(() => {
     // deathRecords sorted DESC — reverse so latest overwrites oldest in Map
@@ -34,7 +47,7 @@ export function useBossSpawns(filterText: string = "", filterType: string = "all
     const now = new Date();
 
     const result: BossWithSpawn[] = filtered.map((boss) => {
-      const info = calculateSpawnInfo(boss, deathMap.get(boss.id) ?? null, now);
+      const info = calculateSpawnInfo(boss, deathMap.get(boss.id) ?? null, now, overrideMap.get(boss.id));
       const remainingMs = info.nextSpawn
         ? info.nextSpawn.getTime() - now.getTime()
         : Number.POSITIVE_INFINITY;
@@ -55,7 +68,7 @@ export function useBossSpawns(filterText: string = "", filterType: string = "all
     });
 
     return result;
-  }, [bosses, deathRecords, filterText, filterType, _refreshKey]);
+  }, [bosses, deathRecords, overrideMap, filterText, filterType, _refreshKey]);
 
   return {
     spawns,

@@ -56,7 +56,7 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
   const displayOwner = optimisticOwner ?? ownerGuildName;
   const { boss, status, nextSpawn } = spawn;
   const canEdit = (viewerCanEdit || !isViewer) && currentServer && !!onSetSpawnDate && (
-    boss.spawn_type === "fixed_hours" || status === "unknown" || (boss.spawn_type === "fixed_schedule" && !!spawn.deathRecord)
+    boss.spawn_type === "fixed_hours"
   );
   const canMarkDied = viewerCanMarkDied || !isViewer;
 
@@ -182,18 +182,18 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
                   setEditSpawnDate(local);
                   setShowEditSpawnModal(true);
                 }}
-                className="flex items-center justify-center gap-1 px-2.5 py-1 rounded-md bg-blue-900/30 border border-blue-800 text-blue-400 text-xs font-medium hover:bg-blue-900/50 hover:scale-105 active:scale-95 transition-all duration-200 shrink-0 w-[130px]"
+                className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md bg-blue-900/30 border border-blue-800 text-blue-400 text-xs font-medium hover:bg-blue-900/50 hover:scale-105 active:scale-95 transition-all duration-200 whitespace-nowrap"
               >
-                <Pencil className="w-3 h-3" />
+                <Pencil className="w-3.5 h-3.5" />
                 Edit Spawn Time
               </button>
             )}
             {canMarkDied && (
             <button
               onClick={() => setShowModal(true)}
-              className="flex items-center justify-center gap-1 px-2.5 py-1 rounded-md bg-red-900/30 border border-red-800 text-red-400 text-xs font-medium hover:bg-red-900/50 hover:scale-105 active:scale-95 transition-all duration-200 shrink-0 w-[130px]"
+              className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md bg-red-900/30 border border-red-800 text-red-400 text-xs font-medium hover:bg-red-900/50 hover:scale-105 active:scale-95 transition-all duration-200 whitespace-nowrap"
             >
-              <Skull className="w-3 h-3" />
+              <Skull className="w-3.5 h-3.5" />
               Mark Died
             </button>
             )}

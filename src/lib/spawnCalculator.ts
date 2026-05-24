@@ -14,10 +14,11 @@ import type { Boss, DeathRecord, SpawnInfo, SpawnStatus, ScheduleSlot } from "@/
 export function calculateSpawnInfo(
   boss: Boss,
   deathRecord: DeathRecord | null,
-  now: Date = new Date()
+  now: Date = new Date(),
+  spawnOverride?: { death_time: string } | null
 ): SpawnInfo {
   if (boss.spawn_type === "fixed_hours") {
-    return calculateFixedHoursSpawn(boss, deathRecord, now);
+    return calculateFixedHoursSpawn(boss, deathRecord, now, spawnOverride);
   }
   return calculateFixedScheduleSpawn(boss, deathRecord, now);
 }
@@ -25,14 +26,16 @@ export function calculateSpawnInfo(
 function calculateFixedHoursSpawn(
   boss: Boss,
   deathRecord: DeathRecord | null,
-  now: Date
+  now: Date,
+  spawnOverride?: { death_time: string } | null
 ): SpawnInfo {
-  if (!deathRecord || boss.respawn_hours === null) {
-    // No death recorded yet — status unknown until first kill
+  const effectiveDeathTime = spawnOverride?.death_time ?? deathRecord?.death_time ?? null;
+
+  if (!effectiveDeathTime || boss.respawn_hours === null) {
     return { boss, nextSpawn: null, status: "unknown", deathRecord: null };
   }
 
-  const deathTime = new Date(deathRecord.death_time);
+  const deathTime = new Date(effectiveDeathTime);
   const nextSpawn = new Date(deathTime.getTime() + boss.respawn_hours * 3600_000);
 
   const status: SpawnStatus = nextSpawn <= now ? "alive" : "countdown";

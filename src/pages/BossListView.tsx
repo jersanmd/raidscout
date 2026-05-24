@@ -14,6 +14,7 @@ import {
   fetchBossGuilds,
   fetchGuilds,
   setBossSpawnTime,
+  markAllUnknownAlive,
   adjustBossRotation,
   toggleViewerCanEdit,
   toggleViewerCanMarkDied,
@@ -251,6 +252,15 @@ export function BossListView() {
           const record = await insertDeathRecord(bossId, deathTime, ownerGuildId);
           deathRecordId = record.id;
 
+          // Delete override from DB and cache so the kill's countdown takes priority
+          const sid = getCurrentServerId();
+          if (sid) {
+            try { await supabase.from("boss_spawn_overrides").delete().eq("boss_id", bossId).eq("server_id", sid); } catch {}
+            queryClient.setQueryData(["spawn_overrides", sid], (old: any[]) =>
+              (old ?? []).filter((o: any) => o.boss_id !== bossId)
+            );
+          }
+
           // Record attendance — collect errors instead of silently swallowing
           const attendanceErrors: string[] = [];
           for (const memberId of attendeeIds) {
@@ -275,7 +285,7 @@ export function BossListView() {
             });
           }
 
-          queryClient.invalidateQueries({ queryKey: ["death_records"] });
+          queryClient.refetchQueries({ queryKey: ["death_records"] });
           debouncedInvalidateLeaderboard();
           queryClient.invalidateQueries({ queryKey: ["members"] });
 
@@ -311,9 +321,7 @@ export function BossListView() {
       setSavingMessage("Updating spawn time...");
       try {
         await setBossSpawnTime(bossId, spawnDate);
-        const sid = getCurrentServerId();
-        queryClient.invalidateQueries({ queryKey: ["death_records", sid] });
-        queryClient.invalidateQueries({ queryKey: ["boss_spawns"] });
+        await queryClient.invalidateQueries({ queryKey: ["spawn_overrides"] });
         setRefreshKey(k => k + 1);
       } catch (err: any) {
         console.error("Failed to set spawn date:", err);
@@ -325,25 +333,30 @@ export function BossListView() {
     [queryClient]
   );
 
-  // Mark all unknown fixed-hours bosses alive at once using setBossSpawnTime
+  // Mark all unknown fixed-hours bosses alive using sequential updates with progress
   const handleMarkAllAlive = useCallback(async () => {
     const unknown = spawns.filter(s => s.status === "unknown" && s.boss.spawn_type === "fixed_hours");
     if (unknown.length === 0) return;
 
     setBulkLoading(true);
-    const now = new Date();
-    let success = 0;
-    for (const s of unknown) {
-      try {
-        await setBossSpawnTime(s.boss.id, now);
-        success++;
-      } catch { /* skip individual failures */ }
+    setSavingMessage("Marking all unknown bosses alive...");
+    try {
+      const sid = getCurrentServerId();
+      if (!sid) return;
+      const count = await markAllUnknownAlive(sid);
+      await queryClient.invalidateQueries({ queryKey: ["spawn_overrides"] });
+      setRefreshKey(k => k + 1);
+      if (count > 0) {
+        setToast({ type: "success", message: `${count} boss${count !== 1 ? "es" : ""} marked as alive!` });
+      }
+    } catch (err) {
+      console.error("Failed to mark bosses alive:", err);
+      setToast({ type: "error", message: "Failed to mark bosses alive" });
+    } finally {
+      setSavingMessage(null);
+      setBulkLoading(false);
     }
-    queryClient.invalidateQueries({ queryKey: ["death_records"] });
-    setRefreshKey(k => k + 1);
-    setBulkLoading(false);
 
-    // Dismiss the banner after marking all
     localStorage.setItem("raidscout-onboarding-dismissed", "1");
     setOnboardingDismissed(true);
   }, [spawns, queryClient]);
@@ -396,6 +409,7 @@ export function BossListView() {
       console.error("Bulk make alive failed:", err);
     } finally {
       queryClient.invalidateQueries({ queryKey: ["death_records"] });
+      queryClient.invalidateQueries({ queryKey: ["spawn_overrides"] });
       queryClient.invalidateQueries({ queryKey: ["leaderboard"] });
       queryClient.invalidateQueries({ queryKey: ["analytics"] });
       setShowBulkModal(false);
