@@ -211,6 +211,26 @@ export function AdminPanelView() {
                             <p className="text-[10px] text-slate-500">Webhook</p>
                           </div>
                         </div>
+                        {stats.guild_members && stats.guild_members.length > 0 && (
+                          <div className="bg-slate-800/30 rounded-lg px-3 py-2">
+                            <p className="text-[10px] text-slate-500 mb-1.5">Raid Members by Guild ({stats.total_raid_members ?? 0} total)</p>
+                            <div className="flex flex-wrap gap-2">
+                              {stats.guild_members.map((g: any) => (
+                                <span
+                                  key={g.guild}
+                                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium ${
+                                    g.guild === 'No Guild'
+                                      ? 'bg-slate-700 text-slate-400'
+                                      : 'bg-slate-700 text-slate-200'
+                                  }`}
+                                >
+                                  {g.guild}
+                                  <span className="text-slate-500">{g.count}</span>
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                         <div className="flex justify-end">
                           <button
                             onClick={(e) => {
