@@ -34,7 +34,7 @@ export const BOSSES: Omit<Boss, "id" | "created_at">[] = [
   { name: "Milavy", spawn_type: "fixed_schedule", respawn_hours: null, schedule: [{ day: 6, time: "15:00" }] },
   { name: "Ringor", spawn_type: "fixed_schedule", respawn_hours: null, schedule: [{ day: 6, time: "17:00" }] },
   { name: "Roderick", spawn_type: "fixed_schedule", respawn_hours: null, schedule: [{ day: 5, time: "19:00" }] },
-  { name: "Chaiflock", spawn_type: "fixed_schedule", respawn_hours: null, schedule: [{ day: 6, time: "15:00" }] },
+  { name: "Chaiflock", spawn_type: "fixed_schedule", respawn_hours: null, schedule: [{ day: 0, time: "15:00" }] },
   { name: "Benji", spawn_type: "fixed_schedule", respawn_hours: null, schedule: [{ day: 0, time: "21:00" }] },
   { name: "Nevaeh", spawn_type: "fixed_schedule", respawn_hours: null, schedule: [{ day: 6, time: "22:00" }] },
   { name: "Tumier", spawn_type: "fixed_schedule", respawn_hours: null, schedule: [{ day: 0, time: "19:00" }] },
