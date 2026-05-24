@@ -271,7 +271,7 @@ export function Layout() {
             <Link to="/terms" className="hover:text-slate-400 transition">Terms of Service</Link>
             <Link to="/privacy" className="hover:text-slate-400 transition">Privacy Policy</Link>
             <span className="text-slate-800">|</span>
-            <span>v1.0.0</span>
+            <span>v1.12.1</span>
             <span>© 2026 RaidScout. All rights reserved.</span>
           </div>
         </div>
