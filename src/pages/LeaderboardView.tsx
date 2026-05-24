@@ -103,19 +103,40 @@ export function LeaderboardView() {
       if (entry) {
         setSelectedMember({ id: entry.id, name: entry.name });
         setKillsLoading(true);
-        // calculate period start for filtering
-        const now = new Date();
-        let since: string | undefined;
-        if (period === "weekly") {
-          const day = now.getDay();
-          const monday = new Date(now);
-          monday.setDate(now.getDate() - ((day + 6) % 7));
-          monday.setHours(0, 0, 0, 0);
-          since = monday.toISOString();
-        } else if (period === "monthly") {
-          since = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-        }
-        fetchMemberKills(entry.id, since, serverId).then(setMemberKills).catch(() => setMemberKills([])).finally(() => setKillsLoading(false));
+        // Calculate period start, accounting for last finalized snapshot reset
+        (async () => {
+          const now = new Date();
+          let periodStart: string;
+          if (period === "weekly") {
+            const day = now.getDay();
+            const monday = new Date(now);
+            monday.setDate(now.getDate() - ((day + 6) % 7));
+            monday.setHours(0, 0, 0, 0);
+            periodStart = monday.toISOString();
+          } else if (period === "monthly") {
+            periodStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+          } else {
+            periodStart = "1970-01-01T00:00:00Z";
+          }
+          let since = periodStart;
+          try {
+            const { data: snaps } = await supabase
+              .from("leaderboard_snapshots")
+              .select("finalized_at")
+              .eq("period", period)
+              .eq("server_id", serverId)
+              .order("finalized_at", { ascending: false })
+              .limit(1);
+            if (snaps && snaps.length > 0) {
+              const reset = (snaps[0] as any).finalized_at;
+              if (reset > periodStart) since = reset;
+            }
+          } catch { /* fall back to periodStart */ }
+          fetchMemberKills(entry.id, since, serverId)
+            .then(setMemberKills)
+            .catch(() => setMemberKills([]))
+            .finally(() => setKillsLoading(false));
+        })();
         // Clear the param so it doesn't re-trigger
         searchParams.delete("member");
         setSearchParams(searchParams, { replace: true });
@@ -385,19 +406,35 @@ export function LeaderboardView() {
               setSelectedMember({ id: entry.id, name: entry.name });
               setKillsLoading(true);
               try {
-                // Calculate period start for filtering
+                // Calculate period start, accounting for last finalized snapshot reset
                 const now = new Date();
-                let since: string | undefined;
+                let periodStart: string;
                 if (period === "weekly") {
                   const day = now.getDay();
                   const monday = new Date(now);
                   monday.setDate(now.getDate() - ((day + 6) % 7));
                   monday.setHours(0, 0, 0, 0);
-                  since = monday.toISOString();
+                  periodStart = monday.toISOString();
                 } else if (period === "monthly") {
-                  since = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+                  periodStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+                } else {
+                  periodStart = "1970-01-01T00:00:00Z";
                 }
-                
+
+                // Use same reset logic as the leaderboard query
+                let since = periodStart;
+                const { data: snaps } = await supabase
+                  .from("leaderboard_snapshots")
+                  .select("finalized_at")
+                  .eq("period", period)
+                  .eq("server_id", serverId)
+                  .order("finalized_at", { ascending: false })
+                  .limit(1);
+                if (snaps && snaps.length > 0) {
+                  const reset = (snaps[0] as any).finalized_at;
+                  if (reset > periodStart) since = reset;
+                }
+
                 if (configured) {
                   setMemberKills(await fetchMemberKills(entry.id, since, serverId));
                 }
