@@ -5,6 +5,7 @@ import {
   fetchLeaderboardSnapshots as fetchSnapshotsSupabase,
   fetchSnapshotById as fetchSnapshotByIdSupabase,
   isSupabaseConfigured,
+  supabase,
 } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { useServerId } from "@/contexts/ServerContext";
@@ -45,7 +46,7 @@ export function setLeaderboardResetAt(serverId: string | null, date: string): vo
 // ── Hook ────────────────────────────────────────────────────
 
 export function useLeaderboardSnapshots() {
-  const { user } = useAuth();
+  const { user, isViewer } = useAuth();
   const serverId = useServerId();
   const queryClient = useQueryClient();
   const configured = isSupabaseConfigured();
@@ -55,12 +56,12 @@ export function useLeaderboardSnapshots() {
   const snapshotsQuery = useQuery<{ id: string; finalized_at: string; period_start?: string; period: string; ranking_count: number; top_name?: string; top_points?: number }[]>({
     queryKey: ["leaderboard_snapshots", serverId],
     queryFn: async () => {
-      if (!configured || !user) return [];
+      if (!configured || (!user && !isViewer)) return [];
       return await fetchSnapshotsSupabase(serverId);
     },
     staleTime: 30_000,
     retry: 2,
-    enabled: configured && !!user && !!serverId,
+    enabled: configured && (!!user || isViewer) && !!serverId,
   });
 
   const finalizeResults = useCallback(
@@ -74,6 +75,11 @@ export function useLeaderboardSnapshots() {
       if (configured && user) {
         try {
           await saveSnapshotSupabase(period, rankings, periodStart);
+          // Persist reset date to DB so all devices see the same leaderboard
+          await supabase.from("app_settings").upsert(
+            { key: "leaderboard_reset_at", value: now, server_id: serverId },
+            { onConflict: "key, server_id" }
+          );
         } catch (err) {
           console.error("Failed to save snapshot to Supabase:", err);
         }
@@ -91,7 +97,7 @@ export function useLeaderboardSnapshots() {
 
   const loadSnapshot = useCallback(
     async (snapshotId: string) => {
-      if (!configured || !user) return;
+      if (!configured || (!user && !isViewer)) return;
       const snap = await fetchSnapshotByIdSupabase(snapshotId);
       // Normalize rankings: support both camelCase (frontend) and snake_case (backfill)
       const rankings = (snap.rankings as any[]).map((r: any) => ({

@@ -625,11 +625,14 @@ export async function getBossOwnerGuild(bossId: string): Promise<string | null> 
 
 // ── App Settings ────────────────────────────────────────────
 
-export async function fetchLeaderboardResetAt(): Promise<string | null> {
+export async function fetchLeaderboardResetAt(serverId?: string | null): Promise<string | null> {
+  const sid = serverId ?? getCurrentServerId();
+  if (!sid) return null;
   const { data, error } = await supabase
     .from("app_settings")
     .select("value")
     .eq("key", "leaderboard_reset_at")
+    .eq("server_id", sid)
     .maybeSingle();
 
   if (error || !data) return null;

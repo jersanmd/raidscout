@@ -5,12 +5,11 @@ import {
   removeAttendance,
   fetchLeaderboard,
   fetchLeaderboardByPeriod,
-  fetchLeaderboardResetAt,
   isSupabaseConfigured,
+  supabase,
 } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
-import { useServerId, useServer } from "@/contexts/ServerContext";
-import { getLeaderboardResetAt } from "@/hooks/useLeaderboardSnapshots";
+import { useServerId } from "@/contexts/ServerContext";
 import type { AttendanceRecord, LeaderboardEntry } from "@/types";
 
 // ── Attendance Records ──────────────────────────────────────
@@ -86,25 +85,32 @@ export type LeaderboardPeriod = "all" | "weekly" | "monthly";
 export function useLeaderboard(period: LeaderboardPeriod = "all") {
   const configured = isSupabaseConfigured();
   const serverId = useServerId();
-  const { currentServer } = useServer();
 
   return useQuery<LeaderboardEntry[]>({
     queryKey: ["leaderboard", period, serverId],
     queryFn: async () => {
       if (!configured) return [];
 
-      let resetAt: string | null = getLeaderboardResetAt(serverId, currentServer?.created_at);
+      // Get reset date: use the latest finalized snapshot's date, or fall back to period start
+      let effectiveReset: string | null = null;
       try {
-        const dbReset = await fetchLeaderboardResetAt();
-        if (dbReset) resetAt = dbReset;
-      } catch { /* use localStorage reset */ }
+        const { data: snaps } = await supabase
+          .from("leaderboard_snapshots")
+          .select("finalized_at")
+          .eq("period", "weekly")
+          .eq("server_id", serverId)
+          .order("finalized_at", { ascending: false })
+          .limit(1);
+        if (snaps && snaps.length > 0) {
+          effectiveReset = (snaps[0] as any).finalized_at;
+        }
+      } catch { /* fall back to period start */ }
 
       if (period === "all") {
         return await fetchLeaderboard(serverId);
       }
       const periodStart = getPeriodStart(period);
-      // "This Month" always uses month start; "This Week" respects reset
-      const since = period === "monthly" ? periodStart : (resetAt && resetAt > periodStart ? resetAt : periodStart);
+      const since = effectiveReset && effectiveReset > periodStart ? effectiveReset : periodStart;
       return await fetchLeaderboardByPeriod(since, serverId);
     },
     staleTime: 0,
