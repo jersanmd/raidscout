@@ -61,7 +61,7 @@ export function Layout() {
     <div className="min-h-screen bg-slate-950 flex flex-col">
       {/* Header */}
       <header className="sticky top-0 z-50 bg-slate-900/80 backdrop-blur border-b border-slate-800">
-        <div className="max-w-[90rem] mx-auto px-4 h-14 flex items-center justify-between gap-2">
+        <div className="max-w-[90rem] mx-auto px-4 min-h-14 py-1.5 flex items-center justify-between gap-2">
           <div className="flex items-center gap-3 shrink-0">
             {/* Logo */}
             <img
@@ -87,7 +87,7 @@ export function Layout() {
             )}
           </div>
 
-          <div className="flex items-center gap-2 overflow-x-auto scrollbar-none touch-pan-x -mr-2 pr-2">
+          <div className="flex items-center gap-2 overflow-x-auto scrollbar-none touch-pan-x -mr-2 pr-2 min-w-0">
             {/* Nav tabs — hidden for admin without a selected server */}
             {showDataNav && (
             <nav className="flex bg-slate-800 rounded-lg p-0.5 shrink-0">

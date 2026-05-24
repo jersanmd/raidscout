@@ -179,12 +179,32 @@ export function HistoryView() {
   return (
     <div className="max-w-[90rem] mx-auto px-4 py-6 space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-2 shrink-0">
           <Clock className="w-5 h-5 text-amber-400" />
           <h2 className="text-xl font-bold text-white">Death History</h2>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 order-3 sm:order-none w-full sm:w-auto mt-2 sm:mt-0">
+          <div className="relative flex-1 sm:flex-initial sm:w-48 lg:w-64">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+            <input
+              type="text"
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+              placeholder="Search boss name..."
+              className="w-full bg-slate-800 border border-slate-700 rounded-lg pl-9 pr-8 py-2 text-sm text-white placeholder-slate-500 outline-none focus:border-blue-500 transition"
+            />
+            {searchText && (
+              <button
+                onClick={() => setSearchText("")}
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-500 hover:text-white transition"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
           {(["7d", "30d", "custom"] as const).map(p => (
             <button
               key={p}
@@ -198,26 +218,6 @@ export function HistoryView() {
               {p === "7d" ? "Last 7d" : p === "30d" ? "Last Month" : "Custom"}
             </button>
           ))}
-        </div>
-        <div className="flex items-center gap-3 flex-1 max-w-md">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-            <input
-              type="text"
-              value={searchText}
-              onChange={(e) => setSearchText(e.target.value)}
-              placeholder="Search boss name..."
-              className="w-full bg-slate-800 border border-slate-700 rounded-lg pl-9 pr-3 py-2 text-sm text-white placeholder-slate-500 outline-none focus:border-blue-500 transition"
-            />
-            {searchText && (
-              <button
-                onClick={() => setSearchText("")}
-                className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-500 hover:text-white transition"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            )}
-          </div>
         </div>
       </div>
 
