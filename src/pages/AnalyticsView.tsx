@@ -47,7 +47,8 @@ export function AnalyticsView() {
       let since: string;
       if (period === "week") {
         const d = new Date(now);
-        d.setDate(d.getDate() - d.getDay()); // Sunday
+        const daysSinceMonday = d.getDay() === 0 ? 6 : d.getDay() - 1;
+        d.setDate(d.getDate() - daysSinceMonday); // Monday
         d.setHours(0, 0, 0, 0); // Midnight
         since = d.toISOString();
       } else if (period === "month") {
