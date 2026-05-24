@@ -420,11 +420,17 @@ export function subscribeToServerSettings(
   const { channel, isNew } = getOrCreateChannel(chanName);
   
   if (isNew) {
+    const callbacks = new Set<(payload: any) => void>();
+    (channel as any).__callbacks = callbacks;
+    callbacks.add(onUpdate);
     channel.on("postgres_changes", { event: "UPDATE", schema: "public", table: "servers" },
-      (payload) => onUpdate(payload));
+      (payload) => callbacks.forEach(cb => cb(payload)));
     channel.subscribe((status) => {
       if (status === "CLOSED" || status === "CHANNEL_ERROR") activeChannels.delete(chanName);
     });
+  } else {
+    const callbacks = (channel as any).__callbacks as Set<(payload: any) => void>;
+    if (callbacks) callbacks.add(onUpdate);
   }
   
   return channel;
@@ -957,11 +963,12 @@ export async function fetchHistoryFromSupabase(serverId?: string | null, since?:
 export async function saveLeaderboardSnapshot(
   period: "all_time" | "weekly" | "monthly",
   rankings: { rank: number; memberId: string; memberName: string; points: number }[],
-  periodStart: string
+  periodStart: string,
+  serverId: string
 ): Promise<string> {
   const { data, error } = await supabase
     .from("leaderboard_snapshots")
-    .insert({ period, period_start: periodStart, rankings, server_id: getCurrentServerId() })
+    .insert({ period, period_start: periodStart, rankings, server_id: serverId })
     .select("id")
     .single();
 

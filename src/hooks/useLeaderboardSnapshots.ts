@@ -72,9 +72,9 @@ export function useLeaderboardSnapshots() {
     ) => {
       const now = new Date().toISOString();
 
-      if (configured && user) {
+      if (configured && user && serverId) {
         try {
-          await saveSnapshotSupabase(period, rankings, periodStart);
+          await saveSnapshotSupabase(period, rankings, periodStart, serverId);
           // Persist reset date to DB so all devices see the same leaderboard
           await supabase.from("app_settings").upsert(
             { key: "leaderboard_reset_at", value: now, server_id: serverId },
