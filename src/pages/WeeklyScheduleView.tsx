@@ -177,7 +177,7 @@ export function WeeklyScheduleView() {
 
   const handleRecordDeath = useCallback(
     async (bossId: string, deathTime: Date, rallyImages: File[], attendeeIds: string[]) => {
-      if (!user) return;
+      if (!user && !isViewer) return;
       const boss = bosses.find((b) => b.id === bossId);
       if (!boss) return;
       setSavingMessage("Recording death...");
@@ -210,7 +210,7 @@ export function WeeklyScheduleView() {
         setSavingMessage(null);
       }
     },
-    [user, queryClient, bosses, getOwnerGuildName]
+    [user, isViewer, queryClient, bosses, getOwnerGuildName, guilds]
   );
 
   const weekDays = useMemo(() => {

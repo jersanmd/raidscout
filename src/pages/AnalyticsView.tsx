@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchAnalytics, type AnalyticsData, isSupabaseConfigured, fetchGuilds, fetchMembers } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
@@ -24,6 +24,9 @@ export function AnalyticsView() {
   const [period, setPeriod] = useState<"week" | "month" | "all">("week");
   const [huntersPage, setHuntersPage] = useState(1);
   const HUNTERS_PER_PAGE = 10;
+
+  // Reset pagination when period changes
+  useEffect(() => { setHuntersPage(1); }, [period]);
 
   // Guild & member data for badges — cached via React Query
   const { data: guilds = [] } = useQuery({
