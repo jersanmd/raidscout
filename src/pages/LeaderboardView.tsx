@@ -9,7 +9,7 @@ import { useServerId, useServer } from "@/contexts/ServerContext";
 import { fetchMemberKills, type MemberBossKill, isSupabaseConfigured, fetchGuilds, adjustMemberPoints, fetchPointAdjustments, supabase } from "@/lib/supabase";
 import { useAttendance } from "@/hooks/useAttendance";
 import { useMembers } from "@/hooks/useMembers";
-import type { Guild, PointAdjustment } from "@/types";
+import type { Guild, LeaderboardSnapshot, PointAdjustment } from "@/types";
 import { Trophy, Medal, Crown, Users, Loader2, X, Skull, CheckCheck, History, ChevronRight, ChevronLeft, Search, Shield, Plus, Minus, Edit3, Share2 } from "lucide-react";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 
@@ -173,6 +173,15 @@ export function LeaderboardView() {
       return `${medal} ${e.name} — ${e.points} pts`;
     });
     return `🏆 ${currentServer?.name} Leaderboard — ${periodLabel}\n\n${lines.join("\n")}\n\n📊 raidscout.com`;
+  };
+
+  const buildSnapshotShareText = (snap: LeaderboardSnapshot) => {
+    const periodLabel = snap.period === "weekly" ? "Weekly" : snap.period === "monthly" ? "Monthly" : "All Time";
+    const lines = snap.rankings.slice(0, 20).map((r, i) => {
+      const medal = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i + 1}.`;
+      return `${medal} ${r.memberName} — ${r.points} pts`;
+    });
+    return `🏆 ${currentServer?.name} — ${periodLabel} Results\n\n${lines.join("\n")}\n\n📊 raidscout.com`;
   };
 
   return (
@@ -491,7 +500,7 @@ export function LeaderboardView() {
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <div className="overflow-y-auto p-4 space-y-2 flex-1">
+            <div className="overflow-y-auto p-4 space-y-3 flex-1">
               {snapshots.map((snap) => {
                 const finalized = new Date(snap.finalized_at);
                 const periodStart = new Date((snap as any).period_start || finalized);
@@ -505,26 +514,33 @@ export function LeaderboardView() {
                     ? "All time"
                     : d.toLocaleDateString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
 
+                const periodLabel =
+                  snap.period === "all_time" ? "All Time" : snap.period === "weekly" ? "Weekly" : "Monthly";
+
                 return (
                   <button
                     key={snap.id}
                     onClick={() => { setShowSnapshots(false); loadSnapshot(snap.id); }}
-                    className="w-full flex items-center gap-3 px-3 py-2 rounded-lg bg-slate-800/50 border border-slate-700/50 hover:border-slate-600 transition text-left"
+                    className="w-full flex items-start gap-3 px-4 py-3 rounded-lg bg-slate-800/50 border border-slate-700/50 hover:border-slate-600 transition text-left"
                   >
-                    <History className="w-4 h-4 text-amber-500 shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm text-slate-300">{fmt(periodStart)} → {fmt(finalized)}</span>
-                        {snap.top_name && (
-                          <span className="text-xs text-amber-400 truncate">#1 {snap.top_name} · {snap.top_points}pt{snap.top_points !== 1 ? 's' : ''}</span>
-                        )}
+                    <History className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                    <div className="flex-1 min-w-0 space-y-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-xs font-medium text-slate-500 bg-slate-700/50 px-1.5 py-0.5 rounded">
+                          {periodLabel}
+                        </span>
+                        <span className="text-xs text-slate-500">{snap.ranking_count} ranked</span>
                       </div>
-                      <span className="text-xs text-slate-500">
-                        {snap.period === "all_time" ? "" : snap.period === "weekly" ? "Weekly" : "Monthly"}
-                        {" · "}{snap.ranking_count} ranked
-                      </span>
+                      <p className="text-sm text-slate-200">
+                        {fmt(periodStart)} → {fmt(finalized)}
+                      </p>
+                      {snap.top_name && (
+                        <p className="text-xs text-amber-400/80 truncate">
+                          🥇 {snap.top_name} · {snap.top_points} pt{snap.top_points !== 1 ? 's' : ''}
+                        </p>
+                      )}
                     </div>
-                    <ChevronRight className="w-4 h-4 text-slate-600" />
+                    <ChevronRight className="w-4 h-4 text-slate-600 mt-0.5" />
                   </button>
                 );
               })}
@@ -577,7 +593,7 @@ export function LeaderboardView() {
                     <X className="w-5 h-5" />
                   </button>
                 </div>
-                <div className="overflow-y-auto p-4 space-y-2 flex-1">
+                <div className="overflow-y-auto p-3 space-y-1 flex-1">
                   {viewingSnapshot.rankings.length === 0 ? (
                     <p className="text-slate-500 text-sm text-center py-8">No rankings at that time.</p>
                   ) : (
@@ -586,23 +602,61 @@ export function LeaderboardView() {
                       return (
                         <div
                           key={r.memberId}
-                          className={`flex items-center gap-4 px-4 py-3 rounded-xl border ${
+                          className={`flex items-center gap-3 px-3 py-1.5 rounded-lg border ${
                             style?.bg ?? "bg-slate-900/50 border-slate-800/50"
                           }`}
                         >
-                          <div className="flex items-center justify-center w-9 h-9 shrink-0">
-                            {style ? style.icon : <span className="text-sm font-bold text-slate-500">#{r.rank}</span>}
+                          <div className="flex items-center justify-center w-7 h-7 shrink-0">
+                            {style ? style.icon : <span className="text-xs font-bold text-slate-500">#{r.rank}</span>}
                           </div>
-                          <span className={`flex-1 font-semibold ${style?.text ?? "text-white"}`}>{r.memberName}</span>
+                          <span className={`flex-1 text-sm font-semibold ${style?.text ?? "text-white"}`}>{r.memberName}</span>
                           <div className="flex items-center gap-1 shrink-0">
-                            <Trophy className="w-3 h-3 text-amber-500" />
-                            <span className="text-sm font-bold text-white tabular-nums">{r.points}</span>
+                            <Trophy className="w-2.5 h-2.5 text-amber-500" />
+                            <span className="text-xs font-bold text-white tabular-nums">{r.points}</span>
                           </div>
                         </div>
                       );
                     })
                   )}
                 </div>
+                {viewingSnapshot.rankings.length > 0 && (
+                  <div className="p-3 border-t border-slate-800 shrink-0 flex items-center gap-2">
+                    <button
+                      onClick={() => {
+                        const text = buildSnapshotShareText(viewingSnapshot);
+                        navigator.clipboard.writeText(text);
+                        setCopiedShare(true);
+                        setTimeout(() => setCopiedShare(false), 2000);
+                      }}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-slate-800 text-slate-300 hover:bg-slate-700 transition"
+                    >
+                      {copiedShare ? <CheckCheck className="w-3.5 h-3.5 text-emerald-400" /> : <CheckCheck className="w-3.5 h-3.5" />}
+                      {copiedShare ? "Copied!" : "Copy"}
+                    </button>
+                    <button
+                      onClick={() => {
+                        const text = buildSnapshotShareText(viewingSnapshot);
+                        const url = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent("https://www.raidscout.com")}&quote=${encodeURIComponent(text)}`;
+                        window.open(url, "_blank", "width=600,height=400");
+                      }}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-[#1877F2]/20 text-[#1877F2] hover:bg-[#1877F2]/30 transition"
+                    >
+                      <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+                      Facebook
+                    </button>
+                    <button
+                      onClick={() => {
+                        const text = buildSnapshotShareText(viewingSnapshot);
+                        const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`;
+                        window.open(url, "_blank", "width=600,height=400");
+                      }}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-slate-800 text-slate-300 hover:bg-slate-700 transition"
+                    >
+                      <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+                      X
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           );

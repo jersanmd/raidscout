@@ -84,7 +84,7 @@ export const DAY_NAMES_SHORT: [string, ...string[]] = [
 ];
 
 /** Filter window options in hours */
-export const FILTER_WINDOWS = [1, 2, 4, 8, 24] as const;
+export const FILTER_WINDOWS = [1, 8, 24] as const;
 
 /** Guild color palette — 10 distinct colors for guild differentiation */
 const GUILD_COLORS = [

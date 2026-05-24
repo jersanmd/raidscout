@@ -14,7 +14,6 @@ import {
   fetchBossGuilds,
   fetchGuilds,
   setBossSpawnTime,
-  markAllUnknownAlive,
   adjustBossRotation,
   toggleViewerCanEdit,
   toggleViewerCanMarkDied,
@@ -31,7 +30,7 @@ import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { emitSpawnAlert } from "@/hooks/useSpawnAlerts";
 import { guildColor } from "@/lib/constants";
 import { getOwnerGuildName, getRotationInfo } from "@/lib/rotation";
-import { Skull, Loader2, Zap, X, CheckCircle, AlertTriangle, CheckSquare, Square, Megaphone, Volume2, Eye, Copy } from "lucide-react";
+import { Skull, Loader2, X, CheckCircle, AlertTriangle, CheckSquare, Megaphone, Volume2, Eye, Copy } from "lucide-react";
 import type { BossWithSpawn, BossGuild, Guild, DeathRecord } from "@/types";
 
 export function BossListView() {
@@ -42,9 +41,7 @@ export function BossListView() {
   const [searchText, setSearchText] = useState("");
   const [filterType, setFilterType] = useState("all");
   const [filterWindow, setFilterWindow] = useState<number | null>(null);
-  const [showBulkModal, setShowBulkModal] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
-  const [bulkLoading, setBulkLoading] = useState(false);
 
   // Multi-select state
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -52,11 +49,6 @@ export function BossListView() {
 
   // Track which boss just got killed for exit animation
   const [justKilledId, setJustKilledId] = useState<string | null>(null);
-
-  // Onboarding banner dismiss state
-  const [onboardingDismissed, setOnboardingDismissed] = useState(
-    () => localStorage.getItem("raidscout-onboarding-dismissed") === "1"
-  );
 
   // Announce bosses in 24h state
   const [showAnnounceConfirm, setShowAnnounceConfirm] = useState(false);
@@ -162,8 +154,6 @@ export function BossListView() {
 
   const { spawns, isLoading } = useBossSpawns(searchText, filterType, refreshKey);
   const { data: deathRecords = [] } = useDeathRecords();
-
-  const unknownCount = spawns.filter(s => s.status === "unknown" && s.boss.spawn_type === "fixed_hours").length;
 
   const bulkBoss = useMemo(() => {
     if (selectedIds.size === 0) return null;
@@ -297,8 +287,8 @@ export function BossListView() {
           try { await advanceBossRotation(bossId); } catch {}
           queryClient.invalidateQueries({ queryKey: ["bosses"] });
 
-          // Send Discord notification (only for authenticated users, not viewers)
-          if (user) {
+          // Send Discord notification
+          if (user || isViewer) {
             notifyDiscord(getCurrentServerId()!, "boss_died", {
               boss_name: boss.name,
               attendees: attendeeIds.length > 0 ? [`${attendeeIds.length} participant(s)`] : undefined,
@@ -333,34 +323,6 @@ export function BossListView() {
     [queryClient]
   );
 
-  // Mark all unknown fixed-hours bosses alive using sequential updates with progress
-  const handleMarkAllAlive = useCallback(async () => {
-    const unknown = spawns.filter(s => s.status === "unknown" && s.boss.spawn_type === "fixed_hours");
-    if (unknown.length === 0) return;
-
-    setBulkLoading(true);
-    setSavingMessage("Marking all unknown bosses alive...");
-    try {
-      const sid = getCurrentServerId();
-      if (!sid) return;
-      const count = await markAllUnknownAlive(sid);
-      await queryClient.invalidateQueries({ queryKey: ["spawn_overrides"] });
-      setRefreshKey(k => k + 1);
-      if (count > 0) {
-        setToast({ type: "success", message: `${count} boss${count !== 1 ? "es" : ""} marked as alive!` });
-      }
-    } catch (err) {
-      console.error("Failed to mark bosses alive:", err);
-      setToast({ type: "error", message: "Failed to mark bosses alive" });
-    } finally {
-      setSavingMessage(null);
-      setBulkLoading(false);
-    }
-
-    localStorage.setItem("raidscout-onboarding-dismissed", "1");
-    setOnboardingDismissed(true);
-  }, [spawns, queryClient]);
-
   const handleBulkRecordDeath = useCallback(
     async (deathTime: Date, rallyImages: File[], attendeeIds: string[]) => {
       setSavingMessage("Recording deaths...");
@@ -384,39 +346,6 @@ export function BossListView() {
     },
     [selectedIds, handleRecordDeath, clearSelection]
   );
-
-  // Bulk mark all fixed-hours bosses as alive (maintenance reset)
-  const handleMarkAllDied = useCallback(async () => {
-    setBulkLoading(true);
-    setSavingMessage("Making all bosses alive...");
-    const serverId = getCurrentServerId();
-    if (!serverId) {
-      setBulkLoading(false);
-      setSavingMessage(null);
-      setShowBulkModal(false);
-      return;
-    }
-
-    try {
-      await supabase.rpc("make_bosses_alive", { s_id: serverId });
-
-      // Notify Discord that all bosses have been reset
-      notifyDiscord(serverId, "boss_spawned", {
-        boss_name: "All Bosses",
-        spawn_time: new Date().toLocaleString(),
-      });
-    } catch (err) {
-      console.error("Bulk make alive failed:", err);
-    } finally {
-      queryClient.invalidateQueries({ queryKey: ["death_records"] });
-      queryClient.invalidateQueries({ queryKey: ["spawn_overrides"] });
-      queryClient.invalidateQueries({ queryKey: ["leaderboard"] });
-      queryClient.invalidateQueries({ queryKey: ["analytics"] });
-      setShowBulkModal(false);
-      setBulkLoading(false);
-      setSavingMessage(null);
-    }
-  }, [queryClient]);
 
   // Announce 24h spawns to Discord
   const handleAnnounceSpawns = useCallback(async () => {
@@ -448,10 +377,6 @@ export function BossListView() {
   }, [spawnsIn24h, ownerGuildName]);
 
   const serverId = getCurrentServerId();
-  // Count only fixed-hour bosses that already have a death record (these will be affected)
-  const affectedCount = spawns.filter(
-    (s) => s.boss.spawn_type === "fixed_hours" && s.deathRecord !== null && (!serverId || s.boss.server_id === serverId)
-  ).length;
 
   // Group spawns by day
   const groupedSpawns = useMemo(() => {
@@ -516,33 +441,6 @@ export function BossListView() {
       {/* Saving overlay — blocks all interaction */}
       {savingMessage && <SavingOverlay message={savingMessage} />}
 
-      {/* Onboarding banner — only for owners, only when unknown fixed-hours bosses exist */}
-      {!isViewer && !onboardingDismissed && unknownCount > 0 && (
-        <div className="flex items-center justify-between gap-4 px-4 py-3 rounded-xl bg-amber-900/20 border border-amber-800 animate-[fadeIn_0.4s_ease-out]">
-          <div className="flex items-center gap-2">
-            <Zap className="w-4 h-4 text-amber-400 shrink-0" />
-            <span className="text-sm text-amber-300">
-              <strong>{unknownCount}</strong> boss{unknownCount !== 1 ? "es" : ""} need{unknownCount === 1 ? "s" : ""} initial data — mark them alive to start timers.
-            </span>
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <button
-              onClick={handleMarkAllAlive}
-              disabled={bulkLoading}
-              className="px-3 py-1.5 rounded-lg bg-amber-600 text-white text-xs font-semibold hover:bg-amber-500 transition disabled:opacity-50"
-            >
-              {bulkLoading ? "Working…" : `Mark All Alive`}
-            </button>
-            <button
-              onClick={() => { localStorage.setItem("raidscout-onboarding-dismissed", "1"); setOnboardingDismissed(true); }}
-              className="p-1.5 rounded-lg text-slate-500 hover:text-slate-300 hover:bg-slate-800 transition"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* Stats banner */}
       <div className="flex items-center gap-4 flex-wrap">
         <div className="flex items-center gap-2">
@@ -596,15 +494,6 @@ export function BossListView() {
               className="w-16 h-1.5 accent-amber-400 cursor-pointer"
             />
           </div>
-          {!isViewer && (
-          <button
-            onClick={() => setShowBulkModal(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-900/20 border border-amber-800 text-amber-400 text-xs font-medium hover:bg-amber-900/40 transition"
-          >
-            <Zap className="w-3.5 h-3.5" />
-            Make Alive All Bosses After Maintenance
-          </button>
-          )}
         </div>
         {(hasWebhook || currentServer?.discord_webhook_url) && !isViewer && (
         <button
@@ -742,64 +631,6 @@ export function BossListView() {
       {/* Toast notification */}
       {toast && (
         <ToastMessage toast={toast} onDismiss={() => setToast(null)} />
-      )}
-
-      {/* Bulk death modal */}
-      {showBulkModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/60" onClick={() => setShowBulkModal(false)} />
-          <div className="relative bg-slate-900 border border-slate-700 rounded-xl w-full max-w-sm shadow-2xl">
-            <div className="flex items-center justify-between p-4 border-b border-slate-800">
-              <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                <Zap className="w-5 h-5 text-amber-400" />
-                Reset after Maintenance
-              </h2>
-              <button onClick={() => setShowBulkModal(false)} className="text-slate-400 hover:text-white transition p-1">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="p-4 space-y-4">
-              <p className="text-slate-300 text-sm">
-                After maintenance, all timer-based bosses respawn. This will advance the
-                death time for{" "}
-                <span className="text-white font-bold">{affectedCount} fixed-hour bosses</span>{" "}
-                so their respawn timers expire immediately (set to &ldquo;alive&rdquo;).
-                Bosses without a recorded death are skipped. Schedule-based bosses are unaffected.
-              </p>
-              {affectedCount === 0 && (
-                <p className="text-amber-400 text-xs bg-amber-900/20 rounded-lg px-3 py-2">
-                  No fixed-hour bosses have a recorded death yet — nothing to reset.
-                </p>
-              )}
-              <p className="text-white font-mono text-lg bg-slate-800 rounded-lg px-3 py-2 text-center">
-                {new Date().toLocaleString()}
-              </p>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setShowBulkModal(false)}
-                  disabled={bulkLoading}
-                  className="flex-1 py-2.5 rounded-lg font-medium bg-slate-800 text-slate-300 hover:bg-slate-700 transition text-sm disabled:opacity-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleMarkAllDied}
-                  disabled={bulkLoading || affectedCount === 0}
-                  className="flex-1 py-2.5 rounded-lg font-medium bg-gradient-to-r from-red-600 to-orange-500 text-white hover:from-red-500 hover:to-orange-400 transition text-sm disabled:opacity-50 flex items-center justify-center gap-2"
-                >
-                  {bulkLoading ? (
-                    <>
-                      <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                      Saving...
-                    </>
-                  ) : (
-                    "Make Alive"
-                  )}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
       )}
 
       {/* Announce 24h spawns confirm dialog */}

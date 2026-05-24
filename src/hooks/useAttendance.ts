@@ -91,20 +91,22 @@ export function useLeaderboard(period: LeaderboardPeriod = "all") {
     queryFn: async () => {
       if (!configured) return [];
 
-      // Get reset date: use the latest finalized snapshot's date, or fall back to period start
+      // Get reset date: use the latest finalized snapshot's date for this period
       let effectiveReset: string | null = null;
-      try {
-        const { data: snaps } = await supabase
-          .from("leaderboard_snapshots")
-          .select("finalized_at")
-          .eq("period", "weekly")
-          .eq("server_id", serverId)
-          .order("finalized_at", { ascending: false })
-          .limit(1);
-        if (snaps && snaps.length > 0) {
-          effectiveReset = (snaps[0] as any).finalized_at;
-        }
-      } catch { /* fall back to period start */ }
+      if (period !== "all") {
+        try {
+          const { data: snaps } = await supabase
+            .from("leaderboard_snapshots")
+            .select("finalized_at")
+            .eq("period", period)
+            .eq("server_id", serverId)
+            .order("finalized_at", { ascending: false })
+            .limit(1);
+          if (snaps && snaps.length > 0) {
+            effectiveReset = (snaps[0] as any).finalized_at;
+          }
+        } catch { /* fall back to period start */ }
+      }
 
       if (period === "all") {
         return await fetchLeaderboard(serverId);
