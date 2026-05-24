@@ -7,6 +7,7 @@ import { DiscordWebhookBanner } from "@/components/DiscordWebhookBanner";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { useSpawnAlerts } from "@/hooks/useSpawnAlerts";
 import { Skull, List, Calendar, LogOut, Clock, Trophy, Users, BarChart3, Server, Settings, Plus, Shield, ExternalLink, Eye, Bell, Volume2 } from "lucide-react";
+import { version } from "../../package.json";
 
 function playAlertSound() {
   try {
@@ -271,7 +272,7 @@ export function Layout() {
             <Link to="/terms" className="hover:text-slate-400 transition">Terms of Service</Link>
             <Link to="/privacy" className="hover:text-slate-400 transition">Privacy Policy</Link>
             <span className="text-slate-800">|</span>
-            <span>v1.12.2</span>
+            <span>v{version}</span>
             <span>© 2026 RaidScout. All rights reserved.</span>
           </div>
         </div>

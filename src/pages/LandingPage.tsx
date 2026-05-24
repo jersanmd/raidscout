@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
 import { SEOHead } from "@/components/SEOHead";
+import { version } from "../../package.json";
 import {
   Timer, Shield, BarChart3, Sparkles, MessageSquare, Calendar, Skull, Eye, Trophy,
   LogIn, UserPlus, Mail, CheckCircle, AlertTriangle, Key, ChevronDown
@@ -235,6 +236,7 @@ export function LandingPage() {
         <div className="max-w-4xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-600">
           <div className="flex items-center gap-4">
             <span>© 2026 RaidScout</span>
+            <span>v{version}</span>
             <Link to="/terms" className="hover:text-slate-400 transition">Terms</Link>
             <Link to="/privacy" className="hover:text-slate-400 transition">Privacy</Link>
           </div>
