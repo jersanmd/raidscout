@@ -151,8 +151,17 @@ async function handleMessage(msg: any) {
     if (!serverId) return reply("This server is not linked to RaidScout.");
     const bosses = await supabaseQuery(`bosses?server_id=eq.${serverId}&order=name`);
     if (!bosses?.length) return reply("No bosses found.");
-    const names = bosses.map((b: any, i: number) => `${i + 1}. ${b.name}`).join("\n");
-    return reply(`**📋 Boss List** (${bosses.length} bosses)\n${names}`);
+    const fields = bosses.map((b: any, i: number) => ({
+      name: `${i + 1}. ${b.name}`,
+      value: b.spawn_type === "fixed_hours" ? `Respawn: ${b.respawn_hours ?? "?"}h` : "Schedule",
+      inline: true,
+    }));
+    return replyEmbed(
+      "📋 Boss List",
+      `${bosses.length} bosses on this server. Use \`!spawn <boss>\` to check spawn times.`,
+      0x8b5cf6,
+      fields,
+    );
   }
 
   // ── !commands ─────────────────────────────────────────
