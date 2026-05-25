@@ -218,18 +218,28 @@ export function BossListView() {
   const handleSetRotation = useCallback(async (bossId: string, targetIndex: number) => {
     const info = bossRotationInfo(bossId);
     if (!info) return;
-    const delta = targetIndex - info.currentIndex;
-    if (delta === 0) return;
+    if (targetIndex === info.currentIndex) return;
     try {
       if (info.mode === "daily") {
-        await adjustBossRotation(bossId, delta);
+        // Daily mode: update the last death record's owner_guild_id directly
+        const targetGuildName = info.guilds[targetIndex]?.name;
+        const targetGuildId = guilds.find(g => g.name === targetGuildName)?.id;
+        const lastDeath = deathRecords
+          .filter(dr => dr.boss_id === bossId && !dr.is_initial_spawn)
+          .sort((a, b) => new Date(b.death_time).getTime() - new Date(a.death_time).getTime())[0];
+        if (lastDeath && targetGuildId) {
+          await supabase.from("death_records").update({ owner_guild_id: targetGuildId }).eq("id", lastDeath.id);
+        }
+        // Reset rotation_adjustment to 0 so daily mode advances naturally from here
+        await supabase.from("bosses").update({ rotation_adjustment: 0 }).eq("id", bossId);
       } else {
+        // Rotation (per kill) mode: set rotation_counter directly
         await setBossRotation(bossId, targetIndex);
       }
-      // Force refetch so the UI updates immediately
       await queryClient.invalidateQueries({ queryKey: ["bosses"] });
       await queryClient.refetchQueries({ queryKey: ["bosses"] });
       await queryClient.invalidateQueries({ queryKey: ["death_records"] });
+      await queryClient.refetchQueries({ queryKey: ["death_records"] });
       setRefreshKey(k => k + 1);
     } catch (err: any) {
       setToast({ type: "error", message: err?.message ?? "Failed to set rotation" });
