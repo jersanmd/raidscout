@@ -20,6 +20,7 @@ import {
   setBossRotation,
   advanceBossRotation,
   subscribeToServerSettings,
+  cleanupChannel,
 } from "@/lib/supabase";
 import { BossCard } from "@/components/BossCard";
 import { DeathRecordModal } from "@/components/DeathRecordModal";
@@ -101,7 +102,7 @@ export function BossListView() {
       setHasWebhook(!!updated?.discord_webhook_url);
     });
 
-    return () => { supabase.removeChannel(channel); };
+    return () => { cleanupChannel(channel); };
   }, [currentServer?.id, isViewer, ctxViewerCanEdit, ctxViewerCanMarkDied, ctxDiscordWebhookUrl]);
 
   // Debounced leaderboard/analytics invalidation — batches rapid kills

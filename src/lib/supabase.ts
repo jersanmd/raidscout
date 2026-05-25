@@ -369,6 +369,18 @@ function getOrCreateChannel(chanName: string): { channel: ReturnType<typeof supa
   return { channel, isNew: true };
 }
 
+/** Remove a channel from Supabase AND the local cache */
+export function cleanupChannel(channel: ReturnType<typeof supabase.channel>) {
+  // Find and delete from activeChannels by value
+  for (const [name, ch] of activeChannels) {
+    if (ch === channel) {
+      activeChannels.delete(name);
+      break;
+    }
+  }
+  supabase.removeChannel(channel).catch(() => {});
+}
+
 export function subscribeToDeathRecords(
   serverId: string,
   onInsert: (record: DeathRecord) => void,

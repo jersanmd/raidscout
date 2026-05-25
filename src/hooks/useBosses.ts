@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
-import { fetchBosses, isSupabaseConfigured, subscribeToBosses, supabase } from "@/lib/supabase";
+import { fetchBosses, isSupabaseConfigured, subscribeToBosses, supabase, cleanupChannel } from "@/lib/supabase";
 import { useServerId } from "@/contexts/ServerContext";
 import { useAuth } from "@/contexts/AuthContext";
 import type { Boss } from "@/types";
@@ -27,7 +27,7 @@ export function useBosses() {
 
     return () => {
       activeBossSubscriptions.delete(subKey);
-      supabase.removeChannel(channel).catch(() => {});
+      cleanupChannel(channel);
     };
   }, [user, configured, queryClient, serverId]);
 
