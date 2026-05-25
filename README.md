@@ -37,10 +37,16 @@
   <tr>
     <td>
       <h3>📢 Discord Webhook Alerts</h3>
-      <p>Auto-post boss deaths, spawns, and 24h forecasts with <code>@everyone</code> pings and branded embeds.</p>
+      <p>Per-guild webhooks with <code>@everyone</code> pings, branded embeds, and 24h spawn forecasts. Multi-Discord support.</p>
     </td>
     <td>
-      <h3>🤖 AI Rally Scanning</h3>
+      <h3>🤖 Discord Bot Commands</h3>
+      <p><code>!spawn</code> <code>!kill</code> <code>!list</code> <code>!commands</code> — manage bosses right from Discord. No website needed.</p>
+    </td>
+  </tr>
+  <tr>
+    <td>
+      <h3>🧠 AI Rally Scanning</h3>
       <p>Upload rally screenshots — AI detects player names with exact, fuzzy, and unmatched results.</p>
     </td>
   </tr>
@@ -135,13 +141,37 @@ VITE_SUPABASE_URL=https://your-project.supabase.co
 VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_your-key-here
 ```
 
-### 🔔 Discord Webhooks
+### 🔔 Discord Webhooks & Bot
 
+**Webhooks** (per-guild notifications):
 ```bash
 supabase functions deploy discord-notify
 ```
 
-Configure your webhook URL in **Server Settings** within the app.
+Add webhook URLs in **Server Settings → Integrations → Discord Bot & Webhooks**. Supports multiple Discord servers per RaidScout server.
+
+**Bot** (prefix commands from Discord):
+```bash
+# Set secrets
+supabase secrets set DISCORD_BOT_PUBLIC_KEY=your-public-key
+
+# Deploy the HTTP endpoint (for future slash command support)
+supabase functions deploy discord-bot --no-verify-jwt
+
+# Run the Gateway bot (persistent WebSocket connection)
+npx tsx scripts/discord-bot-gateway.ts
+```
+
+| Command | What it does |
+|---------|-------------|
+| `!spawn` | List boss spawns in 24h |
+| `!spawn <boss>` | Check a specific boss |
+| `!kill <boss>` | Record a kill now |
+| `!kill <boss> HH:MM` | Kill at custom time |
+| `!list` | Show all boss names |
+| `!commands` | Show all commands |
+
+The bot requires 24/7 hosting (Railway, Fly.io, or a VPS).
 
 ### 🧠 AI Rally Scanning *(optional)*
 
