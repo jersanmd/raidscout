@@ -1,43 +1,27 @@
-// Vercel Edge Function — handles Discord PING and relays commands to Supabase
-export const config = { runtime: "edge" };
+import type { VercelRequest, VercelResponse } from "@vercel/node";
 
-export default async function handler(request: Request) {
-  const body = await request.text();
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  if (req.method === "POST") {
+    const body = req.body;
 
-  let data: any;
-  try { data = JSON.parse(body); } catch {
-    return new Response("Invalid JSON", { status: 400 });
+    // Discord PING verification
+    if (body?.type === 1) {
+      return res.status(200).json({ type: 1 });
+    }
+
+    // Forward to Supabase
+    try {
+      const fetchRes = await fetch("https://oeugehqgpodzhagomeex.supabase.co/functions/v1/discord-bot", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await fetchRes.json();
+      return res.status(fetchRes.status).json(data);
+    } catch {
+      return res.status(200).json({ type: 4, data: { content: "Service unavailable.", flags: 64 } });
+    }
   }
 
-  // Discord PING — respond immediately
-  if (data.type === 1) {
-    return new Response(JSON.stringify({ type: 1 }), {
-      status: 200,
-      headers: { "content-type": "application/json" },
-    });
-  }
-
-  // Forward to Supabase
-  const supabaseUrl = "https://oeugehqgpodzhagomeex.supabase.co/functions/v1/discord-bot";
-  try {
-    const res = await fetch(supabaseUrl, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "x-signature-ed25519": request.headers.get("x-signature-ed25519") || "",
-        "x-signature-timestamp": request.headers.get("x-signature-timestamp") || "",
-      },
-      body,
-    });
-    const resBody = await res.text();
-    return new Response(resBody, {
-      status: res.status,
-      headers: { "content-type": "application/json" },
-    });
-  } catch {
-    return new Response(JSON.stringify({ type: 4, data: { content: "Service temporarily unavailable.", flags: 64 } }), {
-      status: 200,
-      headers: { "content-type": "application/json" },
-    });
-  }
+  return res.status(405).json({ error: "Method not allowed" });
 }
