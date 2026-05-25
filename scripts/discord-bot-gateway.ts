@@ -44,6 +44,11 @@ async function resolveServerId(guildId: string): Promise<string | null> {
   return rows?.[0]?.raidscout_server_id ?? null;
 }
 
+async function resolveServerTimezone(serverId: string): Promise<string> {
+  const rows = await supabaseQuery(`servers?select=timezone&id=eq.${serverId}`);
+  return rows?.[0]?.timezone || "UTC";
+}
+
 // ── Spawn helpers ──────────────────────────────────────────
 
 function addHours(d: Date, h: number) { return new Date(d.getTime() + h * 3600_000); }
@@ -310,8 +315,19 @@ async function handleMessage(msg: any) {
     if (timeStr) {
       const [h, m] = timeStr.split(":").map(Number);
       if (h > 23 || m > 59) return reply("Invalid time.");
-      deathTime.setHours(h, m, 0, 0);
-      if (deathTime > new Date()) deathTime.setDate(deathTime.getDate() - 1);
+
+      // Interpret custom time in the server's timezone
+      const tz = await resolveServerTimezone(serverId);
+      const now = new Date();
+      const localDate = now.toLocaleDateString("en-CA", { timeZone: tz });
+      const [y, mo, d] = localDate.split("-").map(Number);
+      deathTime = new Date(Date.UTC(y, mo - 1, d, h, m));
+
+      // If the time is in the future today, assume yesterday
+      const nowInTz = new Date(now.toLocaleString("en-US", { timeZone: tz }));
+      if (deathTime > nowInTz) {
+        deathTime.setUTCDate(deathTime.getUTCDate() - 1);
+      }
     }
 
     // Determine owner guild
