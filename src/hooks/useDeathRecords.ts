@@ -25,6 +25,7 @@ export function useDeathRecords() {
     gcTime: 30 * 60_000,
     refetchOnMount: true,
     refetchOnWindowFocus: true,
+    refetchInterval: 10_000, // poll every 10s as fallback for bot kills
     placeholderData: (prev) => prev,
     retry: 2,
     enabled: configured && (!!user || isViewer) && !!serverId,
