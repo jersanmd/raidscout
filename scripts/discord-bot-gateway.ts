@@ -310,10 +310,16 @@ async function handleMessage(msg: any) {
       }
     }
 
-    await supabaseInsert("death_records", {
-      boss_id: boss.id, server_id: serverId, death_time: deathTime.toISOString(),
-      user_id: "00000000-0000-0000-0000-000000000000", owner_guild_id: ownerGuildId,
-    });
+    await fetch(`${SUPABASE_URL}/rest/v1/death_records`, {
+        method: "POST",
+        headers: { apikey: SUPABASE_KEY!, Authorization: `Bearer ${SUPABASE_KEY!}`, "Content-Type": "application/json", Prefer: "return=representation" },
+        body: JSON.stringify({
+          boss_id: boss.id,
+          server_id: serverId,
+          death_time: deathTime.toISOString(),
+          owner_guild_id: ownerGuildId,
+        }),
+      });
 
     if (bgs?.length) {
       await fetch(`${SUPABASE_URL}/rest/v1/bosses?id=eq.${boss.id}`, {
