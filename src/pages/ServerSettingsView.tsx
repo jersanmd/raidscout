@@ -511,7 +511,7 @@ export function ServerSettingsView() {
       const { error } = await supabase.from("discord_configs").upsert({
         discord_guild_id: gid,
         raidscout_server_id: currentServer.id,
-      }, { onConflict: "discord_guild_id" });
+      }, { onConflict: "raidscout_server_id" });
       if (error) throw error;
       setSavedDiscordGuildId(gid);
       toast("success", "Discord server linked!");
