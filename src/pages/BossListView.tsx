@@ -73,6 +73,13 @@ export function BossListView() {
     if (isViewer) {
       // Viewers get settings from AuthContext (fetched via get_server_by_viewer_key RPC)
       setHasWebhook(!!ctxDiscordWebhookUrl);
+      // Also check per-guild webhooks from discord_configs
+      if (!ctxDiscordWebhookUrl) {
+        supabase.from("discord_configs").select("webhook_url")
+          .eq("raidscout_server_id", sid).not("webhook_url", "is", null).limit(1)
+          .then(({ data }) => { if (data?.length) setHasWebhook(true); })
+          .catch(() => {});
+      }
       setViewerCanEdit(ctxViewerCanEdit);
       setViewerCanMarkDied(ctxViewerCanMarkDied);
       setViewerKey("");

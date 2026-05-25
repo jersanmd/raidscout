@@ -358,6 +358,18 @@ async function handleMessage(msg: any) {
 
     const allGuilds = await supabaseQuery(`guilds?server_id=eq.${serverId}`);
     const guildName = ownerGuildId ? allGuilds.find((g: any) => g.id === ownerGuildId)?.name ?? "" : "";
+
+    // Send Discord notification to all linked webhooks
+    fetch(`${SUPABASE_URL}/functions/v1/discord-notify`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", apikey: SUPABASE_KEY! },
+      body: JSON.stringify({
+        server_id: serverId,
+        event: "boss_died",
+        boss_name: boss.name,
+        guild_name: guildName || undefined,
+      }),
+    }).catch(() => {}); // fire-and-forget
     const unix = Math.floor(deathTime.getTime() / 1000);
 
     return replyEmbed(

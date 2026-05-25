@@ -5,7 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { updateMemberName, deleteMember, upsertMember, isSupabaseConfigured, fetchGuilds, setMemberGuild } from "@/lib/supabase";
 import { useServerId } from "@/contexts/ServerContext";
 import type { Guild } from "@/types";
-import { Users, Plus, Pencil, Trash2, Loader2, X, Check, UserPlus, CheckCircle, AlertTriangle, Image, Upload, Copy, Shield } from "lucide-react";
+import { Users, Plus, Pencil, Trash2, Loader2, X, Check, UserPlus, CheckCircle, AlertTriangle, Image, Upload, Copy, Shield, Search } from "lucide-react";
 import type { Member } from "@/types";
 import { guildColor } from "@/lib/constants";
 
@@ -36,6 +36,7 @@ export function MembersView() {
   const [showBulkModal, setShowBulkModal] = useState(false);
   const [bulkNames, setBulkNames] = useState("");
   const [bulkAdding, setBulkAdding] = useState(false);
+  const [searchText, setSearchText] = useState("");
 
   const showToast = useCallback((type: "success" | "error", message: string) => {
     setToast({ type, message });
@@ -52,6 +53,13 @@ export function MembersView() {
       return a.name.localeCompare(b.name);
     });
   }, [members, guilds]);
+
+  // Filter by search text
+  const filteredMembers = useMemo(() => {
+    if (!searchText.trim()) return sortedMembers;
+    const q = searchText.toLowerCase();
+    return sortedMembers.filter(m => m.name.toLowerCase().includes(q));
+  }, [sortedMembers, searchText]);
 
   const handleAdd = async () => {
     const name = addName.trim();
@@ -228,6 +236,25 @@ export function MembersView() {
         </button>
       </form>
 
+      {/* Search */}
+      {members.length > 5 && (
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+          <input
+            type="text"
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+            placeholder="Search members..."
+            className="w-full pl-10 pr-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-sm placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+          />
+          {searchText && (
+            <button onClick={() => setSearchText("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white">
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Member list */}
       {members.length === 0 ? (
         <div className="text-center py-12">
@@ -238,7 +265,7 @@ export function MembersView() {
         (() => {
           // Group members by guild
           const grouped = new Map<string, { guild: Guild | null; members: Member[] }>();
-          for (const m of sortedMembers) {
+          for (const m of filteredMembers) {
             const guild = guilds.find(g => g.id === m.guild_id) ?? null;
             const key = guild?.id ?? "__noguild__";
             if (!grouped.has(key)) grouped.set(key, { guild, members: [] });

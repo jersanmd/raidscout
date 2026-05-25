@@ -1025,17 +1025,18 @@ export async function notifyDiscord(
   event: "boss_died" | "boss_spawned",
   data: { boss_name: string; attendees?: string[]; spawn_time?: string; guild_name?: string }
 ) {
-  supabase.functions.invoke("discord-notify", {
-    body: {
+  // Use direct fetch instead of supabase.functions.invoke — viewers have no auth session
+  fetch(`${supabaseUrl}/functions/v1/discord-notify`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", apikey: supabaseKey! },
+    body: JSON.stringify({
       server_id: serverId,
       event,
       boss_name: data.boss_name,
       attendees: data.attendees,
       spawn_time: data.spawn_time,
       guild_name: data.guild_name,
-    },
-  }).then(({ error }) => {
-    if (error) console.error("Discord notification failed:", error);
+    }),
   }).catch((err) => {
     console.error("Discord notification failed:", err);
   }); // fire-and-forget, don't block the UI
