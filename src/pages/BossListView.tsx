@@ -75,10 +75,13 @@ export function BossListView() {
       setHasWebhook(!!ctxDiscordWebhookUrl);
       // Also check per-guild webhooks from discord_configs
       if (!ctxDiscordWebhookUrl) {
-        supabase.from("discord_configs").select("webhook_url")
-          .eq("raidscout_server_id", sid).not("webhook_url", "is", null).limit(1)
-          .then(({ data }) => { if (data?.length) setHasWebhook(true); })
-          .catch(() => {});
+        (async () => {
+          try {
+            const { data } = await supabase.from("discord_configs").select("webhook_url")
+              .eq("raidscout_server_id", sid).not("webhook_url", "is", null).limit(1);
+            if (data?.length) setHasWebhook(true);
+          } catch { /* ignore */ }
+        })();
       }
       setViewerCanEdit(ctxViewerCanEdit);
       setViewerCanMarkDied(ctxViewerCanMarkDied);
