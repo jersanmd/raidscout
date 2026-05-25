@@ -145,6 +145,22 @@ async function handleMessage(msg: any) {
     });
   }
 
+  // ── !commands ─────────────────────────────────────────
+  if (cmd === "commands" || cmd === "help") {
+    return replyEmbed(
+      "📋 RaidScout Bot Commands",
+      "Prefix all commands with `!`",
+      0x8b5cf6,
+      [
+        { name: "!spawn", value: "List boss spawns in the next 24 hours", inline: false },
+        { name: "!spawn <boss>", value: "Check spawn for a specific boss (e.g. `!spawn Venatus`)", inline: false },
+        { name: "!kill <boss>", value: "Record a boss kill right now (e.g. `!kill Venatus`)", inline: false },
+        { name: "!kill <boss> HH:MM", value: "Record a boss kill at a specific time (e.g. `!kill Venatus 23:59`)", inline: false },
+        { name: "!commands", value: "Show this help message", inline: false },
+      ],
+    );
+  }
+
   // ── !spawn [boss] ──────────────────────────────────────
   if (cmd === "spawn") {
     const serverId = await resolveServerId(guildId);
