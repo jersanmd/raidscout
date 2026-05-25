@@ -1,11 +1,12 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useMembers } from "@/hooks/useMembers";
 import { useAuth } from "@/contexts/AuthContext";
 import { updateMemberName, deleteMember, upsertMember, isSupabaseConfigured, fetchGuilds, setMemberGuild } from "@/lib/supabase";
 import type { Guild } from "@/types";
-import { Users, Plus, Pencil, Trash2, Loader2, X, Check, UserPlus, CheckCircle, AlertTriangle, Image, Upload, Copy } from "lucide-react";
+import { Users, Plus, Pencil, Trash2, Loader2, X, Check, UserPlus, CheckCircle, AlertTriangle, Image, Upload, Copy, Shield } from "lucide-react";
 import type { Member } from "@/types";
+import { guildColor } from "@/lib/constants";
 
 export function MembersView() {
   const { user } = useAuth();
@@ -39,6 +40,16 @@ export function MembersView() {
   }, []);
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ["members"] });
+
+  // Sort members by guild, then by name
+  const sortedMembers = useMemo(() => {
+    return [...members].sort((a, b) => {
+      const ga = guilds.find(g => g.id === a.guild_id)?.name ?? "zzz";
+      const gb = guilds.find(g => g.id === b.guild_id)?.name ?? "zzz";
+      if (ga !== gb) return ga.localeCompare(gb);
+      return a.name.localeCompare(b.name);
+    });
+  }, [members, guilds]);
 
   const handleAdd = async () => {
     const name = addName.trim();
@@ -222,18 +233,51 @@ export function MembersView() {
           <p className="text-slate-500 text-sm">No members yet</p>
         </div>
       ) : (
-        <div className="space-y-1">
-          {members.map((member) => (
+        (() => {
+          // Group members by guild
+          const grouped = new Map<string, { guild: Guild | null; members: Member[] }>();
+          for (const m of sortedMembers) {
+            const guild = guilds.find(g => g.id === m.guild_id) ?? null;
+            const key = guild?.id ?? "__noguild__";
+            if (!grouped.has(key)) grouped.set(key, { guild, members: [] });
+            grouped.get(key)!.members.push(m);
+          }
+          // Sort groups: guilds alphabetically, "No Guild" last
+          const groups = [...grouped.values()].sort((a, b) => {
+            if (!a.guild) return 1;
+            if (!b.guild) return -1;
+            return a.guild.name.localeCompare(b.guild.name);
+          });
+
+          return (
+        <div className="space-y-4">
+          {groups.map(group => {
+            const c = group.guild ? guildColor(group.guild.name) : null;
+            return (
+              <div key={group.guild?.id ?? "noguild"}>
+                <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                  {group.guild && c ? (
+                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] border ${c.bg} ${c.text} ${c.border}`}>
+                      <Shield className="w-3 h-3" />
+                      {group.guild.name}
+                    </span>
+                  ) : (
+                    <span className="text-slate-500">No Guild</span>
+                  )}
+                  <span className="text-slate-600 font-normal normal-case text-[11px]">
+                    {group.members.length} member{group.members.length !== 1 ? "s" : ""}
+                  </span>
+                </h3>
+                <div className="space-y-1">
+                  {group.members.map(member => (
             <div
               key={member.id}
               className="flex items-center gap-3 px-4 py-2.5 rounded-lg bg-slate-900/50 border border-slate-800/50 group"
             >
-              {/* Avatar */}
               <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-blue-900/20 text-blue-400 font-bold text-sm shrink-0">
                 {member.name.charAt(0).toUpperCase()}
               </div>
 
-              {/* Name / Edit field */}
               {editingId === member.id ? (
                 <div className="flex-1 flex gap-2">
                   <input
@@ -244,66 +288,42 @@ export function MembersView() {
                     autoFocus
                     className="flex-1 px-2 py-1 bg-slate-800 border border-slate-600 rounded text-white text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
                   />
-                  <button
-                    onClick={() => handleEdit(member.id)}
-                    disabled={saving}
-                    className="p-1 text-emerald-400 hover:text-emerald-300 transition"
-                  >
-                    <Check className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => setEditingId(null)}
-                    className="p-1 text-slate-400 hover:text-white transition"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
+                  <button onClick={() => handleEdit(member.id)} disabled={saving} className="p-1 text-emerald-400 hover:text-emerald-300 transition"><Check className="w-4 h-4" /></button>
+                  <button onClick={() => setEditingId(null)} className="p-1 text-slate-400 hover:text-white transition"><X className="w-4 h-4" /></button>
                 </div>
               ) : (
                 <span className="flex-1 text-white text-sm font-medium">{member.name}</span>
               )}
 
-              {/* Actions */}
               {editingId !== member.id && (
                 <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition">
-                  <button
-                    onClick={() => startEdit(member)}
-                    className="p-1.5 text-slate-500 hover:text-white transition rounded"
-                    title="Edit"
-                  >
-                    <Pencil className="w-3.5 h-3.5" />
-                  </button>
-                  <button
-                    onClick={() => setDeleteId(member.id)}
-                    className="p-1.5 text-slate-500 hover:text-red-400 transition rounded"
-                    title="Delete"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
+                  <button onClick={() => startEdit(member)} className="p-1.5 text-slate-500 hover:text-white transition rounded" title="Edit"><Pencil className="w-3.5 h-3.5" /></button>
+                  <button onClick={() => setDeleteId(member.id)} className="p-1.5 text-slate-500 hover:text-red-400 transition rounded" title="Delete"><Trash2 className="w-3.5 h-3.5" /></button>
                 </div>
               )}
 
-              {/* Guild assignment */}
               {editingId !== member.id && guilds.length > 0 && (
                 <select
                   value={member.guild_id ?? ""}
                   onChange={async (e) => {
                     const gid = e.target.value || null;
-                    try {
-                      await setMemberGuild(member.id, gid);
-                      invalidate();
-                    } catch { /* ignore */ }
+                    try { await setMemberGuild(member.id, gid); invalidate(); } catch {}
                   }}
                   className="bg-slate-800 border border-slate-700 rounded px-2 py-1 text-xs text-slate-400 outline-none focus:border-blue-500 transition max-w-[120px] truncate"
                 >
                   <option value="">No guild</option>
-                  {guilds.map((g) => (
-                    <option key={g.id} value={g.id}>{g.name}</option>
-                  ))}
+                  {guilds.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
                 </select>
               )}
             </div>
-          ))}
+                  ))}
+                </div>
+              </div>
+            );
+          })}
         </div>
+          );
+        })()
       )}
 
       {/* Bulk add modal */}

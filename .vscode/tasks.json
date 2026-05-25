@@ -6,6 +6,12 @@
 			"type": "shell",
 			"command": "npx vite --host",
 			"isBackground": true
+		},
+		{
+			"label": "dev",
+			"type": "shell",
+			"command": "npx vite --host",
+			"isBackground": true
 		}
 	]
 }

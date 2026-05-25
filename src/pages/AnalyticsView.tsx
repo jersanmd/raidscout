@@ -6,6 +6,7 @@ import { useServerId } from "@/contexts/ServerContext";
 import { guildColor } from "@/lib/constants";
 import type { Guild, Member } from "@/types";
 import { BarChart3, TrendingUp, Users, Skull, Activity, Loader2, Shield } from "lucide-react";
+import { useServerTimezone } from "@/hooks/useServerTimezone";
 
 interface AnalyticsUIData {
   totalKills: number;
@@ -24,6 +25,7 @@ export function AnalyticsView() {
   const [period, setPeriod] = useState<"week" | "month" | "all">("week");
   const [huntersPage, setHuntersPage] = useState(1);
   const HUNTERS_PER_PAGE = 10;
+  const tz = useServerTimezone();
 
   // Reset pagination when period changes
   useEffect(() => { setHuntersPage(1); }, [period]);
@@ -44,18 +46,26 @@ export function AnalyticsView() {
   const memberGuildMap = new Map(members.map(m => [m.name, m.guild_id]));
 
   const { data, isLoading } = useQuery<AnalyticsUIData>({
-    queryKey: ["analytics", period, serverId],
+    queryKey: ["analytics", period, serverId, tz],
     queryFn: async () => {
       const now = new Date();
       let since: string;
       if (period === "week") {
-        const d = new Date(now);
-        const daysSinceMonday = d.getDay() === 0 ? 6 : d.getDay() - 1;
-        d.setDate(d.getDate() - daysSinceMonday); // Monday
-        d.setHours(0, 0, 0, 0); // Midnight
+        // Get current date/time in server timezone
+        const fmt = new Intl.DateTimeFormat("en-CA", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit", weekday: "short" });
+        const parts = fmt.formatToParts(now);
+        const dateStr = parts.filter(p => p.type !== "literal" && p.type !== "weekday").map(p => p.value).join("-");
+        const d = new Date(dateStr + "T00:00:00");
+        // Adjust to Monday
+        const dow = now.toLocaleString("en-US", { timeZone: tz, weekday: "short" });
+        const daysFromMonday = { "Mon": 0, "Tue": 1, "Wed": 2, "Thu": 3, "Fri": 4, "Sat": 5, "Sun": 6 }[dow] ?? 0;
+        d.setDate(d.getDate() - daysFromMonday);
         since = d.toISOString();
       } else if (period === "month") {
-        since = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+        const fmt = new Intl.DateTimeFormat("en-CA", { timeZone: tz, year: "numeric", month: "2-digit" });
+        const parts = fmt.formatToParts(now);
+        const [y, m] = [parts[0].value, parts[2].value];
+        since = new Date(`${y}-${m}-01T00:00:00`).toISOString();
       } else {
         since = "2020-01-01";
       }
@@ -127,9 +137,10 @@ export function AnalyticsView() {
         <StatCard icon={<Activity className="w-4 h-4" />} label="Attendances" value={data.totalAttendance} color="text-amber-400" bg="bg-amber-900/20 border-amber-800" />
       </div>
 
+      {period !== "week" && (
       <Section title="Kills per Week" icon={<TrendingUp className="w-4 h-4" />}>
         <div className="space-y-1.5">
-          {data.killsByWeek.slice(-12).map((w) => (
+          {data.killsByWeek.slice(-12).reverse().map((w) => (
             <div key={w.week} className="flex items-center gap-2 text-sm">
               <span className="text-slate-400 w-20 shrink-0 text-left">{w.week}</span>
               <div className="flex-1 h-6 bg-slate-800 rounded overflow-hidden">
@@ -141,6 +152,7 @@ export function AnalyticsView() {
           ))}
         </div>
       </Section>
+      )}
 
       <Section title="Most Killed Bosses" icon={<Skull className="w-4 h-4" />}>
         <div className="space-y-1.5">
