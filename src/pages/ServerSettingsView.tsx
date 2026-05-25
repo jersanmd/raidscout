@@ -1716,6 +1716,7 @@ export function ServerSettingsView() {
               </ol>
               <p className="mt-2 text-slate-500">Available commands:</p>
               <div className="space-y-0.5 mt-1">
+                <p className="text-xs"><span className="text-amber-400 font-mono">!list</span> <span className="text-slate-500">—</span> <span className="text-slate-400">Show all boss names</span></p>
                 <p className="text-xs"><span className="text-amber-400 font-mono">!spawn</span> <span className="text-slate-500">—</span> <span className="text-slate-400">Boss spawns in 24h</span></p>
                 <p className="text-xs"><span className="text-amber-400 font-mono">!spawn &lt;boss&gt;</span> <span className="text-slate-500">—</span> <span className="text-slate-400">Check a specific boss</span></p>
                 <p className="text-xs"><span className="text-amber-400 font-mono">!kill &lt;boss&gt;</span> <span className="text-slate-500">—</span> <span className="text-slate-400">Record a kill now</span></p>

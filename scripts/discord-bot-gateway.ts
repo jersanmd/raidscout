@@ -145,6 +145,16 @@ async function handleMessage(msg: any) {
     });
   }
 
+  // ── !list ────────────────────────────────────────────
+  if (cmd === "list") {
+    const serverId = await resolveServerId(guildId);
+    if (!serverId) return reply("This server is not linked to RaidScout.");
+    const bosses = await supabaseQuery(`bosses?server_id=eq.${serverId}&order=name`);
+    if (!bosses?.length) return reply("No bosses found.");
+    const names = bosses.map((b: any) => b.name).join(", ");
+    return replyEmbed("📋 Boss List", names, 0x8b5cf6);
+  }
+
   // ── !commands ─────────────────────────────────────────
   if (cmd === "commands" || cmd === "help") {
     return replyEmbed(
@@ -152,6 +162,7 @@ async function handleMessage(msg: any) {
       "Prefix all commands with `!`",
       0x8b5cf6,
       [
+        { name: "!list", value: "Show all boss names", inline: false },
         { name: "!spawn", value: "List boss spawns in the next 24 hours", inline: false },
         { name: "!spawn <boss>", value: "Check spawn for a specific boss (e.g. `!spawn Venatus`)", inline: false },
         { name: "!kill <boss>", value: "Record a boss kill right now (e.g. `!kill Venatus`)", inline: false },
