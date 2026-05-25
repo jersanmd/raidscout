@@ -6,7 +6,7 @@ import { SEOHead } from "@/components/SEOHead";
 import { version } from "../../package.json";
 import {
   Timer, Shield, BarChart3, Sparkles, MessageSquare, Calendar, Skull, Eye, Trophy,
-  LogIn, UserPlus, Mail, CheckCircle, AlertTriangle, Key, ChevronDown
+  LogIn, UserPlus, Mail, CheckCircle, AlertTriangle, Key, ChevronDown, Bot
 } from "lucide-react";
 
 const features = [
@@ -14,9 +14,10 @@ const features = [
   { icon: <Shield className="w-6 h-6" />, color: "border-blue-500/30 bg-blue-500/5", title: "Multi-Guild Rotation", desc: "Assign bosses to guilds. Per-kill or daily rotation. Weighted turns — Guild A gets 2, Guild B gets 1." },
   { icon: <BarChart3 className="w-6 h-6" />, color: "border-purple-500/30 bg-purple-500/5", title: "Leaderboard & Points", desc: "Configurable points per boss. Weekly, monthly, and all-time rankings. Finalize and snapshot results." },
   { icon: <Sparkles className="w-6 h-6" />, color: "border-violet-500/30 bg-violet-500/5", title: "AI Rally Scanning", desc: "Upload a rally screenshot and AI auto-detects player names. No manual typing." },
-  { icon: <MessageSquare className="w-6 h-6" />, color: "border-emerald-500/30 bg-emerald-500/5", title: "Discord Alerts", desc: "Auto-post boss deaths and spawns to your Discord server. @everyone pings included." },
+  { icon: <MessageSquare className="w-6 h-6" />, color: "border-emerald-500/30 bg-emerald-500/5", title: "Discord Alerts", desc: "Auto-post boss deaths and spawns to your Discord server per guild. @everyone pings and rich embeds included." },
   { icon: <Calendar className="w-6 h-6" />, color: "border-cyan-500/30 bg-cyan-500/5", title: "Weekly Schedule", desc: "Full week grid. See which guild owns which boss on every day. Click to manage." },
   { icon: <Skull className="w-6 h-6" />, color: "border-red-500/30 bg-red-500/5", title: "Death History", desc: "Complete kill log with guild badges. Attendance tracking per kill. Edit or delete entries." },
+  { icon: <Bot className="w-6 h-6" />, color: "border-indigo-500/30 bg-indigo-500/5", title: "Discord Bot Commands", desc: "Manage bosses from Discord: !spawn, !kill, !list, !commands. Record kills and check timers without opening the website." },
   { icon: <Eye className="w-6 h-6" />, color: "border-orange-500/30 bg-orange-500/5", title: "Viewer Mode", desc: "Share a link so members can watch timers without an account. Read-only, always free." },
 ];
 
@@ -154,6 +155,37 @@ export function LandingPage() {
               <p className="text-xs text-slate-500 leading-relaxed">{f.desc}</p>
             </div>
           ))}
+        </div>
+      </section>
+
+      {/* ── Discord Bot Commands ── */}
+      <section className="max-w-3xl mx-auto px-6 pb-20">
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-indigo-900/30 border border-indigo-500/20 text-indigo-400 text-xs font-medium mb-4">
+            <Bot className="w-3.5 h-3.5" /> DISCORD BOT
+          </div>
+          <h2 className="text-3xl font-bold">Control RaidScout from Discord</h2>
+          <p className="text-slate-400 mt-2 text-sm">Invite the bot to your server. Run commands in any channel.</p>
+        </div>
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
+          <div className="divide-y divide-slate-800">
+            {[
+              { cmd: "!spawn", desc: "List boss spawns in the next 24 hours", detail: "Shows spawn time, countdown, and owner guild for every boss" },
+              { cmd: "!spawn Venatus", desc: "Check spawn for a specific boss", detail: "Filter by boss name to see just that boss's timer" },
+              { cmd: "!kill Venatus", desc: "Record a boss kill right now", detail: "Same as \"Mark Died\" on the website — advances rotation" },
+              { cmd: "!kill Venatus 23:59", desc: "Record a kill at a custom time", detail: "Use HH:MM format for delayed kills" },
+              { cmd: "!list", desc: "See all boss names", detail: "Numbered list with respawn hours and spawn type" },
+              { cmd: "!commands", desc: "Show all available commands", detail: "Quick reference for your members" },
+            ].map((c, i) => (
+              <div key={c.cmd} className="flex items-start gap-4 px-5 py-4 hover:bg-slate-800/30 transition">
+                <code className="shrink-0 mt-0.5 px-2.5 py-1 rounded-md bg-indigo-900/40 border border-indigo-500/20 text-indigo-300 font-mono text-sm">{c.cmd}</code>
+                <div className="min-w-0">
+                  <p className="text-white text-sm font-medium">{c.desc}</p>
+                  <p className="text-slate-500 text-xs mt-0.5">{c.detail}</p>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
