@@ -1710,10 +1710,9 @@ export function ServerSettingsView() {
               </ol>
             </div>
             <div>
-              <p className="text-slate-300 font-semibold mb-1">Step 3: Set up the bot</p>
+              <p className="text-slate-300 font-semibold mb-1">Step 3: Invite the bot</p>
               <ol className="list-decimal list-inside space-y-0.5 ml-1 text-slate-400">
                 <li><a href="https://discord.com/api/oauth2/authorize?client_id=1508368991272566975&permissions=2147485696&scope=bot%20applications.commands" target="_blank" rel="noopener noreferrer" className="text-purple-400 hover:text-purple-300 underline font-medium">Click here to invite the bot</a> to your Discord server</li>
-                <li>In <a href="https://discord.com/developers/applications" target="_blank" rel="noopener noreferrer" className="text-purple-400 hover:text-purple-300 underline">Discord Developer Portal</a> → Bot → enable <strong>Message Content Intent</strong></li>
                 <li>Type <code className="bg-slate-700 px-1 rounded text-amber-400">!spawn</code> in any channel to test</li>
               </ol>
             </div>
