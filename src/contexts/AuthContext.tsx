@@ -59,12 +59,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     // Check for stored viewer key — re-verify with server to avoid stale settings
     const storedViewerKey = localStorage.getItem(VIEWER_KEY_STORAGE);
+    let viewerCancelled = false;
     if (storedViewerKey) {
       try {
         const parsed = JSON.parse(storedViewerKey);
         // Re-verify with server to get latest viewer_can_edit, viewer_can_mark_died, etc.
         (async () => {
           const { data, error } = await supabase.rpc("get_server_by_viewer_key", { v_key: parsed.viewerKey });
+          // If a real session was found while we were waiting, abort — don't clobber it
+          if (viewerCancelled) return;
           if (error || !data || (data as any[]).length === 0) {
             localStorage.removeItem(VIEWER_KEY_STORAGE);
             return;
@@ -99,6 +102,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
+        // Signal the viewer IIFE to abort — real session takes priority
+        viewerCancelled = true;
         // Clear any leftover viewer state when a real session exists
         setIsViewer(false);
         setViewerServerId(null);

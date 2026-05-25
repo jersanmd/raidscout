@@ -3,6 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useMembers } from "@/hooks/useMembers";
 import { useAuth } from "@/contexts/AuthContext";
 import { updateMemberName, deleteMember, upsertMember, isSupabaseConfigured, fetchGuilds, setMemberGuild } from "@/lib/supabase";
+import { useServerId } from "@/contexts/ServerContext";
 import type { Guild } from "@/types";
 import { Users, Plus, Pencil, Trash2, Loader2, X, Check, UserPlus, CheckCircle, AlertTriangle, Image, Upload, Copy, Shield } from "lucide-react";
 import type { Member } from "@/types";
@@ -10,6 +11,7 @@ import { guildColor } from "@/lib/constants";
 
 export function MembersView() {
   const { user } = useAuth();
+  const serverId = useServerId();
   const queryClient = useQueryClient();
   const configured = isSupabaseConfigured();
   const { data: members = [], isLoading } = useMembers();
@@ -27,8 +29,8 @@ export function MembersView() {
   const [guilds, setGuilds] = useState<Guild[]>([]);
 
   useEffect(() => {
-    fetchGuilds().then(setGuilds).catch(() => setGuilds([]));
-  }, []);
+    fetchGuilds(serverId).then(setGuilds).catch(() => setGuilds([]));
+  }, [serverId]);
 
   // Bulk add
   const [showBulkModal, setShowBulkModal] = useState(false);

@@ -59,12 +59,16 @@ serve(async (req: Request) => {
       "- Do NOT include any explanation, just the JSON array\n" +
       "- If no names are visible, return empty array: []";
 
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30_000);
+
     const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${apiKey}`,
       },
+      signal: controller.signal,
       body: JSON.stringify({
         model: "gpt-4o-mini",
         messages: [
@@ -83,6 +87,8 @@ serve(async (req: Request) => {
         temperature: 0,
       }),
     });
+
+    clearTimeout(timeout);
 
     if (!openaiRes.ok) {
       const errText = await openaiRes.text();

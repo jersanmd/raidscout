@@ -23,6 +23,7 @@ import {
 } from "@/lib/supabase";
 import { Loader2, ChevronLeft, ChevronRight, Users, Shield, X } from "lucide-react";
 import { SavingOverlay } from "@/components/SavingOverlay";
+import { getOwnerGuildName as getOwnerGuildNameLib } from "@/lib/rotation";
 import type { WeekDaySpawns, SpawnInfo, Boss, BossGuild, Guild } from "@/types";
 
 export function WeeklyScheduleView() {
@@ -118,62 +119,17 @@ export function WeeklyScheduleView() {
       .catch(() => { setGuilds([]); setBossGuilds([]); });
   }, [currentServer?.id]);
 
-  const getOwnerGuildName = useCallback((bossId: string, dayOfWeek?: number): string | null => {
-    const bgs = bossGuilds.filter(bg => bg.boss_id === bossId);
-    if (bgs.length === 0) return null;
+  // Build minimal SpawnInfo[] so rotation.ts can access boss data (rotation_counter, etc.)
+  const spawnMap = useMemo(() => bosses.map(b => ({
+    boss: b,
+    nextSpawn: null as Date | null,
+    status: "unknown" as const,
+    deathRecord: null,
+  })), [bosses]);
 
-    // Schedule mode: look up by day_of_week (uses the provided dayOfWeek for grid display)
-    const dow = dayOfWeek ?? new Date().getDay();
-    const scheduleEntry = bgs.find(bg => bg.day_of_week === dow);
-    if (scheduleEntry) return guilds.find(g => g.id === scheduleEntry.guild_id)?.name ?? null;
-
-    const bossData = bosses.find(b => b.id === bossId);
-    const adjustment = bossData?.rotation_adjustment ?? 0;
-
-    // Daily mode: advance guild only when spawn crosses into a new day
-    const dailyEntries = bgs.filter(bg => bg.mode === "daily").sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
-    if (dailyEntries.length > 0) {
-      const lastDeath = deathRecords
-        .filter(dr => dr.boss_id === bossId && !dr.is_initial_spawn)
-        .sort((a, b) => new Date(b.death_time).getTime() - new Date(a.death_time).getTime())[0];
-      
-      if (!lastDeath) {
-        return guilds.find(g => g.id === dailyEntries[0].guild_id)?.name ?? null;
-      }
-
-      const respawnHours = bossData?.respawn_hours ?? 0;
-      const deathDate = new Date(lastDeath.death_time);
-      const spawnDate = new Date(deathDate.getTime() + respawnHours * 3600000);
-
-      if (deathDate.toDateString() === spawnDate.toDateString()) {
-        const lastGuildId = (lastDeath as any).owner_guild_id;
-        return lastGuildId ? guilds.find(g => g.id === lastGuildId)?.name ?? null : guilds.find(g => g.id === dailyEntries[0].guild_id)?.name ?? null;
-      }
-
-      const lastGuildId = (lastDeath as any).owner_guild_id;
-      if (!lastGuildId) {
-        // No owner_guild_id — advance from first guild since spawn crossed into new day
-        let idx = (1 + adjustment) % dailyEntries.length;
-        if (idx < 0) idx += dailyEntries.length;
-        return guilds.find(g => g.id === dailyEntries[idx].guild_id)?.name ?? null;
-      }
-      
-      const lastIdx = dailyEntries.findIndex(bg => bg.guild_id === lastGuildId);
-      let nextIdx = (lastIdx >= 0 ? lastIdx + 1 : 0) + adjustment;
-      nextIdx = ((nextIdx % dailyEntries.length) + dailyEntries.length) % dailyEntries.length;
-      return guilds.find(g => g.id === dailyEntries[nextIdx].guild_id)?.name ?? null;
-    }
-
-    // Rotation mode: use rotation_counter
-    const rotationEntries = bgs.filter(bg => bg.sort_order !== null && bg.mode !== "daily").sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
-    if (rotationEntries.length > 0) {
-      const counter = bossData?.rotation_counter ?? 1;
-      const idx = ((counter - 1) % rotationEntries.length + rotationEntries.length) % rotationEntries.length;
-      return guilds.find(g => g.id === rotationEntries[idx].guild_id)?.name ?? null;
-    }
-
-    return null;
-  }, [bossGuilds, guilds, deathRecords, bosses]);
+  const getOwnerGuildName = useCallback((bossId: string, dayOfWeek?: number): string | undefined => {
+    return getOwnerGuildNameLib(bossId, bossGuilds, guilds, deathRecords, spawnMap, dayOfWeek);
+  }, [bossGuilds, guilds, deathRecords, spawnMap]);
 
   const handleRecordDeath = useCallback(
     async (bossId: string, deathTime: Date, rallyImages: File[], attendeeIds: string[]) => {

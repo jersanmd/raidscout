@@ -9,10 +9,18 @@ import { useSpawnAlerts } from "@/hooks/useSpawnAlerts";
 import { Skull, List, Calendar, LogOut, Clock, Trophy, Users, BarChart3, Server, Settings, Plus, Shield, ExternalLink, Eye, Bell, Volume2 } from "lucide-react";
 import { version } from "../../package.json";
 
+let _audioCtx: AudioContext | null = null;
+function getAudioContext(): AudioContext {
+  if (!_audioCtx || _audioCtx.state === "closed") {
+    _audioCtx = new AudioContext();
+  }
+  return _audioCtx;
+}
+
 function playAlertSound() {
   try {
     const vol = parseFloat(localStorage.getItem("raidscout-alert-volume") || "0.5");
-    const ctx = new AudioContext();
+    const ctx = getAudioContext();
     for (let i = 0; i < 5; i++) {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();

@@ -66,10 +66,11 @@ export function HistoryView() {
     if (!editEntry?.deathRecordId || !editDate) return;
     setEditSaving(true);
     try {
-      const [datePart, timePart] = editDate.split("T");
-      const [y, m, d] = datePart.split("-").map(Number);
-      const [hh, mm] = timePart.split(":").map(Number);
+      const match = editDate.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
+      if (!match) throw new Error("Invalid date format");
+      const [, y, m, d, hh, mm] = match.map(Number);
       const newTime = new Date(y, m - 1, d, hh, mm);
+      if (isNaN(newTime.getTime())) throw new Error("Invalid date");
       await editDeathTime(editEntry.deathRecordId, newTime);
       queryClient.invalidateQueries({ queryKey: ["death_records"] });
       // Refresh local history

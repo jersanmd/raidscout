@@ -171,7 +171,7 @@ export function AdminPanelView() {
                         try {
                           const stats = await fetchServerStats(s.id);
                           setServerStats(prev => ({ ...prev, [s.id]: stats }));
-                        } catch { /* ignore */ }
+                        } catch { setServerStats(prev => ({ ...prev, [s.id]: { error: true } })); }
                       }
                     }
                   }}
@@ -196,6 +196,8 @@ export function AdminPanelView() {
                   <div className="border-t border-slate-800 px-4 py-3 space-y-2">
                     {!stats ? (
                       <Loader2 className="w-4 h-4 text-slate-500 animate-spin" />
+                    ) : (stats as any).error ? (
+                      <p className="text-xs text-red-400">Failed to load stats</p>
                     ) : (
                       <>
                         <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">

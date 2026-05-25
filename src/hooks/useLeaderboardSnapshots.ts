@@ -97,8 +97,8 @@ export function useLeaderboardSnapshots() {
 
   const loadSnapshot = useCallback(
     async (snapshotId: string) => {
-      if (!configured || (!user && !isViewer)) return;
-      const snap = await fetchSnapshotByIdSupabase(snapshotId);
+      if (!configured || (!user && !isViewer) || !serverId) return;
+      const snap = await fetchSnapshotByIdSupabase(snapshotId, serverId);
       // Normalize rankings: support both camelCase (frontend) and snake_case (backfill)
       const rankings = (snap.rankings as any[]).map((r: any) => ({
         rank: r.rank,
@@ -114,7 +114,7 @@ export function useLeaderboardSnapshots() {
         created_at: snap.finalized_at,
       });
     },
-    [configured, user, isViewer]
+    [configured, user, isViewer, serverId]
   );
 
   const clearViewing = useCallback(() => setViewingSnapshot(null), []);

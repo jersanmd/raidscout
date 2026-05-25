@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, type ReactNode } from "react";
+import { createContext, useContext, useState, useCallback, useEffect, useRef, type ReactNode } from "react";
 import { CheckCircle, XCircle, AlertTriangle, X } from "lucide-react";
 
 type ToastType = "success" | "error" | "warning";
@@ -19,13 +19,19 @@ let nextId = 0;
 
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
+  const timeoutsRef = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
+
+  // Clean up all timeouts on unmount
+  useEffect(() => () => { timeoutsRef.current.forEach(clearTimeout); }, []);
 
   const addToast = useCallback((type: ToastType, message: string) => {
     const id = nextId++;
     setToasts((prev) => [...prev, { id, type, message }]);
-    setTimeout(() => {
+    const timeout = setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id));
+      timeoutsRef.current.delete(id);
     }, 4000);
+    timeoutsRef.current.set(id, timeout);
   }, []);
 
   const removeToast = useCallback((id: number) => {

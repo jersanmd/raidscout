@@ -200,8 +200,8 @@ export function LandingPage() {
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="flex bg-slate-800 rounded-lg p-0.5 mb-2">
-                <button type="button" onClick={() => { setIsSignUp(false); setError(null); setSuccess(null); }} className={`flex-1 py-1.5 rounded-md text-xs font-medium transition ${!isSignUp ? "bg-slate-700 text-white" : "text-slate-400 hover:text-slate-200"}`}>Sign In</button>
-                <button type="button" onClick={() => { setIsSignUp(true); setError(null); setSuccess(null); }} className={`flex-1 py-1.5 rounded-md text-xs font-medium transition ${isSignUp ? "bg-slate-700 text-white" : "text-slate-400 hover:text-slate-200"}`}>Sign Up</button>
+                <button type="button" onClick={() => { setIsSignUp(false); setError(null); setSuccess(null); setResetSent(false); }} className={`flex-1 py-1.5 rounded-md text-xs font-medium transition ${!isSignUp ? "bg-slate-700 text-white" : "text-slate-400 hover:text-slate-200"}`}>Sign In</button>
+                <button type="button" onClick={() => { setIsSignUp(true); setError(null); setSuccess(null); setResetSent(false); }} className={`flex-1 py-1.5 rounded-md text-xs font-medium transition ${isSignUp ? "bg-slate-700 text-white" : "text-slate-400 hover:text-slate-200"}`}>Sign Up</button>
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-1.5">Email</label>

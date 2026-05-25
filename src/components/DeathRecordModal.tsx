@@ -52,6 +52,11 @@ export function DeathRecordModal({ boss, onClose, onSubmit, defaultDeathTime, hi
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [rallyImages, setRallyImages] = useState<File[]>([]);
   const [rallyPreviews, setRallyPreviews] = useState<string[]>([]);
+  const rallyPreviewsRef = useRef<string[]>([]);
+  // Keep ref in sync so cleanup on unmount has access to the latest previews
+  useEffect(() => { rallyPreviewsRef.current = rallyPreviews; }, [rallyPreviews]);
+  // Revoke all object URLs on unmount to prevent memory leaks
+  useEffect(() => () => { rallyPreviewsRef.current.forEach(url => URL.revokeObjectURL(url)); }, []);
   const [fullscreenPreviewIndex, setFullscreenPreviewIndex] = useState<number | null>(null);
   const [newMemberName, setNewMemberName] = useState("");
   const [searchQuery, setSearchQuery] = useState("");

@@ -22,6 +22,8 @@ export function getOwnerGuildName(
   guilds: Guild[],
   deathRecords: DeathRecord[],
   spawns: SpawnInfo[],
+  /** Optional: override day-of-week for schedule mode (0=Sun..6=Sat). Used by weekly grid. */
+  dayOfWeek?: number,
 ): string | undefined {
   const bgs = bossGuilds.filter(bg => bg.boss_id === bossId);
   if (bgs.length === 0) return undefined;
@@ -29,9 +31,11 @@ export function getOwnerGuildName(
   // ── Schedule mode: guild based on day of week ──
   const scheduleEntries = bgs.filter(bg => bg.day_of_week !== null);
   if (scheduleEntries.length > 0) {
-    const spawn = spawns.find(s => s.boss.id === bossId);
-    const spawnDate = spawn?.status === "alive" ? new Date() : (spawn?.nextSpawn ?? new Date());
-    const dow = spawnDate.getDay();
+    const dow = dayOfWeek ?? (() => {
+      const spawn = spawns.find(s => s.boss.id === bossId);
+      const spawnDate = spawn?.status === "alive" ? new Date() : (spawn?.nextSpawn ?? new Date());
+      return spawnDate.getDay();
+    })();
     const match = scheduleEntries.find(bg => bg.day_of_week === dow);
     if (match) return guilds.find(g => g.id === match.guild_id)?.name;
   }

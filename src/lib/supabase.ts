@@ -989,7 +989,7 @@ export async function fetchLeaderboardSnapshots(serverId?: string | null): Promi
   });
 }
 
-export async function fetchSnapshotById(id: string): Promise<{
+export async function fetchSnapshotById(id: string, serverId: string): Promise<{
   id: string;
   finalized_at: string;
   period: string;
@@ -999,6 +999,7 @@ export async function fetchSnapshotById(id: string): Promise<{
     .from("leaderboard_snapshots")
     .select("*")
     .eq("id", id)
+    .eq("server_id", serverId)
     .single();
 
   if (error) throw error;
