@@ -506,14 +506,15 @@ export function ServerSettingsView() {
   // ── Discord Bot helpers ────────────────────────────────
   const handleAddDiscordLink = async () => {
     const gid = newDiscordId.trim();
-    if (!gid || !currentServer) return;
+    const wh = newDiscordWebhook.trim();
+    if (!gid || !wh || !currentServer) return;
     setSavingDiscord(true);
     try {
       const { data, error } = await supabase.from("discord_configs").insert({
         discord_guild_id: gid,
         raidscout_server_id: currentServer.id,
         label: newDiscordLabel.trim() || null,
-        webhook_url: newDiscordWebhook.trim() || null,
+        webhook_url: wh,
       }).select().single();
       if (error) throw error;
       setDiscordLinks(prev => [...prev, data]);
@@ -523,9 +524,8 @@ export function ServerSettingsView() {
       bumpWebhookVersion();
 
       // Send greeting to the webhook
-      if (newDiscordWebhook.trim()) {
-        try {
-          await fetch(newDiscordWebhook.trim(), {
+      try {
+        await fetch(wh, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -544,7 +544,6 @@ export function ServerSettingsView() {
             }),
           });
         } catch { /* webhook might be invalid — ignore */ }
-      }
 
       toast("success", "Discord server linked!");
     } catch (err: any) {
@@ -1677,12 +1676,12 @@ export function ServerSettingsView() {
                 type="text"
                 value={newDiscordWebhook}
                 onChange={(e) => setNewDiscordWebhook(e.target.value)}
-                placeholder="Webhook URL (optional)"
+                placeholder="Webhook URL"
                 className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-500 outline-none focus:border-purple-500 transition font-mono"
               />
               <button
                 onClick={handleAddDiscordLink}
-                disabled={savingDiscord || !newDiscordId.trim()}
+                disabled={savingDiscord || !newDiscordId.trim() || !newDiscordWebhook.trim()}
                 className="flex items-center gap-1 px-3 py-2 rounded-lg text-xs font-medium bg-purple-600 text-white hover:bg-purple-500 transition disabled:opacity-50"
               >
                 {savingDiscord ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />}
