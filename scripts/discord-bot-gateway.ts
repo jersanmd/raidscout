@@ -151,17 +151,29 @@ async function handleMessage(msg: any) {
     if (!serverId) return reply("This server is not linked to RaidScout.");
     const bosses = await supabaseQuery(`bosses?server_id=eq.${serverId}&order=name`);
     if (!bosses?.length) return reply("No bosses found.");
-    const fields = bosses.map((b: any, i: number) => ({
-      name: `${i + 1}. ${b.name}`,
-      value: b.spawn_type === "fixed_hours" ? `Respawn: ${b.respawn_hours ?? "?"}h` : "Schedule",
-      inline: true,
-    }));
-    return replyEmbed(
-      "📋 Boss List",
-      `${bosses.length} bosses on this server. Use \`!spawn <boss>\` to check spawn times.`,
-      0x8b5cf6,
-      fields,
-    );
+    // Split into chunks of 25 (Discord embed field limit)
+    const chunkSize = 25;
+    const chunks: string[] = [];
+    for (let i = 0; i < bosses.length; i += chunkSize) {
+      chunks.push(bosses.slice(i, i + chunkSize).map((b: any, j: number) =>
+        `${i + j + 1}. ${b.name}`
+      ).join("\n"));
+    }
+    for (let c = 0; c < chunks.length; c++) {
+      const isFirst = c === 0;
+      await fetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
+        method: "POST",
+        headers: { Authorization: `Bot ${TOKEN}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          embeds: [{
+            title: isFirst ? `📋 Boss List (${bosses.length} bosses)` : undefined,
+            description: chunks[c],
+            color: 0x8b5cf6,
+            footer: isFirst ? { text: "Powered by RaidScout" } : undefined,
+          }],
+        }),
+      });
+    }
   }
 
   // ── !commands ─────────────────────────────────────────
