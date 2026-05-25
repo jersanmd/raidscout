@@ -3,7 +3,9 @@
 // Uses Discord's WebSocket Gateway (no Interactions Endpoint needed).
 //
 // Run: npx tsx scripts/discord-bot-gateway.ts
-// Requires: DISCORD_BOT_TOKEN, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
+// Requires: DISCORD_BOT_TOKEN, SUPABASE_SERVICE_ROLE_KEY
+
+import { WebSocket } from "ws";
 
 const TOKEN = process.env.DISCORD_BOT_TOKEN;
 const SUPABASE_URL = process.env.SUPABASE_URL || "https://oeugehqgpodzhagomeex.supabase.co";
@@ -70,13 +72,13 @@ async function connect() {
       op: 2,
       d: {
         token: TOKEN,
-        intents: 1 << 9 | 1 << 0, // GUILD_MESSAGES | GUILDS
+        intents: 1 << 9 | 1 << 0 | 1 << 15, // GUILD_MESSAGES | GUILDS | MESSAGE_CONTENT
         properties: { os: "linux", browser: "raidscout", device: "raidscout" },
       },
     }));
   });
 
-  ws.on("message", async (raw: Buffer) => {
+  ws.on("message", (raw) => {
     const msg = JSON.parse(raw.toString());
     const { op, d, t, s } = msg;
 
@@ -96,13 +98,13 @@ async function connect() {
     }
   });
 
-  ws.on("close", (code: number) => {
+  ws.on("close", (code) => {
     clearInterval(heartbeatInterval);
     console.log(`Disconnected (code ${code}). Reconnecting in 5s...`);
     setTimeout(connect, 5000);
   });
 
-  ws.on("error", (err: any) => {
+  ws.on("error", (err) => {
     console.error("WebSocket error:", err.message);
   });
 }
@@ -157,7 +159,9 @@ async function handleMessage(msg: any) {
 
     const now = new Date();
     const cutoff = addHours(now, 24);
-    const upcoming: string[] = [];
+    const upcoming: { name: string; time: string; unix: number; guild: string }[] = [];
+
+    const bossGuilds = await supabaseQuery(`boss_guilds?select=boss_id,guild_id,sort_order,day_of_week,mode`);
 
     for (const boss of bosses) {
       if (filter && boss.name.toLowerCase() !== filter.toLowerCase()) continue;
@@ -186,14 +190,48 @@ async function handleMessage(msg: any) {
       } else continue;
 
       if (spawn.getTime() <= cutoff.getTime()) {
+        // Compute owner guild
+        const bgs = bossGuilds.filter((bg: any) => bg.boss_id === boss.id);
+        let gName = "";
+        if (bgs.length > 0) {
+          const dow = spawn.getDay();
+          const se = bgs.find((bg: any) => bg.day_of_week === dow);
+          if (se) {
+            gName = guilds.find((g: any) => g.id === se.guild_id)?.name ?? "";
+          } else {
+            const re = bgs.filter((bg: any) => bg.sort_order !== null).sort((a: any, b: any) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+            if (re.length > 0) {
+              const counter = boss.rotation_counter ?? 1;
+              const idx = ((counter - 1) % re.length + re.length) % re.length;
+              gName = guilds.find((g: any) => g.id === re[idx].guild_id)?.name ?? "";
+            }
+          }
+        }
         const unix = Math.floor(spawn.getTime() / 1000);
-        const label = spawn <= now ? "**ALIVE**" : `<t:${unix}:t> (<t:${unix}:R>)`;
-        upcoming.push(`${boss.name} — ${label}`);
+        upcoming.push({ name: boss.name, time: spawn <= now ? "**ALIVE NOW**" : `<t:${unix}:t>`, unix, guild: gName });
       }
     }
 
-    if (upcoming.length === 0) return reply("No bosses spawning in 24h.");
-    return reply(`**Boss Spawns (24h)**\n${upcoming.join("\n")}`);
+    if (upcoming.length === 0) {
+      return reply(filter ? `No spawn data for **${filter}** in 24h.` : "No bosses spawning in 24h.");
+    }
+
+    upcoming.sort((a, b) => {
+      if (a.time === "**ALIVE NOW**" && b.time !== "**ALIVE NOW**") return -1;
+      if (b.time === "**ALIVE NOW**" && a.time !== "**ALIVE NOW**") return 1;
+      return a.unix - b.unix;
+    });
+
+    return replyEmbed(
+      filter ? `${filter} Spawn` : "📋 Upcoming Boss Spawns (24h)",
+      filter ? `Spawn info for **${filter}**.` : "Bosses spawning in the next 24 hours:",
+      0x8b5cf6,
+      upcoming.map((b, i) => ({
+        name: `${i + 1}. ${b.name}${b.guild ? ` — ${b.guild}` : ""}`,
+        value: `${b.time}${b.time !== "**ALIVE NOW**" ? ` <t:${b.unix}:R>` : ""}`,
+        inline: false,
+      })),
+    );
   }
 
   // ── !kill <boss> [HH:MM] ───────────────────────────────
@@ -228,15 +266,49 @@ async function handleMessage(msg: any) {
       if (deathTime > new Date()) deathTime.setDate(deathTime.getDate() - 1);
     }
 
+    // Determine owner guild
+    const bgs = await supabaseQuery(`boss_guilds?boss_id=eq.${boss.id}&select=guild_id,sort_order,day_of_week,mode`);
+    let ownerGuildId: string | null = null;
+    if (bgs?.length) {
+      const dow = deathTime.getDay();
+      const se = bgs.find((bg: any) => bg.day_of_week === dow);
+      if (se) {
+        ownerGuildId = se.guild_id;
+      } else {
+        const re = bgs.filter((bg: any) => bg.sort_order !== null).sort((a: any, b: any) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+        if (re.length > 0) {
+          const idx = ((boss.rotation_counter ?? 1) - 1 + re.length) % re.length;
+          ownerGuildId = re[idx].guild_id;
+        }
+      }
+    }
+
     await supabaseInsert("death_records", {
-      boss_id: boss.id,
-      server_id: serverId,
-      death_time: deathTime.toISOString(),
-      user_id: "00000000-0000-0000-0000-000000000000",
+      boss_id: boss.id, server_id: serverId, death_time: deathTime.toISOString(),
+      user_id: "00000000-0000-0000-0000-000000000000", owner_guild_id: ownerGuildId,
     });
 
+    if (bgs?.length) {
+      await fetch(`${SUPABASE_URL}/rest/v1/bosses?id=eq.${boss.id}`, {
+        method: "PATCH",
+        headers: { apikey: SUPABASE_KEY!, Authorization: `Bearer ${SUPABASE_KEY!}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ rotation_counter: (boss.rotation_counter ?? 1) + 1 }),
+      });
+    }
+
+    const allGuilds = await supabaseQuery(`guilds?server_id=eq.${serverId}`);
+    const guildName = ownerGuildId ? allGuilds.find((g: any) => g.id === ownerGuildId)?.name ?? "" : "";
     const unix = Math.floor(deathTime.getTime() / 1000);
-    return reply(`☠️ **${boss.name}** killed at <t:${unix}:f> (recorded by ${author})`);
+
+    return replyEmbed(
+      `☠️ ${boss.name} Killed`,
+      `**${boss.name}**${guildName ? ` — ${guildName}` : ""} recorded as killed.`,
+      0xef4444,
+      [
+        { name: "Death Time", value: `<t:${unix}:f>`, inline: true },
+        { name: "Recorded By", value: author, inline: true },
+      ],
+    );
   }
 }
 
