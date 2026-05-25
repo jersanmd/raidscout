@@ -1,28 +1,43 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useServer } from "@/contexts/ServerContext";
+import { supabase } from "@/lib/supabase";
 import { ExternalLink, X, Webhook } from "lucide-react";
 
 /**
- * Persistent warning banner shown to server owners who haven't
- * configured a Discord webhook URL. All Discord notification
- * features (boss death alerts, spawn announcements, @everyone pings)
- * are disabled until a webhook is set.
- *
- * Dismissible per session — reappears on page refresh until
- * the webhook is configured.
+ * Persistent warning banner shown to server owners/moderators
+ * when no webhook is configured — checks both legacy webhook
+ * and per-guild Discord Bot & Webhook links.
  */
 export function DiscordWebhookBanner() {
   const { user } = useAuth();
   const { currentServer } = useServer();
   const navigate = useNavigate();
   const [dismissed, setDismissed] = useState(false);
+  const [hasWebhook, setHasWebhook] = useState(true); // optimistic
 
-  // Show to server owners and moderators when webhook is missing
+  useEffect(() => {
+    if (!currentServer?.id) return;
+    // Check legacy webhook
+    if (currentServer.discord_webhook_url) {
+      setHasWebhook(true);
+      return;
+    }
+    // Check per-guild webhooks
+    supabase
+      .from("discord_configs")
+      .select("webhook_url")
+      .eq("raidscout_server_id", currentServer.id)
+      .not("webhook_url", "is", null)
+      .limit(1)
+      .then(({ data }) => setHasWebhook((data?.length ?? 0) > 0))
+      .catch(() => setHasWebhook(false));
+  }, [currentServer?.id, currentServer?.discord_webhook_url]);
+
   if (!user || !currentServer) return null;
   if (currentServer.role !== "owner" && currentServer.role !== "moderator") return null;
-  if (currentServer.discord_webhook_url) return null;
+  if (hasWebhook) return null;
   if (dismissed) return null;
 
   return (
@@ -40,7 +55,7 @@ export function DiscordWebhookBanner() {
           </p>
           <p className="text-xs text-amber-400/80">
             Boss kill alerts, spawn announcements, and @everyone pings will not
-            work until you add a Discord webhook URL.
+            work until you add a webhook in Discord Bot & Webhooks.
           </p>
         </div>
 

@@ -80,7 +80,10 @@ export function BossListView() {
       const checkServer = async () => {
         try {
           const { data } = await supabase.from("servers").select("discord_webhook_url, viewer_can_edit, viewer_can_mark_died, viewer_key").eq("id", sid).single();
-          setHasWebhook(!!(data as any)?.discord_webhook_url);
+          const legacyWebhook = !!(data as any)?.discord_webhook_url;
+          // Also check per-guild webhooks
+          const { data: configs } = await supabase.from("discord_configs").select("webhook_url").eq("raidscout_server_id", sid).not("webhook_url", "is", null).limit(1);
+          setHasWebhook(legacyWebhook || (configs?.length ?? 0) > 0);
           setViewerCanEdit(!!(data as any)?.viewer_can_edit);
           setViewerCanMarkDied(!!(data as any)?.viewer_can_mark_died);
           setViewerKey((data as any)?.viewer_key || "");
@@ -504,7 +507,7 @@ export function BossListView() {
             />
           </div>
         </div>
-        {(hasWebhook || currentServer?.discord_webhook_url) && !isViewer && (
+        {hasWebhook && !isViewer && (
         <button
           onClick={() => setShowAnnounceConfirm(true)}
           disabled={spawnsIn24h.length === 0}
