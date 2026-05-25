@@ -49,26 +49,40 @@ serve(async (req: Request) => {
   try {
     const { server_id, event, boss_name, attendees, spawn_time, guild_name, bosses } = await req.json();
 
-    // Fetch server's webhook URL from database
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const headers = { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` };
     
-    const dbRes = await fetch(
-      `${supabaseUrl}/rest/v1/servers?select=name,discord_webhook_url,notification_prefix&id=eq.${server_id}`,
-      { headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` } }
+    // Fetch server name + prefix
+    const sRes = await fetch(
+      `${supabaseUrl}/rest/v1/servers?select=name,notification_prefix,discord_webhook_url&id=eq.${server_id}`,
+      { headers }
     );
-    const servers = await dbRes.json();
+    const servers = await sRes.json();
     const server = servers?.[0];
-    
-    if (!server?.discord_webhook_url) {
+    const serverName = server?.name || "Unknown Server";
+    const ping = server?.notification_prefix || "@everyone";
+
+    // Fetch all guild Discord links with webhooks
+    const dcRes = await fetch(
+      `${supabaseUrl}/rest/v1/discord_configs?select=webhook_url,discord_guild_id,label&raidscout_server_id=eq.${server_id}`,
+      { headers }
+    );
+    const configs = await dcRes.json();
+
+    // Collect all webhook URLs: legacy + per-guild
+    const webhooks: string[] = [];
+    if (server?.discord_webhook_url) webhooks.push(server.discord_webhook_url);
+    for (const c of configs || []) {
+      if (c.webhook_url) webhooks.push(c.webhook_url);
+    }
+
+    if (webhooks.length === 0) {
       return new Response(
         JSON.stringify({ ok: false, reason: "No webhook configured" }),
         { status: 200, headers: { "Content-Type": "application/json", ...CORS_HEADERS } }
       );
     }
-
-    const serverName = server.name || "Unknown Server";
-    const ping = server.notification_prefix || "@everyone";
     let content: string;
     let embed: DiscordEmbed | null = null;
 
@@ -134,7 +148,12 @@ serve(async (req: Request) => {
       );
     }
 
-    await sendDiscordMessage(server.discord_webhook_url, content, embed ? [embed] : []);
+    // Send to all webhooks in parallel
+    await Promise.all(webhooks.map(url =>
+      sendDiscordMessage(url, content, embed ? [embed] : []).catch(e =>
+        console.error("Webhook send failed:", e)
+      )
+    ));
 
     return new Response(
       JSON.stringify({ ok: true }),

@@ -105,9 +105,10 @@ export function ServerSettingsView() {
   const [viewerKey, setViewerKey] = useState("");
   const [showInviteCode, setShowInviteCode] = useState(false);
   const [showViewerKey, setShowViewerKey] = useState(false);
-  const [discordLinks, setDiscordLinks] = useState<{ id: string; discord_guild_id: string; label?: string }[]>([]);
+  const [discordLinks, setDiscordLinks] = useState<{ id: string; discord_guild_id: string; label?: string; webhook_url?: string }[]>([]);
   const [newDiscordId, setNewDiscordId] = useState("");
   const [newDiscordLabel, setNewDiscordLabel] = useState("");
+  const [newDiscordWebhook, setNewDiscordWebhook] = useState("");
   const [savingDiscord, setSavingDiscord] = useState(false);
   const [searchParams] = useSearchParams();
   const tabParam = searchParams.get("tab");
@@ -511,11 +512,13 @@ export function ServerSettingsView() {
         discord_guild_id: gid,
         raidscout_server_id: currentServer.id,
         label: newDiscordLabel.trim() || null,
+        webhook_url: newDiscordWebhook.trim() || null,
       }).select().single();
       if (error) throw error;
       setDiscordLinks(prev => [...prev, data]);
       setNewDiscordId("");
       setNewDiscordLabel("");
+      setNewDiscordWebhook("");
       toast("success", "Discord server linked!");
     } catch (err: any) {
       toast("error", err?.message ?? "Failed to link");
@@ -1658,46 +1661,62 @@ export function ServerSettingsView() {
           {discordLinks.length > 0 && (
             <div className="space-y-2">
               {discordLinks.map(link => (
-                <div key={link.id} className="flex items-center gap-2 bg-slate-800/50 rounded-lg px-3 py-2">
-                  <span className="flex-1 text-sm text-white font-mono truncate">
-                    {link.discord_guild_id}
-                    {link.label && <span className="text-slate-400 ml-2">— {link.label}</span>}
-                  </span>
-                  <button
-                    onClick={() => handleRemoveDiscordLink(link.id)}
-                    className="p-1 rounded hover:bg-red-900/30 text-slate-400 hover:text-red-400 transition"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
+                <div key={link.id} className="bg-slate-800/50 rounded-lg px-3 py-2 space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="flex-1 text-sm text-white font-mono truncate">
+                      {link.discord_guild_id}
+                      {link.label && <span className="text-slate-400 ml-1">— {link.label}</span>}
+                    </span>
+                    <button
+                      onClick={() => handleRemoveDiscordLink(link.id)}
+                      className="p-1 rounded hover:bg-red-900/30 text-slate-400 hover:text-red-400 transition"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                  {link.webhook_url && (
+                    <p className="text-xs text-slate-500 font-mono truncate pl-0.5">{link.webhook_url}</p>
+                  )}
                 </div>
               ))}
             </div>
           )}
 
           {/* Add new link */}
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={newDiscordId}
-              onChange={(e) => setNewDiscordId(e.target.value)}
-              placeholder="Discord Server ID"
-              className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 outline-none focus:border-purple-500 transition font-mono"
-            />
-            <input
-              type="text"
-              value={newDiscordLabel}
-              onChange={(e) => setNewDiscordLabel(e.target.value)}
-              placeholder="Label (e.g. Crimson)"
-              className="w-32 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 outline-none focus:border-purple-500 transition"
-            />
-            <button
-              onClick={handleAddDiscordLink}
-              disabled={savingDiscord || !newDiscordId.trim()}
-              className="flex items-center gap-1 px-3 py-2 rounded-lg text-xs font-medium bg-purple-600 text-white hover:bg-purple-500 transition disabled:opacity-50"
-            >
-              {savingDiscord ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />}
-              Add
-            </button>
+          <div className="space-y-2">
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={newDiscordId}
+                onChange={(e) => setNewDiscordId(e.target.value)}
+                placeholder="Discord Server ID"
+                className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 outline-none focus:border-purple-500 transition font-mono"
+              />
+              <input
+                type="text"
+                value={newDiscordLabel}
+                onChange={(e) => setNewDiscordLabel(e.target.value)}
+                placeholder="Label (e.g. Crimson)"
+                className="w-32 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 outline-none focus:border-purple-500 transition"
+              />
+            </div>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={newDiscordWebhook}
+                onChange={(e) => setNewDiscordWebhook(e.target.value)}
+                placeholder="Webhook URL (optional)"
+                className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-500 outline-none focus:border-purple-500 transition font-mono"
+              />
+              <button
+                onClick={handleAddDiscordLink}
+                disabled={savingDiscord || !newDiscordId.trim()}
+                className="flex items-center gap-1 px-3 py-2 rounded-lg text-xs font-medium bg-purple-600 text-white hover:bg-purple-500 transition disabled:opacity-50"
+              >
+                {savingDiscord ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />}
+                Add
+              </button>
+            </div>
           </div>
 
           <div className="bg-slate-800/50 rounded-lg p-3 text-xs text-slate-400 space-y-1">
