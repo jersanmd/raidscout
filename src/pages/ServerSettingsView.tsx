@@ -1583,40 +1583,6 @@ export function ServerSettingsView() {
         </div>
       )}
 
-      {/* Integrations Tab */}
-      {tab === "integrations" && (
-        <section className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3">
-          <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-            <Bell className="w-3 h-3" /> Discord Webhook
-          </h3>
-          <p className="text-sm text-slate-400">
-            Get notified in Discord when bosses die or spawn.
-          </p>
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={webhookUrl}
-              onChange={(e) => setWebhookUrl(e.target.value)}
-              placeholder="https://discord.com/api/webhooks/..."
-              className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 outline-none focus:border-purple-500 transition font-mono"
-            />
-            <button
-              onClick={handleSaveWebhook}
-              disabled={savingWebhook || !webhookUrl.trim() || webhookUrl === currentServer.discord_webhook_url}
-              className="flex items-center gap-1 px-3 py-2 rounded-lg text-xs font-medium bg-purple-600 text-white hover:bg-purple-500 transition disabled:opacity-50"
-            >
-              {savingWebhook ? <Loader2 className="w-3 h-3 animate-spin" /> : <Link className="w-3 h-3" />}
-              Save
-            </button>
-          </div>
-          {currentServer.discord_webhook_url && (
-            <p className="text-xs text-emerald-400 flex items-center gap-1">
-              <Check className="w-3 h-3" /> Webhook configured — notifications active
-            </p>
-          )}
-        </section>
-      )}
-
       {/* Integrations Tab — Notification Prefix */}
       {tab === "integrations" && (
         <section className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3">
@@ -1651,11 +1617,19 @@ export function ServerSettingsView() {
       {tab === "integrations" && (
         <section className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3">
           <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-            <Swords className="w-3 h-3" /> Discord Bot
+            <Swords className="w-3 h-3" /> Discord Bot & Webhooks
           </h3>
           <p className="text-sm text-slate-400">
-            Let members use <code className="bg-slate-800 px-1 rounded text-amber-400">!spawn</code> and <code className="bg-slate-800 px-1 rounded text-amber-400">!kill</code> in Discord. Add one entry per guild's Discord server.
+            Add one entry per guild. Set a webhook URL to receive kill/spawn notifications in that guild's Discord.
           </p>
+
+          {/* Legacy webhook */}
+          {currentServer.discord_webhook_url && (
+            <div className="bg-slate-800/50 rounded-lg px-3 py-2">
+              <p className="text-xs text-slate-500">Legacy webhook (still active):</p>
+              <p className="text-xs text-slate-400 font-mono truncate">{currentServer.discord_webhook_url}</p>
+            </div>
+          )}
 
           {/* Existing links */}
           {discordLinks.length > 0 && (
