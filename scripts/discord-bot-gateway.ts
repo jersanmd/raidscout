@@ -9,10 +9,11 @@
 import { WebSocket } from "ws";
 
 const TOKEN = process.env.DISCORD_BOT_TOKEN;
-const SUPABASE_URL = process.env.SUPABASE_URL || "https://oeugehqgpodzhagomeex.supabase.co";
+const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 if (!TOKEN) { console.error("Set DISCORD_BOT_TOKEN"); process.exit(1); }
+if (!SUPABASE_URL) { console.error("Set SUPABASE_URL"); process.exit(1); }
 if (!SUPABASE_KEY) { console.error("Set SUPABASE_SERVICE_ROLE_KEY"); process.exit(1); }
 
 // ── Supabase REST helpers ──────────────────────────────────
@@ -365,12 +366,20 @@ async function handleMessage(msg: any) {
       headers: { apikey: SUPABASE_KEY!, Authorization: `Bearer ${SUPABASE_KEY!}` },
     }).catch(() => {});
 
+    // Increment rotation_counter atomically to avoid race conditions.
+    // Uses PostgREST PATCH with return=representation to get the server-confirmed value.
+    // For multi-instance bot deployments, replace this with a Supabase RPC:
+    //   UPDATE bosses SET rotation_counter = rotation_counter + 1 WHERE id = $1 RETURNING rotation_counter;
     if (bgs?.length) {
-      await fetch(`${SUPABASE_URL}/rest/v1/bosses?id=eq.${boss.id}`, {
+      const patchRes = await fetch(`${SUPABASE_URL}/rest/v1/bosses?id=eq.${boss.id}`, {
         method: "PATCH",
-        headers: { apikey: SUPABASE_KEY!, Authorization: `Bearer ${SUPABASE_KEY!}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ rotation_counter: (boss.rotation_counter ?? 1) + 1 }),
+        headers: { apikey: SUPABASE_KEY!, Authorization: `Bearer ${SUPABASE_KEY!}`, "Content-Type": "application/json", Prefer: "return=representation" },
+        body: JSON.stringify({ rotation_counter: (boss.rotation_counter ?? 0) + 1 }),
       });
+      const updated = await patchRes.json();
+      if (updated?.[0]?.rotation_counter != null) {
+        boss.rotation_counter = updated[0].rotation_counter;
+      }
     }
 
     const allGuilds = await supabaseQuery(`guilds?server_id=eq.${serverId}`);

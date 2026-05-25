@@ -128,17 +128,17 @@ describe("fixed_schedule — day-of-week & slot windows", () => {
     expect(r.nextSpawn!.getHours()).toBe(19);
   });
 
-  it("Sunday slot: alive Sunday evening, countdown Monday morning", () => {
+  it("Sunday slot: alive Sunday evening, countdown after 4h cap Monday morning", () => {
     const boss = makeBoss({
       spawn_type: "fixed_schedule", respawn_hours: null,
       schedule: [scheduleSlot(0, "22:00")], // Sunday 10pm
     });
-    // Sunday 10:30pm — alive
+    // Sunday 10:30pm — alive (30 min after slot)
     let r = calculateSpawnInfo(boss, null, new Date(2025, 5, 1, 22, 30, 0));
     expect(r.status).toBe("alive");
 
-    // Monday 1am — countdown to next Sunday
-    r = calculateSpawnInfo(boss, null, new Date(2025, 5, 2, 1, 0, 0));
+    // Monday 3am — 5h after slot, past 4h cap → countdown
+    r = calculateSpawnInfo(boss, null, new Date(2025, 5, 2, 3, 0, 0));
     expect(r.status).toBe("countdown");
   });
 
@@ -175,6 +175,68 @@ describe("fixed_schedule — day-of-week & slot windows", () => {
     // Next spawn = next Monday
     expect(r.nextSpawn!.getDay()).toBe(1);
     expect(r.nextSpawn!.getDate()).toBe(9); // one week later
+  });
+
+  // ── Alive window cap (single-slot bosses) ───────────────
+
+  it("single-slot boss alive window capped — Wednesday is countdown, not alive from last Saturday", () => {
+    // Bug fix: single-slot bosses were "alive" for 6 days because
+    // aliveUntil pointed to next week's slot. Now capped at 4 hours.
+    const boss = makeBoss({
+      spawn_type: "fixed_schedule", respawn_hours: null,
+      schedule: [scheduleSlot(6, "15:00")], // Saturday 3pm
+    });
+    // Wednesday noon — 3+ days after last Saturday, well past the 4h cap
+    const r = calculateSpawnInfo(boss, null, new Date(2025, 5, 4, 12, 0, 0)); // June 4 = Wednesday
+    expect(r.status).toBe("countdown");
+  });
+
+  it("single-slot boss still alive within 4h window of last-slot fallback", () => {
+    const boss = makeBoss({
+      spawn_type: "fixed_schedule", respawn_hours: null,
+      schedule: [scheduleSlot(0, "22:00")], // Sunday 10pm
+    });
+    // Monday 1am — 3h after Sunday 10pm, within 4h cap → still alive
+    const r = calculateSpawnInfo(boss, null, new Date(2025, 5, 2, 1, 0, 0)); // Monday 1am
+    expect(r.status).toBe("alive");
+  });
+
+  it("single-slot boss countdown after 4h window expires", () => {
+    const boss = makeBoss({
+      spawn_type: "fixed_schedule", respawn_hours: null,
+      schedule: [scheduleSlot(0, "22:00")], // Sunday 10pm
+    });
+    // Monday 3am — 5h after Sunday 10pm, past 4h cap → countdown
+    const r = calculateSpawnInfo(boss, null, new Date(2025, 5, 2, 3, 0, 0)); // Monday 3am
+    expect(r.status).toBe("countdown");
+  });
+
+  it("multi-slot boss alive window still works normally (not affected by cap)", () => {
+    const boss = makeBoss({
+      spawn_type: "fixed_schedule", respawn_hours: null,
+      schedule: [
+        scheduleSlot(1, "19:00"), // Monday 7pm
+        scheduleSlot(4, "19:00"), // Thursday 7pm
+      ],
+    });
+    // Monday 10pm — 3h after slot, next slot Thursday 7pm = alive until Thursday 6pm
+    // rawAliveUntil is Thursday 6pm, which is > 4h from slot time
+    // cap = Monday 7pm + 4h = Monday 11pm → now (10pm) < 11pm → alive
+    const r = calculateSpawnInfo(boss, null, new Date(2025, 5, 2, 22, 0, 0));
+    expect(r.status).toBe("alive");
+  });
+
+  it("multi-slot boss not alive at midnight when 4h cap expires", () => {
+    const boss = makeBoss({
+      spawn_type: "fixed_schedule", respawn_hours: null,
+      schedule: [
+        scheduleSlot(1, "19:00"), // Monday 7pm
+        scheduleSlot(4, "19:00"), // Thursday 7pm
+      ],
+    });
+    // Tuesday 2am — 7h after slot, past 4h cap → countdown
+    const r = calculateSpawnInfo(boss, null, new Date(2025, 5, 3, 2, 0, 0));
+    expect(r.status).toBe("countdown");
   });
 });
 

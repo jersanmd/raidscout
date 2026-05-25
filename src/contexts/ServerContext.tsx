@@ -116,7 +116,9 @@ export function ServerProvider({ children }: { children: ReactNode }) {
           });
         }
       } else {
-        uniqueIds.forEach((id, i) => list.push({ id, name: `Server ${i + 1}`, owner_id: user.id, invite_code: id.substring(0, 8), role: "owner" as const }));
+        // No server metadata returned from Supabase — don't fabricate fake entries.
+        // This can happen due to RLS issues or deleted servers.
+        console.warn("No server data found for boss ids:", uniqueIds);
       }
       
       setServers(list);

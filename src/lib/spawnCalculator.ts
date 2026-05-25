@@ -46,6 +46,10 @@ function calculateFixedHoursSpawn(
 /** Schedule bosses stay alive until 1 hour before their next scheduled slot */
 const ALIVE_BUFFER_HOURS = 1;
 
+/** Maximum alive window for the "last week's slot" fallback.
+ *  Prevents single-slot bosses from appearing "alive" for 6 days. */
+const MAX_ALIVE_WINDOW_HOURS = 4;
+
 function calculateFixedScheduleSpawn(boss: Boss, deathRecord: DeathRecord | null, now: Date): SpawnInfo {
   if (!boss.schedule || boss.schedule.length === 0) {
     return { boss, nextSpawn: null, status: "unknown", deathRecord: null };
@@ -54,10 +58,15 @@ function calculateFixedScheduleSpawn(boss: Boss, deathRecord: DeathRecord | null
   // Always check if we're within an alive window of the most recent slot
   const recentSlot = findMostRecentSlot(boss.schedule, now);
   if (recentSlot) {
-    const slotTime = buildDate(now, recentSlot.day, recentSlot.time);
-    // Alive until 1 hour before the NEXT scheduled slot
-    const nextSlot = findNextScheduleSlot(boss.schedule, new Date(slotTime.getTime() + 60_000));
-    const aliveUntil = new Date(nextSlot.getTime() - ALIVE_BUFFER_HOURS * 3600_000);
+    // buildDate always goes forward; for a past slot we must go backward
+    const slotTime = buildSlotDate(now, recentSlot.day, recentSlot.time);
+    // Alive until 1 hour before the NEXT scheduled slot, but capped so
+    // single-slot bosses don't appear "alive" for 6 days straight
+    const rawAliveUntil = findNextScheduleSlot(boss.schedule, new Date(slotTime.getTime() + 60_000));
+    const aliveUntil = new Date(Math.min(
+      rawAliveUntil.getTime() - ALIVE_BUFFER_HOURS * 3600_000,
+      slotTime.getTime() + MAX_ALIVE_WINDOW_HOURS * 3600_000,
+    ));
 
     // If there's a death record, check if the boss was killed AFTER this slot started
     const wasKilledAfterSlot = deathRecord
@@ -107,13 +116,11 @@ function findMostRecentSlot(schedule: ScheduleSlot[], now: Date): ScheduleSlot |
   // If no slot today/earlier, check if the last slot from previous week applies
   // (e.g., Sunday at 1am, and the boss spawned Saturday at 22:00)
   if (!best) {
-    let maxDay = -1;
     let maxMinutes = -1;
     for (const slot of schedule) {
       const score = slot.day * 1440 + timeToMinutes(slot.time);
       if (score > maxMinutes) {
         maxMinutes = score;
-        maxDay = slot.day;
         best = slot;
       }
     }
@@ -127,11 +134,15 @@ function findMostRecentSlot(schedule: ScheduleSlot[], now: Date): ScheduleSlot |
         timeToMinutes(best.time) % 60,
         0, 0
       );
-      // Alive until 1 hour before the next slot (which is the first slot this week)
-      const nextSlot = findNextScheduleSlot(schedule, new Date(slotTime.getTime() + 60_000));
-      const aliveUntil = new Date(nextSlot.getTime() - ALIVE_BUFFER_HOURS * 3600_000);
+      // Alive until 1 hour before the next slot, but cap at MAX_ALIVE_WINDOW_HOURS
+      // so single-slot bosses don't appear "alive" for 6 days straight
+      const rawAliveUntil = findNextScheduleSlot(schedule, new Date(slotTime.getTime() + 60_000));
+      const aliveUntil = new Date(Math.min(
+        rawAliveUntil.getTime() - ALIVE_BUFFER_HOURS * 3600_000,
+        slotTime.getTime() + MAX_ALIVE_WINDOW_HOURS * 3600_000,
+      ));
       if (now < aliveUntil) {
-        return best; // Still alive from last week's slot
+        return best; // Still alive from last week's slot (within capped window)
       }
     }
     return null;
@@ -237,6 +248,25 @@ export function filterByWindow(
 function timeToMinutes(time: string): number {
   const [h, m] = time.split(":").map(Number);
   return h * 60 + m;
+}
+
+/** Build a Date for the most recent past occurrence of a schedule slot.
+ *  Unlike buildDate (which always goes forward), this goes backward
+ *  when the target day is earlier in the current week. */
+function buildSlotDate(now: Date, targetDay: number, time: string): Date {
+  const d = new Date(now);
+  const currentDay = d.getDay();
+  let dayDiff = targetDay - currentDay; // ≤ 0 for slots found by findMostRecentSlot
+  const [h, m] = time.split(":").map(Number);
+  const targetMinutes = h * 60 + m;
+  const currentMinutes = d.getHours() * 60 + d.getMinutes();
+  // Same day but slot time is still in the future → it's actually last week's slot
+  if (dayDiff === 0 && targetMinutes > currentMinutes) {
+    dayDiff = -7;
+  }
+  d.setDate(d.getDate() + dayDiff);
+  d.setHours(h, m, 0, 0);
+  return d;
 }
 
 function buildDate(baseDate: Date, targetDay: number, time: string): Date {

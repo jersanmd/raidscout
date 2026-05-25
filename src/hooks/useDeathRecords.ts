@@ -1,12 +1,10 @@
+import { useRef, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect } from "react";
-import { fetchDeathRecords, subscribeToDeathRecords, isSupabaseConfigured, supabase, cleanupChannel } from "@/lib/supabase";
+import { fetchDeathRecords, subscribeToDeathRecords, isSupabaseConfigured, cleanupChannel } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { useServerId } from "@/contexts/ServerContext";
 import type { DeathRecord } from "@/types";
-
-/** Track active subscriptions to prevent duplicates across concurrent mounts */
-const activeSubscriptions = new Set<string>();
+import type { RealtimeChannel } from "@supabase/supabase-js";
 
 /** Fetch death records from Supabase with realtime subscription. */
 export function useDeathRecords() {
@@ -14,6 +12,10 @@ export function useDeathRecords() {
   const serverId = useServerId();
   const queryClient = useQueryClient();
   const configured = isSupabaseConfigured();
+
+  // Ref-counted channel to survive React 18+ Strict Mode double-mount
+  const channelRef = useRef<RealtimeChannel | null>(null);
+  const mountCountRef = useRef(0);
 
   const query = useQuery<DeathRecord[]>({
     queryKey: ["death_records", serverId],
@@ -31,32 +33,35 @@ export function useDeathRecords() {
     enabled: configured && (!!user || isViewer) && !!serverId,
   });
 
-  // Realtime subscription — per server, deduplicated across components
+  // Realtime subscription — per server, ref-counted to survive Strict Mode
   useEffect(() => {
     if ((!user && !isViewer) || !configured || !serverId) return;
-    const subKey = `deaths-${serverId}`;
-    if (activeSubscriptions.has(subKey)) return;
-    activeSubscriptions.add(subKey);
+    mountCountRef.current++;
 
-    const channel = subscribeToDeathRecords(
-      serverId || "unknown",
-      () => {
+    // Only subscribe on first mount (not on Strict Mode double-mount)
+    if (mountCountRef.current === 1) {
+      const invalidate = () => {
         queryClient.invalidateQueries({ queryKey: ["death_records"] });
         queryClient.invalidateQueries({ queryKey: ["spawn_overrides"] });
-      },
-      () => {
-        queryClient.invalidateQueries({ queryKey: ["death_records"] });
-        queryClient.invalidateQueries({ queryKey: ["spawn_overrides"] });
-      },
-      () => {
-        queryClient.invalidateQueries({ queryKey: ["death_records"] });
-        queryClient.invalidateQueries({ queryKey: ["spawn_overrides"] });
-      }
-    );
+      };
+      channelRef.current = subscribeToDeathRecords(
+        serverId,
+        invalidate,
+        invalidate,
+        invalidate,
+      );
+    }
 
     return () => {
-      activeSubscriptions.delete(subKey);
-      cleanupChannel(channel);
+      mountCountRef.current--;
+      // Only cleanup on last unmount
+      if (mountCountRef.current <= 0) {
+        mountCountRef.current = 0;
+        if (channelRef.current) {
+          cleanupChannel(channelRef.current);
+          channelRef.current = null;
+        }
+      }
     };
   }, [user?.id, configured, serverId, queryClient, isViewer]);
 
