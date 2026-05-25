@@ -16,7 +16,7 @@ export function useMembers() {
       if (!configured || (!user && !isViewer)) return [];
       return await fetchMembers(serverId);
     },
-    staleTime: 60_000,
+    staleTime: 0,
     retry: 2,
     enabled: configured && (!!user || isViewer) && !!serverId,
   });

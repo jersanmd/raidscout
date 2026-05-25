@@ -21,12 +21,7 @@ export function ViewerRoute() {
       return;
     }
 
-    // If already in viewer mode (e.g., from localStorage), skip
-    if (isViewer) {
-      setLoading(false);
-      return;
-    }
-
+    // Allow re-auth if navigating with a different viewer key
     let cancelled = false;
     (async () => {
       const { error: err } = await viewerSignIn(viewerKey);

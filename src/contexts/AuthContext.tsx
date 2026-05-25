@@ -14,6 +14,7 @@ interface AuthState {
   viewerCanEdit: boolean;
   viewerCanMarkDied: boolean;
   viewerDiscordWebhookUrl: string | null;
+  viewerTimezone: string | null;
   viewerSignIn: (key: string) => Promise<{ error: string | null }>;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   signUp: (email: string, password: string) => Promise<{ error: string | null }>;
@@ -36,6 +37,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [viewerCanEdit, setViewerCanEdit] = useState(false);
   const [viewerCanMarkDied, setViewerCanMarkDied] = useState(false);
   const [viewerDiscordWebhookUrl, setViewerDiscordWebhookUrl] = useState<string | null>(null);
+  const [viewerTimezone, setViewerTimezone] = useState<string | null>(null);
 
   // Sync viewer key to supabase module for write operations
   useEffect(() => {
@@ -55,18 +57,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    // Check for stored viewer key — still set up Supabase auth listener
+    // Check for stored viewer key — re-verify with server to avoid stale settings
     const storedViewerKey = localStorage.getItem(VIEWER_KEY_STORAGE);
     if (storedViewerKey) {
       try {
         const parsed = JSON.parse(storedViewerKey);
-        setIsViewer(true);
-        setViewerServerId(parsed.serverId);
-        setViewerServerName(parsed.serverName || null);
-        setViewerKey(parsed.viewerKey || null);
-        setViewerCanEdit(!!parsed.viewerCanEdit);
-        setViewerCanMarkDied(!!parsed.viewerCanMarkDied);
-        setViewerDiscordWebhookUrl(parsed.discordWebhookUrl || null);
+        // Re-verify with server to get latest viewer_can_edit, viewer_can_mark_died, etc.
+        (async () => {
+          const { data, error } = await supabase.rpc("get_server_by_viewer_key", { v_key: parsed.viewerKey });
+          if (error || !data || (data as any[]).length === 0) {
+            localStorage.removeItem(VIEWER_KEY_STORAGE);
+            return;
+          }
+          const server = (data as any[])[0];
+          setIsViewer(true);
+          setViewerServerId(server.id);
+          setViewerServerName(server.name || null);
+          setViewerKey(parsed.viewerKey);
+          setViewerCanEdit(!!server.viewer_can_edit);
+          setViewerCanMarkDied(!!server.viewer_can_mark_died);
+          setViewerDiscordWebhookUrl(server.discord_webhook_url || null);
+          setViewerTimezone(server.timezone || null);
+          // Update localStorage with fresh settings
+          localStorage.setItem(VIEWER_KEY_STORAGE, JSON.stringify({
+            serverId: server.id,
+            serverName: server.name,
+            viewerKey: parsed.viewerKey,
+            viewerCanEdit: !!server.viewer_can_edit,
+            viewerCanMarkDied: !!server.viewer_can_mark_died,
+            discordWebhookUrl: server.discord_webhook_url || null,
+            timezone: server.timezone || null,
+          }));
+        })().catch(() => {
+          localStorage.removeItem(VIEWER_KEY_STORAGE);
+        });
       } catch { localStorage.removeItem(VIEWER_KEY_STORAGE); }
     }
 
@@ -83,6 +107,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setViewerCanEdit(false);
         setViewerCanMarkDied(false);
         setViewerDiscordWebhookUrl(null);
+        setViewerTimezone(null);
         localStorage.removeItem(VIEWER_KEY_STORAGE);
         fetchRole(session.user.id);
       }
@@ -101,6 +126,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setViewerCanEdit(false);
         setViewerCanMarkDied(false);
         setViewerDiscordWebhookUrl(null);
+        setViewerTimezone(null);
         localStorage.removeItem(VIEWER_KEY_STORAGE);
         fetchRole(session.user.id);
       } else {
@@ -132,6 +158,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setViewerCanEdit(false);
       setViewerCanMarkDied(false);
       setViewerDiscordWebhookUrl(null);
+      setViewerTimezone(null);
       return;
     }
     try {
@@ -157,6 +184,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setViewerCanEdit(!!server.viewer_can_edit);
     setViewerCanMarkDied(!!server.viewer_can_mark_died);
     setViewerDiscordWebhookUrl(server.discord_webhook_url || null);
+    setViewerTimezone(server.timezone || null);
     setViewerKey(key.trim());
     localStorage.setItem(VIEWER_KEY_STORAGE, JSON.stringify({
       serverId: server.id,
@@ -165,12 +193,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       viewerCanEdit: !!server.viewer_can_edit,
       viewerCanMarkDied: !!server.viewer_can_mark_died,
       discordWebhookUrl: server.discord_webhook_url || null,
+      timezone: server.timezone || null,
     }));
     return { error: null };
   };
 
   return (
-    <AuthContext.Provider value={{ session, user, userRole, loading, isViewer, viewerServerId, viewerServerName, viewerKey, viewerCanEdit, viewerCanMarkDied, viewerDiscordWebhookUrl, viewerSignIn, signIn, signUp, signOut }}>
+    <AuthContext.Provider value={{ session, user, userRole, loading, isViewer, viewerServerId, viewerServerName, viewerKey, viewerCanEdit, viewerCanMarkDied, viewerDiscordWebhookUrl, viewerTimezone, viewerSignIn, signIn, signUp, signOut }}>
       {children}
     </AuthContext.Provider>
   );

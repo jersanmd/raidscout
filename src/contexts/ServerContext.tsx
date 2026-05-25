@@ -27,7 +27,7 @@ interface ServerState {
 const ServerContext = createContext<ServerState | undefined>(undefined);
 
 export function ServerProvider({ children }: { children: ReactNode }) {
-  const { user, isViewer, viewerServerId, viewerServerName, viewerDiscordWebhookUrl, userRole } = useAuth();
+  const { user, isViewer, viewerServerId, viewerServerName, viewerDiscordWebhookUrl, viewerTimezone, userRole } = useAuth();
   const [servers, setServers] = useState<Server[]>([]);
   const [currentServer, setCurrentServer] = useState<Server | null>(null);
   const [loading, setLoading] = useState(true);
@@ -43,6 +43,7 @@ export function ServerProvider({ children }: { children: ReactNode }) {
         invite_code: "",
         created_at: undefined,
         discord_webhook_url: viewerDiscordWebhookUrl ?? undefined,
+        timezone: viewerTimezone ?? undefined,
         role: "moderator",
       };
       setServers([viewerServer]);
@@ -51,7 +52,7 @@ export function ServerProvider({ children }: { children: ReactNode }) {
       setCurrentServerId(viewerServerId);
       setLoading(false);
     }
-  }, [isViewer, viewerServerId, viewerServerName, viewerDiscordWebhookUrl]);
+  }, [isViewer, viewerServerId, viewerServerName, viewerDiscordWebhookUrl, viewerTimezone]);
 
   // Keep ref in sync with state, and persist to localStorage
   const setCurrentServerWrapped = useCallback((server: Server | null) => {

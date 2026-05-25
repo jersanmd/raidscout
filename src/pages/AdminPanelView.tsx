@@ -21,6 +21,13 @@ export function AdminPanelView() {
   const [auditCustomUntil, setAuditCustomUntil] = useState("");
   const navigate = useNavigate();
 
+  // Redirect non-admin users
+  useEffect(() => {
+    if (userRole !== "admin") {
+      navigate("/", { replace: true });
+    }
+  }, [userRole, navigate]);
+
   // Always call hooks at the top level
   const { data: servers = [], isLoading: srvLoading } = useQuery({
     queryKey: ["admin", "servers"],

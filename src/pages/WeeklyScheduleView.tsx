@@ -28,7 +28,7 @@ import type { WeekDaySpawns, SpawnInfo, Boss, BossGuild, Guild } from "@/types";
 export function WeeklyScheduleView() {
   const { data: bosses = [], isLoading: bossesLoading, refetch: refetchBosses } = useBosses();
   const { data: deathRecords = [], isLoading: recordsLoading, refetch: refetchDeaths } = useDeathRecords();
-  const { user, isViewer } = useAuth();
+  const { user, isViewer, viewerCanMarkDied } = useAuth();
 
   // Always fetch fresh data on mount so rotation adjustments from Bosses tab are reflected
   useEffect(() => {
@@ -375,7 +375,7 @@ export function WeeklyScheduleView() {
                           bossName: s.boss.name,
                           deathTime: s.deathRecord.death_time,
                         });
-                      } else if (!isViewer) {
+                      } else if (!isViewer || viewerCanMarkDied) {
                         setMarkBoss({
                           boss: s.boss,
                           spawnTime: isScheduleBoss ? s.nextSpawn ?? undefined : undefined,
@@ -385,7 +385,7 @@ export function WeeklyScheduleView() {
                     className={`flex items-center justify-between py-1.5 px-2 rounded transition-all duration-200 hover:scale-[1.01] ${
                       isDeathEvent
                         ? "bg-red-900/20 border border-red-900/30 cursor-pointer hover:bg-red-900/30"
-                        : isViewer
+                        : (isViewer && !viewerCanMarkDied)
                         ? "bg-slate-800/50 cursor-default"
                         : "bg-slate-800/50 cursor-pointer hover:bg-slate-700/50"
                     }`}
@@ -480,7 +480,7 @@ export function WeeklyScheduleView() {
                           bossName: s.boss.name,
                           deathTime: s.deathRecord.death_time,
                         });
-                      } else if (!isViewer) {
+                      } else if (!isViewer || viewerCanMarkDied) {
                         setMarkBoss({
                           boss: s.boss,
                           spawnTime: isScheduleBoss ? s.nextSpawn ?? undefined : undefined,
@@ -490,7 +490,7 @@ export function WeeklyScheduleView() {
                     className={`text-xs rounded px-1.5 py-1 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] ${
                       isDeathEvent
                         ? "bg-red-900/20 border border-red-900/30 cursor-pointer hover:bg-red-900/30 hover:border-red-800"
-                        : isViewer
+                        : (isViewer && !viewerCanMarkDied)
                         ? "bg-slate-800/50 cursor-default"
                         : isScheduleBoss
                         ? "bg-blue-900/20 border border-blue-900/30 cursor-pointer hover:bg-blue-900/30 hover:border-blue-800"
