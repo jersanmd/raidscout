@@ -230,16 +230,23 @@ export function WeeklyScheduleView() {
           }
         } else if (boss.spawn_type === "fixed_hours") {
           const info = calculateSpawnInfo(boss, deathMap.get(boss.id) ?? null);
-          if (!info.nextSpawn) continue;
 
-          const spawnsOnThisDay = info.nextSpawn.toDateString() === date.toDateString();
+          if (info.nextSpawn) {
+            const spawnsOnThisDay = info.nextSpawn.toDateString() === date.toDateString();
 
-          if (info.status === "alive") {
-            if ((spawnsOnThisDay || isToday) && !addedBossIds.has(boss.id)) {
-              daySpawns.push(info);
+            if (info.status === "alive") {
+              if ((spawnsOnThisDay || isToday) && !addedBossIds.has(boss.id)) {
+                daySpawns.push(info);
+              }
+            } else if (info.status === "countdown") {
+              if (spawnsOnThisDay) {
+                daySpawns.push(info);
+              }
             }
-          } else if (info.status === "countdown") {
-            if (spawnsOnThisDay) {
+          } else if (i === 0) {
+            // Unknown-status boss (never killed) — show on Monday so
+            // guild assignments are visible even without a known spawn time
+            if (!addedBossIds.has(boss.id)) {
               daySpawns.push(info);
             }
           }
