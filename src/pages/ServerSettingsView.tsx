@@ -1691,14 +1691,14 @@ export function ServerSettingsView() {
                 value={newDiscordId}
                 onChange={(e) => setNewDiscordId(e.target.value)}
                 placeholder="Discord Server ID"
-                className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 outline-none focus:border-purple-500 transition font-mono"
+                className="flex-[2] bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 outline-none focus:border-purple-500 transition font-mono"
               />
               <input
                 type="text"
                 value={newDiscordLabel}
                 onChange={(e) => setNewDiscordLabel(e.target.value)}
-                placeholder="Label (e.g. Crimson)"
-                className="w-32 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 outline-none focus:border-purple-500 transition"
+                placeholder="Guild name (e.g. Crimson)"
+                className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 outline-none focus:border-purple-500 transition"
               />
             </div>
             <div className="flex gap-2">
