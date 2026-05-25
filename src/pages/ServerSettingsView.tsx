@@ -1713,8 +1713,15 @@ export function ServerSettingsView() {
               <p className="text-slate-300 font-semibold mb-1">Step 3: Invite the bot</p>
               <ol className="list-decimal list-inside space-y-0.5 ml-1 text-slate-400">
                 <li><a href="https://discord.com/api/oauth2/authorize?client_id=1508368991272566975&permissions=2147485696&scope=bot%20applications.commands" target="_blank" rel="noopener noreferrer" className="text-purple-400 hover:text-purple-300 underline font-medium">Click here to invite the bot</a> to your Discord server</li>
-                <li>Type <code className="bg-slate-700 px-1 rounded text-amber-400">!spawn</code> in any channel to test</li>
               </ol>
+              <p className="mt-2 text-slate-500">Available commands:</p>
+              <div className="grid grid-cols-2 gap-1 mt-1">
+                <span className="text-amber-400 font-mono">!spawn</span><span className="text-slate-400">Boss spawns in 24h</span>
+                <span className="text-amber-400 font-mono">!spawn Venatus</span><span className="text-slate-400">Check a specific boss</span>
+                <span className="text-amber-400 font-mono">!kill Venatus</span><span className="text-slate-400">Record a kill now</span>
+                <span className="text-amber-400 font-mono">!kill Venatus 23:59</span><span className="text-slate-400">Kill at custom time</span>
+                <span className="text-amber-400 font-mono">!commands</span><span className="text-slate-400">Show all commands</span>
+              </div>
             </div>
           </div>
         </section>
