@@ -72,6 +72,18 @@ export function ServerSettingsView() {
       })
         .catch(() => { setBosses([]); setBossGuildsState([]); })
         .finally(() => setBossGuildsLoading(false));
+      // Fetch Discord bot config
+      supabase
+        .from("discord_configs")
+        .select("discord_guild_id")
+        .eq("raidscout_server_id", currentServer.id)
+        .maybeSingle()
+        .then(({ data }) => {
+          const gid = data?.discord_guild_id ?? "";
+          setDiscordGuildId(gid);
+          setSavedDiscordGuildId(gid);
+        })
+        .catch(() => {});
     }
   }, [currentServer?.id]);
 
@@ -95,6 +107,9 @@ export function ServerSettingsView() {
   const [viewerKey, setViewerKey] = useState("");
   const [showInviteCode, setShowInviteCode] = useState(false);
   const [showViewerKey, setShowViewerKey] = useState(false);
+  const [discordGuildId, setDiscordGuildId] = useState("");
+  const [savedDiscordGuildId, setSavedDiscordGuildId] = useState("");
+  const [savingDiscord, setSavingDiscord] = useState(false);
   const [searchParams] = useSearchParams();
   const tabParam = searchParams.get("tab");
   const initialTab = (tabParam === "general" || tabParam === "members" || tabParam === "integrations" || tabParam === "danger")
@@ -484,6 +499,26 @@ export function ServerSettingsView() {
       toast("error", err?.message ?? "Failed to save prefix");
     } finally {
       setSavingPrefix(false);
+    }
+  };
+
+  // ── Discord Bot helpers ────────────────────────────────
+  const handleSaveDiscordGuild = async () => {
+    const gid = discordGuildId.trim();
+    if (!gid || !currentServer) return;
+    setSavingDiscord(true);
+    try {
+      const { error } = await supabase.from("discord_configs").upsert({
+        discord_guild_id: gid,
+        raidscout_server_id: currentServer.id,
+      }, { onConflict: "discord_guild_id" });
+      if (error) throw error;
+      setSavedDiscordGuildId(gid);
+      toast("success", "Discord server linked!");
+    } catch (err: any) {
+      toast("error", err?.message ?? "Failed to link Discord server");
+    } finally {
+      setSavingDiscord(false);
     }
   };
 
@@ -1592,6 +1627,51 @@ export function ServerSettingsView() {
               {savingPrefix ? <Loader2 className="w-3 h-3 animate-spin" /> : <Link className="w-3 h-3" />}
               Save
             </button>
+          </div>
+        </section>
+      )}
+
+      {/* Integrations Tab — Discord Bot */}
+      {tab === "integrations" && (
+        <section className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3">
+          <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+            <Swords className="w-3 h-3" /> Discord Bot
+          </h3>
+          <p className="text-sm text-slate-400">
+            Let your members use <code className="bg-slate-800 px-1 rounded text-amber-400">!spawn</code> and <code className="bg-slate-800 px-1 rounded text-amber-400">!kill</code> commands in your Discord server.
+          </p>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={discordGuildId}
+              onChange={(e) => setDiscordGuildId(e.target.value)}
+              placeholder="Discord Server ID (right-click server → Copy ID)"
+              className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 outline-none focus:border-purple-500 transition font-mono"
+            />
+            <button
+              onClick={handleSaveDiscordGuild}
+              disabled={savingDiscord || !discordGuildId.trim() || discordGuildId === savedDiscordGuildId}
+              className="flex items-center gap-1 px-3 py-2 rounded-lg text-xs font-medium bg-purple-600 text-white hover:bg-purple-500 transition disabled:opacity-50"
+            >
+              {savingDiscord ? <Loader2 className="w-3 h-3 animate-spin" /> : <Link className="w-3 h-3" />}
+              Save
+            </button>
+          </div>
+          {savedDiscordGuildId && (
+            <p className="text-xs text-emerald-400 flex items-center gap-1">
+              <Check className="w-3 h-3" /> Bot linked — <code className="bg-slate-800 px-1 rounded text-emerald-300">{savedDiscordGuildId}</code>
+            </p>
+          )}
+          <div className="bg-slate-800/50 rounded-lg p-3 text-xs text-slate-400 space-y-1">
+            <p><strong className="text-slate-300">How to set up:</strong></p>
+            <ol className="list-decimal list-inside space-y-0.5 ml-1">
+              <li>Enable <strong>Developer Mode</strong> in Discord Settings → Advanced</li>
+              <li>Right-click your Discord server icon → <strong>Copy Server ID</strong></li>
+              <li>Paste it above and click Save</li>
+              <li><a href="https://discord.com/api/oauth2/authorize?client_id=1508368991272566975&permissions=2147485696&scope=bot%20applications.commands" target="_blank" rel="noopener noreferrer" className="text-purple-400 hover:text-purple-300 underline">Invite the bot</a> to your Discord server</li>
+              <li>Enable <strong>Message Content Intent</strong> in Discord Developer Portal → Bot</li>
+              <li>Type <code className="bg-slate-700 px-1 rounded text-amber-400">!spawn</code> in any channel</li>
+            </ol>
           </div>
         </section>
       )}
