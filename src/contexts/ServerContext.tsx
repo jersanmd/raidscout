@@ -22,6 +22,8 @@ interface ServerState {
   loading: boolean;
   setCurrentServer: (server: Server) => void;
   refreshServers: () => Promise<void>;
+  webhookVersion: number;
+  bumpWebhookVersion: () => void;
 }
 
 const ServerContext = createContext<ServerState | undefined>(undefined);
@@ -32,6 +34,8 @@ export function ServerProvider({ children }: { children: ReactNode }) {
   const [currentServer, setCurrentServer] = useState<Server | null>(null);
   const [loading, setLoading] = useState(true);
   const currentRef = useRef<Server | null>(null);
+  const [webhookVersion, setWebhookVersion] = useState(0);
+  const bumpWebhookVersion = useCallback(() => setWebhookVersion(v => v + 1), []);
 
   // Viewer mode: directly set the viewer's server
   useEffect(() => {
@@ -148,7 +152,7 @@ export function ServerProvider({ children }: { children: ReactNode }) {
 
   return (
     <ServerContext.Provider
-      value={{ servers, currentServer, loading, setCurrentServer: setCurrentServerWrapped, refreshServers }}
+      value={{ servers, currentServer, loading, setCurrentServer: setCurrentServerWrapped, refreshServers, webhookVersion, bumpWebhookVersion }}
     >
       {children}
     </ServerContext.Provider>

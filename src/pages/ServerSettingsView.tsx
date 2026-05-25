@@ -10,7 +10,7 @@ import { CreateServerModal } from "@/components/CreateServerModal";
 import { useToast } from "@/contexts/ToastContext";
 
 export function ServerSettingsView() {
-  const { currentServer, servers, loading: serversLoading, setCurrentServer, refreshServers } = useServer();
+  const { currentServer, servers, loading: serversLoading, setCurrentServer, refreshServers, bumpWebhookVersion } = useServer();
   const { user, userRole, isViewer } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -519,6 +519,7 @@ export function ServerSettingsView() {
       setNewDiscordId("");
       setNewDiscordLabel("");
       setNewDiscordWebhook("");
+      bumpWebhookVersion();
       toast("success", "Discord server linked!");
     } catch (err: any) {
       toast("error", err?.message ?? "Failed to link");
@@ -532,6 +533,7 @@ export function ServerSettingsView() {
       const { error } = await supabase.from("discord_configs").delete().eq("id", id);
       if (error) throw error;
       setDiscordLinks(prev => prev.filter(d => d.id !== id));
+      bumpWebhookVersion();
       toast("success", "Discord link removed");
     } catch (err: any) {
       toast("error", err?.message ?? "Failed to remove");

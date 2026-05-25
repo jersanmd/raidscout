@@ -13,6 +13,7 @@ import { ExternalLink, X, Webhook } from "lucide-react";
 export function DiscordWebhookBanner() {
   const { user } = useAuth();
   const { currentServer } = useServer();
+  const { webhookVersion } = useServer();
   const navigate = useNavigate();
   const [dismissed, setDismissed] = useState(false);
   const [hasWebhook, setHasWebhook] = useState(true); // optimistic
@@ -33,7 +34,7 @@ export function DiscordWebhookBanner() {
       .limit(1)
       .then(({ data }) => setHasWebhook((data?.length ?? 0) > 0))
       .catch(() => setHasWebhook(false));
-  }, [currentServer?.id, currentServer?.discord_webhook_url]);
+  }, [currentServer?.id, currentServer?.discord_webhook_url, webhookVersion]);
 
   if (!user || !currentServer) return null;
   if (currentServer.role !== "owner" && currentServer.role !== "moderator") return null;
