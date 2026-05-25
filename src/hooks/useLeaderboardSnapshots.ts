@@ -114,7 +114,7 @@ export function useLeaderboardSnapshots() {
         created_at: snap.finalized_at,
       });
     },
-    [configured, user]
+    [configured, user, isViewer]
   );
 
   const clearViewing = useCallback(() => setViewingSnapshot(null), []);

@@ -38,6 +38,7 @@ export function useDeathRecords() {
     activeSubscriptions.add(subKey);
 
     const channel = subscribeToDeathRecords(
+      serverId || "unknown",
       () => {
         queryClient.invalidateQueries({ queryKey: ["death_records"] });
         queryClient.invalidateQueries({ queryKey: ["spawn_overrides"] });

@@ -370,11 +370,12 @@ function getOrCreateChannel(chanName: string): { channel: ReturnType<typeof supa
 }
 
 export function subscribeToDeathRecords(
+  serverId: string,
   onInsert: (record: DeathRecord) => void,
   onUpdate: (record: DeathRecord) => void,
   onDelete: (record: { id: string }) => void
 ) {
-  const sid = _currentServerId || "unknown";
+  const sid = serverId || "unknown";
   const chanName = `deaths-${sid}`;
   const { channel, isNew } = getOrCreateChannel(chanName);
   
@@ -394,8 +395,8 @@ export function subscribeToDeathRecords(
 }
 
 /** Realtime subscription for boss table changes (rotation_counter, schedule, etc.) */
-export function subscribeToBosses(onChange: () => void) {
-  const sid = _currentServerId || "unknown";
+export function subscribeToBosses(serverId: string, onChange: () => void) {
+  const sid = serverId || "unknown";
   const chanName = `bosses-${sid}`;
   const { channel, isNew } = getOrCreateChannel(chanName);
   
@@ -434,23 +435,6 @@ export function subscribeToServerSettings(
   }
   
   return channel;
-}
-
-/** Broadcast a spawn alert to all clients on the same server */
-export function broadcastSpawnAlert(serverId: string, bossName: string) {
-  const channel = supabase.channel(`spawn-alerts-${serverId}`, {
-    config: { broadcast: { self: true } },
-  });
-  channel.subscribe((status) => {
-    if (status === "SUBSCRIBED") {
-      channel.send({
-        type: "broadcast",
-        event: "boss_spawned",
-        payload: { bossName },
-      });
-      setTimeout(() => channel.unsubscribe(), 1000);
-    }
-  });
 }
 
 /** Listen for spawn alerts from other clients on the same server */

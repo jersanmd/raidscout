@@ -21,7 +21,7 @@ export function useBosses() {
     if (activeBossSubscriptions.has(subKey)) return;
     activeBossSubscriptions.add(subKey);
 
-    const channel = subscribeToBosses(() => {
+    const channel = subscribeToBosses(serverId, () => {
       queryClient.invalidateQueries({ queryKey: ["bosses"] });
     });
 
