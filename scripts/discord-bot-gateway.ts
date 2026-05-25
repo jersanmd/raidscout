@@ -151,8 +151,8 @@ async function handleMessage(msg: any) {
     if (!serverId) return reply("This server is not linked to RaidScout.");
     const bosses = await supabaseQuery(`bosses?server_id=eq.${serverId}&order=name`);
     if (!bosses?.length) return reply("No bosses found.");
-    const names = bosses.map((b: any) => b.name).join(", ");
-    return replyEmbed("📋 Boss List", names, 0x8b5cf6);
+    const names = bosses.map((b: any, i: number) => `${i + 1}. ${b.name}`).join("\n");
+    return reply(`**📋 Boss List** (${bosses.length} bosses)\n${names}`);
   }
 
   // ── !commands ─────────────────────────────────────────
