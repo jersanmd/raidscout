@@ -520,6 +520,31 @@ export function ServerSettingsView() {
       setNewDiscordLabel("");
       setNewDiscordWebhook("");
       bumpWebhookVersion();
+
+      // Send greeting to the webhook
+      if (newDiscordWebhook.trim()) {
+        try {
+          await fetch(newDiscordWebhook.trim(), {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              username: "RaidScout",
+              embeds: [{
+                title: "🛡️ RaidScout has been connected!",
+                description: `**RaidScout** is now linked to **${currentServer.name}**${newDiscordLabel.trim() ? ` (${newDiscordLabel.trim()})` : ""}.\n\nBoss kill alerts, spawn announcements, and @everyone pings are now active.`,
+                color: 0x22c55e,
+                fields: [
+                  { name: "Server", value: currentServer.name, inline: true },
+                  { name: "Status", value: "🟢 Online", inline: true },
+                ],
+                timestamp: new Date().toISOString(),
+                footer: { text: "Powered by RaidScout" },
+              }],
+            }),
+          });
+        } catch { /* webhook might be invalid — ignore */ }
+      }
+
       toast("success", "Discord server linked!");
     } catch (err: any) {
       toast("error", err?.message ?? "Failed to link");
