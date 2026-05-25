@@ -72,16 +72,14 @@ export function ServerSettingsView() {
       })
         .catch(() => { setBosses([]); setBossGuildsState([]); })
         .finally(() => setBossGuildsLoading(false));
-      // Fetch Discord bot config
+      // Fetch Discord bot configs
       supabase
         .from("discord_configs")
-        .select("discord_guild_id")
+        .select("*")
         .eq("raidscout_server_id", currentServer.id)
-        .maybeSingle()
+        .order("created_at")
         .then(({ data }) => {
-          const gid = data?.discord_guild_id ?? "";
-          setDiscordGuildId(gid);
-          setSavedDiscordGuildId(gid);
+          setDiscordLinks(data || []);
         })
         .catch(() => {});
     }
@@ -107,8 +105,9 @@ export function ServerSettingsView() {
   const [viewerKey, setViewerKey] = useState("");
   const [showInviteCode, setShowInviteCode] = useState(false);
   const [showViewerKey, setShowViewerKey] = useState(false);
-  const [discordGuildId, setDiscordGuildId] = useState("");
-  const [savedDiscordGuildId, setSavedDiscordGuildId] = useState("");
+  const [discordLinks, setDiscordLinks] = useState<{ id: string; discord_guild_id: string; label?: string }[]>([]);
+  const [newDiscordId, setNewDiscordId] = useState("");
+  const [newDiscordLabel, setNewDiscordLabel] = useState("");
   const [savingDiscord, setSavingDiscord] = useState(false);
   const [searchParams] = useSearchParams();
   const tabParam = searchParams.get("tab");
@@ -503,22 +502,36 @@ export function ServerSettingsView() {
   };
 
   // ── Discord Bot helpers ────────────────────────────────
-  const handleSaveDiscordGuild = async () => {
-    const gid = discordGuildId.trim();
+  const handleAddDiscordLink = async () => {
+    const gid = newDiscordId.trim();
     if (!gid || !currentServer) return;
     setSavingDiscord(true);
     try {
-      const { error } = await supabase.from("discord_configs").upsert({
+      const { data, error } = await supabase.from("discord_configs").insert({
         discord_guild_id: gid,
         raidscout_server_id: currentServer.id,
-      }, { onConflict: "raidscout_server_id" });
+        label: newDiscordLabel.trim() || null,
+      }).select().single();
       if (error) throw error;
-      setSavedDiscordGuildId(gid);
+      setDiscordLinks(prev => [...prev, data]);
+      setNewDiscordId("");
+      setNewDiscordLabel("");
       toast("success", "Discord server linked!");
     } catch (err: any) {
-      toast("error", err?.message ?? "Failed to link Discord server");
+      toast("error", err?.message ?? "Failed to link");
     } finally {
       setSavingDiscord(false);
+    }
+  };
+
+  const handleRemoveDiscordLink = async (id: string) => {
+    try {
+      const { error } = await supabase.from("discord_configs").delete().eq("id", id);
+      if (error) throw error;
+      setDiscordLinks(prev => prev.filter(d => d.id !== id));
+      toast("success", "Discord link removed");
+    } catch (err: any) {
+      toast("error", err?.message ?? "Failed to remove");
     }
   };
 
@@ -1638,39 +1651,64 @@ export function ServerSettingsView() {
             <Swords className="w-3 h-3" /> Discord Bot
           </h3>
           <p className="text-sm text-slate-400">
-            Let your members use <code className="bg-slate-800 px-1 rounded text-amber-400">!spawn</code> and <code className="bg-slate-800 px-1 rounded text-amber-400">!kill</code> commands in your Discord server.
+            Let members use <code className="bg-slate-800 px-1 rounded text-amber-400">!spawn</code> and <code className="bg-slate-800 px-1 rounded text-amber-400">!kill</code> in Discord. Add one entry per guild's Discord server.
           </p>
+
+          {/* Existing links */}
+          {discordLinks.length > 0 && (
+            <div className="space-y-2">
+              {discordLinks.map(link => (
+                <div key={link.id} className="flex items-center gap-2 bg-slate-800/50 rounded-lg px-3 py-2">
+                  <span className="flex-1 text-sm text-white font-mono truncate">
+                    {link.discord_guild_id}
+                    {link.label && <span className="text-slate-400 ml-2">— {link.label}</span>}
+                  </span>
+                  <button
+                    onClick={() => handleRemoveDiscordLink(link.id)}
+                    className="p-1 rounded hover:bg-red-900/30 text-slate-400 hover:text-red-400 transition"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Add new link */}
           <div className="flex gap-2">
             <input
               type="text"
-              value={discordGuildId}
-              onChange={(e) => setDiscordGuildId(e.target.value)}
-              placeholder="Discord Server ID (right-click server → Copy ID)"
+              value={newDiscordId}
+              onChange={(e) => setNewDiscordId(e.target.value)}
+              placeholder="Discord Server ID"
               className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 outline-none focus:border-purple-500 transition font-mono"
             />
+            <input
+              type="text"
+              value={newDiscordLabel}
+              onChange={(e) => setNewDiscordLabel(e.target.value)}
+              placeholder="Label (e.g. Crimson)"
+              className="w-32 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 outline-none focus:border-purple-500 transition"
+            />
             <button
-              onClick={handleSaveDiscordGuild}
-              disabled={savingDiscord || !discordGuildId.trim() || discordGuildId === savedDiscordGuildId}
+              onClick={handleAddDiscordLink}
+              disabled={savingDiscord || !newDiscordId.trim()}
               className="flex items-center gap-1 px-3 py-2 rounded-lg text-xs font-medium bg-purple-600 text-white hover:bg-purple-500 transition disabled:opacity-50"
             >
-              {savingDiscord ? <Loader2 className="w-3 h-3 animate-spin" /> : <Link className="w-3 h-3" />}
-              Save
+              {savingDiscord ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />}
+              Add
             </button>
           </div>
-          {savedDiscordGuildId && (
-            <p className="text-xs text-emerald-400 flex items-center gap-1">
-              <Check className="w-3 h-3" /> Bot linked — <code className="bg-slate-800 px-1 rounded text-emerald-300">{savedDiscordGuildId}</code>
-            </p>
-          )}
+
           <div className="bg-slate-800/50 rounded-lg p-3 text-xs text-slate-400 space-y-1">
             <p><strong className="text-slate-300">How to set up:</strong></p>
             <ol className="list-decimal list-inside space-y-0.5 ml-1">
-              <li>Enable <strong>Developer Mode</strong> in Discord Settings → Advanced</li>
-              <li>Right-click your Discord server icon → <strong>Copy Server ID</strong></li>
-              <li>Paste it above and click Save</li>
-              <li><a href="https://discord.com/api/oauth2/authorize?client_id=1508368991272566975&permissions=2147485696&scope=bot%20applications.commands" target="_blank" rel="noopener noreferrer" className="text-purple-400 hover:text-purple-300 underline">Invite the bot</a> to your Discord server</li>
+              <li>Enable <strong>Developer Mode</strong> in Discord → Advanced</li>
+              <li>Right-click Discord server → <strong>Copy Server ID</strong></li>
+              <li>Paste above, add a label, click Add</li>
+              <li><a href="https://discord.com/api/oauth2/authorize?client_id=1508368991272566975&permissions=2147485696&scope=bot%20applications.commands" target="_blank" rel="noopener noreferrer" className="text-purple-400 hover:text-purple-300 underline">Invite the bot</a> to each Discord server</li>
               <li>Enable <strong>Message Content Intent</strong> in Discord Developer Portal → Bot</li>
-              <li>Type <code className="bg-slate-700 px-1 rounded text-amber-400">!spawn</code> in any channel</li>
+              <li>Type <code className="bg-slate-700 px-1 rounded text-amber-400">!spawn</code> in any linked Discord</li>
             </ol>
           </div>
         </section>
