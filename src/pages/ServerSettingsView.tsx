@@ -1610,37 +1610,7 @@ export function ServerSettingsView() {
         </div>
       )}
 
-      {/* Integrations Tab — Notification Prefix */}
-      {tab === "integrations" && (
-        <section className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3">
-          <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-            <Bell className="w-3 h-3" /> Notification Prefix
-          </h3>
-          <p className="text-sm text-slate-400">
-            Customize the ping text that appears at the start of every Discord notification.
-            Defaults to <code className="bg-slate-800 px-1 rounded text-amber-400">@everyone</code>.
-          </p>
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={notifPrefix}
-              onChange={(e) => setNotifPrefix(e.target.value)}
-              placeholder="@everyone"
-              className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 outline-none focus:border-purple-500 transition"
-            />
-            <button
-              onClick={handleSavePrefix}
-              disabled={savingPrefix || !notifPrefix.trim() || notifPrefix === (currentServer.notification_prefix ?? "@everyone")}
-              className="flex items-center gap-1 px-3 py-2 rounded-lg text-xs font-medium bg-purple-600 text-white hover:bg-purple-500 transition disabled:opacity-50"
-            >
-              {savingPrefix ? <Loader2 className="w-3 h-3 animate-spin" /> : <Link className="w-3 h-3" />}
-              Save
-            </button>
-          </div>
-        </section>
-      )}
-
-      {/* Integrations Tab — Discord Bot */}
+      {/* Integrations Tab — Discord Bot & Webhooks */}
       {tab === "integrations" && (
         <section className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3">
           <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
@@ -1725,11 +1695,41 @@ export function ServerSettingsView() {
             <ol className="list-decimal list-inside space-y-0.5 ml-1">
               <li>Enable <strong>Developer Mode</strong> in Discord → Advanced</li>
               <li>Right-click Discord server → <strong>Copy Server ID</strong></li>
-              <li>Paste above, add a label, click Add</li>
+              <li>Paste above, add a guild name, click Add</li>
               <li><a href="https://discord.com/api/oauth2/authorize?client_id=1508368991272566975&permissions=2147485696&scope=bot%20applications.commands" target="_blank" rel="noopener noreferrer" className="text-purple-400 hover:text-purple-300 underline">Invite the bot</a> to each Discord server</li>
               <li>Enable <strong>Message Content Intent</strong> in Discord Developer Portal → Bot</li>
               <li>Type <code className="bg-slate-700 px-1 rounded text-amber-400">!spawn</code> in any linked Discord</li>
             </ol>
+          </div>
+        </section>
+      )}
+
+      {/* Integrations Tab — Notification Prefix */}
+      {tab === "integrations" && (
+        <section className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3">
+          <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+            <Bell className="w-3 h-3" /> Notification Prefix
+          </h3>
+          <p className="text-sm text-slate-400">
+            Customize the ping text that appears at the start of every Discord notification.
+            Defaults to <code className="bg-slate-800 px-1 rounded text-amber-400">@everyone</code>.
+          </p>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={notifPrefix}
+              onChange={(e) => setNotifPrefix(e.target.value)}
+              placeholder="@everyone"
+              className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 outline-none focus:border-purple-500 transition"
+            />
+            <button
+              onClick={handleSavePrefix}
+              disabled={savingPrefix || !notifPrefix.trim() || notifPrefix === (currentServer.notification_prefix ?? "@everyone")}
+              className="flex items-center gap-1 px-3 py-2 rounded-lg text-xs font-medium bg-purple-600 text-white hover:bg-purple-500 transition disabled:opacity-50"
+            >
+              {savingPrefix ? <Loader2 className="w-3 h-3 animate-spin" /> : <Link className="w-3 h-3" />}
+              Save
+            </button>
           </div>
         </section>
       )}
