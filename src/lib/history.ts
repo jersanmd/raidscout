@@ -10,7 +10,3 @@ export interface HistoryEntry {
   /** Guild that killed the boss (from owner_guild_id) */
   ownerGuildName?: string;
 }
-
-export function clearHistory(): void {
-  localStorage.removeItem(HISTORY_KEY);
-}
