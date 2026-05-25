@@ -51,21 +51,33 @@ export function AnalyticsView() {
       const now = new Date();
       let since: string;
       if (period === "week") {
-        // Get current date/time in server timezone
+        // Get current date parts in server timezone
         const fmt = new Intl.DateTimeFormat("en-CA", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit", weekday: "short" });
         const parts = fmt.formatToParts(now);
-        const dateStr = parts.filter(p => p.type !== "literal" && p.type !== "weekday").map(p => p.value).join("-");
-        const d = new Date(dateStr + "T00:00:00");
-        // Adjust to Monday
-        const dow = now.toLocaleString("en-US", { timeZone: tz, weekday: "short" });
-        const daysFromMonday = { "Mon": 0, "Tue": 1, "Wed": 2, "Thu": 3, "Fri": 4, "Sat": 5, "Sun": 6 }[dow] ?? 0;
-        d.setDate(d.getDate() - daysFromMonday);
-        since = d.toISOString();
+        const year = Number(parts.find(p => p.type === "year")!.value);
+        const month = Number(parts.find(p => p.type === "month")!.value) - 1;
+        const day = Number(parts.find(p => p.type === "day")!.value);
+        const dowStr = parts.find(p => p.type === "weekday")!.value;
+        const daysBack: Record<string, number> = { Mon: 0, Tue: 1, Wed: 2, Thu: 3, Fri: 4, Sat: 5, Sun: 6 };
+        const mondayDay = day - (daysBack[dowStr] ?? 0);
+
+        // Build as UTC midnight, then adjust for server timezone offset
+        const utcMidnight = Date.UTC(year, month, mondayDay, 0, 0, 0);
+        // Get offset: compare server hours vs UTC hours at this instant
+        const serverHour = Number(new Intl.DateTimeFormat("en-US", { timeZone: tz, hour: "numeric", hour12: false }).format(utcMidnight));
+        const utcHour = Number(new Intl.DateTimeFormat("en-US", { timeZone: "UTC", hour: "numeric", hour12: false }).format(utcMidnight));
+        const offsetMs = (serverHour - utcHour) * 3600_000;
+        since = new Date(utcMidnight - offsetMs).toISOString();
       } else if (period === "month") {
         const fmt = new Intl.DateTimeFormat("en-CA", { timeZone: tz, year: "numeric", month: "2-digit" });
         const parts = fmt.formatToParts(now);
-        const [y, m] = [parts[0].value, parts[2].value];
-        since = new Date(`${y}-${m}-01T00:00:00`).toISOString();
+        const year = Number(parts[0].value);
+        const month = Number(parts[2].value) - 1;
+        const utcMidnight = Date.UTC(year, month, 1, 0, 0, 0);
+        const serverHour = Number(new Intl.DateTimeFormat("en-US", { timeZone: tz, hour: "numeric", hour12: false }).format(utcMidnight));
+        const utcHour = Number(new Intl.DateTimeFormat("en-US", { timeZone: "UTC", hour: "numeric", hour12: false }).format(utcMidnight));
+        const offsetMs = (serverHour - utcHour) * 3600_000;
+        since = new Date(utcMidnight - offsetMs).toISOString();
       } else {
         since = "2020-01-01";
       }

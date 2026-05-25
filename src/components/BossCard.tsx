@@ -6,6 +6,7 @@ import { DeathRecordModal } from "./DeathRecordModal";
 import { BossImage } from "./BossImage";
 import { Repeat, Timer, Skull, CheckSquare, Square, Shield, Pencil, X } from "lucide-react";
 import { useServerTimezone, formatInTimezone } from "@/hooks/useServerTimezone";
+import { useTimer } from "@/hooks/useTimer";
 import { guildColor } from "@/lib/constants";
 import type { BossWithSpawn } from "@/types";
 
@@ -60,7 +61,7 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
   );
   const canMarkDied = viewerCanMarkDied || !isViewer;
 
-  const statusConfig = {
+  const statusConfigMap = {
     unknown: {
       bg: "bg-slate-800",
       border: "border-slate-700",
@@ -79,7 +80,12 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
       badge: "bg-amber-900/50 text-amber-400",
       badgeText: "Timer",
     },
-  }[status];
+  } as const;
+
+  // Detect countdown expiry so badge auto-updates to ALIVE without page interaction
+  const timer = useTimer(nextSpawn);
+  const effectiveStatus = (timer.isPast && status === "countdown") ? "alive" as const : status;
+  const config = statusConfigMap[effectiveStatus];
 
   const formatDateTime = (d: Date) =>
     formatInTimezone(d, tz, {
@@ -94,7 +100,7 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
     <>
       <div
         onClick={() => multiMode && onToggleSelect?.(boss.id)}
-        className={`relative rounded-xl border ${statusConfig.border} ${statusConfig.bg} p-4 transition-all duration-300 animate-[fadeIn_0.5s_ease-out] hover:-translate-y-0.5 hover:shadow-lg hover:shadow-black/20 ${justKilled ? "animate-[fadeOut_0.4s_ease-out]" : ""} ${
+        className={`relative rounded-xl border ${config.border} ${config.bg} p-4 transition-all duration-300 animate-[fadeIn_0.5s_ease-out] hover:-translate-y-0.5 hover:shadow-lg hover:shadow-black/20 ${justKilled ? "animate-[fadeOut_0.4s_ease-out]" : ""} ${
           multiMode ? "cursor-pointer" : ""
         } hover:border-slate-500 ${
           selected ? "ring-2 ring-blue-500 border-blue-500" : ""
@@ -129,8 +135,8 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
                   {displayOwner}
                 </span>
               ); })()}
-              <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full shrink-0 ${statusConfig.badge}`}>
-                {statusConfig.badgeText}
+              <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full shrink-0 ${config.badge}`}>
+                {config.badgeText}
               </span>
             </div>
 

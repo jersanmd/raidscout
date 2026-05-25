@@ -16,6 +16,20 @@ export function CountdownTimer({ target, bossName, onUrgent, onCritical }: Count
   const isUrgent = !timer.isPast && timer.totalSeconds > 0 && timer.totalSeconds <= 300;
   const isCritical = !timer.isPast && timer.totalSeconds > 0 && timer.totalSeconds <= 5;
 
+  // Cleanup stale alert keys on mount (prevent localStorage pollution)
+  useEffect(() => {
+    const prefix = "alert-urgent-";
+    const prefix2 = "alert-critical-";
+    const cutoff = Date.now() - 600_000; // 10 minutes ago
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const key = localStorage.key(i);
+      if (key && (key.startsWith(prefix) || key.startsWith(prefix2))) {
+        const ts = Number(key.split("-").pop());
+        if (ts && ts < cutoff) localStorage.removeItem(key);
+      }
+    }
+  }, []);
+
   useEffect(() => {
     if (isUrgent && urgentKey && !localStorage.getItem(urgentKey) && bossName && onUrgent) {
       localStorage.setItem(urgentKey, "1");
