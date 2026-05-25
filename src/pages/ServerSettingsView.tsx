@@ -1693,12 +1693,13 @@ export function ServerSettingsView() {
           <div className="bg-slate-800/50 rounded-lg p-3 text-xs text-slate-400 space-y-1">
             <p><strong className="text-slate-300">How to set up:</strong></p>
             <ol className="list-decimal list-inside space-y-0.5 ml-1">
-              <li>Enable <strong>Developer Mode</strong> in Discord → Advanced</li>
-              <li>Right-click Discord server → <strong>Copy Server ID</strong></li>
-              <li>Paste above, add a guild name, click Add</li>
-              <li><a href="https://discord.com/api/oauth2/authorize?client_id=1508368991272566975&permissions=2147485696&scope=bot%20applications.commands" target="_blank" rel="noopener noreferrer" className="text-purple-400 hover:text-purple-300 underline">Invite the bot</a> to each Discord server</li>
-              <li>Enable <strong>Message Content Intent</strong> in Discord Developer Portal → Bot</li>
-              <li>Type <code className="bg-slate-700 px-1 rounded text-amber-400">!spawn</code> in any linked Discord</li>
+              <li>In Discord, go to <strong>Server Settings → Integrations → Webhooks</strong></li>
+              <li>Click <strong>New Webhook</strong> → give it a name → select a channel → <strong>Copy Webhook URL</strong></li>
+              <li>Paste the URL in the <strong>Webhook URL</strong> field above</li>
+              <li>Enter your guild name and click <strong>Add</strong></li>
+              <li>Enable <strong>Developer Mode</strong> in Discord → Advanced, right-click server → <strong>Copy Server ID</strong> for the bot</li>
+              <li><a href="https://discord.com/api/oauth2/authorize?client_id=1508368991272566975&permissions=2147485696&scope=bot%20applications.commands" target="_blank" rel="noopener noreferrer" className="text-purple-400 hover:text-purple-300 underline">Invite the bot</a> and enable <strong>Message Content Intent</strong> in Developer Portal</li>
+              <li>Type <code className="bg-slate-700 px-1 rounded text-amber-400">!spawn</code> in any linked Discord channel</li>
             </ol>
           </div>
         </section>
