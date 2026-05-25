@@ -222,14 +222,14 @@ export function BossListView() {
     if (delta === 0) return;
     try {
       if (info.mode === "daily") {
-        // Daily mode: adjust rotation_adjustment so targetIndex = (lastIdx + 1 + adj) % N
         await adjustBossRotation(bossId, delta);
       } else {
-        // Rotation (per kill) mode: set rotation_counter directly
         await setBossRotation(bossId, targetIndex);
       }
-      queryClient.invalidateQueries({ queryKey: ["bosses"] });
-      queryClient.invalidateQueries({ queryKey: ["death_records"] });
+      // Force refetch so the UI updates immediately
+      await queryClient.invalidateQueries({ queryKey: ["bosses"] });
+      await queryClient.refetchQueries({ queryKey: ["bosses"] });
+      await queryClient.invalidateQueries({ queryKey: ["death_records"] });
       setRefreshKey(k => k + 1);
     } catch (err: any) {
       setToast({ type: "error", message: err?.message ?? "Failed to set rotation" });
