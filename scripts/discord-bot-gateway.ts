@@ -321,6 +321,12 @@ async function handleMessage(msg: any) {
         }),
       });
 
+    // Delete any spawn override so the kill's countdown takes priority
+    await fetch(`${SUPABASE_URL}/rest/v1/boss_spawn_overrides?boss_id=eq.${boss.id}&server_id=eq.${serverId}`, {
+      method: "DELETE",
+      headers: { apikey: SUPABASE_KEY!, Authorization: `Bearer ${SUPABASE_KEY!}` },
+    }).catch(() => {});
+
     if (bgs?.length) {
       await fetch(`${SUPABASE_URL}/rest/v1/bosses?id=eq.${boss.id}`, {
         method: "PATCH",
