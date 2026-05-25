@@ -73,15 +73,16 @@ export function ServerSettingsView() {
         .catch(() => { setBosses([]); setBossGuildsState([]); })
         .finally(() => setBossGuildsLoading(false));
       // Fetch Discord bot configs
-      supabase
-        .from("discord_configs")
-        .select("*")
-        .eq("raidscout_server_id", currentServer.id)
-        .order("created_at")
-        .then(({ data }) => {
+      (async () => {
+        try {
+          const { data } = await supabase
+            .from("discord_configs")
+            .select("*")
+            .eq("raidscout_server_id", currentServer.id)
+            .order("created_at");
           setDiscordLinks(data || []);
-        })
-        .catch(() => {});
+        } catch { /* ignore */ }
+      })();
     }
   }, [currentServer?.id]);
 

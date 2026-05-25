@@ -26,14 +26,19 @@ export function DiscordWebhookBanner() {
       return;
     }
     // Check per-guild webhooks
-    supabase
-      .from("discord_configs")
-      .select("webhook_url")
-      .eq("raidscout_server_id", currentServer.id)
-      .not("webhook_url", "is", null)
-      .limit(1)
-      .then(({ data }) => setHasWebhook((data?.length ?? 0) > 0))
-      .catch(() => setHasWebhook(false));
+    (async () => {
+      try {
+        const { data } = await supabase
+          .from("discord_configs")
+          .select("webhook_url")
+          .eq("raidscout_server_id", currentServer.id)
+          .not("webhook_url", "is", null)
+          .limit(1);
+        setHasWebhook((data?.length ?? 0) > 0);
+      } catch {
+        setHasWebhook(false);
+      }
+    })();
   }, [currentServer?.id, currentServer?.discord_webhook_url, webhookVersion]);
 
   if (!user || !currentServer) return null;
