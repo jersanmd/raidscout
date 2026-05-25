@@ -1,42 +1,43 @@
-// Vercel serverless function — relays Discord interactions to Supabase edge function.
-// Workaround for Discord ↔ Supabase endpoint verification issues.
-export default async function handler(req: Request) {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { status: 204 });
-  }
+// Vercel Edge Function — handles Discord PING and relays commands to Supabase
+export const config = { runtime: "edge" };
 
-  const body = await req.text();
+export default async function handler(request: Request) {
+  const body = await request.text();
 
-  // Discord PING verification — respond directly
-  try {
-    const data = JSON.parse(body);
-    if (data.type === 1) {
-      return new Response(JSON.stringify({ type: 1 }), {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
-      });
-    }
-  } catch {
+  let data: any;
+  try { data = JSON.parse(body); } catch {
     return new Response("Invalid JSON", { status: 400 });
   }
 
-  // Forward all other interactions to Supabase
+  // Discord PING — respond immediately
+  if (data.type === 1) {
+    return new Response(JSON.stringify({ type: 1 }), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    });
+  }
+
+  // Forward to Supabase
   const supabaseUrl = "https://oeugehqgpodzhagomeex.supabase.co/functions/v1/discord-bot";
-  const res = await fetch(supabaseUrl, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-Signature-Ed25519": req.headers.get("X-Signature-Ed25519") || "",
-      "X-Signature-Timestamp": req.headers.get("X-Signature-Timestamp") || "",
-    },
-    body,
-  });
-
-  const resBody = await res.text();
-  return new Response(resBody, {
-    status: res.status,
-    headers: { "Content-Type": "application/json" },
-  });
+  try {
+    const res = await fetch(supabaseUrl, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-signature-ed25519": request.headers.get("x-signature-ed25519") || "",
+        "x-signature-timestamp": request.headers.get("x-signature-timestamp") || "",
+      },
+      body,
+    });
+    const resBody = await res.text();
+    return new Response(resBody, {
+      status: res.status,
+      headers: { "content-type": "application/json" },
+    });
+  } catch {
+    return new Response(JSON.stringify({ type: 4, data: { content: "Service temporarily unavailable.", flags: 64 } }), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    });
+  }
 }
-
-export const config = { runtime: "edge" };

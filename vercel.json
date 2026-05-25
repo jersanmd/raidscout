@@ -1,10 +1,5 @@
 {
   "rewrites": [
-    { "source": "/((?!api/).*)", "destination": "/index.html" }
-  ],
-  "functions": {
-    "api/discord-bot.ts": {
-      "runtime": "@vercel/edge"
-    }
-  }
+    { "source": "/((?!api).*)", "destination": "/index.html" }
+  ]
 }
