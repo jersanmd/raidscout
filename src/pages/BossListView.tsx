@@ -617,14 +617,21 @@ export function BossListView() {
         <div className="space-y-8">
           {groupedSpawns.map((group) => (
             <section key={group.label}>
-              {/* Day header */}
-              <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-slate-600" />
-                {group.label}
-                <span className="text-slate-600 font-normal normal-case text-xs">
-                  {group.spawns.length} boss{group.spawns.length !== 1 ? "es" : ""}
-                </span>
-              </h3>
+              {/* Day header with color-coded dot */}
+              {(() => {
+                const firstStatus = group.spawns[0]?.status;
+                const dotColor = firstStatus === "alive" ? "bg-emerald-500" : firstStatus === "countdown" ? "bg-amber-500" : "bg-blue-500";
+                const textColor = firstStatus === "alive" ? "text-emerald-400" : firstStatus === "countdown" ? "text-amber-400" : "text-blue-400";
+                return (
+                  <h3 className={`text-sm font-semibold uppercase tracking-wider mb-3 flex items-center gap-2 ${textColor}`}>
+                    <span className={`w-1.5 h-1.5 rounded-full ${dotColor}`} />
+                    {group.label}
+                    <span className="text-slate-600 font-normal normal-case text-xs">
+                      {group.spawns.length} boss{group.spawns.length !== 1 ? "es" : ""}
+                    </span>
+                  </h3>
+                );
+              })()}
 
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {group.spawns.map((s) => {

@@ -1,14 +1,29 @@
 @import "tailwindcss";
 
-/* Base */
+/* Base — premium feel */
 html {
   scroll-behavior: smooth !important;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  background: #020617;
+  background-image:
+    radial-gradient(ellipse at 50% 0%, rgba(239, 68, 68, 0.03) 0%, transparent 60%),
+    radial-gradient(ellipse at 80% 100%, rgba(59, 130, 246, 0.02) 0%, transparent 50%);
+  background-attachment: fixed;
 }
 
 * {
   scrollbar-width: thin;
-  scrollbar-color: #334155 transparent;
+  scrollbar-color: #1e293b transparent;
 }
+
+*::-webkit-scrollbar { width: 6px; height: 6px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+*::-webkit-scrollbar-thumb:hover { background: #475569; }
 
 /* Hide scrollbar utility */
 .scrollbar-none {

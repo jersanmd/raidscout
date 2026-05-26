@@ -296,8 +296,8 @@ export function WeeklyScheduleView() {
             key={day.day}
             className={`rounded-xl border p-4 transition-all duration-300 ${
               day.isToday
-                ? "border-red-800 bg-red-900/10 shadow-lg shadow-red-900/5"
-                : "border-slate-800 bg-slate-900 hover:border-slate-700"
+                ? "border-red-700/60 bg-gradient-to-br from-red-950/40 to-slate-900 shadow-lg shadow-red-900/10"
+                : "border-slate-700/50 bg-slate-900/80 hover:border-slate-600"
             }`}
           >
             <div className="flex items-center justify-between mb-3">
@@ -345,12 +345,12 @@ export function WeeklyScheduleView() {
                         });
                       }
                     }}
-                    className={`flex items-center justify-between py-1.5 px-2 rounded transition-all duration-200 hover:scale-[1.01] ${
+                    className={`flex items-center justify-between py-1.5 px-2 rounded-lg transition-all duration-200 hover:scale-[1.01] ${
                       isDeathEvent
-                        ? "bg-red-900/20 border border-red-900/30 cursor-pointer hover:bg-red-900/30"
+                        ? "bg-gradient-to-r from-red-950/40 to-red-900/10 border border-red-900/30 cursor-pointer hover:from-red-950/60"
                         : (isViewer && !viewerCanMarkDied)
-                        ? "bg-slate-800/50 cursor-default"
-                        : "bg-slate-800/50 cursor-pointer hover:bg-slate-700/50"
+                        ? "bg-slate-800/30 cursor-default"
+                        : "bg-slate-800/30 cursor-pointer hover:bg-slate-700/40"
                     }`}
                   >
                     <div className="flex items-center gap-2">
@@ -400,14 +400,14 @@ export function WeeklyScheduleView() {
             key={day.day}
             className={`rounded-xl border overflow-hidden transition-all duration-300 hover:shadow-lg ${
               day.isToday
-                ? "border-red-800 bg-red-900/10 shadow-lg shadow-red-900/5"
-                : "border-slate-800 bg-slate-900 hover:border-slate-700"
+                ? "border-red-700/60 bg-gradient-to-b from-red-950/40 to-slate-900 shadow-lg shadow-red-900/10"
+                : "border-slate-700/50 bg-slate-900 hover:border-slate-600"
             }`}
           >
             {/* Day header */}
             <div
               className={`text-center py-2.5 border-b transition-colors ${
-                day.isToday ? "border-red-800 bg-red-900/20" : "border-slate-800"
+                day.isToday ? "border-red-700/60 bg-gradient-to-r from-red-950/30 to-red-900/10" : "border-slate-700/50"
               }`}
             >
               <div className="text-white font-bold text-sm">{day.dayName}</div>
@@ -427,7 +427,7 @@ export function WeeklyScheduleView() {
             {/* Spawns */}
             <div className="p-2 space-y-1.5 min-h-[120px]">
               {day.spawns.length === 0 ? (
-                <p className="text-slate-700 text-xs text-center py-4">—</p>
+                <p className="text-slate-700 text-xs text-center py-4 italic">No spawns</p>
               ) : (
                 day.spawns.map((s, i) => {
                   const isDeathEvent = s.deathRecord !== null && !s.deathRecord.is_initial_spawn && s.nextSpawn?.getTime() === new Date(s.deathRecord.death_time).getTime();
@@ -452,12 +452,12 @@ export function WeeklyScheduleView() {
                     }}
                     className={`text-xs rounded px-1.5 py-1 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] ${
                       isDeathEvent
-                        ? "bg-red-900/20 border border-red-900/30 cursor-pointer hover:bg-red-900/30 hover:border-red-800"
+                        ? "bg-gradient-to-r from-red-950/50 to-red-900/20 border border-red-900/30 cursor-pointer hover:from-red-950/70"
                         : (isViewer && !viewerCanMarkDied)
-                        ? "bg-slate-800/50 cursor-default"
+                        ? "bg-slate-800/30 cursor-default"
                         : isScheduleBoss
-                        ? "bg-blue-900/20 border border-blue-900/30 cursor-pointer hover:bg-blue-900/30 hover:border-blue-800"
-                        : "bg-orange-900/20 border border-orange-900/30 cursor-pointer hover:bg-orange-900/30 hover:border-orange-800"
+                        ? "bg-gradient-to-r from-blue-950/30 to-slate-800/30 border border-blue-900/20 cursor-pointer hover:from-blue-950/50"
+                        : "bg-gradient-to-r from-orange-950/30 to-slate-800/30 border border-orange-900/20 cursor-pointer hover:from-orange-950/50"
                     }`}
                   >
                     <div className="flex items-center justify-between">
@@ -497,17 +497,17 @@ export function WeeklyScheduleView() {
       </div>
 
       {/* Legend */}
-      <div className="flex items-center gap-4 mt-6 text-xs text-slate-500">
+      <div className="flex items-center gap-5 mt-6 text-xs text-slate-400 bg-slate-900/50 border border-slate-800 rounded-lg px-4 py-2 w-fit">
         <div className="flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded-full bg-red-400" />
+          <span className="w-2.5 h-2.5 rounded-full bg-red-400 shadow-[0_0_6px_rgba(248,113,113,0.4)]" />
           Killed (click for participants)
         </div>
         <div className="flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded-full bg-blue-400" />
+          <span className="w-2.5 h-2.5 rounded-full bg-blue-400 shadow-[0_0_6px_rgba(96,165,250,0.4)]" />
           Fixed Schedule
         </div>
         <div className="flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded-full bg-orange-400" />
+          <span className="w-2.5 h-2.5 rounded-full bg-orange-400 shadow-[0_0_6px_rgba(251,146,60,0.4)]" />
           Fixed Hours (timer)
         </div>
       </div>

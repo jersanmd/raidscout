@@ -70,7 +70,7 @@ export function Layout() {
   return (
     <div className="min-h-screen bg-slate-950 flex flex-col">
       {/* Header */}
-      <header className="sticky top-0 z-50 bg-slate-900/80 backdrop-blur border-b border-slate-800">
+      <header className="sticky top-0 z-50 bg-slate-950/70 backdrop-blur-xl border-b border-slate-800/50">
         <div className="max-w-[90rem] mx-auto px-4 min-h-14 py-1.5 flex items-center justify-between gap-2">
           <div className="flex items-center gap-3 shrink-0">
             {/* Logo */}
@@ -265,11 +265,11 @@ export function Layout() {
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-slate-800 bg-slate-900/50">
-        <div className="max-w-[90rem] mx-auto px-4 py-4 space-y-3">
-          <div className="flex items-center gap-2 text-xs text-slate-600">
-            <img src="/logo.png" alt="" className="w-4 h-4 rounded opacity-50" />
-            <span>RaidScout — Track LordNine boss respawn timers, schedule hunts, and monitor member performance across your guild. <span className="text-emerald-500">100% Free.</span></span>
+      <footer className="border-t border-slate-800/50 bg-gradient-to-b from-slate-900/30 to-slate-950">
+        <div className="max-w-[90rem] mx-auto px-4 py-5 space-y-3">
+          <div className="flex items-center gap-2 text-xs text-slate-500">
+            <img src="/logo.png" alt="" className="w-4 h-4 rounded opacity-40" />
+            <span>RaidScout — Track LordNine boss respawn timers, schedule hunts, and monitor member performance across your guild. <span className="text-emerald-500/80">100% Free.</span></span>
           </div>
           <div className="flex items-center gap-4 text-xs text-slate-600 flex-wrap">
             <a href="https://discord.gg/738AmkeQtU" target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 hover:text-indigo-400 transition" title="Join our Discord community">

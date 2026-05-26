@@ -63,22 +63,28 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
 
   const statusConfigMap = {
     unknown: {
-      bg: "bg-slate-800",
-      border: "border-slate-700",
-      badge: "bg-slate-700 text-slate-300",
+      bg: "bg-gradient-to-br from-blue-950/20 to-slate-900/80",
+      border: "border-blue-900/40",
+      badge: "bg-blue-900/50 text-blue-400",
       badgeText: "Unknown",
+      dot: "bg-blue-500",
+      header: "text-blue-400",
     },
     alive: {
-      bg: "bg-emerald-900/20",
-      border: "border-emerald-800",
+      bg: "bg-gradient-to-br from-emerald-950/30 to-emerald-900/10",
+      border: "border-emerald-800/60",
       badge: "bg-emerald-900/50 text-emerald-400",
       badgeText: "ALIVE",
+      dot: "bg-emerald-500",
+      header: "text-emerald-400",
     },
     countdown: {
-      bg: "bg-slate-800",
-      border: "border-slate-700",
+      bg: "bg-gradient-to-br from-amber-950/20 to-slate-900/80",
+      border: "border-amber-900/40",
       badge: "bg-amber-900/50 text-amber-400",
       badgeText: "Timer",
+      dot: "bg-amber-500",
+      header: "text-amber-400",
     },
   } as const;
 
@@ -100,7 +106,7 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
     <>
       <div
         onClick={() => multiMode && onToggleSelect?.(boss.id)}
-        className={`relative rounded-xl border ${config.border} ${config.bg} p-4 transition-all duration-300 animate-[fadeIn_0.5s_ease-out] hover:-translate-y-0.5 hover:shadow-lg hover:shadow-black/20 ${justKilled ? "animate-[fadeOut_0.4s_ease-out]" : ""} ${
+        className={`relative rounded-xl border ${config.border} ${config.bg} p-4 transition-all duration-300 animate-[fadeIn_0.5s_ease-out] hover:-translate-y-0.5 hover:shadow-lg ${status === "alive" ? "hover:shadow-emerald-500/10" : status === "countdown" ? "hover:shadow-amber-500/10" : "hover:shadow-blue-500/10"} ${justKilled ? "animate-[fadeOut_0.4s_ease-out]" : ""} ${
           multiMode ? "cursor-pointer" : ""
         } hover:border-slate-500 ${
           selected ? "ring-2 ring-blue-500 border-blue-500" : ""
