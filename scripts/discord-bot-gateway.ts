@@ -194,8 +194,8 @@ async function handleMessage(msg: any) {
         { name: "!spawn", value: "List boss spawns in the next 24 hours", inline: false },
         { name: "!spawn <boss>", value: "Check spawn for a specific boss (e.g. `!spawn Venatus`)", inline: false },
         { name: "!kill <boss>", value: "Record a boss kill right now (e.g. `!kill Venatus`)", inline: false },
-        { name: "!kill <boss> HH:MM", value: "Record a kill at a specific time (defaults to yesterday)", inline: false },
-        { name: "!kill <boss> HH:MM today", value: "Record a kill at a specific time today", inline: false },
+        { name: "!kill <boss> HH:MM", value: "Record a kill at a specific time (auto: past=today, future=yesterday)", inline: false },
+        { name: "!kill <boss> HH:MM today", value: "Force today's date", inline: false },
         { name: "!commands", value: "Show this help message", inline: false },
       ],
     );
@@ -296,21 +296,17 @@ async function handleMessage(msg: any) {
     if (!serverId) return reply("This server is not linked to RaidScout.");
 
     // Parse: !kill Boss Name [HH:MM] [yesterday|today]
-    // Default: assume the kill happened yesterday (past event).
-    // Use "today" explicitly if the kill just happened.
     let timeStr: string | undefined;
     let bossName: string;
-    let dayOffset = -1; // -1 = yesterday (default), 0 = today
+    let explicitDay: "yesterday" | "today" | null = null;
 
     const remaining = args.slice(1); // everything after "kill"
 
     // Check for yesterday/today at the end
     const lastWord = remaining[remaining.length - 1]?.toLowerCase();
-    if (lastWord === "today") {
-      dayOffset = 0;
+    if (lastWord === "yesterday" || lastWord === "today") {
+      explicitDay = lastWord;
       remaining.pop();
-    } else if (lastWord === "yesterday") {
-      remaining.pop(); // -1 is already default
     }
 
     // Check for HH:MM time
@@ -339,15 +335,7 @@ async function handleMessage(msg: any) {
       const tz = await resolveServerTimezone(serverId);
       const now = new Date();
       const localDate = now.toLocaleDateString("en-CA", { timeZone: tz });
-      let [y, mo, d] = localDate.split("-").map(Number);
-
-      // Apply day offset (0 = today, -1 = yesterday)
-      if (dayOffset !== 0) {
-        const adjusted = new Date(Date.UTC(y, mo - 1, d) + dayOffset * 86_400_000);
-        y = adjusted.getUTCFullYear();
-        mo = adjusted.getUTCMonth() + 1;
-        d = adjusted.getUTCDate();
-      }
+      const [y, mo, d] = localDate.split("-").map(Number);
 
       // Convert local time to UTC by computing the timezone offset.
       // Example: Asia/Manila (UTC+8) — 12:00 local → 04:00 UTC
@@ -358,8 +346,19 @@ async function handleMessage(msg: any) {
       const [tlH, tlM] = testLocal.split(":").map(Number);
       const offsetMs = ((tlH - h) * 60 + (tlM - m)) * 60_000;
       deathTime = new Date(testUtc - offsetMs);
-      // Note: !kill always records TODAY at the given time.
-      // No "assume yesterday" — the user explicitly picks the date by running the command.
+
+      // Smart default: if HH:MM is in the future today, assume yesterday.
+      // A kill report is about the past — if the time hasn't happened yet, it must be yesterday.
+      // Use "today"/"yesterday" keywords to override.
+      if (explicitDay === "today") {
+        // Keep today (no adjustment)
+      } else if (explicitDay === "yesterday") {
+        deathTime.setUTCDate(deathTime.getUTCDate() - 1);
+      } else if (deathTime > now) {
+        // Time is in the future today → assume yesterday
+        deathTime.setUTCDate(deathTime.getUTCDate() - 1);
+      }
+      // else: time is in the past today → keep today
     }
 
     // Determine owner guild
