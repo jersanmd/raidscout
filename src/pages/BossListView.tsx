@@ -492,9 +492,6 @@ export function BossListView() {
             }{" "}
             &lt;1h
           </span>
-          <span className="text-slate-500">
-            {spawns.filter((s) => s.status === "unknown").length} Unknown
-          </span>
         </div>
         <div className="flex items-center gap-2 ml-auto">
           <div className="flex items-center gap-1.5 text-xs text-slate-400">

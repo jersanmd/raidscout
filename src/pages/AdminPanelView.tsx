@@ -117,7 +117,7 @@ export function AdminPanelView() {
           }`}
         >
           <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-          Users ({users.length})
+          Server Owners ({users.length})
         </button>
         <button
           onClick={() => setTab("audit")}
@@ -204,12 +204,12 @@ export function AdminPanelView() {
                           <div className="bg-gradient-to-br from-violet-500/10 to-purple-500/5 border border-violet-500/20 rounded-lg px-3 py-2.5 text-center">
                             <Users className="w-3.5 h-3.5 text-violet-400 mx-auto mb-0.5" />
                             <p className="text-lg font-bold text-violet-300">{stats.total_raid_members ?? 0}</p>
-                            <p className="text-[10px] text-violet-400/60">Raid Members</p>
+                            <p className="text-[10px] text-violet-400/60">Players</p>
                           </div>
                           <div className="bg-gradient-to-br from-blue-500/10 to-cyan-500/5 border border-blue-500/20 rounded-lg px-3 py-2.5 text-center">
                             <Shield className="w-3.5 h-3.5 text-blue-400 mx-auto mb-0.5" />
                             <p className="text-lg font-bold text-blue-300">{stats.member_count ?? 0}</p>
-                            <p className="text-[10px] text-blue-400/60">Members</p>
+                            <p className="text-[10px] text-blue-400/60">Mods</p>
                           </div>
                           <div className="bg-gradient-to-br from-amber-500/10 to-orange-500/5 border border-amber-500/20 rounded-lg px-3 py-2.5 text-center">
                             <Crosshair className="w-3.5 h-3.5 text-amber-400 mx-auto mb-0.5" />
@@ -251,7 +251,7 @@ export function AdminPanelView() {
                             <div className="flex items-center gap-1.5 mb-2">
                               <Users className="w-3 h-3 text-violet-400" />
                               <p className="text-[11px] font-medium text-slate-300">
-                                Raid Members by Guild
+                                Players by Guild
                                 <span className="text-slate-500 ml-1">({stats.total_raid_members ?? 0} total)</span>
                               </p>
                             </div>
