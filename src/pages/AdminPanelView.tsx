@@ -1,13 +1,13 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { fetchAllServers, fetchAllUsers, fetchAuditLog, fetchServerStats, fetchDatabaseStats, fetchPlanUsage, supabase } from "@/lib/supabase";
+import { fetchAllServers, fetchAllUsers, fetchAuditLog, fetchServerStats, fetchDatabaseStats, fetchPlanUsage, fetchCronStatus, supabase } from "@/lib/supabase";
 import { useServer } from "@/contexts/ServerContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { Loader2, Shield, Server, Users, Eye, ChevronDown, ChevronUp, ClipboardList, HardDrive, BarChart3, Crosshair, Skull, Activity, Radio } from "lucide-react";
+import { Loader2, Shield, Server, Users, Eye, ChevronDown, ChevronUp, ClipboardList, HardDrive, BarChart3, Crosshair, Skull, Activity, Radio, Clock } from "lucide-react";
 
 export function AdminPanelView() {
-  const [tab, setTab] = useState<"servers" | "users" | "audit" | "database" | "plan">("servers");
+  const [tab, setTab] = useState<"servers" | "users" | "audit" | "database" | "plan" | "cron">("servers");
   const { setCurrentServer } = useServer();
   const { userRole } = useAuth();
   const [expandedUser, setExpandedUser] = useState<string | null>(null);
@@ -57,6 +57,14 @@ export function AdminPanelView() {
     enabled: userRole === "admin" && tab === "plan",
   });
 
+  const { data: cronStatus, isLoading: cronLoading } = useQuery({
+    queryKey: ["admin", "cron"],
+    queryFn: fetchCronStatus,
+    staleTime: 15_000,
+    refetchInterval: 30_000,
+    enabled: userRole === "admin" && tab === "cron",
+  });
+
   const { data: auditLog = [], isLoading: auditLoading } = useQuery({
     queryKey: ["admin", "audit", auditTimeRange, auditCustomSince, auditCustomUntil],
     queryFn: () => {
@@ -100,51 +108,60 @@ export function AdminPanelView() {
       </div>
 
       {/* Tabs */}
-      <div className="flex flex-wrap bg-slate-800 rounded-lg p-0.5 gap-0.5">
+      <div className="flex bg-slate-800 rounded-lg p-0.5 gap-0.5 overflow-x-auto">
         <button
           onClick={() => setTab("servers")}
-          className={`flex items-center gap-1.5 px-3 sm:px-4 py-1.5 rounded-md text-xs sm:text-sm font-medium transition whitespace-nowrap ${
+          className={`flex flex-1 items-center justify-center gap-1 px-2 py-1.5 rounded-md text-xs font-medium transition whitespace-nowrap ${
             tab === "servers" ? "bg-slate-700 text-white" : "text-slate-400 hover:text-slate-200"
           }`}
         >
-          <Server className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+          <Server className="w-3.5 h-3.5" />
           Servers ({servers.length})
         </button>
         <button
           onClick={() => setTab("users")}
-          className={`flex items-center gap-1.5 px-3 sm:px-4 py-1.5 rounded-md text-xs sm:text-sm font-medium transition whitespace-nowrap ${
+          className={`flex flex-1 items-center justify-center gap-1 px-2 py-1.5 rounded-md text-xs font-medium transition whitespace-nowrap ${
             tab === "users" ? "bg-slate-700 text-white" : "text-slate-400 hover:text-slate-200"
           }`}
         >
-          <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-          Server Owners ({users.length})
+          <Users className="w-3.5 h-3.5" />
+          Owners ({users.length})
         </button>
         <button
           onClick={() => setTab("audit")}
-          className={`flex items-center gap-1.5 px-3 sm:px-4 py-1.5 rounded-md text-xs sm:text-sm font-medium transition whitespace-nowrap ${
+          className={`flex flex-1 items-center justify-center gap-1 px-2 py-1.5 rounded-md text-xs font-medium transition whitespace-nowrap ${
             tab === "audit" ? "bg-slate-700 text-white" : "text-slate-400 hover:text-slate-200"
           }`}
         >
-          <ClipboardList className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+          <ClipboardList className="w-3.5 h-3.5" />
           Audit Log
         </button>
         <button
           onClick={() => setTab("database")}
-          className={`flex items-center gap-1.5 px-3 sm:px-4 py-1.5 rounded-md text-xs sm:text-sm font-medium transition whitespace-nowrap ${
+          className={`flex flex-1 items-center justify-center gap-1 px-2 py-1.5 rounded-md text-xs font-medium transition whitespace-nowrap ${
             tab === "database" ? "bg-slate-700 text-white" : "text-slate-400 hover:text-slate-200"
           }`}
         >
-          <HardDrive className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+          <HardDrive className="w-3.5 h-3.5" />
           Database
         </button>
         <button
           onClick={() => setTab("plan")}
-          className={`flex items-center gap-1.5 px-3 sm:px-4 py-1.5 rounded-md text-xs sm:text-sm font-medium transition whitespace-nowrap ${
+          className={`flex flex-1 items-center justify-center gap-1 px-2 py-1.5 rounded-md text-xs font-medium transition whitespace-nowrap ${
             tab === "plan" ? "bg-slate-700 text-white" : "text-slate-400 hover:text-slate-200"
           }`}
         >
-          <BarChart3 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+          <BarChart3 className="w-3.5 h-3.5" />
           Usage
+        </button>
+        <button
+          onClick={() => setTab("cron")}
+          className={`flex flex-1 items-center justify-center gap-1 px-2 py-1.5 rounded-md text-xs font-medium transition whitespace-nowrap ${
+            tab === "cron" ? "bg-slate-700 text-white" : "text-slate-400 hover:text-slate-200"
+          }`}
+        >
+          <Clock className="w-3.5 h-3.5" />
+          Test Cron
         </button>
       </div>
 
@@ -156,7 +173,11 @@ export function AdminPanelView() {
           ) : servers.length === 0 ? (
             <p className="text-slate-500 text-sm text-center py-12">No servers yet.</p>
           ) : (
-            servers.map((s: any) => {
+            (() => {
+              const testServers = servers.filter((s: any) => s.name.toLowerCase().includes('test'));
+              const regularServers = servers.filter((s: any) => !s.name.toLowerCase().includes('test'));
+
+              const renderServer = (s: any) => {
               const isExpanded = expandedServer === s.id;
               const stats = serverStats[s.id];
               return (
@@ -183,7 +204,7 @@ export function AdminPanelView() {
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-800 text-[11px] text-slate-300">
-                      <Users className="w-3 h-3" />
+                      <Users className="w-3.5 h-3.5" />
                       {s.raid_member_count ?? 0}
                     </span>
                     <div className="hidden sm:block text-right">
@@ -248,14 +269,14 @@ export function AdminPanelView() {
                           ];
                           return (
                           <div className="bg-slate-800/40 border border-slate-700/50 rounded-lg px-3 py-2.5">
-                            <div className="flex items-center gap-1.5 mb-2">
+                            <div className="flex items-center gap-1 mb-2">
                               <Users className="w-3 h-3 text-violet-400" />
                               <p className="text-[11px] font-medium text-slate-300">
                                 Players by Guild
                                 <span className="text-slate-500 ml-1">({stats.total_raid_members ?? 0} total)</span>
                               </p>
                             </div>
-                            <div className="flex flex-wrap gap-1.5">
+                            <div className="flex flex-wrap gap-1">
                               {stats.guild_members.map((g: any, i: number) => {
                                 const isNoGuild = g.guild === 'No Guild';
                                 const colorClass = isNoGuild
@@ -264,7 +285,7 @@ export function AdminPanelView() {
                                 return (
                                 <span
                                   key={g.guild}
-                                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium border ${colorClass}`}
+                                  className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium border ${colorClass}`}
                                 >
                                   <span className="truncate max-w-[120px]">{g.guild}</span>
                                   <span className={`tabular-nums font-bold ${isNoGuild ? 'text-slate-500' : ''}`}>{g.count}</span>
@@ -282,7 +303,7 @@ export function AdminPanelView() {
                               setCurrentServer({ id: s.id, name: s.name, owner_id: s.owner_id, invite_code: s.id?.substring(0, 8) ?? "", created_at: s.created_at, role: "owner" });
                               navigate("/");
                             }}
-                            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:from-blue-500 hover:to-indigo-500 transition shadow-sm shadow-blue-900/20"
+                            className="flex items-center gap-1 px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:from-blue-500 hover:to-indigo-500 transition shadow-sm shadow-blue-900/20"
                           >
                             <Eye className="w-3.5 h-3.5" />
                             View Server
@@ -294,12 +315,38 @@ export function AdminPanelView() {
                 )}
               </div>
               );
-            })
+              };
+
+              return (
+                <div className="space-y-4">
+                  {regularServers.length > 0 && (
+                    <div>
+                      <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                        Servers ({regularServers.length})
+                      </h4>
+                      <div className="space-y-2">
+                        {regularServers.map(renderServer)}
+                      </div>
+                    </div>
+                  )}
+                  {testServers.length > 0 && (
+                    <div>
+                      <h4 className="text-xs font-semibold text-amber-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                        <Clock className="w-3 h-3" /> Test Servers ({testServers.length})
+                      </h4>
+                      <div className="space-y-2">
+                        {testServers.map(renderServer)}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })()
           )}
         </div>
       )}
 
-      {/* Users Tab */}
+      {/* Server Owners Tab */}
       {tab === "users" && (
         <div className="space-y-2">
           {usrLoading ? (
@@ -370,7 +417,7 @@ export function AdminPanelView() {
                               }}
                               className="flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-medium bg-blue-600 text-white hover:bg-blue-500 transition"
                             >
-                              <Eye className="w-3 h-3" />
+                              <Eye className="w-3.5 h-3.5" />
                               View
                             </button>
                           </div>
@@ -446,7 +493,7 @@ export function AdminPanelView() {
               Custom
             </button>
             {auditTimeRange === "custom" && (
-              <div className="flex items-center gap-1.5 ml-1">
+              <div className="flex items-center gap-1 ml-1">
                 <input
                   type="date"
                   value={auditCustomSince}
@@ -671,6 +718,70 @@ export function AdminPanelView() {
               <p className="text-[10px] text-slate-600 text-right">
                 Snapshot at {new Date(planUsage.timestamp).toLocaleString()}
               </p>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Test Cron Tab */}
+      {tab === "cron" && (
+        <div className="space-y-4">
+          {cronLoading ? (
+            <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 text-slate-500 animate-spin" /></div>
+          ) : !cronStatus ? (
+            <p className="text-slate-500 text-sm text-center py-12">Failed to load cron status.</p>
+          ) : (
+            <>
+              {/* Status cards */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className={`bg-slate-900 border rounded-xl p-4 text-center ${cronStatus.active ? 'border-emerald-500/30' : 'border-red-500/30'}`}>
+                  <div className={`w-3 h-3 rounded-full mx-auto mb-2 ${cronStatus.active ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`} />
+                  <p className={`text-lg font-bold ${cronStatus.active ? 'text-emerald-400' : 'text-red-400'}`}>
+                    {cronStatus.active ? 'ACTIVE' : 'INACTIVE'}
+                  </p>
+                  <p className="text-[10px] text-slate-500 mt-1">Cron Status</p>
+                </div>
+                <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 text-center">
+                  <Clock className="w-4 h-4 text-blue-400 mx-auto mb-2" />
+                  <p className="text-xs text-blue-300 font-mono">
+                    {cronStatus.last_run ? cronStatus.last_run : 'Never'}
+                  </p>
+                  <p className="text-[10px] text-slate-500 mt-1">Last Run (Manila)</p>
+                </div>
+                <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 text-center">
+                  <Server className="w-4 h-4 text-purple-400 mx-auto mb-2" />
+                  <p className="text-lg font-bold text-purple-300">{cronStatus.servers?.length ?? 0}</p>
+                  <p className="text-[10px] text-slate-500 mt-1">Test Servers</p>
+                </div>
+                <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 text-center">
+                  <Skull className="w-4 h-4 text-red-400 mx-auto mb-2" />
+                  <p className="text-lg font-bold text-red-300">{cronStatus.total_kills?.toLocaleString() ?? 0}</p>
+                  <p className="text-[10px] text-slate-500 mt-1">Total Kills</p>
+                </div>
+              </div>
+
+              {/* Per-server breakdown */}
+              <div>
+                <h4 className="text-sm font-semibold text-white mb-2">Kills per Test Server</h4>
+                <div className="space-y-1">
+                  {(cronStatus.servers || []).map((srv) => (
+                    <div key={srv.name} className="bg-slate-900 border border-slate-800 rounded-lg px-4 py-2.5 flex items-center justify-between">
+                      <span className="text-sm text-white">{srv.name}</span>
+                      <div className="flex items-center gap-2">
+                        <div className="w-24 sm:w-32 h-2 bg-slate-800 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-gradient-to-r from-red-500 to-orange-500 rounded-full"
+                            style={{ width: `${Math.min(100, (srv.kills / Math.max(1, cronStatus.total_kills)) * 100)}%` }}
+                          />
+                        </div>
+                        <span className="text-sm font-mono text-slate-400 w-10 text-right">{srv.kills}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <p className="text-[10px] text-slate-600">Auto-refreshes every 30s. Cron runs every 5 min.</p>
             </>
           )}
         </div>

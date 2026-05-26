@@ -3,7 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { useMembers } from "@/hooks/useMembers";
 import { useAuth } from "@/contexts/AuthContext";
-import { updateMemberName, deleteMember, upsertMember, isSupabaseConfigured, fetchGuilds, setMemberGuild } from "@/lib/supabase";
+import { updateMemberName, deleteMember, upsertMember, isSupabaseConfigured, fetchGuilds, setMemberGuild, bulkAddMembers } from "@/lib/supabase";
 import { useServerId } from "@/contexts/ServerContext";
 import type { Guild } from "@/types";
 import { Users, Plus, Pencil, Trash2, Loader2, X, Check, UserPlus, CheckCircle, AlertTriangle, Image, Upload, Copy, Shield, Search } from "lucide-react";
@@ -122,12 +122,9 @@ export function MembersView() {
     if (newNames.length === 0) return;
     setBulkAdding(true);
     let added = 0;
-    for (const name of newNames) {
-      try {
-        await upsertMember(name);
-        added++;
-      } catch { /* skip failures */ }
-    }
+    try {
+      added = await bulkAddMembers(newNames);
+    } catch { /* keep 0 */ }
     setBulkAdding(false);
     setShowBulkModal(false);
     setBulkNames("");

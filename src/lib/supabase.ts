@@ -161,6 +161,18 @@ export async function fetchPlanUsage(): Promise<any> {
   return data ?? {};
 }
 
+export async function fetchCronStatus(): Promise<{
+  active: boolean;
+  last_run: string | null;
+  servers: { name: string; kills: number }[];
+  total_kills: number;
+}> {
+  const { data, error } = await supabase
+    .rpc("get_cron_test_status");
+  if (error) throw error;
+  return (data as any) ?? { active: false, last_run: null, servers: [], total_kills: 0 };
+}
+
 export async function fetchAllServers(): Promise<any[]> {
   const { data, error } = await supabase
     .rpc("get_all_servers_with_counts");
@@ -509,6 +521,41 @@ export async function upsertMember(name: string): Promise<Member> {
       });
     if (error) throw error;
     return (data as any[])[0] as Member;
+  }
+
+  throw new Error("Not authenticated");
+}
+
+export async function bulkAddMembers(names: string[]): Promise<number> {
+  const rows = names.map((name) => ({
+    name: name.trim(),
+    server_id: _currentServerId,
+  }));
+
+  const { data: { session } } = await supabase.auth.getSession();
+  if (session?.user) {
+    const { data, error } = await supabase
+      .from("members")
+      .insert(rows)
+      .select("id");
+    if (error) throw error;
+    return data?.length ?? 0;
+  }
+
+  // Viewer fallback — insert one at a time via RPC
+  if (_currentViewerKey) {
+    let added = 0;
+    for (const row of rows) {
+      try {
+        await supabase.rpc("viewer_upsert_member", {
+          p_name: row.name,
+          p_server_id: _currentServerId,
+          p_viewer_key: _currentViewerKey,
+        });
+        added++;
+      } catch { /* skip duplicates */ }
+    }
+    return added;
   }
 
   throw new Error("Not authenticated");

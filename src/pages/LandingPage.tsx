@@ -5,7 +5,7 @@ import { supabase } from "@/lib/supabase";
 import { SEOHead } from "@/components/SEOHead";
 import { version } from "../../package.json";
 import {
-  Timer, Shield, BarChart3, Sparkles, MessageSquare, Calendar, Skull, Eye, Trophy,
+  Timer, Shield, BarChart3, Sparkles, MessageSquare, Calendar, Skull, Eye, Trophy, Server, Clock,
   LogIn, UserPlus, Mail, CheckCircle, AlertTriangle, Key, ChevronDown, Bot
 } from "lucide-react";
 
@@ -18,8 +18,118 @@ const features = [
   { icon: <Calendar className="w-6 h-6" />, color: "border-cyan-500/30 bg-cyan-500/5", title: "Weekly Schedule", desc: "Full week grid. See which guild owns which boss on every day. Click to manage." },
   { icon: <Skull className="w-6 h-6" />, color: "border-red-500/30 bg-red-500/5", title: "Death History", desc: "Complete kill log with guild badges. Attendance tracking per kill. Edit or delete entries." },
   { icon: <Bot className="w-6 h-6" />, color: "border-indigo-500/30 bg-indigo-500/5", title: "Discord Bot Commands", desc: "Manage bosses from Discord: !spawn, !kill, !list, !commands. Record kills and check timers without opening the website." },
-  { icon: <Eye className="w-6 h-6" />, color: "border-orange-500/30 bg-orange-500/5", title: "Viewer Mode", desc: "Share a link so members can watch timers without an account. Read-only, always free." },
+  { icon: <Eye className="w-6 h-6" />, color: "border-orange-500/30 bg-orange-500/5", glow: "hover:shadow-[0_0_30px_rgba(249,115,22,0.15)]", title: "Viewer Mode", desc: "Share a link so members can watch timers without an account. Read-only, always free." },
 ];
+
+// ── Animated Counter ────────────────────────────────────────
+function AnimatedCounter({ value, suffix = "+" }: { value: number; suffix?: string }) {
+  const [display, setDisplay] = useState(0);
+  const ref = useRef<HTMLSpanElement>(null);
+  const started = useRef(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || started.current) return;
+    const obs = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting && !started.current) {
+        started.current = true;
+        const duration = 1200;
+        const start = performance.now();
+        const animate = (now: number) => {
+          const elapsed = now - start;
+          const progress = Math.min(elapsed / duration, 1);
+          const eased = 1 - Math.pow(1 - progress, 3); // ease-out
+          setDisplay(Math.round(eased * value));
+          if (progress < 1) requestAnimationFrame(animate);
+        };
+        requestAnimationFrame(animate);
+      }
+    }, { threshold: 0.3 });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [value]);
+
+  return <span ref={ref}>{display}{suffix}</span>;
+}
+
+// ── Live Timer for Hero ──────────────────────────────────────
+const HERO_BOSSES = ["Venatus", "Viorent", "Ego", "Lady Dalia", "Livera"];
+const YVONNE6_ID = "b0379776-df4b-4b47-9cc3-52cbb7142948";
+
+function LiveBossTimer() {
+  const [timeStr, setTimeStr] = useState("--:--:--");
+  const [bossName, setBossName] = useState("Venatus");
+  const [nextSpawn, setNextSpawn] = useState<Date | null>(null);
+  const [bossIndex, setBossIndex] = useState(0);
+  const intervalRef = useRef<number | null>(null);
+  const cycleRef = useRef<number | null>(null);
+
+  // Fetch timer for current boss
+  const fetchBoss = useCallback(async (name: string) => {
+    try {
+      const { data: bosses } = await supabase
+        .from("bosses")
+        .select("id,name,respawn_hours")
+        .eq("name", name)
+        .eq("server_id", YVONNE6_ID)
+        .limit(1);
+      if (!bosses?.length) return;
+      const boss = bosses[0];
+      setBossName(boss.name);
+
+      const { data: deaths } = await supabase
+        .from("death_records")
+        .select("death_time")
+        .eq("boss_id", boss.id)
+        .eq("server_id", YVONNE6_ID)
+        .order("death_time", { ascending: false })
+        .limit(1);
+      if (deaths?.length) {
+        const deathTime = new Date(deaths[0].death_time);
+        setNextSpawn(new Date(deathTime.getTime() + (boss.respawn_hours ?? 10) * 3600_000));
+      }
+    } catch { /* keep fallback */ }
+  }, []);
+
+  // Initial fetch + cycle through bosses
+  useEffect(() => {
+    fetchBoss(HERO_BOSSES[0]);
+    cycleRef.current = window.setInterval(() => {
+      setBossIndex(prev => {
+        const next = (prev + 1) % HERO_BOSSES.length;
+        fetchBoss(HERO_BOSSES[next]);
+        return next;
+      });
+    }, 8000);
+    return () => { if (cycleRef.current) clearInterval(cycleRef.current); };
+  }, [fetchBoss]);
+
+  // Countdown tick
+  useEffect(() => {
+    if (!nextSpawn) return;
+    const tick = () => {
+      const diff = nextSpawn.getTime() - Date.now();
+      if (diff <= 0) { setTimeStr("ALIVE"); return; }
+      const h = Math.floor(diff / 3600000);
+      const m = Math.floor((diff % 3600000) / 60000);
+      const s = Math.floor((diff % 60000) / 1000);
+      setTimeStr(`${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`);
+    };
+    tick();
+    intervalRef.current = window.setInterval(tick, 1000);
+    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
+  }, [nextSpawn]);
+
+  const status = timeStr === "ALIVE";
+
+  return (
+    <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-900/80 border text-xs transition-all duration-500 ${status ? 'border-emerald-500/30' : 'border-red-500/20'} animate-pulse-glow`}>
+      <span className={`w-2 h-2 rounded-full animate-pulse ${status ? 'bg-emerald-500' : 'bg-red-500'}`} />
+      <span className="text-slate-400">{bossName}</span>
+      <span className={`font-mono font-bold tabular-nums ${status ? 'text-emerald-400' : 'text-red-400'}`}>{timeStr}</span>
+    </div>
+  );
+}
 
 export function LandingPage() {
   const { signIn, signUp, viewerSignIn } = useAuth();
@@ -33,6 +143,29 @@ export function LandingPage() {
 
   const [viewerMode, setViewerMode] = useState(false);
   const [viewerKey, setViewerKey] = useState("");
+
+  // Live stats from Supabase
+  const [liveStats, setLiveStats] = useState({
+    guilds: 0, kills: 0, players: 0, servers: 0,
+  });
+  useEffect(() => {
+    (async () => {
+      try {
+        const [g, k, p, s] = await Promise.all([
+          supabase.from("guilds").select("*", { count: "exact", head: true }),
+          supabase.from("death_records").select("*", { count: "exact", head: true }),
+          supabase.from("members").select("*", { count: "exact", head: true }),
+          supabase.from("servers").select("*", { count: "exact", head: true }),
+        ]);
+        setLiveStats({
+          guilds: g.count ?? 0,
+          kills: k.count ?? 0,
+          players: p.count ?? 0,
+          servers: s.count ?? 0,
+        });
+      } catch { /* keep fallback */ }
+    })();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -68,8 +201,8 @@ export function LandingPage() {
   return (
     <div className="min-h-screen bg-slate-950 text-white overflow-x-hidden scroll-smooth">
       <SEOHead
-        title="RaidScout — Boss Spawn Timer & Hunt Scheduler"
-        description="Track 39+ boss spawns, rotate multi-guild kills, scan rallies with AI, and compete on leaderboards. Forever free."
+        title="RaidScout — The Operating System for Competitive MMO Guilds"
+        description="Track 39+ LordNine world bosses, manage multi-guild rotations, monitor attendance, and coordinate raids in real time. Forever free."
         canonicalUrl="/"
       />
 
@@ -92,64 +225,101 @@ export function LandingPage() {
       </script>
 
       {/* ── Hero ── */}
-      <section className="relative px-6 pt-24 pb-16 text-center overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-b from-red-950/20 via-transparent to-transparent" />
-        <div className="absolute top-20 left-1/4 w-72 h-72 rounded-full bg-red-500/5 blur-3xl animate-pulse" />
-        <div className="absolute bottom-10 right-1/4 w-56 h-56 rounded-full bg-amber-500/5 blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
+      <section className="relative px-6 pt-28 pb-20 text-center overflow-hidden">
+        {/* Premium background */}
+        <div className="absolute inset-0 bg-gradient-to-b from-red-950/30 via-slate-950/50 to-slate-950" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-red-900/10 via-transparent to-transparent" />
+        <div className="absolute top-20 left-1/4 w-96 h-96 rounded-full bg-red-500/5 blur-3xl animate-pulse" />
+        <div className="absolute bottom-10 right-1/4 w-80 h-80 rounded-full bg-amber-500/5 blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
+        {/* Grid overlay for MMO aesthetic */}
+        <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: 'radial-gradient(circle, rgb(148 163 184) 1px, transparent 1px)', backgroundSize: '32px 32px' }} />
 
-        <div className="relative z-10 max-w-3xl mx-auto space-y-6">
-          <div className="flex items-center justify-center gap-3 mb-2">
-            <img src="/logo.png" alt="" className="w-12 h-12 rounded-xl hover:scale-110 transition-transform duration-300" />
+        {/* Activity pulse dots in background */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          {[20,35,50,65,80,15,45,70,25,55].map((p, i) => (
+            <div
+              key={i}
+              className="absolute w-1 h-1 rounded-full bg-red-500/30"
+              style={{
+                left: `${p}%`,
+                top: `${(i * 17 + 10) % 90}%`,
+                animation: `pulse-glow ${2 + i * 0.3}s ease-in-out ${i * 0.4}s infinite`,
+              }}
+            />
+          ))}
+        </div>
+
+        <div className="relative z-10 max-w-3xl mx-auto space-y-8">
+          {/* Badge */}
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-red-900/20 border border-red-500/20 text-red-400 text-xs font-medium animate-[fadeInUp_0.6s_ease-out]">
+            <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+            Built for LordNine — ready for more
           </div>
-          <h1 className="text-5xl md:text-6xl font-extrabold tracking-tight animate-[fadeInUp_0.6s_ease-out]">
-            Your Boss Timer,{" "}
+
+          <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight leading-tight animate-[fadeInUp_0.6s_ease-out]">
+            The Operating System for{" "}
             <span className="bg-gradient-to-r from-red-400 via-orange-400 to-red-400 bg-[length:200%_auto] animate-gradient bg-clip-text text-transparent">
-              Supercharged
+              Competitive MMO Guilds
             </span>
           </h1>
-          <p className="text-lg text-slate-400 max-w-xl mx-auto animate-[fadeInUp_0.6s_ease-out_0.2s_both]">
-            Track spawns, rotate guilds, scan rallies with AI, and dominate the leaderboard — all in one place.{" "}
+          {/* Live timer preview */}
+          <div className="animate-[fadeInUp_0.6s_ease-out_0.15s_both]">
+            <LiveBossTimer />
+          </div>
+          <p className="text-lg md:text-xl text-slate-400 max-w-2xl mx-auto leading-relaxed animate-[fadeInUp_0.6s_ease-out_0.2s_both]">
+            Track 39+ LordNine world bosses, manage multi-guild rotations, monitor attendance, and coordinate raids — all in real time.{" "}
             <span className="text-emerald-400 font-semibold">Forever free.</span>
           </p>
-          <div className="flex items-center justify-center gap-3 pt-2 animate-[fadeInUp_0.6s_ease-out_0.4s_both]">
+          <div className="flex items-center justify-center gap-4 pt-2 animate-[fadeInUp_0.6s_ease-out_0.4s_both]">
             <button
               onClick={() => document.getElementById("get-started")?.scrollIntoView({ behavior: "smooth" })}
-              className="group px-6 py-3 rounded-xl font-semibold bg-gradient-to-r from-red-600 to-orange-500 text-white hover:from-red-500 hover:to-orange-400 hover:scale-105 active:scale-95 transition-all duration-200 shadow-lg shadow-red-900/30"
+              className="group px-8 py-3.5 rounded-xl font-semibold bg-gradient-to-r from-red-600 to-orange-500 text-white hover:from-red-500 hover:to-orange-400 hover:scale-105 active:scale-95 transition-all duration-200 shadow-lg shadow-red-900/30 text-base"
             >
-              Get Started
-              <span className="inline-block ml-1 group-hover:translate-x-0.5 transition-transform">→</span>
+              Start Free
+              <span className="inline-block ml-2 group-hover:translate-x-0.5 transition-transform">→</span>
             </button>
             <button
               onClick={() => document.getElementById("features")?.scrollIntoView({ behavior: "smooth" })}
-              className="px-6 py-3 rounded-xl font-semibold border border-slate-700 text-slate-300 hover:border-slate-500 hover:text-white hover:scale-105 active:scale-95 transition-all duration-200"
+              className="px-8 py-3.5 rounded-xl font-semibold border border-slate-600 text-slate-300 hover:border-slate-400 hover:text-white hover:scale-105 active:scale-95 transition-all duration-200 text-base"
             >
               See Features
             </button>
           </div>
+          {/* Trust badge */}
+          <p className="text-xs text-slate-600 animate-[fadeInUp_0.6s_ease-out_0.6s_both]">
+            Used by competitive guilds across LordNine servers
+          </p>
         </div>
       </section>
 
-      {/* ── Stats ── */}
-      <section className="max-w-4xl mx-auto px-6 pb-16">
-        <div className="grid grid-cols-3 gap-4 text-center">
-          {[{ value: "39+", label: "Bosses Tracked" }, { value: "24/7", label: "Live Timers" }, { value: "Free", label: "Forever" }].map((s, i) => (
-            <div key={s.label} className="p-4 rounded-xl border border-slate-800 bg-slate-900/50 hover:border-slate-700 hover:scale-105 transition-all duration-300" style={{ animationDelay: `${i * 0.1}s` }}>
-              <div className="text-2xl font-bold bg-gradient-to-r from-red-400 to-amber-400 bg-clip-text text-transparent">{s.value}</div>
-              <div className="text-xs text-slate-500 mt-1">{s.label}</div>
+      {/* ── Social Proof Stats ── */}
+      <section className="max-w-4xl mx-auto px-6 pb-20">
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 text-center">
+          {[
+            { value: <AnimatedCounter value={liveStats.guilds} />, label: "Active Guilds", icon: <Shield className="w-4 h-4 mx-auto mb-1 text-amber-400" /> },
+            { value: <AnimatedCounter value={liveStats.kills} />, label: "Kills Recorded", icon: <BarChart3 className="w-4 h-4 mx-auto mb-1 text-purple-400" /> },
+            { value: <AnimatedCounter value={liveStats.players} />, label: "Players", icon: <Eye className="w-4 h-4 mx-auto mb-1 text-blue-400" /> },
+            { value: <AnimatedCounter value={liveStats.servers} />, label: "Servers", icon: <Server className="w-4 h-4 mx-auto mb-1 text-cyan-400" /> },
+            { value: "Free", label: "Forever", icon: <Sparkles className="w-4 h-4 mx-auto mb-1 text-emerald-400" /> },
+          ].map((s, i) => (
+            <div key={s.label} className="p-4 rounded-xl border border-slate-800 bg-slate-900/50 hover:border-slate-600 hover:-translate-y-0.5 transition-all duration-300" style={{ animationDelay: `${i * 0.1}s` }}>
+              {s.icon}
+              <div className="text-xl font-bold bg-gradient-to-r from-red-400 to-amber-400 bg-clip-text text-transparent">{typeof s.value === 'string' ? s.value : s.value}</div>
+              <div className="text-[11px] text-slate-500 mt-0.5">{s.label}</div>
             </div>
           ))}
         </div>
       </section>
 
       {/* ── Features Grid ── */}
-      <section id="features" className="max-w-5xl mx-auto px-6 pb-24">
-        <div className="text-center mb-12">
-          <h2 className="text-3xl font-bold">Everything You Need</h2>
-          <p className="text-slate-400 mt-2">Built for guilds running multi-party boss rotations.</p>
+      <section id="features" className="max-w-5xl mx-auto px-6 pb-28">
+        <div className="text-center mb-14">
+          <h2 className="text-3xl md:text-4xl font-bold">Everything Your Guild Needs</h2>
+          <p className="text-slate-400 mt-3 text-lg">One platform to track, rotate, scan, and dominate.</p>
         </div>
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {features.map((f, i) => (
-            <div key={f.title} className={`p-5 rounded-xl border ${f.color} hover:border-slate-500 hover:-translate-y-1 hover:shadow-lg transition-all duration-300 group`} style={{ animationDelay: `${i * 0.05}s` }}>
+            <div key={f.title} className={`p-5 rounded-xl border ${f.color} ${(f as any).glow || ''} hover:border-slate-500 hover:-translate-y-1 hover:shadow-lg transition-all duration-300 group`} style={{ animationDelay: `${i * 0.05}s` }}>
               <div className="text-slate-400 group-hover:text-white group-hover:scale-110 transition-all duration-300 mb-3">{f.icon}</div>
               <h3 className="font-semibold text-sm mb-1">{f.title}</h3>
               <p className="text-xs text-slate-500 leading-relaxed">{f.desc}</p>
