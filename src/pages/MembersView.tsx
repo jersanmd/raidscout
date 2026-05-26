@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { useMembers } from "@/hooks/useMembers";
 import { useAuth } from "@/contexts/AuthContext";
@@ -15,6 +16,25 @@ export function MembersView() {
   const queryClient = useQueryClient();
   const configured = isSupabaseConfigured();
   const { data: members = [], isLoading } = useMembers();
+
+  const [searchParams] = useSearchParams();
+
+  // Highlight member input when navigated from banner
+  const memberInputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    const highlight = searchParams.get("highlight");
+    if (highlight === "add-member" && memberInputRef.current) {
+      setTimeout(() => {
+        memberInputRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+        memberInputRef.current?.classList.add("animate-highlight-input");
+        memberInputRef.current?.focus();
+      }, 200);
+      // Remove the highlight param from URL without reload
+      const params = new URLSearchParams(searchParams);
+      params.delete("highlight");
+      window.history.replaceState(null, "", `?${params.toString()}`);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [addName, setAddName] = useState("");
   const [adding, setAdding] = useState(false);
@@ -212,6 +232,7 @@ export function MembersView() {
           value={addName}
           onChange={(e) => setAddName(e.target.value)}
           placeholder="Member name..."
+          ref={memberInputRef}
           className="flex-1 px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition text-sm"
         />
         <button

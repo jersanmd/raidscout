@@ -4,6 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useServer } from "@/contexts/ServerContext";
 import { CreateServerModal } from "@/components/CreateServerModal";
 import { DiscordWebhookBanner } from "@/components/DiscordWebhookBanner";
+import { NoMembersBanner } from "@/components/NoMembersBanner";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { useSpawnAlerts } from "@/hooks/useSpawnAlerts";
 import { Skull, List, Calendar, LogOut, Clock, Trophy, Users, BarChart3, Server, Settings, Plus, Shield, ExternalLink, Eye, Bell, Volume2 } from "lucide-react";
@@ -254,6 +255,9 @@ export function Layout() {
 
       {/* Discord webhook warning — only visible to server owner when unconfigured */}
       <DiscordWebhookBanner />
+
+      {/* No members warning — only visible to server owner when no members exist */}
+      <NoMembersBanner />
 
       {/* Content */}
       <main className="flex-1">

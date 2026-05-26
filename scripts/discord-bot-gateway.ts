@@ -323,11 +323,20 @@ async function handleMessage(msg: any) {
       const now = new Date();
       const localDate = now.toLocaleDateString("en-CA", { timeZone: tz });
       const [y, mo, d] = localDate.split("-").map(Number);
-      deathTime = new Date(Date.UTC(y, mo - 1, d, h, m));
 
-      // If the time is in the future today, assume yesterday
-      const nowInTz = new Date(now.toLocaleString("en-US", { timeZone: tz }));
-      if (deathTime > nowInTz) {
+      // Convert local time to UTC by computing the timezone offset.
+      // Example: Asia/Manila (UTC+8) — 12:00 local → 04:00 UTC
+      const testUtc = Date.UTC(y, mo - 1, d, h, m); // naive "h:m UTC"
+      const testLocal = new Intl.DateTimeFormat("en-US", {
+        timeZone: tz, hour: "2-digit", minute: "2-digit", hour12: false,
+      }).format(new Date(testUtc));
+      const [tlH, tlM] = testLocal.split(":").map(Number);
+      const offsetMs = ((tlH - h) * 60 + (tlM - m)) * 60_000;
+      deathTime = new Date(testUtc - offsetMs);
+
+      // If the local time is in the future, assume yesterday
+      // (deathTime and now are both UTC, so comparison is correct)
+      if (deathTime > now) {
         deathTime.setUTCDate(deathTime.getUTCDate() - 1);
       }
     }

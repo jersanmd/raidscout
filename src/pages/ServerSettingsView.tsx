@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { useServer } from "@/contexts/ServerContext";
@@ -117,6 +117,26 @@ export function ServerSettingsView() {
     ? tabParam
     : "general";
   const [tab, setTab] = useState<string>(initialTab);
+
+  // Highlight Discord Server ID input when navigated from banner
+  const discordIdInputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    const highlight = searchParams.get("highlight");
+    if (highlight === "discord-id" && discordIdInputRef.current) {
+      // Switch to integrations tab
+      setTab("integrations");
+      // Scroll to and highlight the input after render
+      setTimeout(() => {
+        discordIdInputRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+        discordIdInputRef.current?.classList.add("animate-highlight-input");
+        discordIdInputRef.current?.focus();
+      }, 200);
+      // Remove the highlight param from URL without reload
+      const params = new URLSearchParams(searchParams);
+      params.delete("highlight");
+      window.history.replaceState(null, "", `?${params.toString()}`);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Boss-Guild state
   const [bosses, setBosses] = useState<Boss[]>([]);
@@ -1661,6 +1681,7 @@ export function ServerSettingsView() {
                 value={newDiscordId}
                 onChange={(e) => setNewDiscordId(e.target.value)}
                 placeholder="Discord Server ID"
+                ref={discordIdInputRef}
                 className="flex-[2] bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 outline-none focus:border-purple-500 transition font-mono"
               />
               <input

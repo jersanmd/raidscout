@@ -57,18 +57,18 @@ export function DiscordWebhookBanner() {
         {/* Message */}
         <div className="flex-1 min-w-0">
           <p className="text-sm text-amber-200 font-medium">
-            Discord webhook not configured
+            Discord Bot & Webhook not configured
           </p>
           <p className="text-xs text-amber-400/80">
             Boss kill alerts, spawn announcements, and @everyone pings will not
-            work until you add a webhook in Discord Bot & Webhooks.
+            work until you add your Discord Server ID and Webhook URL in settings.
           </p>
         </div>
 
         {/* Actions */}
         <div className="flex items-center gap-2 shrink-0">
           <button
-            onClick={() => navigate("/server-settings?tab=integrations")}
+            onClick={() => navigate("/server-settings?tab=integrations&highlight=discord-id")}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-amber-600 text-white hover:bg-amber-500 transition"
           >
             <ExternalLink className="w-3 h-3" />
