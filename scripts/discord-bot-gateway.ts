@@ -195,6 +195,7 @@ async function handleMessage(msg: any) {
         { name: "!spawn <boss>", value: "Check spawn for a specific boss (e.g. `!spawn Venatus`)", inline: false },
         { name: "!kill <boss>", value: "Record a boss kill right now (e.g. `!kill Venatus`)", inline: false },
         { name: "!kill <boss> HH:MM", value: "Record a boss kill at a specific time (e.g. `!kill Venatus 23:59`)", inline: false },
+        { name: "!kill <boss> HH:MM yesterday", value: "Record a kill at a specific time yesterday", inline: false },
         { name: "!commands", value: "Show this help message", inline: false },
       ],
     );
@@ -289,23 +290,37 @@ async function handleMessage(msg: any) {
     );
   }
 
-  // ── !kill <boss> [HH:MM] ───────────────────────────────
+  // ── !kill <boss> [HH:MM] [yesterday|today] ────────────
   if (cmd === "kill") {
     const serverId = await resolveServerId(guildId);
     if (!serverId) return reply("This server is not linked to RaidScout.");
 
-    // Find boss name (may be multi-word, before time)
+    // Parse: !kill Boss Name [HH:MM] [yesterday|today]
     let timeStr: string | undefined;
     let bossName: string;
-    const lastArg = args[args.length - 1];
-    if (/^\d{1,2}:\d{2}$/.test(lastArg)) {
-      timeStr = lastArg;
-      bossName = args.slice(1, -1).join(" ");
-    } else {
-      bossName = args.slice(1).join(" ");
+    let dayOffset = 0; // 0 = today, -1 = yesterday
+
+    const remaining = args.slice(1); // everything after "kill"
+
+    // Check for yesterday/today at the end
+    const lastWord = remaining[remaining.length - 1]?.toLowerCase();
+    if (lastWord === "yesterday") {
+      dayOffset = -1;
+      remaining.pop();
+    } else if (lastWord === "today") {
+      remaining.pop();
     }
 
-    if (!bossName) return reply("Usage: `!kill Boss Name [HH:MM]`");
+    // Check for HH:MM time
+    const maybeTime = remaining[remaining.length - 1];
+    if (maybeTime && /^\d{1,2}:\d{2}$/.test(maybeTime)) {
+      timeStr = maybeTime;
+      remaining.pop();
+    }
+
+    bossName = remaining.join(" ");
+
+    if (!bossName) return reply("Usage: `!kill Boss Name [HH:MM] [yesterday|today]`");
 
     const bosses = await supabaseQuery(
       `bosses?server_id=eq.${serverId}&name=ilike.${encodeURIComponent(bossName)}`,
@@ -322,7 +337,15 @@ async function handleMessage(msg: any) {
       const tz = await resolveServerTimezone(serverId);
       const now = new Date();
       const localDate = now.toLocaleDateString("en-CA", { timeZone: tz });
-      const [y, mo, d] = localDate.split("-").map(Number);
+      let [y, mo, d] = localDate.split("-").map(Number);
+
+      // Apply day offset (0 = today, -1 = yesterday)
+      if (dayOffset !== 0) {
+        const adjusted = new Date(Date.UTC(y, mo - 1, d) + dayOffset * 86_400_000);
+        y = adjusted.getUTCFullYear();
+        mo = adjusted.getUTCMonth() + 1;
+        d = adjusted.getUTCDate();
+      }
 
       // Convert local time to UTC by computing the timezone offset.
       // Example: Asia/Manila (UTC+8) — 12:00 local → 04:00 UTC

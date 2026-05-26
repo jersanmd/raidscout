@@ -173,7 +173,7 @@ export function LandingPage() {
               { cmd: "!spawn", desc: "List boss spawns in the next 24 hours", detail: "Shows spawn time, countdown, and owner guild for every boss" },
               { cmd: "!spawn Venatus", desc: "Check spawn for a specific boss", detail: "Filter by boss name to see just that boss's timer" },
               { cmd: "!kill Venatus", desc: "Record a boss kill right now", detail: "Same as \"Mark Died\" on the website — advances rotation" },
-              { cmd: "!kill Venatus 23:59", desc: "Record a kill at a custom time", detail: "Use HH:MM format for delayed kills" },
+              { cmd: "!kill Venatus 23:59", desc: "Record a kill at a custom time", detail: "Add `yesterday` to record it for the previous day" },
               { cmd: "!list", desc: "See all boss names", detail: "Numbered list with respawn hours and spawn type" },
               { cmd: "!commands", desc: "Show all available commands", detail: "Quick reference for your members" },
             ].map((c, i) => (
