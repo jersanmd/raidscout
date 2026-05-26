@@ -194,8 +194,9 @@ async function handleMessage(msg: any) {
         { name: "!spawn", value: "List boss spawns in the next 24 hours", inline: false },
         { name: "!spawn <boss>", value: "Check spawn for a specific boss (e.g. `!spawn Venatus`)", inline: false },
         { name: "!kill <boss>", value: "Record a boss kill right now (e.g. `!kill Venatus`)", inline: false },
-        { name: "!kill <boss> HH:MM", value: "Record a kill at a specific time (auto: past=today, future=yesterday)", inline: false },
-        { name: "!kill <boss> HH:MM today", value: "Force today's date", inline: false },
+        { name: "!kill <boss> HH:MM", value: "Record a kill at a custom time. Auto: if the time already passed today → today. If it hasn't happened yet → yesterday.", inline: false },
+        { name: "!kill <boss> HH:MM today", value: "Force today's date even if the time is in the future", inline: false },
+        { name: "!kill <boss> HH:MM yesterday", value: "Force yesterday's date even if the time already passed today", inline: false },
         { name: "!commands", value: "Show this help message", inline: false },
       ],
     );
