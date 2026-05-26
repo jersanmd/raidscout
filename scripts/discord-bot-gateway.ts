@@ -333,12 +333,8 @@ async function handleMessage(msg: any) {
       const [tlH, tlM] = testLocal.split(":").map(Number);
       const offsetMs = ((tlH - h) * 60 + (tlM - m)) * 60_000;
       deathTime = new Date(testUtc - offsetMs);
-
-      // If the local time is in the future, assume yesterday
-      // (deathTime and now are both UTC, so comparison is correct)
-      if (deathTime > now) {
-        deathTime.setUTCDate(deathTime.getUTCDate() - 1);
-      }
+      // Note: !kill always records TODAY at the given time.
+      // No "assume yesterday" — the user explicitly picks the date by running the command.
     }
 
     // Determine owner guild
