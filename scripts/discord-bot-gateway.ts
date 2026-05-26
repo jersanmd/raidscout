@@ -194,8 +194,8 @@ async function handleMessage(msg: any) {
         { name: "!spawn", value: "List boss spawns in the next 24 hours", inline: false },
         { name: "!spawn <boss>", value: "Check spawn for a specific boss (e.g. `!spawn Venatus`)", inline: false },
         { name: "!kill <boss>", value: "Record a boss kill right now (e.g. `!kill Venatus`)", inline: false },
-        { name: "!kill <boss> HH:MM", value: "Record a boss kill at a specific time (e.g. `!kill Venatus 23:59`)", inline: false },
-        { name: "!kill <boss> HH:MM yesterday", value: "Record a kill at a specific time yesterday", inline: false },
+        { name: "!kill <boss> HH:MM", value: "Record a kill at a specific time (defaults to yesterday)", inline: false },
+        { name: "!kill <boss> HH:MM today", value: "Record a kill at a specific time today", inline: false },
         { name: "!commands", value: "Show this help message", inline: false },
       ],
     );
@@ -296,19 +296,21 @@ async function handleMessage(msg: any) {
     if (!serverId) return reply("This server is not linked to RaidScout.");
 
     // Parse: !kill Boss Name [HH:MM] [yesterday|today]
+    // Default: assume the kill happened yesterday (past event).
+    // Use "today" explicitly if the kill just happened.
     let timeStr: string | undefined;
     let bossName: string;
-    let dayOffset = 0; // 0 = today, -1 = yesterday
+    let dayOffset = -1; // -1 = yesterday (default), 0 = today
 
     const remaining = args.slice(1); // everything after "kill"
 
     // Check for yesterday/today at the end
     const lastWord = remaining[remaining.length - 1]?.toLowerCase();
-    if (lastWord === "yesterday") {
-      dayOffset = -1;
+    if (lastWord === "today") {
+      dayOffset = 0;
       remaining.pop();
-    } else if (lastWord === "today") {
-      remaining.pop();
+    } else if (lastWord === "yesterday") {
+      remaining.pop(); // -1 is already default
     }
 
     // Check for HH:MM time
