@@ -151,18 +151,15 @@ export function LandingPage() {
   useEffect(() => {
     (async () => {
       try {
-        const [g, k, p, s] = await Promise.all([
-          supabase.from("guilds").select("*", { count: "exact", head: true }),
-          supabase.from("death_records").select("*", { count: "exact", head: true }),
-          supabase.from("members").select("*", { count: "exact", head: true }),
-          supabase.from("servers").select("*", { count: "exact", head: true }),
-        ]);
-        setLiveStats({
-          guilds: g.count ?? 0,
-          kills: k.count ?? 0,
-          players: p.count ?? 0,
-          servers: s.count ?? 0,
-        });
+        const { data } = await supabase.rpc("get_public_stats");
+        if (data) {
+          setLiveStats({
+            guilds: data.guilds ?? 0,
+            kills: data.kills ?? 0,
+            players: data.players ?? 0,
+            servers: data.servers ?? 0,
+          });
+        }
       } catch { /* keep fallback */ }
     })();
   }, []);
