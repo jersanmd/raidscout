@@ -151,7 +151,16 @@ export function LandingPage() {
   useEffect(() => {
     (async () => {
       try {
-        const { data } = await supabase.rpc("get_public_stats");
+        const res = await fetch(
+          `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/rpc/get_public_stats`,
+          {
+            headers: {
+              apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+              Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+            },
+          }
+        );
+        const data = await res.json();
         if (data) {
           setLiveStats({
             guilds: data.guilds ?? 0,
