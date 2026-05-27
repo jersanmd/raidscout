@@ -335,7 +335,7 @@ export function LeaderboardView() {
           className="flex items-center gap-1.5 text-xs text-amber-400 hover:text-amber-300 transition"
         >
           <History className="w-3.5 h-3.5" />
-          Weekly Results ({snapshots.length})
+          Previous Results ({snapshots.length})
         </button>
       )}
 
@@ -523,7 +523,7 @@ export function LeaderboardView() {
         </>
       )}
 
-      {/* Weekly Results modal */}
+      {/* Previous Results modal */}
       {showSnapshots && snapshots.length > 0 && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/60" onClick={() => setShowSnapshots(false)} />
@@ -531,7 +531,7 @@ export function LeaderboardView() {
             <div className="flex items-center justify-between p-4 border-b border-slate-800 shrink-0">
               <h3 className="text-white font-bold text-sm flex items-center gap-2">
                 <History className="w-4 h-4 text-amber-400" />
-                Weekly Results ({snapshots.length})
+                Previous Results ({snapshots.length})
               </h3>
               <button onClick={() => setShowSnapshots(false)} className="text-slate-400 hover:text-white p-1">
                 <X className="w-5 h-5" />
@@ -552,7 +552,7 @@ export function LeaderboardView() {
                     : d.toLocaleDateString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
 
                 const periodLabel =
-                  snap.period === "all_time" ? "All Time" : snap.period === "weekly" ? "Weekly" : "Monthly";
+                  snap.period === "all_time" ? "All Time" : snap.period === "weekly" ? `Previous #${snapshots.length - snapshots.indexOf(snap)}` : "Monthly";
 
                 return (
                   <button
@@ -622,7 +622,7 @@ export function LeaderboardView() {
                       <p className="text-xs text-slate-500">
                         {fmt(periodStart)} → {fmt(finalized)}
                         {" · "}
-                        {viewingSnapshot.period === "all_time" ? "" : viewingSnapshot.period === "weekly" ? "Weekly" : "Monthly"}
+                        {viewingSnapshot.period === "all_time" ? "" : "Previous"}
                       </p>
                     </div>
                   </div>
