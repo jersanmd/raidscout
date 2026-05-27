@@ -17,8 +17,8 @@ const features = [
   { icon: <MessageSquare className="w-6 h-6" />, color: "border-emerald-500/30 bg-emerald-500/5", title: "Discord Alerts", desc: "Auto-post boss deaths and spawns to your Discord server per guild. @everyone pings and rich embeds included." },
   { icon: <Calendar className="w-6 h-6" />, color: "border-cyan-500/30 bg-cyan-500/5", title: "Weekly Schedule", desc: "Full week grid. See which guild owns which boss on every day. Click to manage." },
   { icon: <Skull className="w-6 h-6" />, color: "border-red-500/30 bg-red-500/5", title: "Death History", desc: "Complete kill log with guild badges. Attendance tracking per kill. Edit or delete entries." },
-  { icon: <Bot className="w-6 h-6" />, color: "border-indigo-500/30 bg-indigo-500/5", title: "Discord Bot Commands", desc: "Manage bosses from Discord: !spawn, !kill, !list, !commands. Record kills and check timers without opening the website." },
-  { icon: <Eye className="w-6 h-6" />, color: "border-orange-500/30 bg-orange-500/5", glow: "hover:shadow-[0_0_30px_rgba(249,115,22,0.15)]", title: "Viewer Mode", desc: "Share a link so members can watch timers without an account. Read-only, always free." },
+  { icon: <Bot className="w-6 h-6" />, color: "border-indigo-500/30 bg-indigo-500/5", title: "Discord Bot Commands", desc: "Manage bosses without opening the site. Use !kill, !spawn, !list, and !commands — all from your Discord server." },
+  { icon: <Eye className="w-6 h-6" />, color: "border-orange-500/30 bg-orange-500/5", glow: "hover:shadow-[0_0_30px_rgba(249,115,22,0.15)]", title: "Viewer Mode", desc: "Share a link so your members can watch timers — no account or login required. Read-only, always free." },
 ];
 
 // ── Animated Counter ────────────────────────────────────────
@@ -348,11 +348,13 @@ export function LandingPage() {
         <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
           <div className="divide-y divide-slate-800">
             {[
-              { cmd: "!spawn", desc: "List boss spawns in the next 24 hours", detail: "Shows spawn time, countdown, and owner guild for every boss" },
+              { cmd: "!spawn", desc: "List all boss spawns in the next 24 hours", detail: "Shows spawn time, live countdown, and which guild owns each boss" },
               { cmd: "!spawn Venatus", desc: "Check spawn for a specific boss", detail: "Filter by boss name to see just that boss's timer" },
-              { cmd: "!kill Venatus", desc: "Record a boss kill right now", detail: "Same as \"Mark Died\" on the website — advances rotation" },
-              { cmd: "!kill Venatus 23:59", desc: "Record a kill at a custom time (yesterday by default)", detail: "Add `today` if the kill just happened" },
-              { cmd: "!list", desc: "See all boss names", detail: "Numbered list with respawn hours and spawn type" },
+              { cmd: "!kill Venatus", desc: "Record a boss kill right now", detail: "Same as Mark Died on the website — advances rotation" },
+              { cmd: "!kill Venatus 14:30", desc: "Record a kill at a custom time", detail: "If 14:30 already passed today → records today. If it hasn't happened yet → records yesterday (auto)." },
+              { cmd: "... 14:30 today", desc: "Force today's date", detail: "Add `today` to always record on today's date, even if the time hasn't happened yet" },
+              { cmd: "... 14:30 yesterday", desc: "Force yesterday's date", detail: "Add `yesterday` to always record on yesterday's date" },
+              { cmd: "!list", desc: "See all 39 boss names", detail: "Numbered list with respawn hours and spawn type" },
               { cmd: "!commands", desc: "Show all available commands", detail: "Quick reference for your members" },
             ].map((c, i) => (
               <div key={c.cmd} className="flex items-start gap-4 px-5 py-4 hover:bg-slate-800/30 transition">
