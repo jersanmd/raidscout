@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useMemo } from "react";
+import { createPortal } from "react-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAttendance, useAddAttendance, useRemoveAttendance } from "@/hooks/useAttendance";
 import { useMembers } from "@/hooks/useMembers";
@@ -98,6 +99,7 @@ export function ParticipantModal({
   const [rallyImages, setRallyImages] = useState<File[]>([]);
   const [rallyPreviews, setRallyPreviews] = useState<string[]>([]);
   const [aiLoading, setAiLoading] = useState(false);
+  const [fullscreenPreviewIndex, setFullscreenPreviewIndex] = useState<number | null>(null);
   const [aiError, setAiError] = useState<string | null>(null);
   const [aiDetectedNames, setAiDetectedNames] = useState<string[] | null>(null);
   // Three-way categorization
@@ -360,9 +362,9 @@ export function ParticipantModal({
                     <div className="space-y-2">
                       <div className="flex flex-wrap gap-2 items-center">
                         {rallyPreviews.map((preview, i) => (
-                          <div key={i} className="relative">
-                            <img src={preview} alt={`Rally ${i + 1}`} className="w-16 h-16 object-cover rounded-lg border border-slate-700" />
-                            <button onClick={() => { setRallyImages(prev => prev.filter((_, j) => j !== i)); setRallyPreviews(prev => prev.filter((_, j) => j !== i)); }} className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-600 text-white flex items-center justify-center"><X className="w-2.5 h-2.5" /></button>
+                          <div key={i} className="relative group">
+                            <img src={preview} alt={`Rally ${i + 1}`} className="w-16 h-16 object-cover rounded-lg border border-slate-700 cursor-pointer hover:border-blue-400 transition" onClick={() => setFullscreenPreviewIndex(i)} />
+                            <button onClick={(e) => { e.stopPropagation(); setRallyImages(prev => prev.filter((_, j) => j !== i)); setRallyPreviews(prev => prev.filter((_, j) => j !== i)); }} className="absolute -top-1.5 -right-1.5 p-0.5 rounded-full bg-red-600 text-white opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition"><X className="w-3 h-3" /></button>
                           </div>
                         ))}
                         <button onClick={() => fileInputRef.current?.click()} className="w-16 h-16 rounded-lg border-2 border-dashed border-slate-600 text-slate-500 hover:text-slate-300 hover:border-slate-500 transition flex items-center justify-center"><Plus className="w-4 h-4" /></button>
@@ -500,6 +502,14 @@ export function ParticipantModal({
           )}
         </div>
       </div>
+      {/* Fullscreen image preview */}
+      {fullscreenPreviewIndex !== null && rallyPreviews[fullscreenPreviewIndex] && createPortal(
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/90" onClick={() => setFullscreenPreviewIndex(null)}>
+          <button onClick={() => setFullscreenPreviewIndex(null)} className="absolute top-4 right-4 p-2 rounded-full bg-white/10 text-white hover:bg-white/20 transition z-10"><X className="w-6 h-6" /></button>
+          <img src={rallyPreviews[fullscreenPreviewIndex]} alt="Rally screenshot" className="max-w-full max-h-[90vh] object-contain rounded-lg" onClick={(e) => e.stopPropagation()} />
+        </div>,
+        document.body
+      )}
     </div>
   );
 }

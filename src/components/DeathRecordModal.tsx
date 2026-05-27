@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { Clock, Zap, X, Upload, Check, Plus, Search, Users, ClipboardPaste, Sparkles, Loader2, Pencil, ImagePlus } from "lucide-react";
 import { useMembers } from "@/hooks/useMembers";
@@ -646,23 +647,18 @@ export function DeathRecordModal({ boss, onClose, onSubmit, defaultDeathTime, hi
                         <img
                           src={preview}
                           alt={`Rally screenshot ${i + 1}`}
-                          className="w-16 h-16 object-cover rounded-lg border border-slate-700 cursor-pointer hover:border-slate-500 transition"
+                          className="w-16 h-16 object-cover rounded-lg border border-slate-700 cursor-pointer hover:border-blue-400 transition"
                           onClick={() => setFullscreenPreviewIndex(i)}
                         />
                         <button
                           onClick={(e) => { e.stopPropagation(); removeRallyImage(i); }}
-                          className="absolute -top-1.5 -right-1.5 p-0.5 rounded-full bg-red-600 text-white opacity-0 group-hover:opacity-100 transition"
+                          className="absolute -top-1.5 -right-1.5 p-0.5 rounded-full bg-red-600 text-white opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition"
                         >
                           <X className="w-3 h-3" />
                         </button>
                       </div>
                     ))}
-                    {/* Add more button */}
-                    <button
-                      onClick={() => fileInputRef.current?.click()}
-                      className="w-16 h-16 flex items-center justify-center rounded-lg border-2 border-dashed border-slate-600 text-slate-500 hover:border-slate-400 hover:text-slate-300 transition"
-                      title="Add more screenshots"
-                    >
+                    <button onClick={() => fileInputRef.current?.click()} className="w-16 h-16 flex items-center justify-center rounded-lg border-2 border-dashed border-slate-600 text-slate-500 hover:border-slate-400 hover:text-slate-300 transition" title="Add more screenshots">
                       <ImagePlus className="w-5 h-5" />
                     </button>
                   </div>
@@ -1007,13 +1003,11 @@ export function DeathRecordModal({ boss, onClose, onSubmit, defaultDeathTime, hi
         )}
       </div>
 
-      {/* Fullscreen image preview */}
-      {fullscreenPreviewIndex !== null && rallyPreviews[fullscreenPreviewIndex] && (
+      {/* Fullscreen image preview — portaled to body to escape modal stacking */}
+      {fullscreenPreviewIndex !== null && rallyPreviews[fullscreenPreviewIndex] && createPortal(
         <div
           className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/90"
           onClick={() => setFullscreenPreviewIndex(null)}
-          onKeyDown={(e) => { if (e.key === "Escape") setFullscreenPreviewIndex(null); }}
-          tabIndex={0}
         >
           <button
             onClick={() => setFullscreenPreviewIndex(null)}
@@ -1030,7 +1024,8 @@ export function DeathRecordModal({ boss, onClose, onSubmit, defaultDeathTime, hi
           <p className="absolute bottom-4 text-sm text-slate-400">
             Click anywhere or press Esc to close
           </p>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
