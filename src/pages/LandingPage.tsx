@@ -29,7 +29,9 @@ function AnimatedCounter({ value, suffix = "+" }: { value: number; suffix?: stri
 
   useEffect(() => {
     const el = ref.current;
-    if (!el || started.current) return;
+    if (!el || value <= 0) return;
+    // Reset when value changes so we re-animate
+    started.current = false;
     const obs = new IntersectionObserver(([entry]) => {
       if (entry.isIntersecting && !started.current) {
         started.current = true;
@@ -38,7 +40,7 @@ function AnimatedCounter({ value, suffix = "+" }: { value: number; suffix?: stri
         const animate = (now: number) => {
           const elapsed = now - start;
           const progress = Math.min(elapsed / duration, 1);
-          const eased = 1 - Math.pow(1 - progress, 3); // ease-out
+          const eased = 1 - Math.pow(1 - progress, 3);
           setDisplay(Math.round(eased * value));
           if (progress < 1) requestAnimationFrame(animate);
         };
