@@ -221,71 +221,50 @@ export function LeaderboardView() {
     if (!exportStartDate || !exportEndDate || !serverId) return;
     setExportLoading(true);
     try {
-      const headers = {
-        apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-        Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-        Accept: "application/json",
-      };
-
       // Fetch death records in date range
       const startISO = new Date(exportStartDate).toISOString();
       const endISO = new Date(exportEndDate + "T23:59:59").toISOString();
-      const deathsRes = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/death_records?server_id=eq.${serverId}&death_time=gte.${startISO}&death_time=lte.${endISO}&select=id,boss_id,death_time&order=death_time.asc`,
-        { headers }
-      );
-      if (!deathsRes.ok) throw new Error(`Death records fetch failed: ${deathsRes.status}`);
-      const deathsRaw = await deathsRes.json();
-      const deaths = Array.isArray(deathsRaw) ? deathsRaw : [];
-      if (!deaths.length) { alert("No death records in this date range."); setExportLoading(false); return; }
+      const { data: deaths, error: deathsErr } = await supabase
+        .from("death_records")
+        .select("id,boss_id,death_time")
+        .eq("server_id", serverId)
+        .gte("death_time", startISO)
+        .lte("death_time", endISO)
+        .order("death_time", { ascending: true });
+      if (deathsErr) throw new Error(`Death records: ${deathsErr.message}`);
+      if (!deaths?.length) { alert("No death records in this date range."); setExportLoading(false); return; }
 
-      const deathIds = deaths.map((d: any) => d.id);
-      const bossIds = [...new Set(deaths.map((d: any) => d.boss_id))];
+      const deathIds = deaths.map(d => d.id);
+      const bossIds = [...new Set(deaths.map(d => d.boss_id))];
 
-      // Fetch bosses (batch by 50 to avoid URL too long)
-      let allBosses: any[] = [];
-      for (let i = 0; i < bossIds.length; i += 50) {
-        const batch = bossIds.slice(i, i + 50);
-        const bossRes = await fetch(
-          `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/bosses?id=in.(${batch.join(",")})&select=id,name,points`,
-          { headers }
-        );
-        if (bossRes.ok) {
-          const data = await bossRes.json();
-          if (Array.isArray(data)) allBosses = allBosses.concat(data);
-        }
-      }
-      const bossMap = new Map(allBosses.map((b: any) => [b.id, b]));
+      // Fetch bosses
+      const { data: bosses, error: bossesErr } = await supabase
+        .from("bosses")
+        .select("id,name,points")
+        .in("id", bossIds);
+      if (bossesErr) throw new Error(`Bosses: ${bossesErr.message}`);
+      const bossMap = new Map((bosses || []).map(b => [b.id, b]));
 
-      // Fetch attendance records (batch by 100)
-      let allAtt: any[] = [];
-      for (let i = 0; i < deathIds.length; i += 100) {
-        const batch = deathIds.slice(i, i + 100);
-        const attRes = await fetch(
-          `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/attendance_records?death_record_id=in.(${batch.join(",")})&select=death_record_id,member_id`,
-          { headers }
-        );
-        if (attRes.ok) {
-          const data = await attRes.json();
-          if (Array.isArray(data)) allAtt = allAtt.concat(data);
-        }
-      }
+      // Fetch attendance records
+      const { data: attRecords, error: attErr } = await supabase
+        .from("attendance_records")
+        .select("death_record_id,member_id")
+        .in("death_record_id", deathIds);
+      if (attErr) throw new Error(`Attendance: ${attErr.message}`);
 
       // Fetch ALL members with guild
-      const memRes = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/members?server_id=eq.${serverId}&select=id,name,guild_id`,
-        { headers }
-      );
-      if (!memRes.ok) throw new Error(`Members fetch failed: ${memRes.status}`);
-      const allMembersRaw = await memRes.json();
-      const allMembers = Array.isArray(allMembersRaw) ? allMembersRaw : [];
-      const memberMap = new Map(allMembers.map((m: any) => [m.id, m]));
+      const { data: allMembers, error: memErr } = await supabase
+        .from("members")
+        .select("id,name,guild_id")
+        .eq("server_id", serverId);
+      if (memErr) throw new Error(`Members: ${memErr.message}`);
+      const memberMap = new Map((allMembers || []).map(m => [m.id, m]));
 
       // Filter members by guild
       const guildMemberIds = new Set(
         exportGuildFilter === "all"
-          ? allMembers.map((m: any) => m.id)
-          : allMembers.filter((m: any) => m.guild_id === exportGuildFilter).map((m: any) => m.id)
+          ? (allMembers || []).map((m: any) => m.id)
+          : (allMembers || []).filter((m: any) => m.guild_id === exportGuildFilter).map((m: any) => m.id)
       );
 
       // Build per-death attendance: death_id → Set<member_id>
@@ -293,7 +272,7 @@ export function LeaderboardView() {
       const deathAttendees = new Map<string, Set<string>>();
       const allAttendedMembers = new Set<string>();
 
-      for (const att of allAtt) {
+      for (const att of attRecords || []) {
         if (!guildMemberIds.has(att.member_id)) continue;
         if (!deathBossMap.has(att.death_record_id)) continue;
         if (!deathAttendees.has(att.death_record_id)) deathAttendees.set(att.death_record_id, new Set());
