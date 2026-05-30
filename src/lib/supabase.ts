@@ -902,8 +902,9 @@ export interface AnalyticsData {
 
 export async function fetchAnalytics(since: string, serverId?: string | null, guildId?: string | null): Promise<AnalyticsData> {
   const sid = serverId ?? getCurrentServerId();
-  const { data, error } = await supabase
-    .rpc("get_analytics", { since, s_id: sid || undefined, guild_id: guildId || undefined });
+  const params: any = { since, s_id: sid || undefined };
+  if (guildId) params.guild_id = guildId;
+  const { data, error } = await supabase.rpc("get_analytics", params);
 
   if (error) throw error;
   return data as AnalyticsData;
