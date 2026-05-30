@@ -343,10 +343,7 @@ export function LeaderboardView() {
         dataRows.push(row);
       }
 
-      // Totals row
-      const totalsRow: any[] = ["", "TOTAL", ...sortedMembers.map(mid => memberTotals.get(mid) || 0)];
-
-      const sheetData = [headerRow1, headerRow2, ...dataRows, totalsRow];
+      const sheetData = [headerRow1, headerRow2, ...dataRows];
       const ws = XLSX.utils.aoa_to_sheet(sheetData);
 
       ws["!cols"] = [
