@@ -121,6 +121,11 @@ async function connect() {
       console.log("Bot is online!");
     }
 
+    // GUILD_CREATE — send welcome message when added to a new server
+    if (t === "GUILD_CREATE") {
+      handleGuildJoin(d).catch(console.error);
+    }
+
     // MESSAGE_CREATE — handle commands
     if (t === "MESSAGE_CREATE") {
       handleMessage(d).catch(console.error);
@@ -136,6 +141,61 @@ async function connect() {
   ws.on("error", (err) => {
     console.error("WebSocket error:", err.message);
   });
+}
+
+// ── Guild Join Handler ─────────────────────────────────────
+
+async function handleGuildJoin(guild: any) {
+  const guildId = guild.id;
+  const guildName = guild.name;
+  
+  // Find a text channel we can send to
+  let targetChannel: string | null = null;
+  for (const ch of guild.channels || []) {
+    if (ch.type === 0) { // GUILD_TEXT
+      const perms = ch.permissions ? BigInt(ch.permissions) : 0n;
+      // Check SEND_MESSAGES (0x800) and VIEW_CHANNEL (0x400)
+      if ((perms & 0x800n) && (perms & 0x400n)) {
+        targetChannel = ch.id;
+        break;
+      }
+    }
+  }
+
+  if (!targetChannel) return; // Can't send anywhere
+
+  const botInvite = "https://discord.com/api/oauth2/authorize?client_id=1508368991272566975&permissions=2147485696&scope=bot%20applications.commands";
+
+  await fetch(`https://discord.com/api/v10/channels/${targetChannel}/messages`, {
+    method: "POST",
+    headers: { Authorization: `Bot ${TOKEN}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      embeds: [{
+        title: "👋 RaidScout Bot is here!",
+        description: `Thanks for adding me to **${guildName}**! Here's how to get started:`,
+        color: 0x8b5cf6,
+        fields: [
+          {
+            name: "1️⃣ Link this Discord server to RaidScout",
+            value: "Go to **Server Settings → Integrations** on the [RaidScout web app](https://raidscout.vercel.app), enter your Discord Server ID, and choose a command prefix (default: `!`).",
+          },
+          {
+            name: "2️⃣ Set up notifications",
+            value: "In any channel, type `!notifhere` (or your chosen prefix) to make that channel receive boss kill and spawn alerts.",
+          },
+          {
+            name: "3️⃣ Try a command",
+            value: "`!list` — See all bosses\n`!nextspawn` — Upcoming spawns in 24h\n`!killed <boss>` — Record a kill\n`!commands` — Full command list",
+          },
+          {
+            name: "💡 Multiple RaidScout servers?",
+            value: "If this Discord server tracks bosses for multiple games, each RaidScout server can use a different command prefix (e.g. `!` for Lineage II, `$` for WoW). Set the prefix when linking in Server Settings.",
+          },
+        ],
+        footer: { text: "Powered by RaidScout" },
+      }],
+    }),
+  }).catch(() => {});
 }
 
 // ── Command Handler ────────────────────────────────────────
@@ -181,7 +241,7 @@ async function handleMessage(msg: any) {
   // ── list ─────────────────────────────────────────────
   if (cmd === "list") {
     const serverId = await resolveServerId(guildId, matchedPrefix);
-    if (!serverId) return reply("This server is not linked to RaidScout.");
+    if (!serverId) return reply("⚠️ This Discord server is not linked to RaidScout. An admin needs to go to **Server Settings → Integrations** on the RaidScout web app and link this Discord server.");
     const bosses = await supabaseQuery(`bosses?server_id=eq.${serverId}&order=name`);
     if (!bosses?.length) return reply("No bosses found.");
     // Split into chunks of 25 (Discord embed field limit)
@@ -215,7 +275,7 @@ async function handleMessage(msg: any) {
       return reply("You need the Administrator permission to set the notification channel.");
     }
     const serverId = await resolveServerId(guildId, matchedPrefix);
-    if (!serverId) return reply("This server is not linked to RaidScout.");
+    if (!serverId) return reply("⚠️ This Discord server is not linked to RaidScout. An admin needs to go to **Server Settings → Integrations** on the RaidScout web app and link this Discord server.");
     notifChannels.set(serverId, msg.channel_id);
     // Persist to DB so it survives bot restarts
     const existing = await supabaseQuery(
@@ -234,9 +294,17 @@ async function handleMessage(msg: any) {
   // ── commands ─────────────────────────────────────────
   if (cmd === "commands" || cmd === "help") {
     const p = matchedPrefix;
+    // Check if multiple servers are linked to this guild
+    const guildConfigs = await supabaseQuery(
+      `discord_configs?discord_guild_id=eq.${guildId}&select=command_prefix,label`
+    );
+    const multiServer = (guildConfigs?.length ?? 0) > 1;
+    const prefixNote = multiServer
+      ? `\n💡 This Discord server has multiple RaidScout servers linked. Each uses its own prefix:\n${guildConfigs.map((c: any) => `\`${c.command_prefix}\` — ${c.label || "Unnamed"}`).join("\n")}`
+      : "";
     return replyEmbed(
       "📋 RaidScout Bot Commands",
-      `Prefix for this server: \`${p}\``,
+      `Prefix for this server: \`${p}\`${prefixNote}`,
       0x8b5cf6,
       [
         { name: `${p}list`, value: "Show all boss names", inline: false },
@@ -255,7 +323,7 @@ async function handleMessage(msg: any) {
   // ── nextspawn [boss] ─────────────────────────────────
   if (cmd === "nextspawn" || cmd === "spawn") {
     const serverId = await resolveServerId(guildId, matchedPrefix);
-    if (!serverId) return reply("This server is not linked to RaidScout.");
+    if (!serverId) return reply("⚠️ This Discord server is not linked to RaidScout. An admin needs to go to **Server Settings → Integrations** on the RaidScout web app and link this Discord server.");
 
     const filter = args[1];
     const [bosses, deaths, guilds] = await Promise.all([
@@ -363,7 +431,7 @@ async function handleMessage(msg: any) {
   // ── killed <boss> [HH:MM] [yesterday|today] ──────────
   if (cmd === "killed" || cmd === "kill") {
     const serverId = await resolveServerId(guildId, matchedPrefix);
-    if (!serverId) return reply("This server is not linked to RaidScout.");
+    if (!serverId) return reply("⚠️ This Discord server is not linked to RaidScout. An admin needs to go to **Server Settings → Integrations** on the RaidScout web app and link this Discord server.");
 
     // Parse: !kill Boss Name [HH:MM] [yesterday|today]
     let timeStr: string | undefined;
