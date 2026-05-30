@@ -478,16 +478,29 @@ async function handleMessage(msg: any) {
           if (se) {
             gName = guilds.find((g: any) => g.id === se.guild_id)?.name ?? "";
           } else {
-            // 2. Daily mode: advance guild when spawn crosses into a new day
+            // 2. Daily mode: same-day = same guild, next-day = advance
             const dailyEntries = bgs
               .filter((bg: any) => bg.mode === "daily")
               .sort((a: any, b: any) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
             if (dailyEntries.length > 0) {
-              // Daily: use day-based index to rotate through guilds
-              const startOfDay = new Date(spawn.getFullYear(), spawn.getMonth(), spawn.getDate());
-              const dayIdx = Math.floor(startOfDay.getTime() / 86400000);
-              const idx = dayIdx % dailyEntries.length;
-              gName = guilds.find((g: any) => g.id === dailyEntries[idx >= 0 ? idx : idx + dailyEntries.length].guild_id)?.name ?? "";
+              if (!lastDeath) {
+                gName = guilds.find((g: any) => g.id === dailyEntries[0].guild_id)?.name ?? "";
+              } else {
+                const respawnHours = boss.respawn_hours ?? 0;
+                const deathDate = new Date(lastDeath.death_time);
+                const spawnDate = new Date(deathDate.getTime() + respawnHours * 3600000);
+                const lastGuildId = lastDeath.owner_guild_id;
+                if (deathDate.toDateString() === spawnDate.toDateString()) {
+                  // Same day — same guild keeps the boss
+                  gName = guilds.find((g: any) => g.id === lastGuildId)?.name
+                    ?? guilds.find((g: any) => g.id === dailyEntries[0].guild_id)?.name ?? "";
+                } else {
+                  // Different day — advance to next guild
+                  const lastIdx = dailyEntries.findIndex((bg: any) => bg.guild_id === lastGuildId);
+                  const nextIdx = ((lastIdx >= 0 ? lastIdx + 1 : 0)) % dailyEntries.length;
+                  gName = guilds.find((g: any) => g.id === dailyEntries[nextIdx].guild_id)?.name ?? "";
+                }
+              }
             } else {
               // 3. Rotation mode: use rotation_counter
               const re = bgs
