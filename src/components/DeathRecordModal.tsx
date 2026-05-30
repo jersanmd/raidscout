@@ -87,6 +87,7 @@ export function DeathRecordModal({ boss, onClose, onSubmit, defaultDeathTime, hi
   useEffect(() => () => { rallyPreviewsRef.current.forEach(url => URL.revokeObjectURL(url)); }, []);
   const [fullscreenPreviewIndex, setFullscreenPreviewIndex] = useState<number | null>(null);
   const [newMemberName, setNewMemberName] = useState("");
+  const [newMemberGuildId, setNewMemberGuildId] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -160,9 +161,10 @@ export function DeathRecordModal({ boss, onClose, onSubmit, defaultDeathTime, hi
     if (!name) return;
 
     const { upsertMember } = await import("@/lib/supabase");
-    const member = await upsertMember(name);
+    const member = await upsertMember(name, newMemberGuildId || null);
     setSelectedIds((prev) => new Set(prev).add(member.id));
     setNewMemberName("");
+    setNewMemberGuildId("");
     queryClient.invalidateQueries({ queryKey: ["members"] });
   };
 
@@ -1004,6 +1006,16 @@ export function DeathRecordModal({ boss, onClose, onSubmit, defaultDeathTime, hi
                     placeholder="Player name..."
                     className="flex-1 px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-red-500 transition"
                   />
+                  <select
+                    value={newMemberGuildId}
+                    onChange={(e) => setNewMemberGuildId(e.target.value)}
+                    className="px-2 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-red-500 transition max-w-[140px]"
+                  >
+                    <option value="">No guild</option>
+                    {guilds.map(g => (
+                      <option key={g.id} value={g.id}>{g.name}</option>
+                    ))}
+                  </select>
                   <button
                     onClick={handleAddNewMember}
                     disabled={!newMemberName.trim() || exactMatch}
