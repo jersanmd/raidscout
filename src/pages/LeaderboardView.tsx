@@ -373,7 +373,7 @@ export function LeaderboardView() {
         .sort((a, b) => b[1] - a[1])
         .filter(([, pts]) => pts > 0);
 
-      let rankHtml = `<table style="width:100%"><tr><th class="hdr" colspan="3" style="background:#7C3AED">🏆 Ranking</th></tr>`;
+      let rankHtml = `<table><tr><th class="hdr" colspan="3" style="background:#7C3AED">🏆 Ranking</th></tr>`;
       rankHtml += `<tr class="shdr"><td class="rnk">#</td><td class="nm">Player</td><td class="num">Points</td></tr>`;
       sortedRanking.forEach(([mid, pts], i) => {
         const cls = i % 2 === 0 ? "even" : "odd";
@@ -384,9 +384,9 @@ export function LeaderboardView() {
       rankHtml += `</table>`;
 
       const pivotHtml = html;
-      html = `<table><tr>
-        <td style="width:70%;vertical-align:top;padding:0 8px 0 0">${pivotHtml}</td>
-        <td style="width:30%;vertical-align:top;padding:0 0 0 8px">${rankHtml}</td>
+      html = `<table style="width:100%;border-collapse:collapse"><tr>
+        <td style="width:70%;vertical-align:top;padding-right:8px">${pivotHtml}</td>
+        <td style="width:30%;vertical-align:top;padding-left:8px">${rankHtml}</td>
       </tr></table></body></html>`;
 
       const blob = new Blob([html], { type: "application/vnd.ms-excel;charset=utf-8" });
