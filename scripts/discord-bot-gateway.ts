@@ -82,6 +82,17 @@ async function getNotifyPrefix(serverId: string): Promise<string> {
 
 function addHours(d: Date, h: number) { return new Date(d.getTime() + h * 3600_000); }
 
+function formatRelative(unix: number): string {
+  const diff = unix * 1000 - Date.now();
+  if (diff <= 0) return "now";
+  const mins = Math.floor(diff / 60_000);
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  if (h > 0 && m > 0) return `in ${h}h ${m}m`;
+  if (h > 0) return `in ${h}h`;
+  return `in ${m}m`;
+}
+
 /** Convert a schedule slot (day, "HH:MM") in the given timezone to a UTC Date */
 function scheduleSlotToUTC(tz: string, refDate: Date, day: number, time: string): Date {
   // Get current date string in the target timezone for this refDate
@@ -493,7 +504,7 @@ async function handleMessage(msg: any) {
     const lines = upcoming.map((b, i) => {
       const prefix = b.time === "**ALIVE NOW**" ? "🟢 " : "";
       const guild = b.guild ? ` — ${b.guild}` : "";
-      const countdown = b.time !== "**ALIVE NOW**" ? ` (<t:${b.unix}:R>)` : "";
+      const countdown = b.time !== "**ALIVE NOW**" ? ` (${formatRelative(b.unix)})` : "";
       return `${i + 1}. ${prefix}${b.name}${guild} ${b.time}${countdown}`;
     });
     const desc = lines.join("\n");
