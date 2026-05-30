@@ -546,11 +546,11 @@ async function handleMessage(msg: any) {
     const allGuilds = await supabaseQuery(`guilds?server_id=eq.${serverId}`);
     const guildName = ownerGuildId ? allGuilds.find((g: any) => g.id === ownerGuildId)?.name ?? "" : "";
 
-    // Send kill notification to the bot's own notification channel
-    const channelId = notifChannels.get(serverId);
-    if (channelId) {
+    // Send kill notification to the bot's own notification channel (skip if same channel)
+    const notifChannelId = notifChannels.get(serverId);
+    if (notifChannelId && notifChannelId !== channelId) {
       const killUnix = Math.floor(deathTime.getTime() / 1000);
-      fetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
+      fetch(`https://discord.com/api/v10/channels/${notifChannelId}/messages`, {
         method: "POST",
         headers: { Authorization: `Bot ${TOKEN}`, "Content-Type": "application/json" },
         body: JSON.stringify({
