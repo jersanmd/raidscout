@@ -112,63 +112,72 @@ export function AnalyticsView() {
     if (!data) return;
     setExportLoading(true);
     try {
-      const darkBg = "#1E293B";
-      const darkerBg = "#0F172A";
       const periodLabel = period === "week" ? "This Week" : period === "month" ? "This Month" : "All Time";
-      const maxWK = Math.max(...data.killsByWeek.map(w => w.count), 1);
-      const maxBK = Math.max(...data.topBosses.map(b => b.kills), 1);
-      const maxAH = Math.max(...data.topHunters.map(h => h.attended), 1);
-      const maxDY = Math.max(...data.killsByDay.map(d => d.count), 1);
 
       let html = `<html><head><meta charset="utf-8"><style>
-        table { border-collapse: collapse; font-family: -apple-system, sans-serif; font-size: 11px; width: 100%; }
-        th, td { padding: 6px 10px; border: 1px solid #334155; }
-        .hdr { background: ${darkBg}; color: #fff; font-weight: bold; text-align: left; font-size: 13px; }
-        .section { background: #0F172A; color: #94A3B8; font-weight: bold; font-size: 12px; text-align: left; }
-        .val { text-align: center; font-weight: bold; color: #F8FAFC; }
-        .even { background: ${darkBg}; }
-        .odd { background: ${darkerBg}; }
-        .lbl { color: #94A3B8; }
-        .num { text-align: center; color: #FBBF24; font-weight: bold; }
+        body { background: #0F172A; font-family: -apple-system, sans-serif; padding: 16px; }
+        .title { color: #F8FAFC; font-size: 18px; font-weight: bold; margin-bottom: 4px; }
+        .subtitle { color: #64748B; font-size: 12px; margin-bottom: 16px; }
+        table { border-collapse: collapse; width: 100%; margin-bottom: 16px; }
+        th { padding: 8px 12px; border: 1px solid #334155; text-align: left; font-size: 11px; }
+        td { padding: 6px 12px; border: 1px solid #334155; font-size: 11px; }
+        .hdr { background: #7C3AED; color: #fff; font-weight: bold; }
+        .shdr { background: #1E293B; color: #94A3B8; font-weight: bold; }
+        .e { background: #1E293B; color: #E2E8F0; }
+        .o { background: #0F172A; color: #E2E8F0; }
+        .num { text-align: center; font-weight: bold; color: #FBBF24; }
+        .rnk { text-align: center; color: #64748B; width: 30px; }
+        .nm { color: #E2E8F0; }
+        .gld { color: #94A3B8; font-size: 10px; }
+        .sum { background: #1E293B; }
+        .sval { text-align: center; font-weight: bold; font-size: 20px; }
+        .slbl { color: #94A3B8; text-align: center; font-size: 10px; padding-top: 2px; }
 </style></head><body>`;
 
-      html += `<table><tr><th class="hdr" colspan="3">RaidScout Analytics — ${periodLabel}</th></tr>`;
-      html += `<tr class="even"><td class="lbl">Total Kills</td><td class="val">${data.totalKills}</td><td></td></tr>`;
-      html += `<tr class="odd"><td class="lbl">Active Members</td><td class="val">${data.activeMembers}</td><td></td></tr>`;
-      html += `<tr class="even"><td class="lbl">Total Attendances</td><td class="val">${data.totalAttendance}</td><td></td></tr>`;
-      html += `</table><br>`;
+      // Title
+      html += `<div class="title">RaidScout Analytics</div>`;
+      html += `<div class="subtitle">${periodLabel} · ${new Date().toLocaleDateString()}</div>`;
 
+      // Summary cards
+      html += `<table><tr>
+        <td class="sum" style="width:33%"><div class="sval" style="color:#F87171">${data.totalKills}</div><div class="slbl">Total Kills</div></td>
+        <td class="sum" style="width:33%"><div class="sval" style="color:#60A5FA">${data.activeMembers}</div><div class="slbl">Active Members</div></td>
+        <td class="sum" style="width:33%"><div class="sval" style="color:#FBBF24">${data.totalAttendance}</div><div class="slbl">Attendances</div></td>
+      </tr></table>`;
+
+      // Kills by Week
       if (data.killsByWeek.length > 0) {
-        html += `<table><tr><th class="section" colspan="3">Kills per Week</th></tr>`;
+        html += `<table><tr><th class="hdr" colspan="2">Kills per Week</th></tr>`;
+        html += `<tr class="shdr"><td>Week</td><td style="text-align:center">Kills</td></tr>`;
         data.killsByWeek.slice(-12).reverse().forEach((w, i) => {
-          const px = Math.max(Math.round((w.count / maxWK) * 200), 10);
-          html += `<tr class="${i % 2 === 0 ? "even" : "odd"}"><td class="lbl">${w.week}</td><td class="num">${w.count}</td><td><table cellpadding="0" cellspacing="0" style="width:200px;height:14px;background:#1E293B"><tr><td style="width:${px}px;height:14px;background:#7C3AED;font-size:0"></td><td></td></tr></table></td></tr>`;
+          html += `<tr class="${i % 2 === 0 ? "e" : "o"}"><td class="nm">${w.week}</td><td class="num">${w.count}</td></tr>`;
         });
-        html += `</table><br>`;
+        html += `</table>`;
       }
 
-      html += `<table><tr><th class="section" colspan="4">Most Killed Bosses</th></tr>`;
-      html += `<tr class="even"><td class="lbl">#</td><td class="lbl">Boss</td><td class="lbl">Kills</td><td class="lbl"></td></tr>`;
+      // Most Killed Bosses
+      html += `<table><tr><th class="hdr" colspan="3">Most Killed Bosses</th></tr>`;
+      html += `<tr class="shdr"><td>#</td><td>Boss</td><td style="text-align:center">Kills</td></tr>`;
       data.topBosses.forEach((b, i) => {
-        const px = Math.max(Math.round((b.kills / maxBK) * 200), 10);
-        html += `<tr class="${i % 2 === 0 ? "even" : "odd"}"><td class="lbl">${i + 1}</td><td class="lbl">${b.name}</td><td class="num">${b.kills}</td><td><table cellpadding="0" cellspacing="0" style="width:200px;height:14px;background:#1E293B"><tr><td style="width:${px}px;height:14px;background:#DC2626;font-size:0"></td><td></td></tr></table></td></tr>`;
+        html += `<tr class="${i % 2 === 0 ? "e" : "o"}"><td class="rnk">${i + 1}</td><td class="nm">${b.name}</td><td class="num">${b.kills}</td></tr>`;
       });
-      html += `</table><br>`;
+      html += `</table>`;
 
-      html += `<table><tr><th class="section" colspan="5">Most Active Hunters</th></tr>`;
-      html += `<tr class="even"><td class="lbl">#</td><td class="lbl">Player</td><td class="lbl">Guild</td><td class="lbl">Attended</td><td class="lbl"></td></tr>`;
+      // Most Active Hunters
+      html += `<table><tr><th class="hdr" colspan="4">Most Active Hunters</th></tr>`;
+      html += `<tr class="shdr"><td>#</td><td>Player</td><td>Guild</td><td style="text-align:center">Attended</td></tr>`;
       data.topHunters.forEach((h, i) => {
         const gid = memberGuildMap.get(h.name);
         const guild = gid ? guilds.find(g => g.id === gid) : null;
-        const px = Math.max(Math.round((h.attended / maxAH) * 200), 10);
-        html += `<tr class="${i % 2 === 0 ? "even" : "odd"}"><td class="lbl">${i + 1}</td><td class="lbl">${h.name}</td><td class="lbl">${guild?.name || ""}</td><td class="num">${h.attended}</td><td><table cellpadding="0" cellspacing="0" style="width:200px;height:14px;background:#1E293B"><tr><td style="width:${px}px;height:14px;background:#2563EB;font-size:0"></td><td></td></tr></table></td></tr>`;
+        html += `<tr class="${i % 2 === 0 ? "e" : "o"}"><td class="rnk">${i + 1}</td><td class="nm">${h.name}</td><td class="gld">${guild?.name || ""}</td><td class="num">${h.attended}</td></tr>`;
       });
-      html += `</table><br>`;
+      html += `</table>`;
 
-      html += `<table><tr><th class="section" colspan="3">Activity by Day of Week</th></tr>`;
+      // Activity by Day
+      html += `<table><tr><th class="hdr" colspan="2">Activity by Day of Week</th></tr>`;
+      html += `<tr class="shdr"><td>Day</td><td style="text-align:center">Kills</td></tr>`;
       data.killsByDay.forEach((d, i) => {
-        const px = Math.max(Math.round((d.count / maxDY) * 200), 10);
-        html += `<tr class="${i % 2 === 0 ? "even" : "odd"}"><td class="lbl">${d.day}</td><td class="num">${d.count}</td><td><table cellpadding="0" cellspacing="0" style="width:200px;height:14px;background:#1E293B"><tr><td style="width:${px}px;height:14px;background:#D97706;font-size:0"></td><td></td></tr></table></td></tr>`;
+        html += `<tr class="${i % 2 === 0 ? "e" : "o"}"><td class="nm">${d.day}</td><td class="num">${d.count}</td></tr>`;
       });
       html += `</table></body></html>`;
 
