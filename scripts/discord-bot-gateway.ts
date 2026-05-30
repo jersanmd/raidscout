@@ -24,9 +24,7 @@ async function supabaseQuery(path: string): Promise<any> {
     headers: { apikey: SUPABASE_KEY!, Authorization: `Bearer ${SUPABASE_KEY!}` },
   });
   if (!res.ok) {
-    console.error(`Supabase query failed: ${url} — ${res.status} ${res.statusText}`);
-    const text = await res.text();
-    console.error("Body:", text.slice(0, 200));
+    console.error(`Supabase query failed: ${url} — ${res.status}`);
     return [];
   }
   return res.json();
@@ -45,8 +43,6 @@ async function supabaseInsert(table: string, record: any): Promise<any> {
   });
   if (!res.ok) {
     console.error(`Supabase insert failed: ${table} — ${res.status}`);
-    const text = await res.text();
-    console.error("Body:", text.slice(0, 200));
     throw new Error(`Insert failed: ${res.status}`);
   }
   return res.json();
@@ -56,7 +52,6 @@ async function resolveServerId(guildId: string): Promise<string | null> {
   const rows = await supabaseQuery(
     `discord_configs?discord_guild_id=eq.${guildId}&select=raidscout_server_id`,
   );
-  console.log(`resolveServerId for guild ${guildId}:`, rows);
   return rows?.[0]?.raidscout_server_id ?? null;
 }
 
@@ -143,8 +138,7 @@ async function handleMessage(msg: any) {
   const cmd = args[0]?.toLowerCase();
 
   async function reply(text: string) {
-    console.log("reply:", text.slice(0, 50));
-    const res = await fetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
+    await fetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
       method: "POST",
       headers: {
         Authorization: `Bot ${TOKEN}`,
@@ -152,12 +146,10 @@ async function handleMessage(msg: any) {
       },
       body: JSON.stringify({ content: text }),
     });
-    if (!res.ok) console.error(`reply failed: ${res.status}`, await res.text().catch(() => ""));
   }
 
   async function replyEmbed(title: string, desc: string, color: number, fields?: any[]) {
-    console.log("replyEmbed:", title);
-    const res = await fetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
+    await fetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
       method: "POST",
       headers: {
         Authorization: `Bot ${TOKEN}`,
@@ -167,7 +159,6 @@ async function handleMessage(msg: any) {
         embeds: [{ title, description: desc, color, fields, footer: { text: "Powered by RaidScout" } }],
       }),
     });
-    if (!res.ok) console.error(`replyEmbed failed: ${res.status}`, await res.text().catch(() => ""));
   }
 
   // ── ;list ────────────────────────────────────────────
@@ -175,7 +166,6 @@ async function handleMessage(msg: any) {
     const serverId = await resolveServerId(guildId);
     if (!serverId) return reply("This server is not linked to RaidScout.");
     const bosses = await supabaseQuery(`bosses?server_id=eq.${serverId}&order=name`);
-    console.log(`list query for server ${serverId}:`, bosses?.length, "bosses");
     if (!bosses?.length) return reply("No bosses found.");
     // Split into chunks of 25 (Discord embed field limit)
     const chunkSize = 25;
@@ -187,7 +177,7 @@ async function handleMessage(msg: any) {
     }
     for (let c = 0; c < chunks.length; c++) {
       const isFirst = c === 0;
-      const res = await fetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
+      await fetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
         method: "POST",
         headers: { Authorization: `Bot ${TOKEN}`, "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -199,7 +189,6 @@ async function handleMessage(msg: any) {
           }],
         }),
       });
-      console.log(`list chunk ${c + 1}/${chunks.length}:`, res.status);
     }
   }
 
@@ -243,7 +232,6 @@ async function handleMessage(msg: any) {
       supabaseQuery(`death_records?server_id=eq.${serverId}&order=death_time.desc&limit=200`),
       supabaseQuery(`guilds?server_id=eq.${serverId}`),
     ]);
-    console.log(`nextspawn: ${bosses?.length} bosses, ${deaths?.length} deaths, ${guilds?.length} guilds`);
 
     const now = new Date();
     const cutoff = addHours(now, 24);
@@ -312,18 +300,33 @@ async function handleMessage(msg: any) {
       return a.unix - b.unix;
     });
 
-    console.log(`nextspawn: ${upcoming.length} upcoming`);
+    // Chunk into 25 fields per embed (Discord limit)
+    const fieldChunks: { name: string; value: string; inline: boolean }[][] = [];
+    const fields = upcoming.map((b, i) => ({
+      name: `${i + 1}. ${b.name}${b.guild ? ` — ${b.guild}` : ""}`,
+      value: `${b.time}${b.time !== "**ALIVE NOW**" ? ` <t:${b.unix}:R>` : ""}`,
+      inline: false,
+    }));
+    for (let i = 0; i < fields.length; i += 20) {
+      fieldChunks.push(fields.slice(i, i + 20));
+    }
 
-    return replyEmbed(
-      filter ? `${filter} Spawn` : "📋 Upcoming Boss Spawns (24h)",
-      filter ? `Spawn info for **${filter}**.` : "Bosses spawning in the next 24 hours:",
-      0x8b5cf6,
-      upcoming.map((b, i) => ({
-        name: `${i + 1}. ${b.name}${b.guild ? ` — ${b.guild}` : ""}`,
-        value: `${b.time}${b.time !== "**ALIVE NOW**" ? ` <t:${b.unix}:R>` : ""}`,
-        inline: false,
-      })),
-    );
+    for (let c = 0; c < fieldChunks.length; c++) {
+      const isFirst = c === 0;
+      await fetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
+        method: "POST",
+        headers: { Authorization: `Bot ${TOKEN}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          embeds: [{
+            title: isFirst ? (filter ? `${filter} Spawn` : "📋 Upcoming Boss Spawns (24h)") : undefined,
+            description: isFirst ? (filter ? `Spawn info for **${filter}**.` : "Bosses spawning in the next 24 hours:") : undefined,
+            color: 0x8b5cf6,
+            fields: fieldChunks[c],
+            footer: isFirst ? { text: "Powered by RaidScout" } : undefined,
+          }],
+        }),
+      });
+    }
   }
 
   // ── ;killed <boss> [HH:MM] [yesterday|today] ──────────
