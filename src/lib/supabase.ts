@@ -900,10 +900,10 @@ export interface AnalyticsData {
   kills_by_day: { day: string; count: number }[];
 }
 
-export async function fetchAnalytics(since: string, serverId?: string | null): Promise<AnalyticsData> {
+export async function fetchAnalytics(since: string, serverId?: string | null, guildId?: string | null): Promise<AnalyticsData> {
   const sid = serverId ?? getCurrentServerId();
   const { data, error } = await supabase
-    .rpc("get_analytics", { since, s_id: sid || undefined });
+    .rpc("get_analytics", { since, s_id: sid || undefined, guild_id: guildId || undefined });
 
   if (error) throw error;
   return data as AnalyticsData;

@@ -47,7 +47,7 @@ export function AnalyticsView() {
   const memberGuildMap = new Map(members.map(m => [m.name, m.guild_id]));
 
   const { data, isLoading } = useQuery<AnalyticsUIData>({
-    queryKey: ["analytics", period, serverId, tz],
+    queryKey: ["analytics", period, serverId, tz, analyticsGuildFilter],
     queryFn: async () => {
       const now = new Date();
       let since: string;
@@ -87,7 +87,7 @@ export function AnalyticsView() {
         return emptyAnalytics();
       }
 
-      const raw = await fetchAnalytics(since, serverId);
+      const raw = await fetchAnalytics(since, serverId, analyticsGuildFilter !== "all" ? analyticsGuildFilter : null);
       return {
         totalKills: raw.total_kills,
         totalAttendance: raw.total_attendance,
