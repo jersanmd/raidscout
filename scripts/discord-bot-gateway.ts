@@ -427,7 +427,6 @@ async function handleMessage(msg: any) {
   if (cmd === "notifhere") {
     const serverId = await resolveServerId(guildId, matchedPrefix);
     if (!serverId) return reply("⚠️ This Discord server is not linked to RaidScout. An admin needs to go to **Server Settings → Integrations** on the RaidScout web app and link this Discord server.");
-    notifChannels.set(serverId, msg.channel_id);
     // Persist to DB so it survives bot restarts
     const existing = await supabaseQuery(
       `discord_configs?discord_guild_id=eq.${guildId}&command_prefix=eq.${encodeURIComponent(matchedPrefix)}&select=id`
@@ -695,11 +694,8 @@ async function handleMessage(msg: any) {
       headers: { apikey: SUPABASE_KEY!, Authorization: `Bearer ${SUPABASE_KEY!}` },
     }).catch(() => {});
 
-    // Increment rotation_counter atomically to avoid race conditions.
-    // Uses PostgREST PATCH with return=representation to get the server-confirmed value.
-    // For multi-instance bot deployments, replace this with a Supabase RPC:
-    //   UPDATE bosses SET rotation_counter = rotation_counter + 1 WHERE id = $1 RETURNING rotation_counter;
-    if (bgs?.length) {
+    // Increment rotation_counter atomically
+    if (serverBossGuilds.some((bg: any) => bg.boss_id === boss.id)) {
       const patchRes = await fetch(`${SUPABASE_URL}/rest/v1/bosses?id=eq.${boss.id}`, {
         method: "PATCH",
         headers: { apikey: SUPABASE_KEY!, Authorization: `Bearer ${SUPABASE_KEY!}`, "Content-Type": "application/json", Prefer: "return=representation" },
@@ -713,27 +709,15 @@ async function handleMessage(msg: any) {
 
     const guildName = ownerGuildId ? serverGuilds.find((g: any) => g.id === ownerGuildId)?.name ?? "" : "";
 
-    // Send kill notification to the bot's own notification channel (skip if same channel)
-    const notifChannelId = notifChannels.get(serverId);
-    if (notifChannelId && notifChannelId !== channelId) {
-      const killUnix = Math.floor(deathTime.getTime() / 1000);
-      const notifyPrefix = await getNotifyPrefix(serverId);
-      fetch(`https://discord.com/api/v10/channels/${notifChannelId}/messages`, {
-        method: "POST",
-        headers: { Authorization: `Bot ${TOKEN}`, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          content: notifyPrefix || undefined,
-          embeds: [{
-            title: `☠️ ${boss.name} Killed`,
-            description: guildName ? `**${guildName}** — ${boss.name} has been defeated.` : `${boss.name} has been defeated.`,
-            color: 0xef4444,
-            fields: [{ name: "Death Time", value: `<t:${killUnix}:f>`, inline: true }, { name: "Recorded By", value: author, inline: true }],
-            footer: { text: "Powered by RaidScout" },
-          }],
-          allowed_mentions: { parse: ["everyone"] },
-        }),
-      }).catch(() => {});
-    }
+    // Send kill notification to all linked Discord servers
+    const killUnix = Math.floor(deathTime.getTime() / 1000);
+    broadcastNotification(serverId, {
+      title: `☠️ ${boss.name} Killed`,
+      description: guildName ? `**${guildName}** — ${boss.name} has been defeated.` : `${boss.name} has been defeated.`,
+      color: 0xef4444,
+      fields: [{ name: "Death Time", value: `<t:${killUnix}:f>`, inline: true }, { name: "Recorded By", value: author, inline: true }],
+      footer: { text: "Powered by RaidScout" },
+    });
     const unix = Math.floor(deathTime.getTime() / 1000);
 
     return replyEmbed(
@@ -749,9 +733,62 @@ async function handleMessage(msg: any) {
 }
 
 // ── Notification Channel Registry ──────────────────────────
-const notifChannels = new Map<string, string>();
 
 const sentNotifs = new Map<string, number>(); // dedup: "serverId-event-bossName" → timestamp
+
+// ── Shared: send notification embed to ALL linked Discord servers ─
+
+async function broadcastNotification(serverId: string, embed: any): Promise<{ ok: boolean; skipped?: string }> {
+  const rows = await supabaseQuery(
+    `discord_configs?raidscout_server_id=eq.${serverId}&select=notification_channel_id,discord_guild_id`
+  );
+  const configs = (rows || []).filter((r: any) => r.notification_channel_id);
+  if (configs.length === 0) {
+    return { ok: false, skipped: "no channel set — use ;notifhere" };
+  }
+
+  const rawPrefix = await getNotifyPrefix(serverId);
+  // Resolve @RoleName → <@&role_id> for each linked guild
+  const guildRoleCache = new Map<string, Map<string, string>>();
+  for (const cfg of configs) {
+    const gId = cfg.discord_guild_id;
+    if (!guildRoleCache.has(gId)) {
+      guildRoleCache.set(gId, new Map());
+      try {
+        const rolesRes = await fetch(`https://discord.com/api/v10/guilds/${gId}/roles`, {
+          headers: { Authorization: `Bot ${TOKEN}` },
+        });
+        if (rolesRes.ok) {
+          const roles = await rolesRes.json();
+          for (const role of roles) {
+            guildRoleCache.get(gId)!.set(role.name.toLowerCase(), role.id);
+          }
+        }
+      } catch { /* skip */ }
+    }
+  }
+
+  for (const cfg of configs) {
+    let prefix = rawPrefix;
+    const cache = guildRoleCache.get(cfg.discord_guild_id);
+    if (cache) {
+      prefix = prefix.replace(/@(\S+)/g, (_, name) => {
+        const id = cache.get(name.toLowerCase());
+        return id ? `<@&${id}>` : `@${name}`;
+      });
+    }
+    const discordRes = await fetch(`https://discord.com/api/v10/channels/${cfg.notification_channel_id}/messages`, {
+      method: "POST",
+      headers: { Authorization: `Bot ${TOKEN}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ content: prefix || undefined, embeds: [embed], allowed_mentions: { parse: ["everyone"] } }),
+    });
+    if (!discordRes.ok) {
+      const errText = await discordRes.text().catch(() => "");
+      console.error(`Discord send failed (${cfg.notification_channel_id}): ${discordRes.status} ${errText}`);
+    }
+  }
+  return { ok: true };
+}
 
 // ── HTTP Server (web app → bot notifications) ─────────────
 import { createServer } from "http";
@@ -822,59 +859,8 @@ createServer(async (req, res) => {
           res.writeHead(400); res.end(JSON.stringify({ error: "Invalid event" })); return;
         }
 
-        // Find ALL notification channels for this server (supports multi-Discord)
-        const rows = await supabaseQuery(
-          `discord_configs?raidscout_server_id=eq.${server_id}&select=notification_channel_id,discord_guild_id`
-        );
-        const configs = (rows || []).filter((r: any) => r.notification_channel_id);
-        if (configs.length === 0) {
-          res.writeHead(200); res.end(JSON.stringify({ skipped: "no channel set — use ;notifhere" }));
-          return;
-        }
-
-        const rawPrefix = await getNotifyPrefix(server_id);
-        // Resolve @RoleName → <@&role_id> for each linked guild
-        const guildRoleCache = new Map<string, Map<string, string>>(); // guildId → name → id
-        for (const cfg of configs) {
-          const gId = cfg.discord_guild_id;
-          if (!guildRoleCache.has(gId)) {
-            guildRoleCache.set(gId, new Map());
-            try {
-              const rolesRes = await fetch(`https://discord.com/api/v10/guilds/${gId}/roles`, {
-                headers: { Authorization: `Bot ${TOKEN}` },
-              });
-              if (rolesRes.ok) {
-                const roles = await rolesRes.json();
-                for (const role of roles) {
-                  guildRoleCache.get(gId)!.set(role.name.toLowerCase(), role.id);
-                }
-              }
-            } catch { /* skip role resolution */ }
-          }
-        }
-        const resolveRoles = (prefix: string, guildId: string) => {
-          const cache = guildRoleCache.get(guildId);
-          if (!cache) return prefix;
-          return prefix.replace(/@(\S+)/g, (_, name) => {
-            const id = cache.get(name.toLowerCase());
-            return id ? `<@&${id}>` : `@${name}`;
-          });
-        };
-
-        for (const cfg of configs) {
-          const prefix = resolveRoles(rawPrefix, cfg.discord_guild_id);
-          const discordRes = await fetch(`https://discord.com/api/v10/channels/${cfg.notification_channel_id}/messages`, {
-            method: "POST",
-            headers: { Authorization: `Bot ${TOKEN}`, "Content-Type": "application/json" },
-            body: JSON.stringify({ content: prefix || undefined, embeds: [embed], allowed_mentions: { parse: ["everyone"] } }),
-          });
-          if (!discordRes.ok) {
-            const errText = await discordRes.text().catch(() => "");
-            console.error(`Discord send failed (${cfg.notification_channel_id}): ${discordRes.status} ${errText}`);
-          }
-        }
-
-        res.writeHead(200); res.end(JSON.stringify({ ok: true }));
+        const result = await broadcastNotification(server_id, embed);
+        res.writeHead(200); res.end(JSON.stringify(result));
       } catch (err: any) {
         console.error("Notify error:", err.message);
         res.writeHead(500); res.end(JSON.stringify({ error: err.message }));
@@ -888,19 +874,7 @@ createServer(async (req, res) => {
   console.log(`Notify HTTP server on port ${NOTIFY_PORT}`);
 });
 
-// ── Preload notification channels from DB ──────────────────
-
-async function preloadNotifChannels() {
-  const rows = await supabaseQuery(`discord_configs?select=raidscout_server_id,notification_channel_id&notification_channel_id=not.is.null`);
-  for (const row of rows || []) {
-    if (row.raidscout_server_id && row.notification_channel_id) {
-      notifChannels.set(row.raidscout_server_id, row.notification_channel_id);
-    }
-  }
-  console.log(`Preloaded ${notifChannels.size} notification channel(s) from DB`);
-}
-
 // ── Start ──────────────────────────────────────────────────
 
 console.log("RaidScout Discord Bot starting...");
-preloadNotifChannels().then(() => connect()).catch(console.error);
+connect().catch(console.error);
