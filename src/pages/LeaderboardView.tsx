@@ -573,7 +573,7 @@ export function LeaderboardView() {
           </div>
 
           {/* Attendance Export toggle — hidden from viewers */}
-          {!isViewer && (
+          {!isViewer && (<>
           <button
             onClick={() => setShowExport(!showExport)}
             className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-300 transition"
@@ -633,7 +633,7 @@ export function LeaderboardView() {
             </p>
           </div>
           )}
-          )}
+          </> )}
 
           <div className="space-y-2">
           {filteredEntries.map((entry, index) => {
