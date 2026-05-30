@@ -7,6 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useServerId } from "@/contexts/ServerContext";
 import { extractNamesWithAI } from "@/lib/vision";
 import { isSupabaseConfigured, fetchGuilds } from "@/lib/supabase";
+import { guildColor } from "@/lib/constants";
 import type { Boss, Member, Guild } from "@/types";
 
 interface DeathRecordModalProps {
@@ -953,7 +954,7 @@ export function DeathRecordModal({ boss, onClose, onSubmit, defaultDeathTime, hi
                     <div className="space-y-2">
                     {filteredGroupedMembers.map((group) => (
                       <div key={group.guildId ?? "ungrouped"}>
-                        <p className="text-[10px] font-medium text-slate-500 uppercase tracking-wider mb-1 px-1">
+                        <p className="text-[10px] font-medium uppercase tracking-wider mb-1 px-1" style={{ color: group.guildId ? guildColor(group.guildName).text : undefined }}>
                           {group.guildName}
                           <span className="text-slate-600 ml-1">({group.members.length})</span>
                         </p>
