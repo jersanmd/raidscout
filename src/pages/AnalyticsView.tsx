@@ -146,49 +146,53 @@ export function AnalyticsView() {
       </tr></table>`;
 
       // Build each section as a string
-      let leftHtml = "";
-      let rightHtml = "";
+      let col1 = "";
+      let col2 = "";
+      let col3 = "";
+      let col4 = "";
 
-      // LEFT: Kills by Week
+      // COL 1: Kills by Week
       if (data.killsByWeek.length > 0) {
-        leftHtml += `<table><tr><th class="hdr" colspan="2">Kills per Week</th></tr>`;
-        leftHtml += `<tr class="shdr"><td>Week</td><td style="text-align:center">Kills</td></tr>`;
+        col1 += `<table><tr><th class="hdr" colspan="2">Kills per Week</th></tr>`;
+        col1 += `<tr class="shdr"><td>Week</td><td style="text-align:center">Kills</td></tr>`;
         data.killsByWeek.slice(-12).reverse().forEach((w, i) => {
-          leftHtml += `<tr class="${i % 2 === 0 ? "e" : "o"}"><td class="nm">${w.week}</td><td class="num">${w.count}</td></tr>`;
+          col1 += `<tr class="${i % 2 === 0 ? "e" : "o"}"><td class="nm">${w.week}</td><td class="num">${w.count}</td></tr>`;
         });
-        leftHtml += `</table>`;
+        col1 += `</table>`;
       }
 
-      // LEFT: Activity by Day
-      leftHtml += `<table><tr><th class="hdr" colspan="2">Activity by Day</th></tr>`;
-      leftHtml += `<tr class="shdr"><td>Day</td><td style="text-align:center">Kills</td></tr>`;
+      // COL 2: Activity by Day
+      col2 += `<table><tr><th class="hdr" colspan="2">Activity by Day</th></tr>`;
+      col2 += `<tr class="shdr"><td>Day</td><td style="text-align:center">Kills</td></tr>`;
       data.killsByDay.forEach((d, i) => {
-        leftHtml += `<tr class="${i % 2 === 0 ? "e" : "o"}"><td class="nm">${d.day}</td><td class="num">${d.count}</td></tr>`;
+        col2 += `<tr class="${i % 2 === 0 ? "e" : "o"}"><td class="nm">${d.day}</td><td class="num">${d.count}</td></tr>`;
       });
-      leftHtml += `</table>`;
+      col2 += `</table>`;
 
-      // RIGHT: Most Killed Bosses
-      rightHtml += `<table><tr><th class="hdr" colspan="3">Most Killed Bosses</th></tr>`;
-      rightHtml += `<tr class="shdr"><td>#</td><td>Boss</td><td style="text-align:center">Kills</td></tr>`;
+      // COL 3: Most Killed Bosses
+      col3 += `<table><tr><th class="hdr" colspan="3">Most Killed Bosses</th></tr>`;
+      col3 += `<tr class="shdr"><td>#</td><td>Boss</td><td style="text-align:center">Kills</td></tr>`;
       data.topBosses.forEach((b, i) => {
-        rightHtml += `<tr class="${i % 2 === 0 ? "e" : "o"}"><td class="rnk">${i + 1}</td><td class="nm">${b.name}</td><td class="num">${b.kills}</td></tr>`;
+        col3 += `<tr class="${i % 2 === 0 ? "e" : "o"}"><td class="rnk">${i + 1}</td><td class="nm">${b.name}</td><td class="num">${b.kills}</td></tr>`;
       });
-      rightHtml += `</table>`;
+      col3 += `</table>`;
 
-      // RIGHT: Most Active Hunters
-      rightHtml += `<table><tr><th class="hdr" colspan="4">Most Active Hunters</th></tr>`;
-      rightHtml += `<tr class="shdr"><td>#</td><td>Player</td><td>Guild</td><td style="text-align:center">Att</td></tr>`;
+      // COL 4: Most Active Hunters
+      col4 += `<table><tr><th class="hdr" colspan="4">Most Active Hunters</th></tr>`;
+      col4 += `<tr class="shdr"><td>#</td><td>Player</td><td>Guild</td><td style="text-align:center">Att</td></tr>`;
       data.topHunters.forEach((h, i) => {
         const gid = memberGuildMap.get(h.name);
         const guild = gid ? guilds.find(g => g.id === gid) : null;
-        rightHtml += `<tr class="${i % 2 === 0 ? "e" : "o"}"><td class="rnk">${i + 1}</td><td class="nm">${h.name}</td><td class="gld">${guild?.name || ""}</td><td class="num">${h.attended}</td></tr>`;
+        col4 += `<tr class="${i % 2 === 0 ? "e" : "o"}"><td class="rnk">${i + 1}</td><td class="nm">${h.name}</td><td class="gld">${guild?.name || ""}</td><td class="num">${h.attended}</td></tr>`;
       });
-      rightHtml += `</table>`;
+      col4 += `</table>`;
 
-      // Master 2-column layout
+      // Master 4-column layout
       html += `<table><tr>
-        <td style="width:50%;vertical-align:top;padding:0 8px 0 0">${leftHtml}</td>
-        <td style="width:50%;vertical-align:top;padding:0 0 0 8px">${rightHtml}</td>
+        <td style="width:25%;vertical-align:top;padding:0 6px 0 0">${col1}</td>
+        <td style="width:25%;vertical-align:top;padding:0 6px">${col2}</td>
+        <td style="width:25%;vertical-align:top;padding:0 6px">${col3}</td>
+        <td style="width:25%;vertical-align:top;padding:0 0 0 6px">${col4}</td>
       </tr></table></body></html>`;
       html += `</table></body></html>`;
 
