@@ -226,7 +226,7 @@ async function handleMessage(msg: any) {
   }
 
   async function replyEmbed(title: string, desc: string, color: number, fields?: any[]) {
-    await fetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
+    const res = await fetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
       method: "POST",
       headers: {
         Authorization: `Bot ${TOKEN}`,
@@ -236,6 +236,7 @@ async function handleMessage(msg: any) {
         embeds: [{ title, description: desc, color, fields, footer: { text: "Powered by RaidScout" } }],
       }),
     });
+    if (!res.ok) console.error(`replyEmbed failed: ${res.status}`, await res.text().catch(() => ""));
   }
 
   // ── list ─────────────────────────────────────────────
