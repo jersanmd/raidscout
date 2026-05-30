@@ -47,7 +47,7 @@ export function AnalyticsView() {
   const memberGuildMap = new Map(members.map(m => [m.name, m.guild_id]));
 
   const { data, isLoading } = useQuery<AnalyticsUIData>({
-    queryKey: ["analytics", period, serverId, tz, analyticsGuildFilter],
+    queryKey: ["analytics", period, serverId, tz],
     queryFn: async () => {
       const now = new Date();
       let since: string;
@@ -87,24 +87,19 @@ export function AnalyticsView() {
         return emptyAnalytics();
       }
 
-      try {
-        const raw = await fetchAnalytics(since, serverId, analyticsGuildFilter !== "all" ? analyticsGuildFilter : null);
-        return {
-          totalKills: raw.total_kills,
-          totalAttendance: raw.total_attendance,
-          activeMembers: raw.active_members,
-          killsByWeek: (raw.kills_by_week ?? []).map((w: any) => ({
-            week: w.week_label ?? w.week,
-            count: w.count,
-          })),
-          topBosses: raw.top_bosses ?? [],
-          topHunters: raw.top_hunters ?? [],
-          killsByDay: raw.kills_by_day ?? [],
-        };
-      } catch (err: any) {
-        console.error("Analytics fetch failed:", err?.message || err);
-        return emptyAnalytics();
-      }
+      const raw = await fetchAnalytics(since, serverId);
+      return {
+        totalKills: raw.total_kills,
+        totalAttendance: raw.total_attendance,
+        activeMembers: raw.active_members,
+        killsByWeek: (raw.kills_by_week ?? []).map((w: any) => ({
+          week: w.week_label ?? w.week,
+          count: w.count,
+        })),
+        topBosses: raw.top_bosses ?? [],
+        topHunters: raw.top_hunters ?? [],
+        killsByDay: raw.kills_by_day ?? [],
+      };
     },
     staleTime: 0,
     retry: false,
