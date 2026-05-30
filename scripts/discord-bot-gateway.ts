@@ -482,6 +482,7 @@ async function handleMessage(msg: any) {
             gName = guilds.find((g: any) => g.id === se.guild_id)?.name ?? "";
           } else {
             // 2. Daily mode: same-day = same guild, next-day = advance
+            // Uses server timezone for date boundaries (not UTC)
             const dailyEntries = bgs
               .filter((bg: any) => bg.mode === "daily")
               .sort((a: any, b: any) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
@@ -493,7 +494,9 @@ async function handleMessage(msg: any) {
                 const deathDate = new Date(lastDeath.death_time);
                 const spawnDate = new Date(deathDate.getTime() + respawnHours * 3600000);
                 const lastGuildId = lastDeath.owner_guild_id;
-                if (deathDate.toDateString() === spawnDate.toDateString()) {
+                // Compare dates in the server's timezone
+                const fmt = (d: Date) => d.toLocaleDateString("en-CA", { timeZone: tz });
+                if (fmt(deathDate) === fmt(spawnDate)) {
                   // Same day — same guild keeps the boss
                   gName = guilds.find((g: any) => g.id === lastGuildId)?.name
                     ?? guilds.find((g: any) => g.id === dailyEntries[0].guild_id)?.name ?? "";
