@@ -156,7 +156,8 @@ async function handleMessage(msg: any) {
   }
 
   async function replyEmbed(title: string, desc: string, color: number, fields?: any[]) {
-    await fetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
+    console.log("replyEmbed:", title);
+    const res = await fetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
       method: "POST",
       headers: {
         Authorization: `Bot ${TOKEN}`,
@@ -166,6 +167,7 @@ async function handleMessage(msg: any) {
         embeds: [{ title, description: desc, color, fields, footer: { text: "Powered by RaidScout" } }],
       }),
     });
+    if (!res.ok) console.error(`replyEmbed failed: ${res.status}`, await res.text().catch(() => ""));
   }
 
   // ── ;list ────────────────────────────────────────────
@@ -241,6 +243,7 @@ async function handleMessage(msg: any) {
       supabaseQuery(`death_records?server_id=eq.${serverId}&order=death_time.desc&limit=200`),
       supabaseQuery(`guilds?server_id=eq.${serverId}`),
     ]);
+    console.log(`nextspawn: ${bosses?.length} bosses, ${deaths?.length} deaths, ${guilds?.length} guilds`);
 
     const now = new Date();
     const cutoff = addHours(now, 24);
@@ -306,6 +309,8 @@ async function handleMessage(msg: any) {
       if (b.time === "**ALIVE NOW**" && a.time !== "**ALIVE NOW**") return 1;
       return a.unix - b.unix;
     });
+
+    console.log(`nextspawn: ${upcoming.length} upcoming`);
 
     return replyEmbed(
       filter ? `${filter} Spawn` : "📋 Upcoming Boss Spawns (24h)",
