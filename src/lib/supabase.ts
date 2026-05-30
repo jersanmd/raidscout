@@ -1067,52 +1067,51 @@ export async function fetchSnapshotById(id: string, serverId: string): Promise<{
 
 // ── Discord Notifications ──────────────────────────────────
 
+const BOT_NOTIFY_URL = import.meta.env.VITE_BOT_NOTIFY_URL || "http://localhost:3003";
+
 export async function notifyDiscord(
   serverId: string,
   event: "boss_died" | "boss_spawned",
   data: { boss_name: string; attendees?: string[]; spawn_time?: string; guild_name?: string }
 ) {
-  // Use direct fetch instead of supabase.functions.invoke — viewers have no auth session
-  fetch(`${supabaseUrl}/functions/v1/discord-notify`, {
+  fetch(`${BOT_NOTIFY_URL}/notify`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", apikey: supabaseKey! },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       server_id: serverId,
-      event,
+      event: event === "boss_died" ? "boss_died" : "boss_spawning",
       boss_name: data.boss_name,
-      attendees: data.attendees,
-      spawn_time: data.spawn_time,
       guild_name: data.guild_name,
     }),
   }).catch((err) => {
     console.error("Discord notification failed:", err);
-  }); // fire-and-forget, don't block the UI
+  });
 }
 
 export interface SpawnAnnounceBoss {
   name: string;
-  spawn_time: string; // formatted time string, e.g. "03:56 PM"
-  unix_spawn_time?: number; // Unix timestamp in seconds for <t:TIMESTAMP:R> Discord formatting
-  guild_name?: string; // owning guild name
+  spawn_time: string;
+  unix_spawn_time?: number;
+  guild_name?: string;
 }
 
-/**
- * Announce bosses spawning in the next 24 hours to Discord.
- * Sends a simple text-format message with @everyone ping.
- */
 export async function announceSpawns(
   serverId: string,
   bosses: SpawnAnnounceBoss[]
 ) {
-  const { data, error } = await supabase.functions.invoke("discord-notify", {
-    body: {
-      server_id: serverId,
-      event: "spawn_announce",
-      bosses,
-    },
-  });
-  if (error) throw new Error(`Discord announce failed: ${error.message}`);
-  return data;
+  for (const boss of bosses) {
+    fetch(`${BOT_NOTIFY_URL}/notify`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        server_id: serverId,
+        event: "boss_spawning",
+        boss_name: boss.name,
+        guild_name: boss.guild_name,
+      }),
+    }).catch(() => {});
+  }
+  return { success: true };
 }
 
 /**

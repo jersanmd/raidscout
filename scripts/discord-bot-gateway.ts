@@ -183,6 +183,15 @@ async function handleMessage(msg: any) {
     }
   }
 
+  // ── ;notifhere ──────────────────────────────────────────
+  if (cmd === "notifhere") {
+    if (msg.member?.permissions && !(Number(msg.member.permissions) & 0x8)) {
+      return reply("You need the Administrator permission to set the notification channel.");
+    }
+    notifChannels.set(guildId, msg.channel_id);
+    return reply("✅ This channel will now receive boss kill, spawn, and activity notifications.");
+  }
+
   // ── ;commands ─────────────────────────────────────────
   if (cmd === "commands" || cmd === "help") {
     return replyEmbed(
@@ -198,6 +207,7 @@ async function handleMessage(msg: any) {
         { name: ";killed <boss> HH:MM today", value: "Force today's date even if the time is in the future", inline: false },
         { name: ";killed <boss> HH:MM yesterday", value: "Force yesterday's date even if the time already passed today", inline: false },
         { name: ";commands", value: "Show this help message", inline: false },
+        { name: ";notifhere", value: "Set this channel for boss kill & spawn notifications (admin only)", inline: false },
       ],
     );
   }
@@ -439,6 +449,89 @@ async function handleMessage(msg: any) {
     );
   }
 }
+
+// ── Notification Channel Registry ──────────────────────────
+const notifChannels = new Map<string, string>();
+
+// ── HTTP Server (web app → bot notifications) ─────────────
+import { createServer } from "http";
+
+const NOTIFY_PORT = parseInt(process.env.NOTIFY_PORT || "3003");
+
+createServer(async (req, res) => {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+
+  if (req.method === "OPTIONS") { res.writeHead(204); res.end(); return; }
+
+  if (req.method === "POST" && req.url === "/notify") {
+    let body = "";
+    req.on("data", c => body += c);
+    req.on("end", async () => {
+      try {
+        const { server_id, event, boss_name, guild_name, activity_name, parties } = JSON.parse(body);
+
+        let embed: any;
+        if (event === "boss_died" && boss_name) {
+          embed = {
+            title: `☠️ ${boss_name} Killed`,
+            description: guild_name ? `**${guild_name}** — ${boss_name} has been defeated.` : `${boss_name} has been defeated.`,
+            color: 0xef4444,
+            fields: [{ name: "Death Time", value: `<t:${Math.floor(Date.now() / 1000)}:f>`, inline: true }],
+            footer: { text: "Powered by RaidScout" },
+          };
+        } else if (event === "boss_spawning" && boss_name) {
+          embed = {
+            title: `⏰ ${boss_name} Spawning Soon`,
+            description: guild_name ? `**${guild_name}** — ${boss_name} spawns in 5 min.` : `${boss_name} spawns in 5 minutes.`,
+            color: 0xf59e0b,
+            footer: { text: "Powered by RaidScout" },
+          };
+        } else if (event === "parties_announced" && activity_name && parties) {
+          embed = {
+            title: `📋 ${activity_name} — Party Assignments`,
+            fields: parties.map((p: any) => ({
+              name: `Party ${p.party_number}`,
+              value: p.members?.length > 0 ? p.members.join(", ") : "No members assigned",
+              inline: false,
+            })),
+            color: 0x3b82f6,
+            footer: { text: "Powered by RaidScout" },
+          };
+        } else {
+          res.writeHead(400); res.end(JSON.stringify({ error: "Invalid event" })); return;
+        }
+
+        // Find notification channel
+        const rows = await supabaseQuery(`discord_configs?raidscout_server_id=eq.${server_id}&select=discord_guild_id`);
+        const guildId = rows?.[0]?.discord_guild_id;
+        const channelId = guildId ? notifChannels.get(guildId) : null;
+
+        if (!channelId) {
+          res.writeHead(200); res.end(JSON.stringify({ skipped: "no channel set — use ;notifhere" }));
+          return;
+        }
+
+        await fetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
+          method: "POST",
+          headers: { Authorization: `Bot ${TOKEN}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ embeds: [embed] }),
+        });
+
+        res.writeHead(200); res.end(JSON.stringify({ ok: true }));
+      } catch (err: any) {
+        console.error("Notify error:", err.message);
+        res.writeHead(500); res.end(JSON.stringify({ error: err.message }));
+      }
+    });
+    return;
+  }
+
+  res.writeHead(404); res.end("Not found");
+}).listen(NOTIFY_PORT, () => {
+  console.log(`Notify HTTP server on port ${NOTIFY_PORT}`);
+});
 
 // ── Start ──────────────────────────────────────────────────
 
