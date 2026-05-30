@@ -317,114 +317,61 @@ export function LeaderboardView() {
       }
 
       // Build Excel with SheetJS
-      const XLSX = await import("xlsx");
-
-      // Style helpers
-      const headerStyle = {
-        font: { bold: true, color: { rgb: "FFFFFF" }, sz: 11 },
-        fill: { fgColor: { rgb: "1E293B" } },
-        alignment: { horizontal: "center", vertical: "center", wrapText: true },
-        border: {
-          top: { style: "thin", color: { rgb: "475569" } },
-          bottom: { style: "thin", color: { rgb: "475569" } },
-          left: { style: "thin", color: { rgb: "475569" } },
-          right: { style: "thin", color: { rgb: "475569" } },
-        },
-      };
-      const playerHeaderColors = ["7C3AED", "059669", "D97706", "0891B2", "DB2777", "4F46E5", "E11D48", "0D9488", "EA580C", "65A30D"];
-      const cellStyle = (overrides: any = {}) => ({
-        ...headerStyle,
-        font: { bold: false, color: { rgb: "E2E8F0" }, sz: 10, ...overrides.font },
-        fill: { fgColor: { rgb: "0F172A" }, ...overrides.fill },
-        ...overrides,
-      });
-
       const numCols = 3 + sortedMembers.length;
 
-      // Build as cell objects for styling
-      const sheetData: any[][] = [];
+      // Build styled HTML table (Excel opens .xls HTML natively with full styling)
+      const playerColors = ["#7C3AED", "#059669", "#D97706", "#0891B2", "#DB2777", "#4F46E5", "#E11D48", "#0D9488", "#EA580C", "#65A30D"];
+      const playerColor = (idx: number) => playerColors[idx % playerColors.length];
+      const darkBg = "#1E293B";
+      const darkerBg = "#0F172A";
 
-      // Row 0: Player name headers
-      const r0: any[] = [];
-      for (let c = 0; c < numCols; c++) {
-        if (c < 3) {
-          r0.push({ v: "", s: { ...headerStyle, fill: { fgColor: { rgb: "0F172A" } } } });
-        } else {
-          const midx = c - 3;
-          const colorIdx = midx % playerHeaderColors.length;
-          r0.push({
-            v: sortedMembers[midx] ? memberMap.get(sortedMembers[midx])?.name || "?" : "",
-            s: {
-              ...headerStyle,
-              font: { bold: true, color: { rgb: "FFFFFF" }, sz: 10 },
-              fill: { fgColor: { rgb: playerHeaderColors[colorIdx] } },
-            },
-          });
-        }
-      }
-      sheetData.push(r0);
+      let html = `<html><head><meta charset="utf-8"><style>
+        table { border-collapse: collapse; font-family: -apple-system, sans-serif; font-size: 11px; }
+        th, td { padding: 6px 10px; border: 1px solid #334155; text-align: center; }
+        .hdr { background: ${darkBg}; color: #fff; font-weight: bold; }
+        .boss { font-weight: bold; color: #F87171; text-align: left; }
+        .dt { text-align: center; }
+        .even { background: ${darkBg}; }
+        .odd { background: ${darkerBg}; }
+        .pts-yes { font-weight: bold; color: #FBBF24; }
+        .pts-no { color: #475569; }
+</style></head><body><table>`;
 
-      // Row 1: Labels + totals
-      const r1: any[] = [
-        { v: "P", s: headerStyle },
-        { v: "Date & Time", s: headerStyle },
-        { v: "Boss", s: headerStyle },
-      ];
-      for (let c = 3; c < numCols; c++) {
-        const midx = c - 3;
-        const total = memberTotals.get(sortedMembers[midx]) || 0;
-        const colorIdx = midx % playerHeaderColors.length;
-        r1.push({
-          v: total,
-          s: {
-            ...headerStyle,
-            font: { bold: true, color: { rgb: "FFFFFF" }, sz: 12 },
-            fill: { fgColor: { rgb: playerHeaderColors[colorIdx] } },
-            numFmt: "0",
-          },
-        });
-      }
-      sheetData.push(r1);
+      // Row 1: Player names
+      html += `<tr><th class="hdr"></th><th class="hdr"></th><th class="hdr"></th>`;
+      sortedMembers.forEach((mid, i) => {
+        html += `<th class="hdr" style="background:${playerColor(i)}">${memberMap.get(mid)?.name || "?"}</th>`;
+      });
+      html += `</tr>`;
+
+      // Row 2: Labels + totals
+      html += `<tr><th class="hdr">P</th><th class="hdr">Date & Time</th><th class="hdr">Boss</th>`;
+      sortedMembers.forEach((mid, i) => {
+        html += `<th class="hdr" style="background:${playerColor(i)};font-size:14px">${memberTotals.get(mid) || 0}</th>`;
+      });
+      html += `</tr>`;
 
       // Data rows
       for (let ri = 0; ri < dataRows.length; ri++) {
         const row = dataRows[ri];
-        const isEven = ri % 2 === 0;
-        const bgColor = isEven ? "1E293B" : "0F172A";
-        const styledRow: any[] = [
-          { v: row[0], s: { ...cellStyle({ fill: { fgColor: { rgb: bgColor } }, alignment: { horizontal: "center" } }), numFmt: "0" } },
-          { v: row[1], s: cellStyle({ fill: { fgColor: { rgb: bgColor } }, alignment: { horizontal: "center" } }) },
-          { v: row[2], s: { ...cellStyle({ fill: { fgColor: { rgb: bgColor } } }), font: { bold: true, color: { rgb: "F87171" }, sz: 10 } } },
-        ];
+        const cls = ri % 2 === 0 ? "even" : "odd";
+        html += `<tr><td class="${cls}">${row[0]}</td><td class="dt ${cls}">${row[1]}</td><td class="boss ${cls}">${row[2]}</td>`;
         for (let c = 3; c < numCols; c++) {
           const val = row[c] || 0;
-          styledRow.push({
-            v: val,
-            s: {
-              ...cellStyle({ fill: { fgColor: { rgb: bgColor } }, alignment: { horizontal: "center" } }),
-              numFmt: "0",
-              font: { bold: val > 0, color: { rgb: val > 0 ? "FBBF24" : "475569" }, sz: 10 },
-            },
-          });
+          html += `<td class="${cls} ${val > 0 ? 'pts-yes' : 'pts-no'}">${val}</td>`;
         }
-        sheetData.push(styledRow);
+        html += `</tr>`;
       }
 
-      // Create worksheet with styles using sheet_add_aoa
-      const ws: any = {};
-      XLSX.utils.sheet_add_aoa(ws, sheetData, { origin: "A1" });
+      html += `</table></body></html>`;
 
-      ws["!cols"] = [
-        { wch: 4 },  // P
-        { wch: 18 }, // Date & Time
-        { wch: 20 }, // Boss name
-        ...sortedMembers.map(() => ({ wch: 14 })), // Player columns
-      ];
-
-      const wb = XLSX.utils.book_new();
-      wb.SheetNames.push("Attendance");
-      wb.Sheets["Attendance"] = ws;
-      XLSX.writeFile(wb, `attendance-${exportStartDate}_to_${exportEndDate}.xlsx`, { cellStyles: true, bookType: "xlsx" });
+      const blob = new Blob([html], { type: "application/vnd.ms-excel;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `attendance-${exportStartDate}_to_${exportEndDate}.xls`;
+      a.click();
+      URL.revokeObjectURL(url);
     } catch (err) {
       console.error("Export failed:", err);
       alert("Export failed. Check console for details.");
