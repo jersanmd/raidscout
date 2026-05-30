@@ -330,13 +330,14 @@ export function LeaderboardView() {
         th, td { padding: 6px 10px; border: 1px solid #334155; text-align: center; }
         .hdr { background: ${darkBg}; color: #fff; font-weight: bold; }
         .boss { font-weight: bold; color: #F87171; text-align: left; }
-        .dt { text-align: center; }
-        .even { background: ${darkBg}; }
-        .odd { background: ${darkerBg}; }
+        .dt { text-align: center; color: #E2E8F0; }
+        .even { background: ${darkBg}; color: #E2E8F0; }
+        .odd { background: ${darkerBg}; color: #E2E8F0; }
         .pts-yes { font-weight: bold; color: #FBBF24; }
         .pts-no { color: #475569; }
         .shdr { background: #1E293B; color: #94A3B8; font-weight: bold; }
         .rnk { text-align: center; color: #94A3B8; }
+        .nm { color: #E2E8F0; text-align: left; }
 </style></head><body><table>`;
 
       // Row 1: Player names
@@ -373,12 +374,12 @@ export function LeaderboardView() {
         .filter(([, pts]) => pts > 0);
 
       let rankHtml = `<table style="width:100%"><tr><th class="hdr" colspan="3" style="background:#7C3AED">🏆 Ranking</th></tr>`;
-      rankHtml += `<tr class="shdr"><td class="rnk">#</td><td class="nm" style="text-align:left">Player</td><td class="num">Points</td></tr>`;
+      rankHtml += `<tr class="shdr"><td class="rnk">#</td><td class="nm">Player</td><td class="num">Points</td></tr>`;
       sortedRanking.forEach(([mid, pts], i) => {
-        const cls = i % 2 === 0 ? "odd" : "even";
+        const cls = i % 2 === 0 ? "even" : "odd";
         const name = memberMap.get(mid)?.name || "?";
         const medal = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i + 1}`;
-        rankHtml += `<tr class="${cls}"><td class="rnk">${medal}</td><td class="nm" style="text-align:left">${name}</td><td class="num">${pts}</td></tr>`;
+        rankHtml += `<tr class="${cls}"><td class="rnk">${medal}</td><td class="nm">${name}</td><td class="num">${pts}</td></tr>`;
       });
       rankHtml += `</table>`;
 
