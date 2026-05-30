@@ -416,6 +416,9 @@ async function handleMessage(msg: any) {
     const upcoming: { name: string; time: string; unix: number; guild: string }[] = [];
 
     const bossGuilds = await supabaseQuery(`boss_guilds?select=boss_id,guild_id,sort_order,day_of_week,mode`);
+    // Filter to only this server's guilds (boss_guilds has no server_id column)
+    const serverGuildIds = new Set(guilds.map((g: any) => g.id));
+    const serverBossGuilds = bossGuilds.filter((bg: any) => serverGuildIds.has(bg.guild_id));
     for (const boss of bosses) {
       if (filter && !boss.name.toLowerCase().includes(filter.toLowerCase())) continue;
 
@@ -469,7 +472,7 @@ async function handleMessage(msg: any) {
 
       if (spawn.getTime() <= cutoff.getTime()) {
         // Compute owner guild (matches web app rotation.ts logic)
-        const bgs = bossGuilds.filter((bg: any) => bg.boss_id === boss.id);
+        const bgs = serverBossGuilds.filter((bg: any) => bg.boss_id === boss.id);
         let gName = "";
         if (bgs.length > 0) {
           const dow = spawn.getDay();
