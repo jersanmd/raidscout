@@ -331,27 +331,31 @@ export function LeaderboardView() {
         memberTotals.set(memberId, total);
       }
 
-      // Build TSV
-      const SEP = "\t";
-      // Header row 1: player names
-      const header1 = [SEP, SEP, ...sortedMembers.map(mid => memberMap.get(mid)?.name || "?")].join(SEP);
-      // Header row 2: "total" under each player
-      const header2 = [SEP, SEP, ...sortedMembers.map(mid => String(memberTotals.get(mid) || 0))].join(SEP);
-      // Data rows: boss name, points per player
-      const rows = sortedBosses.map(bossId => {
+      // Build Excel workbook with SheetJS
+      const XLSX = await import("xlsx");
+
+      // Build data matrix
+      const headerRow1: (string | number)[] = ["", "", ...sortedMembers.map(mid => memberMap.get(mid)?.name || "?")];
+      const headerRow2: (string | number)[] = ["Boss", "Points", ...sortedMembers.map(mid => memberTotals.get(mid) || 0)];
+      const dataRows = sortedBosses.map(bossId => {
         const boss = bossMap.get(bossId);
         const mmap = pivot.get(bossId) || new Map();
-        return [boss?.name || "?", String(boss?.points || 0), ...sortedMembers.map(mid => String(mmap.get(mid) || 0))].join(SEP);
+        return [boss?.name || "?", boss?.points || 0, ...sortedMembers.map(mid => mmap.get(mid) || 0)];
       });
 
-      const csv = [header1, header2, ...rows].join("\n");
-      const blob = new Blob([csv], { type: "text/tab-separated-values;charset=utf-8" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `attendance-${exportStartDate}_to_${exportEndDate}.tsv`;
-      a.click();
-      URL.revokeObjectURL(url);
+      const sheetData: any[][] = [headerRow1, headerRow2, ...dataRows];
+      const ws = XLSX.utils.aoa_to_sheet(sheetData);
+
+      // Set column widths
+      ws["!cols"] = [
+        { wch: 20 }, // Boss name
+        { wch: 8 },  // Points
+        ...sortedMembers.map(() => ({ wch: 12 })), // Player columns
+      ];
+
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Attendance");
+      XLSX.writeFile(wb, `attendance-${exportStartDate}_to_${exportEndDate}.xlsx`);
     } catch (err) {
       console.error("Export failed:", err);
       alert("Export failed. Check console for details.");
@@ -604,11 +608,11 @@ export function LeaderboardView() {
                 className="px-3 py-1.5 rounded-lg text-xs font-medium bg-amber-600 text-white hover:bg-amber-500 transition disabled:opacity-50 flex items-center gap-1.5"
               >
                 {exportLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
-                Export TSV
+                Export Excel
               </button>
             </div>
             <p className="text-[10px] text-slate-600">
-              Exports a pivot table: rows = bosses, columns = players, cells = total points. Opens as a spreadsheet.
+              Exports a pivot table: rows = bosses, columns = players, cells = total points. Opens in Excel / Google Sheets.
             </p>
           </div>
           )}
