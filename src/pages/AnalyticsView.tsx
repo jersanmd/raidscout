@@ -5,7 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useServerId } from "@/contexts/ServerContext";
 import { guildColor } from "@/lib/constants";
 import type { Guild, Member } from "@/types";
-import { BarChart3, TrendingUp, Users, Skull, Activity, Loader2, Shield } from "lucide-react";
+import { BarChart3, TrendingUp, Users, Skull, Activity, Loader2, Shield, Download } from "lucide-react";
 import { useServerTimezone } from "@/hooks/useServerTimezone";
 
 interface AnalyticsUIData {
@@ -106,6 +106,88 @@ export function AnalyticsView() {
     enabled: configured && !!serverId,
   });
 
+  const [exportLoading, setExportLoading] = useState(false);
+
+  const handleExportAnalytics = () => {
+    if (!data) return;
+    setExportLoading(true);
+    try {
+      const periodLabel = period === "week" ? "This Week" : period === "month" ? "This Month" : "All Time";
+      const memberGuildMap = new Map(members.map(m => [m.name, m.guild_id]));
+
+      let c1 = "", c2 = "", c3 = "", c4 = "";
+
+      if (data.killsByWeek.length > 0) {
+        c1 += `<table><tr><th class="hdr" colspan="2">Kills per Week</th></tr><tr class="shdr"><td>Week</td><td style="text-align:center">Kills</td></tr>`;
+        data.killsByWeek.slice(-12).reverse().forEach((w, i) => {
+          c1 += `<tr class="${i % 2 === 0 ? "e" : "o"}"><td class="nm">${w.week}</td><td class="num">${w.count}</td></tr>`;
+        });
+        c1 += `</table>`;
+      }
+
+      c2 += `<table><tr><th class="hdr" colspan="2">Activity by Day</th></tr><tr class="shdr"><td>Day</td><td style="text-align:center">Kills</td></tr>`;
+      data.killsByDay.forEach((d, i) => {
+        c2 += `<tr class="${i % 2 === 0 ? "e" : "o"}"><td class="nm">${d.day}</td><td class="num">${d.count}</td></tr>`;
+      });
+      c2 += `</table>`;
+
+      c3 += `<table><tr><th class="hdr" colspan="3">Most Killed Bosses</th></tr><tr class="shdr"><td>#</td><td>Boss</td><td style="text-align:center">Kills</td></tr>`;
+      data.topBosses.forEach((b, i) => {
+        c3 += `<tr class="${i % 2 === 0 ? "e" : "o"}"><td class="rnk">${i + 1}</td><td class="nm">${b.name}</td><td class="num">${b.kills}</td></tr>`;
+      });
+      c3 += `</table>`;
+
+      c4 += `<table><tr><th class="hdr" colspan="4">Most Active Hunters</th></tr><tr class="shdr"><td>#</td><td>Player</td><td>Guild</td><td style="text-align:center">Att</td></tr>`;
+      data.topHunters.forEach((h, i) => {
+        const gid = memberGuildMap.get(h.name);
+        const guild = gid ? guilds.find(g => g.id === gid) : null;
+        c4 += `<tr class="${i % 2 === 0 ? "e" : "o"}"><td class="rnk">${i + 1}</td><td class="nm">${h.name}</td><td class="gld">${guild?.name || ""}</td><td class="num">${h.attended}</td></tr>`;
+      });
+      c4 += `</table>`;
+
+      const html = `<html><head><meta charset="utf-8"><style>
+        body { background: #0F172A; font-family: -apple-system, sans-serif; padding: 16px; }
+        .title { color: #F8FAFC; font-size: 18px; font-weight: bold; margin-bottom: 4px; }
+        .subtitle { color: #64748B; font-size: 12px; margin-bottom: 16px; }
+        table { border-collapse: collapse; width: 100%; margin-bottom: 0; }
+        th, td { padding: 6px 10px; border: 1px solid #334155; font-size: 11px; }
+        .hdr { background: #7C3AED; color: #fff; font-weight: bold; text-align: left; }
+        .shdr { background: #1E293B; color: #94A3B8; font-weight: bold; }
+        .e { background: #1E293B; color: #E2E8F0; }
+        .o { background: #0F172A; color: #E2E8F0; }
+        .num { text-align: center; font-weight: bold; color: #FBBF24; }
+        .rnk { text-align: center; color: #64748B; width: 30px; }
+        .nm { color: #E2E8F0; }
+        .gld { color: #94A3B8; font-size: 10px; }
+        .sum { background: #1E293B; }
+        .sval { text-align: center; font-weight: bold; font-size: 20px; }
+        .slbl { color: #94A3B8; text-align: center; font-size: 10px; padding-top: 2px; }
+</style></head><body>
+<div class="title">RaidScout Analytics</div>
+<div class="subtitle">${periodLabel} · ${new Date().toLocaleDateString()}</div>
+<table><tr>
+  <td class="sum" style="width:33%"><div class="sval" style="color:#F87171">${data.totalKills}</div><div class="slbl">Total Kills</div></td>
+  <td class="sum" style="width:33%"><div class="sval" style="color:#60A5FA">${data.activeMembers}</div><div class="slbl">Active Members</div></td>
+  <td class="sum" style="width:33%"><div class="sval" style="color:#FBBF24">${data.totalAttendance}</div><div class="slbl">Attendances</div></td>
+</tr></table>
+<table><tr>
+  <td style="width:25%;vertical-align:top;padding:0 6px 0 0">${c1}</td>
+  <td style="width:25%;vertical-align:top;padding:0 6px">${c2}</td>
+  <td style="width:25%;vertical-align:top;padding:0 6px">${c3}</td>
+  <td style="width:25%;vertical-align:top;padding:0 0 0 6px">${c4}</td>
+</tr></table></body></html>`;
+
+      const blob = new Blob([html], { type: "application/vnd.ms-excel;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `analytics-${period}-${new Date().toISOString().slice(0,10)}.xls`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) { console.error("Export failed:", err); alert("Export failed."); }
+    finally { setExportLoading(false); }
+  };
+
   if (isLoading || !data) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -141,6 +223,16 @@ export function AnalyticsView() {
             </button>
           ))}
         </div>
+        {!isViewer && (
+        <button
+          onClick={handleExportAnalytics}
+          disabled={exportLoading}
+          className="flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-medium bg-purple-600 text-white hover:bg-purple-500 transition disabled:opacity-50"
+        >
+          {exportLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Download className="w-3 h-3" />}
+          Export
+        </button>
+        )}
       </div>
 
       <div className="grid grid-cols-3 gap-3">
