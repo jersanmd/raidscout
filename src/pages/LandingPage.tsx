@@ -356,7 +356,7 @@ export function LandingPage() {
               { cmd: "... 14:30 yesterday", desc: "Force yesterday's date", detail: "Add `yesterday` to always record on yesterday's date" },
               { cmd: "!list", desc: "See all boss names", detail: "Numbered list with respawn hours and spawn type" },
               { cmd: "!commands", desc: "Show all available commands", detail: "Quick reference for your members" },
-              { cmd: "!notifhere", desc: "Set notification channel (admin only)", detail: "Run in your announcements channel to receive boss kill and spawn alerts" },
+              { cmd: "!notifhere", desc: "Set notification channel", detail: "Run in your announcements channel to receive boss kill and spawn alerts" },
             ].map((c, i) => (
               <div key={c.cmd} className="flex items-start gap-4 px-5 py-4 hover:bg-slate-800/30 transition">
                 <code className="shrink-0 mt-0.5 px-2.5 py-1 rounded-md bg-indigo-900/40 border border-indigo-500/20 text-indigo-300 font-mono text-sm">{c.cmd}</code>

@@ -271,9 +271,6 @@ async function handleMessage(msg: any) {
 
   // ── notifhere ────────────────────────────────────────
   if (cmd === "notifhere") {
-    if (msg.member?.permissions && !(Number(msg.member.permissions) & 0x8)) {
-      return reply("You need the Administrator permission to set the notification channel.");
-    }
     const serverId = await resolveServerId(guildId, matchedPrefix);
     if (!serverId) return reply("⚠️ This Discord server is not linked to RaidScout. An admin needs to go to **Server Settings → Integrations** on the RaidScout web app and link this Discord server.");
     notifChannels.set(serverId, msg.channel_id);
@@ -315,7 +312,7 @@ async function handleMessage(msg: any) {
         { name: `${p}killed <boss> HH:MM today`, value: "Force today's date even if the time is in the future", inline: false },
         { name: `${p}killed <boss> HH:MM yesterday`, value: "Force yesterday's date even if the time already passed today", inline: false },
         { name: `${p}commands`, value: "Show this help message", inline: false },
-        { name: `${p}notifhere`, value: "Set this channel for boss kill & spawn notifications (admin only)", inline: false },
+        { name: `${p}notifhere`, value: "Set this channel for boss kill & spawn notifications", inline: false },
       ],
     );
   }
