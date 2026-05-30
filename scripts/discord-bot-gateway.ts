@@ -663,6 +663,7 @@ const notifChannels = new Map<string, string>();
 
 // Track last !nextspawn embed per channel for live underline on kill
 const lastSpawnMsg = new Map<string, { msgId: string; serverId: string }>();
+const sentNotifs = new Map<string, number>(); // dedup: "serverId-event-bossName" → timestamp
 
 // ── HTTP Server (web app → bot notifications) ─────────────
 import { createServer } from "http";
@@ -682,6 +683,18 @@ createServer(async (req, res) => {
     req.on("end", async () => {
       try {
         const { server_id, event, boss_name, guild_name, activity_name, parties } = JSON.parse(body);
+
+        // Dedup: skip duplicate notifs within 30s
+        if (boss_name && (event === "boss_spawning" || event === "boss_spawned")) {
+          const dedupKey = `${server_id}-${event}-${boss_name}`;
+          const now = Date.now();
+          const last = sentNotifs.get(dedupKey);
+          if (last && now - last < 30_000) {
+            res.writeHead(200); res.end(JSON.stringify({ skipped: "dedup" }));
+            return;
+          }
+          sentNotifs.set(dedupKey, now);
+        }
 
         let embed: any;
         if (event === "boss_died" && boss_name) {
