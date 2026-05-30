@@ -34,6 +34,8 @@ import { getOwnerGuildName, getRotationInfo } from "@/lib/rotation";
 import { Skull, Loader2, X, CheckCircle, AlertTriangle, CheckSquare, Megaphone, Volume2, Eye, Copy } from "lucide-react";
 import type { BossWithSpawn, BossGuild, Guild, DeathRecord } from "@/types";
 
+const sentAlerts = new Set<string>();
+
 export function BossListView() {
   const { user, isViewer, viewerCanEdit: ctxViewerCanEdit, viewerCanMarkDied: ctxViewerCanMarkDied, viewerDiscordWebhookUrl: ctxDiscordWebhookUrl } = useAuth();
   const { currentServer } = useServer();
@@ -657,16 +659,23 @@ export function BossListView() {
                     ownerGuildName={ownerGuildName(s.boss.id)}
                     onUrgentSpawn={(name) => {
                       emitSpawnAlert(name);
-                      // Also notify Discord (fire-and-forget)
-                      const sid = getCurrentServerId();
-                      if (sid) notifyDiscord(sid, "boss_spawned", { boss_name: name, guild_name: ownerGuildName(s.boss.id) });
+                      const key = `urgent-${name}`;
+                      if (!sentAlerts.has(key)) {
+                        sentAlerts.add(key);
+                        const sid = getCurrentServerId();
+                        if (sid) notifyDiscord(sid, "boss_spawned", { boss_name: name, guild_name: ownerGuildName(s.boss.id) });
+                      }
                     }}
                     onCriticalSpawn={(name) => {
                       emitSpawnAlert(`⚠️ ${name} spawning in 5s!`);
                     }}
                     onSpawned={(name) => {
-                      const sid = getCurrentServerId();
-                      if (sid) notifyDiscord(sid, "boss_spawned", { boss_name: name, guild_name: ownerGuildName(s.boss.id) });
+                      const key = `spawned-${name}`;
+                      if (!sentAlerts.has(key)) {
+                        sentAlerts.add(key);
+                        const sid = getCurrentServerId();
+                        if (sid) notifyDiscord(sid, "boss_spawned", { boss_name: name, guild_name: ownerGuildName(s.boss.id) });
+                      }
                     }}
                     rotationGuilds={rot?.guilds}
                     rotationCurrentIndex={rot?.currentIndex}
