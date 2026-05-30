@@ -288,68 +288,70 @@ export function LeaderboardView() {
           : allMembers.filter((m: any) => m.guild_id === exportGuildFilter).map((m: any) => m.id)
       );
 
-      // Build pivot: boss_id → member_id → total_points
-      const pivot: Map<string, Map<string, number>> = new Map();
-      const deathBossMap = new Map(deaths.map((d: any) => [d.id, d.boss_id]));
-      const attendedMembers = new Set<string>();
+      // Build per-death attendance: death_id → Set<member_id>
+      const deathBossMap = new Map(deaths.map((d: any) => [d.id, d]));
+      const deathAttendees = new Map<string, Set<string>>();
+      const allAttendedMembers = new Set<string>();
 
       for (const att of allAtt) {
         if (!guildMemberIds.has(att.member_id)) continue;
-        const bossId = deathBossMap.get(att.death_record_id);
-        if (!bossId) continue;
-        const boss = bossMap.get(bossId);
-        if (!boss) continue;
-        const points = boss.points || 0;
-
-        if (!pivot.has(bossId)) pivot.set(bossId, new Map());
-        const memberMap2 = pivot.get(bossId)!;
-        memberMap2.set(att.member_id, (memberMap2.get(att.member_id) || 0) + points);
-        attendedMembers.add(att.member_id);
+        if (!deathBossMap.has(att.death_record_id)) continue;
+        if (!deathAttendees.has(att.death_record_id)) deathAttendees.set(att.death_record_id, new Set());
+        deathAttendees.get(att.death_record_id)!.add(att.member_id);
+        allAttendedMembers.add(att.member_id);
       }
-
-      // Sort bosses by death time (first occurrence)
-      const bossOrder = new Map<string, number>();
-      for (const d of deaths) {
-        if (!bossOrder.has(d.boss_id)) bossOrder.set(d.boss_id, bossOrder.size);
-      }
-      const sortedBosses = [...pivot.keys()].sort((a, b) => (bossOrder.get(a) ?? 99) - (bossOrder.get(b) ?? 99));
 
       // Sort members alphabetically
-      const sortedMembers = [...attendedMembers].sort((a, b) => {
+      const sortedMembers = [...allAttendedMembers].sort((a, b) => {
         const ma = memberMap.get(a);
         const mb = memberMap.get(b);
         return (ma?.name || "").localeCompare(mb?.name || "");
       });
 
-      // Compute totals
+      // Compute player totals
       const memberTotals = new Map<string, number>();
-      for (const memberId of sortedMembers) {
-        let total = 0;
-        for (const [bossId, mmap] of pivot) {
-          total += mmap.get(memberId) || 0;
+      for (const [deathId, memberSet] of deathAttendees) {
+        const death = deathBossMap.get(deathId);
+        const boss = bossMap.get(death?.boss_id);
+        const pts = boss?.points || 0;
+        for (const mid of memberSet) {
+          memberTotals.set(mid, (memberTotals.get(mid) || 0) + pts);
         }
-        memberTotals.set(memberId, total);
       }
 
-      // Build Excel workbook with SheetJS
+      // Build Excel with SheetJS
       const XLSX = await import("xlsx");
 
-      // Build data matrix
-      const headerRow1: (string | number)[] = ["", "", ...sortedMembers.map(mid => memberMap.get(mid)?.name || "?")];
-      const headerRow2: (string | number)[] = ["Boss", "Points", ...sortedMembers.map(mid => memberTotals.get(mid) || 0)];
-      const dataRows = sortedBosses.map(bossId => {
-        const boss = bossMap.get(bossId);
-        const mmap = pivot.get(bossId) || new Map();
-        return [boss?.name || "?", boss?.points || 0, ...sortedMembers.map(mid => mmap.get(mid) || 0)];
-      });
+      // Header rows
+      const headerRow1: any[] = ["", "", ...sortedMembers.map(mid => memberMap.get(mid)?.name || "?")];
+      const headerRow2: any[] = ["Boss", "Date & Time", ...sortedMembers.map(mid => memberTotals.get(mid) || 0)];
 
-      const sheetData: any[][] = [headerRow1, headerRow2, ...dataRows];
+      // Data rows: one per death
+      const dataRows: any[][] = [];
+      const timeFmt = new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+      for (const death of deaths) {
+        const attendees = deathAttendees.get(death.id);
+        if (!attendees || attendees.size === 0) continue; // skip deaths with no attendance matching guild filter
+        const boss = bossMap.get(death.boss_id);
+        const row: any[] = [
+          boss?.name || "?",
+          timeFmt.format(new Date(death.death_time)),
+        ];
+        for (const mid of sortedMembers) {
+          row.push(attendees.has(mid) ? (boss?.points || 0) : 0);
+        }
+        dataRows.push(row);
+      }
+
+      // Totals row
+      const totalsRow: any[] = ["TOTAL", "", ...sortedMembers.map(mid => memberTotals.get(mid) || 0)];
+
+      const sheetData = [headerRow1, headerRow2, ...dataRows, totalsRow];
       const ws = XLSX.utils.aoa_to_sheet(sheetData);
 
-      // Set column widths
       ws["!cols"] = [
         { wch: 20 }, // Boss name
-        { wch: 8 },  // Points
+        { wch: 18 }, // Date & Time
         ...sortedMembers.map(() => ({ wch: 12 })), // Player columns
       ];
 
