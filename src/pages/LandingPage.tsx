@@ -14,10 +14,10 @@ const features = [
   { icon: <Shield className="w-6 h-6" />, color: "border-blue-500/30 bg-blue-500/5", title: "Multi-Guild Rotation", desc: "Assign bosses to guilds. Per-kill or daily rotation. Weighted turns, Guild A gets 2, Guild B gets 1." },
   { icon: <BarChart3 className="w-6 h-6" />, color: "border-purple-500/30 bg-purple-500/5", title: "Leaderboard & Points", desc: "Configurable points per boss. Weekly, monthly, and all-time rankings. Finalize and snapshot results." },
   { icon: <Sparkles className="w-6 h-6" />, color: "border-violet-500/30 bg-violet-500/5", title: "AI Rally Scanning", desc: "Upload a rally screenshot and AI auto-detects player names. No manual typing." },
-  { icon: <MessageSquare className="w-6 h-6" />, color: "border-emerald-500/30 bg-emerald-500/5", title: "Discord Alerts", desc: "Auto-post boss kills, spawn alerts (5 min before), and spawn confirmations to your Discord server. Choose your own command prefix." },
+  { icon: <MessageSquare className="w-6 h-6" />, color: "border-emerald-500/30 bg-emerald-500/5", title: "Discord Alerts", desc: "Auto-post boss kills, 5-min spawn warnings, and spawn confirmations to your Discord server. Any member can set up with one command." },
   { icon: <Calendar className="w-6 h-6" />, color: "border-cyan-500/30 bg-cyan-500/5", title: "Weekly Schedule", desc: "Full week grid. See which guild owns which boss on every day. Click to manage." },
   { icon: <Skull className="w-6 h-6" />, color: "border-red-500/30 bg-red-500/5", title: "Death History", desc: "Complete kill log with guild badges. Attendance tracking per kill. Edit or delete entries." },
-  { icon: <Bot className="w-6 h-6" />, color: "border-indigo-500/30 bg-indigo-500/5", title: "Discord Bot Commands", desc: "Manage bosses without opening the site. Use commands like !killed, !nextspawn, and !list — all from your Discord server (prefix is customizable)." },
+  { icon: <Bot className="w-6 h-6" />, color: "border-indigo-500/30 bg-indigo-500/5", title: "Discord Bot Commands", desc: "Track multiple servers from one Discord. Each gets its own prefix (!, ;, $, etc). Export attendance and analytics to Excel." },
   { icon: <Eye className="w-6 h-6" />, color: "border-orange-500/30 bg-orange-500/5", glow: "hover:shadow-[0_0_30px_rgba(249,115,22,0.15)]", title: "Viewer Mode", desc: "Share a link so your members can watch timers, no account or login required. Read-only, always free." },
 ];
 
@@ -343,7 +343,7 @@ export function LandingPage() {
             <Bot className="w-3.5 h-3.5" /> DISCORD BOT
           </div>
           <h2 className="text-3xl font-bold">Control RaidScout from Discord</h2>
-          <p className="text-slate-400 mt-2 text-sm">Invite the bot to your server. Each RaidScout server gets its own command prefix (e.g. <code className="bg-slate-800 px-1 rounded text-amber-400">!</code> or <code className="bg-slate-800 px-1 rounded text-amber-400">;</code>).</p>
+          <p className="text-slate-400 mt-2 text-sm">Invite the bot and set a notification channel with <code className="bg-slate-800 px-1 rounded text-amber-400">!notifhere</code>. Multiple RaidScout servers in one Discord? Give each its own prefix.</p>
         </div>
         <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
           <div className="divide-y divide-slate-800">
@@ -368,6 +368,7 @@ export function LandingPage() {
             ))}
           </div>
         </div>
+        <p className="text-xs text-slate-600 text-center mt-4">💡 Also on the web: export attendance and analytics to Excel with styled tables and rankings.</p>
       </section>
 
       {/* ── Screenshot Showcase ── */}
