@@ -324,18 +324,18 @@ export function LeaderboardView() {
 
       // Header rows
       const headerRow1: any[] = ["", "", ...sortedMembers.map(mid => memberMap.get(mid)?.name || "?")];
-      const headerRow2: any[] = ["Boss", "Date & Time", ...sortedMembers.map(mid => memberTotals.get(mid) || 0)];
+      const headerRow2: any[] = ["Date & Time", "Boss", ...sortedMembers.map(mid => memberTotals.get(mid) || 0)];
 
       // Data rows: one per death
       const dataRows: any[][] = [];
       const timeFmt = new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
       for (const death of deaths) {
         const attendees = deathAttendees.get(death.id);
-        if (!attendees || attendees.size === 0) continue; // skip deaths with no attendance matching guild filter
+        if (!attendees || attendees.size === 0) continue;
         const boss = bossMap.get(death.boss_id);
         const row: any[] = [
-          boss?.name || "?",
           timeFmt.format(new Date(death.death_time)),
+          boss?.name || "?",
         ];
         for (const mid of sortedMembers) {
           row.push(attendees.has(mid) ? (boss?.points || 0) : 0);
@@ -344,14 +344,14 @@ export function LeaderboardView() {
       }
 
       // Totals row
-      const totalsRow: any[] = ["TOTAL", "", ...sortedMembers.map(mid => memberTotals.get(mid) || 0)];
+      const totalsRow: any[] = ["", "TOTAL", ...sortedMembers.map(mid => memberTotals.get(mid) || 0)];
 
       const sheetData = [headerRow1, headerRow2, ...dataRows, totalsRow];
       const ws = XLSX.utils.aoa_to_sheet(sheetData);
 
       ws["!cols"] = [
-        { wch: 20 }, // Boss name
         { wch: 18 }, // Date & Time
+        { wch: 20 }, // Boss name
         ...sortedMembers.map(() => ({ wch: 12 })), // Player columns
       ];
 
