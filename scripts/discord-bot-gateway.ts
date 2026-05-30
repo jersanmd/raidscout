@@ -73,6 +73,11 @@ async function resolveServerTimezone(serverId: string): Promise<string> {
   return rows?.[0]?.timezone || "UTC";
 }
 
+async function getNotifyPrefix(serverId: string): Promise<string> {
+  const rows = await supabaseQuery(`servers?select=notification_prefix&id=eq.${serverId}`);
+  return rows?.[0]?.notification_prefix || "";
+}
+
 // ── Spawn helpers ──────────────────────────────────────────
 
 function addHours(d: Date, h: number) { return new Date(d.getTime() + h * 3600_000); }
@@ -605,10 +610,12 @@ async function handleMessage(msg: any) {
     const notifChannelId = notifChannels.get(serverId);
     if (notifChannelId && notifChannelId !== channelId) {
       const killUnix = Math.floor(deathTime.getTime() / 1000);
+      const notifyPrefix = await getNotifyPrefix(serverId);
       fetch(`https://discord.com/api/v10/channels/${notifChannelId}/messages`, {
         method: "POST",
         headers: { Authorization: `Bot ${TOKEN}`, "Content-Type": "application/json" },
         body: JSON.stringify({
+          content: notifyPrefix || undefined,
           embeds: [{
             title: `☠️ ${boss.name} Killed`,
             description: guildName ? `**${guildName}** — ${boss.name} has been defeated.` : `${boss.name} has been defeated.`,
@@ -616,6 +623,7 @@ async function handleMessage(msg: any) {
             fields: [{ name: "Death Time", value: `<t:${killUnix}:f>`, inline: true }, { name: "Recorded By", value: author, inline: true }],
             footer: { text: "Powered by RaidScout" },
           }],
+          allowed_mentions: { parse: ["everyone"] },
         }),
       }).catch(() => {});
     }
@@ -707,10 +715,11 @@ createServer(async (req, res) => {
           return;
         }
 
+        const prefix = await getNotifyPrefix(server_id);
         await fetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
           method: "POST",
           headers: { Authorization: `Bot ${TOKEN}`, "Content-Type": "application/json" },
-          body: JSON.stringify({ embeds: [embed] }),
+          body: JSON.stringify({ content: prefix || undefined, embeds: [embed], allowed_mentions: { parse: ["everyone"] } }),
         });
 
         res.writeHead(200); res.end(JSON.stringify({ ok: true }));
