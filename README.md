@@ -69,7 +69,6 @@ Every boss spawn and kill is posted to Discord automatically:
 - **Smart dedup** — Each boss sends exactly one 5-min warning and one spawn alert, even with multiple browser tabs
 - **Rich embeds** — Boss name, guild badge, timestamps, and "Powered by RaidScout" branding
 - **@everyone pings** — Configurable notification prefix per server
-- **Live underline** — Kills automatically underline the boss name in the last spawn list message
 
 ### 🤖 Discord Bot Commands
 
@@ -80,7 +79,7 @@ and responds to prefix commands:
 |---------|---------|-------------|
 | `!spawn` | `!spawn` | List all bosses spawning in the next 24 hours, with guild badges and precise countdowns (`in 3h 15m`) |
 | `!spawn <boss>` | `!spawn Venatus` | Check spawn time for a specific boss |
-| `!kill <boss>` | `!kill Venatus` | Record a kill right now — underlines the boss in the last spawn message |
+| `!kill <boss>` | `!kill Venatus` | Record a kill right now |
 | `!kill <boss> HH:MM` | `!kill Venatus 13:05` | Record a kill at a specific time (server timezone-aware) |
 | `!kill <boss> HH:MM yesterday` | `!kill Venatus 13:05 yesterday` | Force yesterday's date |
 | `!list` | `!list` | Show all boss names |
@@ -94,7 +93,6 @@ and responds to prefix commands:
 - **✅ Reaction** — The bot reacts with ✅ on every recognized command for instant feedback
 - **Smart dedup** — Spawn notifications fire exactly once per boss: one 5-min warning ⏰ + one spawn alert 🟢
 - **Timezone-aware** — Schedule times are interpreted in each server's configured timezone, not UTC
-- **Live underline** — When a boss is killed, its name gets __underlined__ in the last `!spawn` message
 - **Precise countdowns** — Spawn list shows `in 3h 15m` instead of vague "in 3 hours"
 - **Green circle** — Alive bosses show 🟢 in the spawn list
 - **@everyone support** — Set a notification prefix like `@everyone` to ping your members on spawns
