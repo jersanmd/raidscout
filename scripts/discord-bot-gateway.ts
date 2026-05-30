@@ -732,7 +732,7 @@ const sentNotifs = new Map<string, number>(); // dedup: "serverId-event-bossName
 // ── HTTP Server (web app → bot notifications) ─────────────
 import { createServer } from "http";
 
-const NOTIFY_PORT = parseInt(process.env.NOTIFY_PORT || "3003");
+const NOTIFY_PORT = parseInt(process.env.PORT || process.env.NOTIFY_PORT || "3003");
 
 createServer(async (req, res) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
