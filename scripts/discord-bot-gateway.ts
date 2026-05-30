@@ -93,6 +93,67 @@ function formatRelative(unix: number): string {
   return `in ${m}m`;
 }
 
+// ── Guild owner computation (exact replica of src/lib/rotation.ts) ─
+
+function safeMod(v: number, n: number) { return ((v % n) + n) % n; }
+
+function computeOwnerGuild(
+  boss: any, bossGuilds: any[], guilds: any[], lastDeath: any, spawn: Date, tz: string
+): string | undefined {
+  const bgs = bossGuilds.filter((bg: any) => bg.boss_id === boss.id);
+  if (bgs.length === 0) return undefined;
+
+  // 1. Schedule mode
+  const scheduleEntries = bgs.filter((bg: any) => bg.day_of_week !== null);
+  if (scheduleEntries.length > 0) {
+    const dow = spawn.getDay();
+    const match = scheduleEntries.find((bg: any) => bg.day_of_week === dow);
+    if (match) return guilds.find((g: any) => g.id === match.guild_id)?.name;
+  }
+
+  // 2. Daily mode (exact replica of getDailyOwnerGuild)
+  const dailyEntries = bgs
+    .filter((bg: any) => bg.mode === "daily")
+    .sort((a: any, b: any) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+  if (dailyEntries.length > 0) {
+    if (!lastDeath || lastDeath.is_initial_spawn) {
+      return guilds.find((g: any) => g.id === dailyEntries[0].guild_id)?.name;
+    }
+    const respawnHours = boss.respawn_hours ?? 0;
+    const deathDate = new Date(lastDeath.death_time);
+    const spawnDate = new Date(deathDate.getTime() + respawnHours * 3600000);
+    const lastGuildId = lastDeath.owner_guild_id;
+    // Use server timezone for date comparison (matches browser behavior in web app)
+    const sameDay = deathDate.toLocaleDateString("en-CA", { timeZone: tz }) === spawnDate.toLocaleDateString("en-CA", { timeZone: tz });
+    if (sameDay) {
+      return lastGuildId
+        ? guilds.find((g: any) => g.id === lastGuildId)?.name
+        : guilds.find((g: any) => g.id === dailyEntries[0].guild_id)?.name;
+    }
+    // Different day → advance
+    const adjustment = boss.rotation_adjustment ?? 0;
+    if (!lastGuildId) {
+      const idx = safeMod(1 + adjustment, dailyEntries.length);
+      return guilds.find((g: any) => g.id === dailyEntries[idx].guild_id)?.name;
+    }
+    const lastIdx = dailyEntries.findIndex((bg: any) => bg.guild_id === lastGuildId);
+    const nextIdx = safeMod((lastIdx >= 0 ? lastIdx + 1 : 0) + adjustment, dailyEntries.length);
+    return guilds.find((g: any) => g.id === dailyEntries[nextIdx].guild_id)?.name;
+  }
+
+  // 3. Rotation mode
+  const rotationEntries = bgs
+    .filter((bg: any) => bg.sort_order !== null && bg.mode !== "daily")
+    .sort((a: any, b: any) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+  if (rotationEntries.length > 0) {
+    const counter = boss.rotation_counter ?? 1;
+    const idx = safeMod(counter - 1, rotationEntries.length);
+    return guilds.find((g: any) => g.id === rotationEntries[idx].guild_id)?.name;
+  }
+
+  return undefined;
+}
+
 /** Convert a schedule slot (day, "HH:MM") in the given timezone to a UTC Date */
 function scheduleSlotToUTC(tz: string, refDate: Date, day: number, time: string): Date {
   // Get current date string in the target timezone for this refDate
@@ -471,55 +532,8 @@ async function handleMessage(msg: any) {
       } else continue;
 
       if (spawn.getTime() <= cutoff.getTime()) {
-        // Compute owner guild (matches web app rotation.ts logic)
-        const bgs = serverBossGuilds.filter((bg: any) => bg.boss_id === boss.id);
-        let gName = "";
-        if (bgs.length > 0) {
-          const dow = spawn.getDay();
-          // 1. Schedule mode: guild based on day of week
-          const se = bgs.find((bg: any) => bg.day_of_week === dow);
-          if (se) {
-            gName = guilds.find((g: any) => g.id === se.guild_id)?.name ?? "";
-          } else {
-            // 2. Daily mode: same-day = same guild, next-day = advance
-            // Uses server timezone for date boundaries (not UTC)
-            const dailyEntries = bgs
-              .filter((bg: any) => bg.mode === "daily")
-              .sort((a: any, b: any) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
-            if (dailyEntries.length > 0) {
-              if (!lastDeath) {
-                gName = guilds.find((g: any) => g.id === dailyEntries[0].guild_id)?.name ?? "";
-              } else {
-                const respawnHours = boss.respawn_hours ?? 0;
-                const deathDate = new Date(lastDeath.death_time);
-                const spawnDate = new Date(deathDate.getTime() + respawnHours * 3600000);
-                const lastGuildId = lastDeath.owner_guild_id;
-                // Compare dates in the server's timezone
-                const fmt = (d: Date) => d.toLocaleDateString("en-CA", { timeZone: tz });
-                if (fmt(deathDate) === fmt(spawnDate)) {
-                  // Same day — same guild keeps the boss
-                  gName = guilds.find((g: any) => g.id === lastGuildId)?.name
-                    ?? guilds.find((g: any) => g.id === dailyEntries[0].guild_id)?.name ?? "";
-                } else {
-                  // Different day — advance to next guild
-                  const lastIdx = dailyEntries.findIndex((bg: any) => bg.guild_id === lastGuildId);
-                  const nextIdx = ((lastIdx >= 0 ? lastIdx + 1 : 0)) % dailyEntries.length;
-                  gName = guilds.find((g: any) => g.id === dailyEntries[nextIdx].guild_id)?.name ?? "";
-                }
-              }
-            } else {
-              // 3. Rotation mode: use rotation_counter
-              const re = bgs
-                .filter((bg: any) => bg.sort_order !== null && bg.mode !== "daily")
-                .sort((a: any, b: any) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
-              if (re.length > 0) {
-                const counter = boss.rotation_counter ?? 1;
-                const idx = ((counter - 1) % re.length + re.length) % re.length;
-                gName = guilds.find((g: any) => g.id === re[idx].guild_id)?.name ?? "";
-              }
-            }
-          }
-        }
+        // Compute owner guild — exact replica of src/lib/rotation.ts getOwnerGuildName
+        gName = computeOwnerGuild(boss, serverBossGuilds, guilds, lastDeath, spawn, tz) || "";
         const unix = Math.floor(spawn.getTime() / 1000);
         upcoming.push({ name: boss.name, time: spawn <= now ? "**ALIVE NOW**" : `<t:${unix}:t>`, unix, guild: gName });
       }
