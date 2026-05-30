@@ -561,21 +561,19 @@ export function LeaderboardView() {
                   className="px-2 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-white text-xs outline-none focus:ring-2 focus:ring-amber-500 transition"
                 />
               </div>
-              {guilds.length > 0 && (
-                <div className="flex flex-col gap-0.5">
-                  <label className="text-[10px] text-slate-500">Guild</label>
-                  <select
-                    value={exportGuildFilter}
-                    onChange={(e) => setExportGuildFilter(e.target.value)}
-                    className="px-2 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-white text-xs outline-none focus:ring-2 focus:ring-amber-500 transition"
-                  >
-                    <option value="all">All Guilds</option>
-                    {guilds.map(g => (
-                      <option key={g.id} value={g.id}>{g.name}</option>
-                    ))}
-                  </select>
-                </div>
-              )}
+              <div className="flex flex-col gap-0.5">
+                <label className="text-[10px] text-slate-500">Guild</label>
+                <select
+                  value={exportGuildFilter}
+                  onChange={(e) => setExportGuildFilter(e.target.value)}
+                  className="px-2 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-white text-xs outline-none focus:ring-2 focus:ring-amber-500 transition"
+                >
+                  <option value="all">All Guilds</option>
+                  {guilds.map(g => (
+                    <option key={g.id} value={g.id}>{g.name}</option>
+                  ))}
+                </select>
+              </div>
               <button
                 onClick={handleExportAttendance}
                 disabled={exportLoading || !exportStartDate || !exportEndDate}
