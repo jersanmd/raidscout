@@ -198,6 +198,15 @@ async function handleMessage(msg: any) {
       return reply("You need the Administrator permission to set the notification channel.");
     }
     notifChannels.set(guildId, msg.channel_id);
+    // Persist to DB so it survives bot restarts
+    const existing = await supabaseQuery(`discord_configs?discord_guild_id=eq.${guildId}&select=id`);
+    if (existing?.length) {
+      await fetch(`${SUPABASE_URL}/rest/v1/discord_configs?id=eq.${existing[0].id}`, {
+        method: "PATCH",
+        headers: { apikey: SUPABASE_KEY!, Authorization: `Bearer ${SUPABASE_KEY!}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ notification_channel_id: msg.channel_id }),
+      });
+    }
     return reply("✅ This channel will now receive boss kill, spawn, and activity notifications.");
   }
 
@@ -531,10 +540,16 @@ createServer(async (req, res) => {
           res.writeHead(400); res.end(JSON.stringify({ error: "Invalid event" })); return;
         }
 
-        // Find notification channel
-        const rows = await supabaseQuery(`discord_configs?raidscout_server_id=eq.${server_id}&select=discord_guild_id`);
+        // Find notification channel (in-memory first, fall back to DB)
+        const rows = await supabaseQuery(`discord_configs?raidscout_server_id=eq.${server_id}&select=discord_guild_id,notification_channel_id`);
         const guildId = rows?.[0]?.discord_guild_id;
-        const channelId = guildId ? notifChannels.get(guildId) : null;
+        let channelId: string | null = guildId ? notifChannels.get(guildId) ?? null : null;
+        // Fall back to DB-persisted channel if not in memory (e.g., after bot restart)
+        if (!channelId && rows?.[0]?.notification_channel_id) {
+          channelId = rows[0].notification_channel_id;
+          // Restore to in-memory cache
+          if (guildId) notifChannels.set(guildId, channelId);
+        }
 
         if (!channelId) {
           res.writeHead(200); res.end(JSON.stringify({ skipped: "no channel set — use ;notifhere" }));
@@ -561,7 +576,19 @@ createServer(async (req, res) => {
   console.log(`Notify HTTP server on port ${NOTIFY_PORT}`);
 });
 
+// ── Preload notification channels from DB ──────────────────
+
+async function preloadNotifChannels() {
+  const rows = await supabaseQuery(`discord_configs?select=discord_guild_id,notification_channel_id&notification_channel_id=not.is.null`);
+  for (const row of rows || []) {
+    if (row.discord_guild_id && row.notification_channel_id) {
+      notifChannels.set(row.discord_guild_id, row.notification_channel_id);
+    }
+  }
+  console.log(`Preloaded ${notifChannels.size} notification channel(s) from DB`);
+}
+
 // ── Start ──────────────────────────────────────────────────
 
 console.log("RaidScout Discord Bot starting...");
-connect().catch(console.error);
+preloadNotifChannels().then(() => connect()).catch(console.error);
