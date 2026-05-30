@@ -672,7 +672,10 @@ async function handleMessage(msg: any) {
     const serverGuildIds = new Set(serverGuilds.map((g: any) => g.id));
     const serverBossGuilds = allBossGuilds.filter((bg: any) => serverGuildIds.has(bg.guild_id));
     const tz = await resolveServerTimezone(serverId);
-    const gName = computeOwnerGuild(boss, serverBossGuilds, serverGuilds, null, deathTime, tz);
+    // Fetch previous death to determine current owner (must advance from the last kill)
+    const prevDeaths = await supabaseQuery(`death_records?server_id=eq.${serverId}&boss_id=eq.${boss.id}&order=death_time.desc&limit=1`);
+    const lastDeath = prevDeaths?.[0] ?? null;
+    const gName = computeOwnerGuild(boss, serverBossGuilds, serverGuilds, lastDeath, deathTime, tz);
     const ownerGuildId = gName ? serverGuilds.find((g: any) => g.name === gName)?.id ?? null : null;
 
     await fetch(`${SUPABASE_URL}/rest/v1/death_records`, {
