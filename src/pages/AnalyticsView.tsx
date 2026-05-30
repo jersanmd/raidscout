@@ -115,6 +115,10 @@ export function AnalyticsView() {
       const darkBg = "#1E293B";
       const darkerBg = "#0F172A";
       const periodLabel = period === "week" ? "This Week" : period === "month" ? "This Month" : "All Time";
+      const maxWK = Math.max(...data.killsByWeek.map(w => w.count), 1);
+      const maxBK = Math.max(...data.topBosses.map(b => b.kills), 1);
+      const maxAH = Math.max(...data.topHunters.map(h => h.attended), 1);
+      const maxDY = Math.max(...data.killsByDay.map(d => d.count), 1);
 
       let html = `<html><head><meta charset="utf-8"><style>
         table { border-collapse: collapse; font-family: -apple-system, sans-serif; font-size: 11px; width: 100%; }
@@ -126,42 +130,51 @@ export function AnalyticsView() {
         .odd { background: ${darkerBg}; }
         .lbl { color: #94A3B8; }
         .num { text-align: center; color: #FBBF24; font-weight: bold; }
+        .bar-wrap { width: 200px; height: 14px; background: #1E293B; border-radius: 3px; overflow: hidden; display: inline-block; vertical-align: middle; }
+        .bar-inner { height: 100%; border-radius: 3px; }
+        .bar-purple { background: linear-gradient(to right, #7C3AED, #A78BFA); }
+        .bar-red { background: linear-gradient(to right, #DC2626, #F97316); }
+        .bar-blue { background: linear-gradient(to right, #2563EB, #06B6D4); }
+        .bar-amber { background: linear-gradient(to right, #D97706, #FBBF24); }
 </style></head><body>`;
 
-      html += `<table><tr><th class="hdr" colspan="2">RaidScout Analytics — ${periodLabel}</th></tr>`;
-      html += `<tr class="even"><td class="lbl">Total Kills</td><td class="val">${data.totalKills}</td></tr>`;
-      html += `<tr class="odd"><td class="lbl">Active Members</td><td class="val">${data.activeMembers}</td></tr>`;
-      html += `<tr class="even"><td class="lbl">Total Attendances</td><td class="val">${data.totalAttendance}</td></tr>`;
+      html += `<table><tr><th class="hdr" colspan="3">RaidScout Analytics — ${periodLabel}</th></tr>`;
+      html += `<tr class="even"><td class="lbl">Total Kills</td><td class="val">${data.totalKills}</td><td></td></tr>`;
+      html += `<tr class="odd"><td class="lbl">Active Members</td><td class="val">${data.activeMembers}</td><td></td></tr>`;
+      html += `<tr class="even"><td class="lbl">Total Attendances</td><td class="val">${data.totalAttendance}</td><td></td></tr>`;
       html += `</table><br>`;
 
       if (data.killsByWeek.length > 0) {
-        html += `<table><tr><th class="section" colspan="2">Kills per Week</th></tr>`;
+        html += `<table><tr><th class="section" colspan="3">Kills per Week</th></tr>`;
         data.killsByWeek.slice(-12).reverse().forEach((w, i) => {
-          html += `<tr class="${i % 2 === 0 ? "even" : "odd"}"><td class="lbl">${w.week}</td><td class="num">${w.count}</td></tr>`;
+          const pct = Math.max((w.count / maxWK) * 100, 8);
+          html += `<tr class="${i % 2 === 0 ? "even" : "odd"}"><td class="lbl">${w.week}</td><td class="num">${w.count}</td><td><span class="bar-wrap"><span class="bar-inner bar-purple" style="width:${pct}%"></span></span></td></tr>`;
         });
         html += `</table><br>`;
       }
 
-      html += `<table><tr><th class="section" colspan="3">Most Killed Bosses</th></tr>`;
-      html += `<tr class="even"><td class="lbl">#</td><td class="lbl">Boss</td><td class="lbl">Kills</td></tr>`;
+      html += `<table><tr><th class="section" colspan="4">Most Killed Bosses</th></tr>`;
+      html += `<tr class="even"><td class="lbl">#</td><td class="lbl">Boss</td><td class="lbl">Kills</td><td class="lbl"></td></tr>`;
       data.topBosses.forEach((b, i) => {
-        html += `<tr class="${i % 2 === 0 ? "even" : "odd"}"><td class="lbl">${i + 1}</td><td class="lbl">${b.name}</td><td class="num">${b.kills}</td></tr>`;
+        const pct = Math.max((b.kills / maxBK) * 100, 8);
+        html += `<tr class="${i % 2 === 0 ? "even" : "odd"}"><td class="lbl">${i + 1}</td><td class="lbl">${b.name}</td><td class="num">${b.kills}</td><td><span class="bar-wrap"><span class="bar-inner bar-red" style="width:${pct}%"></span></span></td></tr>`;
       });
       html += `</table><br>`;
 
-      html += `<table><tr><th class="section" colspan="4">Most Active Hunters</th></tr>`;
-      html += `<tr class="even"><td class="lbl">#</td><td class="lbl">Player</td><td class="lbl">Guild</td><td class="lbl">Attended</td></tr>`;
+      html += `<table><tr><th class="section" colspan="5">Most Active Hunters</th></tr>`;
+      html += `<tr class="even"><td class="lbl">#</td><td class="lbl">Player</td><td class="lbl">Guild</td><td class="lbl">Attended</td><td class="lbl"></td></tr>`;
       data.topHunters.forEach((h, i) => {
         const gid = memberGuildMap.get(h.name);
         const guild = gid ? guilds.find(g => g.id === gid) : null;
-        html += `<tr class="${i % 2 === 0 ? "even" : "odd"}"><td class="lbl">${i + 1}</td><td class="lbl">${h.name}</td><td class="lbl">${guild?.name || ""}</td><td class="num">${h.attended}</td></tr>`;
+        const pct = Math.max((h.attended / maxAH) * 100, 8);
+        html += `<tr class="${i % 2 === 0 ? "even" : "odd"}"><td class="lbl">${i + 1}</td><td class="lbl">${h.name}</td><td class="lbl">${guild?.name || ""}</td><td class="num">${h.attended}</td><td><span class="bar-wrap"><span class="bar-inner bar-blue" style="width:${pct}%"></span></span></td></tr>`;
       });
       html += `</table><br>`;
 
-      html += `<table><tr><th class="section" colspan="2">Activity by Day of Week</th></tr>`;
-      html += `<tr class="even"><td class="lbl">Day</td><td class="lbl">Kills</td></tr>`;
+      html += `<table><tr><th class="section" colspan="3">Activity by Day of Week</th></tr>`;
       data.killsByDay.forEach((d, i) => {
-        html += `<tr class="${i % 2 === 0 ? "even" : "odd"}"><td class="lbl">${d.day}</td><td class="num">${d.count}</td></tr>`;
+        const pct = Math.max((d.count / maxDY) * 100, 8);
+        html += `<tr class="${i % 2 === 0 ? "even" : "odd"}"><td class="lbl">${d.day}</td><td class="num">${d.count}</td><td><span class="bar-wrap"><span class="bar-inner bar-amber" style="width:${pct}%"></span></span></td></tr>`;
       });
       html += `</table></body></html>`;
 
