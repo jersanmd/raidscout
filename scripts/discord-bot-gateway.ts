@@ -82,6 +82,21 @@ async function getNotifyPrefix(serverId: string): Promise<string> {
 
 function addHours(d: Date, h: number) { return new Date(d.getTime() + h * 3600_000); }
 
+function findNextScheduleSlot(schedule: { day: number; time: string }[], after: Date): Date {
+  let earliest: Date | null = null;
+  for (let d = 0; d <= 7; d++) {
+    const check = new Date(after);
+    check.setDate(check.getDate() + d);
+    for (const slot of schedule) {
+      if (slot.day !== check.getDay()) continue;
+      const [h, m] = slot.time.split(":").map(Number);
+      const c = new Date(check.getFullYear(), check.getMonth(), check.getDate(), h, m);
+      if (c > after && (!earliest || c < earliest)) earliest = c;
+    }
+  }
+  return earliest ?? after; // fallback
+}
+
 // ── WebSocket Gateway ──────────────────────────────────────
 
 async function connect() {
@@ -375,37 +390,44 @@ async function handleMessage(msg: any) {
         spawn = lastDeath ? addHours(new Date(lastDeath.death_time), boss.respawn_hours ?? 0) : now;
         if (spawn <= now && now <= addHours(spawn, 24)) spawn = now;
       } else if (boss.spawn_type === "fixed_schedule" && boss.schedule) {
-        let earliest: Date | null = null;
+        // Find most recent past schedule slot
+        let recentSlot: { day: number; time: string } | null = null;
+        let recentTime: Date | null = null;
         for (let d = 0; d <= 7; d++) {
           const check = new Date(now);
-          check.setDate(check.getDate() + d);
+          check.setDate(check.getDate() - d);
           for (const slot of boss.schedule) {
             if (slot.day !== check.getDay()) continue;
             const [h, m] = slot.time.split(":").map(Number);
             const c = new Date(check.getFullYear(), check.getMonth(), check.getDate(), h, m);
-            if (c > now && (!earliest || c < earliest)) earliest = c;
-          }
-        }
-        // Check if boss is alive: find most recent past schedule & compare with last death
-        if (!earliest) {
-          let mostRecentPast: Date | null = null;
-          for (let d = 0; d <= 7; d++) {
-            const check = new Date(now);
-            check.setDate(check.getDate() - d);
-            for (const slot of boss.schedule) {
-              if (slot.day !== check.getDay()) continue;
-              const [h, m] = slot.time.split(":").map(Number);
-              const c = new Date(check.getFullYear(), check.getMonth(), check.getDate(), h, m);
-              if (c <= now && (!mostRecentPast || c > mostRecentPast)) mostRecentPast = c;
+            if (c <= now && (!recentTime || c > recentTime)) {
+              recentTime = c;
+              recentSlot = slot;
             }
           }
-          if (mostRecentPast && (!lastDeath || new Date(lastDeath.death_time) < mostRecentPast)) {
-            spawn = now; // boss is alive from the last schedule
-          } else {
-            spawn = now; // fallback
-          }
+        }
+
+        if (!recentSlot || !recentTime) {
+          // No past slot found — find next future slot
+          spawn = findNextScheduleSlot(boss.schedule, now);
         } else {
-          spawn = earliest;
+          // Find next schedule slot after this one (for alive-window calculation)
+          const nextSlotTime = findNextScheduleSlot(boss.schedule, new Date(recentTime.getTime() + 60_000));
+          // Alive until 1 hour before next slot, capped at 4 hours from current slot
+          const aliveUntil = new Date(Math.min(
+            nextSlotTime.getTime() - 3600_000,
+            recentTime.getTime() + 4 * 3600_000,
+          ));
+
+          const wasKilled = lastDeath && new Date(lastDeath.death_time) >= recentTime;
+
+          if (!wasKilled && now >= recentTime && now < aliveUntil) {
+            // Boss is alive right now
+            spawn = now;
+          } else {
+            // Boss is dead or window closed — find next future schedule
+            spawn = findNextScheduleSlot(boss.schedule, now);
+          }
         }
       } else continue;
 
