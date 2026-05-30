@@ -298,14 +298,7 @@ export function LeaderboardView() {
         }
       }
 
-      // Build Excel with SheetJS
-      const XLSX = await import("xlsx");
-
-      // Header rows
-      const headerRow1: any[] = ["", "", "", ...sortedMembers.map(mid => memberMap.get(mid)?.name || "?")];
-      const headerRow2: any[] = ["P", "Date & Time", "Boss", ...sortedMembers.map(mid => memberTotals.get(mid) || 0)];
-
-      // Data rows: one per death
+      // Build data rows: one per death
       const dataRows: any[][] = [];
       const timeFmt = new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
       for (const death of deaths) {
@@ -323,14 +316,107 @@ export function LeaderboardView() {
         dataRows.push(row);
       }
 
-      const sheetData = [headerRow1, headerRow2, ...dataRows];
+      // Build Excel with SheetJS
+      const XLSX = await import("xlsx");
+
+      // Style helpers
+      const headerStyle = {
+        font: { bold: true, color: { rgb: "FFFFFF" }, sz: 11 },
+        fill: { fgColor: { rgb: "1E293B" } },
+        alignment: { horizontal: "center", vertical: "center", wrapText: true },
+        border: {
+          top: { style: "thin", color: { rgb: "475569" } },
+          bottom: { style: "thin", color: { rgb: "475569" } },
+          left: { style: "thin", color: { rgb: "475569" } },
+          right: { style: "thin", color: { rgb: "475569" } },
+        },
+      };
+      const playerHeaderColors = ["7C3AED", "059669", "D97706", "0891B2", "DB2777", "4F46E5", "E11D48", "0D9488", "EA580C", "65A30D"];
+      const cellStyle = (overrides: any = {}) => ({
+        ...headerStyle,
+        font: { bold: false, color: { rgb: "E2E8F0" }, sz: 10, ...overrides.font },
+        fill: { fgColor: { rgb: "0F172A" }, ...overrides.fill },
+        ...overrides,
+      });
+
+      const numCols = 3 + sortedMembers.length;
+
+      // Build as cell objects for styling
+      const sheetData: any[][] = [];
+
+      // Row 0: Player name headers
+      const r0: any[] = [];
+      for (let c = 0; c < numCols; c++) {
+        if (c < 3) {
+          r0.push({ v: "", s: { ...headerStyle, fill: { fgColor: { rgb: "0F172A" } } } });
+        } else {
+          const midx = c - 3;
+          const colorIdx = midx % playerHeaderColors.length;
+          r0.push({
+            v: sortedMembers[midx] ? memberMap.get(sortedMembers[midx])?.name || "?" : "",
+            s: {
+              ...headerStyle,
+              font: { bold: true, color: { rgb: "FFFFFF" }, sz: 10 },
+              fill: { fgColor: { rgb: playerHeaderColors[colorIdx] } },
+            },
+          });
+        }
+      }
+      sheetData.push(r0);
+
+      // Row 1: Labels + totals
+      const r1: any[] = [
+        { v: "P", s: headerStyle },
+        { v: "Date & Time", s: headerStyle },
+        { v: "Boss", s: headerStyle },
+      ];
+      for (let c = 3; c < numCols; c++) {
+        const midx = c - 3;
+        const total = memberTotals.get(sortedMembers[midx]) || 0;
+        const colorIdx = midx % playerHeaderColors.length;
+        r1.push({
+          v: total,
+          s: {
+            ...headerStyle,
+            font: { bold: true, color: { rgb: "FFFFFF" }, sz: 12 },
+            fill: { fgColor: { rgb: playerHeaderColors[colorIdx] } },
+            numFmt: "0",
+          },
+        });
+      }
+      sheetData.push(r1);
+
+      // Data rows
+      for (let ri = 0; ri < dataRows.length; ri++) {
+        const row = dataRows[ri];
+        const isEven = ri % 2 === 0;
+        const bgColor = isEven ? "1E293B" : "0F172A";
+        const styledRow: any[] = [
+          { v: row[0], s: { ...cellStyle({ fill: { fgColor: { rgb: bgColor } }, alignment: { horizontal: "center" } }), numFmt: "0" } },
+          { v: row[1], s: cellStyle({ fill: { fgColor: { rgb: bgColor } }, alignment: { horizontal: "center" } }) },
+          { v: row[2], s: { ...cellStyle({ fill: { fgColor: { rgb: bgColor } } }), font: { bold: true, color: { rgb: "F87171" }, sz: 10 } } },
+        ];
+        for (let c = 3; c < numCols; c++) {
+          const val = row[c] || 0;
+          styledRow.push({
+            v: val,
+            s: {
+              ...cellStyle({ fill: { fgColor: { rgb: bgColor } }, alignment: { horizontal: "center" } }),
+              numFmt: "0",
+              font: { bold: val > 0, color: { rgb: val > 0 ? "FBBF24" : "475569" }, sz: 10 },
+            },
+          });
+        }
+        sheetData.push(styledRow);
+      }
+
       const ws = XLSX.utils.aoa_to_sheet(sheetData);
 
       ws["!cols"] = [
         { wch: 4 },  // P
         { wch: 18 }, // Date & Time
         { wch: 20 }, // Boss name
-        ...sortedMembers.map(() => ({ wch: 12 })), // Player columns
+        ...sortedMembers.map(() => ({ wch: 14 })), // Player columns
       ];
 
       const wb = XLSX.utils.book_new();
