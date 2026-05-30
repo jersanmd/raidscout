@@ -240,7 +240,7 @@ export function LeaderboardView() {
       // Fetch bosses
       const { data: bosses, error: bossesErr } = await supabase
         .from("bosses")
-        .select("id,name,points")
+        .select("id,name,boss_points")
         .in("id", bossIds);
       if (bossesErr) throw new Error(`Bosses: ${bossesErr.message}`);
       const bossMap = new Map((bosses || []).map(b => [b.id, b]));
@@ -292,7 +292,7 @@ export function LeaderboardView() {
       for (const [deathId, memberSet] of deathAttendees) {
         const death = deathBossMap.get(deathId);
         const boss = bossMap.get(death?.boss_id);
-        const pts = boss?.points || 0;
+        const pts = (boss as any)?.boss_points || 0;
         for (const mid of memberSet) {
           memberTotals.set(mid, (memberTotals.get(mid) || 0) + pts);
         }
@@ -318,7 +318,7 @@ export function LeaderboardView() {
           boss?.name || "?",
         ];
         for (const mid of sortedMembers) {
-          row.push(attendees.has(mid) ? (boss?.points || 0) : 0);
+          row.push(attendees.has(mid) ? ((boss as any)?.boss_points || 0) : 0);
         }
         dataRows.push(row);
       }
