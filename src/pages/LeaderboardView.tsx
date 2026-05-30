@@ -221,47 +221,71 @@ export function LeaderboardView() {
     if (!exportStartDate || !exportEndDate || !serverId) return;
     setExportLoading(true);
     try {
+      const headers = {
+        apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+        Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+        Accept: "application/json",
+      };
+
       // Fetch death records in date range
       const startISO = new Date(exportStartDate).toISOString();
       const endISO = new Date(exportEndDate + "T23:59:59").toISOString();
       const deathsRes = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/death_records?server_id=eq.${serverId}&death_time=gte.${startISO}&death_time=lte.${endISO}&select=id,boss_id,death_time&order=death_time.asc`,
-        { headers: { apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY, Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` } }
+        { headers }
       );
-      const deaths = await deathsRes.json();
-      if (!deaths?.length) { alert("No death records in this date range."); setExportLoading(false); return; }
+      if (!deathsRes.ok) throw new Error(`Death records fetch failed: ${deathsRes.status}`);
+      const deathsRaw = await deathsRes.json();
+      const deaths = Array.isArray(deathsRaw) ? deathsRaw : [];
+      if (!deaths.length) { alert("No death records in this date range."); setExportLoading(false); return; }
 
       const deathIds = deaths.map((d: any) => d.id);
       const bossIds = [...new Set(deaths.map((d: any) => d.boss_id))];
 
-      // Fetch bosses
-      const bossRes = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/bosses?id=in.(${bossIds.join(",")})&select=id,name,points`,
-        { headers: { apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY, Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` } }
-      );
-      const bosses = await bossRes.json();
-      const bossMap = new Map((bosses || []).map((b: any) => [b.id, b]));
+      // Fetch bosses (batch by 50 to avoid URL too long)
+      let allBosses: any[] = [];
+      for (let i = 0; i < bossIds.length; i += 50) {
+        const batch = bossIds.slice(i, i + 50);
+        const bossRes = await fetch(
+          `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/bosses?id=in.(${batch.join(",")})&select=id,name,points`,
+          { headers }
+        );
+        if (bossRes.ok) {
+          const data = await bossRes.json();
+          if (Array.isArray(data)) allBosses = allBosses.concat(data);
+        }
+      }
+      const bossMap = new Map(allBosses.map((b: any) => [b.id, b]));
 
-      // Fetch attendance records for these deaths
-      const attRes = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/attendance_records?death_record_id=in.(${deathIds.join(",")})&select=death_record_id,member_id`,
-        { headers: { apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY, Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` } }
-      );
-      const attRecords = await attRes.json();
+      // Fetch attendance records (batch by 100)
+      let allAtt: any[] = [];
+      for (let i = 0; i < deathIds.length; i += 100) {
+        const batch = deathIds.slice(i, i + 100);
+        const attRes = await fetch(
+          `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/attendance_records?death_record_id=in.(${batch.join(",")})&select=death_record_id,member_id`,
+          { headers }
+        );
+        if (attRes.ok) {
+          const data = await attRes.json();
+          if (Array.isArray(data)) allAtt = allAtt.concat(data);
+        }
+      }
 
-      // Fetch ALL members (with guild) to resolve names
+      // Fetch ALL members with guild
       const memRes = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/members?server_id=eq.${serverId}&select=id,name,guild_id`,
-        { headers: { apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY, Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` } }
+        { headers }
       );
-      const allMembers = await memRes.json();
-      const memberMap = new Map((allMembers || []).map((m: any) => [m.id, m]));
+      if (!memRes.ok) throw new Error(`Members fetch failed: ${memRes.status}`);
+      const allMembersRaw = await memRes.json();
+      const allMembers = Array.isArray(allMembersRaw) ? allMembersRaw : [];
+      const memberMap = new Map(allMembers.map((m: any) => [m.id, m]));
 
       // Filter members by guild
       const guildMemberIds = new Set(
         exportGuildFilter === "all"
-          ? (allMembers || []).map((m: any) => m.id)
-          : (allMembers || []).filter((m: any) => m.guild_id === exportGuildFilter).map((m: any) => m.id)
+          ? allMembers.map((m: any) => m.id)
+          : allMembers.filter((m: any) => m.guild_id === exportGuildFilter).map((m: any) => m.id)
       );
 
       // Build pivot: boss_id → member_id → total_points
@@ -269,7 +293,7 @@ export function LeaderboardView() {
       const deathBossMap = new Map(deaths.map((d: any) => [d.id, d.boss_id]));
       const attendedMembers = new Set<string>();
 
-      for (const att of attRecords || []) {
+      for (const att of allAtt) {
         if (!guildMemberIds.has(att.member_id)) continue;
         const bossId = deathBossMap.get(att.death_record_id);
         if (!bossId) continue;
