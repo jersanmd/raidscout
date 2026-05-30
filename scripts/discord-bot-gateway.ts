@@ -13,6 +13,8 @@ const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 if (!TOKEN) { console.error("Set DISCORD_BOT_TOKEN"); process.exit(1); }
+
+let botUserId = "";
 if (!SUPABASE_URL) { console.error("Set SUPABASE_URL"); process.exit(1); }
 if (!SUPABASE_KEY) { console.error("Set SUPABASE_SERVICE_ROLE_KEY"); process.exit(1); }
 
@@ -244,6 +246,11 @@ async function connect() {
       handleGuildJoin(d).catch(console.error);
     }
 
+    // READY — store bot's user ID for mention detection
+    if (t === "READY") {
+      botUserId = d.user.id;
+    }
+
     // MESSAGE_CREATE — handle commands
     if (t === "MESSAGE_CREATE") {
       handleMessage(d).catch(console.error);
@@ -324,12 +331,23 @@ async function handleMessage(msg: any) {
   const guildId: string = msg.guild_id;
   const author: string = msg.author?.username ?? "unknown";
 
+  // Check if bot was @mentioned — use content after mention as command
+  let mentionedPrefix = "";
+  if (botUserId && content) {
+    const mentionPattern = new RegExp(`<@!?${botUserId}>\\s*`);
+    const mentionMatch = content.match(mentionPattern);
+    if (mentionMatch) {
+      mentionedPrefix = mentionMatch[0];
+    }
+  }
+
   // Match command prefix for this guild (supports multiple RaidScout servers)
   if (!guildId) return;
   const prefixes = await getGuildPrefixes(guildId);
   const matchedPrefix = prefixes.find(p => content.startsWith(p));
-  if (!matchedPrefix) return;
-  const args = content.slice(matchedPrefix.length).split(/\s+/);
+  if (!matchedPrefix && !mentionedPrefix) return;
+  const effectivePrefix = matchedPrefix || mentionedPrefix;
+  const args = content.slice(effectivePrefix.length).split(/\s+/);
   const rawCmd = args[0]?.toLowerCase();
 
   // React with ✅ to acknowledge the command
@@ -340,10 +358,13 @@ async function handleMessage(msg: any) {
 
   // Load custom command aliases for this server
   let aliases: Record<string, string> = {};
-  const aliasRows = await supabaseQuery(
-    `discord_configs?discord_guild_id=eq.${guildId}&command_prefix=eq.${encodeURIComponent(matchedPrefix)}&select=command_aliases`
-  );
-  if (aliasRows?.[0]?.command_aliases) aliases = aliasRows[0].command_aliases;
+  const aliasPrefix = matchedPrefix || prefixes[0] || "";
+  if (aliasPrefix) {
+    const aliasRows = await supabaseQuery(
+      `discord_configs?discord_guild_id=eq.${guildId}&command_prefix=eq.${encodeURIComponent(aliasPrefix)}&select=command_aliases`
+    );
+    if (aliasRows?.[0]?.command_aliases) aliases = aliasRows[0].command_aliases;
+  }
   const cmd = aliases[rawCmd] || rawCmd;
 
   async function reply(text: string) {
