@@ -15,27 +15,38 @@ export function DiscordWebhookBanner() {
   const navigate = useNavigate();
   const [dismissed, setDismissed] = useState(false);
   const [hasNotifications, setHasNotifications] = useState(true);
+  const [hasMembers, setHasMembers] = useState(true); // optimistic
 
   useEffect(() => {
     if (!currentServer?.id) return;
-    // Check if server is linked to Discord via discord_configs
+    // Check both Discord link AND members
     (async () => {
       try {
-        const { data } = await supabase
-          .from("discord_configs")
-          .select("id")
-          .eq("raidscout_server_id", currentServer.id)
-          .limit(1);
-        setHasNotifications((data?.length ?? 0) > 0);
+        const [dcRes, memRes] = await Promise.all([
+          supabase
+            .from("discord_configs")
+            .select("id")
+            .eq("raidscout_server_id", currentServer.id)
+            .limit(1),
+          supabase
+            .from("members")
+            .select("*", { count: "exact", head: true })
+            .eq("server_id", currentServer.id),
+        ]);
+        setHasNotifications((dcRes.data?.length ?? 0) > 0);
+        setHasMembers((memRes.count ?? 0) > 0);
       } catch {
         setHasNotifications(false);
+        setHasMembers(false);
       }
     })();
   }, [currentServer?.id]);
 
   if (!user || !currentServer) return null;
   if (currentServer.role !== "owner" && currentServer.role !== "moderator") return null;
+  // Don't show if already configured, if dismissed, or if no members yet (let NoMembersBanner show first)
   if (hasNotifications) return null;
+  if (!hasMembers) return null;
   if (dismissed) return null;
 
   return (
