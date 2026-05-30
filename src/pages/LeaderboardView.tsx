@@ -335,6 +335,8 @@ export function LeaderboardView() {
         .odd { background: ${darkerBg}; }
         .pts-yes { font-weight: bold; color: #FBBF24; }
         .pts-no { color: #475569; }
+        .shdr { background: #1E293B; color: #94A3B8; font-weight: bold; }
+        .rnk { text-align: center; color: #94A3B8; }
 </style></head><body><table>`;
 
       // Row 1: Player names
@@ -363,7 +365,28 @@ export function LeaderboardView() {
         html += `</tr>`;
       }
 
-      html += `</table></body></html>`;
+      html += `</table>`;
+
+      // Ranking section
+      const sortedRanking = [...memberTotals.entries()]
+        .sort((a, b) => b[1] - a[1])
+        .filter(([, pts]) => pts > 0);
+
+      let rankHtml = `<table style="width:100%"><tr><th class="hdr" colspan="3" style="background:#7C3AED">🏆 Ranking</th></tr>`;
+      rankHtml += `<tr class="shdr"><td class="rnk">#</td><td class="nm" style="text-align:left">Player</td><td class="num">Points</td></tr>`;
+      sortedRanking.forEach(([mid, pts], i) => {
+        const cls = i % 2 === 0 ? "odd" : "even";
+        const name = memberMap.get(mid)?.name || "?";
+        const medal = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i + 1}`;
+        rankHtml += `<tr class="${cls}"><td class="rnk">${medal}</td><td class="nm" style="text-align:left">${name}</td><td class="num">${pts}</td></tr>`;
+      });
+      rankHtml += `</table>`;
+
+      const pivotHtml = html;
+      html = `<table><tr>
+        <td style="width:70%;vertical-align:top;padding:0 8px 0 0">${pivotHtml}</td>
+        <td style="width:30%;vertical-align:top;padding:0 0 0 8px">${rankHtml}</td>
+      </tr></table></body></html>`;
 
       const blob = new Blob([html], { type: "application/vnd.ms-excel;charset=utf-8" });
       const url = URL.createObjectURL(blob);
