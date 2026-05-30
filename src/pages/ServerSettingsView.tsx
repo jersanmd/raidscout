@@ -1634,19 +1634,11 @@ export function ServerSettingsView() {
       {tab === "integrations" && (
         <section className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3">
           <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-            <Swords className="w-3 h-3" /> Discord Bot & Webhooks
+            <Swords className="w-3 h-3" /> Discord Bot & Notifications
           </h3>
           <p className="text-sm text-slate-400">
-            Add one entry per guild. Set a webhook URL to receive kill/spawn notifications in that guild's Discord.
+            Link your Discord server to receive boss kill and spawn alerts directly from the bot. No webhook URLs needed.
           </p>
-
-          {/* Legacy webhook */}
-          {currentServer.discord_webhook_url && (
-            <div className="bg-slate-800/50 rounded-lg px-3 py-2">
-              <p className="text-xs text-slate-500">Legacy webhook (still active):</p>
-              <p className="text-xs text-slate-400 font-mono truncate">{currentServer.discord_webhook_url}</p>
-            </div>
-          )}
 
           {/* Existing links */}
           {discordLinks.length > 0 && (
@@ -1665,84 +1657,71 @@ export function ServerSettingsView() {
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
-                  {link.webhook_url && (
-                    <p className="text-xs text-slate-500 font-mono truncate pl-0.5">{link.webhook_url}</p>
-                  )}
                 </div>
               ))}
             </div>
           )}
 
           {/* Add new link */}
-          <div className="space-y-2">
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={newDiscordId}
-                onChange={(e) => setNewDiscordId(e.target.value)}
-                placeholder="Discord Server ID"
-                ref={discordIdInputRef}
-                className="flex-[2] bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 outline-none focus:border-purple-500 transition font-mono"
-              />
-              <input
-                type="text"
-                value={newDiscordLabel}
-                onChange={(e) => setNewDiscordLabel(e.target.value)}
-                placeholder="Guild name (e.g. Crimson)"
-                className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 outline-none focus:border-purple-500 transition"
-              />
-            </div>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={newDiscordWebhook}
-                onChange={(e) => setNewDiscordWebhook(e.target.value)}
-                placeholder="Webhook URL"
-                className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-500 outline-none focus:border-purple-500 transition font-mono"
-              />
-              <button
-                onClick={handleAddDiscordLink}
-                disabled={savingDiscord || !newDiscordId.trim() || !newDiscordWebhook.trim()}
-                className="flex items-center gap-1 px-3 py-2 rounded-lg text-xs font-medium bg-purple-600 text-white hover:bg-purple-500 transition disabled:opacity-50"
-              >
-                {savingDiscord ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />}
-                Add
-              </button>
-            </div>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={newDiscordId}
+              onChange={(e) => setNewDiscordId(e.target.value)}
+              placeholder="Discord Server ID"
+              ref={discordIdInputRef}
+              className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 outline-none focus:border-purple-500 transition font-mono"
+            />
+            <input
+              type="text"
+              value={newDiscordLabel}
+              onChange={(e) => setNewDiscordLabel(e.target.value)}
+              placeholder="Guild name (e.g. Crimson)"
+              className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 outline-none focus:border-purple-500 transition"
+            />
+            <button
+              onClick={handleAddDiscordLink}
+              disabled={savingDiscord || !newDiscordId.trim()}
+              className="flex items-center gap-1 px-3 py-2 rounded-lg text-xs font-medium bg-purple-600 text-white hover:bg-purple-500 transition disabled:opacity-50"
+            >
+              {savingDiscord ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />}
+              Link
+            </button>
           </div>
 
           <div className="bg-slate-800/50 rounded-lg p-3 text-xs space-y-3">
             <div>
-              <p className="text-slate-300 font-semibold mb-1">Step 1: Create a webhook in Discord</p>
+              <p className="text-slate-300 font-semibold mb-1">Step 1: Link your Discord server</p>
               <ol className="list-decimal list-inside space-y-0.5 ml-1 text-slate-400">
-                <li>Open Discord → <strong>Server Settings</strong> → <strong>Integrations</strong> → <strong>Webhooks</strong></li>
-                <li>Click <strong>New Webhook</strong>, give it a name (e.g. "RaidScout - Crimson")</li>
-                <li>Select the channel where notifications should appear</li>
-                <li>Click <strong>Copy Webhook URL</strong></li>
+                <li>Enable <strong>Developer Mode</strong> in Discord (Settings → Advanced)</li>
+                <li>Right-click your server icon → <strong>Copy Server ID</strong></li>
+                <li>Paste it in the field above and click <strong>Link</strong></li>
               </ol>
             </div>
             <div>
-              <p className="text-slate-300 font-semibold mb-1">Step 2: Link it to RaidScout</p>
+              <p className="text-slate-300 font-semibold mb-1">Step 2: Invite the bot</p>
               <ol className="list-decimal list-inside space-y-0.5 ml-1 text-slate-400">
-                <li>Paste the <strong>Webhook URL</strong> in the field above</li>
-                <li>Type your <strong>Guild name</strong> (e.g. Crimson)</li>
-                <li>Paste your <strong>Discord Server ID</strong> (enable Developer Mode → right-click server → Copy ID)</li>
-                <li>Click <strong>Add</strong></li>
+                <li><a href="https://discord.com/api/oauth2/authorize?client_id=1508368991272566975&permissions=2147485696&scope=bot%20applications.commands" target="_blank" rel="noopener noreferrer" className="text-purple-400 hover:text-purple-300 underline font-medium">Click here to invite the bot</a></li>
               </ol>
             </div>
             <div>
-              <p className="text-slate-300 font-semibold mb-1">Step 3: Invite the bot</p>
+              <p className="text-slate-300 font-semibold mb-1">Step 3: Set notification channel</p>
               <ol className="list-decimal list-inside space-y-0.5 ml-1 text-slate-400">
-                <li><a href="https://discord.com/api/oauth2/authorize?client_id=1508368991272566975&permissions=2147485696&scope=bot%20applications.commands" target="_blank" rel="noopener noreferrer" className="text-purple-400 hover:text-purple-300 underline font-medium">Click here to invite the bot</a> to your Discord server</li>
+                <li>In Discord, go to your announcements channel</li>
+                <li>Type <code className="bg-slate-700 px-1 rounded text-amber-400 font-mono">;notifhere</code></li>
+                <li>The bot will post all boss kill and spawn alerts to that channel</li>
               </ol>
-              <p className="mt-2 text-slate-500">Available commands:</p>
+            </div>
+            <div>
+              <p className="text-slate-300 font-semibold mb-1">Available commands:</p>
               <div className="space-y-0.5 mt-1">
-                <p className="text-xs"><span className="text-amber-400 font-mono">!list</span> <span className="text-slate-500">—</span> <span className="text-slate-400">Show all boss names</span></p>
-                <p className="text-xs"><span className="text-amber-400 font-mono">!spawn</span> <span className="text-slate-500">—</span> <span className="text-slate-400">Boss spawns in 24h</span></p>
-                <p className="text-xs"><span className="text-amber-400 font-mono">!spawn &lt;boss&gt;</span> <span className="text-slate-500">—</span> <span className="text-slate-400">Check a specific boss</span></p>
-                <p className="text-xs"><span className="text-amber-400 font-mono">!kill &lt;boss&gt;</span> <span className="text-slate-500">—</span> <span className="text-slate-400">Record a kill now</span></p>
-                <p className="text-xs"><span className="text-amber-400 font-mono">!kill &lt;boss&gt; HH:MM</span> <span className="text-slate-500">—</span> <span className="text-slate-400">Kill at custom time</span></p>
-                <p className="text-xs"><span className="text-amber-400 font-mono">!commands</span> <span className="text-slate-500">—</span> <span className="text-slate-400">Show all commands</span></p>
+                <p className="text-xs"><span className="text-amber-400 font-mono">;nextspawn</span> <span className="text-slate-500">—</span> <span className="text-slate-400">Boss spawns in 24h</span></p>
+                <p className="text-xs"><span className="text-amber-400 font-mono">;nextspawn &lt;boss&gt;</span> <span className="text-slate-500">—</span> <span className="text-slate-400">Check a specific boss</span></p>
+                <p className="text-xs"><span className="text-amber-400 font-mono">;killed &lt;boss&gt;</span> <span className="text-slate-500">—</span> <span className="text-slate-400">Record a kill now</span></p>
+                <p className="text-xs"><span className="text-amber-400 font-mono">;killed &lt;boss&gt; HH:MM</span> <span className="text-slate-500">—</span> <span className="text-slate-400">Kill at custom time</span></p>
+                <p className="text-xs"><span className="text-amber-400 font-mono">;list</span> <span className="text-slate-500">—</span> <span className="text-slate-400">Show all boss names</span></p>
+                <p className="text-xs"><span className="text-amber-400 font-mono">;notifhere</span> <span className="text-slate-500">—</span> <span className="text-slate-400">Set notification channel</span></p>
+                <p className="text-xs"><span className="text-amber-400 font-mono">;commands</span> <span className="text-slate-500">—</span> <span className="text-slate-400">Show all commands</span></p>
               </div>
             </div>
           </div>
