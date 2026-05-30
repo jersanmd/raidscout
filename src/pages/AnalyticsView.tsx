@@ -87,21 +87,27 @@ export function AnalyticsView() {
         return emptyAnalytics();
       }
 
-      const raw = await fetchAnalytics(since, serverId, analyticsGuildFilter !== "all" ? analyticsGuildFilter : null);
-      return {
-        totalKills: raw.total_kills,
-        totalAttendance: raw.total_attendance,
-        activeMembers: raw.active_members,
-        killsByWeek: (raw.kills_by_week ?? []).map((w: any) => ({
-          week: w.week_label ?? w.week,
-          count: w.count,
-        })),
-        topBosses: raw.top_bosses ?? [],
-        topHunters: raw.top_hunters ?? [],
-        killsByDay: raw.kills_by_day ?? [],
-      };
+      try {
+        const raw = await fetchAnalytics(since, serverId, analyticsGuildFilter !== "all" ? analyticsGuildFilter : null);
+        return {
+          totalKills: raw.total_kills,
+          totalAttendance: raw.total_attendance,
+          activeMembers: raw.active_members,
+          killsByWeek: (raw.kills_by_week ?? []).map((w: any) => ({
+            week: w.week_label ?? w.week,
+            count: w.count,
+          })),
+          topBosses: raw.top_bosses ?? [],
+          topHunters: raw.top_hunters ?? [],
+          killsByDay: raw.kills_by_day ?? [],
+        };
+      } catch (err) {
+        console.error("Analytics fetch failed:", err);
+        return emptyAnalytics();
+      }
     },
     staleTime: 0,
+    retry: false,
     refetchOnMount: true,
     refetchOnWindowFocus: true,
     enabled: configured && !!serverId,
