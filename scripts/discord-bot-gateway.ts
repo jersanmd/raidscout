@@ -214,6 +214,12 @@ async function handleMessage(msg: any) {
   const args = content.slice(matchedPrefix.length).split(/\s+/);
   const cmd = args[0]?.toLowerCase();
 
+  // React with ✅ to acknowledge the command
+  fetch(`https://discord.com/api/v10/channels/${channelId}/messages/${msg.id}/reactions/${encodeURIComponent("✅")}/@me`, {
+    method: "PUT",
+    headers: { Authorization: `Bot ${TOKEN}` },
+  }).catch(() => {});
+
   async function reply(text: string) {
     await fetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
       method: "POST",
