@@ -442,42 +442,32 @@ async function handleMessage(msg: any) {
       return a.unix - b.unix;
     });
 
-    // Chunk into 25 fields per embed (Discord limit)
-    const fieldChunks: { name: string; value: string; inline: boolean }[][] = [];
-    const fields = upcoming.map((b, i) => ({
-      name: `${i + 1}. ${b.time === "**ALIVE NOW**" ? "🟢 " : ""}${b.name}${b.guild ? ` — ${b.guild}` : ""}`,
-      value: `${b.time}${b.time !== "**ALIVE NOW**" ? ` <t:${b.unix}:R>` : ""}`,
-      inline: false,
-    }));
-    for (let i = 0; i < fields.length; i += 20) {
-      fieldChunks.push(fields.slice(i, i + 20));
-    }
+    // Build as single description text (one line per boss)
+    const lines = upcoming.map((b, i) => {
+      const prefix = b.time === "**ALIVE NOW**" ? "🟢 " : "";
+      const guild = b.guild ? ` — ${b.guild}` : "";
+      const countdown = b.time !== "**ALIVE NOW**" ? ` (<t:${b.unix}:R>)` : "";
+      return `${i + 1}. ${prefix}${b.name}${guild} ${b.time}${countdown}`;
+    });
+    const desc = lines.join("\n");
 
-    let firstMsgId = "";
-    for (let c = 0; c < fieldChunks.length; c++) {
-      const isFirst = c === 0;
-      const res = await fetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
-        method: "POST",
-        headers: { Authorization: `Bot ${TOKEN}`, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          embeds: [{
-            title: isFirst ? (filter ? `${filter} Spawn` : "📋 Upcoming Boss Spawns (24h)") : undefined,
-            description: isFirst ? (filter ? `Spawn info for **${filter}**.` : "Bosses spawning in the next 24 hours:") : undefined,
-            color: 0x8b5cf6,
-            fields: fieldChunks[c],
-            footer: isFirst ? { text: "Powered by RaidScout" } : undefined,
-          }],
-        }),
-      });
-      if (isFirst && res.ok) {
+    await fetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
+      method: "POST",
+      headers: { Authorization: `Bot ${TOKEN}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        embeds: [{
+          title: filter ? `${filter} Spawn` : "📋 Upcoming Boss Spawns (24h)",
+          description: desc,
+          color: 0x8b5cf6,
+          footer: { text: "Powered by RaidScout" },
+        }],
+      }),
+    }).then(async (res) => {
+      if (res.ok) {
         const json = await res.json();
-        firstMsgId = json.id;
+        if (!filter) lastSpawnMsg.set(channelId, { msgId: json.id });
       }
-    }
-    // Store for live underline on kill (full list only, not filtered)
-    if (firstMsgId && !filter) {
-      lastSpawnMsg.set(channelId, { msgId: firstMsgId, fields: fields });
-    }
+    });
   }
 
   // ── Helper: underline boss in stored spawn message ──────
@@ -485,20 +475,24 @@ async function handleMessage(msg: any) {
   async function underlineBossInSpawn(chId: string, bossName: string) {
     const lastMsg = lastSpawnMsg.get(chId);
     if (!lastMsg) return;
-    const escaped = bossName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    let changed = false;
-    const updatedFields = lastMsg.fields.map((f: any) => {
-      if (f.name.match(new RegExp(`^\\d+\\. (🟢 )?__${escaped}__`))) return f; // already underlined
-      const newName = f.name.replace(new RegExp(`^\\d+\\. (🟢 )?${escaped}\\b`), (m: string) => m.replace(bossName, `__${bossName}__`));
-      if (newName !== f.name) changed = true;
-      return { ...f, name: newName };
+    // Fetch current message to get the description
+    const msgRes = await fetch(`https://discord.com/api/v10/channels/${chId}/messages/${lastMsg.msgId}`, {
+      headers: { Authorization: `Bot ${TOKEN}` },
     });
-    if (!changed) return;
-    const chunk = updatedFields.slice(0, 20);
+    if (!msgRes.ok) return;
+    const msg = await msgRes.json();
+    const desc = msg.embeds?.[0]?.description || "";
+    const escaped = bossName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    // Underline the boss name in the description (skip if already underlined)
+    const newDesc = desc.replace(
+      new RegExp(`(\\d+\\. (?:🟢 )?)(__)?${escaped}(__)?`, "g"),
+      (match: string, prefix: string) => match.includes("__") ? match : `${prefix}__${bossName}__`
+    );
+    if (newDesc === desc) return; // no change
     await fetch(`https://discord.com/api/v10/channels/${chId}/messages/${lastMsg.msgId}`, {
       method: "PATCH",
       headers: { Authorization: `Bot ${TOKEN}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ embeds: [{ color: 0x8b5cf6, fields: chunk }] }),
+      body: JSON.stringify({ embeds: [{ ...msg.embeds[0], description: newDesc }] }),
     }).catch(() => {});
   }
 
@@ -668,7 +662,7 @@ async function handleMessage(msg: any) {
 const notifChannels = new Map<string, string>();
 
 // Track last !nextspawn embed per channel for live underline on kill
-const lastSpawnMsg = new Map<string, { msgId: string; fields: any[] }>();
+const lastSpawnMsg = new Map<string, { msgId: string }>();
 
 // ── HTTP Server (web app → bot notifications) ─────────────
 import { createServer } from "http";
