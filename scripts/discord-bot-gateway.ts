@@ -250,7 +250,9 @@ async function handleMessage(msg: any) {
     const upcoming: { name: string; time: string; unix: number; guild: string }[] = [];
 
     const bossGuilds = await supabaseQuery(`boss_guilds?select=boss_id,guild_id,sort_order,day_of_week,mode`);
+    console.log(`nextspawn: ${bossGuilds?.length} boss_guilds`);
 
+    console.log(`nextspawn: looping ${bosses.length} bosses...`);
     for (const boss of bosses) {
       if (filter && boss.name.toLowerCase() !== filter.toLowerCase()) continue;
 
