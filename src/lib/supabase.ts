@@ -1153,7 +1153,7 @@ const BOT_NOTIFY_URL = import.meta.env.VITE_BOT_NOTIFY_URL || "http://localhost:
 
 export async function notifyDiscord(
   serverId: string,
-  event: "boss_died" | "boss_spawned",
+  event: "boss_died" | "boss_spawned" | "boss_spawning",
   data: { boss_name: string; attendees?: string[]; spawn_time?: string; guild_name?: string }
 ): Promise<{ ok: boolean; skipped?: boolean }> {
   try {
@@ -1162,7 +1162,7 @@ export async function notifyDiscord(
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         server_id: serverId,
-        event: event === "boss_died" ? "boss_died" : "boss_spawning",
+        event,
         boss_name: data.boss_name,
         guild_name: data.guild_name,
       }),
