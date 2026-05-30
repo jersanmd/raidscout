@@ -64,7 +64,7 @@ export function LeaderboardView() {
 
   // Attendance export state
   const todayStr = new Date().toISOString().slice(0, 10);
-  const weekAgoStr = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10);
+  const weekAgoStr = new Date(Date.now() - 6 * 86400000).toISOString().slice(0, 10);
   const [exportStartDate, setExportStartDate] = useState(weekAgoStr);
   const [exportEndDate, setExportEndDate] = useState(todayStr);
   const [exportGuildFilter, setExportGuildFilter] = useState<string>("all");
