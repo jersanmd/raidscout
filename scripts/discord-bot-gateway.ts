@@ -428,9 +428,10 @@ async function handleMessage(msg: any) {
       fieldChunks.push(fields.slice(i, i + 20));
     }
 
+    let firstMsgId = "";
     for (let c = 0; c < fieldChunks.length; c++) {
       const isFirst = c === 0;
-      await fetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
+      const res = await fetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
         method: "POST",
         headers: { Authorization: `Bot ${TOKEN}`, "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -443,7 +444,37 @@ async function handleMessage(msg: any) {
           }],
         }),
       });
+      if (isFirst && res.ok) {
+        const json = await res.json();
+        firstMsgId = json.id;
+      }
     }
+    // Store for live underline on kill (full list only, not filtered)
+    if (firstMsgId && !filter) {
+      lastSpawnMsg.set(channelId, { msgId: firstMsgId, fields: fields });
+    }
+  }
+
+  // ── Helper: underline boss in stored spawn message ──────
+
+  async function underlineBossInSpawn(chId: string, bossName: string) {
+    const lastMsg = lastSpawnMsg.get(chId);
+    if (!lastMsg) return;
+    const escaped = bossName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    let changed = false;
+    const updatedFields = lastMsg.fields.map((f: any) => {
+      if (f.name.match(new RegExp(`^\\d+\\. __${escaped}__`))) return f; // already underlined
+      const newName = f.name.replace(new RegExp(`^\\d+\\. ${escaped}\\b`), (m: string) => m.replace(bossName, `__${bossName}__`));
+      if (newName !== f.name) changed = true;
+      return { ...f, name: newName };
+    });
+    if (!changed) return;
+    const chunk = updatedFields.slice(0, 20);
+    await fetch(`https://discord.com/api/v10/channels/${chId}/messages/${lastMsg.msgId}`, {
+      method: "PATCH",
+      headers: { Authorization: `Bot ${TOKEN}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ embeds: [{ color: 0x8b5cf6, fields: chunk }] }),
+    }).catch(() => {});
   }
 
   // ── killed <boss> [HH:MM] [yesterday|today] ──────────
@@ -590,6 +621,9 @@ async function handleMessage(msg: any) {
     }
     const unix = Math.floor(deathTime.getTime() / 1000);
 
+    // Underline the killed boss in the last !nextspawn message
+    underlineBossInSpawn(channelId, boss.name);
+
     return replyEmbed(
       `☠️ ${boss.name} Killed`,
       `**${boss.name}**${guildName ? ` — ${guildName}` : ""} recorded as killed.`,
@@ -604,6 +638,9 @@ async function handleMessage(msg: any) {
 
 // ── Notification Channel Registry ──────────────────────────
 const notifChannels = new Map<string, string>();
+
+// Track last !nextspawn embed per channel for live underline on kill
+const lastSpawnMsg = new Map<string, { msgId: string; fields: any[] }>();
 
 // ── HTTP Server (web app → bot notifications) ─────────────
 import { createServer } from "http";
