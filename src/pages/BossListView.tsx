@@ -663,7 +663,7 @@ export function BossListView() {
                       if (!sentAlerts.has(key)) {
                         sentAlerts.add(key);
                         const sid = getCurrentServerId();
-                        if (sid) notifyDiscord(sid, "boss_spawned", { boss_name: name, guild_name: ownerGuildName(s.boss.id) });
+                        if (sid) notifyDiscord(sid, "boss_spawning", { boss_name: name, guild_name: ownerGuildName(s.boss.id) });
                       }
                     }}
                     onCriticalSpawn={(name) => {

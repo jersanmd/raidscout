@@ -759,6 +759,13 @@ createServer(async (req, res) => {
             color: 0xf59e0b,
             footer: { text: "Powered by RaidScout" },
           };
+        } else if (event === "boss_spawned" && boss_name) {
+          embed = {
+            title: `🟢 ${boss_name} Spawning Now`,
+            description: guild_name ? `**${guild_name}** — ${boss_name} has spawned!` : `${boss_name} has spawned!`,
+            color: 0x22c55e,
+            footer: { text: "Powered by RaidScout" },
+          };
         } else if (event === "parties_announced" && activity_name && parties) {
           embed = {
             title: `📋 ${activity_name} — Party Assignments`,
