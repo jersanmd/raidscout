@@ -906,7 +906,10 @@ export async function fetchAnalytics(since: string, serverId?: string | null, gu
   if (guildId) params.guild_id = guildId;
   const { data, error } = await supabase.rpc("get_analytics", params);
 
-  if (error) throw error;
+  if (error) {
+    console.error("get_analytics RPC error:", error.message, error);
+    throw new Error(error.message || "Analytics RPC failed");
+  }
   return data as AnalyticsData;
 }
 

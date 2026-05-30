@@ -101,8 +101,8 @@ export function AnalyticsView() {
           topHunters: raw.top_hunters ?? [],
           killsByDay: raw.kills_by_day ?? [],
         };
-      } catch (err) {
-        console.error("Analytics fetch failed:", err);
+      } catch (err: any) {
+        console.error("Analytics fetch failed:", err?.message || err);
         return emptyAnalytics();
       }
     },
