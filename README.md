@@ -61,14 +61,15 @@ automatically:
 
 The rotation counter advances automatically on each kill — no manual tracking needed.
 
-### 📢 Discord Webhook Alerts
+### 📢 Discord Notifications
 
-Every kill and 24h spawn forecast is posted to Discord automatically:
+Every boss spawn and kill is posted to Discord automatically:
 
-- **Per-guild webhooks** — Each guild gets its own notification channel.
-- **Rich embeds** — Boss name, death time, guild badge, and "Powered by RaidScout" branding.
-- **@everyone pings** — Configurable per webhook.
-- **Multi-Discord support** — One RaidScout server can post to multiple Discord servers.
+- **Two event types** — ⏰ 5-minute warning before spawn (amber) + 🟢 spawn now (green) + ☠️ kill alert (red)
+- **Smart dedup** — Each boss sends exactly one 5-min warning and one spawn alert, even with multiple browser tabs
+- **Rich embeds** — Boss name, guild badge, timestamps, and "Powered by RaidScout" branding
+- **@everyone pings** — Configurable notification prefix per server
+- **Live underline** — Kills automatically underline the boss name in the last spawn list message
 
 ### 🤖 Discord Bot Commands
 
@@ -77,13 +78,26 @@ and responds to prefix commands:
 
 | Command | Example | What it does |
 |---------|---------|-------------|
-| `!spawn` | `!spawn` | List all bosses spawning in the next 24 hours, with guild badges |
+| `!spawn` | `!spawn` | List all bosses spawning in the next 24 hours, with guild badges and precise countdowns (`in 3h 15m`) |
 | `!spawn <boss>` | `!spawn Venatus` | Check spawn time for a specific boss |
-| `!kill <boss>` | `!kill Venatus` | Record a kill right now |
+| `!kill <boss>` | `!kill Venatus` | Record a kill right now — underlines the boss in the last spawn message |
 | `!kill <boss> HH:MM` | `!kill Venatus 13:05` | Record a kill at a specific time (server timezone-aware) |
 | `!kill <boss> HH:MM yesterday` | `!kill Venatus 13:05 yesterday` | Force yesterday's date |
-| `!list` | `!list` | Show all 39 boss names |
-| `!commands` | `!commands` | Display the help menu |
+| `!list` | `!list` | Show all boss names |
+| `!commands` | `!commands` | Display the help menu with custom alias hints |
+| `!notifhere` | `!notifhere` | Set the current channel to receive boss spawn & kill notifications |
+
+**Bot highlights:**
+
+- **Multi-prefix support** — Each linked Discord server can use a different prefix (`!` `;` `$` `rs!` `boss!` etc.)
+- **Custom command aliases** — Rename any command per server (e.g., `!s` → `!spawn`, `!k` → `!killed`)
+- **✅ Reaction** — The bot reacts with ✅ on every recognized command for instant feedback
+- **Smart dedup** — Spawn notifications fire exactly once per boss: one 5-min warning ⏰ + one spawn alert 🟢
+- **Timezone-aware** — Schedule times are interpreted in each server's configured timezone, not UTC
+- **Live underline** — When a boss is killed, its name gets __underlined__ in the last `!spawn` message
+- **Precise countdowns** — Spawn list shows `in 3h 15m` instead of vague "in 3 hours"
+- **Green circle** — Alive bosses show 🟢 in the spawn list
+- **@everyone support** — Set a notification prefix like `@everyone` to ping your members on spawns
 
 The bot runs on Railway ($5/mo) and stays online 24/7 via persistent WebSocket connection.
 
@@ -173,7 +187,7 @@ Every feature is available to every user, on every server, forever.
 | Category | Technology | Why |
 |----------|-----------|-----|
 | **Frontend** | React 19 · TypeScript 5.7 · Vite 6 · Tailwind CSS 4 | Fast builds, strict typing, utility-first styling |
-| **Backend** | Supabase — Postgres, Auth, Realtime, Edge Functions, Storage | Managed Postgres with built-in auth, real-time subscriptions, and serverless functions — no backend server needed |
+| **Backend** | Supabase — Postgres, Auth, Realtime, Edge Functions, Storage | Managed Postgres with built-in auth, real-time subscriptions, and serverless functions |
 | **State** | TanStack React Query 5 · React Context | Automatic caching, background refetching, and optimistic updates |
 | **Routing** | React Router 7 | Code-split, lazy-loaded pages for fast initial load |
 | **Testing** | Vitest 4 · React Testing Library 16 | 143 tests covering spawn logic, rotation math, constants, hooks, and components |
