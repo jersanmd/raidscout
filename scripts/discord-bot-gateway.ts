@@ -520,7 +520,7 @@ async function handleMessage(msg: any) {
     const lines = upcoming.map((b, i) => {
       const prefix = b.time === "**ALIVE NOW**" ? "🟢 " : "";
       const guild = b.guild ? ` — ${b.guild}` : "";
-      const countdown = b.time !== "**ALIVE NOW**" ? ` (${formatRelative(b.unix)})` : "";
+      const countdown = b.time !== "**ALIVE NOW**" ? ` (<t:${b.unix}:R>)` : "";
       return `${i + 1}. ${prefix}${b.name}${guild} ${b.time}${countdown}`;
     });
     const desc = lines.join("\n");
