@@ -645,22 +645,14 @@ async function handleMessage(msg: any) {
       // else: time is in the past today → keep today
     }
 
-    // Determine owner guild
-    const bgs = await supabaseQuery(`boss_guilds?boss_id=eq.${boss.id}&select=guild_id,sort_order,day_of_week,mode`);
-    let ownerGuildId: string | null = null;
-    if (bgs?.length) {
-      const dow = deathTime.getDay();
-      const se = bgs.find((bg: any) => bg.day_of_week === dow);
-      if (se) {
-        ownerGuildId = se.guild_id;
-      } else {
-        const re = bgs.filter((bg: any) => bg.sort_order !== null).sort((a: any, b: any) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
-        if (re.length > 0) {
-          const idx = ((boss.rotation_counter ?? 1) - 1 + re.length) % re.length;
-          ownerGuildId = re[idx].guild_id;
-        }
-      }
-    }
+    // Determine owner guild — use same logic as nextspawn (computeOwnerGuild)
+    const serverGuilds = await supabaseQuery(`guilds?server_id=eq.${serverId}`);
+    const allBossGuilds = await supabaseQuery(`boss_guilds?select=boss_id,guild_id,sort_order,day_of_week,mode`);
+    const serverGuildIds = new Set(serverGuilds.map((g: any) => g.id));
+    const serverBossGuilds = allBossGuilds.filter((bg: any) => serverGuildIds.has(bg.guild_id));
+    const tz = await resolveServerTimezone(serverId);
+    const gName = computeOwnerGuild(boss, serverBossGuilds, serverGuilds, null, deathTime, tz);
+    const ownerGuildId = gName ? serverGuilds.find((g: any) => g.name === gName)?.id ?? null : null;
 
     await fetch(`${SUPABASE_URL}/rest/v1/death_records`, {
         method: "POST",
@@ -695,8 +687,7 @@ async function handleMessage(msg: any) {
       }
     }
 
-    const allGuilds = await supabaseQuery(`guilds?server_id=eq.${serverId}`);
-    const guildName = ownerGuildId ? allGuilds.find((g: any) => g.id === ownerGuildId)?.name ?? "" : "";
+    const guildName = ownerGuildId ? serverGuilds.find((g: any) => g.id === ownerGuildId)?.name ?? "" : "";
 
     // Send kill notification to the bot's own notification channel (skip if same channel)
     const notifChannelId = notifChannels.get(serverId);
