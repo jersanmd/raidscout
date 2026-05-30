@@ -798,27 +798,24 @@ createServer(async (req, res) => {
           res.writeHead(400); res.end(JSON.stringify({ error: "Invalid event" })); return;
         }
 
-        // Find notification channel (in-memory first, fall back to DB)
-        let channelId = notifChannels.get(server_id) ?? null;
-        if (!channelId) {
-          const rows = await supabaseQuery(
-            `discord_configs?raidscout_server_id=eq.${server_id}&select=notification_channel_id`
-          );
-          channelId = rows?.[0]?.notification_channel_id ?? null;
-          if (channelId) notifChannels.set(server_id, channelId);
-        }
-
-        if (!channelId) {
+        // Find ALL notification channels for this server (supports multi-Discord)
+        const rows = await supabaseQuery(
+          `discord_configs?raidscout_server_id=eq.${server_id}&select=notification_channel_id`
+        );
+        const channelIds = (rows || []).map((r: any) => r.notification_channel_id).filter(Boolean);
+        if (channelIds.length === 0) {
           res.writeHead(200); res.end(JSON.stringify({ skipped: "no channel set — use ;notifhere" }));
           return;
         }
 
         const prefix = await getNotifyPrefix(server_id);
-        await fetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
-          method: "POST",
-          headers: { Authorization: `Bot ${TOKEN}`, "Content-Type": "application/json" },
-          body: JSON.stringify({ content: prefix || undefined, embeds: [embed], allowed_mentions: { parse: ["everyone"] } }),
-        });
+        for (const channelId of channelIds) {
+          await fetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
+            method: "POST",
+            headers: { Authorization: `Bot ${TOKEN}`, "Content-Type": "application/json" },
+            body: JSON.stringify({ content: prefix || undefined, embeds: [embed], allowed_mentions: { parse: ["everyone"] } }),
+          });
+        }
 
         res.writeHead(200); res.end(JSON.stringify({ ok: true }));
       } catch (err: any) {
