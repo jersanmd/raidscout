@@ -1,5 +1,5 @@
 // ── Discord Gateway Bot ─────────────────────────────────────
-// Standalone bot that listens for !spawn and !kill chat commands.
+// Standalone bot that listens for ;nextspawn and ;killed chat commands.
 // Uses Discord's WebSocket Gateway (no Interactions Endpoint needed).
 //
 // Run: npx tsx scripts/discord-bot-gateway.ts
@@ -124,7 +124,7 @@ async function handleMessage(msg: any) {
   const guildId: string = msg.guild_id;
   const author: string = msg.author?.username ?? "unknown";
 
-  if (!content.startsWith("!")) return;
+  if (!content.startsWith(";")) return;
   const args = content.slice(1).split(/\s+/);
   const cmd = args[0]?.toLowerCase();
 
@@ -152,7 +152,7 @@ async function handleMessage(msg: any) {
     });
   }
 
-  // ── !list ────────────────────────────────────────────
+  // ── ;list ────────────────────────────────────────────
   if (cmd === "list") {
     const serverId = await resolveServerId(guildId);
     if (!serverId) return reply("This server is not linked to RaidScout.");
@@ -183,27 +183,27 @@ async function handleMessage(msg: any) {
     }
   }
 
-  // ── !commands ─────────────────────────────────────────
+  // ── ;commands ─────────────────────────────────────────
   if (cmd === "commands" || cmd === "help") {
     return replyEmbed(
       "📋 RaidScout Bot Commands",
-      "Prefix all commands with `!`",
+      "Prefix all commands with `;`",
       0x8b5cf6,
       [
-        { name: "!list", value: "Show all boss names", inline: false },
-        { name: "!spawn", value: "List boss spawns in the next 24 hours", inline: false },
-        { name: "!spawn <boss>", value: "Check spawn for a specific boss (e.g. `!spawn Venatus`)", inline: false },
-        { name: "!kill <boss>", value: "Record a boss kill right now (e.g. `!kill Venatus`)", inline: false },
-        { name: "!kill <boss> HH:MM", value: "Record a kill at a custom time. Auto: if the time already passed today → today. If it hasn't happened yet → yesterday.", inline: false },
-        { name: "!kill <boss> HH:MM today", value: "Force today's date even if the time is in the future", inline: false },
-        { name: "!kill <boss> HH:MM yesterday", value: "Force yesterday's date even if the time already passed today", inline: false },
-        { name: "!commands", value: "Show this help message", inline: false },
+        { name: ";list", value: "Show all boss names", inline: false },
+        { name: ";nextspawn", value: "List boss spawns in the next 24 hours", inline: false },
+        { name: ";nextspawn <boss>", value: "Check spawn for a specific boss (e.g. `;nextspawn Venatus`)", inline: false },
+        { name: ";killed <boss>", value: "Record a boss kill right now (e.g. `;killed Venatus`)", inline: false },
+        { name: ";killed <boss> HH:MM", value: "Record a kill at a custom time. Auto: if the time already passed today → today. If it hasn't happened yet → yesterday.", inline: false },
+        { name: ";killed <boss> HH:MM today", value: "Force today's date even if the time is in the future", inline: false },
+        { name: ";killed <boss> HH:MM yesterday", value: "Force yesterday's date even if the time already passed today", inline: false },
+        { name: ";commands", value: "Show this help message", inline: false },
       ],
     );
   }
 
-  // ── !spawn [boss] ──────────────────────────────────────
-  if (cmd === "spawn") {
+  // ── ;nextspawn [boss] ──────────────────────────────────
+  if (cmd === "nextspawn" || cmd === "spawn") {
     const serverId = await resolveServerId(guildId);
     if (!serverId) return reply("This server is not linked to RaidScout.");
 
@@ -291,8 +291,8 @@ async function handleMessage(msg: any) {
     );
   }
 
-  // ── !kill <boss> [HH:MM] [yesterday|today] ────────────
-  if (cmd === "kill") {
+  // ── ;killed <boss> [HH:MM] [yesterday|today] ──────────
+  if (cmd === "killed" || cmd === "kill") {
     const serverId = await resolveServerId(guildId);
     if (!serverId) return reply("This server is not linked to RaidScout.");
 
