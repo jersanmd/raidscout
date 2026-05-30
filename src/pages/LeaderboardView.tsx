@@ -410,7 +410,9 @@ export function LeaderboardView() {
         sheetData.push(styledRow);
       }
 
-      const ws = XLSX.utils.aoa_to_sheet(sheetData);
+      // Create worksheet with styles using sheet_add_aoa
+      const ws: any = {};
+      XLSX.utils.sheet_add_aoa(ws, sheetData, { origin: "A1" });
 
       ws["!cols"] = [
         { wch: 4 },  // P
@@ -420,8 +422,9 @@ export function LeaderboardView() {
       ];
 
       const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, "Attendance");
-      XLSX.writeFile(wb, `attendance-${exportStartDate}_to_${exportEndDate}.xlsx`);
+      wb.SheetNames.push("Attendance");
+      wb.Sheets["Attendance"] = ws;
+      XLSX.writeFile(wb, `attendance-${exportStartDate}_to_${exportEndDate}.xlsx`, { cellStyles: true, bookType: "xlsx" });
     } catch (err) {
       console.error("Export failed:", err);
       alert("Export failed. Check console for details.");
