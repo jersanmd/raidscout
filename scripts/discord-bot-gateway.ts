@@ -706,7 +706,7 @@ async function handleMessage(msg: any) {
             fields: [{ name: "Death Time", value: `<t:${killUnix}:f>`, inline: true }, { name: "Recorded By", value: author, inline: true }],
             footer: { text: "Powered by RaidScout" },
           }],
-          allowed_mentions: { parse: ["everyone", "here"] },
+          allowed_mentions: { parse: ["everyone"] },
         }),
       }).catch(() => {});
     }
@@ -842,7 +842,7 @@ createServer(async (req, res) => {
           const discordRes = await fetch(`https://discord.com/api/v10/channels/${cfg.notification_channel_id}/messages`, {
             method: "POST",
             headers: { Authorization: `Bot ${TOKEN}`, "Content-Type": "application/json" },
-            body: JSON.stringify({ content: prefix || undefined, embeds: [embed], allowed_mentions: { parse: ["everyone", "here"] } }),
+            body: JSON.stringify({ content: prefix || undefined, embeds: [embed], allowed_mentions: { parse: ["everyone"] } }),
           });
           if (!discordRes.ok) {
             const errText = await discordRes.text().catch(() => "");
