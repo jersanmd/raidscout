@@ -19,9 +19,16 @@ if (!SUPABASE_KEY) { console.error("Set SUPABASE_SERVICE_ROLE_KEY"); process.exi
 // ── Supabase REST helpers ──────────────────────────────────
 
 async function supabaseQuery(path: string): Promise<any> {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+  const url = `${SUPABASE_URL}/rest/v1/${path}`;
+  const res = await fetch(url, {
     headers: { apikey: SUPABASE_KEY!, Authorization: `Bearer ${SUPABASE_KEY!}` },
   });
+  if (!res.ok) {
+    console.error(`Supabase query failed: ${url} — ${res.status} ${res.statusText}`);
+    const text = await res.text();
+    console.error("Body:", text.slice(0, 200));
+    return [];
+  }
   return res.json();
 }
 
@@ -36,6 +43,12 @@ async function supabaseInsert(table: string, record: any): Promise<any> {
     },
     body: JSON.stringify(record),
   });
+  if (!res.ok) {
+    console.error(`Supabase insert failed: ${table} — ${res.status}`);
+    const text = await res.text();
+    console.error("Body:", text.slice(0, 200));
+    throw new Error(`Insert failed: ${res.status}`);
+  }
   return res.json();
 }
 
@@ -158,6 +171,7 @@ async function handleMessage(msg: any) {
     const serverId = await resolveServerId(guildId);
     if (!serverId) return reply("This server is not linked to RaidScout.");
     const bosses = await supabaseQuery(`bosses?server_id=eq.${serverId}&order=name`);
+    console.log(`list query for server ${serverId}:`, bosses?.length, "bosses");
     if (!bosses?.length) return reply("No bosses found.");
     // Split into chunks of 25 (Discord embed field limit)
     const chunkSize = 25;
