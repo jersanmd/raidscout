@@ -533,7 +533,7 @@ async function handleMessage(msg: any) {
 
       if (spawn.getTime() <= cutoff.getTime()) {
         // Compute owner guild — exact replica of src/lib/rotation.ts getOwnerGuildName
-        gName = computeOwnerGuild(boss, serverBossGuilds, guilds, lastDeath, spawn, tz) || "";
+        const gName = computeOwnerGuild(boss, serverBossGuilds, guilds, lastDeath, spawn, tz) || "";
         const unix = Math.floor(spawn.getTime() / 1000);
         upcoming.push({ name: boss.name, time: spawn <= now ? "**ALIVE NOW**" : `<t:${unix}:t>`, unix, guild: gName });
       }
