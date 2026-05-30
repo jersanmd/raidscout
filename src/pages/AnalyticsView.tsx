@@ -5,7 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useServerId } from "@/contexts/ServerContext";
 import { guildColor } from "@/lib/constants";
 import type { Guild, Member } from "@/types";
-import { BarChart3, TrendingUp, Users, Skull, Activity, Loader2, Shield, Download } from "lucide-react";
+import { BarChart3, TrendingUp, Users, Skull, Activity, Loader2, Shield } from "lucide-react";
 import { useServerTimezone } from "@/hooks/useServerTimezone";
 
 interface AnalyticsUIData {
@@ -24,7 +24,6 @@ export function AnalyticsView() {
   const configured = isSupabaseConfigured();
   const [period, setPeriod] = useState<"week" | "month" | "all">("week");
   const [huntersPage, setHuntersPage] = useState(1);
-  const [analyticsGuildFilter, setAnalyticsGuildFilter] = useState<string>("all");
   const HUNTERS_PER_PAGE = 10;
   const tz = useServerTimezone();
 
@@ -102,117 +101,10 @@ export function AnalyticsView() {
       };
     },
     staleTime: 0,
-    retry: false,
     refetchOnMount: true,
     refetchOnWindowFocus: true,
     enabled: configured && !!serverId,
   });
-
-  const [exportLoading, setExportLoading] = useState(false);
-
-  const handleExportAnalytics = () => {
-    if (!data) return;
-    setExportLoading(true);
-    try {
-      const periodLabel = period === "week" ? "This Week" : period === "month" ? "This Month" : "All Time";
-      const guildName = analyticsGuildFilter !== "all" ? guilds.find(g => g.id === analyticsGuildFilter)?.name : null;
-
-      let html = `<html><head><meta charset="utf-8"><style>
-        body { background: #0F172A; font-family: -apple-system, sans-serif; padding: 16px; }
-        .title { color: #F8FAFC; font-size: 18px; font-weight: bold; margin-bottom: 4px; }
-        .subtitle { color: #64748B; font-size: 12px; margin-bottom: 16px; }
-        table { border-collapse: collapse; width: 100%; margin-bottom: 16px; }
-        th { padding: 8px 12px; border: 1px solid #334155; text-align: left; font-size: 11px; }
-        td { padding: 6px 12px; border: 1px solid #334155; font-size: 11px; }
-        .hdr { background: #7C3AED; color: #fff; font-weight: bold; }
-        .shdr { background: #1E293B; color: #94A3B8; font-weight: bold; }
-        .e { background: #1E293B; color: #E2E8F0; }
-        .o { background: #0F172A; color: #E2E8F0; }
-        .num { text-align: center; font-weight: bold; color: #FBBF24; }
-        .rnk { text-align: center; color: #64748B; width: 30px; }
-        .nm { color: #E2E8F0; }
-        .gld { color: #94A3B8; font-size: 10px; }
-        .sum { background: #1E293B; }
-        .sval { text-align: center; font-weight: bold; font-size: 20px; }
-        .slbl { color: #94A3B8; text-align: center; font-size: 10px; padding-top: 2px; }
-</style></head><body>`;
-
-      // Title
-      html += `<div class="title">RaidScout Analytics${guildName ? ` — ${guildName}` : ""}</div>`;
-      html += `<div class="subtitle">${periodLabel} · ${new Date().toLocaleDateString()}</div>`;
-
-      // Summary cards (full width)
-      html += `<table><tr>
-        <td class="sum" style="width:33%"><div class="sval" style="color:#F87171">${data.totalKills}</div><div class="slbl">Total Kills</div></td>
-        <td class="sum" style="width:33%"><div class="sval" style="color:#60A5FA">${data.activeMembers}</div><div class="slbl">Active Members</div></td>
-        <td class="sum" style="width:33%"><div class="sval" style="color:#FBBF24">${data.totalAttendance}</div><div class="slbl">Attendances</div></td>
-      </tr></table>`;
-
-      // Build each section as a string
-      let col1 = "";
-      let col2 = "";
-      let col3 = "";
-      let col4 = "";
-
-      // COL 1: Kills by Week
-      if (data.killsByWeek.length > 0) {
-        col1 += `<table><tr><th class="hdr" colspan="2">Kills per Week</th></tr>`;
-        col1 += `<tr class="shdr"><td>Week</td><td style="text-align:center">Kills</td></tr>`;
-        data.killsByWeek.slice(-12).reverse().forEach((w, i) => {
-          col1 += `<tr class="${i % 2 === 0 ? "e" : "o"}"><td class="nm">${w.week}</td><td class="num">${w.count}</td></tr>`;
-        });
-        col1 += `</table>`;
-      }
-
-      // COL 2: Activity by Day
-      col2 += `<table><tr><th class="hdr" colspan="2">Activity by Day</th></tr>`;
-      col2 += `<tr class="shdr"><td>Day</td><td style="text-align:center">Kills</td></tr>`;
-      data.killsByDay.forEach((d, i) => {
-        col2 += `<tr class="${i % 2 === 0 ? "e" : "o"}"><td class="nm">${d.day}</td><td class="num">${d.count}</td></tr>`;
-      });
-      col2 += `</table>`;
-
-      // COL 3: Most Killed Bosses
-      col3 += `<table><tr><th class="hdr" colspan="3">Most Killed Bosses</th></tr>`;
-      col3 += `<tr class="shdr"><td>#</td><td>Boss</td><td style="text-align:center">Kills</td></tr>`;
-      data.topBosses.forEach((b, i) => {
-        col3 += `<tr class="${i % 2 === 0 ? "e" : "o"}"><td class="rnk">${i + 1}</td><td class="nm">${b.name}</td><td class="num">${b.kills}</td></tr>`;
-      });
-      col3 += `</table>`;
-
-      // COL 4: Most Active Hunters
-      col4 += `<table><tr><th class="hdr" colspan="4">Most Active Hunters</th></tr>`;
-      col4 += `<tr class="shdr"><td>#</td><td>Player</td><td>Guild</td><td style="text-align:center">Att</td></tr>`;
-      filteredHunters.forEach((h, i) => {
-        const gid = memberGuildMap.get(h.name);
-        const guild = gid ? guilds.find(g => g.id === gid) : null;
-        col4 += `<tr class="${i % 2 === 0 ? "e" : "o"}"><td class="rnk">${i + 1}</td><td class="nm">${h.name}</td><td class="gld">${guild?.name || ""}</td><td class="num">${h.attended}</td></tr>`;
-      });
-      col4 += `</table>`;
-
-      // Master 4-column layout
-      html += `<table><tr>
-        <td style="width:25%;vertical-align:top;padding:0 6px 0 0">${col1}</td>
-        <td style="width:25%;vertical-align:top;padding:0 6px">${col2}</td>
-        <td style="width:25%;vertical-align:top;padding:0 6px">${col3}</td>
-        <td style="width:25%;vertical-align:top;padding:0 0 0 6px">${col4}</td>
-      </tr></table></body></html>`;
-      html += `</table></body></html>`;
-
-      const blob = new Blob([html], { type: "application/vnd.ms-excel;charset=utf-8" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `analytics-${period}-${new Date().toISOString().slice(0, 10)}.xls`;
-      a.click();
-      URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error("Export failed:", err);
-      alert("Export failed.");
-    } finally {
-      setExportLoading(false);
-    }
-  };
 
   if (isLoading || !data) {
     return (
@@ -227,10 +119,6 @@ export function AnalyticsView() {
   const maxAttended = Math.max(...data.topHunters.map((h) => h.attended), 1);
   const maxDaily = Math.max(...data.killsByDay.map((d) => d.count), 1);
 
-  const filteredHunters = analyticsGuildFilter === "all"
-    ? data.topHunters
-    : data.topHunters.filter(h => memberGuildMap.get(h.name) === analyticsGuildFilter);
-
   return (
     <div className="max-w-3xl mx-auto px-4 py-6 space-y-6">
       <div className="flex items-center justify-between">
@@ -240,41 +128,19 @@ export function AnalyticsView() {
           </div>
           <h2 className="text-xl font-bold text-white">Analytics</h2>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="flex bg-slate-800 rounded-lg p-0.5">
-            {(["week", "month", "all"] as const).map((p) => (
-              <button
-                key={p}
-                onClick={() => { setPeriod(p); setHuntersPage(1); }}
-                className={`px-3 py-1.5 rounded-md text-xs font-medium transition ${
-                  period === p ? "bg-slate-700 text-white" : "text-slate-400 hover:text-slate-200"
-                }`}
-              >
-                {p === "week" ? "This Week" : p === "month" ? "This Month" : "All Time"}
-              </button>
-            ))}
-          </div>
-          {guilds.length > 0 && (
-            <select
-              value={analyticsGuildFilter}
-              onChange={(e) => { setAnalyticsGuildFilter(e.target.value); setHuntersPage(1); }}
-              className="bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-xs text-slate-300 outline-none focus:ring-2 focus:ring-purple-500 transition"
+        <div className="flex bg-slate-800 rounded-lg p-0.5">
+          {(["week", "month", "all"] as const).map((p) => (
+            <button
+              key={p}
+              onClick={() => { setPeriod(p); setHuntersPage(1); }}
+              className={`px-3 py-1.5 rounded-md text-xs font-medium transition ${
+                period === p ? "bg-slate-700 text-white" : "text-slate-400 hover:text-slate-200"
+              }`}
             >
-              <option value="all">All Guilds</option>
-              {guilds.map(g => (
-                <option key={g.id} value={g.id}>{g.name}</option>
-              ))}
-            </select>
-          )}
+              {p === "week" ? "This Week" : p === "month" ? "This Month" : "All Time"}
+            </button>
+          ))}
         </div>
-        <button
-          onClick={handleExportAnalytics}
-          disabled={exportLoading}
-          className="flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-medium bg-purple-600 text-white hover:bg-purple-500 transition disabled:opacity-50"
-        >
-          {exportLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Download className="w-3 h-3" />}
-          Export
-        </button>
       </div>
 
       <div className="grid grid-cols-3 gap-3">
@@ -318,7 +184,7 @@ export function AnalyticsView() {
 
       <Section title="Most Active Hunters" icon={<Users className="w-4 h-4" />}>
         <div className="space-y-1.5">
-          {filteredHunters.slice(0, huntersPage * HUNTERS_PER_PAGE).map((h, i) => {
+          {data.topHunters.slice(0, huntersPage * HUNTERS_PER_PAGE).map((h, i) => {
             const gid = memberGuildMap.get(h.name);
             const guild = gid ? guilds.find(g => g.id === gid) : null;
             const c = guild ? guildColor(guild.name) : null;
@@ -338,12 +204,12 @@ export function AnalyticsView() {
               </div>
             </div>
           )})}
-          {filteredHunters.length > huntersPage * HUNTERS_PER_PAGE && (
+          {data.topHunters.length > huntersPage * HUNTERS_PER_PAGE && (
             <button
               onClick={() => setHuntersPage(p => p + 1)}
               className="w-full py-1.5 text-xs text-blue-400 hover:text-blue-300 hover:bg-slate-800/50 rounded transition"
             >
-              Show more ({filteredHunters.length - huntersPage * HUNTERS_PER_PAGE} remaining)
+              Show more ({data.topHunters.length - huntersPage * HUNTERS_PER_PAGE} remaining)
             </button>
           )}
           {huntersPage > 1 && (
