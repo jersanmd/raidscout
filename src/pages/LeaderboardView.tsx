@@ -338,56 +338,57 @@ export function LeaderboardView() {
         .shdr { background: #1E293B; color: #94A3B8; font-weight: bold; }
         .rnk { text-align: center; color: #94A3B8; }
         .nm { color: #E2E8F0; text-align: left; }
+        .num { text-align: center; color: #FBBF24; font-weight: bold; }
 </style></head><body><table>`;
 
-      // Row 1: Player names
-      html += `<tr><th class="hdr"></th><th class="hdr"></th><th class="hdr"></th>`;
-      sortedMembers.forEach((mid, i) => {
-        html += `<th class="hdr" style="background:${playerColor(i)}">${memberMap.get(mid)?.name || "?"}</th>`;
-      });
-      html += `</tr>`;
-
-      // Row 2: Labels + totals
-      html += `<tr><th class="hdr">P</th><th class="hdr">Date & Time</th><th class="hdr">Boss</th>`;
-      sortedMembers.forEach((mid, i) => {
-        html += `<th class="hdr" style="background:${playerColor(i)};font-size:14px">${memberTotals.get(mid) || 0}</th>`;
-      });
-      html += `</tr>`;
-
-      // Data rows
-      for (let ri = 0; ri < dataRows.length; ri++) {
-        const row = dataRows[ri];
-        const cls = ri % 2 === 0 ? "even" : "odd";
-        html += `<tr><td class="${cls}">${row[0]}</td><td class="dt ${cls}">${row[1]}</td><td class="boss ${cls}">${row[2]}</td>`;
-        for (let c = 3; c < numCols; c++) {
-          const val = row[c] || 0;
-          html += `<td class="${cls} ${val > 0 ? 'pts-yes' : 'pts-no'}">${val}</td>`;
-        }
-        html += `</tr>`;
-      }
-
-      html += `</table>`;
-
-      // Ranking section
+      // Build ranking data
       const sortedRanking = [...memberTotals.entries()]
         .sort((a, b) => b[1] - a[1])
         .filter(([, pts]) => pts > 0);
 
-      let rankHtml = `<table><tr><th class="hdr" colspan="3" style="background:#7C3AED">🏆 Ranking</th></tr>`;
-      rankHtml += `<tr class="shdr"><td class="rnk">#</td><td class="nm">Player</td><td class="num">Points</td></tr>`;
-      sortedRanking.forEach(([mid, pts], i) => {
-        const cls = i % 2 === 0 ? "even" : "odd";
-        const name = memberMap.get(mid)?.name || "?";
-        const medal = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i + 1}`;
-        rankHtml += `<tr class="${cls}"><td class="rnk">${medal}</td><td class="nm">${name}</td><td class="num">${pts}</td></tr>`;
+      // Row 0: Player name headers + ranking header
+      html += `<tr><th class="hdr"></th><th class="hdr"></th><th class="hdr"></th>`;
+      sortedMembers.forEach((mid, i) => {
+        html += `<th class="hdr" style="background:${playerColor(i)}">${memberMap.get(mid)?.name || "?"}</th>`;
       });
-      rankHtml += `</table>`;
+      html += `<th class="hdr" style="background:#1E293B;min-width:16px"></th><th class="hdr" colspan="3" style="background:#7C3AED">🏆 Ranking</th></tr>`;
 
-      const pivotHtml = html;
-      html = `<table style="width:100%;table-layout:fixed"><colgroup><col style="width:75%"><col style="width:25%"></colgroup><tr>
-        <td style="vertical-align:top;padding-right:8px">${pivotHtml}</td>
-        <td style="vertical-align:top">${rankHtml}</td>
-      </tr></table></body></html>`;
+      // Row 1: Labels + totals + ranking sub-header
+      html += `<tr><th class="hdr">P</th><th class="hdr">Date & Time</th><th class="hdr">Boss</th>`;
+      sortedMembers.forEach((mid, i) => {
+        html += `<th class="hdr" style="background:${playerColor(i)};font-size:14px">${memberTotals.get(mid) || 0}</th>`;
+      });
+      html += `<th class="hdr" style="background:#1E293B"></th><th class="shdr">#</th><th class="shdr" style="text-align:left">Player</th><th class="shdr">Pts</th></tr>`;
+
+      // Data rows + ranking side by side
+      const maxR = Math.max(dataRows.length, sortedRanking.length);
+      for (let ri = 0; ri < maxR; ri++) {
+        const cls = ri % 2 === 0 ? "even" : "odd";
+        html += `<tr>`;
+        if (ri < dataRows.length) {
+          const row = dataRows[ri];
+          html += `<td class="${cls}">${row[0]}</td><td class="dt ${cls}">${row[1]}</td><td class="boss ${cls}">${row[2]}</td>`;
+          for (let c = 3; c < numCols; c++) {
+            const val = row[c] || 0;
+            html += `<td class="${cls} ${val > 0 ? 'pts-yes' : 'pts-no'}">${val}</td>`;
+          }
+        } else {
+          html += `<td class="${cls}"></td><td class="${cls}"></td><td class="${cls}"></td>`;
+          for (let c = 3; c < numCols; c++) html += `<td class="${cls}"></td>`;
+        }
+        html += `<td class="${cls}"></td>`;
+        if (ri < sortedRanking.length) {
+          const [mid, pts] = sortedRanking[ri];
+          const name = memberMap.get(mid)?.name || "?";
+          const medal = ri === 0 ? "🥇" : ri === 1 ? "🥈" : ri === 2 ? "🥉" : `${ri + 1}`;
+          html += `<td class="rnk ${cls}">${medal}</td><td class="nm ${cls}">${name}</td><td class="num ${cls}">${pts}</td>`;
+        } else {
+          html += `<td class="${cls}"></td><td class="${cls}"></td><td class="${cls}"></td>`;
+        }
+        html += `</tr>`;
+      }
+
+      html += `</table></body></html>`;
 
       const blob = new Blob([html], { type: "application/vnd.ms-excel;charset=utf-8" });
       const url = URL.createObjectURL(blob);
