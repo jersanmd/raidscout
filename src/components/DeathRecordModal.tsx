@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { Clock, Zap, X, Upload, Check, Plus, Search, Users, ClipboardPaste, Sparkles, Loader2, Pencil, ImagePlus } from "lucide-react";
@@ -6,8 +6,8 @@ import { useMembers } from "@/hooks/useMembers";
 import { useAuth } from "@/contexts/AuthContext";
 import { useServerId } from "@/contexts/ServerContext";
 import { extractNamesWithAI } from "@/lib/vision";
-import { isSupabaseConfigured } from "@/lib/supabase";
-import type { Boss, Member } from "@/types";
+import { isSupabaseConfigured, fetchGuilds } from "@/lib/supabase";
+import type { Boss, Member, Guild } from "@/types";
 
 interface DeathRecordModalProps {
   boss: Boss;
@@ -50,6 +50,32 @@ export function DeathRecordModal({ boss, onClose, onSubmit, defaultDeathTime, hi
 
   // Attendance state
   const { data: members = [] } = useMembers();
+  const [guilds, setGuilds] = useState<Guild[]>([]);
+  useEffect(() => {
+    if (serverId) fetchGuilds(serverId).then(setGuilds).catch(() => setGuilds([]));
+  }, [serverId]);
+  const guildMap = new Map(guilds.map(g => [g.id, g]));
+  // Group members by guild
+  const groupedMembers = useMemo(() => {
+    const groups: { guildName: string; guildId: string | null; members: Member[] }[] = [];
+    const guildGroups = new Map<string, Member[]>();
+    const ungrouped: Member[] = [];
+    for (const m of members) {
+      if (m.guild_id && guildMap.has(m.guild_id)) {
+        const existing = guildGroups.get(m.guild_id);
+        if (existing) existing.push(m);
+        else guildGroups.set(m.guild_id, [m]);
+      } else {
+        ungrouped.push(m);
+      }
+    }
+    for (const [gid, gmembers] of guildGroups) {
+      const g = guildMap.get(gid)!;
+      groups.push({ guildName: g.name, guildId: gid, members: gmembers });
+    }
+    if (ungrouped.length > 0) groups.push({ guildName: "Ungrouped", guildId: null, members: ungrouped });
+    return groups;
+  }, [members, guilds]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [rallyImages, setRallyImages] = useState<File[]>([]);
   const [rallyPreviews, setRallyPreviews] = useState<string[]>([]);
@@ -503,9 +529,16 @@ export function DeathRecordModal({ boss, onClose, onSubmit, defaultDeathTime, hi
     onSubmit(deathTime, rallyImages, finalIds);
   };
 
-  const filteredMembers = members.filter((m) =>
-    m.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredGroupedMembers = useMemo(() => {
+    if (!searchQuery.trim()) return groupedMembers;
+    const q = searchQuery.toLowerCase();
+    return groupedMembers
+      .map(g => ({
+        ...g,
+        members: g.members.filter(m => m.name.toLowerCase().includes(q)),
+      }))
+      .filter(g => g.members.length > 0);
+  }, [groupedMembers, searchQuery]);
 
   const exactMatch = members.some(
     (m) => m.name.toLowerCase() === newMemberName.trim().toLowerCase()
@@ -912,33 +945,43 @@ export function DeathRecordModal({ boss, onClose, onSubmit, defaultDeathTime, hi
                       </div>
                     </div>
                   )}
-                  {filteredMembers.length === 0 && pendingMembers.length === 0 ? (
+                  {filteredGroupedMembers.length === 0 && pendingMembers.length === 0 ? (
                     <p className="text-sm text-slate-600 text-center py-3">
                       No members found
                     </p>
                   ) : (
-                    <div className="flex flex-wrap gap-1.5">
-                    {filteredMembers.map((m) => (
-                      <button
-                        key={m.id}
-                        onClick={() => toggleMember(m.id)}
-                        className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-sm transition ${
-                          selectedIds.has(m.id)
-                            ? "bg-amber-900/30 text-amber-300 border border-amber-800"
-                            : "text-slate-300 hover:bg-slate-800 border border-transparent"
-                        }`}
-                      >
-                        <div
-                          className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${
-                            selectedIds.has(m.id)
-                              ? "bg-amber-500 border-amber-500"
-                              : "border-slate-600"
-                          }`}
-                        >
-                          {selectedIds.has(m.id) && <Check className="w-3 h-3 text-white" />}
+                    <div className="space-y-2">
+                    {filteredGroupedMembers.map((group) => (
+                      <div key={group.guildId ?? "ungrouped"}>
+                        <p className="text-[10px] font-medium text-slate-500 uppercase tracking-wider mb-1 px-1">
+                          {group.guildName}
+                          <span className="text-slate-600 ml-1">({group.members.length})</span>
+                        </p>
+                        <div className="flex flex-wrap gap-1.5">
+                        {group.members.map((m) => (
+                          <button
+                            key={m.id}
+                            onClick={() => toggleMember(m.id)}
+                            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-sm transition ${
+                              selectedIds.has(m.id)
+                                ? "bg-amber-900/30 text-amber-300 border border-amber-800"
+                                : "text-slate-300 hover:bg-slate-800 border border-transparent"
+                            }`}
+                          >
+                            <div
+                              className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${
+                                selectedIds.has(m.id)
+                                  ? "bg-amber-500 border-amber-500"
+                                  : "border-slate-600"
+                              }`}
+                            >
+                              {selectedIds.has(m.id) && <Check className="w-3 h-3 text-white" />}
+                            </div>
+                            <span>{m.name}</span>
+                          </button>
+                        ))}
                         </div>
-                        <span>{m.name}</span>
-                      </button>
+                      </div>
                     ))}
                     </div>
                   )}
