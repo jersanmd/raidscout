@@ -425,7 +425,7 @@ async function handleMessage(msg: any) {
     // Chunk into 25 fields per embed (Discord limit)
     const fieldChunks: { name: string; value: string; inline: boolean }[][] = [];
     const fields = upcoming.map((b, i) => ({
-      name: `${i + 1}. ${b.name}${b.guild ? ` — ${b.guild}` : ""}`,
+      name: `${i + 1}. ${b.time === "**ALIVE NOW**" ? "🟢 " : ""}${b.name}${b.guild ? ` — ${b.guild}` : ""}`,
       value: `${b.time}${b.time !== "**ALIVE NOW**" ? ` <t:${b.unix}:R>` : ""}`,
       inline: false,
     }));
@@ -468,8 +468,8 @@ async function handleMessage(msg: any) {
     const escaped = bossName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     let changed = false;
     const updatedFields = lastMsg.fields.map((f: any) => {
-      if (f.name.match(new RegExp(`^\\d+\\. __${escaped}__`))) return f; // already underlined
-      const newName = f.name.replace(new RegExp(`^\\d+\\. ${escaped}\\b`), (m: string) => m.replace(bossName, `__${bossName}__`));
+      if (f.name.match(new RegExp(`^\\d+\\. (🟢 )?__${escaped}__`))) return f; // already underlined
+      const newName = f.name.replace(new RegExp(`^\\d+\\. (🟢 )?${escaped}\\b`), (m: string) => m.replace(bossName, `__${bossName}__`));
       if (newName !== f.name) changed = true;
       return { ...f, name: newName };
     });
