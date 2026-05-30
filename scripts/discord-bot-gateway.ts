@@ -839,11 +839,15 @@ createServer(async (req, res) => {
 
         for (const cfg of configs) {
           const prefix = resolveRoles(rawPrefix, cfg.discord_guild_id);
-          await fetch(`https://discord.com/api/v10/channels/${cfg.notification_channel_id}/messages`, {
+          const discordRes = await fetch(`https://discord.com/api/v10/channels/${cfg.notification_channel_id}/messages`, {
             method: "POST",
             headers: { Authorization: `Bot ${TOKEN}`, "Content-Type": "application/json" },
             body: JSON.stringify({ content: prefix || undefined, embeds: [embed], allowed_mentions: { parse: ["everyone", "here"] } }),
           });
+          if (!discordRes.ok) {
+            const errText = await discordRes.text().catch(() => "");
+            console.error(`Discord send failed (${cfg.notification_channel_id}): ${discordRes.status} ${errText}`);
+          }
         }
 
         res.writeHead(200); res.end(JSON.stringify({ ok: true }));
