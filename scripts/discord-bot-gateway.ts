@@ -212,13 +212,21 @@ async function handleMessage(msg: any) {
   const matchedPrefix = prefixes.find(p => content.startsWith(p));
   if (!matchedPrefix) return;
   const args = content.slice(matchedPrefix.length).split(/\s+/);
-  const cmd = args[0]?.toLowerCase();
+  const rawCmd = args[0]?.toLowerCase();
 
   // React with ✅ to acknowledge the command
   fetch(`https://discord.com/api/v10/channels/${channelId}/messages/${msg.id}/reactions/${encodeURIComponent("✅")}/@me`, {
     method: "PUT",
     headers: { Authorization: `Bot ${TOKEN}` },
   }).catch(() => {});
+
+  // Load custom command aliases for this server
+  let aliases: Record<string, string> = {};
+  const aliasRows = await supabaseQuery(
+    `discord_configs?discord_guild_id=eq.${guildId}&command_prefix=eq.${encodeURIComponent(matchedPrefix)}&select=command_aliases`
+  );
+  if (aliasRows?.[0]?.command_aliases) aliases = aliasRows[0].command_aliases;
+  const cmd = aliases[rawCmd] || rawCmd;
 
   async function reply(text: string) {
     await fetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {

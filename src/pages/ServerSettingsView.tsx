@@ -111,6 +111,8 @@ export function ServerSettingsView() {
   const [newDiscordLabel, setNewDiscordLabel] = useState("");
   const [newDiscordPrefix, setNewDiscordPrefix] = useState("!");
   const [savingDiscord, setSavingDiscord] = useState(false);
+  const [editAliasLinkId, setEditAliasLinkId] = useState<string | null>(null);
+  const [editAliases, setEditAliases] = useState<Record<string, string>>({});
   const [searchParams] = useSearchParams();
   const tabParam = searchParams.get("tab");
   const initialTab = (tabParam === "general" || tabParam === "members" || tabParam === "integrations" || tabParam === "danger")
@@ -1635,8 +1637,49 @@ export function ServerSettingsView() {
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
+                  <button
+                    onClick={() => { setEditAliasLinkId(link.id); setEditAliases((link as any).command_aliases || {}); }}
+                    className="text-[10px] text-slate-500 hover:text-purple-400 transition mt-1"
+                  >
+                    <Pencil className="w-3 h-3 inline mr-1" />Edit Commands
+                  </button>
                 </div>
               ))}
+            </div>
+          )}
+
+          {/* Command alias editor */}
+          {editAliasLinkId && (
+            <div className="bg-slate-800/50 rounded-lg p-3 space-y-2">
+              <p className="text-xs font-medium text-purple-400">Custom Command Aliases</p>
+              {["list","nextspawn","killed","commands","notifhere"].map(cmd => (
+                <div key={cmd} className="flex items-center gap-2">
+                  <span className="text-xs text-slate-400 w-20 font-mono">{cmd}</span>
+                  <span className="text-xs text-slate-600">→</span>
+                  <input
+                    type="text"
+                    value={editAliases[cmd] || ""}
+                    onChange={e => setEditAliases(prev => ({ ...prev, [cmd]: e.target.value }))}
+                    placeholder={cmd}
+                    className="flex-1 bg-slate-800 border border-slate-700 rounded px-2 py-1 text-xs text-white placeholder-slate-600 outline-none focus:border-purple-500 transition font-mono"
+                  />
+                </div>
+              ))}
+              <div className="flex gap-2 pt-1">
+                <button
+                  onClick={async () => {
+                    const { error } = await supabase.from("discord_configs").update({ command_aliases: editAliases }).eq("id", editAliasLinkId);
+                    if (error) { toast("error", error.message); return; }
+                    setDiscordLinks(prev => prev.map(d => d.id === editAliasLinkId ? { ...d, command_aliases: editAliases } : d));
+                    setEditAliasLinkId(null);
+                    toast("success", "Command aliases saved!");
+                  }}
+                  className="px-3 py-1.5 rounded text-xs font-medium bg-purple-600 text-white hover:bg-purple-500 transition"
+                >
+                  Save Aliases
+                </button>
+                <button onClick={() => setEditAliasLinkId(null)} className="px-3 py-1.5 rounded text-xs text-slate-400 hover:text-white transition">Cancel</button>
+              </div>
             </div>
           )}
 
