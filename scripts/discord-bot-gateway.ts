@@ -417,7 +417,7 @@ async function handleMessage(msg: any) {
 
     const bossGuilds = await supabaseQuery(`boss_guilds?select=boss_id,guild_id,sort_order,day_of_week,mode`);
     for (const boss of bosses) {
-      if (filter && boss.name.toLowerCase() !== filter.toLowerCase()) continue;
+      if (filter && !boss.name.toLowerCase().includes(filter.toLowerCase())) continue;
 
       const lastDeath = deaths
         .filter((d: any) => d.boss_id === boss.id && !d.is_initial_spawn)
@@ -572,7 +572,7 @@ async function handleMessage(msg: any) {
     if (!bossName) return reply("Usage: `!kill Boss Name [HH:MM] [yesterday|today]`");
 
     const bosses = await supabaseQuery(
-      `bosses?server_id=eq.${serverId}&name=ilike.${encodeURIComponent(bossName)}`,
+      `bosses?server_id=eq.${serverId}&name=ilike.${encodeURIComponent("%" + bossName + "%")}`,
     );
     if (!bosses?.length) return reply(`Boss **${bossName}** not found.`);
     const boss = bosses[0];
