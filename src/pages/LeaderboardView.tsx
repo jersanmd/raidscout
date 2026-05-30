@@ -323,8 +323,8 @@ export function LeaderboardView() {
       const XLSX = await import("xlsx");
 
       // Header rows
-      const headerRow1: any[] = ["", "", ...sortedMembers.map(mid => memberMap.get(mid)?.name || "?")];
-      const headerRow2: any[] = ["Date & Time", "Boss", ...sortedMembers.map(mid => memberTotals.get(mid) || 0)];
+      const headerRow1: any[] = ["", "", "", ...sortedMembers.map(mid => memberMap.get(mid)?.name || "?")];
+      const headerRow2: any[] = ["P", "Date & Time", "Boss", ...sortedMembers.map(mid => memberTotals.get(mid) || 0)];
 
       // Data rows: one per death
       const dataRows: any[][] = [];
@@ -334,6 +334,7 @@ export function LeaderboardView() {
         if (!attendees || attendees.size === 0) continue;
         const boss = bossMap.get(death.boss_id);
         const row: any[] = [
+          attendees.size,
           timeFmt.format(new Date(death.death_time)),
           boss?.name || "?",
         ];
@@ -347,6 +348,7 @@ export function LeaderboardView() {
       const ws = XLSX.utils.aoa_to_sheet(sheetData);
 
       ws["!cols"] = [
+        { wch: 4 },  // P
         { wch: 18 }, // Date & Time
         { wch: 20 }, // Boss name
         ...sortedMembers.map(() => ({ wch: 12 })), // Player columns
