@@ -1,7 +1,10 @@
 -- ── Guild-filtered Analytics ──────────────────────────────
--- Adds optional guild_id parameter to get_analytics RPC.
--- When guild_id is provided, only counts kills/attendance where
--- at least one attendee belongs to that guild.
+-- Drops old overloads first, then creates a single version
+-- with optional guild_id parameter.
+
+DROP FUNCTION IF EXISTS get_analytics(timestamp with time zone, uuid);
+DROP FUNCTION IF EXISTS get_analytics(text, uuid);
+DROP FUNCTION IF EXISTS get_analytics(text, uuid, uuid);
 
 CREATE OR REPLACE FUNCTION get_analytics(
   since TEXT,
