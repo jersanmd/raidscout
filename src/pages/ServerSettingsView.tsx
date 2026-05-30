@@ -526,46 +526,20 @@ export function ServerSettingsView() {
   // ── Discord Bot helpers ────────────────────────────────
   const handleAddDiscordLink = async () => {
     const gid = newDiscordId.trim();
-    const wh = newDiscordWebhook.trim();
-    if (!gid || !wh || !currentServer) return;
+    if (!gid || !currentServer) return;
     setSavingDiscord(true);
     try {
       const { data, error } = await supabase.from("discord_configs").insert({
         discord_guild_id: gid,
         raidscout_server_id: currentServer.id,
         label: newDiscordLabel.trim() || null,
-        webhook_url: wh,
       }).select().single();
       if (error) throw error;
       setDiscordLinks(prev => [...prev, data]);
       setNewDiscordId("");
       setNewDiscordLabel("");
-      setNewDiscordWebhook("");
       bumpWebhookVersion();
-
-      // Send greeting to the webhook
-      try {
-        await fetch(wh, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              username: "RaidScout",
-              embeds: [{
-                title: "🛡️ RaidScout has been connected!",
-                description: `**RaidScout** is now linked to **${currentServer.name}**${newDiscordLabel.trim() ? ` (${newDiscordLabel.trim()})` : ""}.\n\nBoss kill alerts, spawn announcements, and @everyone pings are now active.`,
-                color: 0x22c55e,
-                fields: [
-                  { name: "Server", value: currentServer.name, inline: true },
-                  { name: "Status", value: "🟢 Online", inline: true },
-                ],
-                timestamp: new Date().toISOString(),
-                footer: { text: "Powered by RaidScout" },
-              }],
-            }),
-          });
-        } catch { /* webhook might be invalid — ignore */ }
-
-      toast("success", "Discord server linked!");
+      toast("success", "Discord server linked! Now invite the bot and type ;notifhere to set up notifications.");
     } catch (err: any) {
       toast("error", err?.message ?? "Failed to link");
     } finally {
