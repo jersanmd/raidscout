@@ -956,7 +956,7 @@ export function DeathRecordModal({ boss, onClose, onSubmit, defaultDeathTime, hi
                     <div className="space-y-2">
                     {filteredGroupedMembers.map((group) => (
                       <div key={group.guildId ?? "ungrouped"}>
-                        <p className="text-[10px] font-medium uppercase tracking-wider mb-1 px-1" style={{ color: group.guildId ? guildColor(group.guildName).text : undefined }}>
+                        <p className={`text-[10px] font-medium uppercase tracking-wider mb-1 px-1 ${group.guildId ? guildColor(group.guildName).text : "text-slate-500"}`}>
                           {group.guildName}
                           <span className="text-slate-600 ml-1">({group.members.length})</span>
                         </p>
