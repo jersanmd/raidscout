@@ -7,7 +7,7 @@ import { ExternalLink, X, MessageSquare } from "lucide-react";
 
 /**
  * Banner shown to server owners when Discord notifications aren't configured.
- * Guides them to type ;notifhere in their Discord server.
+ * Guides them to link their Discord server and type &lt;prefix&gt;notifhere.
  */
 export function DiscordWebhookBanner() {
   const { user } = useAuth();
@@ -52,7 +52,7 @@ export function DiscordWebhookBanner() {
             Discord notifications not set up
           </p>
           <p className="text-xs text-amber-400/80">
-            Add the RaidScout bot to your Discord server, then type <code className="bg-amber-900/40 px-1 rounded">;notifhere</code> in your announcements channel to enable boss kill and spawn alerts.
+            Add the RaidScout bot to your Discord server, then type <code className="bg-amber-900/40 px-1 rounded">&lt;prefix&gt;notifhere</code> in your announcements channel to enable boss kill and spawn alerts.
           </p>
         </div>
 

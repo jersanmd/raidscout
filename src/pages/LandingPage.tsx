@@ -17,7 +17,7 @@ const features = [
   { icon: <MessageSquare className="w-6 h-6" />, color: "border-emerald-500/30 bg-emerald-500/5", title: "Discord Alerts", desc: "Auto-post boss deaths and spawns to your Discord server per guild. @everyone pings and rich embeds included." },
   { icon: <Calendar className="w-6 h-6" />, color: "border-cyan-500/30 bg-cyan-500/5", title: "Weekly Schedule", desc: "Full week grid. See which guild owns which boss on every day. Click to manage." },
   { icon: <Skull className="w-6 h-6" />, color: "border-red-500/30 bg-red-500/5", title: "Death History", desc: "Complete kill log with guild badges. Attendance tracking per kill. Edit or delete entries." },
-  { icon: <Bot className="w-6 h-6" />, color: "border-indigo-500/30 bg-indigo-500/5", title: "Discord Bot Commands", desc: "Manage bosses without opening the site. Use ;killed, ;nextspawn, ;list, and ;commands, all from your Discord server." },
+  { icon: <Bot className="w-6 h-6" />, color: "border-indigo-500/30 bg-indigo-500/5", title: "Discord Bot Commands", desc: "Manage bosses without opening the site. Use commands like !killed, !nextspawn, and !list — all from your Discord server (prefix is customizable)." },
   { icon: <Eye className="w-6 h-6" />, color: "border-orange-500/30 bg-orange-500/5", glow: "hover:shadow-[0_0_30px_rgba(249,115,22,0.15)]", title: "Viewer Mode", desc: "Share a link so your members can watch timers, no account or login required. Read-only, always free." },
 ];
 
@@ -343,19 +343,19 @@ export function LandingPage() {
             <Bot className="w-3.5 h-3.5" /> DISCORD BOT
           </div>
           <h2 className="text-3xl font-bold">Control RaidScout from Discord</h2>
-          <p className="text-slate-400 mt-2 text-sm">Invite the bot to your server. Run commands in any channel.</p>
+          <p className="text-slate-400 mt-2 text-sm">Invite the bot to your server. Each RaidScout server gets its own command prefix (e.g. <code className="bg-slate-800 px-1 rounded text-amber-400">!</code> or <code className="bg-slate-800 px-1 rounded text-amber-400">;</code>).</p>
         </div>
         <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
           <div className="divide-y divide-slate-800">
             {[
-              { cmd: ";nextspawn", desc: "List all boss spawns in the next 24 hours", detail: "Shows spawn time, live countdown, and which guild owns each boss" },
-              { cmd: ";nextspawn Venatus", desc: "Check spawn for a specific boss", detail: "Filter by boss name to see just that boss's timer" },
-              { cmd: ";killed Venatus", desc: "Record a boss kill right now", detail: "Same as Mark Died on the website — advances rotation" },
-              { cmd: ";killed Venatus 14:30", desc: "Record a kill at a custom time", detail: "If 14:30 already passed today → records today. If it hasn't happened yet → records yesterday (auto)." },
+              { cmd: "!nextspawn", desc: "List all boss spawns in the next 24 hours", detail: "Shows spawn time, live countdown, and which guild owns each boss" },
+              { cmd: "!nextspawn Venatus", desc: "Check spawn for a specific boss", detail: "Filter by boss name to see just that boss's timer" },
+              { cmd: "!killed Venatus", desc: "Record a boss kill right now", detail: "Same as Mark Died on the website — advances rotation" },
+              { cmd: "!killed Venatus 14:30", desc: "Record a kill at a custom time", detail: "If 14:30 already passed today → records today. If it hasn't happened yet → records yesterday (auto)." },
               { cmd: "... 14:30 today", desc: "Force today's date", detail: "Add `today` to always record on today's date, even if the time hasn't happened yet" },
               { cmd: "... 14:30 yesterday", desc: "Force yesterday's date", detail: "Add `yesterday` to always record on yesterday's date" },
-              { cmd: ";list", desc: "See all boss names", detail: "Numbered list with respawn hours and spawn type" },
-              { cmd: ";commands", desc: "Show all available commands", detail: "Quick reference for your members" },
+              { cmd: "!list", desc: "See all boss names", detail: "Numbered list with respawn hours and spawn type" },
+              { cmd: "!commands", desc: "Show all available commands", detail: "Quick reference for your members" },
             ].map((c, i) => (
               <div key={c.cmd} className="flex items-start gap-4 px-5 py-4 hover:bg-slate-800/30 transition">
                 <code className="shrink-0 mt-0.5 px-2.5 py-1 rounded-md bg-indigo-900/40 border border-indigo-500/20 text-indigo-300 font-mono text-sm">{c.cmd}</code>

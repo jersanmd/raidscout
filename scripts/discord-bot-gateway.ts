@@ -48,11 +48,24 @@ async function supabaseInsert(table: string, record: any): Promise<any> {
   return res.json();
 }
 
-async function resolveServerId(guildId: string): Promise<string | null> {
+async function resolveServerId(guildId: string, prefix: string): Promise<string | null> {
   const rows = await supabaseQuery(
-    `discord_configs?discord_guild_id=eq.${guildId}&select=raidscout_server_id`,
+    `discord_configs?discord_guild_id=eq.${guildId}&command_prefix=eq.${encodeURIComponent(prefix)}&select=raidscout_server_id`,
   );
   return rows?.[0]?.raidscout_server_id ?? null;
+}
+
+// Cache prefixes per guild to avoid DB hits on every message
+const guildPrefixes = new Map<string, string[]>();
+
+async function getGuildPrefixes(guildId: string): Promise<string[]> {
+  if (guildPrefixes.has(guildId)) return guildPrefixes.get(guildId)!;
+  const rows = await supabaseQuery(
+    `discord_configs?discord_guild_id=eq.${guildId}&select=command_prefix`,
+  );
+  const prefixes: string[] = rows?.map((r: any) => r.command_prefix) ?? [];
+  guildPrefixes.set(guildId, prefixes);
+  return prefixes;
 }
 
 async function resolveServerTimezone(serverId: string): Promise<string> {
@@ -133,8 +146,12 @@ async function handleMessage(msg: any) {
   const guildId: string = msg.guild_id;
   const author: string = msg.author?.username ?? "unknown";
 
-  if (!content.startsWith(";")) return;
-  const args = content.slice(1).split(/\s+/);
+  // Match command prefix for this guild (supports multiple RaidScout servers)
+  if (!guildId) return;
+  const prefixes = await getGuildPrefixes(guildId);
+  const matchedPrefix = prefixes.find(p => content.startsWith(p));
+  if (!matchedPrefix) return;
+  const args = content.slice(matchedPrefix.length).split(/\s+/);
   const cmd = args[0]?.toLowerCase();
 
   async function reply(text: string) {
@@ -161,9 +178,9 @@ async function handleMessage(msg: any) {
     });
   }
 
-  // ── ;list ────────────────────────────────────────────
+  // ── list ─────────────────────────────────────────────
   if (cmd === "list") {
-    const serverId = await resolveServerId(guildId);
+    const serverId = await resolveServerId(guildId, matchedPrefix);
     if (!serverId) return reply("This server is not linked to RaidScout.");
     const bosses = await supabaseQuery(`bosses?server_id=eq.${serverId}&order=name`);
     if (!bosses?.length) return reply("No bosses found.");
@@ -192,14 +209,18 @@ async function handleMessage(msg: any) {
     }
   }
 
-  // ── ;notifhere ──────────────────────────────────────────
+  // ── notifhere ────────────────────────────────────────
   if (cmd === "notifhere") {
     if (msg.member?.permissions && !(Number(msg.member.permissions) & 0x8)) {
       return reply("You need the Administrator permission to set the notification channel.");
     }
-    notifChannels.set(guildId, msg.channel_id);
+    const serverId = await resolveServerId(guildId, matchedPrefix);
+    if (!serverId) return reply("This server is not linked to RaidScout.");
+    notifChannels.set(serverId, msg.channel_id);
     // Persist to DB so it survives bot restarts
-    const existing = await supabaseQuery(`discord_configs?discord_guild_id=eq.${guildId}&select=id`);
+    const existing = await supabaseQuery(
+      `discord_configs?discord_guild_id=eq.${guildId}&command_prefix=eq.${encodeURIComponent(matchedPrefix)}&select=id`
+    );
     if (existing?.length) {
       await fetch(`${SUPABASE_URL}/rest/v1/discord_configs?id=eq.${existing[0].id}`, {
         method: "PATCH",
@@ -210,29 +231,30 @@ async function handleMessage(msg: any) {
     return reply("✅ This channel will now receive boss kill, spawn, and activity notifications.");
   }
 
-  // ── ;commands ─────────────────────────────────────────
+  // ── commands ─────────────────────────────────────────
   if (cmd === "commands" || cmd === "help") {
+    const p = matchedPrefix;
     return replyEmbed(
       "📋 RaidScout Bot Commands",
-      "Prefix all commands with `;`",
+      `Prefix for this server: \`${p}\``,
       0x8b5cf6,
       [
-        { name: ";list", value: "Show all boss names", inline: false },
-        { name: ";nextspawn", value: "List boss spawns in the next 24 hours", inline: false },
-        { name: ";nextspawn <boss>", value: "Check spawn for a specific boss (e.g. `;nextspawn Venatus`)", inline: false },
-        { name: ";killed <boss>", value: "Record a boss kill right now (e.g. `;killed Venatus`)", inline: false },
-        { name: ";killed <boss> HH:MM", value: "Record a kill at a custom time. Auto: if the time already passed today → today. If it hasn't happened yet → yesterday.", inline: false },
-        { name: ";killed <boss> HH:MM today", value: "Force today's date even if the time is in the future", inline: false },
-        { name: ";killed <boss> HH:MM yesterday", value: "Force yesterday's date even if the time already passed today", inline: false },
-        { name: ";commands", value: "Show this help message", inline: false },
-        { name: ";notifhere", value: "Set this channel for boss kill & spawn notifications (admin only)", inline: false },
+        { name: `${p}list`, value: "Show all boss names", inline: false },
+        { name: `${p}nextspawn`, value: "List boss spawns in the next 24 hours", inline: false },
+        { name: `${p}nextspawn <boss>`, value: `Check spawn for a specific boss (e.g. \`${p}nextspawn Venatus\`)`, inline: false },
+        { name: `${p}killed <boss>`, value: `Record a boss kill right now (e.g. \`${p}killed Venatus\`)`, inline: false },
+        { name: `${p}killed <boss> HH:MM`, value: "Record a kill at a custom time. Auto: if the time already passed today → today. If it hasn't happened yet → yesterday.", inline: false },
+        { name: `${p}killed <boss> HH:MM today`, value: "Force today's date even if the time is in the future", inline: false },
+        { name: `${p}killed <boss> HH:MM yesterday`, value: "Force yesterday's date even if the time already passed today", inline: false },
+        { name: `${p}commands`, value: "Show this help message", inline: false },
+        { name: `${p}notifhere`, value: "Set this channel for boss kill & spawn notifications (admin only)", inline: false },
       ],
     );
   }
 
-  // ── ;nextspawn [boss] ──────────────────────────────────
+  // ── nextspawn [boss] ─────────────────────────────────
   if (cmd === "nextspawn" || cmd === "spawn") {
-    const serverId = await resolveServerId(guildId);
+    const serverId = await resolveServerId(guildId, matchedPrefix);
     if (!serverId) return reply("This server is not linked to RaidScout.");
 
     const filter = args[1];
@@ -338,9 +360,9 @@ async function handleMessage(msg: any) {
     }
   }
 
-  // ── ;killed <boss> [HH:MM] [yesterday|today] ──────────
+  // ── killed <boss> [HH:MM] [yesterday|today] ──────────
   if (cmd === "killed" || cmd === "kill") {
-    const serverId = await resolveServerId(guildId);
+    const serverId = await resolveServerId(guildId, matchedPrefix);
     if (!serverId) return reply("This server is not linked to RaidScout.");
 
     // Parse: !kill Boss Name [HH:MM] [yesterday|today]
@@ -541,14 +563,13 @@ createServer(async (req, res) => {
         }
 
         // Find notification channel (in-memory first, fall back to DB)
-        const rows = await supabaseQuery(`discord_configs?raidscout_server_id=eq.${server_id}&select=discord_guild_id,notification_channel_id`);
-        const guildId = rows?.[0]?.discord_guild_id;
-        let channelId: string | null = guildId ? notifChannels.get(guildId) ?? null : null;
-        // Fall back to DB-persisted channel if not in memory (e.g., after bot restart)
-        if (!channelId && rows?.[0]?.notification_channel_id) {
-          channelId = rows[0].notification_channel_id;
-          // Restore to in-memory cache
-          if (guildId) notifChannels.set(guildId, channelId);
+        let channelId = notifChannels.get(server_id) ?? null;
+        if (!channelId) {
+          const rows = await supabaseQuery(
+            `discord_configs?raidscout_server_id=eq.${server_id}&select=notification_channel_id`
+          );
+          channelId = rows?.[0]?.notification_channel_id ?? null;
+          if (channelId) notifChannels.set(server_id, channelId);
         }
 
         if (!channelId) {
@@ -579,10 +600,10 @@ createServer(async (req, res) => {
 // ── Preload notification channels from DB ──────────────────
 
 async function preloadNotifChannels() {
-  const rows = await supabaseQuery(`discord_configs?select=discord_guild_id,notification_channel_id&notification_channel_id=not.is.null`);
+  const rows = await supabaseQuery(`discord_configs?select=raidscout_server_id,notification_channel_id&notification_channel_id=not.is.null`);
   for (const row of rows || []) {
-    if (row.discord_guild_id && row.notification_channel_id) {
-      notifChannels.set(row.discord_guild_id, row.notification_channel_id);
+    if (row.raidscout_server_id && row.notification_channel_id) {
+      notifChannels.set(row.raidscout_server_id, row.notification_channel_id);
     }
   }
   console.log(`Preloaded ${notifChannels.size} notification channel(s) from DB`);

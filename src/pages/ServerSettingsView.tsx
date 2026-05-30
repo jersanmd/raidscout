@@ -106,10 +106,10 @@ export function ServerSettingsView() {
   const [viewerKey, setViewerKey] = useState("");
   const [showInviteCode, setShowInviteCode] = useState(false);
   const [showViewerKey, setShowViewerKey] = useState(false);
-  const [discordLinks, setDiscordLinks] = useState<{ id: string; discord_guild_id: string; label?: string; webhook_url?: string }[]>([]);
+  const [discordLinks, setDiscordLinks] = useState<{ id: string; discord_guild_id: string; label?: string; webhook_url?: string; command_prefix?: string }[]>([]);
   const [newDiscordId, setNewDiscordId] = useState("");
   const [newDiscordLabel, setNewDiscordLabel] = useState("");
-  const [newDiscordWebhook, setNewDiscordWebhook] = useState("");
+  const [newDiscordPrefix, setNewDiscordPrefix] = useState("!");
   const [savingDiscord, setSavingDiscord] = useState(false);
   const [searchParams] = useSearchParams();
   const tabParam = searchParams.get("tab");
@@ -526,6 +526,7 @@ export function ServerSettingsView() {
   // ── Discord Bot helpers ────────────────────────────────
   const handleAddDiscordLink = async () => {
     const gid = newDiscordId.trim();
+    const prefix = newDiscordPrefix.trim() || "!";
     if (!gid || !currentServer) return;
     setSavingDiscord(true);
     try {
@@ -533,13 +534,15 @@ export function ServerSettingsView() {
         discord_guild_id: gid,
         raidscout_server_id: currentServer.id,
         label: newDiscordLabel.trim() || null,
+        command_prefix: prefix,
       }).select().single();
       if (error) throw error;
       setDiscordLinks(prev => [...prev, data]);
       setNewDiscordId("");
       setNewDiscordLabel("");
+      setNewDiscordPrefix("!");
       bumpWebhookVersion();
-      toast("success", "Discord server linked! Now invite the bot and type ;notifhere to set up notifications.");
+      toast("success", `Discord server linked! Use \`${prefix}notifhere\` in Discord to set up notifications.`);
     } catch (err: any) {
       toast("error", err?.message ?? "Failed to link");
     } finally {
@@ -1620,6 +1623,7 @@ export function ServerSettingsView() {
               {discordLinks.map(link => (
                 <div key={link.id} className="bg-slate-800/50 rounded-lg px-3 py-2 space-y-1">
                   <div className="flex items-center gap-2">
+                    <span className="text-xs font-mono text-amber-400 bg-slate-700 px-1.5 py-0.5 rounded">{link.command_prefix || ";"}</span>
                     <span className="flex-1 text-sm text-white font-mono truncate">
                       {link.discord_guild_id}
                       {link.label && <span className="text-slate-400 ml-1">— {link.label}</span>}
@@ -1638,6 +1642,19 @@ export function ServerSettingsView() {
 
           {/* Add new link */}
           <div className="flex gap-2">
+            <select
+              value={newDiscordPrefix}
+              onChange={(e) => setNewDiscordPrefix(e.target.value)}
+              className="bg-slate-800 border border-slate-700 rounded-lg px-2 py-2 text-sm text-white outline-none focus:border-purple-500 transition font-mono w-16"
+            >
+              <option value="!">!</option>
+              <option value=";">;</option>
+              <option value="$">$</option>
+              <option value=".">.</option>
+              <option value="~">~</option>
+              <option value="rs!">rs!</option>
+              <option value="rs;">rs;</option>
+            </select>
             <input
               type="text"
               value={newDiscordId}
@@ -1665,11 +1682,12 @@ export function ServerSettingsView() {
 
           <div className="bg-slate-800/50 rounded-lg p-3 text-xs space-y-3">
             <div>
-              <p className="text-slate-300 font-semibold mb-1">Step 1: Link your Discord server</p>
+              <p className="text-slate-300 font-semibold mb-1">Step 1: Choose a prefix & link your Discord server</p>
               <ol className="list-decimal list-inside space-y-0.5 ml-1 text-slate-400">
+                <li>Pick a command prefix from the dropdown (e.g. <code className="bg-slate-700 px-1 rounded text-amber-400 font-mono">!</code>)</li>
                 <li>Enable <strong>Developer Mode</strong> in Discord (Settings → Advanced)</li>
                 <li>Right-click your server icon → <strong>Copy Server ID</strong></li>
-                <li>Paste it in the field above and click <strong>Link</strong></li>
+                <li>Paste it above and click <strong>Link</strong></li>
               </ol>
             </div>
             <div>
@@ -1682,20 +1700,20 @@ export function ServerSettingsView() {
               <p className="text-slate-300 font-semibold mb-1">Step 3: Set notification channel</p>
               <ol className="list-decimal list-inside space-y-0.5 ml-1 text-slate-400">
                 <li>In Discord, go to your announcements channel</li>
-                <li>Type <code className="bg-slate-700 px-1 rounded text-amber-400 font-mono">;notifhere</code></li>
+                <li>Type <code className="bg-slate-700 px-1 rounded text-amber-400 font-mono">&lt;prefix&gt;notifhere</code> (using your chosen prefix)</li>
                 <li>The bot will post all boss kill and spawn alerts to that channel</li>
               </ol>
             </div>
             <div>
-              <p className="text-slate-300 font-semibold mb-1">Available commands:</p>
+              <p className="text-slate-300 font-semibold mb-1">Available commands (use your chosen prefix):</p>
               <div className="space-y-0.5 mt-1">
-                <p className="text-xs"><span className="text-amber-400 font-mono">;nextspawn</span> <span className="text-slate-500">—</span> <span className="text-slate-400">Boss spawns in 24h</span></p>
-                <p className="text-xs"><span className="text-amber-400 font-mono">;nextspawn &lt;boss&gt;</span> <span className="text-slate-500">—</span> <span className="text-slate-400">Check a specific boss</span></p>
-                <p className="text-xs"><span className="text-amber-400 font-mono">;killed &lt;boss&gt;</span> <span className="text-slate-500">—</span> <span className="text-slate-400">Record a kill now</span></p>
-                <p className="text-xs"><span className="text-amber-400 font-mono">;killed &lt;boss&gt; HH:MM</span> <span className="text-slate-500">—</span> <span className="text-slate-400">Kill at custom time</span></p>
-                <p className="text-xs"><span className="text-amber-400 font-mono">;list</span> <span className="text-slate-500">—</span> <span className="text-slate-400">Show all boss names</span></p>
-                <p className="text-xs"><span className="text-amber-400 font-mono">;notifhere</span> <span className="text-slate-500">—</span> <span className="text-slate-400">Set notification channel</span></p>
-                <p className="text-xs"><span className="text-amber-400 font-mono">;commands</span> <span className="text-slate-500">—</span> <span className="text-slate-400">Show all commands</span></p>
+                <p className="text-xs"><span className="text-amber-400 font-mono">&lt;prefix&gt;nextspawn</span> <span className="text-slate-500">—</span> <span className="text-slate-400">Boss spawns in 24h</span></p>
+                <p className="text-xs"><span className="text-amber-400 font-mono">&lt;prefix&gt;nextspawn &lt;boss&gt;</span> <span className="text-slate-500">—</span> <span className="text-slate-400">Check a specific boss</span></p>
+                <p className="text-xs"><span className="text-amber-400 font-mono">&lt;prefix&gt;killed &lt;boss&gt;</span> <span className="text-slate-500">—</span> <span className="text-slate-400">Record a kill now</span></p>
+                <p className="text-xs"><span className="text-amber-400 font-mono">&lt;prefix&gt;killed &lt;boss&gt; HH:MM</span> <span className="text-slate-500">—</span> <span className="text-slate-400">Kill at custom time</span></p>
+                <p className="text-xs"><span className="text-amber-400 font-mono">&lt;prefix&gt;list</span> <span className="text-slate-500">—</span> <span className="text-slate-400">Show all boss names</span></p>
+                <p className="text-xs"><span className="text-amber-400 font-mono">&lt;prefix&gt;notifhere</span> <span className="text-slate-500">—</span> <span className="text-slate-400">Set notification channel</span></p>
+                <p className="text-xs"><span className="text-amber-400 font-mono">&lt;prefix&gt;commands</span> <span className="text-slate-500">—</span> <span className="text-slate-400">Show all commands</span></p>
               </div>
             </div>
           </div>
