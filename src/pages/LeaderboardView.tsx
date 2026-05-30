@@ -62,6 +62,12 @@ export function LeaderboardView() {
   const [showShareMenu, setShowShareMenu] = useState(false);
   const [snapshotGuildFilter, setSnapshotGuildFilter] = useState<string>("all");
 
+  // Attendance export state
+  const [exportStartDate, setExportStartDate] = useState("");
+  const [exportEndDate, setExportEndDate] = useState("");
+  const [exportGuildFilter, setExportGuildFilter] = useState<string>("all");
+  const [exportLoading, setExportLoading] = useState(false);
+
   // Point adjustment modal state
   const { currentServer } = useServer();
   const isStaff = !isViewer && (currentServer?.role === "owner" || currentServer?.role === "moderator");
@@ -204,6 +210,127 @@ export function LeaderboardView() {
       return `${medal} ${r.memberName} — ${r.points} pts`;
     });
     return `🏆 ${currentServer?.name} — ${periodLabel} Results\n\n${lines.join("\n")}\n\n📊 raidscout.com`;
+  };
+
+  // ── Attendance Export ─────────────────────────────────────
+
+  const handleExportAttendance = async () => {
+    if (!exportStartDate || !exportEndDate || !serverId) return;
+    setExportLoading(true);
+    try {
+      // Fetch death records in date range
+      const startISO = new Date(exportStartDate).toISOString();
+      const endISO = new Date(exportEndDate + "T23:59:59").toISOString();
+      const deathsRes = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/death_records?server_id=eq.${serverId}&death_time=gte.${startISO}&death_time=lte.${endISO}&select=id,boss_id,death_time&order=death_time.asc`,
+        { headers: { apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY, Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` } }
+      );
+      const deaths = await deathsRes.json();
+      if (!deaths?.length) { alert("No death records in this date range."); setExportLoading(false); return; }
+
+      const deathIds = deaths.map((d: any) => d.id);
+      const bossIds = [...new Set(deaths.map((d: any) => d.boss_id))];
+
+      // Fetch bosses
+      const bossRes = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/bosses?id=in.(${bossIds.join(",")})&select=id,name,points`,
+        { headers: { apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY, Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` } }
+      );
+      const bosses = await bossRes.json();
+      const bossMap = new Map((bosses || []).map((b: any) => [b.id, b]));
+
+      // Fetch attendance records for these deaths
+      const attRes = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/attendance_records?death_record_id=in.(${deathIds.join(",")})&select=death_record_id,member_id`,
+        { headers: { apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY, Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` } }
+      );
+      const attRecords = await attRes.json();
+
+      // Fetch ALL members (with guild) to resolve names
+      const memRes = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/members?server_id=eq.${serverId}&select=id,name,guild_id`,
+        { headers: { apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY, Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` } }
+      );
+      const allMembers = await memRes.json();
+      const memberMap = new Map((allMembers || []).map((m: any) => [m.id, m]));
+
+      // Filter members by guild
+      const guildMemberIds = new Set(
+        exportGuildFilter === "all"
+          ? (allMembers || []).map((m: any) => m.id)
+          : (allMembers || []).filter((m: any) => m.guild_id === exportGuildFilter).map((m: any) => m.id)
+      );
+
+      // Build pivot: boss_id → member_id → total_points
+      const pivot: Map<string, Map<string, number>> = new Map();
+      const deathBossMap = new Map(deaths.map((d: any) => [d.id, d.boss_id]));
+      const attendedMembers = new Set<string>();
+
+      for (const att of attRecords || []) {
+        if (!guildMemberIds.has(att.member_id)) continue;
+        const bossId = deathBossMap.get(att.death_record_id);
+        if (!bossId) continue;
+        const boss = bossMap.get(bossId);
+        if (!boss) continue;
+        const points = boss.points || 0;
+
+        if (!pivot.has(bossId)) pivot.set(bossId, new Map());
+        const memberMap2 = pivot.get(bossId)!;
+        memberMap2.set(att.member_id, (memberMap2.get(att.member_id) || 0) + points);
+        attendedMembers.add(att.member_id);
+      }
+
+      // Sort bosses by death time (first occurrence)
+      const bossOrder = new Map<string, number>();
+      for (const d of deaths) {
+        if (!bossOrder.has(d.boss_id)) bossOrder.set(d.boss_id, bossOrder.size);
+      }
+      const sortedBosses = [...pivot.keys()].sort((a, b) => (bossOrder.get(a) ?? 99) - (bossOrder.get(b) ?? 99));
+
+      // Sort members alphabetically
+      const sortedMembers = [...attendedMembers].sort((a, b) => {
+        const ma = memberMap.get(a);
+        const mb = memberMap.get(b);
+        return (ma?.name || "").localeCompare(mb?.name || "");
+      });
+
+      // Compute totals
+      const memberTotals = new Map<string, number>();
+      for (const memberId of sortedMembers) {
+        let total = 0;
+        for (const [bossId, mmap] of pivot) {
+          total += mmap.get(memberId) || 0;
+        }
+        memberTotals.set(memberId, total);
+      }
+
+      // Build TSV
+      const SEP = "\t";
+      // Header row 1: player names
+      const header1 = [SEP, SEP, ...sortedMembers.map(mid => memberMap.get(mid)?.name || "?")].join(SEP);
+      // Header row 2: "total" under each player
+      const header2 = [SEP, SEP, ...sortedMembers.map(mid => String(memberTotals.get(mid) || 0))].join(SEP);
+      // Data rows: boss name, points per player
+      const rows = sortedBosses.map(bossId => {
+        const boss = bossMap.get(bossId);
+        const mmap = pivot.get(bossId) || new Map();
+        return [boss?.name || "?", String(boss?.points || 0), ...sortedMembers.map(mid => String(mmap.get(mid) || 0))].join(SEP);
+      });
+
+      const csv = [header1, header2, ...rows].join("\n");
+      const blob = new Blob([csv], { type: "text/tab-separated-values;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `attendance-${exportStartDate}_to_${exportEndDate}.tsv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Export failed:", err);
+      alert("Export failed. Check console for details.");
+    } finally {
+      setExportLoading(false);
+    }
   };
 
   return (
@@ -396,6 +523,57 @@ export function LeaderboardView() {
                 ))}
               </select>
             )}
+          </div>
+
+          {/* Attendance Export */}
+          <div className="bg-slate-900 border border-slate-800 rounded-xl p-3 space-y-2">
+            <p className="text-xs font-medium text-slate-400 uppercase tracking-wider">Export Attendance</p>
+            <div className="flex flex-wrap gap-2 items-end">
+              <div className="flex flex-col gap-0.5">
+                <label className="text-[10px] text-slate-500">Start</label>
+                <input
+                  type="date"
+                  value={exportStartDate}
+                  onChange={(e) => setExportStartDate(e.target.value)}
+                  className="px-2 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-white text-xs outline-none focus:ring-2 focus:ring-amber-500 transition"
+                />
+              </div>
+              <div className="flex flex-col gap-0.5">
+                <label className="text-[10px] text-slate-500">End</label>
+                <input
+                  type="date"
+                  value={exportEndDate}
+                  onChange={(e) => setExportEndDate(e.target.value)}
+                  className="px-2 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-white text-xs outline-none focus:ring-2 focus:ring-amber-500 transition"
+                />
+              </div>
+              {guilds.length > 0 && (
+                <div className="flex flex-col gap-0.5">
+                  <label className="text-[10px] text-slate-500">Guild</label>
+                  <select
+                    value={exportGuildFilter}
+                    onChange={(e) => setExportGuildFilter(e.target.value)}
+                    className="px-2 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-white text-xs outline-none focus:ring-2 focus:ring-amber-500 transition"
+                  >
+                    <option value="all">All Guilds</option>
+                    {guilds.map(g => (
+                      <option key={g.id} value={g.id}>{g.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              <button
+                onClick={handleExportAttendance}
+                disabled={exportLoading || !exportStartDate || !exportEndDate}
+                className="px-3 py-1.5 rounded-lg text-xs font-medium bg-amber-600 text-white hover:bg-amber-500 transition disabled:opacity-50 flex items-center gap-1.5"
+              >
+                {exportLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
+                Export TSV
+              </button>
+            </div>
+            <p className="text-[10px] text-slate-600">
+              Exports a pivot table: rows = bosses, columns = players, cells = total points. Opens as a spreadsheet.
+            </p>
           </div>
 
           <div className="space-y-2">
