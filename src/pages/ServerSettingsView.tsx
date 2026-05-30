@@ -1652,8 +1652,21 @@ export function ServerSettingsView() {
               <option value="$">$</option>
               <option value=".">.</option>
               <option value="~">~</option>
+              <option value="?">?</option>
+              <option value="%">%</option>
+              <option value="&">&amp;</option>
+              <option value="-">-</option>
+              <option value="+">+</option>
+              <option value="=">=</option>
+              <option value=":">:</option>
               <option value="rs!">rs!</option>
               <option value="rs;">rs;</option>
+              <option value="rs.">rs.</option>
+              <option value="rb!">rb!</option>
+              <option value="rb;">rb;</option>
+              <option value="boss!">boss!</option>
+              <option value="boss;">boss;</option>
+              <option value="w!">w!</option>
             </select>
             <input
               type="text"
