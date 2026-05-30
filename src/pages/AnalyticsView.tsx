@@ -138,47 +138,58 @@ export function AnalyticsView() {
       html += `<div class="title">RaidScout Analytics</div>`;
       html += `<div class="subtitle">${periodLabel} · ${new Date().toLocaleDateString()}</div>`;
 
-      // Summary cards
+      // Summary cards (full width)
       html += `<table><tr>
         <td class="sum" style="width:33%"><div class="sval" style="color:#F87171">${data.totalKills}</div><div class="slbl">Total Kills</div></td>
         <td class="sum" style="width:33%"><div class="sval" style="color:#60A5FA">${data.activeMembers}</div><div class="slbl">Active Members</div></td>
         <td class="sum" style="width:33%"><div class="sval" style="color:#FBBF24">${data.totalAttendance}</div><div class="slbl">Attendances</div></td>
       </tr></table>`;
 
-      // Kills by Week
+      // Build each section as a string
+      let leftHtml = "";
+      let rightHtml = "";
+
+      // LEFT: Kills by Week
       if (data.killsByWeek.length > 0) {
-        html += `<table><tr><th class="hdr" colspan="2">Kills per Week</th></tr>`;
-        html += `<tr class="shdr"><td>Week</td><td style="text-align:center">Kills</td></tr>`;
+        leftHtml += `<table><tr><th class="hdr" colspan="2">Kills per Week</th></tr>`;
+        leftHtml += `<tr class="shdr"><td>Week</td><td style="text-align:center">Kills</td></tr>`;
         data.killsByWeek.slice(-12).reverse().forEach((w, i) => {
-          html += `<tr class="${i % 2 === 0 ? "e" : "o"}"><td class="nm">${w.week}</td><td class="num">${w.count}</td></tr>`;
+          leftHtml += `<tr class="${i % 2 === 0 ? "e" : "o"}"><td class="nm">${w.week}</td><td class="num">${w.count}</td></tr>`;
         });
-        html += `</table>`;
+        leftHtml += `</table>`;
       }
 
-      // Most Killed Bosses
-      html += `<table><tr><th class="hdr" colspan="3">Most Killed Bosses</th></tr>`;
-      html += `<tr class="shdr"><td>#</td><td>Boss</td><td style="text-align:center">Kills</td></tr>`;
-      data.topBosses.forEach((b, i) => {
-        html += `<tr class="${i % 2 === 0 ? "e" : "o"}"><td class="rnk">${i + 1}</td><td class="nm">${b.name}</td><td class="num">${b.kills}</td></tr>`;
+      // LEFT: Activity by Day
+      leftHtml += `<table><tr><th class="hdr" colspan="2">Activity by Day</th></tr>`;
+      leftHtml += `<tr class="shdr"><td>Day</td><td style="text-align:center">Kills</td></tr>`;
+      data.killsByDay.forEach((d, i) => {
+        leftHtml += `<tr class="${i % 2 === 0 ? "e" : "o"}"><td class="nm">${d.day}</td><td class="num">${d.count}</td></tr>`;
       });
-      html += `</table>`;
+      leftHtml += `</table>`;
 
-      // Most Active Hunters
-      html += `<table><tr><th class="hdr" colspan="4">Most Active Hunters</th></tr>`;
-      html += `<tr class="shdr"><td>#</td><td>Player</td><td>Guild</td><td style="text-align:center">Attended</td></tr>`;
+      // RIGHT: Most Killed Bosses
+      rightHtml += `<table><tr><th class="hdr" colspan="3">Most Killed Bosses</th></tr>`;
+      rightHtml += `<tr class="shdr"><td>#</td><td>Boss</td><td style="text-align:center">Kills</td></tr>`;
+      data.topBosses.forEach((b, i) => {
+        rightHtml += `<tr class="${i % 2 === 0 ? "e" : "o"}"><td class="rnk">${i + 1}</td><td class="nm">${b.name}</td><td class="num">${b.kills}</td></tr>`;
+      });
+      rightHtml += `</table>`;
+
+      // RIGHT: Most Active Hunters
+      rightHtml += `<table><tr><th class="hdr" colspan="4">Most Active Hunters</th></tr>`;
+      rightHtml += `<tr class="shdr"><td>#</td><td>Player</td><td>Guild</td><td style="text-align:center">Att</td></tr>`;
       data.topHunters.forEach((h, i) => {
         const gid = memberGuildMap.get(h.name);
         const guild = gid ? guilds.find(g => g.id === gid) : null;
-        html += `<tr class="${i % 2 === 0 ? "e" : "o"}"><td class="rnk">${i + 1}</td><td class="nm">${h.name}</td><td class="gld">${guild?.name || ""}</td><td class="num">${h.attended}</td></tr>`;
+        rightHtml += `<tr class="${i % 2 === 0 ? "e" : "o"}"><td class="rnk">${i + 1}</td><td class="nm">${h.name}</td><td class="gld">${guild?.name || ""}</td><td class="num">${h.attended}</td></tr>`;
       });
-      html += `</table>`;
+      rightHtml += `</table>`;
 
-      // Activity by Day
-      html += `<table><tr><th class="hdr" colspan="2">Activity by Day of Week</th></tr>`;
-      html += `<tr class="shdr"><td>Day</td><td style="text-align:center">Kills</td></tr>`;
-      data.killsByDay.forEach((d, i) => {
-        html += `<tr class="${i % 2 === 0 ? "e" : "o"}"><td class="nm">${d.day}</td><td class="num">${d.count}</td></tr>`;
-      });
+      // Master 2-column layout
+      html += `<table><tr>
+        <td style="width:50%;vertical-align:top;padding:0 8px 0 0">${leftHtml}</td>
+        <td style="width:50%;vertical-align:top;padding:0 0 0 8px">${rightHtml}</td>
+      </tr></table></body></html>`;
       html += `</table></body></html>`;
 
       const blob = new Blob([html], { type: "application/vnd.ms-excel;charset=utf-8" });
