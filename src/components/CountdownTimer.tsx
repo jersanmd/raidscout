@@ -19,19 +19,6 @@ export function CountdownTimer({ target, bossName, onUrgent, onCritical, onSpawn
   const isCritical = !timer.isPast && timer.totalSeconds > 0 && timer.totalSeconds <= 5;
   const justSpawned = timer.isPast && timer.totalSeconds === 0;
 
-  // Cleanup stale alert keys on mount (prevent localStorage pollution)
-  useEffect(() => {
-    const prefixes = ["alert-urgent-", "alert-critical-", "alert-spawned-"];
-    const cutoff = Date.now() - 600_000; // 10 minutes ago
-    for (let i = localStorage.length - 1; i >= 0; i--) {
-      const key = localStorage.key(i);
-      if (key && prefixes.some(p => key.startsWith(p))) {
-        const ts = Number(key.split("-").pop());
-        if (ts && ts < cutoff) localStorage.removeItem(key);
-      }
-    }
-  }, []);
-
   useEffect(() => {
     if (isUrgent && urgentKey && !localStorage.getItem(urgentKey) && bossName && onUrgent) {
       localStorage.setItem(urgentKey, "1");

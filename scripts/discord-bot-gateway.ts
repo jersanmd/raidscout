@@ -696,15 +696,11 @@ async function handleMessage(msg: any) {
 
     // Increment rotation_counter atomically
     if (serverBossGuilds.some((bg: any) => bg.boss_id === boss.id)) {
-      const patchRes = await fetch(`${SUPABASE_URL}/rest/v1/bosses?id=eq.${boss.id}`, {
+      await fetch(`${SUPABASE_URL}/rest/v1/bosses?id=eq.${boss.id}`, {
         method: "PATCH",
-        headers: { apikey: SUPABASE_KEY!, Authorization: `Bearer ${SUPABASE_KEY!}`, "Content-Type": "application/json", Prefer: "return=representation" },
+        headers: { apikey: SUPABASE_KEY!, Authorization: `Bearer ${SUPABASE_KEY!}`, "Content-Type": "application/json" },
         body: JSON.stringify({ rotation_counter: (boss.rotation_counter ?? 0) + 1 }),
       });
-      const updated = await patchRes.json();
-      if (updated?.[0]?.rotation_counter != null) {
-        boss.rotation_counter = updated[0].rotation_counter;
-      }
     }
 
     const guildName = ownerGuildId ? serverGuilds.find((g: any) => g.id === ownerGuildId)?.name ?? "" : "";
