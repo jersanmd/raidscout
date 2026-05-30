@@ -903,7 +903,7 @@ export interface AnalyticsData {
 export async function fetchAnalytics(since: string, serverId?: string | null): Promise<AnalyticsData> {
   const sid = serverId ?? getCurrentServerId();
   const { data, error } = await supabase
-    .rpc("get_analytics", { since, s_id: sid || undefined });
+    .rpc("get_analytics", { since, s_id: sid || null });
 
   if (error) throw error;
   return data as AnalyticsData;
