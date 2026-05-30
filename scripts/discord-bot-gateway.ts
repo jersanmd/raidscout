@@ -57,8 +57,6 @@ function addHours(d: Date, h: number) { return new Date(d.getTime() + h * 3600_0
 
 // ── WebSocket Gateway ──────────────────────────────────────
 
-const joinedGuilds = new Map<string, { name: string; memberCount: number }>();
-
 async function connect() {
   // Get gateway URL
   const gwRes = await fetch("https://discord.com/api/v10/gateway/bot", {
@@ -99,17 +97,6 @@ async function connect() {
         ws.send(JSON.stringify({ op: 1, d: seq }));
       }, d.heartbeat_interval);
       console.log("Bot is online!");
-    }
-
-    // GUILD_CREATE — track joined servers
-    if (t === "GUILD_CREATE") {
-      const g = d as any;
-      joinedGuilds.set(g.id, { name: g.name, memberCount: g.member_count ?? 0 });
-    }
-
-    // GUILD_DELETE — remove on leave/kick
-    if (t === "GUILD_DELETE") {
-      joinedGuilds.delete(d.id as string);
     }
 
     // MESSAGE_CREATE — handle commands
@@ -196,18 +183,6 @@ async function handleMessage(msg: any) {
     }
   }
 
-  // ── ;servers ──────────────────────────────────────────
-  if (cmd === "servers") {
-    const guildList = Array.from(joinedGuilds.entries())
-      .map(([id, g], i) => `${i + 1}. **${g.name}** (${g.memberCount} members)`)
-      .join("\n");
-    return replyEmbed(
-      `🌐 Servers (${joinedGuilds.size})`,
-      guildList || "No servers loaded yet. Restart the bot.",
-      0x3b82f6,
-    );
-  }
-
   // ── ;commands ─────────────────────────────────────────
   if (cmd === "commands" || cmd === "help") {
     return replyEmbed(
@@ -223,7 +198,6 @@ async function handleMessage(msg: any) {
         { name: ";killed <boss> HH:MM today", value: "Force today's date even if the time is in the future", inline: false },
         { name: ";killed <boss> HH:MM yesterday", value: "Force yesterday's date even if the time already passed today", inline: false },
         { name: ";commands", value: "Show this help message", inline: false },
-        { name: ";servers", value: "List all Discord servers the bot is in", inline: false },
       ],
     );
   }
