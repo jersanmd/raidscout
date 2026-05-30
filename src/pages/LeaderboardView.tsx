@@ -60,6 +60,7 @@ export function LeaderboardView() {
   const [showFinalizeConfirm, setShowFinalizeConfirm] = useState(false);
   const [copiedShare, setCopiedShare] = useState(false);
   const [showShareMenu, setShowShareMenu] = useState(false);
+  const [snapshotGuildFilter, setSnapshotGuildFilter] = useState<string>("all");
 
   // Point adjustment modal state
   const { currentServer } = useServer();
@@ -557,7 +558,7 @@ export function LeaderboardView() {
                 return (
                   <button
                     key={snap.id}
-                    onClick={() => { setShowSnapshots(false); loadSnapshot(snap.id); }}
+                    onClick={() => { setShowSnapshots(false); setSnapshotGuildFilter("all"); loadSnapshot(snap.id); }}
                     className="w-full flex items-start gap-3 px-4 py-3 rounded-lg bg-slate-800/50 border border-slate-700/50 hover:border-slate-600 transition text-left"
                   >
                     <History className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
@@ -631,10 +632,29 @@ export function LeaderboardView() {
                   </button>
                 </div>
                 <div className="overflow-y-auto p-3 space-y-1 flex-1">
-                  {viewingSnapshot.rankings.length === 0 ? (
-                    <p className="text-slate-500 text-sm text-center py-8">No rankings at that time.</p>
-                  ) : (
-                    viewingSnapshot.rankings.map((r) => {
+                  {/* Guild filter */}
+                  {guilds.length > 0 && (
+                    <div className="mb-2">
+                      <select
+                        value={snapshotGuildFilter}
+                        onChange={(e) => setSnapshotGuildFilter(e.target.value)}
+                        className="w-full px-2 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-white text-xs focus:outline-none focus:ring-2 focus:ring-purple-500 transition"
+                      >
+                        <option value="all">All Guilds</option>
+                        {guilds.map(g => (
+                          <option key={g.id} value={g.id}>{g.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                  {(() => {
+                    const filtered = snapshotGuildFilter === "all"
+                      ? viewingSnapshot.rankings
+                      : viewingSnapshot.rankings.filter(r => memberGuildMap.get(r.memberId) === snapshotGuildFilter);
+                    if (filtered.length === 0) {
+                      return <p className="text-slate-500 text-sm text-center py-8">No rankings for this guild.</p>;
+                    }
+                    return filtered.map((r) => {
                       const style = rankColors[r.rank];
                       return (
                         <div
@@ -653,8 +673,8 @@ export function LeaderboardView() {
                           </div>
                         </div>
                       );
-                    })
-                  )}
+                    });
+                  })()}
                 </div>
                 {viewingSnapshot.rankings.length > 0 && (
                   <div className="p-3 border-t border-slate-800 shrink-0 flex items-center gap-2">
