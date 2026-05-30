@@ -384,10 +384,9 @@ export function LeaderboardView() {
       rankHtml += `</table>`;
 
       const pivotHtml = html;
-      html = `<table style="width:100%;border-collapse:collapse"><tr>
-        <td style="width:70%;vertical-align:top;padding-right:8px">${pivotHtml}</td>
-        <td style="width:30%;vertical-align:top;padding-left:8px">${rankHtml}</td>
-      </tr></table></body></html>`;
+      html = `<div style="float:left;width:68%">${pivotHtml}</div>
+        <div style="float:right;width:30%">${rankHtml}</div>
+        <div style="clear:both"></div></body></html>`;
 
       const blob = new Blob([html], { type: "application/vnd.ms-excel;charset=utf-8" });
       const url = URL.createObjectURL(blob);
