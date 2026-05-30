@@ -10,7 +10,7 @@ import { fetchMemberKills, type MemberBossKill, isSupabaseConfigured, fetchGuild
 import { useAttendance } from "@/hooks/useAttendance";
 import { useMembers } from "@/hooks/useMembers";
 import type { Guild, LeaderboardSnapshot, PointAdjustment } from "@/types";
-import { Trophy, Medal, Crown, Users, Loader2, X, Skull, CheckCheck, History, ChevronRight, ChevronLeft, Search, Shield, Plus, Minus, Edit3, Share2 } from "lucide-react";
+import { Trophy, Medal, Crown, Users, Loader2, X, Skull, CheckCheck, History, ChevronRight, ChevronLeft, ChevronUp, ChevronDown, Search, Shield, Plus, Minus, Edit3, Share2 } from "lucide-react";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 
 const rankColors: Record<number, { icon: React.ReactNode; text: string; bg: string }> = {
@@ -67,6 +67,7 @@ export function LeaderboardView() {
   const [exportEndDate, setExportEndDate] = useState("");
   const [exportGuildFilter, setExportGuildFilter] = useState<string>("all");
   const [exportLoading, setExportLoading] = useState(false);
+  const [showExport, setShowExport] = useState(false);
 
   // Point adjustment modal state
   const { currentServer } = useServer();
@@ -525,9 +526,20 @@ export function LeaderboardView() {
             )}
           </div>
 
-          {/* Attendance Export */}
+          {/* Attendance Export toggle */}
+          <button
+            onClick={() => setShowExport(!showExport)}
+            className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-300 transition"
+          >
+            {showExport ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+            Export Attendance
+          </button>
+
+          {showExport && (
           <div className="bg-slate-900 border border-slate-800 rounded-xl p-3 space-y-2">
-            <p className="text-xs font-medium text-slate-400 uppercase tracking-wider">Export Attendance</p>
+
+
+
             <div className="flex flex-wrap gap-2 items-end">
               <div className="flex flex-col gap-0.5">
                 <label className="text-[10px] text-slate-500">Start</label>
@@ -575,6 +587,7 @@ export function LeaderboardView() {
               Exports a pivot table: rows = bosses, columns = players, cells = total points. Opens as a spreadsheet.
             </p>
           </div>
+          )}
 
           <div className="space-y-2">
           {filteredEntries.map((entry, index) => {
