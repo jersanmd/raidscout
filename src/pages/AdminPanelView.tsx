@@ -251,7 +251,7 @@ export function AdminPanelView() {
                             <p className={`text-lg font-bold ${stats.has_webhook ? 'text-emerald-300' : 'text-slate-500'}`}>
                               {stats.has_webhook ? 'ON' : 'OFF'}
                             </p>
-                            <p className={`text-[10px] ${stats.has_webhook ? 'text-emerald-400/60' : 'text-slate-600'}`}>Webhook</p>
+                            <p className={`text-[10px] ${stats.has_webhook ? 'text-emerald-400/60' : 'text-slate-600'}`}>Bot Alerts</p>
                           </div>
                         </div>
                         {stats.guild_members && stats.guild_members.length > 0 && (() => {

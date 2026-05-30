@@ -3,47 +3,39 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useServer } from "@/contexts/ServerContext";
 import { supabase } from "@/lib/supabase";
-import { ExternalLink, X, Webhook } from "lucide-react";
+import { ExternalLink, X, MessageSquare } from "lucide-react";
 
 /**
- * Persistent warning banner shown to server owners/moderators
- * when no webhook is configured — checks both legacy webhook
- * and per-guild Discord Bot & Webhook links.
+ * Banner shown to server owners when Discord notifications aren't configured.
+ * Guides them to type ;notifhere in their Discord server.
  */
 export function DiscordWebhookBanner() {
   const { user } = useAuth();
   const { currentServer } = useServer();
-  const { webhookVersion } = useServer();
   const navigate = useNavigate();
   const [dismissed, setDismissed] = useState(false);
-  const [hasWebhook, setHasWebhook] = useState(true); // optimistic
+  const [hasNotifications, setHasNotifications] = useState(true);
 
   useEffect(() => {
     if (!currentServer?.id) return;
-    // Check legacy webhook
-    if (currentServer.discord_webhook_url) {
-      setHasWebhook(true);
-      return;
-    }
-    // Check per-guild webhooks
+    // Check if server is linked to Discord via discord_configs
     (async () => {
       try {
         const { data } = await supabase
           .from("discord_configs")
-          .select("webhook_url")
+          .select("id")
           .eq("raidscout_server_id", currentServer.id)
-          .not("webhook_url", "is", null)
           .limit(1);
-        setHasWebhook((data?.length ?? 0) > 0);
+        setHasNotifications((data?.length ?? 0) > 0);
       } catch {
-        setHasWebhook(false);
+        setHasNotifications(false);
       }
     })();
-  }, [currentServer?.id, currentServer?.discord_webhook_url, webhookVersion]);
+  }, [currentServer?.id]);
 
   if (!user || !currentServer) return null;
   if (currentServer.role !== "owner" && currentServer.role !== "moderator") return null;
-  if (hasWebhook) return null;
+  if (hasNotifications) return null;
   if (dismissed) return null;
 
   return (
@@ -57,27 +49,25 @@ export function DiscordWebhookBanner() {
         {/* Message */}
         <div className="flex-1 min-w-0">
           <p className="text-sm text-amber-200 font-medium">
-            Discord Bot & Webhook not configured
+            Discord notifications not set up
           </p>
           <p className="text-xs text-amber-400/80">
-            Boss kill alerts, spawn announcements, and @everyone pings will not
-            work until you add your Discord Server ID and Webhook URL in settings.
+            Add the RaidScout bot to your Discord server, then type <code className="bg-amber-900/40 px-1 rounded">;notifhere</code> in your announcements channel to enable boss kill and spawn alerts.
           </p>
         </div>
 
-        {/* Actions */}
         <div className="flex items-center gap-2 shrink-0">
           <button
-            onClick={() => navigate("/server-settings?tab=integrations&highlight=discord-id")}
+            onClick={() => navigate("/server-settings?tab=integrations")}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-amber-600 text-white hover:bg-amber-500 transition"
           >
             <ExternalLink className="w-3 h-3" />
-            Configure
+            Link Discord
           </button>
           <button
             onClick={() => setDismissed(true)}
             className="p-1.5 text-amber-500 hover:text-amber-300 hover:bg-amber-900/40 rounded-md transition"
-            title="Dismiss (will reappear on next visit)"
+            title="Dismiss"
           >
             <X className="w-3.5 h-3.5" />
           </button>
