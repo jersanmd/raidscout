@@ -468,20 +468,36 @@ async function handleMessage(msg: any) {
       } else continue;
 
       if (spawn.getTime() <= cutoff.getTime()) {
-        // Compute owner guild
+        // Compute owner guild (matches web app rotation.ts logic)
         const bgs = bossGuilds.filter((bg: any) => bg.boss_id === boss.id);
         let gName = "";
         if (bgs.length > 0) {
           const dow = spawn.getDay();
+          // 1. Schedule mode: guild based on day of week
           const se = bgs.find((bg: any) => bg.day_of_week === dow);
           if (se) {
             gName = guilds.find((g: any) => g.id === se.guild_id)?.name ?? "";
           } else {
-            const re = bgs.filter((bg: any) => bg.sort_order !== null).sort((a: any, b: any) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
-            if (re.length > 0) {
-              const counter = boss.rotation_counter ?? 1;
-              const idx = ((counter - 1) % re.length + re.length) % re.length;
-              gName = guilds.find((g: any) => g.id === re[idx].guild_id)?.name ?? "";
+            // 2. Daily mode: advance guild when spawn crosses into a new day
+            const dailyEntries = bgs
+              .filter((bg: any) => bg.mode === "daily")
+              .sort((a: any, b: any) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+            if (dailyEntries.length > 0) {
+              // Daily: use day-based index to rotate through guilds
+              const startOfDay = new Date(spawn.getFullYear(), spawn.getMonth(), spawn.getDate());
+              const dayIdx = Math.floor(startOfDay.getTime() / 86400000);
+              const idx = dayIdx % dailyEntries.length;
+              gName = guilds.find((g: any) => g.id === dailyEntries[idx >= 0 ? idx : idx + dailyEntries.length].guild_id)?.name ?? "";
+            } else {
+              // 3. Rotation mode: use rotation_counter
+              const re = bgs
+                .filter((bg: any) => bg.sort_order !== null && bg.mode !== "daily")
+                .sort((a: any, b: any) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+              if (re.length > 0) {
+                const counter = boss.rotation_counter ?? 1;
+                const idx = ((counter - 1) % re.length + re.length) % re.length;
+                gName = guilds.find((g: any) => g.id === re[idx].guild_id)?.name ?? "";
+              }
             }
           }
         }
