@@ -306,28 +306,37 @@ async function handleMessage(msg: any) {
   // ── commands ─────────────────────────────────────────
   if (cmd === "commands" || cmd === "help") {
     const p = matchedPrefix;
-    // Check if multiple servers are linked to this guild
+    // Check if multiple servers are linked + load aliases
     const guildConfigs = await supabaseQuery(
-      `discord_configs?discord_guild_id=eq.${guildId}&select=command_prefix,label`
+      `discord_configs?discord_guild_id=eq.${guildId}&select=command_prefix,label,command_aliases`
     );
     const multiServer = (guildConfigs?.length ?? 0) > 1;
     const prefixNote = multiServer
       ? `\n💡 This Discord server has multiple RaidScout servers linked. Each uses its own prefix:\n${guildConfigs.map((c: any) => `\`${c.command_prefix}\` — ${c.label || "Unnamed"}`).join("\n")}`
       : "";
+    // Load aliases for this server
+    const serverConfig = guildConfigs?.find((c: any) => c.command_prefix === matchedPrefix);
+    const aliasesMap: Record<string, string> = serverConfig?.command_aliases || {};
+    // Build reverse map for display
+    const reverseAliases: Record<string, string> = {};
+    for (const [canon, alias] of Object.entries(aliasesMap)) {
+      if (alias) reverseAliases[canon] = alias;
+    }
+    const aliasNote = (alias: string) => reverseAliases[alias] ? ` (alias: \`${p}${reverseAliases[alias]}\`)` : "";
     return replyEmbed(
       "📋 RaidScout Bot Commands",
       `Prefix for this server: \`${p}\`${prefixNote}`,
       0x8b5cf6,
       [
-        { name: `${p}list`, value: "Show all boss names", inline: false },
-        { name: `${p}nextspawn`, value: "List boss spawns in the next 24 hours", inline: false },
+        { name: `${p}list${aliasNote("list")}`, value: "Show all boss names", inline: false },
+        { name: `${p}nextspawn${aliasNote("nextspawn")}`, value: "List boss spawns in the next 24 hours", inline: false },
         { name: `${p}nextspawn <boss>`, value: `Check spawn for a specific boss (e.g. \`${p}nextspawn Venatus\`)`, inline: false },
-        { name: `${p}killed <boss>`, value: `Record a boss kill right now (e.g. \`${p}killed Venatus\`)`, inline: false },
+        { name: `${p}killed <boss>${aliasNote("killed")}`, value: `Record a boss kill right now (e.g. \`${p}killed Venatus\`)`, inline: false },
         { name: `${p}killed <boss> HH:MM`, value: "Record a kill at a custom time. Auto: if the time already passed today → today. If it hasn't happened yet → yesterday.", inline: false },
         { name: `${p}killed <boss> HH:MM today`, value: "Force today's date even if the time is in the future", inline: false },
         { name: `${p}killed <boss> HH:MM yesterday`, value: "Force yesterday's date even if the time already passed today", inline: false },
-        { name: `${p}commands`, value: "Show this help message", inline: false },
-        { name: `${p}notifhere`, value: "Set this channel for boss kill & spawn notifications", inline: false },
+        { name: `${p}commands${aliasNote("commands")}`, value: "Show this help message", inline: false },
+        { name: `${p}notifhere${aliasNote("notifhere")}`, value: "Set this channel for boss kill & spawn notifications", inline: false },
       ],
     );
   }
