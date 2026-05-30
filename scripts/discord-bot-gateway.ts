@@ -82,15 +82,41 @@ async function getNotifyPrefix(serverId: string): Promise<string> {
 
 function addHours(d: Date, h: number) { return new Date(d.getTime() + h * 3600_000); }
 
-function findNextScheduleSlot(schedule: { day: number; time: string }[], after: Date): Date {
+/** Convert a schedule slot (day, "HH:MM") in the given timezone to a UTC Date */
+function scheduleSlotToUTC(tz: string, refDate: Date, day: number, time: string): Date {
+  // Get current date string in the target timezone for this refDate
+  const localDateStr = refDate.toLocaleDateString("en-CA", { timeZone: tz }); // "2026-05-30"
+  const [y, mo, d] = localDateStr.split("-").map(Number);
+  const [h, m] = time.split(":").map(Number);
+
+  // Compute the day difference between refDate's local day and the target day
+  const refDay = new Date(Date.UTC(y, mo - 1, d)).getUTCDay();
+  let dayDiff = day - refDay;
+  if (dayDiff < -3) dayDiff += 7;
+  if (dayDiff > 3) dayDiff -= 7;
+
+  const targetLocal = new Date(Date.UTC(y, mo - 1, d + dayDiff, h, m));
+
+  // Convert local time to UTC by getting the timezone offset at that instant
+  const utcStr = targetLocal.toLocaleTimeString("en-US", { timeZone: "UTC", hour12: false, hour: "2-digit", minute: "2-digit" });
+  const tzStr = targetLocal.toLocaleTimeString("en-US", { timeZone: tz, hour12: false, hour: "2-digit", minute: "2-digit" });
+  const [utcH, utcM] = utcStr.split(":").map(Number);
+  const [tzH, tzM] = tzStr.split(":").map(Number);
+  const offsetMin = (tzH * 60 + tzM) - (utcH * 60 + utcM);
+  // Handle day wrap (e.g., UTC 23:00 vs local 07:00 next day → offset is -960, but should be +480)
+  const adjustedOffset = offsetMin > 720 ? offsetMin - 1440 : offsetMin < -720 ? offsetMin + 1440 : offsetMin;
+
+  return new Date(targetLocal.getTime() - adjustedOffset * 60_000);
+}
+
+function findNextScheduleSlot(schedule: { day: number; time: string }[], after: Date, tz: string): Date {
   let earliest: Date | null = null;
+  const now = new Date();
   for (let d = 0; d <= 7; d++) {
-    const check = new Date(after);
+    const check = new Date(now);
     check.setDate(check.getDate() + d);
     for (const slot of schedule) {
-      if (slot.day !== check.getDay()) continue;
-      const [h, m] = slot.time.split(":").map(Number);
-      const c = new Date(check.getFullYear(), check.getMonth(), check.getDate(), h, m);
+      const c = scheduleSlotToUTC(tz, check, slot.day, slot.time);
       if (c > after && (!earliest || c < earliest)) earliest = c;
     }
   }
@@ -367,6 +393,7 @@ async function handleMessage(msg: any) {
     if (!serverId) return reply("⚠️ This Discord server is not linked to RaidScout. An admin needs to go to **Server Settings → Integrations** on the RaidScout web app and link this Discord server.");
 
     const filter = args[1];
+    const tz = await resolveServerTimezone(serverId);
     const [bosses, deaths, guilds] = await Promise.all([
       supabaseQuery(`bosses?server_id=eq.${serverId}&order=name`),
       supabaseQuery(`death_records?server_id=eq.${serverId}&order=death_time.desc&limit=200`),
@@ -390,16 +417,14 @@ async function handleMessage(msg: any) {
         spawn = lastDeath ? addHours(new Date(lastDeath.death_time), boss.respawn_hours ?? 0) : now;
         if (spawn <= now && now <= addHours(spawn, 24)) spawn = now;
       } else if (boss.spawn_type === "fixed_schedule" && boss.schedule) {
-        // Find most recent past schedule slot
+        // Find most recent past schedule slot (in server timezone → UTC)
         let recentSlot: { day: number; time: string } | null = null;
         let recentTime: Date | null = null;
         for (let d = 0; d <= 7; d++) {
           const check = new Date(now);
           check.setDate(check.getDate() - d);
           for (const slot of boss.schedule) {
-            if (slot.day !== check.getDay()) continue;
-            const [h, m] = slot.time.split(":").map(Number);
-            const c = new Date(check.getFullYear(), check.getMonth(), check.getDate(), h, m);
+            const c = scheduleSlotToUTC(tz, check, slot.day, slot.time);
             if (c <= now && (!recentTime || c > recentTime)) {
               recentTime = c;
               recentSlot = slot;
@@ -409,10 +434,10 @@ async function handleMessage(msg: any) {
 
         if (!recentSlot || !recentTime) {
           // No past slot found — find next future slot
-          spawn = findNextScheduleSlot(boss.schedule, now);
+          spawn = findNextScheduleSlot(boss.schedule, now, tz);
         } else {
           // Find next schedule slot after this one (for alive-window calculation)
-          const nextSlotTime = findNextScheduleSlot(boss.schedule, new Date(recentTime.getTime() + 60_000));
+          const nextSlotTime = findNextScheduleSlot(boss.schedule, new Date(recentTime.getTime() + 60_000), tz);
           // Alive until 1 hour before next slot, capped at 4 hours from current slot
           const aliveUntil = new Date(Math.min(
             nextSlotTime.getTime() - 3600_000,
@@ -426,7 +451,7 @@ async function handleMessage(msg: any) {
             spawn = now;
           } else {
             // Boss is dead or window closed — find next future schedule
-            spawn = findNextScheduleSlot(boss.schedule, now);
+            spawn = findNextScheduleSlot(boss.schedule, now, tz);
           }
         }
       } else continue;
