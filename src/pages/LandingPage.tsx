@@ -463,6 +463,9 @@ export function LandingPage() {
             </a>
           </div>
         </div>
+        <p className="mt-4 text-center text-xs text-slate-500">
+          Built with ❤️ for the LordNine community. Forever free.
+        </p>
       </footer>
     </div>
   );

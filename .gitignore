@@ -5,3 +5,4 @@ coverage
 .vercel
 supabase/.temp
 .env*
+.vscode/mcp.json
