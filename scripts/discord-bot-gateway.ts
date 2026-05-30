@@ -43,6 +43,7 @@ async function resolveServerId(guildId: string): Promise<string | null> {
   const rows = await supabaseQuery(
     `discord_configs?discord_guild_id=eq.${guildId}&select=raidscout_server_id`,
   );
+  console.log(`resolveServerId for guild ${guildId}:`, rows);
   return rows?.[0]?.raidscout_server_id ?? null;
 }
 
