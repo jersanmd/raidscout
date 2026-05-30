@@ -630,6 +630,19 @@ async function handleMessage(msg: any) {
     if (!bosses?.length) return reply(`Boss **${bossName}** not found.`);
     const boss = bosses[0];
 
+    // Cooldown: prevent duplicate kills within 2 hours
+    const recentDeaths = await supabaseQuery(
+      `death_records?server_id=eq.${serverId}&boss_id=eq.${boss.id}&order=death_time.desc&limit=1`
+    );
+    if (recentDeaths?.length) {
+      const lastKill = new Date(recentDeaths[0].death_time);
+      const cooldownEnd = new Date(lastKill.getTime() + 2 * 3600_000);
+      if (new Date() < cooldownEnd) {
+        const remaining = Math.ceil((cooldownEnd.getTime() - Date.now()) / 60_000);
+        return reply(`⏳ **${boss.name}** was already killed ${remaining < 60 ? `${remaining}m` : `${Math.ceil(remaining / 60)}h`} ago. Wait before recording another kill.`);
+      }
+    }
+
     let deathTime = new Date();
     if (timeStr) {
       const [h, m] = timeStr.split(":").map(Number);
