@@ -143,7 +143,8 @@ async function handleMessage(msg: any) {
   const cmd = args[0]?.toLowerCase();
 
   async function reply(text: string) {
-    await fetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
+    console.log("reply:", text.slice(0, 50));
+    const res = await fetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
       method: "POST",
       headers: {
         Authorization: `Bot ${TOKEN}`,
@@ -151,6 +152,7 @@ async function handleMessage(msg: any) {
       },
       body: JSON.stringify({ content: text }),
     });
+    if (!res.ok) console.error(`reply failed: ${res.status}`, await res.text().catch(() => ""));
   }
 
   async function replyEmbed(title: string, desc: string, color: number, fields?: any[]) {
@@ -183,7 +185,7 @@ async function handleMessage(msg: any) {
     }
     for (let c = 0; c < chunks.length; c++) {
       const isFirst = c === 0;
-      await fetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
+      const res = await fetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
         method: "POST",
         headers: { Authorization: `Bot ${TOKEN}`, "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -195,6 +197,7 @@ async function handleMessage(msg: any) {
           }],
         }),
       });
+      console.log(`list chunk ${c + 1}/${chunks.length}:`, res.status);
     }
   }
 
