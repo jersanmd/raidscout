@@ -130,12 +130,6 @@ export function AnalyticsView() {
         .odd { background: ${darkerBg}; }
         .lbl { color: #94A3B8; }
         .num { text-align: center; color: #FBBF24; font-weight: bold; }
-        .bar-wrap { width: 200px; height: 14px; background: #1E293B; border-radius: 3px; overflow: hidden; display: inline-block; vertical-align: middle; }
-        .bar-inner { height: 100%; border-radius: 3px; }
-        .bar-purple { background: linear-gradient(to right, #7C3AED, #A78BFA); }
-        .bar-red { background: linear-gradient(to right, #DC2626, #F97316); }
-        .bar-blue { background: linear-gradient(to right, #2563EB, #06B6D4); }
-        .bar-amber { background: linear-gradient(to right, #D97706, #FBBF24); }
 </style></head><body>`;
 
       html += `<table><tr><th class="hdr" colspan="3">RaidScout Analytics — ${periodLabel}</th></tr>`;
@@ -147,8 +141,8 @@ export function AnalyticsView() {
       if (data.killsByWeek.length > 0) {
         html += `<table><tr><th class="section" colspan="3">Kills per Week</th></tr>`;
         data.killsByWeek.slice(-12).reverse().forEach((w, i) => {
-          const pct = Math.max((w.count / maxWK) * 100, 8);
-          html += `<tr class="${i % 2 === 0 ? "even" : "odd"}"><td class="lbl">${w.week}</td><td class="num">${w.count}</td><td><span class="bar-wrap"><span class="bar-inner bar-purple" style="width:${pct}%"></span></span></td></tr>`;
+          const px = Math.max(Math.round((w.count / maxWK) * 200), 10);
+          html += `<tr class="${i % 2 === 0 ? "even" : "odd"}"><td class="lbl">${w.week}</td><td class="num">${w.count}</td><td><table cellpadding="0" cellspacing="0" style="width:200px;height:14px;background:#1E293B"><tr><td style="width:${px}px;height:14px;background:#7C3AED;font-size:0"></td><td></td></tr></table></td></tr>`;
         });
         html += `</table><br>`;
       }
@@ -156,8 +150,8 @@ export function AnalyticsView() {
       html += `<table><tr><th class="section" colspan="4">Most Killed Bosses</th></tr>`;
       html += `<tr class="even"><td class="lbl">#</td><td class="lbl">Boss</td><td class="lbl">Kills</td><td class="lbl"></td></tr>`;
       data.topBosses.forEach((b, i) => {
-        const pct = Math.max((b.kills / maxBK) * 100, 8);
-        html += `<tr class="${i % 2 === 0 ? "even" : "odd"}"><td class="lbl">${i + 1}</td><td class="lbl">${b.name}</td><td class="num">${b.kills}</td><td><span class="bar-wrap"><span class="bar-inner bar-red" style="width:${pct}%"></span></span></td></tr>`;
+        const px = Math.max(Math.round((b.kills / maxBK) * 200), 10);
+        html += `<tr class="${i % 2 === 0 ? "even" : "odd"}"><td class="lbl">${i + 1}</td><td class="lbl">${b.name}</td><td class="num">${b.kills}</td><td><table cellpadding="0" cellspacing="0" style="width:200px;height:14px;background:#1E293B"><tr><td style="width:${px}px;height:14px;background:#DC2626;font-size:0"></td><td></td></tr></table></td></tr>`;
       });
       html += `</table><br>`;
 
@@ -166,15 +160,15 @@ export function AnalyticsView() {
       data.topHunters.forEach((h, i) => {
         const gid = memberGuildMap.get(h.name);
         const guild = gid ? guilds.find(g => g.id === gid) : null;
-        const pct = Math.max((h.attended / maxAH) * 100, 8);
-        html += `<tr class="${i % 2 === 0 ? "even" : "odd"}"><td class="lbl">${i + 1}</td><td class="lbl">${h.name}</td><td class="lbl">${guild?.name || ""}</td><td class="num">${h.attended}</td><td><span class="bar-wrap"><span class="bar-inner bar-blue" style="width:${pct}%"></span></span></td></tr>`;
+        const px = Math.max(Math.round((h.attended / maxAH) * 200), 10);
+        html += `<tr class="${i % 2 === 0 ? "even" : "odd"}"><td class="lbl">${i + 1}</td><td class="lbl">${h.name}</td><td class="lbl">${guild?.name || ""}</td><td class="num">${h.attended}</td><td><table cellpadding="0" cellspacing="0" style="width:200px;height:14px;background:#1E293B"><tr><td style="width:${px}px;height:14px;background:#2563EB;font-size:0"></td><td></td></tr></table></td></tr>`;
       });
       html += `</table><br>`;
 
       html += `<table><tr><th class="section" colspan="3">Activity by Day of Week</th></tr>`;
       data.killsByDay.forEach((d, i) => {
-        const pct = Math.max((d.count / maxDY) * 100, 8);
-        html += `<tr class="${i % 2 === 0 ? "even" : "odd"}"><td class="lbl">${d.day}</td><td class="num">${d.count}</td><td><span class="bar-wrap"><span class="bar-inner bar-amber" style="width:${pct}%"></span></span></td></tr>`;
+        const px = Math.max(Math.round((d.count / maxDY) * 200), 10);
+        html += `<tr class="${i % 2 === 0 ? "even" : "odd"}"><td class="lbl">${d.day}</td><td class="num">${d.count}</td><td><table cellpadding="0" cellspacing="0" style="width:200px;height:14px;background:#1E293B"><tr><td style="width:${px}px;height:14px;background:#D97706;font-size:0"></td><td></td></tr></table></td></tr>`;
       });
       html += `</table></body></html>`;
 
