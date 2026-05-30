@@ -63,8 +63,10 @@ export function LeaderboardView() {
   const [snapshotGuildFilter, setSnapshotGuildFilter] = useState<string>("all");
 
   // Attendance export state
-  const [exportStartDate, setExportStartDate] = useState("");
-  const [exportEndDate, setExportEndDate] = useState("");
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const weekAgoStr = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10);
+  const [exportStartDate, setExportStartDate] = useState(weekAgoStr);
+  const [exportEndDate, setExportEndDate] = useState(todayStr);
   const [exportGuildFilter, setExportGuildFilter] = useState<string>("all");
   const [exportLoading, setExportLoading] = useState(false);
   const [showExport, setShowExport] = useState(false);
