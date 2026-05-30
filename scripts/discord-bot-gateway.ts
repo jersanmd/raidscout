@@ -386,7 +386,27 @@ async function handleMessage(msg: any) {
             if (c > now && (!earliest || c < earliest)) earliest = c;
           }
         }
-        spawn = earliest ?? now;
+        // Check if boss is alive: find most recent past schedule & compare with last death
+        if (!earliest) {
+          let mostRecentPast: Date | null = null;
+          for (let d = 0; d <= 7; d++) {
+            const check = new Date(now);
+            check.setDate(check.getDate() - d);
+            for (const slot of boss.schedule) {
+              if (slot.day !== check.getDay()) continue;
+              const [h, m] = slot.time.split(":").map(Number);
+              const c = new Date(check.getFullYear(), check.getMonth(), check.getDate(), h, m);
+              if (c <= now && (!mostRecentPast || c > mostRecentPast)) mostRecentPast = c;
+            }
+          }
+          if (mostRecentPast && (!lastDeath || new Date(lastDeath.death_time) < mostRecentPast)) {
+            spawn = now; // boss is alive from the last schedule
+          } else {
+            spawn = now; // fallback
+          }
+        } else {
+          spawn = earliest;
+        }
       } else continue;
 
       if (spawn.getTime() <= cutoff.getTime()) {
