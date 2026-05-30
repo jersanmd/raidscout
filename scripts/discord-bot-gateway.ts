@@ -800,17 +800,46 @@ createServer(async (req, res) => {
 
         // Find ALL notification channels for this server (supports multi-Discord)
         const rows = await supabaseQuery(
-          `discord_configs?raidscout_server_id=eq.${server_id}&select=notification_channel_id`
+          `discord_configs?raidscout_server_id=eq.${server_id}&select=notification_channel_id,discord_guild_id`
         );
-        const channelIds = (rows || []).map((r: any) => r.notification_channel_id).filter(Boolean);
-        if (channelIds.length === 0) {
+        const configs = (rows || []).filter((r: any) => r.notification_channel_id);
+        if (configs.length === 0) {
           res.writeHead(200); res.end(JSON.stringify({ skipped: "no channel set — use ;notifhere" }));
           return;
         }
 
-        const prefix = await getNotifyPrefix(server_id);
-        for (const channelId of channelIds) {
-          await fetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
+        const rawPrefix = await getNotifyPrefix(server_id);
+        // Resolve @RoleName → <@&role_id> for each linked guild
+        const guildRoleCache = new Map<string, Map<string, string>>(); // guildId → name → id
+        for (const cfg of configs) {
+          const gId = cfg.discord_guild_id;
+          if (!guildRoleCache.has(gId)) {
+            guildRoleCache.set(gId, new Map());
+            try {
+              const rolesRes = await fetch(`https://discord.com/api/v10/guilds/${gId}/roles`, {
+                headers: { Authorization: `Bot ${TOKEN}` },
+              });
+              if (rolesRes.ok) {
+                const roles = await rolesRes.json();
+                for (const role of roles) {
+                  guildRoleCache.get(gId)!.set(role.name.toLowerCase(), role.id);
+                }
+              }
+            } catch { /* skip role resolution */ }
+          }
+        }
+        const resolveRoles = (prefix: string, guildId: string) => {
+          const cache = guildRoleCache.get(guildId);
+          if (!cache) return prefix;
+          return prefix.replace(/@(\S+)/g, (_, name) => {
+            const id = cache.get(name.toLowerCase());
+            return id ? `<@&${id}>` : `@${name}`;
+          });
+        };
+
+        for (const cfg of configs) {
+          const prefix = resolveRoles(rawPrefix, cfg.discord_guild_id);
+          await fetch(`https://discord.com/api/v10/channels/${cfg.notification_channel_id}/messages`, {
             method: "POST",
             headers: { Authorization: `Bot ${TOKEN}`, "Content-Type": "application/json" },
             body: JSON.stringify({ content: prefix || undefined, embeds: [embed], allowed_mentions: { parse: ["everyone"] } }),
