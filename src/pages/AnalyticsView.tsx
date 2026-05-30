@@ -5,7 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useServerId } from "@/contexts/ServerContext";
 import { guildColor } from "@/lib/constants";
 import type { Guild, Member } from "@/types";
-import { BarChart3, TrendingUp, Users, Skull, Activity, Loader2, Shield } from "lucide-react";
+import { BarChart3, TrendingUp, Users, Skull, Activity, Loader2, Shield, Download } from "lucide-react";
 import { useServerTimezone } from "@/hooks/useServerTimezone";
 
 interface AnalyticsUIData {
@@ -106,6 +106,80 @@ export function AnalyticsView() {
     enabled: configured && !!serverId,
   });
 
+  const [exportLoading, setExportLoading] = useState(false);
+
+  const handleExportAnalytics = () => {
+    if (!data) return;
+    setExportLoading(true);
+    try {
+      const darkBg = "#1E293B";
+      const darkerBg = "#0F172A";
+      const periodLabel = period === "week" ? "This Week" : period === "month" ? "This Month" : "All Time";
+
+      let html = `<html><head><meta charset="utf-8"><style>
+        table { border-collapse: collapse; font-family: -apple-system, sans-serif; font-size: 11px; width: 100%; }
+        th, td { padding: 6px 10px; border: 1px solid #334155; }
+        .hdr { background: ${darkBg}; color: #fff; font-weight: bold; text-align: left; font-size: 13px; }
+        .section { background: #0F172A; color: #94A3B8; font-weight: bold; font-size: 12px; text-align: left; }
+        .val { text-align: center; font-weight: bold; color: #F8FAFC; }
+        .even { background: ${darkBg}; }
+        .odd { background: ${darkerBg}; }
+        .lbl { color: #94A3B8; }
+        .num { text-align: center; color: #FBBF24; font-weight: bold; }
+</style></head><body>`;
+
+      html += `<table><tr><th class="hdr" colspan="2">RaidScout Analytics — ${periodLabel}</th></tr>`;
+      html += `<tr class="even"><td class="lbl">Total Kills</td><td class="val">${data.totalKills}</td></tr>`;
+      html += `<tr class="odd"><td class="lbl">Active Members</td><td class="val">${data.activeMembers}</td></tr>`;
+      html += `<tr class="even"><td class="lbl">Total Attendances</td><td class="val">${data.totalAttendance}</td></tr>`;
+      html += `</table><br>`;
+
+      if (data.killsByWeek.length > 0) {
+        html += `<table><tr><th class="section" colspan="2">Kills per Week</th></tr>`;
+        data.killsByWeek.slice(-12).reverse().forEach((w, i) => {
+          html += `<tr class="${i % 2 === 0 ? "even" : "odd"}"><td class="lbl">${w.week}</td><td class="num">${w.count}</td></tr>`;
+        });
+        html += `</table><br>`;
+      }
+
+      html += `<table><tr><th class="section" colspan="3">Most Killed Bosses</th></tr>`;
+      html += `<tr class="even"><td class="lbl">#</td><td class="lbl">Boss</td><td class="lbl">Kills</td></tr>`;
+      data.topBosses.forEach((b, i) => {
+        html += `<tr class="${i % 2 === 0 ? "even" : "odd"}"><td class="lbl">${i + 1}</td><td class="lbl">${b.name}</td><td class="num">${b.kills}</td></tr>`;
+      });
+      html += `</table><br>`;
+
+      html += `<table><tr><th class="section" colspan="4">Most Active Hunters</th></tr>`;
+      html += `<tr class="even"><td class="lbl">#</td><td class="lbl">Player</td><td class="lbl">Guild</td><td class="lbl">Attended</td></tr>`;
+      data.topHunters.forEach((h, i) => {
+        const gid = memberGuildMap.get(h.name);
+        const guild = gid ? guilds.find(g => g.id === gid) : null;
+        html += `<tr class="${i % 2 === 0 ? "even" : "odd"}"><td class="lbl">${i + 1}</td><td class="lbl">${h.name}</td><td class="lbl">${guild?.name || ""}</td><td class="num">${h.attended}</td></tr>`;
+      });
+      html += `</table><br>`;
+
+      html += `<table><tr><th class="section" colspan="2">Activity by Day of Week</th></tr>`;
+      html += `<tr class="even"><td class="lbl">Day</td><td class="lbl">Kills</td></tr>`;
+      data.killsByDay.forEach((d, i) => {
+        html += `<tr class="${i % 2 === 0 ? "even" : "odd"}"><td class="lbl">${d.day}</td><td class="num">${d.count}</td></tr>`;
+      });
+      html += `</table></body></html>`;
+
+      const blob = new Blob([html], { type: "application/vnd.ms-excel;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `analytics-${period}-${new Date().toISOString().slice(0, 10)}.xls`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Export failed:", err);
+      alert("Export failed.");
+    } finally {
+      setExportLoading(false);
+    }
+  };
+
   if (isLoading || !data) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -141,6 +215,14 @@ export function AnalyticsView() {
             </button>
           ))}
         </div>
+        <button
+          onClick={handleExportAnalytics}
+          disabled={exportLoading}
+          className="flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-medium bg-purple-600 text-white hover:bg-purple-500 transition disabled:opacity-50"
+        >
+          {exportLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Download className="w-3 h-3" />}
+          Export
+        </button>
       </div>
 
       <div className="grid grid-cols-3 gap-3">
