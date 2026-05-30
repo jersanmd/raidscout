@@ -6,24 +6,26 @@ interface CountdownTimerProps {
   bossName?: string;
   onUrgent?: (bossName: string) => void;
   onCritical?: (bossName: string) => void;
+  onSpawned?: (bossName: string) => void;
 }
 
-export function CountdownTimer({ target, bossName, onUrgent, onCritical }: CountdownTimerProps) {
+export function CountdownTimer({ target, bossName, onUrgent, onCritical, onSpawned }: CountdownTimerProps) {
   const timer = useTimer(target);
   const urgentKey = target && bossName ? `alert-urgent-${bossName}-${target.getTime()}` : null;
   const criticalKey = target && bossName ? `alert-critical-${bossName}-${target.getTime()}` : null;
+  const spawnedKey = target && bossName ? `alert-spawned-${bossName}-${target.getTime()}` : null;
 
   const isUrgent = !timer.isPast && timer.totalSeconds > 0 && timer.totalSeconds <= 300;
   const isCritical = !timer.isPast && timer.totalSeconds > 0 && timer.totalSeconds <= 5;
+  const justSpawned = timer.isPast && timer.totalSeconds === 0;
 
   // Cleanup stale alert keys on mount (prevent localStorage pollution)
   useEffect(() => {
-    const prefix = "alert-urgent-";
-    const prefix2 = "alert-critical-";
+    const prefixes = ["alert-urgent-", "alert-critical-", "alert-spawned-"];
     const cutoff = Date.now() - 600_000; // 10 minutes ago
     for (let i = localStorage.length - 1; i >= 0; i--) {
       const key = localStorage.key(i);
-      if (key && (key.startsWith(prefix) || key.startsWith(prefix2))) {
+      if (key && prefixes.some(p => key.startsWith(p))) {
         const ts = Number(key.split("-").pop());
         if (ts && ts < cutoff) localStorage.removeItem(key);
       }
@@ -43,6 +45,13 @@ export function CountdownTimer({ target, bossName, onUrgent, onCritical }: Count
       onCritical(bossName);
     }
   }, [isCritical, bossName, onCritical, criticalKey]);
+
+  useEffect(() => {
+    if (justSpawned && spawnedKey && !localStorage.getItem(spawnedKey) && bossName && onSpawned) {
+      localStorage.setItem(spawnedKey, "1");
+      onSpawned(bossName);
+    }
+  }, [justSpawned, bossName, onSpawned, spawnedKey]);
 
   if (!target) {
     return <span className="text-slate-500 font-mono">--:--:--</span>;

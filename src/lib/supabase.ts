@@ -1073,19 +1073,32 @@ export async function notifyDiscord(
   serverId: string,
   event: "boss_died" | "boss_spawned",
   data: { boss_name: string; attendees?: string[]; spawn_time?: string; guild_name?: string }
-) {
-  fetch(`${BOT_NOTIFY_URL}/notify`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      server_id: serverId,
-      event: event === "boss_died" ? "boss_died" : "boss_spawning",
-      boss_name: data.boss_name,
-      guild_name: data.guild_name,
-    }),
-  }).catch((err) => {
+): Promise<{ ok: boolean; skipped?: boolean }> {
+  try {
+    const res = await fetch(`${BOT_NOTIFY_URL}/notify`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        server_id: serverId,
+        event: event === "boss_died" ? "boss_died" : "boss_spawning",
+        boss_name: data.boss_name,
+        guild_name: data.guild_name,
+      }),
+    });
+    if (!res.ok) {
+      console.error(`Discord notify HTTP ${res.status}: ${await res.text().catch(() => "")}`);
+      return { ok: false };
+    }
+    const body = await res.json().catch(() => ({}));
+    if (body.skipped) {
+      console.warn(`Discord notify skipped: ${body.skipped}`);
+      return { ok: false, skipped: true };
+    }
+    return { ok: true };
+  } catch (err) {
     console.error("Discord notification failed:", err);
-  });
+    return { ok: false };
+  }
 }
 
 export interface SpawnAnnounceBoss {
@@ -1098,20 +1111,29 @@ export interface SpawnAnnounceBoss {
 export async function announceSpawns(
   serverId: string,
   bosses: SpawnAnnounceBoss[]
-) {
+): Promise<{ success: boolean; skipped: number; failed: number }> {
+  let skipped = 0;
+  let failed = 0;
   for (const boss of bosses) {
-    fetch(`${BOT_NOTIFY_URL}/notify`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        server_id: serverId,
-        event: "boss_spawning",
-        boss_name: boss.name,
-        guild_name: boss.guild_name,
-      }),
-    }).catch(() => {});
+    try {
+      const res = await fetch(`${BOT_NOTIFY_URL}/notify`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          server_id: serverId,
+          event: "boss_spawning",
+          boss_name: boss.name,
+          guild_name: boss.guild_name,
+        }),
+      });
+      if (!res.ok) { failed++; continue; }
+      const body = await res.json().catch(() => ({}));
+      if (body.skipped) { skipped++; }
+    } catch {
+      failed++;
+    }
   }
-  return { success: true };
+  return { success: failed === 0, skipped, failed };
 }
 
 /**

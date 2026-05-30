@@ -337,9 +337,6 @@ async function handleMessage(msg: any) {
     const upcoming: { name: string; time: string; unix: number; guild: string }[] = [];
 
     const bossGuilds = await supabaseQuery(`boss_guilds?select=boss_id,guild_id,sort_order,day_of_week,mode`);
-    console.log(`nextspawn: ${bossGuilds?.length} boss_guilds`);
-
-    console.log(`nextspawn: looping ${bosses.length} bosses...`);
     for (const boss of bosses) {
       if (filter && boss.name.toLowerCase() !== filter.toLowerCase()) continue;
 
@@ -552,17 +549,24 @@ async function handleMessage(msg: any) {
     const allGuilds = await supabaseQuery(`guilds?server_id=eq.${serverId}`);
     const guildName = ownerGuildId ? allGuilds.find((g: any) => g.id === ownerGuildId)?.name ?? "" : "";
 
-    // Send Discord notification to all linked webhooks
-    fetch(`${SUPABASE_URL}/functions/v1/discord-notify`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", apikey: SUPABASE_KEY! },
-      body: JSON.stringify({
-        server_id: serverId,
-        event: "boss_died",
-        boss_name: boss.name,
-        guild_name: guildName || undefined,
-      }),
-    }).catch(() => {}); // fire-and-forget
+    // Send kill notification to the bot's own notification channel
+    const channelId = notifChannels.get(serverId);
+    if (channelId) {
+      const killUnix = Math.floor(deathTime.getTime() / 1000);
+      fetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
+        method: "POST",
+        headers: { Authorization: `Bot ${TOKEN}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          embeds: [{
+            title: `☠️ ${boss.name} Killed`,
+            description: guildName ? `**${guildName}** — ${boss.name} has been defeated.` : `${boss.name} has been defeated.`,
+            color: 0xef4444,
+            fields: [{ name: "Death Time", value: `<t:${killUnix}:f>`, inline: true }, { name: "Recorded By", value: author, inline: true }],
+            footer: { text: "Powered by RaidScout" },
+          }],
+        }),
+      }).catch(() => {});
+    }
     const unix = Math.floor(deathTime.getTime() / 1000);
 
     return replyEmbed(

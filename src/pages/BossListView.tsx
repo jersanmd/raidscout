@@ -322,11 +322,16 @@ export function BossListView() {
 
           // Send Discord notification
           if (user || isViewer) {
-            notifyDiscord(getCurrentServerId()!, "boss_died", {
+            const result = await notifyDiscord(getCurrentServerId()!, "boss_died", {
               boss_name: boss.name,
               attendees: attendeeIds.length > 0 ? [`${attendeeIds.length} participant(s)`] : undefined,
               guild_name: ownerGuildName(boss.id),
             });
+            if (result.skipped) {
+              setToast({ type: "error", message: "Discord notification skipped — no channel set. Use ;notifhere in Discord." });
+            } else if (!result.ok) {
+              setToast({ type: "error", message: "Discord notification failed. Check bot status." });
+            }
           }
         } catch (err) {
           console.error("Failed to record death:", err);
@@ -398,8 +403,12 @@ export function BossListView() {
         guild_name: ownerGuildName(s.boss.id),
       }));
 
-      await announceSpawns(sid, bosses);
-      setToast({ type: "success", message: `${bosses.length} boss spawns announced to Discord!` });
+      const result = await announceSpawns(sid, bosses);
+      if (result.skipped > 0 || result.failed > 0) {
+        setToast({ type: "error", message: `${result.failed} failed, ${result.skipped} skipped — check bot status and use ;notifhere in Discord.` });
+      } else {
+        setToast({ type: "success", message: `${bosses.length} boss spawns announced to Discord!` });
+      }
     } catch (err) {
       console.error("Announce spawns failed:", err);
       setToast({ type: "error", message: "Failed to announce to Discord. Check webhook configuration." });
@@ -646,8 +655,19 @@ export function BossListView() {
                     selected={selectedIds.has(s.boss.id)}
                     onToggleSelect={toggleSelect}
                     ownerGuildName={ownerGuildName(s.boss.id)}
-                    onUrgentSpawn={emitSpawnAlert}
-                    onCriticalSpawn={(name) => emitSpawnAlert(`⚠️ ${name} spawning in 5s!`)}
+                    onUrgentSpawn={(name) => {
+                      emitSpawnAlert(name);
+                      // Also notify Discord (fire-and-forget)
+                      const sid = getCurrentServerId();
+                      if (sid) notifyDiscord(sid, "boss_spawned", { boss_name: name, guild_name: ownerGuildName(s.boss.id) });
+                    }}
+                    onCriticalSpawn={(name) => {
+                      emitSpawnAlert(`⚠️ ${name} spawning in 5s!`);
+                    }}
+                    onSpawned={(name) => {
+                      const sid = getCurrentServerId();
+                      if (sid) notifyDiscord(sid, "boss_spawned", { boss_name: name, guild_name: ownerGuildName(s.boss.id) });
+                    }}
                     rotationGuilds={rot?.guilds}
                     rotationCurrentIndex={rot?.currentIndex}
                     rotationMode={rot?.mode}

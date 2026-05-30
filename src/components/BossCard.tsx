@@ -16,6 +16,7 @@ interface BossCardProps {
   onSetSpawnDate?: (bossId: string, spawnDate: Date) => void;
   onUrgentSpawn?: (bossName: string) => void;
   onCriticalSpawn?: (bossName: string) => void;
+  onSpawned?: (bossName: string) => void;
   compact?: boolean;
   multiMode?: boolean;
   selected?: boolean;
@@ -38,7 +39,7 @@ interface BossCardProps {
   justKilled?: boolean;
 }
 
-export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, onCriticalSpawn, compact = false, multiMode = false, selected = false, onToggleSelect, ownerGuildName, rotationGuilds, rotationCurrentIndex, rotationMode, onSetRotation, viewerCanEdit, viewerCanMarkDied, hasGuilds, justKilled }: BossCardProps) {
+export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, onCriticalSpawn, onSpawned, compact = false, multiMode = false, selected = false, onToggleSelect, ownerGuildName, rotationGuilds, rotationCurrentIndex, rotationMode, onSetRotation, viewerCanEdit, viewerCanMarkDied, hasGuilds, justKilled }: BossCardProps) {
   const { isViewer } = useAuth();
   const { currentServer } = useServer();
   const tz = useServerTimezone();
@@ -151,7 +152,7 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
               <div className="space-y-1">
                 {!compact && (
                   <div className="flex items-baseline gap-2">
-                    <CountdownTimer target={nextSpawn} bossName={boss.name} onUrgent={onUrgentSpawn} onCritical={onCriticalSpawn} />
+                    <CountdownTimer target={nextSpawn} bossName={boss.name} onUrgent={onUrgentSpawn} onCritical={onCriticalSpawn} onSpawned={onSpawned} />
                   </div>
                 )}
                 <div className="flex items-center gap-1.5 text-xs">
