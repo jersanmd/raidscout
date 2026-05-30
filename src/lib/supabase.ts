@@ -902,11 +902,93 @@ export interface AnalyticsData {
 
 export async function fetchAnalytics(since: string, serverId?: string | null): Promise<AnalyticsData> {
   const sid = serverId ?? getCurrentServerId();
-  const { data, error } = await supabase
-    .rpc("get_analytics", { since, s_id: sid || undefined });
+  if (!sid) return { total_kills: 0, total_attendance: 0, active_members: 0, kills_by_week: [], top_bosses: [], top_hunters: [], kills_by_day: [] };
 
-  if (error) throw error;
-  return data as AnalyticsData;
+  // Get death records since date
+  const { data: deaths, error: dErr } = await supabase
+    .from("death_records")
+    .select("id, death_time, boss_id")
+    .eq("server_id", sid)
+    .gte("death_time", since)
+    .order("death_time", { ascending: false });
+  if (dErr) throw dErr;
+  if (!deaths?.length) return { total_kills: 0, total_attendance: 0, active_members: 0, kills_by_week: [], top_bosses: [], top_hunters: [], kills_by_day: [] };
+
+  const deathIds = deaths.map(d => d.id);
+
+  // Get attendance for these deaths
+  const { data: att, error: aErr } = await supabase
+    .from("attendance_records")
+    .select("death_record_id, member_id")
+    .in("death_record_id", deathIds);
+  if (aErr) throw aErr;
+
+  // Get bosses for names
+  const bossIds = [...new Set(deaths.map(d => d.boss_id))];
+  const { data: bosses, error: bErr } = await supabase
+    .from("bosses")
+    .select("id, name")
+    .in("id", bossIds);
+  if (bErr) throw bErr;
+  const bossNameMap = new Map((bosses || []).map(b => [b.id, b.name]));
+
+  // Get members for names
+  const memberIds = [...new Set((att || []).map(a => a.member_id))];
+  const { data: members, error: mErr } = await supabase
+    .from("members")
+    .select("id, name")
+    .in("id", memberIds);
+  if (mErr) throw mErr;
+  const memberNameMap = new Map((members || []).map(m => [m.id, m.name]));
+
+  // Compute stats
+  const totalKills = deaths.length;
+  const totalAttendance = (att || []).length;
+  const activeMembers = new Set((att || []).map(a => a.member_id)).size;
+
+  // Kills by week (group by Monday of each week)
+  const weekMap = new Map<string, number>();
+  for (const d of deaths) {
+    const dt = new Date(d.death_time);
+    const day = dt.getDay();
+    const monday = new Date(dt);
+    monday.setDate(dt.getDate() - (day === 0 ? 6 : day - 1));
+    const label = monday.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+    weekMap.set(label, (weekMap.get(label) || 0) + 1);
+  }
+  const killsByWeek = [...weekMap.entries()]
+    .sort((a, b) => new Date(`${a[0]}, ${new Date().getFullYear()}`).getTime() - new Date(`${b[0]}, ${new Date().getFullYear()}`).getTime())
+    .map(([week_label, count]) => ({ week_label, count }));
+
+  // Top bosses
+  const bossCounts = new Map<string, number>();
+  for (const d of deaths) {
+    const name = bossNameMap.get(d.boss_id) || "Unknown";
+    bossCounts.set(name, (bossCounts.get(name) || 0) + 1);
+  }
+  const topBosses = [...bossCounts.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 10)
+    .map(([name, kills]) => ({ name, kills }));
+
+  // Top hunters
+  const hunterCounts = new Map<string, number>();
+  for (const a of att || []) {
+    const name = memberNameMap.get(a.member_id) || "Unknown";
+    hunterCounts.set(name, (hunterCounts.get(name) || 0) + 1);
+  }
+  const topHunters = [...hunterCounts.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 50)
+    .map(([name, attended]) => ({ name, attended }));
+
+  // Kills by day of week
+  const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  const dayCounts = new Map<number, number>();
+  for (const d of deaths) dayCounts.set(d.death_time ? new Date(d.death_time).getDay() : -1, (dayCounts.get(d.death_time ? new Date(d.death_time).getDay() : -1) || 0) + 1);
+  const killsByDay = dayNames.map(day => ({ day, count: dayCounts.get(dayNames.indexOf(day)) || 0 }));
+
+  return { total_kills: totalKills, total_attendance: totalAttendance, active_members: activeMembers, kills_by_week: killsByWeek, top_bosses: topBosses, top_hunters: topHunters, kills_by_day: killsByDay };
 }
 
 // ── History from Supabase ──────────────────────────────────
