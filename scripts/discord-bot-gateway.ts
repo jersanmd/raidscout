@@ -796,14 +796,13 @@ const sentNotifs = new Map<string, number>(); // dedup: "serverId-event-bossName
 
 // ── Shared: send notification embed to ALL linked Discord servers ─
 
-async function broadcastNotification(serverId: string, embed: any, skipChannelId?: string, target?: "commands"): Promise<{ ok: boolean; skipped?: string }> {
-  const field = target === "commands" ? "command_channel_id" : "notification_channel_id";
+async function broadcastNotification(serverId: string, embed: any, skipChannelId?: string): Promise<{ ok: boolean; skipped?: string }> {
   const rows = await supabaseQuerySafe(
-    `discord_configs?raidscout_server_id=eq.${serverId}&select=${field},discord_guild_id`
+    `discord_configs?raidscout_server_id=eq.${serverId}&select=notification_channel_id,discord_guild_id`
   );
-  const configs = (rows || []).filter((r: any) => r[field] && r[field] !== skipChannelId);
+  const configs = (rows || []).filter((r: any) => r.notification_channel_id && r.notification_channel_id !== skipChannelId);
   if (configs.length === 0) {
-    return { ok: false, skipped: target === "commands" ? "no command channel set — use ;cmdhere" : "no channel set — use ;notifhere" };
+    return { ok: false, skipped: "no channel set — use ;notifhere" };
   }
 
   const rawPrefix = await getNotifyPrefix(serverId);
@@ -836,15 +835,14 @@ async function broadcastNotification(serverId: string, embed: any, skipChannelId
         return id ? `<@&${id}>` : `@${name}`;
       });
     }
-    const chId = cfg[field];
-    const discordRes = await fetch(`https://discord.com/api/v10/channels/${chId}/messages`, {
+    const discordRes = await fetch(`https://discord.com/api/v10/channels/${cfg.notification_channel_id}/messages`, {
       method: "POST",
       headers: { Authorization: `Bot ${TOKEN}`, "Content-Type": "application/json" },
       body: JSON.stringify({ content: prefix || undefined, embeds: [embed], allowed_mentions: { parse: ["everyone"] } }),
     });
     if (!discordRes.ok) {
       const errText = await discordRes.text().catch(() => "");
-      console.error(`Discord send failed (${chId}): ${discordRes.status} ${errText}`);
+      console.error(`Discord send failed (${cfg.notification_channel_id}): ${discordRes.status} ${errText}`);
     }
   }
   return { ok: true };
@@ -867,7 +865,7 @@ createServer(async (req, res) => {
     req.on("data", c => body += c);
     req.on("end", async () => {
       try {
-        const { server_id, event, boss_name, guild_name, activity_name, parties, target } = JSON.parse(body);
+        const { server_id, event, boss_name, guild_name, activity_name, parties } = JSON.parse(body);
 
         // Dedup: skip duplicate notifs within 30s
         if (boss_name && (event === "boss_spawning" || event === "boss_spawned")) {
@@ -919,7 +917,7 @@ createServer(async (req, res) => {
           res.writeHead(400); res.end(JSON.stringify({ error: "Invalid event" })); return;
         }
 
-        const result = await broadcastNotification(server_id, embed, undefined, target);
+        const result = await broadcastNotification(server_id, embed);
         res.writeHead(200); res.end(JSON.stringify(result));
       } catch (err: any) {
         console.error("Notify error:", err.message);
