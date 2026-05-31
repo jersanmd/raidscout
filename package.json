@@ -11,7 +11,8 @@
         "test": "vitest run",
         "test:watch": "vitest",
         "test:coverage": "vitest run --coverage",
-        "start:bot": "tsx scripts/discord-bot-gateway.ts"
+        "start:bot": "node dist/bot.js",
+    "build:bot": "esbuild scripts/discord-bot-gateway.ts --bundle --platform=node --target=node22 --outfile=dist/bot.js --external:ws"
     },
     "dependencies": {
         "@supabase/supabase-js": "^2.49.1",
@@ -36,6 +37,7 @@
         "@types/react-dom": "^19.0.2",
         "@vitejs/plugin-react": "^4.3.4",
         "@vitest/coverage-v8": "^4.1.7",
+        "esbuild": "^0.28.0",
         "jsdom": "^29.1.1",
         "tailwindcss": "^4.0.0",
         "tsx": "^4.22.3",

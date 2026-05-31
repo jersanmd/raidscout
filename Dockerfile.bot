@@ -3,5 +3,6 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm install
 COPY . .
+RUN npx esbuild scripts/discord-bot-gateway.ts --bundle --platform=node --target=node22 --outfile=dist/bot.js --external:ws
 EXPOSE 8080
-CMD ["npm", "run", "start:bot"]
+CMD ["node", "dist/bot.js"]
