@@ -1657,7 +1657,7 @@ export function ServerSettingsView() {
           {editAliasLinkId && (
             <div className="bg-slate-800/50 rounded-lg p-3 space-y-2">
               <p className="text-xs font-medium text-purple-400">Custom Command Aliases</p>
-              {["list","nextspawn","killed","commands","notifhere"].map(cmd => (
+              {["list","nextspawn","killed","commands","notifhere","cmdhere"].map(cmd => (
                 <div key={cmd} className="flex items-center gap-2">
                   <span className="text-xs text-slate-400 w-20 font-mono">{cmd}</span>
                   <span className="text-xs text-slate-600">→</span>

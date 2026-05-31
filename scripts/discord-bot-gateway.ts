@@ -327,7 +327,7 @@ async function handleGuildJoin(guild: any) {
           },
           {
             name: "2️⃣ Set up notifications",
-            value: "In any channel, type `!notifhere` (or your chosen prefix) to make that channel receive boss kill and spawn alerts.",
+            value: "Type `!notifhere` in a channel to receive boss kill/spawn alerts there. Type `!cmdhere` to restrict commands to a specific channel.",
           },
           {
             name: "3️⃣ Try a command",
