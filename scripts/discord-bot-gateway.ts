@@ -737,7 +737,7 @@ async function handleMessage(msg: any) {
       color: 0xef4444,
       fields: [{ name: "Death Time", value: `<t:${killUnix}:f>`, inline: true }, { name: "Recorded By", value: author, inline: true }],
       footer: { text: "Powered by RaidScout" },
-    });
+    }, channelId); // skip the command channel (already replied)
     const unix = Math.floor(deathTime.getTime() / 1000);
 
     return replyEmbed(
@@ -758,11 +758,11 @@ const sentNotifs = new Map<string, number>(); // dedup: "serverId-event-bossName
 
 // ── Shared: send notification embed to ALL linked Discord servers ─
 
-async function broadcastNotification(serverId: string, embed: any): Promise<{ ok: boolean; skipped?: string }> {
+async function broadcastNotification(serverId: string, embed: any, skipChannelId?: string): Promise<{ ok: boolean; skipped?: string }> {
   const rows = await supabaseQuerySafe(
     `discord_configs?raidscout_server_id=eq.${serverId}&select=notification_channel_id,discord_guild_id`
   );
-  const configs = (rows || []).filter((r: any) => r.notification_channel_id);
+  const configs = (rows || []).filter((r: any) => r.notification_channel_id && r.notification_channel_id !== skipChannelId);
   if (configs.length === 0) {
     return { ok: false, skipped: "no channel set — use ;notifhere" };
   }
