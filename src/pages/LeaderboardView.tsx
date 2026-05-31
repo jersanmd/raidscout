@@ -539,6 +539,44 @@ export function LeaderboardView() {
         </button>
       )}
 
+      {/* Attendance Export toggle — hidden from viewers */}
+      {!isViewer && (<>
+      <button
+        onClick={() => setShowExport(!showExport)}
+        className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-300 transition"
+      >
+        {showExport ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+        Export Attendance
+      </button>
+
+      {showExport && (
+      <div className="bg-slate-900 border border-slate-800 rounded-xl p-3 space-y-2 mt-2">
+        <div className="flex flex-wrap gap-2 items-end">
+          <div className="flex flex-col gap-0.5">
+            <label className="text-[10px] text-slate-500">Start</label>
+            <input type="date" value={exportStartDate} onChange={(e) => setExportStartDate(e.target.value)} className="px-2 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-white text-xs outline-none focus:ring-2 focus:ring-amber-500 transition" />
+          </div>
+          <div className="flex flex-col gap-0.5">
+            <label className="text-[10px] text-slate-500">End</label>
+            <input type="date" value={exportEndDate} onChange={(e) => setExportEndDate(e.target.value)} className="px-2 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-white text-xs outline-none focus:ring-2 focus:ring-amber-500 transition" />
+          </div>
+          <div className="flex flex-col gap-0.5">
+            <label className="text-[10px] text-slate-500">Guild</label>
+            <select value={exportGuildFilter} onChange={(e) => setExportGuildFilter(e.target.value)} className="px-2 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-white text-xs outline-none focus:ring-2 focus:ring-amber-500 transition">
+              <option value="all">All Guilds</option>
+              {guilds.map(g => (<option key={g.id} value={g.id}>{g.name}</option>))}
+            </select>
+          </div>
+          <button onClick={handleExportAttendance} disabled={exportLoading || !exportStartDate || !exportEndDate} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-amber-600 text-white hover:bg-amber-500 transition disabled:opacity-50 flex items-center gap-1.5">
+            {exportLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
+            Export Excel
+          </button>
+        </div>
+        <p className="text-[10px] text-slate-600">Exports a pivot table: rows = bosses, columns = players, cells = total points. Opens in Excel / Google Sheets.</p>
+      </div>
+      )}
+      </> )}
+
       {/* Period tabs */}
       <div className="flex bg-slate-800 rounded-lg p-0.5">
         {(["weekly", "monthly", "all"] as LeaderboardPeriod[]).map((p) => (
