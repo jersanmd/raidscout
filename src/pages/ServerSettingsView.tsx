@@ -106,7 +106,7 @@ export function ServerSettingsView() {
   const [viewerKey, setViewerKey] = useState("");
   const [showInviteCode, setShowInviteCode] = useState(false);
   const [showViewerKey, setShowViewerKey] = useState(false);
-  const [discordLinks, setDiscordLinks] = useState<{ id: string; discord_guild_id: string; label?: string; webhook_url?: string; command_prefix?: string }[]>([]);
+  const [discordLinks, setDiscordLinks] = useState<{ id: string; discord_guild_id: string; label?: string; webhook_url?: string; command_prefix?: string; notification_channel_id?: string; command_channel_id?: string }[]>([]);
   const [newDiscordId, setNewDiscordId] = useState("");
   const [newDiscordLabel, setNewDiscordLabel] = useState("");
   const [newDiscordPrefix, setNewDiscordPrefix] = useState("!");
