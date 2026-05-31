@@ -31,7 +31,7 @@ import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { emitSpawnAlert } from "@/hooks/useSpawnAlerts";
 import { guildColor } from "@/lib/constants";
 import { getOwnerGuildName, getRotationInfo } from "@/lib/rotation";
-import { Skull, Loader2, X, CheckCircle, AlertTriangle, CheckSquare, Megaphone, Volume2, Eye, Copy } from "lucide-react";
+import { Skull, Loader2, X, CheckCircle, AlertTriangle, CheckSquare, Megaphone, Volume2, VolumeX, Eye, Copy } from "lucide-react";
 import type { BossWithSpawn, BossGuild, Guild, DeathRecord } from "@/types";
 
 const sentAlerts = new Set<string>();
@@ -43,6 +43,7 @@ export function BossListView() {
 
   const [searchText, setSearchText] = useState("");
   const [filterType, setFilterType] = useState("all");
+  const [isMuted, setIsMuted] = useState(() => localStorage.getItem("raidscout-alert-muted") === "true");
   const [filterWindow, setFilterWindow] = useState<number | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
 
@@ -534,6 +535,13 @@ export function BossListView() {
               }}
               className="w-16 h-1.5 accent-amber-400 cursor-pointer"
             />
+            <button
+              onClick={() => { const m = localStorage.getItem("raidscout-alert-muted") !== "true"; localStorage.setItem("raidscout-alert-muted", String(m)); setIsMuted(m); }}
+              className={`p-1 rounded transition ${isMuted ? "text-red-400 hover:text-red-300" : "text-slate-500 hover:text-slate-300"}`}
+              title={isMuted ? "Unmute alerts" : "Mute alerts"}
+            >
+              {isMuted ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
+            </button>
           </div>
         </div>
         {hasWebhook && !isViewer && (

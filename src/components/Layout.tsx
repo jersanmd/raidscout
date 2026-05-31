@@ -20,6 +20,7 @@ function getAudioContext(): AudioContext {
 
 function playAlertSound() {
   try {
+    if (localStorage.getItem("raidscout-alert-muted") === "true") return;
     const vol = parseFloat(localStorage.getItem("raidscout-alert-volume") || "0.5");
     const ctx = getAudioContext();
     for (let i = 0; i < 5; i++) {
