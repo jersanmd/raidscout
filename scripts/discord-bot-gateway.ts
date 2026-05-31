@@ -207,12 +207,26 @@ function findNextScheduleSlot(schedule: { day: number; time: string }[], after: 
 // ── WebSocket Gateway ──────────────────────────────────────
 
 async function connect() {
-  // Get gateway URL
-  const gwRes = await fetch("https://discord.com/api/v10/gateway/bot", {
-    headers: { Authorization: `Bot ${TOKEN}` },
-  });
-  const gwData = await gwRes.json() as any;
-  const gatewayUrl = gwData.url + "/?v=10&encoding=json";
+  // Get gateway URL (with retry)
+  let gatewayUrl: string;
+  try {
+    const gwRes = await fetch("https://discord.com/api/v10/gateway/bot", {
+      headers: { Authorization: `Bot ${TOKEN}` },
+    });
+    if (!gwRes.ok) {
+      console.error(`Gateway fetch failed (${gwRes.status}). Retrying in 10s...`);
+      return setTimeout(connect, 10_000);
+    }
+    const gwData = await gwRes.json() as any;
+    if (!gwData.url) {
+      console.error("Gateway URL missing. Retrying in 10s...");
+      return setTimeout(connect, 10_000);
+    }
+    gatewayUrl = gwData.url + "/?v=10&encoding=json";
+  } catch (err: any) {
+    console.error("Gateway fetch error:", err.message, "Retrying in 10s...");
+    return setTimeout(connect, 10_000);
+  }
 
   console.log("Connecting to Discord Gateway...");
 
