@@ -1617,9 +1617,8 @@ export function ServerSettingsView() {
             <Swords className="w-3 h-3" /> Discord Bot & Notifications
           </h3>
           <p className="text-sm text-slate-400">
-            Link your Discord server to receive boss kill and spawn alerts directly from the bot. No webhook URLs needed.
+            Link your Discord server, then use these commands in Discord to configure channels:
           </p>
-
           {/* Existing links */}
           {discordLinks.length > 0 && (
             <div className="space-y-2">
@@ -1638,6 +1637,7 @@ export function ServerSettingsView() {
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
+                  <p className="text-[10px] text-slate-600 mt-1">Use <code className="text-amber-400 bg-slate-700 px-1 py-0.5 rounded">{link.command_prefix || "!"}notifhere</code> for alerts, <code className="text-amber-400 bg-slate-700 px-1 py-0.5 rounded">{link.command_prefix || "!"}cmdhere</code> for commands. Or paste IDs below.</p>
                   <div className="mt-2 space-y-2">
                     <div className="flex items-center gap-1">
                       <span className="text-[10px] text-slate-500">Channels</span>

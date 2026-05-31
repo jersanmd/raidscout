@@ -319,7 +319,7 @@ export function AnalyticsView() {
         <div className="space-y-1.5">
           {data.killsByDay.map((d) => (
             <div key={d.day} className="flex items-center gap-2 text-sm">
-              <span className="text-slate-400 w-10 shrink-0">{d.day}</span>
+              <span className="text-slate-400 w-12 shrink-0 text-xs">{d.day.slice(0, 3)}</span>
               <div className="flex-1 h-6 bg-slate-800 rounded overflow-hidden">
                 <div className="h-full bg-gradient-to-r from-amber-600 to-yellow-500 rounded flex items-center justify-end px-2" style={{ width: `${Math.max((d.count / maxDaily) * 100, 8)}%` }}>
                   <span className="text-xs text-white font-mono font-bold drop-shadow">{d.count}</span>
