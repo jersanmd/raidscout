@@ -15,6 +15,7 @@ const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 if (!TOKEN) { console.error("Set DISCORD_BOT_TOKEN"); process.exit(1); }
 
 let botUserId = "";
+let cronInterval: ReturnType<typeof setInterval> | null = null;
 if (!SUPABASE_URL) { console.error("Set SUPABASE_URL"); process.exit(1); }
 if (!SUPABASE_KEY) { console.error("Set SUPABASE_SERVICE_ROLE_KEY"); process.exit(1); }
 
