@@ -27,9 +27,14 @@ async function supabaseQuery(path: string): Promise<any> {
   });
   if (!res.ok) {
     console.error(`Supabase query failed: ${url} — ${res.status}`);
-    return [];
+    throw new Error(`Database query failed (${res.status})`);
   }
   return res.json();
+}
+
+/** Like supabaseQuery but returns [] on failure — for optional/fallback queries */
+async function supabaseQuerySafe(path: string): Promise<any> {
+  try { return await supabaseQuery(path); } catch { return []; }
 }
 
 async function supabaseInsert(table: string, record: any): Promise<any> {
@@ -51,32 +56,34 @@ async function supabaseInsert(table: string, record: any): Promise<any> {
 }
 
 async function resolveServerId(guildId: string, prefix: string): Promise<string | null> {
-  const rows = await supabaseQuery(
+  const rows = await supabaseQuerySafe(
     `discord_configs?discord_guild_id=eq.${guildId}&command_prefix=eq.${encodeURIComponent(prefix)}&select=raidscout_server_id`,
   );
   return rows?.[0]?.raidscout_server_id ?? null;
 }
 
 // Cache prefixes per guild to avoid DB hits on every message
-const guildPrefixes = new Map<string, string[]>();
+const guildPrefixes = new Map<string, { prefixes: string[]; cachedAt: number }>();
+const PREFIX_CACHE_TTL = 5 * 60_000; // 5 minutes
 
 async function getGuildPrefixes(guildId: string): Promise<string[]> {
-  if (guildPrefixes.has(guildId)) return guildPrefixes.get(guildId)!;
-  const rows = await supabaseQuery(
+  const cached = guildPrefixes.get(guildId);
+  if (cached && Date.now() - cached.cachedAt < PREFIX_CACHE_TTL) return cached.prefixes;
+  const rows = await supabaseQuerySafe(
     `discord_configs?discord_guild_id=eq.${guildId}&select=command_prefix`,
   );
   const prefixes: string[] = rows?.map((r: any) => r.command_prefix) ?? [];
-  guildPrefixes.set(guildId, prefixes);
+  guildPrefixes.set(guildId, { prefixes, cachedAt: Date.now() });
   return prefixes;
 }
 
 async function resolveServerTimezone(serverId: string): Promise<string> {
-  const rows = await supabaseQuery(`servers?select=timezone&id=eq.${serverId}`);
+  const rows = await supabaseQuerySafe(`servers?select=timezone&id=eq.${serverId}`);
   return rows?.[0]?.timezone || "UTC";
 }
 
 async function getNotifyPrefix(serverId: string): Promise<string> {
-  const rows = await supabaseQuery(`servers?select=notification_prefix&id=eq.${serverId}`);
+  const rows = await supabaseQuerySafe(`servers?select=notification_prefix&id=eq.${serverId}`);
   return rows?.[0]?.notification_prefix || "";
 }
 
@@ -752,7 +759,7 @@ const sentNotifs = new Map<string, number>(); // dedup: "serverId-event-bossName
 // ── Shared: send notification embed to ALL linked Discord servers ─
 
 async function broadcastNotification(serverId: string, embed: any): Promise<{ ok: boolean; skipped?: string }> {
-  const rows = await supabaseQuery(
+  const rows = await supabaseQuerySafe(
     `discord_configs?raidscout_server_id=eq.${serverId}&select=notification_channel_id,discord_guild_id`
   );
   const configs = (rows || []).filter((r: any) => r.notification_channel_id);
