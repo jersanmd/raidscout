@@ -1154,7 +1154,8 @@ const BOT_NOTIFY_URL = import.meta.env.VITE_BOT_NOTIFY_URL || "http://localhost:
 export async function notifyDiscord(
   serverId: string,
   event: "boss_died" | "boss_spawned" | "boss_spawning",
-  data: { boss_name: string; attendees?: string[]; spawn_time?: string; guild_name?: string }
+  data: { boss_name: string; attendees?: string[]; spawn_time?: string; guild_name?: string; recorded_by?: string },
+  target?: "commands"
 ): Promise<{ ok: boolean; skipped?: boolean }> {
   try {
     const res = await fetch(`${BOT_NOTIFY_URL}/notify`, {
@@ -1165,6 +1166,8 @@ export async function notifyDiscord(
         event,
         boss_name: data.boss_name,
         guild_name: data.guild_name,
+        recorded_by: data.recorded_by,
+        ...(target ? { target } : {}),
       }),
     });
     if (!res.ok) {

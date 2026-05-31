@@ -767,25 +767,39 @@ async function handleMessage(msg: any) {
 
     const guildName = ownerGuildId ? serverGuilds.find((g: any) => g.id === ownerGuildId)?.name ?? "" : "";
 
+    // Compute next spawn time
+    let nextSpawnUnix = 0;
+    if (boss.spawn_type === "fixed_hours") {
+      nextSpawnUnix = Math.floor((deathTime.getTime() + (boss.respawn_hours ?? 0) * 3600_000) / 1000);
+    } else if (boss.spawn_type === "fixed_schedule" && boss.schedule) {
+      const nextSlot = findNextScheduleSlot(boss.schedule, deathTime, tz);
+      nextSpawnUnix = Math.floor(nextSlot.getTime() / 1000);
+    }
+    const nextSpawnField = nextSpawnUnix > 0 ? { name: "Next Spawn", value: `<t:${nextSpawnUnix}:f>`, inline: true } : null;
+
     // Send kill notification to all linked Discord servers
     const killUnix = Math.floor(deathTime.getTime() / 1000);
+    const brdFields: any[] = [{ name: "Death Time", value: `<t:${killUnix}:f>`, inline: true }, { name: "Recorded By", value: author, inline: true }];
+    if (nextSpawnField) brdFields.push(nextSpawnField);
     broadcastNotification(serverId, {
       title: `☠️ ${boss.name} Killed`,
       description: guildName ? `**${guildName}** — ${boss.name} has been defeated.` : `${boss.name} has been defeated.`,
       color: 0xef4444,
-      fields: [{ name: "Death Time", value: `<t:${killUnix}:f>`, inline: true }, { name: "Recorded By", value: author, inline: true }],
+      fields: brdFields,
       footer: { text: "Powered by RaidScout" },
-    }, channelId); // skip the command channel (already replied)
+    }, channelId);
     const unix = Math.floor(deathTime.getTime() / 1000);
+    const replyFields: any[] = [
+      { name: "Death Time", value: `<t:${unix}:f>`, inline: true },
+      { name: "Recorded By", value: author, inline: true },
+    ];
+    if (nextSpawnField) replyFields.push(nextSpawnField);
 
     return replyEmbed(
       `☠️ ${boss.name} Killed`,
       `**${boss.name}**${guildName ? ` — ${guildName}` : ""} recorded as killed.`,
       0xef4444,
-      [
-        { name: "Death Time", value: `<t:${unix}:f>`, inline: true },
-        { name: "Recorded By", value: author, inline: true },
-      ],
+      replyFields,
     );
   }
 }
@@ -881,11 +895,37 @@ createServer(async (req, res) => {
 
         let embed: any;
         if (event === "boss_died" && boss_name) {
+          // Compute next spawn time for the embed
+          let nextSpawnField = "";
+          try {
+            const bossRows = await supabaseQuerySafe(`bosses?server_id=eq.${server_id}&name=eq.${encodeURIComponent(boss_name)}&limit=1`);
+            if (bossRows?.[0]) {
+              const boss = bossRows[0];
+              const deathRows = await supabaseQuerySafe(`death_records?server_id=eq.${server_id}&boss_id=eq.${boss.id}&order=death_time.desc&limit=1`);
+              const lastDeath = deathRows?.[0];
+              const now = new Date();
+              let spawn: Date;
+              if (boss.spawn_type === "fixed_hours") {
+                spawn = lastDeath ? addHours(new Date(lastDeath.death_time), boss.respawn_hours ?? 0) : now;
+              } else if (boss.spawn_type === "fixed_schedule" && boss.schedule) {
+                const tz = await resolveServerTimezone(server_id);
+                spawn = findNextScheduleSlot(boss.schedule, now, tz);
+              } else { spawn = now; }
+              if (spawn > now) {
+                nextSpawnField = `<t:${Math.floor(spawn.getTime() / 1000)}:f>`;
+              } else {
+                nextSpawnField = "Now (Alive)";
+              }
+            }
+          } catch {}
+          const fields: any[] = [{ name: "Death Time", value: `<t:${Math.floor(Date.now() / 1000)}:f>`, inline: true }];
+          if (recorded_by) fields.push({ name: "Recorded By", value: recorded_by, inline: true });
+          if (nextSpawnField) fields.push({ name: "Next Spawn", value: nextSpawnField, inline: true });
           embed = {
             title: `☠️ ${boss_name} Killed`,
             description: guild_name ? `**${guild_name}** — ${boss_name} has been defeated.` : `${boss_name} has been defeated.`,
             color: 0xef4444,
-            fields: [{ name: "Death Time", value: `<t:${Math.floor(Date.now() / 1000)}:f>`, inline: true }],
+            fields,
             footer: { text: "Powered by RaidScout" },
           };
         } else if (event === "boss_spawning" && boss_name) {

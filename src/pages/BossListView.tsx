@@ -37,7 +37,7 @@ import type { BossWithSpawn, BossGuild, Guild, DeathRecord } from "@/types";
 const sentAlerts = new Set<string>();
 
 export function BossListView() {
-  const { user, isViewer, viewerCanEdit: ctxViewerCanEdit, viewerCanMarkDied: ctxViewerCanMarkDied, viewerDiscordWebhookUrl: ctxDiscordWebhookUrl } = useAuth();
+  const { user, userRole, isViewer, viewerCanEdit: ctxViewerCanEdit, viewerCanMarkDied: ctxViewerCanMarkDied, viewerDiscordWebhookUrl: ctxDiscordWebhookUrl } = useAuth();
   const { currentServer } = useServer();
   const queryClient = useQueryClient();
 
@@ -325,13 +325,15 @@ export function BossListView() {
 
           // Send Discord notification
           if (user || isViewer) {
+            const recordedBy = isViewer ? "Viewer" : userRole === "owner" ? "Owner" : userRole === "admin" ? "Admin" : "Moderator";
             const result = await notifyDiscord(getCurrentServerId()!, "boss_died", {
               boss_name: boss.name,
               attendees: attendeeIds.length > 0 ? [`${attendeeIds.length} participant(s)`] : undefined,
               guild_name: ownerGuildName(boss.id),
-            });
+              recorded_by: recordedBy,
+            }, "commands");
             if (result.skipped) {
-              setToast({ type: "error", message: "Discord notification skipped — no channel set. Use ;notifhere in Discord." });
+              setToast({ type: "error", message: "No commands channel set. Use ;cmdhere in Discord." });
             } else if (!result.ok) {
               setToast({ type: "error", message: "Discord notification failed. Check bot status." });
             }
