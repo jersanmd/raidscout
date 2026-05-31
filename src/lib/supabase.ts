@@ -1206,6 +1206,7 @@ export async function announceSpawns(
           event: "boss_spawning",
           boss_name: boss.name,
           guild_name: boss.guild_name,
+          target: "commands",
         }),
       });
       if (!res.ok) { failed++; continue; }
