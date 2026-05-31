@@ -639,18 +639,11 @@ async function handleMessage(msg: any) {
       const cooldownEnd = new Date(lastKill.getTime() + 2 * 3600_000);
       if (new Date() < cooldownEnd) {
         const remaining = Math.ceil((cooldownEnd.getTime() - Date.now()) / 60_000);
-        const replyRes = await fetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
-          method: "POST",
-          headers: { Authorization: `Bot ${TOKEN}`, "Content-Type": "application/json" },
-          body: JSON.stringify({ content: `⏳ **${boss.name}** was already killed ${remaining < 60 ? `${remaining}m` : `${Math.ceil(remaining / 60)}h`} ago. Wait before recording another kill.` }),
-        });
-        if (replyRes.ok) {
-          const replyJson = await replyRes.json();
-          await fetch(`https://discord.com/api/v10/channels/${channelId}/messages/${replyJson.id}/reactions/${encodeURIComponent("❌")}/@me`, {
-            method: "PUT", headers: { Authorization: `Bot ${TOKEN}` },
-          }).catch(() => {});
-        }
-        return;
+        // React ❌ on user's message
+        fetch(`https://discord.com/api/v10/channels/${channelId}/messages/${msg.id}/reactions/${encodeURIComponent("❌")}/@me`, {
+          method: "PUT", headers: { Authorization: `Bot ${TOKEN}` },
+        }).catch(() => {});
+        return reply(`⏳ **${boss.name}** was already killed ${remaining < 60 ? `${remaining}m` : `${Math.ceil(remaining / 60)}h`} ago. Wait before recording another kill.`);
       }
     }
 
