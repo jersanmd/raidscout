@@ -691,7 +691,8 @@ async function handleMessage(msg: any) {
         fetch(`https://discord.com/api/v10/channels/${channelId}/messages/${msg.id}/reactions/${encodeURIComponent("❌")}/@me`, {
           method: "PUT", headers: { Authorization: `Bot ${TOKEN}` },
         }).catch(() => {});
-        return reply(`⏳ **${boss.name}** was already killed ${remaining < 60 ? `${remaining}m` : `${Math.ceil(remaining / 60)}h`} ago. Wait before recording another kill.`);
+        const killedAt = Math.floor(lastKill.getTime() / 1000);
+        return reply(`⏳ **${boss.name}** has already been declared dead at <t:${killedAt}:t>. No duplicate kills allowed within the cooldown window.`);
       }
     }
 
