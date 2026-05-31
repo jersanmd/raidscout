@@ -113,6 +113,7 @@ export function ServerSettingsView() {
   const [savingDiscord, setSavingDiscord] = useState(false);
   const [editAliasLinkId, setEditAliasLinkId] = useState<string | null>(null);
   const [editAliases, setEditAliases] = useState<Record<string, string>>({});
+  const [channelValues, setChannelValues] = useState<Record<string, { notif: string; cmd: string }>>({});
   const [searchParams] = useSearchParams();
   const tabParam = searchParams.get("tab");
   const initialTab = (tabParam === "general" || tabParam === "members" || tabParam === "integrations" || tabParam === "danger")
@@ -1637,13 +1638,27 @@ export function ServerSettingsView() {
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
-                  <div className="flex gap-2 mt-1.5">
-                    <div className="flex-1">
-                      <input type="text" defaultValue={link.notification_channel_id || ""} placeholder="Alerts channel ID" onBlur={async (e) => { await supabase.from("discord_configs").update({ notification_channel_id: e.target.value.trim() || null }).eq("id", link.id); }} className="w-full bg-slate-700 rounded px-2 py-1 text-[10px] text-slate-300 font-mono outline-none focus:ring-1 focus:ring-purple-500" />
+                  <div className="mt-2 space-y-2">
+                    <div className="flex gap-2 items-end">
+                      <div className="flex-1">
+                        <label className="text-[10px] text-slate-500 block mb-0.5">Alerts Channel ID</label>
+                        <input type="text" value={channelValues[link.id]?.notif ?? link.notification_channel_id ?? ""} onChange={(e) => setChannelValues(prev => ({ ...prev, [link.id]: { ...prev[link.id], notif: e.target.value }}))} placeholder="Channel ID" className="w-full bg-slate-700 rounded px-2 py-1.5 text-xs text-slate-300 font-mono outline-none focus:ring-1 focus:ring-purple-500" />
+                      </div>
+                      <div className="flex-1">
+                        <label className="text-[10px] text-slate-500 block mb-0.5">Commands Channel ID</label>
+                        <input type="text" value={channelValues[link.id]?.cmd ?? link.command_channel_id ?? ""} onChange={(e) => setChannelValues(prev => ({ ...prev, [link.id]: { ...prev[link.id], cmd: e.target.value }}))} placeholder="Channel ID" className="w-full bg-slate-700 rounded px-2 py-1.5 text-xs text-slate-300 font-mono outline-none focus:ring-1 focus:ring-purple-500" />
+                      </div>
                     </div>
-                    <div className="flex-1">
-                      <input type="text" defaultValue={link.command_channel_id || ""} placeholder="Commands channel ID" onBlur={async (e) => { await supabase.from("discord_configs").update({ command_channel_id: e.target.value.trim() || null }).eq("id", link.id); }} className="w-full bg-slate-700 rounded px-2 py-1 text-[10px] text-slate-300 font-mono outline-none focus:ring-1 focus:ring-purple-500" />
-                    </div>
+                    <button onClick={async () => {
+                      const vals = channelValues[link.id];
+                      if (!vals) return;
+                      const updates: any = {};
+                      if (vals.notif !== undefined) updates.notification_channel_id = vals.notif.trim() || null;
+                      if (vals.cmd !== undefined) updates.command_channel_id = vals.cmd.trim() || null;
+                      await supabase.from("discord_configs").update(updates).eq("id", link.id);
+                      setDiscordLinks(prev => prev.map(d => d.id === link.id ? { ...d, notification_channel_id: updates.notification_channel_id ?? d.notification_channel_id, command_channel_id: updates.command_channel_id ?? d.command_channel_id } : d));
+                      setChannelValues(prev => { const n = { ...prev }; delete n[link.id]; return n; });
+                    }} className="px-2 py-1 rounded text-[10px] font-medium bg-purple-600 text-white hover:bg-purple-500 transition">Save</button>
                   </div>
                   <button onClick={() => { setEditAliasLinkId(link.id); setEditAliases((link as any).command_aliases || {}); }} className="text-[10px] text-slate-500 hover:text-purple-400 transition mt-1">
                     <Pencil className="w-3 h-3 inline mr-1" />Edit Commands
