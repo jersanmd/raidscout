@@ -1637,6 +1637,28 @@ export function ServerSettingsView() {
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
+                  <div className="flex gap-2 mt-1">
+                    <input
+                      type="text"
+                      placeholder="Alerts channel ID"
+                      defaultValue={link.notification_channel_id || ""}
+                      onBlur={async (e) => {
+                        const v = e.target.value.trim();
+                        await supabase.from("discord_configs").update({ notification_channel_id: v || null }).eq("id", link.id);
+                      }}
+                      className="flex-1 bg-slate-700 rounded px-2 py-1 text-xs text-slate-300 font-mono outline-none focus:ring-1 focus:ring-purple-500"
+                    />
+                    <input
+                      type="text"
+                      placeholder="Commands channel ID"
+                      defaultValue={link.command_channel_id || ""}
+                      onBlur={async (e) => {
+                        const v = e.target.value.trim();
+                        await supabase.from("discord_configs").update({ command_channel_id: v || null }).eq("id", link.id);
+                      }}
+                      className="flex-1 bg-slate-700 rounded px-2 py-1 text-xs text-slate-300 font-mono outline-none focus:ring-1 focus:ring-purple-500"
+                    />
+                  </div>
                   <button
                     onClick={() => { setEditAliasLinkId(link.id); setEditAliases((link as any).command_aliases || {}); }}
                     className="text-[10px] text-slate-500 hover:text-purple-400 transition mt-1"
