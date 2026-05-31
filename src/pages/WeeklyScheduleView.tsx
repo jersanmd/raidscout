@@ -38,6 +38,7 @@ export function WeeklyScheduleView() {
   }, []);
   const { currentServer } = useServer();
   const queryClient = useQueryClient();
+  const [weekOffset, setWeekOffset] = useState(0);
 
   // Selected death for participant modal
   const [selectedDeath, setSelectedDeath] = useState<{
@@ -174,11 +175,13 @@ export function WeeklyScheduleView() {
     const deathMap = new Map([...deathRecords].reverse().map((d) => [d.boss_id, d]));
     const bossMap = new Map(bosses.map((b) => [b.id, b]));
 
-    // Build 7 days: Monday → Sunday
-    const monday = new Date(now);
-    const dayOfWeek = now.getDay();
+    // Build 7 days: Monday → Sunday (offset by weekOffset)
+    const refDate = new Date(now);
+    refDate.setDate(refDate.getDate() + weekOffset * 7);
+    const monday = new Date(refDate);
+    const dayOfWeek = refDate.getDay();
     const daysFromMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
-    monday.setDate(now.getDate() - daysFromMonday);
+    monday.setDate(refDate.getDate() - daysFromMonday);
     monday.setHours(0, 0, 0, 0);
 
     const days: WeekDaySpawns[] = [];
@@ -287,7 +290,27 @@ export function WeeklyScheduleView() {
       {/* Saving overlay � blocks all interaction */}
       {savingMessage && <SavingOverlay message={savingMessage} />}
 
-      <h2 className="text-xl font-bold text-white mb-6">Weekly Schedule</h2>
+      <h2 className="text-xl font-bold text-white mb-4">Weekly Schedule</h2>
+
+      {/* Week navigation */}
+      <div className="flex items-center gap-3 mb-4">
+        <button
+          onClick={() => setWeekOffset(w => w - 1)}
+          className="px-3 py-1.5 rounded-lg text-xs bg-slate-800 border border-slate-700 text-slate-300 hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed transition"
+        >
+          ← Previous Week
+        </button>
+        <span className="text-sm text-slate-400">
+          {weekOffset === 0 ? "This Week" : weekOffset === -1 ? "Last Week" : `${Math.abs(weekOffset)} weeks ago`}
+        </span>
+        <button
+          onClick={() => setWeekOffset(w => w + 1)}
+          disabled={weekOffset >= 0}
+          className="px-3 py-1.5 rounded-lg text-xs bg-slate-800 border border-slate-700 text-slate-300 hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed transition"
+        >
+          Next Week →
+        </button>
+      </div>
 
       {/* Mobile: list view */}
       <div className="lg:hidden space-y-3">
