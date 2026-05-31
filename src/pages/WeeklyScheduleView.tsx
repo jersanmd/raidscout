@@ -275,7 +275,7 @@ export function WeeklyScheduleView() {
     }
 
     return days;
-  }, [bosses, deathRecords]);
+  }, [bosses, deathRecords, weekOffset]);
 
   const isLoading = bossesLoading || recordsLoading;
 
@@ -292,28 +292,20 @@ export function WeeklyScheduleView() {
       {/* Saving overlay � blocks all interaction */}
       {savingMessage && <SavingOverlay message={savingMessage} />}
 
-      <h2 className="text-xl font-bold text-white mb-4">Weekly Schedule</h2>
-
-      {/* Week navigation */}
-      <div className="flex items-center gap-3 mb-4">
-        <button
-          onClick={() => { setWeekLoading(true); setWeekOffset(w => w - 1); }}
-          className="px-3 py-1.5 rounded-lg text-xs bg-slate-800 border border-slate-700 text-slate-300 hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed transition"
-        >
-          ← Previous Week
-        </button>
-        <span className="text-sm text-slate-400">
-          {weekOffset === 0 ? "This Week" : weekOffset === -1 ? "Last Week" : `${Math.abs(weekOffset)} weeks ago`}
-        </span>
-        <button
-          onClick={() => { setWeekLoading(true); setWeekOffset(w => w + 1); }}
-          disabled={weekOffset >= 0}
-          className="px-3 py-1.5 rounded-lg text-xs bg-slate-800 border border-slate-700 text-slate-300 hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed transition"
-        >
-          Next Week →
-        </button>
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-xl font-bold text-white">Weekly Schedule</h2>
+        <div className="flex items-center gap-3">
+          <button onClick={() => { setWeekLoading(true); setWeekOffset(w => w - 1); }} className="px-3 py-1.5 rounded-lg text-xs bg-slate-800 border border-slate-700 text-slate-300 hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed transition">← Previous Week</button>
+          <span className="text-sm text-slate-400">{weekOffset === 0 ? "This Week" : weekOffset === -1 ? "Last Week" : `${Math.abs(weekOffset)} weeks ago`}</span>
+          <button onClick={() => { setWeekLoading(true); setWeekOffset(w => w + 1); }} disabled={weekOffset >= 0} className="px-3 py-1.5 rounded-lg text-xs bg-slate-800 border border-slate-700 text-slate-300 hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed transition">Next Week →</button>
+        </div>
       </div>
 
+      {weekLoading ? (
+        <div className="flex items-center justify-center py-16">
+          <Loader2 className="w-8 h-8 text-slate-400 animate-spin" />
+        </div>
+      ) : (<>
       {/* Mobile: list view */}
       <div className="lg:hidden space-y-3">
         {weekDays.map((day) => (

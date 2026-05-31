@@ -7,7 +7,7 @@ import { DiscordWebhookBanner } from "@/components/DiscordWebhookBanner";
 import { NoMembersBanner } from "@/components/NoMembersBanner";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { useSpawnAlerts } from "@/hooks/useSpawnAlerts";
-import { Skull, List, Calendar, LogOut, Clock, Trophy, Users, BarChart3, Server, Settings, Plus, Shield, ExternalLink, Eye, Bell, Volume2 } from "lucide-react";
+import { Skull, List, Calendar, LogOut, Clock, Trophy, Users, BarChart3, Server, Settings, Plus, Shield, ExternalLink, Eye, Bell, Volume2, ChevronDown } from "lucide-react";
 import { version } from "../../package.json";
 
 let _audioCtx: AudioContext | null = null;
@@ -46,6 +46,7 @@ export function Layout() {
   const { servers, currentServer, setCurrentServer } = useServer();
   const [showCreate, setShowCreate] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
   const [spawnToast, setSpawnToast] = useState<string | null>(null);
   const navigate = useNavigate();
   const location = useLocation();
@@ -72,7 +73,7 @@ export function Layout() {
   return (
     <div className="min-h-screen bg-slate-950 flex flex-col">
       {/* Header */}
-      <header className="sticky top-0 z-50 bg-slate-950/70 backdrop-blur-xl border-b border-slate-800/50">
+      <header className="sticky top-0 z-50 bg-slate-950/70 backdrop-blur-xl border-b border-slate-800/50 overflow-visible">
         <div className="max-w-[90rem] mx-auto px-4 min-h-14 py-1.5 flex items-center justify-between gap-2">
           <div className="flex items-center gap-3 shrink-0">
             {/* Logo */}
@@ -211,13 +212,7 @@ export function Layout() {
                     <Server className="w-3.5 h-3.5 text-emerald-400" />
                     <span className="text-xs text-slate-300 max-w-[100px] truncate">{currentServer.name}</span>
                   </div>
-                  <button
-                    onClick={() => navigate("/server-settings")}
-                    className="text-slate-500 hover:text-slate-300 p-1 transition"
-                    title="Server Settings"
-                  >
-                    <Settings className="w-3.5 h-3.5" />
-                  </button>
+
                 </>
               ) : !isAdmin ? (
                 <button
@@ -240,17 +235,34 @@ export function Layout() {
               )}
             </div>
 
-            {/* User info + sign out */}
-            <span className="text-slate-400 text-xs hidden md:block mr-1">
-              {user?.email?.split("@")[0]}
-            </span>
-            <button
-              onClick={() => setShowLogoutConfirm(true)}
-              className="flex items-center gap-1 text-slate-400 hover:text-white text-sm transition p-1.5 rounded-md hover:bg-slate-800"
-              title="Sign out"
-            >
-              <LogOut className="w-4 h-4" />
-            </button>
+            {/* User menu dropdown */}
+            <div className="relative">
+              <button onClick={() => setShowUserMenu(!showUserMenu)} className="flex items-center gap-1 text-slate-400 hover:text-white text-sm transition p-1.5 rounded-md hover:bg-slate-800" title="Menu">
+                <span className="text-xs hidden md:block">{user?.email?.split("@")[0]}</span>
+                <ChevronDown className={`w-3 h-3 transition ${showUserMenu ? "rotate-180" : ""}`} />
+              </button>
+              {showUserMenu && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setShowUserMenu(false)} />
+                  <div className="fixed right-4 top-12 w-56 bg-slate-800 border border-slate-700 rounded-xl shadow-2xl z-[9999] overflow-hidden">
+                    <div className="px-4 py-3 border-b border-slate-700">
+                      <div className="text-sm font-semibold text-white">{user?.email?.split("@")[0]}</div>
+                      <div className="text-xs text-slate-500">{user?.email}</div>
+                    </div>
+                    <div className="py-1">
+                      {hasServer && (
+                        <NavLink to="/server-settings" onClick={() => setShowUserMenu(false)} className="flex items-center gap-2 px-4 py-2 text-sm text-slate-300 hover:bg-slate-700 transition">
+                          <Settings className="w-4 h-4" /> Server Settings
+                        </NavLink>
+                      )}
+                      <button onClick={() => { setShowUserMenu(false); setShowLogoutConfirm(true); }} className="w-full text-left flex items-center gap-2 px-4 py-2 text-sm text-slate-300 hover:bg-slate-700 transition border-t border-slate-700">
+                        <LogOut className="w-4 h-4" /> Sign Out
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </div>
       </header>
