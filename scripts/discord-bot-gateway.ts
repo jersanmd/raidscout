@@ -782,7 +782,7 @@ async function runSpawnCheck() {
     if (!servers.length) return;
 
     const [allBosses, allDeaths, allGuilds, allBossGuilds] = await Promise.all([
-      supabaseQuerySafe("bosses?is_enabled=eq.true&order=name"),
+      supabaseQuerySafe("bosses?order=name"),
       supabaseQuerySafe("death_records?order=death_time.desc&limit=500"),
       supabaseQuerySafe("guilds"),
       supabaseQuerySafe("boss_guilds?select=boss_id,guild_id,sort_order,day_of_week,mode"),

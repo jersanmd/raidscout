@@ -520,16 +520,20 @@ export function BossListView() {
                 try {
                   const vol = parseFloat(localStorage.getItem("raidscout-alert-volume") || "0.5");
                   const ctx = new AudioContext();
-                  const osc = ctx.createOscillator();
-                  const gain = ctx.createGain();
-                  osc.connect(gain); gain.connect(ctx.destination);
-                  osc.type = "square";
-                  gain.gain.setValueAtTime(0.3 * vol, ctx.currentTime);
-                  gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
-                  osc.frequency.setValueAtTime(800, ctx.currentTime);
-                  osc.frequency.linearRampToValueAtTime(1200, ctx.currentTime + 0.5);
-                  osc.start(ctx.currentTime);
-                  osc.stop(ctx.currentTime + 0.5);
+                  const notes = [587, 784];
+                  notes.forEach((freq, i) => {
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.connect(gain); gain.connect(ctx.destination);
+                    osc.type = "sine";
+                    const t = ctx.currentTime + i * 0.18;
+                    gain.gain.setValueAtTime(0, t);
+                    gain.gain.linearRampToValueAtTime(0.25 * vol, t + 0.03);
+                    gain.gain.exponentialRampToValueAtTime(0.01, t + 0.5);
+                    osc.frequency.setValueAtTime(freq, t);
+                    osc.start(t);
+                    osc.stop(t + 0.5);
+                  });
                 } catch {}
               }}
               className="w-16 h-1.5 accent-amber-400 cursor-pointer"
