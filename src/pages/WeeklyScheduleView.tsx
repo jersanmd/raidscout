@@ -39,6 +39,8 @@ export function WeeklyScheduleView() {
   const { currentServer } = useServer();
   const queryClient = useQueryClient();
   const [weekOffset, setWeekOffset] = useState(0);
+  const [weekLoading, setWeekLoading] = useState(false);
+  useEffect(() => { setWeekLoading(false); }, [weekOffset]);
 
   // Selected death for participant modal
   const [selectedDeath, setSelectedDeath] = useState<{
@@ -295,7 +297,7 @@ export function WeeklyScheduleView() {
       {/* Week navigation */}
       <div className="flex items-center gap-3 mb-4">
         <button
-          onClick={() => setWeekOffset(w => w - 1)}
+          onClick={() => { setWeekLoading(true); setWeekOffset(w => w - 1); }}
           className="px-3 py-1.5 rounded-lg text-xs bg-slate-800 border border-slate-700 text-slate-300 hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed transition"
         >
           ← Previous Week
@@ -304,7 +306,7 @@ export function WeeklyScheduleView() {
           {weekOffset === 0 ? "This Week" : weekOffset === -1 ? "Last Week" : `${Math.abs(weekOffset)} weeks ago`}
         </span>
         <button
-          onClick={() => setWeekOffset(w => w + 1)}
+          onClick={() => { setWeekLoading(true); setWeekOffset(w => w + 1); }}
           disabled={weekOffset >= 0}
           className="px-3 py-1.5 rounded-lg text-xs bg-slate-800 border border-slate-700 text-slate-300 hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed transition"
         >
@@ -518,6 +520,8 @@ export function WeeklyScheduleView() {
           </div>
         ))}
       </div>
+
+      </> )}
 
       {/* Legend */}
       <div className="flex items-center gap-5 mt-6 text-xs text-slate-400 bg-slate-900/50 border border-slate-800 rounded-lg px-4 py-2 w-fit">
