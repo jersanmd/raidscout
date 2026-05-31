@@ -388,6 +388,13 @@ async function handleMessage(msg: any) {
   }
   const cmd = aliases[rawCmd] || rawCmd;
 
+  // Check command channel restriction (if set, ignore commands from other channels)
+  if (matchedPrefix) {
+    const cfgRows = await supabaseQuerySafe(`discord_configs?discord_guild_id=eq.${guildId}&command_prefix=eq.${encodeURIComponent(matchedPrefix)}&select=command_channel_id`);
+    const cmdChannel = cfgRows?.[0]?.command_channel_id;
+    if (cmdChannel && channelId !== cmdChannel && cmd !== "cmdhere") return;
+  }
+
   async function reply(text: string) {
     await fetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
       method: "POST",
@@ -462,6 +469,22 @@ async function handleMessage(msg: any) {
     return reply("✅ This channel will now receive boss kill, spawn, and activity notifications.");
   }
 
+  // ── cmdhere ──────────────────────────────────────────
+  if (cmd === "cmdhere") {
+    const serverId = await resolveServerId(guildId, matchedPrefix);
+    if (!serverId) return reply("⚠️ This Discord server is not linked to RaidScout.");
+    const existing = await supabaseQuerySafe(`discord_configs?discord_guild_id=eq.${guildId}&command_prefix=eq.${encodeURIComponent(matchedPrefix)}&select=id`);
+    if (existing?.length) {
+      await fetch(`${SUPABASE_URL}/rest/v1/discord_configs?id=eq.${existing[0].id}`, {
+        method: "PATCH",
+        headers: { apikey: SUPABASE_KEY!, Authorization: `Bearer ${SUPABASE_KEY!}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ command_channel_id: msg.channel_id }),
+      });
+      guildPrefixes.delete(guildId); // bust prefix cache
+    }
+    return reply("✅ Bot commands will now only work in this channel.");
+  }
+
   // ── commands ─────────────────────────────────────────
   if (cmd === "commands" || cmd === "help") {
     const p = matchedPrefix;
@@ -496,6 +519,7 @@ async function handleMessage(msg: any) {
         { name: `${p}killed <boss> HH:MM yesterday`, value: "Force yesterday's date even if the time already passed today", inline: false },
         { name: `${p}commands${aliasNote("commands")}`, value: "Show this help message", inline: false },
         { name: `${p}notifhere${aliasNote("notifhere")}`, value: "Set this channel for boss kill & spawn notifications", inline: false },
+        { name: `${p}cmdhere${aliasNote("cmdhere")}`, value: "Restrict bot commands to this channel only", inline: false },
       ],
     );
   }
