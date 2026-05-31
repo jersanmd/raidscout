@@ -507,7 +507,6 @@ export function BossListView() {
         </div>
         <div className="flex items-center gap-2 ml-auto">
           <div className="flex items-center gap-1.5 text-xs text-slate-400">
-            <Volume2 className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">Notification volume</span>
             <input
               type="range"
@@ -667,23 +666,12 @@ export function BossListView() {
                     ownerGuildName={ownerGuildName(s.boss.id)}
                     onUrgentSpawn={(name) => {
                       emitSpawnAlert(name);
-                      const key = `urgent-${name}`;
-                      if (!sentAlerts.has(key)) {
-                        sentAlerts.add(key);
-                        const sid = getCurrentServerId();
-                        if (sid) notifyDiscord(sid, "boss_spawning", { boss_name: name, guild_name: ownerGuildName(s.boss.id) });
-                      }
                     }}
                     onCriticalSpawn={(name) => {
                       emitSpawnAlert(`⚠️ ${name} spawning in 5s!`);
                     }}
                     onSpawned={(name) => {
-                      const key = `spawned-${name}`;
-                      if (!sentAlerts.has(key)) {
-                        sentAlerts.add(key);
-                        const sid = getCurrentServerId();
-                        if (sid) notifyDiscord(sid, "boss_spawned", { boss_name: name, guild_name: ownerGuildName(s.boss.id) });
-                      }
+                      emitSpawnAlert(`⚠️ ${name} spawning now!`);
                     }}
                     rotationGuilds={rot?.guilds}
                     rotationCurrentIndex={rot?.currentIndex}
