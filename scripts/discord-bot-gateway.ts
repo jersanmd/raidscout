@@ -371,12 +371,6 @@ async function handleMessage(msg: any) {
   const args = content.slice(effectivePrefix.length).split(/\s+/);
   const rawCmd = args[0]?.toLowerCase();
 
-  // React with ✅ to acknowledge the command
-  fetch(`https://discord.com/api/v10/channels/${channelId}/messages/${msg.id}/reactions/${encodeURIComponent("✅")}/@me`, {
-    method: "PUT",
-    headers: { Authorization: `Bot ${TOKEN}` },
-  }).catch(() => {});
-
   // Load custom command aliases for this server
   let aliases: Record<string, string> = {};
   const aliasPrefix = matchedPrefix || prefixes[0] || "";
@@ -387,6 +381,15 @@ async function handleMessage(msg: any) {
     if (aliasRows?.[0]?.command_aliases) aliases = aliasRows[0].command_aliases;
   }
   const cmd = aliases[rawCmd] || rawCmd;
+
+  // Valid commands that should trigger ✅ reaction
+  const validCmds = new Set(["list","nextspawn","spawn","killed","commands","help","notifhere","cmdhere"]);
+  if (validCmds.has(cmd)) {
+    fetch(`https://discord.com/api/v10/channels/${channelId}/messages/${msg.id}/reactions/${encodeURIComponent("✅")}/@me`, {
+      method: "PUT",
+      headers: { Authorization: `Bot ${TOKEN}` },
+    }).catch(() => {});
+  }
 
   // Check command channel restriction (if set, ignore commands from other channels)
   if (matchedPrefix) {
