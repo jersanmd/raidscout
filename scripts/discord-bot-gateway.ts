@@ -367,7 +367,7 @@ async function handleMessage(msg: any) {
   let aliases: Record<string, string> = {};
   const aliasPrefix = matchedPrefix || prefixes[0] || "";
   if (aliasPrefix) {
-    const aliasRows = await supabaseQuery(
+    const aliasRows = await supabaseQuerySafe(
       `discord_configs?discord_guild_id=eq.${guildId}&command_prefix=eq.${encodeURIComponent(aliasPrefix)}&select=command_aliases`
     );
     if (aliasRows?.[0]?.command_aliases) aliases = aliasRows[0].command_aliases;
@@ -435,7 +435,7 @@ async function handleMessage(msg: any) {
     const serverId = await resolveServerId(guildId, matchedPrefix);
     if (!serverId) return reply("⚠️ This Discord server is not linked to RaidScout. An admin needs to go to **Server Settings → Integrations** on the RaidScout web app and link this Discord server.");
     // Persist to DB so it survives bot restarts
-    const existing = await supabaseQuery(
+    const existing = await supabaseQuerySafe(
       `discord_configs?discord_guild_id=eq.${guildId}&command_prefix=eq.${encodeURIComponent(matchedPrefix)}&select=id`
     );
     if (existing?.length) {
@@ -452,7 +452,7 @@ async function handleMessage(msg: any) {
   if (cmd === "commands" || cmd === "help") {
     const p = matchedPrefix;
     // Check if multiple servers are linked + load aliases
-    const guildConfigs = await supabaseQuery(
+    const guildConfigs = await supabaseQuerySafe(
       `discord_configs?discord_guild_id=eq.${guildId}&select=command_prefix,label,command_aliases`
     );
     const multiServer = (guildConfigs?.length ?? 0) > 1;
