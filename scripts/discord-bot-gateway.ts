@@ -15,7 +15,6 @@ const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 if (!TOKEN) { console.error("Set DISCORD_BOT_TOKEN"); process.exit(1); }
 
 let botUserId = "";
-let cronInterval: ReturnType<typeof setInterval> | null = null;
 if (!SUPABASE_URL) { console.error("Set SUPABASE_URL"); process.exit(1); }
 if (!SUPABASE_KEY) { console.error("Set SUPABASE_SERVICE_ROLE_KEY"); process.exit(1); }
 
@@ -261,7 +260,6 @@ async function connect() {
         ws.send(JSON.stringify({ op: 1, d: seq }));
       }, d.heartbeat_interval);
       console.log("Bot is online!");
-      if (!cronInterval) { cronInterval = setInterval(runSpawnCheck, 60_000); runSpawnCheck(); console.log("Spawn cron started (every 60s)"); }
     }
 
     // GUILD_CREATE — send welcome message when added to a new server
@@ -769,96 +767,6 @@ async function handleMessage(msg: any) {
 }
 
 // ── Notification Channel Registry ──────────────────────────
-
-// ── Server-side spawn cron (runs every 60s) ────────────────
-const cronSentNotifs = new Map<string, number>(); // separate dedup for cron
-let cronRunning = false;
-
-async function runSpawnCheck() {
-  if (cronRunning) return;
-  cronRunning = true;
-  try {
-    const servers = await supabaseQuerySafe("servers?select=id,timezone");
-    if (!servers.length) return;
-
-    const [allBosses, allDeaths, allGuilds, allBossGuilds] = await Promise.all([
-      supabaseQuerySafe("bosses?order=name"),
-      supabaseQuerySafe("death_records?order=death_time.desc&limit=500"),
-      supabaseQuerySafe("guilds"),
-      supabaseQuerySafe("boss_guilds?select=boss_id,guild_id,sort_order,day_of_week,mode"),
-    ]);
-
-    const now = new Date();
-
-    for (const server of servers) {
-      const sId = server.id;
-      const tz = server.timezone || "Asia/Manila";
-      const bosses = allBosses.filter((b: any) => b.server_id === sId);
-      if (!bosses.length) continue;
-      const deaths = allDeaths.filter((d: any) => d.server_id === sId);
-      const guilds = allGuilds.filter((g: any) => g.server_id === sId);
-      const serverGuildIds = new Set(guilds.map((g: any) => g.id));
-      const bossGuilds = allBossGuilds.filter((bg: any) => serverGuildIds.has(bg.guild_id));
-
-      for (const boss of bosses) {
-        const lastDeath = deaths
-          .filter((d: any) => d.boss_id === boss.id && !d.is_initial_spawn)
-          .sort((a: any, b: any) => new Date(b.death_time).getTime() - new Date(a.death_time).getTime())[0];
-
-        let spawn: Date;
-        if (boss.spawn_type === "fixed_hours") {
-          spawn = lastDeath ? addHours(new Date(lastDeath.death_time), boss.respawn_hours ?? 0) : now;
-          if (spawn <= now && now <= addHours(spawn, 24)) spawn = now;
-        } else if (boss.spawn_type === "fixed_schedule" && boss.schedule) {
-          let recentTime: Date | null = null;
-          for (let d = 0; d <= 7; d++) {
-            const check = new Date(now);
-            check.setDate(check.getDate() - d);
-            for (const slot of boss.schedule) {
-              const c = scheduleSlotToUTC(tz, check, slot.day, slot.time);
-              if (c <= now && (!recentTime || c > recentTime)) recentTime = c;
-            }
-          }
-          if (!recentTime) {
-            spawn = findNextScheduleSlot(boss.schedule, now, tz);
-          } else {
-            const nextSlot = findNextScheduleSlot(boss.schedule, new Date(recentTime.getTime() + 60_000), tz);
-            const aliveUntil = new Date(Math.min(nextSlot.getTime() - 3600_000, recentTime.getTime() + 4 * 3600_000));
-            if (now <= aliveUntil) { spawn = now; }
-            else { spawn = findNextScheduleSlot(boss.schedule, now, tz); }
-          }
-        } else continue;
-
-        const diffMs = spawn.getTime() - now.getTime();
-        const guildName = computeOwnerGuild(boss, bossGuilds, guilds, lastDeath, spawn, tz);
-
-        // Within 5 minutes → boss_spawning
-        if (diffMs > 0 && diffMs <= 300_000) {
-          const dedupKey = `${sId}-boss_spawning-${boss.name}`;
-          const lastSent = cronSentNotifs.get(dedupKey);
-          if (!lastSent || now.getTime() - lastSent > 65_000) {
-            cronSentNotifs.set(dedupKey, now.getTime());
-            const embed = { title: `⏰ ${boss.name} Spawning Soon`, description: guildName ? `**${guildName}** — ${boss.name} spawns in 5 min.` : `${boss.name} spawns in 5 minutes.`, color: 0xf59e0b, footer: { text: "Powered by RaidScout" } };
-            broadcastNotification(sId, embed).catch(e => console.error("Cron spawn notify error:", e));
-          }
-        }
-
-        // Just spawned (within last 10s) → boss_spawned
-        if (diffMs <= 0 && diffMs >= -10_000) {
-          const dedupKey = `${sId}-boss_spawned-${boss.name}`;
-          const lastSent = cronSentNotifs.get(dedupKey);
-          if (!lastSent || now.getTime() - lastSent > 65_000) {
-            cronSentNotifs.set(dedupKey, now.getTime());
-            const embed = { title: `🟢 ${boss.name} Spawning Now`, description: guildName ? `**${guildName}** — ${boss.name} has spawned!` : `${boss.name} has spawned!`, color: 0x22c55e, footer: { text: "Powered by RaidScout" } };
-            broadcastNotification(sId, embed).catch(e => console.error("Cron spawn notify error:", e));
-          }
-        }
-      }
-    }
-  } catch (e: any) { console.error("Cron spawn check error:", e.message || e); }
-  finally { cronRunning = false; }
-}
-
 
 const sentNotifs = new Map<string, number>(); // dedup: "serverId-event-bossName" → timestamp
 
