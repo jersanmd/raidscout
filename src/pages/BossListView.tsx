@@ -547,17 +547,7 @@ export function BossListView() {
             </button>
           </div>
         </div>
-        {hasWebhook && !isViewer && (
-        <button
-          onClick={() => setShowAnnounceConfirm(true)}
-          disabled={spawnsIn24h.length === 0}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-900/20 border border-purple-800 text-purple-400 text-xs font-medium hover:bg-purple-900/40 transition disabled:opacity-40 disabled:cursor-not-allowed"
-          title={spawnsIn24h.length === 0 ? "No bosses spawning in the next 24 hours" : `Post ${spawnsIn24h.length} spawns to Discord`}
-        >
-          <Megaphone className="w-3.5 h-3.5" />
-          Post 24h Spawns to Discord
-        </button>
-        )}
+
         {!isViewer && (
           <>
             {viewerKey && (
@@ -699,17 +689,7 @@ export function BossListView() {
         <ToastMessage toast={toast} onDismiss={() => setToast(null)} />
       )}
 
-      {/* Announce 24h spawns confirm dialog */}
-      <ConfirmDialog
-        open={showAnnounceConfirm}
-        title="Announce to Discord"
-        message={`This will send an @everyone announcement to your Discord server listing ${spawnsIn24h.length} boss${spawnsIn24h.length !== 1 ? "es" : ""} spawning in the next 24 hours.`}
-        confirmLabel="Send Announcement"
-        variant="warning"
-        loading={announceLoading}
-        onConfirm={handleAnnounceSpawns}
-        onCancel={() => setShowAnnounceConfirm(false)}
-      />
+
 
       {/* Floating multi-select action bar */}
       {multiMode && selectedIds.size > 0 && (
