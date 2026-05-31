@@ -1639,26 +1639,45 @@ export function ServerSettingsView() {
                     </button>
                   </div>
                   <div className="mt-2 space-y-2">
-                    <div className="flex gap-2 items-end">
-                      <div className="flex-1">
-                        <label className="text-[10px] text-slate-500 block mb-0.5">Alerts Channel ID</label>
-                        <input type="text" value={channelValues[link.id]?.notif ?? link.notification_channel_id ?? ""} onChange={(e) => setChannelValues(prev => ({ ...prev, [link.id]: { ...prev[link.id], notif: e.target.value }}))} placeholder="Channel ID" className="w-full bg-slate-700 rounded px-2 py-1.5 text-xs text-slate-300 font-mono outline-none focus:ring-1 focus:ring-purple-500" />
-                      </div>
-                      <div className="flex-1">
-                        <label className="text-[10px] text-slate-500 block mb-0.5">Commands Channel ID</label>
-                        <input type="text" value={channelValues[link.id]?.cmd ?? link.command_channel_id ?? ""} onChange={(e) => setChannelValues(prev => ({ ...prev, [link.id]: { ...prev[link.id], cmd: e.target.value }}))} placeholder="Channel ID" className="w-full bg-slate-700 rounded px-2 py-1.5 text-xs text-slate-300 font-mono outline-none focus:ring-1 focus:ring-purple-500" />
-                      </div>
+                    <div className="flex items-center gap-1">
+                      <span className="text-[10px] text-slate-500">Channels</span>
+                      {!channelValues[link.id] ? (
+                        <button onClick={() => setChannelValues(prev => ({ ...prev, [link.id]: { notif: link.notification_channel_id || "", cmd: link.command_channel_id || "" } }))} className="p-0.5 rounded text-slate-500 hover:text-purple-400 transition" title="Edit channel IDs">
+                          <Pencil className="w-3 h-3" />
+                        </button>
+                      ) : (
+                        <div className="flex gap-0.5">
+                          <button onClick={async () => {
+                            const vals = channelValues[link.id];
+                            if (!vals) return;
+                            await supabase.from("discord_configs").update({ notification_channel_id: vals.notif.trim() || null, command_channel_id: vals.cmd.trim() || null }).eq("id", link.id);
+                            setDiscordLinks(prev => prev.map(d => d.id === link.id ? { ...d, notification_channel_id: vals.notif.trim() || null, command_channel_id: vals.cmd.trim() || null } : d));
+                            setChannelValues(prev => { const n = { ...prev }; delete n[link.id]; return n; });
+                          }} className="p-0.5 rounded text-green-400 hover:text-green-300 transition" title="Save">
+                            <Check className="w-3 h-3" />
+                          </button>
+                          <button onClick={() => setChannelValues(prev => { const n = { ...prev }; delete n[link.id]; return n; })} className="p-0.5 rounded text-red-400 hover:text-red-300 transition" title="Cancel">
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      )}
                     </div>
-                    <button onClick={async () => {
-                      const vals = channelValues[link.id];
-                      if (!vals) return;
-                      const updates: any = {};
-                      if (vals.notif !== undefined) updates.notification_channel_id = vals.notif.trim() || null;
-                      if (vals.cmd !== undefined) updates.command_channel_id = vals.cmd.trim() || null;
-                      await supabase.from("discord_configs").update(updates).eq("id", link.id);
-                      setDiscordLinks(prev => prev.map(d => d.id === link.id ? { ...d, notification_channel_id: updates.notification_channel_id ?? d.notification_channel_id, command_channel_id: updates.command_channel_id ?? d.command_channel_id } : d));
-                      setChannelValues(prev => { const n = { ...prev }; delete n[link.id]; return n; });
-                    }} className="px-2 py-1 rounded text-[10px] font-medium bg-purple-600 text-white hover:bg-purple-500 transition">Save</button>
+                    {channelValues[link.id] ? (
+                      <div className="flex gap-2">
+                        <div className="flex-1">
+                          <label className="text-[10px] text-slate-500 block mb-0.5">Alerts Channel ID</label>
+                          <input type="text" value={channelValues[link.id].notif} onChange={(e) => setChannelValues(prev => ({ ...prev, [link.id]: { ...prev[link.id], notif: e.target.value }}))} placeholder="Channel ID" className="w-full bg-slate-700 rounded px-2 py-1.5 text-xs text-slate-300 font-mono outline-none focus:ring-1 focus:ring-purple-500" />
+                        </div>
+                        <div className="flex-1">
+                          <label className="text-[10px] text-slate-500 block mb-0.5">Commands Channel ID</label>
+                          <input type="text" value={channelValues[link.id].cmd} onChange={(e) => setChannelValues(prev => ({ ...prev, [link.id]: { ...prev[link.id], cmd: e.target.value }}))} placeholder="Channel ID" className="w-full bg-slate-700 rounded px-2 py-1.5 text-xs text-slate-300 font-mono outline-none focus:ring-1 focus:ring-purple-500" />
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-[10px] text-slate-500">
+                        Alerts: {link.notification_channel_id ? <code className="text-slate-400 font-mono">{link.notification_channel_id}</code> : <span className="italic">not set</span>} — Commands: {link.command_channel_id ? <code className="text-slate-400 font-mono">{link.command_channel_id}</code> : <span className="italic">not set</span>}
+                      </div>
+                    )}
                   </div>
                   <button onClick={() => { setEditAliasLinkId(link.id); setEditAliases((link as any).command_aliases || {}); }} className="text-[10px] text-slate-500 hover:text-purple-400 transition mt-1">
                     <Pencil className="w-3 h-3 inline mr-1" />Edit Commands
