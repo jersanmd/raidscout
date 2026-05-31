@@ -1637,34 +1637,50 @@ export function ServerSettingsView() {
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
-                  <div className="flex gap-2 mt-1">
-                    <input
-                      type="text"
-                      placeholder="Alerts channel ID"
-                      defaultValue={link.notification_channel_id || ""}
-                      onBlur={async (e) => {
-                        const v = e.target.value.trim();
-                        await supabase.from("discord_configs").update({ notification_channel_id: v || null }).eq("id", link.id);
-                      }}
-                      className="flex-1 bg-slate-700 rounded px-2 py-1 text-xs text-slate-300 font-mono outline-none focus:ring-1 focus:ring-purple-500"
-                    />
-                    <input
-                      type="text"
-                      placeholder="Commands channel ID"
-                      defaultValue={link.command_channel_id || ""}
-                      onBlur={async (e) => {
-                        const v = e.target.value.trim();
-                        await supabase.from("discord_configs").update({ command_channel_id: v || null }).eq("id", link.id);
-                      }}
-                      className="flex-1 bg-slate-700 rounded px-2 py-1 text-xs text-slate-300 font-mono outline-none focus:ring-1 focus:ring-purple-500"
-                    />
-                  </div>
+
                   <button
                     onClick={() => { setEditAliasLinkId(link.id); setEditAliases((link as any).command_aliases || {}); }}
                     className="text-[10px] text-slate-500 hover:text-purple-400 transition mt-1"
                   >
                     <Pencil className="w-3 h-3 inline mr-1" />Edit Commands
                   </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Channel configuration */}
+          {discordLinks.length > 0 && (
+            <div className="bg-slate-800/50 rounded-lg p-3 space-y-3">
+              <p className="text-xs font-medium text-purple-400">Channel Configuration</p>
+              {discordLinks.map(link => (
+                <div key={`ch-${link.id}`} className="space-y-1.5">
+                  <span className="text-[11px] text-slate-400">
+                    Prefix <code className="text-amber-400 bg-slate-700 px-1 py-0.5 rounded text-[10px]">{link.command_prefix || ";"}</code>
+                    {link.label ? ` — ${link.label}` : ""}
+                  </span>
+                  <div className="flex gap-2">
+                    <div className="flex-1">
+                      <label className="text-[10px] text-slate-500 block mb-0.5">Alerts Channel ID</label>
+                      <input
+                        type="text"
+                        defaultValue={link.notification_channel_id || ""}
+                        placeholder="Channel ID"
+                        onBlur={async (e) => { await supabase.from("discord_configs").update({ notification_channel_id: e.target.value.trim() || null }).eq("id", link.id); }}
+                        className="w-full bg-slate-700 rounded px-2 py-1.5 text-xs text-slate-300 font-mono outline-none focus:ring-1 focus:ring-purple-500"
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <label className="text-[10px] text-slate-500 block mb-0.5">Commands Channel ID</label>
+                      <input
+                        type="text"
+                        defaultValue={link.command_channel_id || ""}
+                        placeholder="Channel ID"
+                        onBlur={async (e) => { await supabase.from("discord_configs").update({ command_channel_id: e.target.value.trim() || null }).eq("id", link.id); }}
+                        className="w-full bg-slate-700 rounded px-2 py-1.5 text-xs text-slate-300 font-mono outline-none focus:ring-1 focus:ring-purple-500"
+                      />
+                    </div>
+                  </div>
                 </div>
               ))}
             </div>
