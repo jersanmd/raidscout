@@ -1,0 +1,18 @@
+app = "raidscout-bot"
+[build]
+  dockerfile = "Dockerfile.bot"
+[env]
+  NOTIFY_PORT = "8080"
+[[vm]]
+  memory = "256mb"
+  cpu = "shared-cpu-1x"
+[[services]]
+  protocol = "tcp"
+  internal_port = 8080
+  [[services.ports]]
+    port = 443
+    handlers = ["tls", "http"]
+  [[services.ports]]
+    port = 80
+    handlers = ["http"]
+    force_https = true
