@@ -1650,8 +1650,8 @@ export function ServerSettingsView() {
                           <button onClick={async () => {
                             const vals = channelValues[link.id];
                             if (!vals) return;
-                            await supabase.from("discord_configs").update({ notification_channel_id: vals.notif.trim() || null, command_channel_id: vals.cmd.trim() || null }).eq("id", link.id);
-                            setDiscordLinks(prev => prev.map(d => d.id === link.id ? { ...d, notification_channel_id: vals.notif.trim() || null, command_channel_id: vals.cmd.trim() || null } : d));
+                            await supabase.from("discord_configs").update({ notification_channel_id: vals.notif.trim() || undefined, command_channel_id: vals.cmd.trim() || undefined }).eq("id", link.id);
+                            setDiscordLinks(prev => prev.map(d => d.id === link.id ? { ...d, notification_channel_id: vals.notif.trim() || undefined, command_channel_id: vals.cmd.trim() || undefined } : d));
                             setChannelValues(prev => { const n = { ...prev }; delete n[link.id]; return n; });
                           }} className="p-0.5 rounded text-green-400 hover:text-green-300 transition" title="Save">
                             <Check className="w-3 h-3" />
