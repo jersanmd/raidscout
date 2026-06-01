@@ -904,14 +904,8 @@ createServer(async (req, res) => {
       try {
         const { server_id, event, boss_name, guild_name, activity_name, parties, recorded_by } = JSON.parse(body);
 
-        // Spawn alerts are handled by the cron loop — reject browser-initiated ones
-        if (event === "boss_spawning" || event === "boss_spawned") {
-          res.writeHead(200); res.end(JSON.stringify({ skipped: "handled by cron" }));
-          return;
-        }
-
-        // Dedup: skip duplicate boss_died notifs within 30s
-        if (boss_name && event === "boss_died") {
+        // Dedup: skip duplicate notifs within 30s
+        if (boss_name && event) {
           const dedupKey = `${server_id}-${event}-${boss_name}`;
           const now = Date.now();
           const last = sentNotifs.get(dedupKey);

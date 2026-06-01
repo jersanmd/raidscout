@@ -1707,12 +1707,24 @@ export function ServerSettingsView() {
                         if (!currentServer) return;
                         setTestingDiscord(prev => new Set(prev).add(link.id));
                         try {
-                          const r = await notifyDiscord(currentServer.id, "boss_died", {
-                            boss_name: "Test Notification (Ignore)",
-                            guild_name: "System",
-                          });
-                          if (r.ok) {
-                            toast("success", "Test notification sent!");
+                          const events: Array<{ event: "boss_spawning" | "boss_spawned" | "boss_died"; delay: number }> = [
+                            { event: "boss_spawning", delay: 0 },
+                            { event: "boss_spawned", delay: 800 },
+                            { event: "boss_died", delay: 1600 },
+                          ];
+                          let okCount = 0;
+                          for (const { event, delay } of events) {
+                            await new Promise(r => setTimeout(r, delay));
+                            const r = await notifyDiscord(currentServer.id, event, {
+                              boss_name: "Test Notification (Ignore)",
+                              guild_name: "System",
+                            });
+                            if (r.ok) okCount++;
+                          }
+                          if (okCount === 3) {
+                            toast("success", "All 3 test notifications sent!");
+                          } else if (okCount > 0) {
+                            toast("warning", `${okCount}/3 sent. Check channel IDs and bot status.`);
                           } else {
                             toast("error", "Failed to send. Check channel IDs and bot status.");
                           }
