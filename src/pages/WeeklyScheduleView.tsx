@@ -21,14 +21,16 @@ import {
   supabase,
   advanceBossRotation,
 } from "@/lib/supabase";
-import { Loader2, ChevronLeft, ChevronRight, Users, Shield, X } from "lucide-react";
+import { Loader2, ChevronLeft, ChevronRight, Users, Shield, X, Calendar } from "lucide-react";
 import { SavingOverlay } from "@/components/SavingOverlay";
 import { getOwnerGuildName as getOwnerGuildNameLib } from "@/lib/rotation";
+import { useActivities } from "@/hooks/useActivities";
 import type { WeekDaySpawns, SpawnInfo, Boss, BossGuild, Guild } from "@/types";
 
 export function WeeklyScheduleView() {
   const { data: bosses = [], isLoading: bossesLoading, refetch: refetchBosses } = useBosses();
   const { data: deathRecords = [], isLoading: recordsLoading, refetch: refetchDeaths } = useDeathRecords();
+  const { activities = [], activityInstances = [] } = useActivities();
   const { user, isViewer, viewerCanMarkDied } = useAuth();
 
   // Always fetch fresh data on mount so rotation adjustments from Bosses tab are reflected
@@ -668,6 +670,30 @@ export function WeeklyScheduleView() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Activities for the week */}
+      {activities.length > 0 && (
+        <section className="mt-6 pt-4 border-t border-slate-800">
+          <h3 className="text-sm font-semibold text-blue-400 uppercase tracking-wider flex items-center gap-2 mb-3">
+            <Calendar className="w-4 h-4" /> Activities
+          </h3>
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {activities.map(a => {
+              const slots = a.schedule || [];
+              return slots.map((slot, i) => {
+                const dayName = DAY_NAMES_SHORT[slot.day];
+                return (
+                  <div key={`${a.id}-${i}`} className="flex items-center gap-2 bg-slate-800/50 border border-blue-900/20 rounded-lg px-3 py-2">
+                    <span className="text-xs">📅</span>
+                    <span className="text-sm text-blue-300 flex-1 truncate">{a.name}</span>
+                    <span className="text-xs text-slate-500">{dayName} {slot.time}</span>
+                  </div>
+                );
+              });
+            })}
+          </div>
+        </section>
       )}
     </div>
   );

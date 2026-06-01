@@ -15,19 +15,19 @@ describe("FilterBar", () => {
 
   it("renders search input with placeholder", () => {
     render(<FilterBar {...defaultProps} />);
-    expect(screen.getByPlaceholderText("Search bosses...")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Search...")).toBeInTheDocument();
   });
 
   it("displays the current search text value", () => {
     render(<FilterBar {...defaultProps} searchText="Venatus" />);
-    const input = screen.getByPlaceholderText("Search bosses...") as HTMLInputElement;
+    const input = screen.getByPlaceholderText("Search...") as HTMLInputElement;
     expect(input.value).toBe("Venatus");
   });
 
   it("calls onSearchChange when user types", () => {
     const handleChange = vi.fn();
     render(<FilterBar {...defaultProps} onSearchChange={handleChange} />);
-    const input = screen.getByPlaceholderText("Search bosses...") as HTMLInputElement;
+    const input = screen.getByPlaceholderText("Search...") as HTMLInputElement;
 
     fireEvent.change(input, { target: { value: "Ego" } });
 

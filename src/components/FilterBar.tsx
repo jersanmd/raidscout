@@ -29,7 +29,7 @@ export function FilterBar({
           type="text"
           value={searchText}
           onChange={(e) => onSearchChange(e.target.value)}
-          placeholder="Search bosses..."
+          placeholder="Search..."
           className="w-full pl-9 pr-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition text-sm"
         />
       </div>
@@ -72,6 +72,18 @@ export function FilterBar({
           }`}
         >
           Schedule
+        </button>
+        <button
+          onClick={() =>
+            onFilterTypeChange(filterType === "activities" ? "all" : "activities")
+          }
+          className={`px-2.5 py-1 rounded-md text-xs font-medium transition flex items-center gap-1 ${
+            filterType === "activities"
+              ? "bg-cyan-900/40 text-cyan-400 border border-cyan-800"
+              : "bg-slate-800 text-slate-400 hover:text-slate-200"
+          }`}
+        >
+          Activities
         </button>
 
         {/* Divider */}
