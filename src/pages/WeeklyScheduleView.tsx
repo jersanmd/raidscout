@@ -42,6 +42,19 @@ export function WeeklyScheduleView() {
   const [weekLoading, setWeekLoading] = useState(false);
   useEffect(() => { setWeekLoading(false); }, [weekOffset]);
 
+  // Disable Previous Week if no death records exist before the displayed week
+  const prevWeekHasData = useMemo(() => {
+    const now = new Date();
+    const refDate = new Date(now);
+    refDate.setDate(refDate.getDate() + weekOffset * 7);
+    const dayOfWeek = refDate.getDay();
+    const daysFromMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+    const monday = new Date(refDate);
+    monday.setDate(refDate.getDate() - daysFromMonday);
+    monday.setHours(0, 0, 0, 0);
+    return deathRecords.some(dr => !dr.is_initial_spawn && new Date(dr.death_time) < monday);
+  }, [deathRecords, weekOffset]);
+
   // Selected death for participant modal
   const [selectedDeath, setSelectedDeath] = useState<{
     deathRecordId: string;
@@ -295,7 +308,7 @@ export function WeeklyScheduleView() {
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-xl font-bold text-white">Weekly Schedule</h2>
         <div className="flex items-center gap-3">
-          <button onClick={() => { setWeekLoading(true); setWeekOffset(w => w - 1); }} className="px-3 py-1.5 rounded-lg text-xs bg-slate-800 border border-slate-700 text-slate-300 hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed transition">← Previous Week</button>
+          <button onClick={() => { setWeekLoading(true); setWeekOffset(w => w - 1); }} disabled={!prevWeekHasData} className="px-3 py-1.5 rounded-lg text-xs bg-slate-800 border border-slate-700 text-slate-300 hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed transition">← Previous Week</button>
           <span className="text-sm text-slate-400">{weekOffset === 0 ? "This Week" : weekOffset === -1 ? "Last Week" : `${Math.abs(weekOffset)} weeks ago`}</span>
           <button onClick={() => { setWeekLoading(true); setWeekOffset(w => w + 1); }} disabled={weekOffset >= 0} className="px-3 py-1.5 rounded-lg text-xs bg-slate-800 border border-slate-700 text-slate-300 hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed transition">Next Week →</button>
         </div>
