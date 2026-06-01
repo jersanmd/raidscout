@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { NavLink, Outlet, useNavigate, useLocation, Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { useServer } from "@/contexts/ServerContext";
+import { useServer, useHasPermission } from "@/contexts/ServerContext";
 import { CreateServerModal } from "@/components/CreateServerModal";
 import { DiscordWebhookBanner } from "@/components/DiscordWebhookBanner";
 import { NoMembersBanner } from "@/components/NoMembersBanner";
@@ -44,6 +44,7 @@ function playAlertSound() {
 export function Layout() {
   const { user, signOut, userRole, isViewer, viewerServerName } = useAuth();
   const { servers, currentServer, setCurrentServer } = useServer();
+  const canAccessSettings = useHasPermission("can_access_settings");
   const [showCreate, setShowCreate] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -234,7 +235,7 @@ export function Layout() {
                           <Shield className="w-4 h-4" /> Admin Panel
                         </NavLink>
                       )}
-                      {hasServer && (
+                      {hasServer && canAccessSettings && (
                         <NavLink to="/server-settings" onClick={() => setShowUserMenu(false)} className="flex items-center gap-2 px-4 py-2 text-sm text-slate-300 hover:bg-slate-700 transition">
                           <Settings className="w-4 h-4" /> Server Settings
                         </NavLink>

@@ -23,6 +23,8 @@ export interface Boss {
   rotation_adjustment?: number;
   /** Current rotation index (0-based), wraps within guild count on each kill */
   rotation_counter?: number;
+  /** Whether this boss grants salary/allowance (default false) */
+  has_salary?: boolean;
 }
 
 export interface DeathRecord {

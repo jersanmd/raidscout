@@ -3,9 +3,9 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { useServer } from "@/contexts/ServerContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { deleteServer, transferServerOwnership, removeServerModerator, addServerModerator, supabase, fetchServerMembers, type ServerMember, fetchGuilds, createGuild, updateGuildName, deleteGuild, fetchBossGuilds, setBossGuilds, fetchBosses, setBossPoints, notifyDiscord } from "@/lib/supabase";
+import { deleteServer, transferServerOwnership, removeServerModerator, addServerModerator, supabase, fetchServerMembers, type ServerMember, fetchGuilds, createGuild, updateGuildName, deleteGuild, fetchBossGuilds, setBossGuilds, fetchBosses, setBossPoints, setBossSalary, notifyDiscord, fetchModeratorPermissions, updateModeratorPermissions, type ModeratorPermissions, DEFAULT_MODERATOR_PERMISSIONS } from "@/lib/supabase";
 import type { Guild, BossGuild, Boss } from "@/types";
-import { Loader2, Trash2, Crown, ArrowLeft, Server, Check, Key, Copy, RefreshCw, Plus, LogIn, Users, Bell, Link, Settings, AlertTriangle, X, Shield, Pencil, Swords, ChevronUp, ChevronDown, CheckSquare, Square, Eye, EyeOff, UserPlus, Minus, Trophy, Send } from "lucide-react";
+import { Loader2, Trash2, Crown, ArrowLeft, Server, Check, Key, Copy, RefreshCw, Plus, LogIn, Users, Bell, Link, Settings, AlertTriangle, X, Shield, Pencil, Swords, ChevronUp, ChevronDown, CheckSquare, Square, Eye, EyeOff, UserPlus, Minus, Trophy, Send, Save } from "lucide-react";
 import { CreateServerModal } from "@/components/CreateServerModal";
 import { useToast } from "@/contexts/ToastContext";
 
@@ -15,6 +15,52 @@ export function ServerSettingsView() {
   const { toast } = useToast();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+
+  // Permission hierarchy: parent → children
+  const PERMISSION_HIERARCHY: Record<string, string[]> = {
+    can_access_settings: ["can_change_timezone", "can_access_integrations", "can_manage_viewer_key"],
+    can_manage_guilds: ["can_manage_boss_guilds"],
+    can_record_death: ["can_edit_death_records", "can_edit_participants", "can_set_spawn", "can_rotate_guilds"],
+    can_manage_moderators: ["can_manage_raid_members", "can_adjust_points", "can_export_attendance"],
+  };
+
+  // Reverse map: child → parent
+  const PERMISSION_PARENT: Record<string, string> = {};
+  for (const [parent, children] of Object.entries(PERMISSION_HIERARCHY)) {
+    for (const child of children) {
+      PERMISSION_PARENT[child] = parent;
+    }
+  }
+
+  // Permission labels grouped by section with hierarchy (indent)
+  const PERMISSION_SECTIONS = [
+    { section: "Server Access", items: [
+      { key: "can_access_settings" as const, label: "Access Server Settings", indent: false, parent: true },
+      { key: "can_change_timezone" as const, label: "Change Timezone", indent: true, parent: false },
+      { key: "can_access_integrations" as const, label: "Access Integrations", indent: true, parent: false },
+      { key: "can_manage_viewer_key" as const, label: "Manage Viewer Key", indent: true, parent: false },
+    ]},
+    { section: "Guilds", items: [
+      { key: "can_manage_guilds" as const, label: "Manage Guilds", indent: false, parent: true },
+      { key: "can_manage_boss_guilds" as const, label: "Boss-Guild Assignments", indent: true, parent: false },
+    ]},
+    { section: "Boss Actions", items: [
+      { key: "can_record_death" as const, label: "Record Boss Kills", indent: false, parent: true },
+      { key: "can_edit_death_records" as const, label: "Edit/Delete Death Records", indent: true, parent: false },
+      { key: "can_edit_participants" as const, label: "Edit Kill Participants", indent: true, parent: false },
+      { key: "can_set_spawn" as const, label: "Set Spawn Overrides", indent: true, parent: false },
+      { key: "can_rotate_guilds" as const, label: "Rotate Guild Assignments", indent: true, parent: false },
+    ]},
+    { section: "Members & Points", items: [
+      { key: "can_manage_moderators" as const, label: "Manage Moderators", indent: false, parent: true },
+      { key: "can_manage_raid_members" as const, label: "Manage Raid Members", indent: true, parent: false },
+      { key: "can_adjust_points" as const, label: "Adjust Points", indent: true, parent: false },
+      { key: "can_export_attendance" as const, label: "Export Attendance", indent: true, parent: false },
+    ]},
+    { section: "Discord", items: [
+      { key: "can_announce_discord" as const, label: "Announce 24h Spawns to Discord", indent: false, parent: false },
+    ]},
+  ];
 
   // Redirect viewers — they have no business in settings
   useEffect(() => {
@@ -116,6 +162,9 @@ export function ServerSettingsView() {
   const [editAliases, setEditAliases] = useState<Record<string, string>>({});
   const [channelValues, setChannelValues] = useState<Record<string, { notif: string; cmd: string }>>({});
   const [testingDiscord, setTestingDiscord] = useState<Set<string>>(new Set());
+  const [expandedModPerms, setExpandedModPerms] = useState<string | null>(null); // user_id of expanded moderator
+  const [modPermsData, setModPermsData] = useState<Record<string, ModeratorPermissions>>({}); // loaded permissions per user
+  const [savingPerms, setSavingPerms] = useState<string | null>(null); // user_id being saved
   const [searchParams] = useSearchParams();
   const tabParam = searchParams.get("tab");
   const initialTab = (tabParam === "general" || tabParam === "members" || tabParam === "integrations" || tabParam === "danger")
@@ -422,6 +471,62 @@ export function ServerSettingsView() {
       toast("error", err?.message ?? "Failed to transfer");
     } finally {
       setTransferring(false);
+    }
+  };
+
+  // ── Moderator Permissions ──────────────────────────────────
+
+  const handleToggleModPerms = async (userId: string) => {
+    if (expandedModPerms === userId) {
+      setExpandedModPerms(null);
+      return;
+    }
+    setExpandedModPerms(userId);
+    if (!modPermsData[userId] && currentServer) {
+      const all = await fetchModeratorPermissions(currentServer.id).catch(() => ({} as Record<string, ModeratorPermissions>));
+      setModPermsData(prev => ({ ...prev, [userId]: all[userId] ?? { ...DEFAULT_MODERATOR_PERMISSIONS } }));
+    }
+  };
+
+  const handleTogglePermission = (userId: string, perm: keyof ModeratorPermissions) => {
+    setModPermsData(prev => {
+      const current = prev[userId] ?? { ...DEFAULT_MODERATOR_PERMISSIONS };
+      const newValue = !current[perm];
+      const updated = { ...current, [perm]: newValue };
+
+      // Cascade: if checking a parent, auto-check all children
+      if (newValue && PERMISSION_HIERARCHY[perm]) {
+        for (const child of PERMISSION_HIERARCHY[perm]) {
+          updated[child as keyof ModeratorPermissions] = true;
+        }
+      }
+
+      // Cascade: if unchecking a parent, auto-uncheck all children
+      if (!newValue && PERMISSION_HIERARCHY[perm]) {
+        for (const child of PERMISSION_HIERARCHY[perm]) {
+          updated[child as keyof ModeratorPermissions] = false;
+        }
+      }
+
+      // Cascade: if checking a child, auto-check its parent
+      if (newValue && PERMISSION_PARENT[perm]) {
+        updated[PERMISSION_PARENT[perm] as keyof ModeratorPermissions] = true;
+      }
+
+      return { ...prev, [userId]: updated };
+    });
+  };
+
+  const handleSavePermissions = async (userId: string) => {
+    if (!currentServer) return;
+    setSavingPerms(userId);
+    try {
+      await updateModeratorPermissions(currentServer.id, userId, modPermsData[userId] ?? {});
+      toast("success", "Permissions saved");
+    } catch (err: any) {
+      toast("error", err?.message ?? "Failed to save permissions");
+    } finally {
+      setSavingPerms(null);
     }
   };
 
@@ -1185,6 +1290,24 @@ export function ServerSettingsView() {
                             <Plus className="w-3 h-3" />
                           </span>
                         </span>
+                        <span className="text-slate-600 mx-1">|</span>
+                        {/* Salary toggle */}
+                        <label className="flex items-center gap-1 cursor-pointer shrink-0" onClick={(e) => e.stopPropagation()} title="Grants salary/allowance">
+                          <input
+                            type="checkbox"
+                            checked={(boss as any).has_salary === true}
+                            onChange={async () => {
+                              const newVal = !(boss as any).has_salary;
+                              try {
+                                await setBossSalary(boss.id, newVal);
+                                queryClient.invalidateQueries({ queryKey: ["bosses"] });
+                                setBosses(prev => prev.map(b => b.id === boss.id ? { ...b, has_salary: newVal } : b));
+                              } catch { /* ignore */ }
+                            }}
+                            className="w-3 h-3 rounded border-slate-600 bg-slate-800 text-emerald-600 focus:ring-emerald-500/50 cursor-pointer"
+                          />
+                          <span className="text-[10px] text-slate-500">Salary</span>
+                        </label>
                         {!bossMultiMode && (isExpanded ? <ChevronUp className="w-4 h-4 text-slate-500" /> : <ChevronDown className="w-4 h-4 text-slate-500" />)}
                       </button>
 
@@ -1523,11 +1646,15 @@ export function ServerSettingsView() {
               <p className="text-xs text-slate-500">No members yet.</p>
             ) : (
               <div className="space-y-1">
-                {members.map((m) => (
-                  <div
-                    key={m.user_id}
-                    className="flex items-center justify-between px-3 py-2 rounded-lg bg-slate-800/30 text-sm"
-                  >
+                {members.map((m) => {
+                  const isExpanded = expandedModPerms === m.user_id;
+                  const perms = modPermsData[m.user_id] ?? DEFAULT_MODERATOR_PERMISSIONS;
+                  return (
+                  <div key={m.user_id}>
+                    <div
+                      className={`flex items-center justify-between px-3 py-2 rounded-lg bg-slate-800/30 text-sm ${m.role === "moderator" && isOwner ? "cursor-pointer hover:bg-slate-800/50 transition" : ""}`}
+                      onClick={() => m.role === "moderator" && isOwner && handleToggleModPerms(m.user_id)}
+                    >
                     <span className="text-slate-300 text-xs truncate max-w-[200px]">
                       {m.email ?? m.user_id}
                     </span>
@@ -1539,7 +1666,7 @@ export function ServerSettingsView() {
                       </span>
                       {isOwner && m.role === "moderator" && (
                         <button
-                          onClick={() => handleRemoveMod(m.user_id)}
+                          onClick={(e) => { e.stopPropagation(); handleRemoveMod(m.user_id); }}
                           className="p-1 rounded text-slate-500 hover:text-red-400 hover:bg-red-900/20 transition"
                           title="Remove moderator"
                         >
@@ -1548,7 +1675,43 @@ export function ServerSettingsView() {
                       )}
                     </div>
                   </div>
-                ))}
+                  {/* Permissions panel — slide down for moderators */}
+                  {isOwner && m.role === "moderator" && (
+                    <div className={`transition-all duration-300 ease-in-out overflow-hidden ${isExpanded ? "max-h-[800px] opacity-100" : "max-h-0 opacity-0"}`}>
+                      <div className="border-t border-slate-700/50 px-3 py-3 bg-slate-900/30 space-y-3">
+                        <span className="text-xs font-medium text-white">Permissions for {m.email ?? "moderator"}</span>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          {PERMISSION_SECTIONS.map(section => (
+                            <div key={section.section} className="space-y-1.5">
+                              <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">{section.section}</span>
+                              {section.items.map(({ key, label, indent, parent }) => (
+                                <label key={key} className={`flex items-center gap-2 cursor-pointer group ${indent ? "ml-5" : ""}`}>
+                                  <input
+                                    type="checkbox"
+                                    checked={perms[key] === true}
+                                    onChange={() => handleTogglePermission(m.user_id, key)}
+                                    className={`rounded border-slate-600 bg-slate-800 focus:ring-purple-500/50 cursor-pointer ${parent ? "w-4 h-4 text-purple-600" : "w-3.5 h-3.5 text-purple-500/70"}`}
+                                  />
+                                  <span className={`group-hover:text-slate-300 transition ${parent ? "text-xs text-slate-300 font-medium" : "text-xs text-slate-400"}`}>{label}</span>
+                                </label>
+                              ))}
+                            </div>
+                          ))}
+                        </div>
+                        <button
+                          onClick={() => handleSavePermissions(m.user_id)}
+                          disabled={savingPerms === m.user_id}
+                          className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded bg-purple-600 hover:bg-purple-500 text-white transition disabled:opacity-50"
+                        >
+                          {savingPerms === m.user_id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                          Save Permissions
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+                );
+              })}
               </div>
             )}
           </section>
@@ -1838,6 +2001,7 @@ export function ServerSettingsView() {
               <div className="space-y-0.5 mt-1">
                 <p className="text-xs"><span className="text-amber-400 font-mono">&lt;prefix&gt;nextspawn</span> <span className="text-slate-500">—</span> <span className="text-slate-400">Boss spawns in 24h</span></p>
                 <p className="text-xs"><span className="text-amber-400 font-mono">&lt;prefix&gt;nextspawn &lt;boss&gt;</span> <span className="text-slate-500">—</span> <span className="text-slate-400">Check a specific boss</span></p>
+                <p className="text-xs"><span className="text-amber-400 font-mono">&lt;prefix&gt;nextspawn &lt;guild&gt;</span> <span className="text-slate-500">—</span> <span className="text-slate-400">Spawns for a specific guild</span></p>
                 <p className="text-xs"><span className="text-amber-400 font-mono">&lt;prefix&gt;killed &lt;boss&gt;</span> <span className="text-slate-500">—</span> <span className="text-slate-400">Record a kill now</span></p>
                 <p className="text-xs"><span className="text-amber-400 font-mono">&lt;prefix&gt;killed &lt;boss&gt; HH:MM</span> <span className="text-slate-500">—</span> <span className="text-slate-400">Kill at custom time</span></p>
                 <p className="text-xs"><span className="text-amber-400 font-mono">&lt;prefix&gt;list</span> <span className="text-slate-500">—</span> <span className="text-slate-400">Show all boss names</span></p>

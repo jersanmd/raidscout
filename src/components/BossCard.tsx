@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { useServer } from "@/contexts/ServerContext";
+import { useServer, useHasPermission } from "@/contexts/ServerContext";
 import { CountdownTimer } from "./CountdownTimer";
 import { DeathRecordModal } from "./DeathRecordModal";
 import { BossImage } from "./BossImage";
@@ -55,12 +55,16 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
     }
   }, [ownerGuildName, optimisticOwner]);
 
+  const canSetSpawn = useHasPermission("can_set_spawn");
+  const canRecordDeath = useHasPermission("can_record_death");
+  const canRotateGuilds = useHasPermission("can_rotate_guilds");
+
   const displayOwner = optimisticOwner ?? ownerGuildName;
   const { boss, status, nextSpawn } = spawn;
-  const canEdit = (viewerCanEdit || !isViewer) && currentServer && !!onSetSpawnDate && (
+  const canEdit = (viewerCanEdit || (!isViewer && canSetSpawn)) && currentServer && !!onSetSpawnDate && (
     boss.spawn_type === "fixed_hours"
   );
-  const canMarkDied = viewerCanMarkDied || !isViewer;
+  const canMarkDied = viewerCanMarkDied || (!isViewer && canRecordDeath);
 
   const statusConfigMap = {
     unknown: {
@@ -214,7 +218,7 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
         )}
 
         {/* No guild assigned notice */}
-        {!compact && !multiMode && !isViewer && !hasGuilds && (
+        {!compact && !multiMode && !isViewer && !hasGuilds && canRotateGuilds && (
           <div className="mt-2 pt-2 border-t border-slate-700/50">
             <span className="text-[10px] text-amber-500/80 flex items-center gap-1">
               <Shield className="w-3 h-3" />
@@ -224,7 +228,7 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
         )}
 
         {/* Rotation guild row */}
-        {!compact && !multiMode && !isViewer && rotationGuilds && rotationGuilds.length > 1 && (
+        {!compact && !multiMode && !isViewer && rotationGuilds && rotationGuilds.length > 1 && canRotateGuilds && (
           <div className="mt-2 pt-2 border-t border-slate-700/50">
             <span className="text-[10px] text-slate-500 font-medium uppercase tracking-wider">
               Rotation {rotationMode ? `· ${rotationMode}` : ""}

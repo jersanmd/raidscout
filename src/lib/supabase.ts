@@ -239,6 +239,87 @@ export async function fetchServerMembers(serverId: string): Promise<ServerMember
   }));
 }
 
+// ── Moderator Permissions ────────────────────────────────────
+
+export type ModeratorPermissions = {
+  can_access_settings: boolean;
+  can_manage_guilds: boolean;
+  can_manage_viewer_key: boolean;
+  can_change_timezone: boolean;
+  can_manage_boss_guilds: boolean;
+  can_manage_moderators: boolean;
+  can_access_integrations: boolean;
+  can_edit_participants: boolean;
+  can_export_attendance: boolean;
+  can_manage_raid_members: boolean;
+  can_adjust_points: boolean;
+  can_record_death: boolean;
+  can_edit_death_records: boolean;
+  can_set_spawn: boolean;
+  can_rotate_guilds: boolean;
+  can_announce_discord: boolean;
+};
+
+export const DEFAULT_MODERATOR_PERMISSIONS: ModeratorPermissions = {
+  can_access_settings: false,
+  can_manage_guilds: false,
+  can_manage_viewer_key: false,
+  can_change_timezone: false,
+  can_manage_boss_guilds: false,
+  can_manage_moderators: false,
+  can_access_integrations: false,
+  can_edit_participants: false,
+  can_export_attendance: false,
+  can_manage_raid_members: false,
+  can_adjust_points: false,
+  can_record_death: false,
+  can_edit_death_records: false,
+  can_set_spawn: false,
+  can_rotate_guilds: false,
+  can_announce_discord: false,
+};
+
+export async function fetchModeratorPermissions(serverId: string): Promise<Record<string, ModeratorPermissions>> {
+  const { data, error } = await supabase
+    .from("moderator_permissions")
+    .select("*")
+    .eq("server_id", serverId);
+  if (error) throw error;
+  const result: Record<string, ModeratorPermissions> = {};
+  for (const row of (data as any[]) ?? []) {
+    result[row.user_id] = {
+      can_access_settings: row.can_access_settings,
+      can_manage_guilds: row.can_manage_guilds,
+      can_manage_viewer_key: row.can_manage_viewer_key,
+      can_change_timezone: row.can_change_timezone,
+      can_manage_boss_guilds: row.can_manage_boss_guilds,
+      can_manage_moderators: row.can_manage_moderators,
+      can_access_integrations: row.can_access_integrations,
+      can_edit_participants: row.can_edit_participants,
+      can_export_attendance: row.can_export_attendance,
+      can_manage_raid_members: row.can_manage_raid_members,
+      can_adjust_points: row.can_adjust_points,
+      can_record_death: row.can_record_death,
+      can_edit_death_records: row.can_edit_death_records,
+      can_set_spawn: row.can_set_spawn,
+      can_rotate_guilds: row.can_rotate_guilds,
+      can_announce_discord: row.can_announce_discord,
+    };
+  }
+  return result;
+}
+
+export async function updateModeratorPermissions(
+  serverId: string,
+  userId: string,
+  permissions: Partial<ModeratorPermissions>
+): Promise<void> {
+  const { error } = await supabase
+    .from("moderator_permissions")
+    .upsert({ server_id: serverId, user_id: userId, ...permissions }, { onConflict: "server_id,user_id" });
+  if (error) throw error;
+}
+
 // ── Bosses ──────────────────────────────────────────────────
 
 export async function fetchBosses(serverId?: string | null): Promise<Boss[]> {
@@ -255,6 +336,14 @@ export async function fetchBosses(serverId?: string | null): Promise<Boss[]> {
 export async function setBossPoints(bossId: string, points: number): Promise<void> {
   const { error } = await supabase
     .rpc("set_boss_points", { p_boss_id: bossId, p_points: points });
+  if (error) throw error;
+}
+
+export async function setBossSalary(bossId: string, hasSalary: boolean): Promise<void> {
+  const { error } = await supabase
+    .from("bosses")
+    .update({ has_salary: hasSalary })
+    .eq("id", bossId);
   if (error) throw error;
 }
 
@@ -289,7 +378,8 @@ export async function fetchDeathRecords(serverId?: string | null): Promise<Death
 export async function insertDeathRecord(
   bossId: string,
   deathTime: Date,
-  ownerGuildId?: string | null
+  ownerGuildId?: string | null,
+  partyLeaders?: Record<string, string> | null
 ): Promise<DeathRecord> {
   // Prefer direct insert when user has a valid session
   const { data: { session } } = await supabase.auth.getSession();
@@ -302,6 +392,7 @@ export async function insertDeathRecord(
         server_id: _currentServerId,
         death_time: deathTime.toISOString(),
         owner_guild_id: ownerGuildId ?? null,
+        party_leaders: partyLeaders ?? {},
       })
       .select()
       .single();
@@ -550,10 +641,11 @@ export async function upsertMember(name: string, guildId?: string | null): Promi
   throw new Error("Not authenticated");
 }
 
-export async function bulkAddMembers(names: string[]): Promise<number> {
+export async function bulkAddMembers(names: string[], guildId?: string | null): Promise<number> {
   const rows = names.map((name) => ({
     name: name.trim(),
     server_id: _currentServerId,
+    guild_id: guildId || null,
   }));
 
   const { data: { session } } = await supabase.auth.getSession();
@@ -575,6 +667,7 @@ export async function bulkAddMembers(names: string[]): Promise<number> {
           p_name: row.name,
           p_server_id: _currentServerId,
           p_viewer_key: _currentViewerKey,
+          p_guild_id: row.guild_id,
         });
         added++;
       } catch { /* skip duplicates */ }

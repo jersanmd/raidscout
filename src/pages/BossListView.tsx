@@ -31,7 +31,7 @@ import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { emitSpawnAlert } from "@/hooks/useSpawnAlerts";
 import { guildColor } from "@/lib/constants";
 import { getOwnerGuildName, getRotationInfo } from "@/lib/rotation";
-import { Skull, Loader2, X, CheckCircle, AlertTriangle, CheckSquare, Megaphone, Volume2, VolumeX, Eye, Copy } from "lucide-react";
+import { Skull, Loader2, X, CheckCircle, AlertTriangle, CheckSquare, Megaphone, Volume2, VolumeX, Eye, Copy, Shield } from "lucide-react";
 import type { BossWithSpawn, BossGuild, Guild, DeathRecord } from "@/types";
 
 const sentAlerts = new Set<string>();
@@ -42,6 +42,7 @@ export function BossListView() {
   const queryClient = useQueryClient();
 
   const [searchText, setSearchText] = useState("");
+  const [guildFilter, setGuildFilter] = useState<string>("all"); // filter bosses by owner guild
   const [filterType, setFilterType] = useState("all");
   const [isMuted, setIsMuted] = useState(() => localStorage.getItem("raidscout-alert-muted") === "true");
   const [filterWindow, setFilterWindow] = useState<number | null>(null);
@@ -261,7 +262,7 @@ export function BossListView() {
   }, [bossRotationInfo, queryClient, guilds, deathRecords]);
 
   const handleRecordDeath = useCallback(
-    async (bossId: string, deathTime: Date, rallyImages: File[], attendeeIds: string[]) => {
+    async (bossId: string, deathTime: Date, rallyImages: File[], attendeeIds: string[], partyLeaders?: Record<string, string> | null) => {
       // Log to history (without deathRecordId initially)
       const boss = spawns.find((s) => s.boss.id === bossId)?.boss;
       if (!boss) return;
@@ -275,7 +276,7 @@ export function BossListView() {
         try {
           const ownerGuildNameStr = ownerGuildName(boss.id);
           const ownerGuildId = ownerGuildNameStr ? guilds.find(g => g.name === ownerGuildNameStr)?.id ?? null : null;
-          const record = await insertDeathRecord(bossId, deathTime, ownerGuildId);
+          const record = await insertDeathRecord(bossId, deathTime, ownerGuildId, partyLeaders);
           deathRecordId = record.id;
 
           // Delete override from DB and cache so the kill's countdown takes priority
@@ -367,13 +368,13 @@ export function BossListView() {
   );
 
   const handleBulkRecordDeath = useCallback(
-    async (deathTime: Date, rallyImages: File[], attendeeIds: string[]) => {
+    async (deathTime: Date, rallyImages: File[], attendeeIds: string[], partyLeaders?: Record<string, string> | null) => {
       setSavingMessage("Recording deaths...");
       const bossIds = [...selectedIds];
       let successCount = 0;
       for (const bossId of bossIds) {
         try {
-          await handleRecordDeath(bossId, deathTime, rallyImages, attendeeIds);
+          await handleRecordDeath(bossId, deathTime, rallyImages, attendeeIds, partyLeaders);
           successCount++;
         } catch (err) {
           console.error(`Failed to record death for boss ${bossId}:`, err);
@@ -597,19 +598,41 @@ export function BossListView() {
         onFilterTypeChange={setFilterType}
         filterWindow={filterWindow}
         onFilterWindowChange={setFilterWindow}
-        extra={isViewer ? undefined : (
-          <button
-            onClick={() => { if (multiMode) clearSelection(); setMultiMode(!multiMode); }}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition ${
-              multiMode
-                ? "bg-blue-900/30 border border-blue-800 text-blue-400"
-                : "bg-slate-800 border border-slate-700 text-slate-400 hover:text-slate-200"
-            }`}
-          >
-            <CheckSquare className="w-3.5 h-3.5" />
-            {multiMode ? `Selecting (${selectedIds.size})` : "Select Multiple"}
-          </button>
-        )}
+        extra={(guilds.length > 0 || !isViewer) ? (
+          <div className="flex items-center gap-1.5">
+            {/* Guild filter — always visible */}
+            {guilds.length > 0 && (
+              <div className="flex items-center gap-1">
+                <Shield className="w-3 h-3 text-slate-500 shrink-0" />
+                <select
+                  value={guildFilter}
+                  onChange={(e) => setGuildFilter(e.target.value)}
+                  className="px-2 py-1 bg-slate-800 border border-slate-700 rounded-lg text-[11px] text-slate-300 outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition max-w-[100px] truncate"
+                >
+                  <option value="all">All Guilds</option>
+                  {guilds.map(g => {
+                    const c = guildColor(g.name);
+                    return <option key={g.id} value={g.id}>{g.name}</option>;
+                  })}
+                </select>
+              </div>
+            )}
+            {/* Select Multiple — hidden for viewers */}
+            {!isViewer && (
+              <button
+                onClick={() => { if (multiMode) clearSelection(); setMultiMode(!multiMode); }}
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-medium transition whitespace-nowrap ${
+                  multiMode
+                    ? "bg-blue-900/30 border border-blue-800 text-blue-400"
+                    : "bg-slate-800 border border-slate-700 text-slate-400 hover:text-slate-200"
+                }`}
+              >
+                <CheckSquare className="w-3 h-3" />
+                {multiMode ? `Selecting (${selectedIds.size})` : "Select"}
+              </button>
+            )}
+          </div>
+        ) : undefined}
       />
 
       {/* Bosses grouped by day */}
@@ -648,7 +671,12 @@ export function BossListView() {
               })()}
 
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {group.spawns.map((s) => {
+                {group.spawns.filter(s => {
+                  if (guildFilter === "all") return true;
+                  const gName = ownerGuildName(s.boss.id);
+                  const targetG = guilds.find(g => g.id === guildFilter);
+                  return gName === targetG?.name;
+                }).map((s) => {
                   const rot = bossRotationInfo(s.boss.id);
                   return (
                   <BossCard

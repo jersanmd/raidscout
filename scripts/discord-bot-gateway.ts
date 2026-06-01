@@ -342,7 +342,7 @@ async function handleGuildJoin(guild: any) {
           },
           {
             name: "3️⃣ Try a command",
-            value: "`!list` — See all bosses\n`!nextspawn` — Upcoming spawns in 24h\n`!killed <boss>` — Record a kill\n`!commands` — Full command list",
+            value: "`!list` — See all bosses\n`!nextspawn` — Upcoming spawns in 24h\n`!nextspawn <boss>` — Check a specific boss\n`!nextspawn <guild>` — Spawns for a guild\n`!killed <boss>` — Record a kill\n`!commands` — Full command list",
           },
           {
             name: "💡 Multiple RaidScout servers?",
@@ -527,6 +527,7 @@ async function handleMessage(msg: any) {
         { name: `${p}list${aliasNote("list")}`, value: "Show all boss names", inline: false },
         { name: `${p}nextspawn${aliasNote("nextspawn")}`, value: "List boss spawns in the next 24 hours", inline: false },
         { name: `${p}nextspawn <boss>`, value: `Check spawn for a specific boss (e.g. \`${p}nextspawn Venatus\`)`, inline: false },
+        { name: `${p}nextspawn <guild>`, value: `List spawns for a specific guild (e.g. \`${p}nextspawn Arcane\`)`, inline: false },
         { name: `${p}killed <boss>${aliasNote("killed")}`, value: `Record a boss kill right now (e.g. \`${p}killed Venatus\`)`, inline: false },
         { name: `${p}killed <boss> HH:MM`, value: "Record a kill at a custom time. Auto: if the time already passed today → today. If it hasn't happened yet → yesterday.", inline: false },
         { name: `${p}killed <boss> HH:MM today`, value: "Force today's date even if the time is in the future", inline: false },
@@ -538,7 +539,7 @@ async function handleMessage(msg: any) {
     );
   }
 
-  // ── nextspawn [boss] ─────────────────────────────────
+  // ── nextspawn [boss|guild] ───────────────────────────
   if (cmd === "nextspawn" || cmd === "spawn") {
     const serverId = await resolveServerId(guildId, matchedPrefix);
     if (!serverId) return reply("⚠️ This Discord server is not linked to RaidScout. An admin needs to go to **Server Settings → Integrations** on the RaidScout web app and link this Discord server.");
@@ -551,6 +552,9 @@ async function handleMessage(msg: any) {
       supabaseQuery(`guilds?server_id=eq.${serverId}`),
     ]);
 
+    // Check if filter matches a guild name (case-insensitive exact match)
+    const filterGuild = filter ? guilds.find((g: any) => g.name.toLowerCase() === filter.toLowerCase()) : null;
+
     const now = new Date();
     const cutoff = addHours(now, 24);
     const upcoming: { name: string; time: string; unix: number; guild: string }[] = [];
@@ -560,7 +564,16 @@ async function handleMessage(msg: any) {
     const serverGuildIds = new Set(guilds.map((g: any) => g.id));
     const serverBossGuilds = bossGuilds.filter((bg: any) => serverGuildIds.has(bg.guild_id));
     for (const boss of bosses) {
-      if (filter && !boss.name.toLowerCase().includes(filter.toLowerCase())) continue;
+      // Skip if filter given and neither boss name nor guild name matches
+      if (filter && !boss.name.toLowerCase().includes(filter.toLowerCase())) {
+        if (!filterGuild) continue;
+        // Check if this boss's owner guild matches the filter guild
+        const lastDeath = deaths
+          .filter((d: any) => d.boss_id === boss.id && !d.is_initial_spawn)
+          .sort((a: any, b: any) => new Date(b.death_time).getTime() - new Date(a.death_time).getTime())[0];
+        const gName = computeOwnerGuild(boss, serverBossGuilds, guilds, lastDeath, now, tz) || "";
+        if (gName.toLowerCase() !== filterGuild.name.toLowerCase()) continue;
+      }
 
       const lastDeath = deaths
         .filter((d: any) => d.boss_id === boss.id && !d.is_initial_spawn)
@@ -642,7 +655,7 @@ async function handleMessage(msg: any) {
       headers: { Authorization: `Bot ${TOKEN}`, "Content-Type": "application/json" },
       body: JSON.stringify({
         embeds: [{
-          title: filter ? `${filter} Spawn` : "📋 Upcoming Boss Spawns (24h)",
+          title: filterGuild ? `📋 ${filterGuild.name} Spawns (24h)` : filter ? `${filter} Spawn` : "📋 Upcoming Boss Spawns (24h)",
           description: desc,
           color: 0x8b5cf6,
           footer: { text: "Powered by RaidScout" },

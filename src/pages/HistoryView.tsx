@@ -2,7 +2,7 @@
 import { type HistoryEntry } from "@/lib/history";
 import { fetchHistoryFromSupabase, deleteDeathRecord, isSupabaseConfigured, editDeathTime } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
-import { useServerId } from "@/contexts/ServerContext";
+import { useServerId, useHasPermission } from "@/contexts/ServerContext";
 import { useQueryClient } from "@tanstack/react-query";
 import { ParticipantModal } from "@/components/ParticipantModal";
 import { Clock, Trash2, Skull, Repeat, Timer, Users, Loader2, Pencil, X, Search, Shield } from "lucide-react";
@@ -16,6 +16,7 @@ export function HistoryView() {
   const [loading, setLoading] = useState(true);
   const { user, isViewer } = useAuth();
   const serverId = useServerId();
+  const canEditDeathRecords = useHasPermission("can_edit_death_records");
   const configured = isSupabaseConfigured();
 
   // Date range — default last 7 days
@@ -342,7 +343,7 @@ export function HistoryView() {
                         </div>
                       </div>
                       {/* Edit + Delete buttons */}
-                      {!isViewer && entry.deathRecordId && (
+                      {!isViewer && canEditDeathRecords && entry.deathRecordId && (
                         <div className="flex items-center gap-0.5">
                           <button
                             onClick={(e) => {

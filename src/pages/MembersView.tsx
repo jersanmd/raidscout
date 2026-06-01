@@ -4,7 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useMembers } from "@/hooks/useMembers";
 import { useAuth } from "@/contexts/AuthContext";
 import { updateMemberName, deleteMember, upsertMember, isSupabaseConfigured, fetchGuilds, setMemberGuild, bulkAddMembers } from "@/lib/supabase";
-import { useServerId } from "@/contexts/ServerContext";
+import { useServerId, useHasPermission } from "@/contexts/ServerContext";
 import type { Guild } from "@/types";
 import { Users, Plus, Pencil, Trash2, Loader2, X, Check, UserPlus, CheckCircle, AlertTriangle, Image, Upload, Copy, Shield, Search } from "lucide-react";
 import type { Member } from "@/types";
@@ -13,6 +13,7 @@ import { guildColor } from "@/lib/constants";
 export function MembersView() {
   const { user } = useAuth();
   const serverId = useServerId();
+  const canManageRaidMembers = useHasPermission("can_manage_raid_members");
   const queryClient = useQueryClient();
   const configured = isSupabaseConfigured();
   const { data: members = [], isLoading } = useMembers();
@@ -52,10 +53,14 @@ export function MembersView() {
     fetchGuilds(serverId).then(setGuilds).catch(() => setGuilds([]));
   }, [serverId]);
 
+  // Guild selection for add / bulk
+  const [addGuild, setAddGuild] = useState<string>("");
+
   // Bulk add
   const [showBulkModal, setShowBulkModal] = useState(false);
   const [bulkNames, setBulkNames] = useState("");
   const [bulkAdding, setBulkAdding] = useState(false);
+  const [bulkGuild, setBulkGuild] = useState<string>("");
   const [searchText, setSearchText] = useState("");
 
   const showToast = useCallback((type: "success" | "error", message: string) => {
@@ -93,7 +98,7 @@ export function MembersView() {
 
     setAdding(true);
     try {
-      await upsertMember(name);
+      await upsertMember(name, addGuild || null);
       setAddName("");
       invalidate();
       showToast("success", `"${name}" added`);
@@ -123,13 +128,15 @@ export function MembersView() {
     setBulkAdding(true);
     let added = 0;
     try {
-      added = await bulkAddMembers(newNames);
+      added = await bulkAddMembers(newNames, bulkGuild || null);
     } catch { /* keep 0 */ }
     setBulkAdding(false);
     setShowBulkModal(false);
     setBulkNames("");
+    setBulkGuild("");
     invalidate();
-    showToast("success", `${added} member${added !== 1 ? "s" : ""} added`);
+    const guildLabel = bulkGuild ? guilds.find(g => g.id === bulkGuild)?.name : "";
+    showToast("success", `${added} member${added !== 1 ? "s" : ""} added${guildLabel ? ` to "${guildLabel}"` : ""}`);
   };
 
   const handleEdit = async (id: string) => {
@@ -220,6 +227,7 @@ export function MembersView() {
       {toast && <ToastMessage toast={toast} onDismiss={() => setToast(null)} />}
 
       {/* Add member */}
+      {canManageRaidMembers && (
       <form
         onSubmit={(e) => { e.preventDefault(); handleAdd(); }}
         className="flex gap-2"
@@ -232,6 +240,16 @@ export function MembersView() {
           ref={memberInputRef}
           className="flex-1 px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition text-sm"
         />
+        {guilds.length > 0 && (
+          <select
+            value={addGuild}
+            onChange={(e) => setAddGuild(e.target.value)}
+            className="px-2 py-2 bg-slate-800 border border-slate-700 rounded-lg text-xs text-slate-400 outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition max-w-[100px] truncate"
+          >
+            <option value="">No guild</option>
+            {guilds.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+          </select>
+        )}
         <button
           type="submit"
           disabled={adding || !addName.trim()}
@@ -253,6 +271,7 @@ export function MembersView() {
           Bulk
         </button>
       </form>
+      )}
 
       {/* Search */}
       {members.length > 5 && (
@@ -342,7 +361,7 @@ export function MembersView() {
                 <span className="flex-1 text-white text-sm font-medium">{member.name}</span>
               )}
 
-              {editingId !== member.id && (
+              {editingId !== member.id && canManageRaidMembers && (
                 <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition">
                   <button onClick={() => startEdit(member)} className="p-1.5 text-slate-500 hover:text-white transition rounded" title="Edit"><Pencil className="w-3.5 h-3.5" /></button>
                   <button onClick={() => setDeleteId(member.id)} className="p-1.5 text-slate-500 hover:text-red-400 transition rounded" title="Delete"><Trash2 className="w-3.5 h-3.5" /></button>
@@ -392,6 +411,19 @@ export function MembersView() {
                 Paste names from a screenshot — one per line, or comma-separated.
                 Members already in the list will be skipped.
               </p>
+              {guilds.length > 0 && (
+                <div className="flex items-center gap-2">
+                  <Shield className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                  <select
+                    value={bulkGuild}
+                    onChange={(e) => setBulkGuild(e.target.value)}
+                    className="flex-1 px-2.5 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-slate-300 outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                  >
+                    <option value="">No guild (assign later)</option>
+                    {guilds.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+                  </select>
+                </div>
+              )}
               <textarea
                 value={bulkNames}
                 onChange={(e) => setBulkNames(e.target.value)}

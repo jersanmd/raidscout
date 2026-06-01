@@ -1,0 +1,1 @@
+ALTER TABLE public.bosses ADD COLUMN IF NOT EXISTS has_salary BOOLEAN NOT NULL DEFAULT false;

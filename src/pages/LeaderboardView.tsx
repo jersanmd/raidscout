@@ -5,7 +5,7 @@ import { useLeaderboard, type LeaderboardPeriod } from "@/hooks/useAttendance";
 import { useLeaderboardSnapshots, getLastFinalized, getLeaderboardResetAt } from "@/hooks/useLeaderboardSnapshots";
 import { guildColor } from "@/lib/constants";
 import { useAuth } from "@/contexts/AuthContext";
-import { useServerId, useServer } from "@/contexts/ServerContext";
+import { useServerId, useServer, useHasPermission } from "@/contexts/ServerContext";
 import { fetchMemberKills, type MemberBossKill, isSupabaseConfigured, fetchGuilds, adjustMemberPoints, fetchPointAdjustments, supabase } from "@/lib/supabase";
 import { useAttendance } from "@/hooks/useAttendance";
 import { useMembers } from "@/hooks/useMembers";
@@ -68,11 +68,14 @@ export function LeaderboardView() {
   const [exportStartDate, setExportStartDate] = useState(weekAgoStr);
   const [exportEndDate, setExportEndDate] = useState(todayStr);
   const [exportGuildFilter, setExportGuildFilter] = useState<string>("all");
+  const [exportGuildOnly, setExportGuildOnly] = useState(false); // only export bosses owned by selected guild
   const [exportLoading, setExportLoading] = useState(false);
   const [showExport, setShowExport] = useState(false);
 
   // Point adjustment modal state
   const { currentServer } = useServer();
+  const canAdjustPoints = useHasPermission("can_adjust_points");
+  const canExportAttendance = useHasPermission("can_export_attendance");
   const isStaff = !isViewer && (currentServer?.role === "owner" || currentServer?.role === "moderator");
   const [adjustMember, setAdjustMember] = useState<{ id: string; name: string; points: number } | null>(null);
   const [adjustValue, setAdjustValue] = useState(0);
@@ -224,13 +227,16 @@ export function LeaderboardView() {
       // Fetch death records in date range
       const startISO = new Date(exportStartDate).toISOString();
       const endISO = new Date(exportEndDate + "T23:59:59").toISOString();
-      const { data: deaths, error: deathsErr } = await supabase
+      let deathQuery = supabase
         .from("death_records")
-        .select("id,boss_id,death_time")
+        .select("id,boss_id,death_time,party_leaders,owner_guild_id")
         .eq("server_id", serverId)
         .gte("death_time", startISO)
-        .lte("death_time", endISO)
-        .order("death_time", { ascending: true });
+        .lte("death_time", endISO);
+      if (exportGuildOnly && exportGuildFilter !== "all") {
+        deathQuery = deathQuery.eq("owner_guild_id", exportGuildFilter);
+      }
+      const { data: deaths, error: deathsErr } = await deathQuery.order("death_time", { ascending: true });
       if (deathsErr) throw new Error(`Death records: ${deathsErr.message}`);
       if (!deaths?.length) { alert("No death records in this date range."); setExportLoading(false); return; }
 
@@ -240,7 +246,7 @@ export function LeaderboardView() {
       // Fetch bosses
       const { data: bosses, error: bossesErr } = await supabase
         .from("bosses")
-        .select("id,name,boss_points")
+        .select("id,name,boss_points,has_salary")
         .in("id", bossIds);
       if (bossesErr) throw new Error(`Bosses: ${bossesErr.message}`);
       const bossMap = new Map((bosses || []).map(b => [b.id, b]));
@@ -300,15 +306,29 @@ export function LeaderboardView() {
 
       // Build data rows: one per death
       const dataRows: any[][] = [];
-      const timeFmt = new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+      const dateFmt = new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", year: "numeric" });
+      const timeFmt = new Intl.DateTimeFormat(undefined, { hour: "2-digit", minute: "2-digit" });
       for (const death of deaths) {
         const attendees = deathAttendees.get(death.id);
         if (!attendees || attendees.size === 0) continue;
         const boss = bossMap.get(death.boss_id);
+        const dt = new Date(death.death_time);
         const row: any[] = [
           attendees.size,
-          timeFmt.format(new Date(death.death_time)),
+          dateFmt.format(dt),
+          timeFmt.format(dt),
           boss?.name || "?",
+          (boss as any)?.has_salary ? "YES" : "NO",
+          (() => {
+            const pl = (death as any).party_leaders || {};
+            if (exportGuildFilter !== "all" || exportGuildOnly) {
+              return pl[exportGuildFilter] ? (memberMap.get(pl[exportGuildFilter])?.name || "") : "";
+            }
+            return Object.entries(pl)
+              .map(([, mid]) => memberMap.get(mid as string)?.name)
+              .filter(Boolean)
+              .join(", ");
+          })(),
         ];
         for (const mid of sortedMembers) {
           row.push(attendees.has(mid) ? ((boss as any)?.boss_points || 0) : 0);
@@ -317,7 +337,7 @@ export function LeaderboardView() {
       }
 
       // Build Excel with SheetJS
-      const numCols = 3 + sortedMembers.length;
+      const numCols = 6 + sortedMembers.length;
 
       // Build styled HTML table (Excel opens .xls HTML natively with full styling)
       const playerColors = ["#7C3AED", "#059669", "#D97706", "#0891B2", "#DB2777", "#4F46E5", "#E11D48", "#0D9488", "#EA580C", "#65A30D"];
@@ -347,14 +367,14 @@ export function LeaderboardView() {
         .filter(([, pts]) => pts > 0);
 
       // Row 0: Player name headers + ranking header
-      html += `<tr><th class="hdr"></th><th class="hdr"></th><th class="hdr"></th>`;
+      html += `<tr><th class="hdr">#</th><th class="hdr">Date</th><th class="hdr">Time</th><th class="hdr boss" style="text-align:left">Boss</th><th class="hdr">Salary</th><th class="hdr">Party Leader</th>`;
       sortedMembers.forEach((mid, i) => {
         html += `<th class="hdr" style="background:${playerColor(i)}">${memberMap.get(mid)?.name || "?"}</th>`;
       });
       html += `<th class="hdr" style="background:#1E293B;min-width:16px"></th><th class="hdr" colspan="3" style="background:#7C3AED">🏆 Ranking</th></tr>`;
 
       // Row 1: Labels + totals + ranking sub-header
-      html += `<tr><th class="hdr">P</th><th class="hdr">Date & Time</th><th class="hdr">Boss</th>`;
+      html += `<tr><th class="hdr">#</th><th class="hdr">Date</th><th class="hdr">Time</th><th class="hdr">Boss</th><th class="hdr">Salary</th><th class="hdr">Party Leader</th>`;
       sortedMembers.forEach((mid, i) => {
         html += `<th class="hdr" style="background:${playerColor(i)};font-size:14px">${memberTotals.get(mid) || 0}</th>`;
       });
@@ -367,14 +387,14 @@ export function LeaderboardView() {
         html += `<tr>`;
         if (ri < dataRows.length) {
           const row = dataRows[ri];
-          html += `<td class="${cls}">${row[0]}</td><td class="dt ${cls}">${row[1]}</td><td class="boss ${cls}">${row[2]}</td>`;
-          for (let c = 3; c < numCols; c++) {
+          html += `<td class="${cls}">${row[0]}</td><td class="dt ${cls}">${row[1]}</td><td class="dt ${cls}">${row[2]}</td><td class="boss ${cls}">${row[3]}</td><td class="num ${cls}" style="color:${row[4] === 'YES' ? '#34D399' : '#64748B'}">${row[4]}</td><td class="nm ${cls}">${row[5] || ""}</td>`;
+          for (let c = 6; c < numCols; c++) {
             const val = row[c] || 0;
             html += `<td class="${cls} ${val > 0 ? 'pts-yes' : 'pts-no'}">${val}</td>`;
           }
         } else {
-          html += `<td class="${cls}"></td><td class="${cls}"></td><td class="${cls}"></td>`;
-          for (let c = 3; c < numCols; c++) html += `<td class="${cls}"></td>`;
+          html += `<td class="${cls}"></td><td class="${cls}"></td><td class="${cls}"></td><td class="${cls}"></td><td class="${cls}"></td><td class="${cls}"></td>`;
+          for (let c = 6; c < numCols; c++) html += `<td class="${cls}"></td>`;
         }
         html += `<td class="${cls}"></td>`;
         if (ri < sortedRanking.length) {
@@ -540,7 +560,7 @@ export function LeaderboardView() {
       )}
 
       {/* Attendance Export toggle — hidden from viewers */}
-      {!isViewer && (<>
+      {canExportAttendance && (<>
       <button
         onClick={() => setShowExport(!showExport)}
         className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-300 transition"
@@ -562,10 +582,18 @@ export function LeaderboardView() {
           </div>
           <div className="flex flex-col gap-0.5">
             <label className="text-[10px] text-slate-500">Guild</label>
-            <select value={exportGuildFilter} onChange={(e) => setExportGuildFilter(e.target.value)} className="px-2 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-white text-xs outline-none focus:ring-2 focus:ring-amber-500 transition">
-              <option value="all">All Guilds</option>
-              {guilds.map(g => (<option key={g.id} value={g.id}>{g.name}</option>))}
-            </select>
+            <div className="flex items-center gap-2">
+              <select value={exportGuildFilter} onChange={(e) => { setExportGuildFilter(e.target.value); if (e.target.value === "all") setExportGuildOnly(false); }} className="px-2 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-white text-xs outline-none focus:ring-2 focus:ring-amber-500 transition flex-1">
+                <option value="all">All Guilds</option>
+                {guilds.map(g => (<option key={g.id} value={g.id}>{g.name}</option>))}
+              </select>
+              {exportGuildFilter !== "all" && (
+                <label className="flex items-center gap-1.5 cursor-pointer shrink-0">
+                  <input type="checkbox" checked={exportGuildOnly} onChange={(e) => setExportGuildOnly(e.target.checked)} className="w-3 h-3 rounded border-slate-600 bg-slate-800 text-amber-600 focus:ring-amber-500/50 cursor-pointer" />
+                  <span className="text-[10px] text-slate-400 whitespace-nowrap">My guild only</span>
+                </label>
+              )}
+            </div>
           </div>
           <button onClick={handleExportAttendance} disabled={exportLoading || !exportStartDate || !exportEndDate} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-amber-600 text-white hover:bg-amber-500 transition disabled:opacity-50 flex items-center gap-1.5">
             {exportLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
@@ -747,7 +775,7 @@ export function LeaderboardView() {
                   <span className="text-xs text-slate-500">
                     pt{entry.points !== 1 ? "s" : ""}
                   </span>
-                  {isStaff && (
+                  {canAdjustPoints && (
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
@@ -767,6 +795,7 @@ export function LeaderboardView() {
             );
           })}
         </div>
+        )}
         </>
       )}
 
