@@ -210,7 +210,7 @@ export function LandingPage() {
     <div className="min-h-screen bg-slate-950 text-white overflow-x-hidden scroll-smooth">
       <SEOHead
         title="RaidScout — The Operating System for Competitive MMO Guilds"
-        description="Track 39+ LordNine world bosses, manage multi-guild rotations, monitor attendance, and coordinate raids in real time. Forever free."
+        description="Track bosses & activities across any game. Manage guild rotations, monitor attendance, coordinate parties, and stay on top of every spawn. Forever free."
         canonicalUrl="/"
       />
 
@@ -261,7 +261,7 @@ export function LandingPage() {
           {/* Badge */}
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-red-900/20 border border-red-500/20 text-red-400 text-xs font-medium animate-[fadeInUp_0.6s_ease-out]">
             <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-            Built for LordNine — ready for more
+            Built for competitive guilds — ready for any game
           </div>
 
           <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight leading-tight animate-[fadeInUp_0.6s_ease-out]">
@@ -275,7 +275,7 @@ export function LandingPage() {
             <LiveBossTimer />
           </div>
           <p className="text-lg md:text-xl text-slate-400 max-w-2xl mx-auto leading-relaxed animate-[fadeInUp_0.6s_ease-out_0.2s_both]">
-            Track 39+ LordNine world bosses, manage multi-guild rotations, monitor attendance, and coordinate raids, all in real time.{" "}
+            Track bosses & activities across any game, manage guild rotations, monitor attendance, and coordinate parties — all in real time.{" "}
             <span className="text-emerald-400 font-semibold">Forever free.</span>
           </p>
           <div className="flex items-center justify-center gap-4 pt-2 animate-[fadeInUp_0.6s_ease-out_0.4s_both]">
