@@ -1872,7 +1872,7 @@ export function ServerSettingsView() {
         <section className="bg-slate-900 border border-red-900/30 rounded-xl p-4 space-y-3">
           <h3 className="text-sm font-semibold text-red-400">Danger Zone</h3>
           <p className="text-sm text-slate-400">
-            Permanently delete this server and all its data. This cannot be undone.
+            Archive this server. Your data is preserved and can be restored by an admin. You won't see this server anymore.
           </p>
 
           {!showDeleteConfirm ? (
@@ -1881,7 +1881,7 @@ export function ServerSettingsView() {
               className="flex items-center gap-1 px-4 py-2 rounded-lg text-sm font-medium bg-red-900/30 text-red-400 hover:bg-red-900/50 transition border border-red-800"
             >
               <Trash2 className="w-3.5 h-3.5" />
-              Delete Server
+              Archive Server
             </button>
           ) : (
             <div className="space-y-3 p-3 rounded-lg bg-red-900/10 border border-red-900/30">
@@ -1912,7 +1912,7 @@ export function ServerSettingsView() {
                   ) : (
                     <Trash2 className="w-3.5 h-3.5" />
                   )}
-                  Delete Server
+                  Archive Server
                 </button>
               </div>
             </div>

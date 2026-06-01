@@ -83,7 +83,7 @@ export function ServerProvider({ children }: { children: ReactNode }) {
 
       // Fetch servers and user's roles in parallel
       const [srvRes, roleRes] = await Promise.all([
-        supabase.from("servers").select("id, name, owner_id, invite_code, created_at, discord_webhook_url, timezone, notification_prefix").in("id", uniqueIds),
+        supabase.from("servers").select("id, name, owner_id, invite_code, created_at, discord_webhook_url, timezone, notification_prefix, deleted_at").in("id", uniqueIds),
         supabase.from("server_members").select("server_id, role").eq("user_id", user.id).in("server_id", uniqueIds),
       ]);
 
@@ -101,6 +101,8 @@ export function ServerProvider({ children }: { children: ReactNode }) {
       const list: Server[] = [];
       if (srvData && srvData.length > 0) {
         for (const s of srvData) {
+          // Skip soft-deleted servers
+          if (s.deleted_at) continue;
           const role = roleMap.get(s.id) ?? (s.owner_id === user.id ? "owner" : undefined);
           if (!role && userRole !== "admin") continue;
           list.push({

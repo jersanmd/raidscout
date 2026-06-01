@@ -1,13 +1,13 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { fetchAllServers, fetchAllUsers, fetchAuditLog, fetchServerStats, fetchDatabaseStats, fetchPlanUsage, fetchCronStatus, supabase } from "@/lib/supabase";
+import { fetchAllServers, fetchAllUsers, fetchAuditLog, fetchServerStats, fetchDatabaseStats, fetchPlanUsage, fetchCronStatus, restoreServer, supabase } from "@/lib/supabase";
 import { useServer } from "@/contexts/ServerContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { Loader2, Shield, Server, Users, Eye, ChevronDown, ChevronUp, ClipboardList, HardDrive, BarChart3, Crosshair, Skull, Activity, Radio, Clock } from "lucide-react";
+import { Loader2, Shield, Server, Users, Eye, ChevronDown, ChevronUp, ClipboardList, HardDrive, BarChart3, Crosshair, Skull, Activity, Radio, Clock, Trash2, RefreshCw } from "lucide-react";
 
 export function AdminPanelView() {
-  const [tab, setTab] = useState<"servers" | "users" | "audit" | "database" | "plan" | "cron">("servers");
+  const [tab, setTab] = useState<"servers" | "users" | "audit" | "database" | "plan" | "cron" | "deleted">("servers");
   const { setCurrentServer } = useServer();
   const { userRole } = useAuth();
   const [expandedUser, setExpandedUser] = useState<string | null>(null);
@@ -63,6 +63,16 @@ export function AdminPanelView() {
     staleTime: 15_000,
     refetchInterval: 30_000,
     enabled: userRole === "admin" && tab === "cron",
+  });
+
+  const { data: deletedServers = [], isLoading: deletedLoading, refetch: refetchDeleted } = useQuery({
+    queryKey: ["admin", "deleted"],
+    queryFn: async () => {
+      const { data } = await supabase.from("servers").select("id, name, owner_id, deleted_at, created_at").not("deleted_at", "is", null).order("deleted_at", { ascending: false });
+      return data || [];
+    },
+    staleTime: 15_000,
+    enabled: userRole === "admin" && tab === "deleted",
   });
 
   const { data: auditLog = [], isLoading: auditLoading } = useQuery({
@@ -162,6 +172,15 @@ export function AdminPanelView() {
         >
           <Clock className="w-3.5 h-3.5" />
           Test Cron
+        </button>
+        <button
+          onClick={() => setTab("deleted")}
+          className={`flex flex-1 items-center justify-center gap-1 px-2 py-1.5 rounded-md text-xs font-medium transition whitespace-nowrap ${
+            tab === "deleted" ? "bg-slate-700 text-white" : "text-slate-400 hover:text-slate-200"
+          }`}
+        >
+          <Trash2 className="w-3.5 h-3.5" />
+          Deleted
         </button>
       </div>
 
@@ -783,6 +802,40 @@ export function AdminPanelView() {
 
               <p className="text-[10px] text-slate-600">Auto-refreshes every 30s. Cron runs every 5 min.</p>
             </>
+          )}
+        </div>
+      )}
+
+      {/* Deleted Servers Tab */}
+      {tab === "deleted" && (
+        <div className="space-y-2">
+          {deletedLoading ? (
+            <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 text-slate-500 animate-spin" /></div>
+          ) : deletedServers.length === 0 ? (
+            <p className="text-slate-500 text-sm text-center py-12">No deleted servers.</p>
+          ) : (
+            deletedServers.map((s: any) => (
+              <div key={s.id} className="bg-slate-800/50 border border-slate-700 rounded-lg px-4 py-3 flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-white font-medium">{s.name}</p>
+                  <p className="text-xs text-slate-500">Deleted {new Date(s.deleted_at).toLocaleDateString()}</p>
+                </div>
+                <button
+                  onClick={async () => {
+                    try {
+                      await restoreServer(s.id);
+                      refetchDeleted();
+                    } catch (err: any) {
+                      console.error("Restore failed:", err);
+                    }
+                  }}
+                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium bg-emerald-600 text-white hover:bg-emerald-500 transition"
+                >
+                  <RefreshCw className="w-3 h-3" />
+                  Restore
+                </button>
+              </div>
+            ))
           )}
         </div>
       )}

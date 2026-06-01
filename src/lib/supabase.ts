@@ -56,7 +56,18 @@ export async function updateServerName(serverId: string, name: string): Promise<
 }
 
 export async function deleteServer(serverId: string): Promise<void> {
-  const { error } = await supabase.from("servers").delete().eq("id", serverId);
+  const { error } = await supabase
+    .from("servers")
+    .update({ deleted_at: new Date().toISOString() })
+    .eq("id", serverId);
+  if (error) throw error;
+}
+
+export async function restoreServer(serverId: string): Promise<void> {
+  const { error } = await supabase
+    .from("servers")
+    .update({ deleted_at: null })
+    .eq("id", serverId);
   if (error) throw error;
 }
 

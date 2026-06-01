@@ -1017,6 +1017,10 @@ async function runSpawnCron() {
 
     for (const serverId of serverIds) {
       try {
+        // Skip soft-deleted servers
+        const serverRows = await supabaseQuerySafe(`servers?select=deleted_at&id=eq.${serverId}&limit=1`);
+        if (serverRows?.[0]?.deleted_at) continue;
+
         // Fetch bosses, latest death per boss, guilds, and boss_guilds for this server
         const [bosses, allDeaths, guilds, bossGuilds] = await Promise.all([
           supabaseQuerySafe(`bosses?server_id=eq.${serverId}&order=name`),
