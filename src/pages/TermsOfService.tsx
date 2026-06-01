@@ -18,31 +18,45 @@ export function TermsOfServiceView() {
           Back
         </button>
       <h1 className="text-2xl font-bold text-white">Terms of Service</h1>
-      <p className="text-slate-500 text-xs">Last updated: May 21, 2026</p>
+      <p className="text-slate-500 text-xs">Last updated: June 1, 2026</p>
 
       <section className="space-y-2">
         <h2 className="text-lg font-semibold text-white">1. Acceptance of Terms</h2>
         <p>
-          By accessing or using RaidScout (&ldquo;the Service&rdquo;), you agree to be bound by these Terms of Service.
-          If you do not agree, do not use the Service.
+          By accessing or using RaidScout (&ldquo;the Service&rdquo;), you agree to be bound by these Terms of Service
+          and our Privacy Policy. If you do not agree to these terms, you must not access or use the Service.
         </p>
       </section>
 
       <section className="space-y-2">
         <h2 className="text-lg font-semibold text-white">2. Description of Service</h2>
         <p>
-          RaidScout is a free web-based tool for tracking boss spawn timers, scheduling hunts, coordinating guild
-          assignments, and monitoring member performance in the game LordNine. The Service provides real-time timers,
-          Discord notifications, leaderboard tracking, and guild management features.
+          RaidScout is a web-based companion tool for gamers, providing boss spawn tracking, activity scheduling,
+          guild management, leaderboard systems, and Discord integration across multiple games. The Service offers
+          real-time countdown timers, automated Discord notifications, attendance tracking, server analytics,
+          and optional AI-powered screenshot processing for member name extraction.
+        </p>
+        <p>
+          The Service is game-agnostic and may support multiple titles. Game-specific data such as boss names,
+          spawn schedules, and guild assignments are provided by server administrators and may not reflect official
+          game data.
         </p>
       </section>
 
       <section className="space-y-2">
         <h2 className="text-lg font-semibold text-white">3. User Accounts</h2>
         <p>
-          You must create an account to use the Service. You are responsible for maintaining the confidentiality of
-          your login credentials and for all activities under your account. You must provide accurate and complete
-          information when creating your account.
+          To access the Service, you must create an account using a valid email address. You are responsible for:
+        </p>
+        <ul className="list-disc pl-5 space-y-1">
+          <li>Maintaining the confidentiality of your login credentials</li>
+          <li>All activities that occur under your account</li>
+          <li>Providing accurate, complete, and current registration information</li>
+          <li>Promptly notifying us of any unauthorized use of your account</li>
+        </ul>
+        <p>
+          You must be at least 13 years of age to create an account. Accounts found to be created by users under 13
+          will be terminated.
         </p>
       </section>
 
@@ -50,68 +64,145 @@ export function TermsOfServiceView() {
         <h2 className="text-lg font-semibold text-white">4. Acceptable Use</h2>
         <p>You agree not to:</p>
         <ul className="list-disc pl-5 space-y-1">
-          <li>Use the Service for any unlawful purpose or in violation of any applicable laws</li>
-          <li>Attempt to gain unauthorized access to other users&apos; servers or data</li>
-          <li>Interfere with or disrupt the Service or its servers</li>
-          <li>Upload malicious code or content</li>
-          <li>Impersonate others or provide false information</li>
+          <li>Use the Service for any unlawful purpose or in violation of any applicable laws or regulations</li>
+          <li>Attempt to gain unauthorized access to other users&apos; servers, data, or accounts</li>
+          <li>Interfere with, disrupt, or overload the Service or its infrastructure</li>
+          <li>Upload, transmit, or distribute malicious code, viruses, or harmful content</li>
+          <li>Impersonate other individuals or provide false or misleading information</li>
+          <li>Harass, abuse, or harm other users through the Service</li>
+          <li>Use automated means (bots, scrapers) to access the Service without prior written permission</li>
+          <li>Reverse engineer, decompile, or disassemble any part of the Service</li>
         </ul>
       </section>
 
       <section className="space-y-2">
-        <h2 className="text-lg font-semibold text-white">5. Server Ownership</h2>
+        <h2 className="text-lg font-semibold text-white">5. Server Management &amp; Ownership</h2>
         <p>
-          Servers created within RaidScout are owned by the user who created them. Server owners may transfer
-          ownership, add moderators, and manage server settings. RaidScout is not responsible for disputes between
-          server members.
+          Servers created within the Service are owned by the user who created them (&ldquo;Server Owner&rdquo;).
+          Server Owners may:
+        </p>
+        <ul className="list-disc pl-5 space-y-1">
+          <li>Add or remove moderators to help manage the server</li>
+          <li>Configure server settings including timezone, notifications, and game selection</li>
+          <li>Transfer ownership to another user</li>
+          <li>Delete the server and all associated data</li>
+        </ul>
+        <p>
+          The Service is not responsible for disputes between server members or between Server Owners and moderators.
+          Server Owners are responsible for the content and data within their servers.
         </p>
       </section>
 
       <section className="space-y-2">
-        <h2 className="text-lg font-semibold text-white">6. Third-Party Services</h2>
+        <h2 className="text-lg font-semibold text-white">6. User-Generated Content</h2>
         <p>
-          The Service integrates with Discord for notification features. Use of Discord is subject to Discord&apos;s own
-          Terms of Service. The Service may also use AI-powered name extraction from uploaded screenshots, processed
-          through third-party AI providers.
+          By creating content within the Service (including but not limited to server names, guild names, member names,
+          and uploaded screenshots), you grant RaidScout a non-exclusive, worldwide, royalty-free license to host,
+          store, and display such content solely for the purpose of providing the Service to you and other users
+          within your server. You retain all ownership rights to your content.
+        </p>
+        <p>
+          You represent and warrant that you own or have the necessary rights to any content you upload or create
+          within the Service, and that such content does not infringe upon the rights of any third party.
         </p>
       </section>
 
       <section className="space-y-2">
-        <h2 className="text-lg font-semibold text-white">7. Intellectual Property</h2>
+        <h2 className="text-lg font-semibold text-white">7. Third-Party Services &amp; Integrations</h2>
+        <p>The Service integrates with the following third-party services:</p>
+        <ul className="list-disc pl-5 space-y-1">
+          <li><strong>Discord:</strong> Optional notification delivery via webhooks. Subject to Discord&apos;s <a href="https://discord.com/terms" target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:text-indigo-300">Terms of Service</a>.</li>
+          <li><strong>AI Vision:</strong> Optional screenshot-based name extraction using OpenAI or DeepSeek APIs. Screenshots are processed in-memory and are not stored by the Service or retained by the AI providers per their API data usage policies.</li>
+          <li><strong>Supabase:</strong> Database, authentication, and hosting infrastructure. Subject to Supabase&apos;s <a href="https://supabase.com/terms" target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:text-indigo-300">Terms of Service</a>.</li>
+        </ul>
         <p>
-          The RaidScout name, logo, and Service are owned by RaidScout. LordNine is a trademark of its respective
-          owner. RaidScout is an independent tool and is not affiliated with or endorsed by LordNine or its developers.
+          We are not responsible for the content, privacy practices, or availability of third-party services.
         </p>
       </section>
 
       <section className="space-y-2">
-        <h2 className="text-lg font-semibold text-white">8. Disclaimer of Warranties</h2>
+        <h2 className="text-lg font-semibold text-white">8. Intellectual Property</h2>
         <p>
-          The Service is provided &ldquo;as is&rdquo; without warranties of any kind, express or implied. RaidScout does not
-          guarantee uninterrupted access, error-free operation, or accuracy of boss spawn data.
+          The RaidScout name, logo, branding, website design, and source code are the intellectual property of
+          RaidScout. All game names, boss names, guild names, and related trademarks are the property of their
+          respective owners. RaidScout is an independent tool and is not affiliated with, endorsed by, or
+          sponsored by any game developer or publisher.
         </p>
       </section>
 
       <section className="space-y-2">
-        <h2 className="text-lg font-semibold text-white">9. Limitation of Liability</h2>
+        <h2 className="text-lg font-semibold text-white">9. Disclaimer of Warranties</h2>
         <p>
-          To the fullest extent permitted by law, RaidScout shall not be liable for any indirect, incidental, or
-          consequential damages arising from your use of the Service.
+          THE SERVICE IS PROVIDED ON AN &ldquo;AS IS&rdquo; AND &ldquo;AS AVAILABLE&rdquo; BASIS WITHOUT WARRANTIES
+          OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO IMPLIED WARRANTIES OF
+          MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT. We do not guarantee that:
+        </p>
+        <ul className="list-disc pl-5 space-y-1">
+          <li>The Service will be uninterrupted, timely, secure, or error-free</li>
+          <li>Boss spawn data, timers, or schedules will be 100% accurate</li>
+          <li>Any errors or defects will be corrected</li>
+          <li>The Service will be compatible with all devices or browsers</li>
+        </ul>
+      </section>
+
+      <section className="space-y-2">
+        <h2 className="text-lg font-semibold text-white">10. Limitation of Liability</h2>
+        <p>
+          TO THE FULLEST EXTENT PERMITTED BY APPLICABLE LAW, RAID SCOUT SHALL NOT BE LIABLE FOR ANY INDIRECT,
+          INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES, INCLUDING BUT NOT LIMITED TO LOSS OF PROFITS,
+          DATA, USE, OR GOODWILL, ARISING FROM:
+        </p>
+        <ul className="list-disc pl-5 space-y-1">
+          <li>Your use of or inability to use the Service</li>
+          <li>Any conduct or content of any third party on the Service</li>
+          <li>Unauthorized access, use, or alteration of your data</li>
+          <li>Any errors or inaccuracies in boss spawn timing or game data</li>
+        </ul>
+        <p>
+          In no event shall our total liability exceed the amount you have paid us (if any) in the twelve months
+          preceding the claim. Some jurisdictions do not allow the exclusion of certain warranties or limitations
+          of liability, so some of the above may not apply to you.
         </p>
       </section>
 
       <section className="space-y-2">
-        <h2 className="text-lg font-semibold text-white">10. Changes to Terms</h2>
+        <h2 className="text-lg font-semibold text-white">11. Termination</h2>
         <p>
-          We reserve the right to modify these Terms at any time. Continued use of the Service after changes
-          constitutes acceptance of the updated Terms.
+          We reserve the right to suspend or terminate your access to the Service at our sole discretion, without
+          prior notice, for any reason including but not limited to violation of these Terms. Upon termination:
+        </p>
+        <ul className="list-disc pl-5 space-y-1">
+          <li>Your right to access the Service will immediately cease</li>
+          <li>Server data belonging to your account may be deleted after a reasonable retention period</li>
+          <li>Provisions that by their nature should survive termination (including disclaimers and liability
+          limitations) shall survive</li>
+        </ul>
+      </section>
+
+      <section className="space-y-2">
+        <h2 className="text-lg font-semibold text-white">12. Changes to Terms</h2>
+        <p>
+          We reserve the right to modify these Terms at any time. Material changes will be communicated through
+          our Discord community and/or via email where feasible. The &ldquo;Last updated&rdquo; date at the top
+          of this page indicates when these Terms were last revised. Continued use of the Service after changes
+          are posted constitutes acceptance of the updated Terms.
         </p>
       </section>
 
       <section className="space-y-2">
-        <h2 className="text-lg font-semibold text-white">11. Contact</h2>
+        <h2 className="text-lg font-semibold text-white">13. Governing Law</h2>
         <p>
-          For questions about these Terms, contact us through our{" "}
+          These Terms shall be governed by and construed in accordance with applicable laws. Any disputes arising
+          from these Terms or the Service shall be resolved through good-faith negotiations. If resolution cannot
+          be reached, disputes shall be subject to the jurisdiction of the courts in the Service operator&apos;s
+          jurisdiction.
+        </p>
+      </section>
+
+      <section className="space-y-2">
+        <h2 className="text-lg font-semibold text-white">14. Contact</h2>
+        <p>
+          For questions, concerns, or legal inquiries regarding these Terms, contact us through our{" "}
           <a href="https://discord.gg/738AmkeQtU" target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:text-indigo-300 transition">
             Discord Community
           </a>.

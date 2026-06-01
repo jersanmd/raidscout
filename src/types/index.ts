@@ -166,6 +166,7 @@ export interface BossTemplate {
   category?: string | null;
   tags?: string[];
   points: number;
+  image_url?: string | null;
   created_at: string;
   updated_at: string;
 }

@@ -1,4 +1,4 @@
-import { Suspense, lazy, useEffect } from "react";
+import { Suspense, lazy, useEffect, type ComponentType } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
@@ -18,7 +18,7 @@ const HistoryView = lazy(() => import("@/pages/HistoryView").then(m => ({ defaul
 const MembersView = lazy(() => import("@/pages/MembersView").then(m => ({ default: m.MembersView })));
 const AnalyticsView = lazy(() => import("@/pages/AnalyticsView").then(m => ({ default: m.AnalyticsView })));
 const LeaderboardView = lazy(() => import("@/pages/LeaderboardView").then(m => ({ default: m.LeaderboardView })));
-const ServerSettingsView = lazy(() => import("@/pages/ServerSettingsView").then(m => ({ default: m.ServerSettingsView })));
+const ServerSettingsView = lazy(() => import("@/pages/ServerSettingsView").then(m => ({ default: m.ServerSettingsView as ComponentType })));
 const AdminPanelView = lazy(() => import("@/pages/AdminPanelView").then(m => ({ default: m.AdminPanelView })));
 const TermsOfServiceView = lazy(() => import("@/pages/TermsOfService").then(m => ({ default: m.TermsOfServiceView })));
 const PrivacyPolicyView = lazy(() => import("@/pages/PrivacyPolicy").then(m => ({ default: m.PrivacyPolicyView })));
@@ -89,10 +89,10 @@ function AppContent() {
 
 function AppRoutes() {
   const { servers, currentServer, loading: serverLoading } = useServer();
-  const { userRole } = useAuth();
+  const { userRole, roleLoading } = useAuth();
   const isAdmin = userRole === "admin";
   const hasServer = servers.length > 0;
-  const ready = !serverLoading;
+  const ready = !serverLoading && !roleLoading;
 
   // Dynamically set the page title to the current server name
   useEffect(() => {
@@ -102,17 +102,29 @@ function AppRoutes() {
   // Use a single stable <Routes> tree to prevent Layout remounting
   return (
     <Routes>
+      {/* Admin panel — always accessible to admins, no server required */}
+      <Route path="/admin" element={
+        userRole === null ? (
+          <PageLoader />
+        ) : isAdmin ? (
+          <Suspense fallback={<PageLoader />}><AdminPanelView /></Suspense>
+        ) : (
+          <Navigate to="/" replace />
+        )
+      } />
+
       <Route
         element={
-          ready && !hasServer ? (
+          !ready ? (
+            <div className="min-h-screen flex items-center justify-center bg-slate-950">
+              <div className="w-8 h-8 border-2 border-slate-600 border-t-red-500 rounded-full animate-spin" />
+            </div>
+          ) : !hasServer && isAdmin ? (
+            <Navigate to="/admin" replace />
+          ) : !hasServer ? (
             <div className="min-h-screen bg-slate-950">
               <div className="max-w-[90rem] mx-auto px-4 h-14 flex items-center">
-                <div className="flex items-center gap-3">
-                  <span className="font-bold text-white">RaidScout</span>
-                  {isAdmin && (
-                    <a href="/admin" className="text-xs text-purple-400 hover:text-purple-300 transition">Admin Panel →</a>
-                  )}
-                </div>
+                <span className="font-bold text-white">RaidScout</span>
               </div>
               <NoServerView />
             </div>
@@ -128,15 +140,6 @@ function AppRoutes() {
         <Route path="/members" element={<Suspense fallback={<PageLoader />}><MembersView /></Suspense>} />
         <Route path="/analytics" element={<Suspense fallback={<PageLoader />}><AnalyticsView /></Suspense>} />
         <Route path="/server-settings" element={<Suspense fallback={<PageLoader />}><ServerSettingsView /></Suspense>} />
-        <Route path="/admin" element={
-          userRole === null ? (
-            <PageLoader />
-          ) : isAdmin ? (
-            <Suspense fallback={<PageLoader />}><AdminPanelView /></Suspense>
-          ) : (
-            <Navigate to="/" replace />
-          )
-        } />
       </Route>
     </Routes>
   );

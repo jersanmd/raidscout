@@ -1,4 +1,4 @@
-﻿import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { type HistoryEntry } from "@/lib/history";
 import { fetchHistoryFromSupabase, deleteDeathRecord, isSupabaseConfigured, editDeathTime } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
@@ -18,7 +18,7 @@ export function HistoryView() {
   const serverId = useServerId();
   const configured = isSupabaseConfigured();
 
-  // Date range — default last 7 days
+  // Date range � default last 7 days
   const [dateRange, setDateRange] = useState<"7d" | "30d" | "custom">("7d");
   const [dateFrom, setDateFrom] = useState(() => daysAgo(7));
   const [dateTo, setDateTo] = useState(() => new Date().toISOString().split("T")[0]);
@@ -97,7 +97,7 @@ export function HistoryView() {
     const boss = searchParams.get("boss");
     if (boss && history.length > 0) {
       const entry = history.find(
-        (e) => e.bossName.toLowerCase() === boss.toLowerCase() && e.deathRecordId
+        (e) => (e.bossName || "").toLowerCase() === boss.toLowerCase() && e.deathRecordId
       );
       if (entry) {
         setSelectedEntry(entry);
@@ -111,7 +111,7 @@ export function HistoryView() {
   const filtered = useMemo(() => {
     if (!searchText.trim()) return history;
     const q = searchText.toLowerCase();
-    return history.filter(e => e.bossName.toLowerCase().includes(q));
+    return history.filter(e => (e.bossName || e.activityName || "").toLowerCase().includes(q));
   }, [history, searchText]);
 
   const grouped = useMemo(() => {
@@ -278,8 +278,8 @@ export function HistoryView() {
 
               <div className="space-y-1">
                 {group.entries.map((entry) => {
-                  const deathDate = new Date(entry.deathTime);
-                  const respawnDate = new Date(entry.respawnTime);
+                  const deathDate = new Date(entry.deathTime || "");
+                  const respawnDate = new Date(entry.respawnTime || "");
                   const diffMs = respawnDate.getTime() - deathDate.getTime();
                   const diffH = Math.round(diffMs / 3600_000);
 
@@ -305,7 +305,7 @@ export function HistoryView() {
                         }`}
                       >
                         {entry.type === "activity" ? (
-                          <span className="text-sm">📅</span>
+                          <span className="text-sm">??</span>
                         ) : entry.spawnType === "fixed_schedule" ? (
                           <Repeat className="w-4 h-4" />
                         ) : (
@@ -341,19 +341,19 @@ export function HistoryView() {
                           ) : (
                             <>
                               <span>Killed: {entry.deathTime ? formatDate(entry.deathTime) + " " + formatTime(entry.deathTime) : "Unknown"}</span>
-                              <span>→</span>
+                              <span>?</span>
                               <span className="text-slate-400">Spawns: {entry.respawnTime ? formatDate(entry.respawnTime) + " " + formatTime(entry.respawnTime) : "Unknown"}</span>
                             </>
                           )}
                         </div>
                       </div>
-                      {/* Edit + Delete buttons — bosses only */}
+                      {/* Edit + Delete buttons � bosses only */}
                       {!isViewer && entry.type !== "activity" && entry.deathRecordId && (
                         <div className="flex items-center gap-0.5">
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              const dt = new Date(entry.deathTime);
+                              const dt = new Date(entry.deathTime || "");
                               const local = new Date(dt.getTime() - dt.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
                               setEditDate(local);
                               setEditEntry(entry);
@@ -378,8 +378,8 @@ export function HistoryView() {
       {selectedEntry && selectedEntry.deathRecordId && (
         <ParticipantModal
           deathRecordId={selectedEntry.deathRecordId}
-          bossName={selectedEntry.bossName}
-          deathTime={selectedEntry.deathTime}
+          bossName={selectedEntry.bossName || ""}
+          deathTime={selectedEntry.deathTime || ""}
           onClose={() => setSelectedEntry(null)}
           navigate={navigate}
           readOnly={isViewer}

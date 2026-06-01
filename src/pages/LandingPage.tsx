@@ -142,6 +142,7 @@ export function LandingPage() {
   const [success, setSuccess] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [resetSent, setResetSent] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
 
   const [viewerMode, setViewerMode] = useState(false);
   const [viewerKey, setViewerKey] = useState("");
@@ -209,7 +210,7 @@ export function LandingPage() {
   return (
     <div className="min-h-screen bg-slate-950 text-white overflow-x-hidden scroll-smooth">
       <SEOHead
-        title="RaidScout — The Operating System for Competitive MMO Guilds"
+        title="RaidScout"
         description="Track bosses & activities across any game. Manage guild rotations, monitor attendance, coordinate parties, and stay on top of every spawn. Forever free."
         canonicalUrl="/"
       />
@@ -261,7 +262,7 @@ export function LandingPage() {
           {/* Badge */}
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-red-900/20 border border-red-500/20 text-red-400 text-xs font-medium animate-[fadeInUp_0.6s_ease-out]">
             <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-            Built for competitive guilds — ready for any game
+            Built for competitive guilds
           </div>
 
           <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight leading-tight animate-[fadeInUp_0.6s_ease-out]">
@@ -414,8 +415,8 @@ export function LandingPage() {
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="flex bg-slate-800 rounded-lg p-0.5 mb-2">
-                <button type="button" onClick={() => { setIsSignUp(false); setError(null); setSuccess(null); setResetSent(false); }} className={`flex-1 py-1.5 rounded-md text-xs font-medium transition ${!isSignUp ? "bg-slate-700 text-white" : "text-slate-400 hover:text-slate-200"}`}>Sign In</button>
-                <button type="button" onClick={() => { setIsSignUp(true); setError(null); setSuccess(null); setResetSent(false); }} className={`flex-1 py-1.5 rounded-md text-xs font-medium transition ${isSignUp ? "bg-slate-700 text-white" : "text-slate-400 hover:text-slate-200"}`}>Sign Up</button>
+                <button type="button" onClick={() => { setIsSignUp(false); setError(null); setSuccess(null); setResetSent(false); setAcceptedTerms(false); }} className={`flex-1 py-1.5 rounded-md text-xs font-medium transition ${!isSignUp ? "bg-slate-700 text-white" : "text-slate-400 hover:text-slate-200"}`}>Sign In</button>
+                <button type="button" onClick={() => { setIsSignUp(true); setError(null); setSuccess(null); setResetSent(false); setAcceptedTerms(false); }} className={`flex-1 py-1.5 rounded-md text-xs font-medium transition ${isSignUp ? "bg-slate-700 text-white" : "text-slate-400 hover:text-slate-200"}`}>Sign Up</button>
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-1.5">Email</label>
@@ -433,10 +434,26 @@ export function LandingPage() {
                   <button type="button" onClick={handleForgotPassword} disabled={loading} className="text-xs text-slate-500 hover:text-red-400 transition">Forgot password?</button>
                 </div>
               )}
+              {isSignUp && (
+                <label className="flex items-start gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={acceptedTerms}
+                    onChange={e => setAcceptedTerms(e.target.checked)}
+                    className="mt-1 w-4 h-4 rounded border-slate-600 bg-slate-800 text-red-500 focus:ring-red-500 focus:ring-offset-0"
+                  />
+                  <span className="text-xs text-slate-400 leading-relaxed">
+                    I agree to the{" "}
+                    <Link to="/terms" className="text-red-400 hover:text-red-300 underline" target="_blank">Terms of Service</Link>
+                    {" "}and{" "}
+                    <Link to="/privacy" className="text-red-400 hover:text-red-300 underline" target="_blank">Privacy Policy</Link>
+                  </span>
+                </label>
+              )}
               {resetSent && !isSignUp && <div className="flex items-start gap-2 text-emerald-400 text-sm bg-emerald-900/20 border border-emerald-800 rounded-lg px-3 py-2"><CheckCircle className="w-4 h-4 shrink-0 mt-0.5" /><span>Reset link sent! Check your email.</span></div>}
               {success && <div className="flex items-start gap-2 text-emerald-400 text-sm bg-emerald-900/20 border border-emerald-800 rounded-lg px-3 py-2"><CheckCircle className="w-4 h-4 shrink-0 mt-0.5" /><span>{success}</span></div>}
               {error && !resetSent && !success && <div className="flex items-start gap-2 text-red-400 text-sm bg-red-900/20 border border-red-800 rounded-lg px-3 py-2"><AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" /><span>{error}</span></div>}
-              <button type="submit" disabled={loading} className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg font-medium bg-gradient-to-r from-red-600 to-orange-500 text-white hover:from-red-500 hover:to-orange-400 disabled:opacity-50 transition shadow-lg shadow-red-900/20">
+              <button type="submit" disabled={loading || (isSignUp && !acceptedTerms)} className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg font-medium bg-gradient-to-r from-red-600 to-orange-500 text-white hover:from-red-500 hover:to-orange-400 disabled:opacity-50 transition shadow-lg shadow-red-900/20">
                 {loading ? <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : isSignUp ? <UserPlus className="w-4 h-4" /> : <LogIn className="w-4 h-4" />}
                 {isSignUp ? "Create Account" : "Sign In"}
               </button>
@@ -466,7 +483,7 @@ export function LandingPage() {
           </div>
         </div>
         <p className="mt-4 text-center text-xs text-slate-500">
-          Built with ❤️ for the LordNine community. Forever free.
+          Built with ❤️ for gamers everywhere.
         </p>
       </footer>
     </div>

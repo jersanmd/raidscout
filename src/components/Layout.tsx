@@ -7,8 +7,10 @@ import { DiscordWebhookBanner } from "@/components/DiscordWebhookBanner";
 import { NoMembersBanner } from "@/components/NoMembersBanner";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { useSpawnAlerts } from "@/hooks/useSpawnAlerts";
-import { Skull, List, Calendar, LogOut, Clock, Trophy, Users, BarChart3, Server, Settings, Plus, Shield, ExternalLink, Eye, Bell, Volume2, ChevronDown } from "lucide-react";
+import { Skull, List, Calendar, LogOut, Clock, Trophy, Users, BarChart3, Server, Settings, Plus, Shield, ExternalLink, Eye, Bell, Volume2, ChevronDown, Globe } from "lucide-react";
 import { version } from "../../package.json";
+import { useUserTimezone, detectTimezone, formatInTimezone } from "@/hooks/useUserTimezone";
+import { TIMEZONES } from "@/lib/timezones";
 
 let _audioCtx: AudioContext | null = null;
 function getAudioContext(): AudioContext {
@@ -44,6 +46,7 @@ function playAlertSound() {
 export function Layout() {
   const { user, signOut, userRole, isViewer, viewerServerName } = useAuth();
   const { servers, currentServer, setCurrentServer } = useServer();
+  const { timezone, setTimezone } = useUserTimezone();
   const [showCreate, setShowCreate] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -250,6 +253,18 @@ export function Layout() {
                       <div className="text-xs text-slate-500">{user?.email}</div>
                     </div>
                     <div className="py-1">
+                      <div className="px-4 py-1.5 flex items-center gap-2 text-xs text-slate-500">
+                        <Globe className="w-3.5 h-3.5" />
+                        <select
+                          value={timezone}
+                          onChange={e => setTimezone(e.target.value)}
+                          className="flex-1 bg-transparent text-slate-300 text-xs focus:outline-none cursor-pointer"
+                        >
+                          {TIMEZONES.map(tz => (
+                            <option key={tz.value} value={tz.value} className="bg-slate-800">{tz.label}</option>
+                          ))}
+                        </select>
+                      </div>
                       {hasServer && (
                         <NavLink to="/server-settings" onClick={() => setShowUserMenu(false)} className="flex items-center gap-2 px-4 py-2 text-sm text-slate-300 hover:bg-slate-700 transition">
                           <Settings className="w-4 h-4" /> Server Settings

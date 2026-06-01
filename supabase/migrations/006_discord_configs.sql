@@ -18,6 +18,7 @@ ALTER TABLE discord_configs ENABLE ROW LEVEL SECURITY;
 
 -- Any authenticated user can manage configs for servers they have access to.
 -- The frontend scopes queries by raidscout_server_id.
+DROP POLICY IF EXISTS "Users can manage discord_configs" ON discord_configs;
 CREATE POLICY "Users can manage discord_configs" ON discord_configs
   FOR ALL
   USING (auth.uid() IS NOT NULL)

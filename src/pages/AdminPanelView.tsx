@@ -4,12 +4,18 @@ import { useQuery } from "@tanstack/react-query";
 import { fetchAllServers, fetchAllUsers, fetchAuditLog, fetchServerStats, fetchDatabaseStats, fetchPlanUsage, fetchCronStatus, restoreServer, supabase } from "@/lib/supabase";
 import { useServer } from "@/contexts/ServerContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { Loader2, Shield, Server, Users, Eye, ChevronDown, ChevronUp, ClipboardList, HardDrive, BarChart3, Crosshair, Skull, Activity, Radio, Clock, Trash2, RefreshCw } from "lucide-react";
+import { Loader2, Shield, Server, Users, Eye, ChevronDown, ChevronUp, ClipboardList, HardDrive, BarChart3, Crosshair, Skull, Activity, Radio, Clock, Trash2, RefreshCw, LogOut, Gamepad2, Globe } from "lucide-react";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { AdminGamesTab } from "@/components/AdminGamesTab";
+import { useUserTimezone } from "@/hooks/useUserTimezone";
+import { TIMEZONES } from "@/lib/timezones";
 
 export function AdminPanelView() {
-  const [tab, setTab] = useState<"servers" | "users" | "audit" | "database" | "plan" | "cron" | "deleted">("servers");
+  const [tab, setTab] = useState<"servers" | "users" | "audit" | "games" | "database" | "plan" | "cron" | "deleted">("servers");
   const { setCurrentServer } = useServer();
-  const { userRole } = useAuth();
+  const { userRole, signOut } = useAuth();
+  const { timezone, setTimezone } = useUserTimezone();
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [expandedUser, setExpandedUser] = useState<string | null>(null);
   const [userServers, setUserServers] = useState<Record<string, { server_id: string; server_name: string; role: string }[]>>({});
   const [loadingServers, setLoadingServers] = useState(false);
@@ -106,7 +112,36 @@ export function AdminPanelView() {
   }, [tab, servers, auditServerFilter]);
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-6 space-y-6">
+    <div className="min-h-screen bg-slate-950">
+      {/* Top bar */}
+      <div className="max-w-[90rem] mx-auto px-4 h-14 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <span className="font-bold text-white">RaidScout</span>
+          <span className="text-xs bg-purple-500/20 text-purple-400 px-2 py-0.5 rounded">Admin</span>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5 text-xs text-slate-500">
+            <Globe className="w-3.5 h-3.5" />
+            <select
+              value={timezone}
+              onChange={e => setTimezone(e.target.value)}
+              className="bg-slate-800 border border-slate-700 rounded px-2 py-1 text-slate-300 text-xs focus:outline-none focus:ring-1 focus:ring-purple-500"
+            >
+              {TIMEZONES.map(tz => (
+                <option key={tz.value} value={tz.value} className="bg-slate-800">{tz.label}</option>
+              ))}
+            </select>
+          </div>
+          <button
+            onClick={() => setShowLogoutConfirm(true)}
+            className="flex items-center gap-1.5 text-sm text-slate-400 hover:text-red-400 transition"
+          >
+            <LogOut className="w-4 h-4" /> Sign Out
+          </button>
+        </div>
+      </div>
+
+      <div className="max-w-3xl mx-auto px-4 py-6 space-y-6">
       <div className="flex items-center gap-3">
         <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-pink-400">
           <Shield className="w-5 h-5 text-white" />
@@ -144,7 +179,16 @@ export function AdminPanelView() {
           }`}
         >
           <ClipboardList className="w-3.5 h-3.5" />
-          Audit Log
+          Audit
+        </button>
+        <button
+          onClick={() => setTab("games")}
+          className={`flex flex-1 items-center justify-center gap-1 px-2 py-1.5 rounded-md text-xs font-medium transition whitespace-nowrap ${
+            tab === "games" ? "bg-slate-700 text-white" : "text-slate-400 hover:text-slate-200"
+          }`}
+        >
+          <Gamepad2 className="w-3.5 h-3.5" />
+          Games
         </button>
         <button
           onClick={() => setTab("database")}
@@ -839,6 +883,20 @@ export function AdminPanelView() {
           )}
         </div>
       )}
+
+      {/* Games Tab */}
+      {tab === "games" && <AdminGamesTab />}
+    </div>
+
+      {/* Logout Confirm */}
+      <ConfirmDialog
+        open={showLogoutConfirm}
+        title="Sign Out"
+        message="Are you sure you want to sign out?"
+        confirmLabel="Sign Out"
+        onConfirm={signOut}
+        onCancel={() => setShowLogoutConfirm(false)}
+      />
     </div>
   );
 }

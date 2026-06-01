@@ -6,6 +6,7 @@ interface AuthState {
   session: Session | null;
   user: User | null;
   userRole: string | null;
+  roleLoading: boolean;
   loading: boolean;
   isViewer: boolean;
   viewerServerId: string | null;
@@ -55,6 +56,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUserRole(null);
     }
   };
+
+  const [roleLoading, setRoleLoading] = useState(true);
 
   useEffect(() => {
     // Check for stored viewer key — re-verify with server to avoid stale settings
@@ -114,7 +117,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setViewerDiscordWebhookUrl(null);
         setViewerTimezone(null);
         localStorage.removeItem(VIEWER_KEY_STORAGE);
-        fetchRole(session.user.id);
+        fetchRole(session.user.id).finally(() => setRoleLoading(false));
+      } else {
+        setRoleLoading(false);
       }
       setLoading(false);
     });
@@ -133,9 +138,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setViewerDiscordWebhookUrl(null);
         setViewerTimezone(null);
         localStorage.removeItem(VIEWER_KEY_STORAGE);
-        fetchRole(session.user.id);
+        fetchRole(session.user.id).finally(() => setRoleLoading(false));
       } else {
         setUserRole(null);
+        setRoleLoading(false);
       }
       setLoading(false);
     });
@@ -208,7 +214,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ session, user, userRole, loading, isViewer, viewerServerId, viewerServerName, viewerKey, viewerCanEdit, viewerCanMarkDied, viewerDiscordWebhookUrl, viewerTimezone, viewerSignIn, signIn, signUp, signOut }}>
+    <AuthContext.Provider value={{ session, user, userRole, roleLoading, loading, isViewer, viewerServerId, viewerServerName, viewerKey, viewerCanEdit, viewerCanMarkDied, viewerDiscordWebhookUrl, viewerTimezone, viewerSignIn, signIn, signUp, signOut }}>
       {children}
     </AuthContext.Provider>
   );

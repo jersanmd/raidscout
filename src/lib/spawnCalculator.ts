@@ -94,8 +94,8 @@ function calculateFixedScheduleSpawn(boss: Boss, deathRecord: DeathRecord | null
  */
 function findMostRecentSlot(schedule: ScheduleSlot[], now: Date): ScheduleSlot | null {
   if (!now) return null;
-  const currentDay = now.getDay();
-  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+  const currentDay = now.getUTCDay();
+  const currentMinutes = now.getUTCHours() * 60 + now.getUTCMinutes();
 
   let best: ScheduleSlot | null = null;
   let bestMinutes = -1;
@@ -132,8 +132,8 @@ function findMostRecentSlot(schedule: ScheduleSlot[], now: Date): ScheduleSlot |
     if (best) {
       const slotTime = new Date(now);
       const daysBack = (currentDay - best.day + 7) % 7;
-      slotTime.setDate(slotTime.getDate() - (daysBack === 0 ? 7 : daysBack));
-      slotTime.setHours(
+      slotTime.setUTCDate(slotTime.getUTCDate() - (daysBack === 0 ? 7 : daysBack));
+      slotTime.setUTCHours(
         Math.floor(timeToMinutes(best.time) / 60),
         timeToMinutes(best.time) % 60,
         0, 0
@@ -160,8 +160,8 @@ function findMostRecentSlot(schedule: ScheduleSlot[], now: Date): ScheduleSlot |
  * If all slots this week have passed, returns next week's first slot.
  */
 export function findNextScheduleSlot(schedule: ScheduleSlot[], now: Date): Date {
-  const currentDay = now.getDay(); // 0-6
-  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+  const currentDay = now.getUTCDay();
+  const currentMinutes = now.getUTCHours() * 60 + now.getUTCMinutes();
 
   // Sort by (day, time) to find the next slot
   const sorted = [...schedule].sort((a, b) => {
@@ -254,37 +254,31 @@ function timeToMinutes(time: string): number {
   return h * 60 + m;
 }
 
-/** Build a Date for the most recent past occurrence of a schedule slot.
- *  Unlike buildDate (which always goes forward), this goes backward
- *  when the target day is earlier in the current week. */
+/** Build a Date for the most recent past occurrence of a schedule slot (UTC). */
 function buildSlotDate(now: Date, targetDay: number, time: string): Date {
   const d = new Date(now);
-  const currentDay = d.getDay();
-  let dayDiff = targetDay - currentDay; // ≤ 0 for slots found by findMostRecentSlot
+  const currentDay = d.getUTCDay();
+  let dayDiff = targetDay - currentDay;
   const [h, m] = time.split(":").map(Number);
   const targetMinutes = h * 60 + m;
-  const currentMinutes = d.getHours() * 60 + d.getMinutes();
-  // Same day but slot time is still in the future → it's actually last week's slot
+  const currentMinutes = d.getUTCHours() * 60 + d.getUTCMinutes();
   if (dayDiff === 0 && targetMinutes > currentMinutes) {
     dayDiff = -7;
   }
-  d.setDate(d.getDate() + dayDiff);
-  d.setHours(h, m, 0, 0);
+  d.setUTCDate(d.getUTCDate() + dayDiff);
+  d.setUTCHours(h, m, 0, 0);
   return d;
 }
 
 function buildDate(baseDate: Date, targetDay: number, time: string): Date {
   const d = new Date(baseDate);
-  const currentDay = d.getDay();
+  const currentDay = d.getUTCDay();
   let dayDiff = targetDay - currentDay;
   if (dayDiff < 0) dayDiff += 7;
-  if (dayDiff === 0) {
-    // Same day — keep today
-  }
-  d.setDate(d.getDate() + dayDiff);
+  d.setUTCDate(d.getUTCDate() + dayDiff);
 
   const [h, m] = time.split(":").map(Number);
-  d.setHours(h, m, 0, 0);
+  d.setUTCHours(h, m, 0, 0);
   return d;
 }
 

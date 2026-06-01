@@ -5,7 +5,7 @@ import { CountdownTimer } from "./CountdownTimer";
 import { DeathRecordModal } from "./DeathRecordModal";
 import { BossImage } from "./BossImage";
 import { Repeat, Timer, Skull, CheckSquare, Square, Shield, Pencil, X } from "lucide-react";
-import { useServerTimezone, formatInTimezone } from "@/hooks/useServerTimezone";
+import { useUserTimezone, formatInTimezone } from "@/hooks/useUserTimezone";
 import { useTimer } from "@/hooks/useTimer";
 import { guildColor } from "@/lib/constants";
 import type { BossWithSpawn } from "@/types";
@@ -42,7 +42,7 @@ interface BossCardProps {
 export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, onCriticalSpawn, onSpawned, compact = false, multiMode = false, selected = false, onToggleSelect, ownerGuildName, rotationGuilds, rotationCurrentIndex, rotationMode, onSetRotation, viewerCanEdit, viewerCanMarkDied, hasGuilds, justKilled }: BossCardProps) {
   const { isViewer } = useAuth();
   const { currentServer } = useServer();
-  const tz = useServerTimezone();
+  const { timezone: tz } = useUserTimezone();
   const [showModal, setShowModal] = useState(false);
   const [showEditSpawnModal, setShowEditSpawnModal] = useState(false);
   const [editSpawnDate, setEditSpawnDate] = useState("");

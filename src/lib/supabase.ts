@@ -64,6 +64,106 @@ export async function fetchGames(): Promise<any[]> {
   return data || [];
 }
 
+export async function createGame(name: string, slug: string, supportedSpawnTypes: string[], iconUrl?: string): Promise<any> {
+  const { data, error } = await supabase.from("games").insert({ name, slug, supported_spawn_types: supportedSpawnTypes, icon_url: iconUrl || null }).select().single();
+  if (error) throw error;
+  return data;
+}
+
+export async function updateGame(id: string, updates: { name?: string; slug?: string; supported_spawn_types?: string[]; icon_url?: string | null }): Promise<void> {
+  const { error } = await supabase.from("games").update(updates).eq("id", id);
+  if (error) throw error;
+}
+
+export async function deleteGame(id: string): Promise<void> {
+  const { error } = await supabase.from("games").delete().eq("id", id);
+  if (error) throw error;
+}
+
+// ── Game Icon Uploads ───────────────────────────────────────
+
+export async function uploadGameIcon(gameSlug: string, file: File): Promise<string> {
+  const ext = file.name.split(".").pop() || "png";
+  const path = `${gameSlug}.${ext}`;
+  const { error } = await supabase.storage.from("game-icons").upload(path, file, { upsert: true });
+  if (error) throw error;
+  const { data: { publicUrl } } = supabase.storage.from("game-icons").getPublicUrl(path);
+  return publicUrl;
+}
+
+export async function deleteGameIcon(gameSlug: string): Promise<void> {
+  // Try common extensions
+  for (const ext of ["png", "jpg", "jpeg", "webp", "gif"]) {
+    const { error } = await supabase.storage.from("game-icons").remove([`${gameSlug}.${ext}`]);
+    if (!error) return;
+  }
+}
+
+// ── Boss Image Uploads ──────────────────────────────────────
+
+export async function uploadBossImage(gameSlug: string, bossName: string, file: File): Promise<string> {
+  const ext = file.name.split(".").pop() || "png";
+  const path = `bosses/${gameSlug}/${bossName.replace(/[^a-zA-Z0-9]/g, "_")}.${ext}`;
+  const { error } = await supabase.storage.from("game-icons").upload(path, file, { upsert: true });
+  if (error) throw error;
+  const { data: { publicUrl } } = supabase.storage.from("game-icons").getPublicUrl(path);
+  return publicUrl;
+}
+
+// ── Templates ───────────────────────────────────────────────
+
+export async function fetchBossTemplates(gameId: string): Promise<any[]> {
+  const { data, error } = await supabase.from("boss_templates").select("*").eq("game_id", gameId).order("name");
+  if (error) throw error;
+  return data || [];
+}
+
+export async function fetchActivityTemplates(gameId: string): Promise<any[]> {
+  const { data, error } = await supabase.from("activity_templates").select("*").eq("game_id", gameId).order("name");
+  if (error) throw error;
+  return data || [];
+}
+
+export async function createBossTemplate(template: {
+  game_id: string; name: string; spawn_type: string; respawn_hours?: number | null;
+  schedule?: any; is_recurring?: boolean; category?: string | null;
+  tags?: string[]; points?: number; image_url?: string;
+}): Promise<any> {
+  const { data, error } = await supabase.from("boss_templates").insert(template).select().single();
+  if (error) throw error;
+  return data;
+}
+
+export async function updateBossTemplate(id: string, updates: Record<string, any>): Promise<void> {
+  const { error } = await supabase.from("boss_templates").update(updates).eq("id", id);
+  if (error) throw error;
+}
+
+export async function deleteBossTemplate(id: string): Promise<void> {
+  const { error } = await supabase.from("boss_templates").delete().eq("id", id);
+  if (error) throw error;
+}
+
+export async function createActivityTemplate(template: {
+  game_id: string; name: string; schedule_type: string; schedule?: any;
+  duration_minutes?: number | null; points_per_participant?: number;
+  party_size?: number | null; category?: string | null; tags?: string[];
+}): Promise<any> {
+  const { data, error } = await supabase.from("activity_templates").insert(template).select().single();
+  if (error) throw error;
+  return data;
+}
+
+export async function updateActivityTemplate(id: string, updates: Record<string, any>): Promise<void> {
+  const { error } = await supabase.from("activity_templates").update(updates).eq("id", id);
+  if (error) throw error;
+}
+
+export async function deleteActivityTemplate(id: string): Promise<void> {
+  const { error } = await supabase.from("activity_templates").delete().eq("id", id);
+  if (error) throw error;
+}
+
 // ── Activity Parties ────────────────────────────────────────
 
 export async function setActivityParties(activityInstanceId: string, parties: { party_number: number; member_ids: string[] }[]): Promise<void> {
@@ -1126,6 +1226,7 @@ export async function fetchHistoryFromSupabase(serverId?: string | null, since?:
 
     return {
       id: d.id,
+      type: "boss" as const,
       bossName: boss.name,
       deathTime: d.death_time,
       respawnTime: respawnTime.toISOString(),

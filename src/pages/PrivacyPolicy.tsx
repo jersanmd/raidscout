@@ -18,96 +18,206 @@ export function PrivacyPolicyView() {
           Back
         </button>
       <h1 className="text-2xl font-bold text-white">Privacy Policy</h1>
-      <p className="text-slate-500 text-xs">Last updated: May 21, 2026</p>
+      <p className="text-slate-500 text-xs">Last updated: June 1, 2026</p>
 
       <section className="space-y-2">
         <h2 className="text-lg font-semibold text-white">1. Information We Collect</h2>
-        <p>When you use RaidScout, we collect the following information:</p>
+        <p>When you create an account and use RaidScout, we collect the following categories of information:</p>
+
+        <h3 className="text-base font-medium text-slate-200 mt-3">1.1 Account Information</h3>
         <ul className="list-disc pl-5 space-y-1">
-          <li><strong>Account Information:</strong> Email address (used for authentication via Supabase Auth)</li>
-          <li><strong>Server Data:</strong> Server names, guild names, boss data, death records, and member names you create</li>
-          <li><strong>Attendance Data:</strong> Records of which members participated in boss kills</li>
-          <li><strong>Discord Webhook URLs:</strong> If you configure Discord notifications</li>
-          <li><strong>Uploaded Screenshots:</strong> Rally images uploaded for AI name extraction (processed in-memory, not stored)</li>
+          <li><strong>Email address</strong> — required for account creation and authentication via Supabase Auth</li>
+          <li><strong>Hashed password</strong> — stored securely; we never see or access your plain-text password</li>
+          <li><strong>Session tokens</strong> — used to maintain your authenticated session</li>
+        </ul>
+
+        <h3 className="text-base font-medium text-slate-200 mt-3">1.2 Server &amp; Game Data</h3>
+        <ul className="list-disc pl-5 space-y-1">
+          <li>Server names and configuration settings (timezone, notification preferences)</li>
+          <li>Guild/clan names and member rosters you create</li>
+          <li>Boss names, spawn schedules, death records, and timer data</li>
+          <li>Attendance records tracking which members participated in boss kills or activities</li>
+          <li>Activity schedules, party compositions, and activity attendance data</li>
+          <li>Leaderboard rankings and point adjustments</li>
+        </ul>
+
+        <h3 className="text-base font-medium text-slate-200 mt-3">1.3 Integration Data</h3>
+        <ul className="list-disc pl-5 space-y-1">
+          <li><strong>Discord webhook URLs</strong> — if you configure Discord notifications</li>
+          <li><strong>Discord guild IDs</strong> — if you link a Discord bot to your server</li>
+        </ul>
+
+        <h3 className="text-base font-medium text-slate-200 mt-3">1.4 AI Vision Data (Optional)</h3>
+        <ul className="list-disc pl-5 space-y-1">
+          <li>Screenshots uploaded for name extraction are sent to AI providers (OpenAI or DeepSeek) for processing</li>
+          <li>Screenshots are processed <strong>in-memory only</strong> — they are not stored on our servers or by the AI providers per their API data usage policies</li>
+          <li>Only the extracted text (member names) is stored as server data</li>
+        </ul>
+
+        <h3 className="text-base font-medium text-slate-200 mt-3">1.5 Automatically Collected Information</h3>
+        <ul className="list-disc pl-5 space-y-1">
+          <li>Audit log entries recording administrative actions (server creation, setting changes, role assignments)</li>
+          <li>No tracking cookies, analytics cookies, or advertising identifiers are used</li>
+          <li>No IP addresses, browser fingerprints, or device information is logged or stored</li>
         </ul>
       </section>
 
       <section className="space-y-2">
         <h2 className="text-lg font-semibold text-white">2. How We Use Your Information</h2>
+        <p>We use the collected information for the following purposes:</p>
         <ul className="list-disc pl-5 space-y-1">
-          <li>To provide and maintain the Service (boss timers, leaderboards, guild management)</li>
-          <li>To authenticate your account via email/password</li>
-          <li>To send Discord notifications to your configured webhook</li>
-          <li>To extract player names from uploaded screenshots using AI (OpenAI GPT-4o mini or similar)</li>
+          <li><strong>Service Delivery:</strong> To provide core features — boss timers, spawn tracking, leaderboards, guild management, activity scheduling, and server administration</li>
+          <li><strong>Authentication:</strong> To verify your identity and maintain your login session via Supabase Auth</li>
+          <li><strong>Discord Integration:</strong> To deliver spawn alerts and notifications to your configured Discord channels via webhooks</li>
+          <li><strong>AI Vision:</strong> To extract player names from uploaded screenshots for rally/attendance purposes</li>
+          <li><strong>Audit Logging:</strong> To maintain a record of administrative actions for server management transparency</li>
+          <li><strong>Service Improvement:</strong> To analyze usage patterns and improve functionality (using aggregated, anonymized data only)</li>
         </ul>
       </section>
 
       <section className="space-y-2">
-        <h2 className="text-lg font-semibold text-white">3. Data Storage &amp; Security</h2>
+        <h2 className="text-lg font-semibold text-white">3. Legal Basis for Processing</h2>
         <p>
-          All data is stored in Supabase, a secure PostgreSQL database platform. Your password is hashed and never
-          stored in plain text. Authentication is handled through Supabase Auth. Uploaded screenshots are processed
-          in-memory and are <strong>not stored</strong> on our servers.
-        </p>
-      </section>
-
-      <section className="space-y-2">
-        <h2 className="text-lg font-semibold text-white">4. Data Sharing</h2>
-        <p>
-          We do <strong>not</strong> sell, trade, or share your personal data with third parties, except:
+          We process your personal data based on the following legal grounds:
         </p>
         <ul className="list-disc pl-5 space-y-1">
-          <li>Discord: If you configure webhook notifications, boss kill/spawn data is sent to your Discord server</li>
-          <li>AI Providers: Screenshots are sent to OpenAI or DeepSeek for name extraction (not stored by them per API terms)</li>
-          <li>Supabase: Data is hosted on Supabase infrastructure</li>
+          <li><strong>Contractual Necessity:</strong> Processing your email and server data is necessary to provide the Service you have requested</li>
+          <li><strong>Consent:</strong> For optional features such as Discord notifications and AI-powered screenshot processing, we rely on your explicit consent (configurable in server settings)</li>
+          <li><strong>Legitimate Interests:</strong> Audit logging and aggregated analytics serve our legitimate interest in maintaining service security and improving functionality</li>
         </ul>
       </section>
 
       <section className="space-y-2">
-        <h2 className="text-lg font-semibold text-white">5. Cookies</h2>
+        <h2 className="text-lg font-semibold text-white">4. Data Storage &amp; Security</h2>
         <p>
-          RaidScout uses essential cookies for authentication (session tokens managed by Supabase Auth). We do not
-          use tracking cookies or analytics cookies.
+          All data is stored on Supabase, a SOC 2 compliant cloud platform built on Amazon Web Services (AWS)
+          infrastructure with PostgreSQL databases. Security measures include:
+        </p>
+        <ul className="list-disc pl-5 space-y-1">
+          <li>Passwords are hashed using bcrypt; we never store plain-text passwords</li>
+          <li>All data transmission is encrypted via HTTPS/TLS</li>
+          <li>Row-Level Security (RLS) policies restrict data access to authorized users</li>
+          <li>Database access is restricted to the Service and authorized administrators</li>
+          <li>Uploaded screenshots are transmitted securely and processed in-memory without persistent storage</li>
+        </ul>
+        <p>
+          While we implement reasonable security measures, no method of electronic storage or transmission is 100%
+          secure. We cannot guarantee absolute security of your data.
         </p>
       </section>
 
       <section className="space-y-2">
-        <h2 className="text-lg font-semibold text-white">6. Your Rights</h2>
-        <p>You have the right to:</p>
+        <h2 className="text-lg font-semibold text-white">5. Data Sharing &amp; Third-Party Processors</h2>
+        <p>We do <strong>not</strong> sell, trade, rent, or share your personal data with third parties for their
+        marketing purposes. Data is shared only with the following service providers necessary to operate the Service:</p>
+
+        <table className="w-full text-left border-collapse">
+          <thead>
+            <tr className="border-b border-slate-700">
+              <th className="py-2 pr-4 text-slate-200 font-medium">Provider</th>
+              <th className="py-2 pr-4 text-slate-200 font-medium">Purpose</th>
+              <th className="py-2 text-slate-200 font-medium">Data Shared</th>
+            </tr>
+          </thead>
+          <tbody className="text-slate-400">
+            <tr className="border-b border-slate-800">
+              <td className="py-2 pr-4">Supabase</td>
+              <td className="py-2 pr-4">Database, Auth, &amp; Hosting</td>
+              <td className="py-2">All application data</td>
+            </tr>
+            <tr className="border-b border-slate-800">
+              <td className="py-2 pr-4">Discord</td>
+              <td className="py-2 pr-4">Notifications (optional)</td>
+              <td className="py-2">Boss spawn data, guild info via webhook</td>
+            </tr>
+            <tr className="border-b border-slate-800">
+              <td className="py-2 pr-4">OpenAI / DeepSeek</td>
+              <td className="py-2 pr-4">AI Vision (optional)</td>
+              <td className="py-2">Uploaded screenshots (in-memory, not stored)</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section className="space-y-2">
+        <h2 className="text-lg font-semibold text-white">6. Cookies</h2>
+        <p>
+          RaidScout uses only essential authentication cookies (session tokens managed by Supabase Auth) required
+          for the Service to function. We do not use:
+        </p>
         <ul className="list-disc pl-5 space-y-1">
-          <li>Access your personal data stored in the Service</li>
-          <li>Request deletion of your account and associated data</li>
-          <li>Request a copy of your data</li>
+          <li>Tracking cookies or third-party analytics cookies</li>
+          <li>Advertising or marketing cookies</li>
+          <li>Social media tracking pixels</li>
         </ul>
-        <p>To exercise these rights, contact us through our Discord Community.</p>
+        <p>
+          The Service stores your server preference in your browser&apos;s local storage so you return to your last
+          active server on subsequent visits. This is stored locally and is not transmitted to our servers.
+        </p>
       </section>
 
       <section className="space-y-2">
         <h2 className="text-lg font-semibold text-white">7. Data Retention</h2>
+        <ul className="list-disc pl-5 space-y-1">
+          <li><strong>Account Data:</strong> Retained until you delete your account. Upon deletion, your email and
+          authentication data are removed from Supabase Auth</li>
+          <li><strong>Server Data:</strong> Retained until the Server Owner deletes the server. Server data may be
+          soft-deleted (recoverable) for a period before permanent deletion</li>
+          <li><strong>Audit Logs:</strong> Retained for a reasonable period for security and administrative purposes</li>
+          <li><strong>Screenshots:</strong> Not stored — processed in-memory and immediately discarded</li>
+        </ul>
+      </section>
+
+      <section className="space-y-2">
+        <h2 className="text-lg font-semibold text-white">8. Your Rights</h2>
+        <p>Depending on your jurisdiction, you may have the following rights regarding your personal data:</p>
+        <ul className="list-disc pl-5 space-y-1">
+          <li><strong>Access:</strong> Request a copy of your personal data</li>
+          <li><strong>Rectification:</strong> Correct inaccurate or incomplete data</li>
+          <li><strong>Erasure:</strong> Request deletion of your account and associated data</li>
+          <li><strong>Restriction:</strong> Request limitation on how your data is processed</li>
+          <li><strong>Portability:</strong> Receive your data in a structured, machine-readable format</li>
+          <li><strong>Objection:</strong> Object to processing based on legitimate interests</li>
+        </ul>
         <p>
-          Your data is retained as long as your account exists or the server you belong to exists. When you delete
-          your account, your personal data is removed. Server owners can delete server data at any time.
+          To exercise any of these rights, contact us through our Discord Community. We will respond within 30 days.
+          Note that some data may be retained as required by law or for legitimate business purposes.
         </p>
       </section>
 
       <section className="space-y-2">
-        <h2 className="text-lg font-semibold text-white">8. Children&apos;s Privacy</h2>
+        <h2 className="text-lg font-semibold text-white">9. Children&apos;s Privacy</h2>
         <p>
-          The Service is not directed at children under 13. We do not knowingly collect personal data from children.
+          The Service is not directed at children under the age of 13. We do not knowingly collect personal
+          information from children under 13. If we become aware that a child under 13 has provided us with
+          personal information, we will take steps to delete such information and terminate the account. If you
+          believe a child under 13 has created an account, please contact us immediately.
         </p>
       </section>
 
       <section className="space-y-2">
-        <h2 className="text-lg font-semibold text-white">9. Changes to This Policy</h2>
+        <h2 className="text-lg font-semibold text-white">10. International Data Transfers</h2>
         <p>
-          We may update this Privacy Policy from time to time. Changes will be posted on this page with an updated date.
+          Your data is stored on Supabase servers located in the Asia-Pacific region. By using the Service,
+          you consent to the transfer and processing of your data in this jurisdiction. We take appropriate
+          safeguards to ensure your data is protected in accordance with this Privacy Policy.
         </p>
       </section>
 
       <section className="space-y-2">
-        <h2 className="text-lg font-semibold text-white">10. Contact Us</h2>
+        <h2 className="text-lg font-semibold text-white">11. Changes to This Policy</h2>
         <p>
-          For privacy-related inquiries, reach out through our{" "}
+          We may update this Privacy Policy from time to time. Material changes will be communicated through
+          our Discord community. The &ldquo;Last updated&rdquo; date at the top of this page reflects the most
+          recent revision. Continued use of the Service after changes are posted constitutes acceptance of the
+          updated Privacy Policy.
+        </p>
+      </section>
+
+      <section className="space-y-2">
+        <h2 className="text-lg font-semibold text-white">12. Contact Us</h2>
+        <p>
+          For privacy-related inquiries, data requests, or concerns, reach out through our{" "}
           <a href="https://discord.gg/738AmkeQtU" target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:text-indigo-300 transition">
             Discord Community
           </a>{" "}
