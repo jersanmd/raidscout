@@ -33,8 +33,6 @@ export function getCurrentViewerKey(): string | null { return _currentViewerKey;
 
 // ── Server Management ──────────────────────────────────────
 
-import { BOSSES } from "./constants";
-
 export async function createServer(name: string, gameId: string, seed: boolean = true, guildName?: string): Promise<{ id: string; name: string; guild_id?: string }> {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Not authenticated");

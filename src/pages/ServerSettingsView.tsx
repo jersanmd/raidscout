@@ -155,24 +155,9 @@ export function ServerSettingsView() {
   const [bossGuilds, setBossGuildsState] = useState<BossGuild[]>([]);
   const [bossGuildsLoading, setBossGuildsLoading] = useState(false);
 
-  // Boss priority ordering (for display in Boss Guilds tab)
-  const BOSS_PRIORITY = [
-    "Venatus", "Viorent", "Ego", "Clemantis", "Livera", "Araneo", "Undomiel",
-    "Saphirus", "Neutro", "Lady Dalia", "General Aquleus", "Thymele", "Amentis",
-    "Baron", "Milavy", "Wannitas", "Metus", "Duplican", "Shuliar", "Ringor",
-    "Roderick", "Gareth", "Titore", "Larba", "Catena", "Auraq", "Secreta",
-    "Ordo", "Asta", "Supore", "Chaiflock", "Benji", "Libitina", "Rakajeth",
-    "Icaruthia", "Motti", "Nevaeh", "Tumier", "Lucus",
-  ];
-
   const sortedBosses = useMemo(() => {
-    return [...bosses].sort((a, b) => {
-      const ia = BOSS_PRIORITY.indexOf(a.name);
-      const ib = BOSS_PRIORITY.indexOf(b.name);
-      if (ia === -1 && ib === -1) return a.name.localeCompare(b.name);
-      if (ia === -1) return 1;
-      if (ib === -1) return -1;
-      return ia - ib;
+    return [...bosses].sort((a, b) => a.name.localeCompare(b.name));
+  }, [bosses]);
     });
   }, [bosses]);
 
