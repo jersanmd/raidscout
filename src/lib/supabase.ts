@@ -304,11 +304,24 @@ export async function fetchServerStats(serverId: string): Promise<{
   boss_count: number;
   death_count: number;
   has_webhook: boolean;
+  total_raid_members?: number;
+  guild_members?: { guild: string; count: number }[];
 }> {
   const { data, error } = await supabase
     .rpc("get_server_stats", { p_server_id: serverId });
   if (error) throw error;
-  return (data as any) ?? { member_count: 0, boss_count: 0, death_count: 0, has_webhook: false };
+  const stats = (data as any) ?? { member_count: 0, boss_count: 0, death_count: 0, has_webhook: false };
+  
+  // Also check linked Discord configs for Bot Alerts status
+  if (!stats.has_webhook) {
+    const { count } = await supabase
+      .from("discord_configs")
+      .select("*", { count: "exact", head: true })
+      .eq("raidscout_server_id", serverId);
+    stats.has_webhook = (count ?? 0) > 0;
+  }
+  
+  return stats;
 }
 
 export async function fetchDatabaseStats(): Promise<any> {

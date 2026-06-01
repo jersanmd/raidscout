@@ -191,17 +191,6 @@ export function Layout() {
             </nav>
             )}
 
-            {/* Admin without server: prompt to go to admin panel */}
-            {isAdmin && !hasServer && (
-              <button
-                onClick={() => navigate("/admin")}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-purple-600 text-white hover:bg-purple-500 transition"
-              >
-                <Shield className="w-3.5 h-3.5" />
-                Admin Panel
-              </button>
-            )}
-
             {/* Server selector */}
             <div className="flex items-center gap-1">
               {isViewer ? (
@@ -226,16 +215,6 @@ export function Layout() {
                   Create Server
                 </button>
               ) : null}
-              {/* Admin: always show admin panel link */}
-              {isAdmin && (
-                <button
-                  onClick={() => navigate("/admin")}
-                  className="text-purple-400 hover:text-purple-300 p-1 transition"
-                  title="Admin Panel"
-                >
-                  <Shield className="w-3.5 h-3.5" />
-                </button>
-              )}
             </div>
 
             {/* User menu dropdown */}
@@ -265,6 +244,11 @@ export function Layout() {
                           ))}
                         </select>
                       </div>
+                      {isAdmin && (
+                        <NavLink to="/admin" onClick={() => setShowUserMenu(false)} className="flex items-center gap-2 px-4 py-2 text-sm text-purple-300 hover:bg-slate-700 transition">
+                          <Shield className="w-4 h-4" /> Admin Panel
+                        </NavLink>
+                      )}
                       {hasServer && (
                         <NavLink to="/server-settings" onClick={() => setShowUserMenu(false)} className="flex items-center gap-2 px-4 py-2 text-sm text-slate-300 hover:bg-slate-700 transition">
                           <Settings className="w-4 h-4" /> Server Settings

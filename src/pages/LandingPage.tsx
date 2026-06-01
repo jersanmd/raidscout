@@ -18,7 +18,7 @@ const features = [
   { icon: <Calendar className="w-6 h-6" />, color: "border-cyan-500/30 bg-cyan-500/5", title: "Weekly Schedule", desc: "Full week grid. See which guild owns which boss on every day. Click to manage." },
   { icon: <Skull className="w-6 h-6" />, color: "border-red-500/30 bg-red-500/5", title: "Death History", desc: "Complete kill log with guild badges. Attendance tracking per kill. Edit or delete entries." },
   { icon: <Bot className="w-6 h-6" />, color: "border-indigo-500/30 bg-indigo-500/5", title: "Discord Bot Commands", desc: "Track multiple servers from one Discord. Each gets its own prefix (!, ;, $, etc). Export attendance and analytics to Excel." },
-  { icon: <Eye className="w-6 h-6" />, color: "border-orange-500/30 bg-orange-500/5", glow: "hover:shadow-[0_0_30px_rgba(249,115,22,0.15)]", title: "Viewer Mode", desc: "Share a link so your members can watch timers, no account or login required. Read-only, always free." },
+  { icon: <Eye className="w-6 h-6" />, color: "border-orange-500/30 bg-orange-500/5", glow: "hover:shadow-[0_0_30px_rgba(249,115,22,0.15)]", title: "Viewer Mode", desc: "Share a link so your members can watch timers, no account or login required." },
 ];
 
 // ── Animated Counter ────────────────────────────────────────
@@ -221,7 +221,7 @@ export function LandingPage() {
           "@context": "https://schema.org",
           "@type": "WebApplication",
           name: "RaidScout",
-          description: "Track 39+ boss spawns, rotate multi-guild kills, scan rallies with AI, and compete on leaderboards. Forever free.",
+          description: "Track 39+ boss spawns, rotate multi-guild kills, scan rallies with AI, and compete on leaderboards.",
           url: "https://www.raidscout.com",
           applicationCategory: "GameApplication",
           operatingSystem: "Web",
@@ -284,7 +284,7 @@ export function LandingPage() {
               onClick={() => document.getElementById("get-started")?.scrollIntoView({ behavior: "smooth" })}
               className="group px-8 py-3.5 rounded-xl font-semibold bg-gradient-to-r from-red-600 to-orange-500 text-white hover:from-red-500 hover:to-orange-400 hover:scale-105 active:scale-95 transition-all duration-200 shadow-lg shadow-red-900/30 text-base"
             >
-              Start Free
+              Get Started
               <span className="inline-block ml-2 group-hover:translate-x-0.5 transition-transform">→</span>
             </button>
             <button

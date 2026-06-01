@@ -90,11 +90,10 @@ serve(async (req: Request) => {
       const attendeeList = attendees?.length
         ? attendees.join(", ")
         : "No participants recorded";
-      const guildLine = guild_name ? ` - ${guild_name}` : "";
-      content = `${ping} ${boss_name} has been defeated!`;
+      const byLine = guild_name ? ` by ${guild_name}` : "";
+      content = `${ping} ${boss_name}${byLine} — defeated!`;
       embed = {
-        title: `☠️ ${boss_name}${guildLine} has been defeated!`,
-        description: `**${boss_name}** has been killed on **${serverName}**.`,
+        title: `☠️ ${boss_name}${byLine}`,
         color: 0xef4444, // red
         fields: [
           { name: "Participants", value: attendeeList, inline: false },
@@ -104,13 +103,10 @@ serve(async (req: Request) => {
         footer: { text: "Powered by RaidScout" },
       };
     } else if (event === "boss_spawned") {
-      const guildLine = guild_name ? ` - ${guild_name}` : "";
-      const desc = `**${boss_name}** is now alive on **${serverName}**.` +
-        (spawn_time ? "\nSpawn time: " + spawn_time : "");
+      const guildLine = guild_name ? ` of ${guild_name}` : "";
       content = `${ping} ${boss_name} is spawning!!!`;
       embed = {
-        title: `⚔️ ${boss_name}${guildLine} is spawning!!!`,
-        description: desc,
+        title: `⚔️ ${boss_name}${guildLine} has spawned.`,
         color: 0x22c55e, // green
         fields: [
           { name: "Server", value: serverName, inline: true },
