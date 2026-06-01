@@ -794,14 +794,8 @@ async function handleMessage(msg: any) {
 
     // Send kill notification to all linked Discord servers
     const killUnix = Math.floor(deathTime.getTime() / 1000);
-    const brdFields: any[] = [{ name: "Death Time", value: `<t:${killUnix}:f>`, inline: true }, { name: "Recorded By", value: author, inline: true }];
-    if (nextSpawnField) brdFields.push(nextSpawnField);
-    broadcastNotification(serverId, {
-      title: `☠️ ${boss.name} Killed by ${guildName || author}`,
-      color: 0xef4444,
-      fields: brdFields,
-      footer: { text: "Powered by RaidScout" },
-    }, channelId);
+    const killText = `☠️ **${boss.name}** Killed by **${guildName || author}** — <t:${killUnix}:f>${nextSpawnUnix > 0 ? `\nNext Spawn: <t:${nextSpawnUnix}:f>` : ""}`;
+    broadcastNotification(serverId, {}, channelId, killText);
     const unix = Math.floor(deathTime.getTime() / 1000);
     const replyFields: any[] = [
       { name: "Death Time", value: `<t:${unix}:f>`, inline: true },
@@ -928,9 +922,9 @@ createServer(async (req, res) => {
           sentNotifs.set(dedupKey, now);
         }
 
-        let embed: any;
+        let result;
         if (event === "boss_died" && boss_name) {
-          // Compute next spawn time for the embed
+          // Compute next spawn time
           let nextSpawnField = "";
           try {
             const bossRows = await supabaseQuerySafe(`bosses?server_id=eq.${server_id}&name=eq.${encodeURIComponent(boss_name)}&limit=1`);
@@ -947,37 +941,14 @@ createServer(async (req, res) => {
                 spawn = findNextScheduleSlot(boss.schedule, now, tz);
               } else { spawn = now; }
               if (spawn > now) {
-                nextSpawnField = `<t:${Math.floor(spawn.getTime() / 1000)}:f>`;
-              } else {
-                nextSpawnField = "Now (Alive)";
+                nextSpawnField = `\nNext Spawn: <t:${Math.floor(spawn.getTime() / 1000)}:f>`;
               }
             }
           } catch {}
-          const fields: any[] = [{ name: "Death Time", value: `<t:${Math.floor(Date.now() / 1000)}:f>`, inline: true }];
-          if (recorded_by) fields.push({ name: "Recorded By", value: recorded_by, inline: true });
-          if (nextSpawnField) fields.push({ name: "Next Spawn", value: nextSpawnField, inline: true });
-          embed = {
-            title: `☠️ ${boss_name} Killed by ${guild_name || recorded_by || "Unknown"}`,
-            color: 0xef4444,
-            fields,
-            footer: { text: "Powered by RaidScout" },
-          };
-        } else if (event === "boss_spawning" && boss_name) {
-          embed = {
-            title: `⚠️ ${boss_name} will spawn in ~5 minutes!`,
-            description: guild_name ? `**${guild_name}** — <t:${Math.floor(Date.now() / 1000 + 300)}:f>` : `<t:${Math.floor(Date.now() / 1000 + 300)}:f>`,
-            color: 0xf59e0b,
-            footer: { text: "Powered by RaidScout" },
-          };
-        } else if (event === "boss_spawned" && boss_name) {
-          embed = {
-            title: `⚠️ ${boss_name} has spawned!`,
-            description: guild_name ? `**${guild_name}** — <t:${Math.floor(Date.now() / 1000)}:f>` : `<t:${Math.floor(Date.now() / 1000)}:f>`,
-            color: 0x22c55e,
-            footer: { text: "Powered by RaidScout" },
-          };
+          const killText = `☠️ **${boss_name}** Killed by **${guild_name || recorded_by || "Unknown"}** — <t:${Math.floor(Date.now() / 1000)}:f>${nextSpawnField}`;
+          result = await broadcastNotification(server_id, {}, undefined, killText);
         } else if (event === "parties_announced" && activity_name && parties) {
-          embed = {
+          const embed = {
             title: `📋 ${activity_name} — Party Assignments`,
             fields: parties.map((p: any) => ({
               name: `Party ${p.party_number}`,
@@ -987,11 +958,13 @@ createServer(async (req, res) => {
             color: 0x3b82f6,
             footer: { text: "Powered by RaidScout" },
           };
+          result = await broadcastNotification(server_id, embed);
         } else {
-          res.writeHead(400); res.end(JSON.stringify({ error: "Invalid event" })); return;
+          // Spawn events are handled by cron, not this endpoint
+          res.writeHead(200); res.end(JSON.stringify({ skipped: "handled by cron or invalid event" }));
+          return;
         }
 
-        const result = await broadcastNotification(server_id, embed);
         res.writeHead(200); res.end(JSON.stringify(result));
       } catch (err: any) {
         console.error("Notify error:", err.message);
