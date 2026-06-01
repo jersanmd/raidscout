@@ -3,9 +3,9 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { useServer } from "@/contexts/ServerContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { deleteServer, transferServerOwnership, removeServerModerator, addServerModerator, supabase, fetchServerMembers, type ServerMember, fetchGuilds, createGuild, updateGuildName, deleteGuild, fetchBossGuilds, setBossGuilds, fetchBosses, setBossPoints } from "@/lib/supabase";
+import { deleteServer, transferServerOwnership, removeServerModerator, addServerModerator, supabase, fetchServerMembers, type ServerMember, fetchGuilds, createGuild, updateGuildName, deleteGuild, fetchBossGuilds, setBossGuilds, fetchBosses, setBossPoints, notifyDiscord } from "@/lib/supabase";
 import type { Guild, BossGuild, Boss } from "@/types";
-import { Loader2, Trash2, Crown, ArrowLeft, Server, Check, Key, Copy, RefreshCw, Plus, LogIn, Users, Bell, Link, Settings, AlertTriangle, X, Shield, Pencil, Swords, ChevronUp, ChevronDown, CheckSquare, Square, Eye, EyeOff, UserPlus, Minus, Trophy } from "lucide-react";
+import { Loader2, Trash2, Crown, ArrowLeft, Server, Check, Key, Copy, RefreshCw, Plus, LogIn, Users, Bell, Link, Settings, AlertTriangle, X, Shield, Pencil, Swords, ChevronUp, ChevronDown, CheckSquare, Square, Eye, EyeOff, UserPlus, Minus, Trophy, Send } from "lucide-react";
 import { CreateServerModal } from "@/components/CreateServerModal";
 import { useToast } from "@/contexts/ToastContext";
 
@@ -115,6 +115,7 @@ export function ServerSettingsView() {
   const [editAliasLinkId, setEditAliasLinkId] = useState<string | null>(null);
   const [editAliases, setEditAliases] = useState<Record<string, string>>({});
   const [channelValues, setChannelValues] = useState<Record<string, { notif: string; cmd: string }>>({});
+  const [testingDiscord, setTestingDiscord] = useState<Set<string>>(new Set());
   const [searchParams] = useSearchParams();
   const tabParam = searchParams.get("tab");
   const initialTab = (tabParam === "general" || tabParam === "members" || tabParam === "integrations" || tabParam === "danger")
@@ -1234,8 +1235,8 @@ export function ServerSettingsView() {
                                 <select
                                   key={`add-daily-${boss.id}-${bossAssignments.length}`}
                                   value=""
-                                  onChange={(e) => { if (e.target.value) handleAddDailyGuild(boss.id, e.target.value); }}
-                                  className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-xs text-slate-400 outline-none focus:border-blue-500"
+                                  onChange={(e) => { if (e.target.value) handleBulkAddDailyGuild(e.target.value); }}
+                                  className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-xs text-slate-400 outline-none focus:border-cyan-500"
                                 >
                                   <option value="">+ Add guild to daily rotation...</option>
                                   {guilds.map(g => (
@@ -1272,7 +1273,7 @@ export function ServerSettingsView() {
                                 <select
                                   key={`add-${boss.id}-${bossAssignments.length}`}
                                   value=""
-                                  onChange={(e) => { if (e.target.value) handleAddRotationGuild(boss.id, e.target.value); }}
+                                  onChange={(e) => { if (e.target.value) handleBulkAddRotationGuild(e.target.value); }}
                                   className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-xs text-slate-400 outline-none focus:border-blue-500"
                                 >
                                   <option value="">+ Add guild to rotation...</option>
@@ -1298,12 +1299,15 @@ export function ServerSettingsView() {
                                       <select
                                         value={guild?.id ?? ""}
                                         onChange={(e) => handleSetScheduleGuild(boss.id, dow, e.target.value || null)}
-                                        className="w-full bg-slate-800 border border-slate-700 rounded px-1 py-1 text-xs text-white outline-none focus:border-purple-500"
+                                        className={`w-full rounded-lg px-1.5 py-1.5 text-xs outline-none disabled:opacity-50 border ${
+                                          guild
+                                            ? "bg-purple-900/20 border-purple-700 text-purple-300"
+                                            : "bg-slate-800 border-slate-700 text-white"
+                                        } focus:border-purple-500`}
                                       >
                                         <option value="">—</option>
-                                        {guilds.map(g => (
-                                          <option key={g.id} value={g.id}>{g.name}</option>
-                                        ))}
+                                        <option value="">Clear</option>
+                                        {guilds.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
                                       </select>
                                     </div>
                                   );
@@ -1694,9 +1698,38 @@ export function ServerSettingsView() {
                       </div>
                     )}
                   </div>
-                  <button onClick={() => { setEditAliasLinkId(link.id); setEditAliases((link as any).command_aliases || {}); }} className="text-[10px] text-slate-500 hover:text-purple-400 transition mt-1">
-                    <Pencil className="w-3 h-3 inline mr-1" />Edit Commands
-                  </button>
+                  <div className="flex items-center gap-2 mt-1">
+                    <button onClick={() => { setEditAliasLinkId(link.id); setEditAliases((link as any).command_aliases || {}); }} className="text-[10px] text-slate-500 hover:text-purple-400 transition">
+                      <Pencil className="w-3 h-3 inline mr-1" />Edit Commands
+                    </button>
+                    <button
+                      onClick={async () => {
+                        if (!currentServer) return;
+                        setTestingDiscord(prev => new Set(prev).add(link.id));
+                        try {
+                          const r = await notifyDiscord(currentServer.id, "boss_died", {
+                            boss_name: "Test Notification (Ignore)",
+                            guild_name: "System",
+                          });
+                          if (r.ok) {
+                            toast("success", "Test notification sent!");
+                          } else {
+                            toast("error", "Failed to send. Check channel IDs and bot status.");
+                          }
+                        } catch {
+                          toast("error", "Failed to send. Is the bot online?");
+                        } finally {
+                          setTestingDiscord(prev => { const n = new Set(prev); n.delete(link.id); return n; });
+                        }
+                      }}
+                      disabled={testingDiscord.has(link.id)}
+                      className="text-[10px] text-slate-500 hover:text-amber-400 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                      title="Send a test notification to this server"
+                    >
+                      {testingDiscord.has(link.id) ? <Loader2 className="w-3 h-3 inline mr-1 animate-spin" /> : <Send className="w-3 h-3 inline mr-1" />}
+                      Test
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>

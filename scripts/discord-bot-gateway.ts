@@ -18,6 +18,16 @@ let botUserId = "";
 if (!SUPABASE_URL) { console.error("Set SUPABASE_URL"); process.exit(1); }
 if (!SUPABASE_KEY) { console.error("Set SUPABASE_SERVICE_ROLE_KEY"); process.exit(1); }
 
+// ── Crash resilience ──────────────────────────────────────
+
+process.on("uncaughtException", (err) => {
+  console.error("Uncaught exception:", err.message, err.stack?.split("\n")[1]?.trim());
+});
+
+process.on("unhandledRejection", (reason: any) => {
+  console.error("Unhandled rejection:", reason?.message ?? reason);
+});
+
 // ── Supabase REST helpers ──────────────────────────────────
 
 async function supabaseQuery(path: string): Promise<any> {
@@ -249,7 +259,8 @@ async function connect() {
   });
 
   ws.on("message", (raw) => {
-    const msg = JSON.parse(raw.toString());
+    let msg: any;
+    try { msg = JSON.parse(raw.toString()); } catch { return; }
     const { op, d, t, s } = msg;
 
     if (s) seq = s;
@@ -812,6 +823,14 @@ async function handleMessage(msg: any) {
 
 const sentNotifs = new Map<string, number>(); // dedup: "serverId-event-bossName" → timestamp
 
+// Clean up stale dedup entries every 5 minutes
+setInterval(() => {
+  const cutoff = Date.now() - 60_000;
+  for (const [key, ts] of sentNotifs) {
+    if (ts < cutoff) sentNotifs.delete(key);
+  }
+}, 5 * 60_000);
+
 // ── Shared: send notification embed to ALL linked Discord servers ─
 
 async function broadcastNotification(serverId: string, embed: any, skipChannelId?: string): Promise<{ ok: boolean; skipped?: string }> {
@@ -975,6 +994,131 @@ createServer(async (req, res) => {
 }).listen(NOTIFY_PORT, () => {
   console.log(`Notify HTTP server on port ${NOTIFY_PORT}`);
 });
+
+// ── Spawn Cron: auto-announce boss_spawning / boss_spawned ─
+
+let cronStarted = false;
+
+async function runSpawnCron() {
+  try {
+    // Get all unique servers linked via discord_configs
+    const configs = await supabaseQuerySafe("discord_configs?select=raidscout_server_id&order=created_at");
+    const serverIds = [...new Set((configs || []).map((c: any) => c.raidscout_server_id))];
+    if (serverIds.length === 0) return;
+
+    const now = Date.now();
+    const nowUnix = Math.floor(now / 1000);
+
+    for (const serverId of serverIds) {
+      try {
+        // Fetch bosses, latest death per boss, guilds, and boss_guilds for this server
+        const [bosses, allDeaths, guilds, bossGuilds] = await Promise.all([
+          supabaseQuerySafe(`bosses?server_id=eq.${serverId}&order=name`),
+          supabaseQuerySafe(`death_records?server_id=eq.${serverId}&order=death_time.desc&limit=500`),
+          supabaseQuerySafe(`guilds?server_id=eq.${serverId}`),
+          supabaseQuerySafe(`boss_guilds?select=*`),
+        ]);
+
+        if (!bosses?.length) continue;
+
+        // Filter boss_guilds to this server's guilds
+        const serverGuildIds = new Set((guilds || []).map((g: any) => g.id));
+        const serverBossGuilds = (bossGuilds || []).filter((bg: any) => serverGuildIds.has(bg.guild_id));
+
+        const tz = await resolveServerTimezone(serverId);
+
+        for (const boss of bosses) {
+          // Get latest non-initial death record for this boss
+          const lastDeath = (allDeaths || [])
+            .filter((d: any) => d.boss_id === boss.id && !d.is_initial_spawn)
+            .sort((a: any, b: any) => new Date(b.death_time).getTime() - new Date(a.death_time).getTime())[0];
+
+          // Calculate next spawn time
+          let spawnTime: Date;
+          if (boss.spawn_type === "fixed_hours") {
+            spawnTime = lastDeath
+              ? addHours(new Date(lastDeath.death_time), boss.respawn_hours ?? 0)
+              : new Date(); // no death record → assume alive now
+          } else if (boss.spawn_type === "fixed_schedule" && boss.schedule) {
+            const baseTime = lastDeath ? new Date(lastDeath.death_time) : new Date();
+            spawnTime = findNextScheduleSlot(boss.schedule, baseTime, tz);
+          } else {
+            continue;
+          }
+
+          const spawnUnix = Math.floor(spawnTime.getTime() / 1000);
+          const secsUntilSpawn = spawnUnix - nowUnix;
+
+          // ── 5-minute warning ──
+          if (secsUntilSpawn > 0 && secsUntilSpawn <= 300) {
+            const dedupKey = `${serverId}-${boss.id}-boss_spawning-${spawnUnix}`;
+            const existing = await supabaseQuerySafe(
+              `spawn_notifications?server_id=eq.${serverId}&boss_id=eq.${boss.id}&event=eq.boss_spawning&spawn_timestamp=eq.${spawnUnix}&limit=1`
+            );
+            if (!existing?.length) {
+              const guildName = computeOwnerGuild(boss, serverBossGuilds, guilds, lastDeath, spawnTime, tz) || "";
+              const embed = {
+                title: `⏰ ${boss.name} Spawning Soon`,
+                description: guildName ? `**${guildName}** — ${boss.name} spawns in 5 min.` : `${boss.name} spawns in 5 minutes.`,
+                color: 0xf59e0b,
+                footer: { text: "Powered by RaidScout" },
+              };
+              await broadcastNotification(serverId, embed);
+              // Record sent notification
+              await fetch(`${SUPABASE_URL}/rest/v1/spawn_notifications`, {
+                method: "POST",
+                headers: { apikey: SUPABASE_KEY!, Authorization: `Bearer ${SUPABASE_KEY!}`, "Content-Type": "application/json", Prefer: "return=minimal" },
+                body: JSON.stringify({ server_id: serverId, boss_id: boss.id, event: "boss_spawning", spawn_timestamp: spawnUnix }),
+              }).catch(() => {});
+            }
+          }
+
+          // ── Spawning now ──
+          if (secsUntilSpawn <= 0 && secsUntilSpawn >= -60) {
+            const dedupKey = `${serverId}-${boss.id}-boss_spawned-${spawnUnix}`;
+            const existing = await supabaseQuerySafe(
+              `spawn_notifications?server_id=eq.${serverId}&boss_id=eq.${boss.id}&event=eq.boss_spawned&spawn_timestamp=eq.${spawnUnix}&limit=1`
+            );
+            if (!existing?.length) {
+              const guildName = computeOwnerGuild(boss, serverBossGuilds, guilds, lastDeath, spawnTime, tz) || "";
+              const embed = {
+                title: `🟢 ${boss.name} Spawning Now`,
+                description: guildName ? `**${guildName}** — ${boss.name} has spawned!` : `${boss.name} has spawned!`,
+                color: 0x22c55e,
+                footer: { text: "Powered by RaidScout" },
+              };
+              await broadcastNotification(serverId, embed);
+              await fetch(`${SUPABASE_URL}/rest/v1/spawn_notifications`, {
+                method: "POST",
+                headers: { apikey: SUPABASE_KEY!, Authorization: `Bearer ${SUPABASE_KEY!}`, "Content-Type": "application/json", Prefer: "return=minimal" },
+                body: JSON.stringify({ server_id: serverId, boss_id: boss.id, event: "boss_spawned", spawn_timestamp: spawnUnix }),
+              }).catch(() => {});
+            }
+          }
+        }
+      } catch (serverErr: any) {
+        console.error(`Spawn cron error for server ${serverId}:`, serverErr.message);
+        // Continue with next server
+      }
+    }
+
+    // Cleanup old dedup rows (>7 days) — once per tick is plenty
+    try {
+      await fetch(`${SUPABASE_URL}/rest/v1/spawn_notifications?created_at=lt.${new Date(Date.now() - 7 * 86400_000).toISOString()}`, {
+        method: "DELETE",
+        headers: { apikey: SUPABASE_KEY!, Authorization: `Bearer ${SUPABASE_KEY!}` },
+      }).catch(() => {});
+    } catch { /* cleanup is best-effort */ }
+  } catch (err: any) {
+    console.error("Spawn cron tick failed:", err.message);
+  }
+}
+
+if (!cronStarted) {
+  setInterval(runSpawnCron, 30_000);
+  cronStarted = true;
+  console.log("Spawn cron started (30s tick)");
+}
 
 // ── Start ──────────────────────────────────────────────────
 
