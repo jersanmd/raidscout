@@ -1,4 +1,5 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { useBossSpawns } from "@/hooks/useBossSpawns";
 import { useDeathRecords } from "@/hooks/useDeathRecords";
@@ -31,12 +32,13 @@ import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { emitSpawnAlert } from "@/hooks/useSpawnAlerts";
 import { guildColor } from "@/lib/constants";
 import { getOwnerGuildName, getRotationInfo } from "@/lib/rotation";
-import { Skull, Loader2, X, CheckCircle, AlertTriangle, CheckSquare, Megaphone, Volume2, VolumeX, Eye, Copy } from "lucide-react";
+import { Skull, Loader2, X, CheckCircle, AlertTriangle, CheckSquare, Megaphone, Volume2, VolumeX, Eye, Copy, Settings } from "lucide-react";
 import type { BossWithSpawn, BossGuild, Guild, DeathRecord } from "@/types";
 
 const sentAlerts = new Set<string>();
 
 export function BossListView() {
+  const navigate = useNavigate();
   const { user, userRole, isViewer, viewerCanEdit: ctxViewerCanEdit, viewerCanMarkDied: ctxViewerCanMarkDied, viewerDiscordWebhookUrl: ctxDiscordWebhookUrl } = useAuth();
   const { currentServer } = useServer();
   const queryClient = useQueryClient();
@@ -614,6 +616,7 @@ export function BossListView() {
 
       {/* Bosses grouped by day */}
       {groupedSpawns.length === 0 ? (
+        (searchText || filterType !== "all" || filterWindow) ? (
         <div className="text-center py-16">
           <p className="text-slate-500 text-lg">No bosses match your filters</p>
           <button
@@ -627,6 +630,24 @@ export function BossListView() {
             Clear filters
           </button>
         </div>
+        ) : (
+        <div className="text-center py-16 space-y-4">
+          <div className="flex items-center justify-center w-16 h-16 mx-auto rounded-2xl bg-slate-800 border border-slate-700">
+            <span className="text-2xl">📋</span>
+          </div>
+          <p className="text-slate-400 text-lg">Nothing to track yet</p>
+          <p className="text-slate-500 text-sm max-w-sm mx-auto">
+            Add bosses or activities in Server Settings to get started.
+          </p>
+          <button
+            onClick={() => navigate("/server-settings")}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium bg-purple-600 text-white hover:bg-purple-500 transition"
+          >
+            <Settings className="w-4 h-4" />
+            Go to Server Settings
+          </button>
+        </div>
+        )
       ) : (
         <div className="space-y-8">
           {groupedSpawns.map((group) => (
