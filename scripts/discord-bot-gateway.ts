@@ -788,6 +788,11 @@ async function handleMessage(msg: any) {
     if (!bosses?.length) return reply(`Boss **${bossName}** not found.`);
     const boss = bosses[0];
 
+    // Fetch recent deaths (needed for both cooldown and alive check)
+    const recentDeaths = await supabaseQuery(
+      `death_records?server_id=eq.${serverId}&boss_id=eq.${boss.id}&order=death_time.desc&limit=1`
+    );
+
     // ── Alive check: only allow killing alive bosses ──
     let isAlive = false;
     const tz = await resolveServerTimezone(serverId);
@@ -796,7 +801,7 @@ async function handleMessage(msg: any) {
     if (boss.spawn_type === "fixed_hours") {
       const lastDeathForAlive = recentDeaths?.[0];
       if (lastDeathForAlive) {
-        const spawnTime = new Date(lastDeathForAlive.death_time.getTime() + (boss.respawn_hours ?? 0) * 3600000);
+        const spawnTime = new Date(new Date(lastDeathForAlive.death_time).getTime() + (boss.respawn_hours ?? 0) * 3600000);
         isAlive = spawnTime <= aliveNow;
       } else {
         isAlive = true; // No death records → initial spawn
@@ -830,9 +835,6 @@ async function handleMessage(msg: any) {
     }
 
     // Cooldown: prevent duplicate kills within 2 hours
-    const recentDeaths = await supabaseQuery(
-      `death_records?server_id=eq.${serverId}&boss_id=eq.${boss.id}&order=death_time.desc&limit=1`
-    );
     if (recentDeaths?.length) {
       const lastKill = new Date(recentDeaths[0].death_time);
       const cooldownEnd = new Date(lastKill.getTime() + 2 * 3600_000);
@@ -853,7 +855,6 @@ async function handleMessage(msg: any) {
       if (h > 23 || m > 59) return reply("Invalid time.");
 
       // Interpret custom time in the server's timezone
-      const tz = await resolveServerTimezone(serverId);
       const now = new Date();
       const localDate = now.toLocaleDateString("en-CA", { timeZone: tz });
       const [y, mo, d] = localDate.split("-").map(Number);
