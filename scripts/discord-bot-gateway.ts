@@ -832,7 +832,7 @@ setInterval(() => {
 
 // ── Shared: send notification embed to ALL linked Discord servers ─
 
-async function broadcastNotification(serverId: string, embed: any, skipChannelId?: string): Promise<{ ok: boolean; skipped?: string }> {
+async function broadcastNotification(serverId: string, embed: any, skipChannelId?: string, textContent?: string): Promise<{ ok: boolean; skipped?: string }> {
   const rows = await supabaseQuerySafe(
     `discord_configs?raidscout_server_id=eq.${serverId}&select=notification_channel_id,discord_guild_id`
   );
@@ -871,10 +871,17 @@ async function broadcastNotification(serverId: string, embed: any, skipChannelId
         return id ? `<@&${id}>` : `@${name}`;
       });
     }
+    const body: any = { allowed_mentions: { parse: ["everyone"] } };
+    if (textContent) {
+      body.content = (prefix || "") + textContent;
+    } else {
+      body.content = prefix || undefined;
+      body.embeds = [embed];
+    }
     const discordRes = await fetch(`https://discord.com/api/v10/channels/${cfg.notification_channel_id}/messages`, {
       method: "POST",
       headers: { Authorization: `Bot ${TOKEN}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ content: prefix || undefined, embeds: [embed], allowed_mentions: { parse: ["everyone"] } }),
+      body: JSON.stringify(body),
     });
     if (!discordRes.ok) {
       const errText = await discordRes.text().catch(() => "");
@@ -957,13 +964,15 @@ createServer(async (req, res) => {
           };
         } else if (event === "boss_spawning" && boss_name) {
           embed = {
-            title: `⏰ ${boss_name}${guild_name ? ` of ${guild_name}` : ""} spawns in 5 min.`,
+            title: `⚠️ ${boss_name} will spawn in ~5 minutes!`,
+            description: guild_name ? `**${guild_name}** — <t:${Math.floor(Date.now() / 1000 + 300)}:f>` : `<t:${Math.floor(Date.now() / 1000 + 300)}:f>`,
             color: 0xf59e0b,
             footer: { text: "Powered by RaidScout" },
           };
         } else if (event === "boss_spawned" && boss_name) {
           embed = {
-            title: `🟢 ${boss_name}${guild_name ? ` of ${guild_name}` : ""} has spawned.`,
+            title: `⚠️ ${boss_name} has spawned!`,
+            description: guild_name ? `**${guild_name}** — <t:${Math.floor(Date.now() / 1000)}:f>` : `<t:${Math.floor(Date.now() / 1000)}:f>`,
             color: 0x22c55e,
             footer: { text: "Powered by RaidScout" },
           };
@@ -1063,13 +1072,8 @@ async function runSpawnCron() {
             );
             if (!existing?.length) {
               const guildName = computeOwnerGuild(boss, serverBossGuilds, guilds, lastDeath, spawnTime, tz) || "";
-              const embed = {
-                title: `⏰ ${boss.name} Spawning Soon`,
-                description: guildName ? `**${guildName}** — ${boss.name} spawns in 5 min.` : `${boss.name} spawns in 5 minutes.`,
-                color: 0xf59e0b,
-                footer: { text: "Powered by RaidScout" },
-              };
-              await broadcastNotification(serverId, embed);
+              const text = `⚠️ **${boss.name}** will spawn in ~5 minutes!\n${guildName ? `**${guildName}** — ` : ""}<t:${spawnUnix}:f>`;
+              await broadcastNotification(serverId, {}, undefined, text);
               // Record sent notification
               await fetch(`${SUPABASE_URL}/rest/v1/spawn_notifications`, {
                 method: "POST",
@@ -1087,13 +1091,8 @@ async function runSpawnCron() {
             );
             if (!existing?.length) {
               const guildName = computeOwnerGuild(boss, serverBossGuilds, guilds, lastDeath, spawnTime, tz) || "";
-              const embed = {
-                title: `🟢 ${boss.name} Spawning Now`,
-                description: guildName ? `**${guildName}** — ${boss.name} has spawned!` : `${boss.name} has spawned!`,
-                color: 0x22c55e,
-                footer: { text: "Powered by RaidScout" },
-              };
-              await broadcastNotification(serverId, embed);
+              const text = `⚠️ **${boss.name}** has spawned!\n${guildName ? `**${guildName}** — ` : ""}<t:${spawnUnix}:f>`;
+              await broadcastNotification(serverId, {}, undefined, text);
               await fetch(`${SUPABASE_URL}/rest/v1/spawn_notifications`, {
                 method: "POST",
                 headers: { apikey: SUPABASE_KEY!, Authorization: `Bearer ${SUPABASE_KEY!}`, "Content-Type": "application/json", Prefer: "return=minimal" },
