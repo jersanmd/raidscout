@@ -1,8 +1,8 @@
-import { useState } from "react";
-import { supabase, createServer } from "@/lib/supabase";
+﻿import { useState, useEffect } from "react";
+import { supabase, createServer, fetchGames } from "@/lib/supabase";
 import { useServer } from "@/contexts/ServerContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { Loader2, Plus, Key, Server, ArrowRight, LogOut } from "lucide-react";
+import { Loader2, Plus, Key, Server, ArrowRight, LogOut, Gamepad2 } from "lucide-react";
 
 export function NoServerView() {
   const { refreshServers } = useServer();
@@ -13,27 +13,37 @@ export function NoServerView() {
   const [inviteCode, setInviteCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [games, setGames] = useState<any[]>([]);
+  const [selectedGame, setSelectedGame] = useState<any>(null);
+  const [seed, setSeed] = useState(true);
+  const [gamesLoading, setGamesLoading] = useState(true);
+
+  useEffect(() => {
+    fetchGames()
+      .then(setGames)
+      .catch(() => setGames([]))
+      .finally(() => setGamesLoading(false));
+  }, []);
 
   const handleCreate = async () => {
     const serverTrimmed = serverName.trim();
     const guildTrimmed = guildName.trim();
-    if (!serverTrimmed || !guildTrimmed) return;
+    if (!serverTrimmed || !guildTrimmed || !selectedGame) return;
     setLoading(true);
     setError(null);
     try {
-      // Check for duplicate server name
       const { data: existing } = await supabase
         .from("servers")
         .select("id")
         .eq("name", serverTrimmed)
         .maybeSingle();
       if (existing) {
-        setError("A server with this name already exists. Choose a different name.");
+        setError("A server with this name already exists.");
         setLoading(false);
         return;
       }
-
-      const server = await createServer(serverTrimmed, guildTrimmed);
+      const isSeeded = selectedGame.id !== "custom" && seed;
+      await createServer(serverTrimmed, selectedGame.id, isSeeded, guildTrimmed);
       await refreshServers();
     } catch (err: any) {
       setError(err?.message ?? "Failed to create server");
@@ -46,15 +56,9 @@ export function NoServerView() {
     setLoading(true);
     setError(null);
     try {
-      const { data, error: rpcErr } = await supabase.rpc("join_server_by_invite", {
-        invite: inviteCode.trim(),
-      });
+      const { data, error: rpcErr } = await supabase.rpc("join_server_by_invite", { invite: inviteCode.trim() });
       if (rpcErr) throw rpcErr;
-      if ((data as any)?.error) {
-        setError((data as any).error);
-        setLoading(false);
-        return;
-      }
+      if ((data as any)?.error) { setError((data as any).error); setLoading(false); return; }
       await refreshServers();
     } catch (err: any) {
       setError(err?.message ?? "Failed to join server");
@@ -63,6 +67,7 @@ export function NoServerView() {
   };
 
   if (loading) {
+    const isSeeded = selectedGame && selectedGame.id !== "custom" && seed;
     return (
       <div className="min-h-[60vh] flex items-center justify-center p-4">
         <div className="text-center space-y-6">
@@ -72,7 +77,9 @@ export function NoServerView() {
           </div>
           <div>
             <h2 className="text-lg font-bold text-white">Creating your server</h2>
-            <p className="text-sm text-slate-400 mt-1">Seeding 39 bosses and setting up your guild...</p>
+            <p className="text-sm text-slate-400 mt-1">
+              {isSeeded ? `Seeding from ${selectedGame?.name ?? "templates"}...` : "Setting up empty server..."}
+            </p>
             <p className="text-xs text-slate-600 mt-2">This may take a few seconds</p>
           </div>
         </div>
@@ -83,48 +90,75 @@ export function NoServerView() {
   if (mode === "choose") {
     return (
       <div className="min-h-[60vh] flex items-center justify-center p-4">
-        <div className="text-center space-y-6 max-w-sm">
-          <div className="flex items-center justify-center w-16 h-16 mx-auto rounded-2xl bg-gradient-to-br from-emerald-500 to-green-400">
-            <Server className="w-8 h-8 text-white" />
+        <div className="text-center space-y-6 max-w-md w-full">
+          <div className="flex items-center justify-center w-16 h-16 mx-auto rounded-2xl bg-gradient-to-br from-purple-500 to-pink-400">
+            <Gamepad2 className="w-8 h-8 text-white" />
           </div>
           <div>
-            <h2 className="text-xl font-bold text-white">Welcome!</h2>
-            <p className="text-slate-400 text-sm mt-1">
-              You don't have a server yet. Choose how to get started.
-            </p>
+            <h2 className="text-xl font-bold text-white">Pick a Game</h2>
+            <p className="text-slate-400 text-sm mt-1">Select a game to start tracking bosses and activities.</p>
           </div>
-          <div className="space-y-3">
+
+          {/* Game list */}
+          <div className="space-y-2">
+            {gamesLoading ? (
+              <Loader2 className="w-5 h-5 text-slate-500 animate-spin mx-auto" />
+            ) : (
+              games.map(g => (
+                <button
+                  key={g.id}
+                  onClick={() => { setSelectedGame(g); setMode("create"); }}
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-slate-800 border border-slate-700 text-white hover:border-emerald-500 hover:bg-slate-700/50 transition text-left"
+                >
+                  <Gamepad2 className="w-5 h-5 text-purple-400 shrink-0" />
+                  <div className="flex-1 text-left">
+                    <p className="font-semibold text-sm">{g.name}</p>
+                    <p className="text-xs text-slate-500">{g.supported_spawn_types?.length || 0} spawn types</p>
+                  </div>
+                  <ArrowRight className="w-4 h-4 text-slate-500" />
+                </button>
+              ))
+            )}
             <button
-              onClick={() => setMode("create")}
-              className="w-full flex items-center justify-between px-4 py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-green-500 text-white hover:from-emerald-500 hover:to-green-400 transition text-left"
+              onClick={() => { setSelectedGame({ id: "custom", name: "Custom (no seed)" }); setMode("create"); }}
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-slate-800/50 border border-dashed border-slate-700 text-slate-400 hover:text-white hover:border-slate-500 transition text-left"
             >
-              <div className="flex items-center gap-3">
-                <Plus className="w-5 h-5" />
-                <div>
-                  <p className="font-semibold text-sm">Create a Server</p>
-                  <p className="text-xs text-emerald-200">Start fresh with 39 bosses pre-loaded</p>
-                </div>
+              <Plus className="w-5 h-5 shrink-0" />
+              <div className="flex-1 text-left">
+                <p className="font-semibold text-sm">Custom (no seed)</p>
+                <p className="text-xs text-slate-500">Start with an empty server</p>
               </div>
               <ArrowRight className="w-4 h-4" />
             </button>
+          </div>
+
+          {/* Divider */}
+          <div className="flex items-center gap-3">
+            <div className="flex-1 h-px bg-slate-700" />
+            <span className="text-xs text-slate-500">or</span>
+            <div className="flex-1 h-px bg-slate-700" />
+          </div>
+
+          {/* Join */}
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={inviteCode}
+              onChange={(e) => setInviteCode(e.target.value)}
+              placeholder="Invite code..."
+              onKeyDown={(e) => e.key === "Enter" && handleJoin()}
+              className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 outline-none focus:border-blue-500 transition text-center"
+            />
             <button
-              onClick={() => setMode("join")}
-              className="w-full flex items-center justify-between px-4 py-3 rounded-xl bg-slate-800 border border-slate-700 text-white hover:bg-slate-700 transition text-left"
+              onClick={handleJoin}
+              disabled={loading || !inviteCode.trim()}
+              className="px-4 py-2 rounded-lg text-sm font-medium bg-blue-600 text-white hover:bg-blue-500 transition disabled:opacity-50"
             >
-              <div className="flex items-center gap-3">
-                <Key className="w-5 h-5 text-blue-400" />
-                <div>
-                  <p className="font-semibold text-sm">Join as Moderator</p>
-                  <p className="text-xs text-slate-400">Enter an invite code from a server owner</p>
-                </div>
-              </div>
-              <ArrowRight className="w-4 h-4 text-slate-500" />
+              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Join"}
             </button>
           </div>
-          <button
-            onClick={signOut}
-            className="flex items-center justify-center gap-1 text-xs text-slate-500 hover:text-red-400 transition"
-          >
+
+          <button onClick={signOut} className="flex items-center justify-center gap-1 text-xs text-slate-500 hover:text-red-400 transition">
             <LogOut className="w-3 h-3" /> Sign Out
           </button>
         </div>
@@ -133,16 +167,29 @@ export function NoServerView() {
   }
 
   if (mode === "create") {
+    const isCustom = selectedGame?.id === "custom";
+    const hasSeeds = !isCustom;
     return (
       <div className="min-h-[60vh] flex items-center justify-center p-4">
         <div className="text-center space-y-4 max-w-sm w-full">
           <div className="flex items-center justify-center w-12 h-12 mx-auto rounded-xl bg-emerald-900/30">
-            <Plus className="w-6 h-6 text-emerald-400" />
+            <Server className="w-6 h-6 text-emerald-400" />
           </div>
-          <h2 className="text-lg font-bold text-white">Create a Server</h2>
+          <h2 className="text-lg font-bold text-white">Create Server</h2>
           <p className="text-sm text-slate-400">
-            Your server will come with 39 bosses pre-loaded. A default guild is required.
+            {isCustom ? "Start with an empty server. Add bosses and activities later." : `Based on ${selectedGame?.name ?? "templates"}.`}
           </p>
+
+          {hasSeeds && (
+            <label className="flex items-center justify-between px-4 py-3 rounded-xl bg-slate-800/50 border border-slate-700 cursor-pointer hover:border-emerald-700/50 transition">
+              <div className="text-left">
+                <p className="text-sm text-white">Seed with {selectedGame?.name} templates</p>
+                <p className="text-xs text-slate-500">Pre-load bosses and activities</p>
+              </div>
+              <input type="checkbox" checked={seed} onChange={(e) => setSeed(e.target.checked)} className="w-4 h-4 rounded accent-emerald-500" />
+            </label>
+          )}
+
           <input
             type="text"
             value={serverName}
@@ -177,7 +224,6 @@ export function NoServerView() {
     );
   }
 
-  // Join mode
   return (
     <div className="min-h-[60vh] flex items-center justify-center p-4">
       <div className="text-center space-y-4 max-w-sm w-full">
@@ -185,30 +231,14 @@ export function NoServerView() {
           <Key className="w-6 h-6 text-blue-400" />
         </div>
         <h2 className="text-lg font-bold text-white">Join as Moderator</h2>
-        <p className="text-sm text-slate-400">
-          Ask the server owner for their invite code to join as a moderator.
-        </p>
-        <input
-          type="text"
-          value={inviteCode}
-          onChange={(e) => setInviteCode(e.target.value)}
-          placeholder="Enter invite code..."
-          autoFocus
-          onKeyDown={(e) => e.key === "Enter" && handleJoin()}
-          className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 outline-none focus:border-blue-500 transition text-center"
-        />
+        <p className="text-sm text-slate-400">Ask the server owner for their invite code.</p>
+        <input type="text" value={inviteCode} onChange={(e) => setInviteCode(e.target.value)} placeholder="Enter invite code..." autoFocus onKeyDown={(e) => e.key === "Enter" && handleJoin()} className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 outline-none focus:border-blue-500 transition text-center" />
         {error && <p className="text-xs text-red-400">{error}</p>}
-        <button
-          onClick={handleJoin}
-          disabled={loading || !inviteCode.trim()}
-          className="w-full py-2.5 rounded-lg font-medium text-sm bg-blue-600 text-white hover:bg-blue-500 transition disabled:opacity-50 flex items-center justify-center gap-2"
-        >
+        <button onClick={handleJoin} disabled={loading || !inviteCode.trim()} className="w-full py-2.5 rounded-lg font-medium text-sm bg-blue-600 text-white hover:bg-blue-500 transition disabled:opacity-50 flex items-center justify-center gap-2">
           {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Key className="w-4 h-4" />}
           Join Server
         </button>
-        <button onClick={() => { setMode("choose"); setError(null); }} className="text-xs text-slate-500 hover:text-slate-400">
-          ← Back
-        </button>
+        <button onClick={() => { setMode("choose"); setError(null); }} className="text-xs text-slate-500 hover:text-slate-400">← Back</button>
       </div>
     </div>
   );

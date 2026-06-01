@@ -35,16 +35,35 @@ export function getCurrentViewerKey(): string | null { return _currentViewerKey;
 
 import { BOSSES } from "./constants";
 
-export async function createServer(name: string, guildName?: string): Promise<{ id: string; name: string; guild_id?: string }> {
+export async function createServer(name: string, gameId: string, seed: boolean = true, guildName?: string): Promise<{ id: string; name: string; guild_id?: string }> {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Not authenticated");
 
-  // Use RPC function that creates server + seeds bosses + creates guild in one transaction
+  // Use RPC function that creates server + optionally seeds bosses/activities + creates guild in one transaction
   const { data, error } = await supabase
-    .rpc("create_server_with_bosses", { server_name: name.trim(), guild_name: guildName?.trim() || null });
+    .rpc("create_server_with_bosses", { p_name: name.trim(), p_game_id: gameId, p_seed: seed });
 
   if (error) throw error;
-  return data as { id: string; name: string; guild_id?: string };
+
+  // If a guild name was provided, create it
+  let guildId: string | undefined;
+  if (guildName?.trim() && data) {
+    const serverId = typeof data === 'string' ? data : (data as any).id || data;
+    const { data: g, error: gErr } = await supabase
+      .from("guilds")
+      .insert({ name: guildName.trim(), server_id: serverId })
+      .select("id")
+      .single();
+    if (!gErr && g) guildId = g.id;
+  }
+
+  return { id: typeof data === 'string' ? data : (data as any).id || data, name: name.trim(), guild_id: guildId };
+}
+
+export async function fetchGames(): Promise<any[]> {
+  const { data, error } = await supabase.from("games").select("*").order("created_at");
+  if (error) throw error;
+  return data || [];
 }
 
 export async function updateServerName(serverId: string, name: string): Promise<void> {
