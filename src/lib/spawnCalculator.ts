@@ -17,6 +17,10 @@ export function calculateSpawnInfo(
   now: Date = new Date(),
   spawnOverride?: { death_time: string } | null
 ): SpawnInfo {
+  // One-time boss: completed if already killed
+  if (boss.is_recurring === false && deathRecord) {
+    return { boss, nextSpawn: null, status: "unknown" as SpawnStatus, deathRecord };
+  }
   if (boss.spawn_type === "fixed_hours") {
     return calculateFixedHoursSpawn(boss, deathRecord, now, spawnOverride);
   }

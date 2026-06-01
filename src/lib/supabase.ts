@@ -250,7 +250,7 @@ export async function fetchServerMembers(serverId: string): Promise<ServerMember
 export async function fetchBosses(serverId?: string | null): Promise<Boss[]> {
   const sid = serverId ?? getCurrentServerId();
   if (!sid) return [];
-  let query = supabase.from("bosses").select("*").order("name").eq("server_id", sid);
+  let query = supabase.from("bosses").select("*").order("name").eq("server_id", sid).eq("is_enabled", true);
 
   const { data, error } = await query;
 
