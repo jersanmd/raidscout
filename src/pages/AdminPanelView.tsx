@@ -1,21 +1,23 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { fetchAllServers, fetchAllUsers, fetchAuditLog, fetchServerStats, fetchDatabaseStats, fetchPlanUsage, fetchCronStatus, restoreServer, supabase } from "@/lib/supabase";
 import { useServer } from "@/contexts/ServerContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { Loader2, Shield, Server, Users, Eye, ChevronDown, ChevronUp, ClipboardList, HardDrive, BarChart3, Crosshair, Skull, Activity, Radio, Clock, Trash2, RefreshCw, LogOut, Gamepad2, Globe } from "lucide-react";
+import { Loader2, Shield, Server, Users, Eye, ChevronDown, ChevronUp, ClipboardList, HardDrive, BarChart3, Crosshair, Skull, Activity, Radio, Clock, Trash2, RefreshCw, LogOut, Gamepad2, Globe, ExternalLink } from "lucide-react";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { AdminGamesTab } from "@/components/AdminGamesTab";
 import { useUserTimezone } from "@/hooks/useUserTimezone";
 import { TIMEZONES } from "@/lib/timezones";
+import { version } from "../../package.json";
 
 export function AdminPanelView() {
-  const [tab, setTab] = useState<"servers" | "users" | "audit" | "games" | "database" | "plan" | "cron" | "deleted">("servers");
+  const [tab, setTab] = useState<"servers" | "users" | "audit" | "games" | "database" | "plan" | "cron" | "deleted">("games");
   const { setCurrentServer } = useServer();
-  const { userRole, signOut } = useAuth();
+  const { userRole, user, signOut } = useAuth();
   const { timezone, setTimezone } = useUserTimezone();
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
   const [expandedUser, setExpandedUser] = useState<string | null>(null);
   const [userServers, setUserServers] = useState<Record<string, { server_id: string; server_name: string; role: string }[]>>({});
   const [loadingServers, setLoadingServers] = useState(false);
@@ -112,15 +114,18 @@ export function AdminPanelView() {
   }, [tab, servers, auditServerFilter]);
 
   return (
-    <div className="min-h-screen bg-slate-950">
+    <div className="min-h-screen bg-slate-950 flex flex-col">
       {/* Top bar */}
-      <div className="max-w-[90rem] mx-auto px-4 h-14 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <span className="font-bold text-white">RaidScout</span>
-          <span className="text-xs bg-purple-500/20 text-purple-400 px-2 py-0.5 rounded">Admin</span>
-        </div>
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5 text-xs text-slate-500">
+      <div className="w-full border-b border-slate-800/50 bg-slate-950/70 backdrop-blur-xl">
+        <div className="max-w-[90rem] mx-auto px-4 h-14 flex items-center">
+          {/* Left: Logo + Admin badge */}
+          <div className="flex items-center gap-3 flex-1">
+            <span className="font-bold text-white">RaidScout</span>
+            <span className="text-xs bg-purple-500/20 text-purple-400 px-2 py-0.5 rounded">Admin</span>
+          </div>
+
+          {/* Center: Timezone */}
+          <div className="flex items-center gap-1.5 text-xs text-slate-500 shrink-0">
             <Globe className="w-3.5 h-3.5" />
             <select
               value={timezone}
@@ -132,16 +137,36 @@ export function AdminPanelView() {
               ))}
             </select>
           </div>
-          <button
-            onClick={() => setShowLogoutConfirm(true)}
-            className="flex items-center gap-1.5 text-sm text-slate-400 hover:text-red-400 transition"
-          >
-            <LogOut className="w-4 h-4" /> Sign Out
-          </button>
+
+          {/* Right: User menu */}
+          <div className="flex items-center gap-3 flex-1 justify-end">
+            <div className="relative">
+              <button onClick={() => setShowUserMenu(!showUserMenu)} className="flex items-center gap-1 text-slate-400 hover:text-white text-sm transition p-1.5 rounded-md hover:bg-slate-800" title="Menu">
+                <span className="text-xs hidden md:block">{user?.email?.split("@")[0]}</span>
+                <ChevronDown className={`w-3 h-3 transition ${showUserMenu ? "rotate-180" : ""}`} />
+              </button>
+              {showUserMenu && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setShowUserMenu(false)} />
+                  <div className="absolute right-0 top-full mt-1 w-56 bg-slate-800 border border-slate-700 rounded-xl shadow-2xl z-50 overflow-hidden">
+                    <div className="px-4 py-3 border-b border-slate-700">
+                      <div className="text-sm font-semibold text-white">{user?.email?.split("@")[0]}</div>
+                      <div className="text-xs text-slate-500">{user?.email}</div>
+                    </div>
+                    <div className="py-1">
+                      <button onClick={() => { setShowUserMenu(false); setShowLogoutConfirm(true); }} className="w-full text-left flex items-center gap-2 px-4 py-2 text-sm text-slate-300 hover:bg-slate-700 transition">
+                        <LogOut className="w-4 h-4" /> Sign Out
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
         </div>
       </div>
 
-      <div className="max-w-3xl mx-auto px-4 py-6 space-y-6">
+      <div className="max-w-3xl mx-auto px-4 py-6 space-y-6 flex-1">
       <div className="flex items-center gap-3">
         <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-pink-400">
           <Shield className="w-5 h-5 text-white" />
@@ -154,6 +179,15 @@ export function AdminPanelView() {
 
       {/* Tabs */}
       <div className="flex bg-slate-800 rounded-lg p-0.5 gap-0.5 overflow-x-auto">
+        <button
+          onClick={() => setTab("games")}
+          className={`flex flex-1 items-center justify-center gap-1 px-2 py-1.5 rounded-md text-xs font-medium transition whitespace-nowrap ${
+            tab === "games" ? "bg-slate-700 text-white" : "text-slate-400 hover:text-slate-200"
+          }`}
+        >
+          <Gamepad2 className="w-3.5 h-3.5" />
+          Games
+        </button>
         <button
           onClick={() => setTab("servers")}
           className={`flex flex-1 items-center justify-center gap-1 px-2 py-1.5 rounded-md text-xs font-medium transition whitespace-nowrap ${
@@ -180,15 +214,6 @@ export function AdminPanelView() {
         >
           <ClipboardList className="w-3.5 h-3.5" />
           Audit
-        </button>
-        <button
-          onClick={() => setTab("games")}
-          className={`flex flex-1 items-center justify-center gap-1 px-2 py-1.5 rounded-md text-xs font-medium transition whitespace-nowrap ${
-            tab === "games" ? "bg-slate-700 text-white" : "text-slate-400 hover:text-slate-200"
-          }`}
-        >
-          <Gamepad2 className="w-3.5 h-3.5" />
-          Games
         </button>
         <button
           onClick={() => setTab("database")}
@@ -887,6 +912,32 @@ export function AdminPanelView() {
       {/* Games Tab */}
       {tab === "games" && <AdminGamesTab />}
     </div>
+
+      {/* Footer */}
+      <footer className="border-t border-slate-800/50 bg-gradient-to-b from-slate-900/30 to-slate-950 mt-auto">
+        <div className="max-w-[90rem] mx-auto px-4 py-5 space-y-3">
+          <div className="flex items-center gap-2 text-xs text-slate-500">
+            <img src="/logo.png" alt="" className="w-4 h-4 rounded opacity-40" />
+            <span>RaidScout — Track LordNine boss respawn timers, schedule hunts, and monitor member performance across your guild. </span>
+          </div>
+          <div className="flex items-center gap-4 text-xs text-slate-600 flex-wrap">
+            <a href="https://discord.gg/738AmkeQtU" target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 hover:text-indigo-400 transition" title="Join our Discord community">
+              <ExternalLink className="w-3 h-3" />
+              Discord Community
+            </a>
+            <a href="https://www.facebook.com/profile.php?id=61590144185090" target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 hover:text-blue-400 transition" title="Follow us on Facebook">
+              <ExternalLink className="w-3 h-3" />
+              Facebook Page
+            </a>
+            <span className="text-slate-800">|</span>
+            <Link to="/terms" className="hover:text-slate-400 transition">Terms of Service</Link>
+            <Link to="/privacy" className="hover:text-slate-400 transition">Privacy Policy</Link>
+            <span className="text-slate-800">|</span>
+            <span>v{version}</span>
+            <span>© 2026 RaidScout. All rights reserved.</span>
+          </div>
+        </div>
+      </footer>
 
       {/* Logout Confirm */}
       <ConfirmDialog

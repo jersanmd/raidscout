@@ -110,6 +110,17 @@ export async function uploadBossImage(gameSlug: string, bossName: string, file: 
   return publicUrl;
 }
 
+// ── Activity Image Uploads ──────────────────────────────────
+
+export async function uploadActivityImage(gameSlug: string, activityName: string, file: File): Promise<string> {
+  const ext = file.name.split(".").pop() || "png";
+  const path = `activities/${gameSlug}/${activityName.replace(/[^a-zA-Z0-9]/g, "_")}.${ext}`;
+  const { error } = await supabase.storage.from("game-icons").upload(path, file, { upsert: true });
+  if (error) throw error;
+  const { data: { publicUrl } } = supabase.storage.from("game-icons").getPublicUrl(path);
+  return publicUrl;
+}
+
 // ── Templates ───────────────────────────────────────────────
 
 export async function fetchBossTemplates(gameId: string): Promise<any[]> {
@@ -148,6 +159,7 @@ export async function createActivityTemplate(template: {
   game_id: string; name: string; schedule_type: string; schedule?: any;
   duration_minutes?: number | null; points_per_participant?: number;
   party_size?: number | null; category?: string | null; tags?: string[];
+  image_url?: string;
 }): Promise<any> {
   const { data, error } = await supabase.from("activity_templates").insert(template).select().single();
   if (error) throw error;
@@ -155,7 +167,8 @@ export async function createActivityTemplate(template: {
 }
 
 export async function updateActivityTemplate(id: string, updates: Record<string, any>): Promise<void> {
-  const { error } = await supabase.from("activity_templates").update(updates).eq("id", id);
+  const clean = Object.fromEntries(Object.entries(updates).filter(([_, v]) => v !== undefined));
+  const { error } = await supabase.from("activity_templates").update(clean).eq("id", id);
   if (error) throw error;
 }
 

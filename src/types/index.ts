@@ -182,6 +182,7 @@ export interface ActivityTemplate {
   party_size?: number | null;
   category?: string | null;
   tags?: string[];
+  image_url?: string | null;
   created_at: string;
   updated_at: string;
 }
