@@ -302,14 +302,13 @@ export function LandingPage() {
 
       {/* ── Social Proof Stats ── */}
       <section className="max-w-4xl mx-auto px-6 pb-20">
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 text-center">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
           {[
             { value: <AnimatedCounter value={liveStats.guilds} />, label: "Active Guilds", icon: <Shield className="w-4 h-4 mx-auto mb-1 text-amber-400" /> },
             { value: <AnimatedCounter value={liveStats.kills} />, label: "Kills Recorded", icon: <BarChart3 className="w-4 h-4 mx-auto mb-1 text-purple-400" /> },
             { value: <AnimatedCounter value={liveStats.players} />, label: "Players", icon: <Eye className="w-4 h-4 mx-auto mb-1 text-blue-400" /> },
             { value: <AnimatedCounter value={liveStats.servers} />, label: "Servers", icon: <Server className="w-4 h-4 mx-auto mb-1 text-cyan-400" /> },
-            { value: "Free", label: "Forever", icon: <Sparkles className="w-4 h-4 mx-auto mb-1 text-emerald-400" /> },
-          ].map((s, i) => (
+                      ].map((s, i) => (
             <div key={s.label} className="p-4 rounded-xl border border-slate-800 bg-slate-900/50 hover:border-slate-600 hover:-translate-y-0.5 transition-all duration-300" style={{ animationDelay: `${i * 0.1}s` }}>
               {s.icon}
               <div className="text-xl font-bold bg-gradient-to-r from-red-400 to-amber-400 bg-clip-text text-transparent">{typeof s.value === 'string' ? s.value : s.value}</div>
@@ -343,7 +342,7 @@ export function LandingPage() {
             <Bot className="w-3.5 h-3.5" /> DISCORD BOT
           </div>
           <h2 className="text-3xl font-bold">Control RaidScout from Discord</h2>
-          <p className="text-slate-400 mt-2 text-sm">Invite the bot and set a notification channel with <code className="bg-slate-800 px-1 rounded text-amber-400">!notifhere</code>. Multiple RaidScout servers in one Discord? Give each its own prefix.</p>
+          <p className="text-slate-400 mt-2 text-sm">Invite the bot, set alerts with <code className="bg-slate-800 px-1 rounded text-amber-400">!notifhere</code>, and restrict commands to one channel with <code className="bg-slate-800 px-1 rounded text-amber-400">!cmdhere</code>. Multiple RaidScout servers in one Discord? Give each its own prefix.</p>
         </div>
         <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
           <div className="divide-y divide-slate-800">
@@ -357,6 +356,7 @@ export function LandingPage() {
               { cmd: "!list", desc: "See all boss names", detail: "Numbered list with respawn hours and spawn type" },
               { cmd: "!commands", desc: "Show all available commands", detail: "Quick reference for your members" },
               { cmd: "!notifhere", desc: "Set notification channel", detail: "Run in your announcements channel to receive boss kill and spawn alerts" },
+              { cmd: "!cmdhere", desc: "Restrict commands to one channel", detail: "Keeps your general chat clean, bot only responds in the channel you choose" },
             ].map((c, i) => (
               <div key={c.cmd} className="flex items-start gap-4 px-5 py-4 hover:bg-slate-800/30 transition">
                 <code className="shrink-0 mt-0.5 px-2.5 py-1 rounded-md bg-indigo-900/40 border border-indigo-500/20 text-indigo-300 font-mono text-sm">{c.cmd}</code>

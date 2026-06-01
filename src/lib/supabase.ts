@@ -968,7 +968,7 @@ export async function fetchAnalytics(since: string, serverId?: string | null): P
   }
   const topBosses = [...bossCounts.entries()]
     .sort((a, b) => b[1] - a[1])
-    .slice(0, 10)
+    .slice(0, 50)
     .map(([name, kills]) => ({ name, kills }));
 
   // Top hunters

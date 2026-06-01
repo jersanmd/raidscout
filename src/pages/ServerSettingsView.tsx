@@ -111,6 +111,7 @@ export function ServerSettingsView() {
   const [newDiscordLabel, setNewDiscordLabel] = useState("");
   const [newDiscordPrefix, setNewDiscordPrefix] = useState("!");
   const [savingDiscord, setSavingDiscord] = useState(false);
+  const [usedPrefixes, setUsedPrefixes] = useState(new Set());
   const [editAliasLinkId, setEditAliasLinkId] = useState<string | null>(null);
   const [editAliases, setEditAliases] = useState<Record<string, string>>({});
   const [channelValues, setChannelValues] = useState<Record<string, { notif: string; cmd: string }>>({});
@@ -120,6 +121,13 @@ export function ServerSettingsView() {
     ? tabParam
     : "general";
   const [tab, setTab] = useState<string>(initialTab);
+
+  useEffect(() => {
+    const gid = newDiscordId.trim();
+    if (!gid) { setUsedPrefixes(new Set()); return; }
+    supabase.from("discord_configs").select("command_prefix").eq("discord_guild_id", gid)
+      .then(({ data }) => setUsedPrefixes(new Set((data || []).map((d: any) => d.command_prefix))));
+  }, [newDiscordId]);
 
   // Highlight Discord Server ID input when navigated from banner
   const discordIdInputRef = useRef<HTMLInputElement>(null);
@@ -529,8 +537,9 @@ export function ServerSettingsView() {
   // ── Discord Bot helpers ────────────────────────────────
   const handleAddDiscordLink = async () => {
     const gid = newDiscordId.trim();
-    const prefix = newDiscordPrefix.trim() || "!";
     if (!gid || !currentServer) return;
+    const allPrefixes = ["!",";","$",".","~","?","%","&","-","+","=",":","rs!","rs;","rs.","rb!","rb;","boss!","boss;"];
+    const prefix = allPrefixes.find(p => !usedPrefixes.has(p)) || "!";
     setSavingDiscord(true);
     try {
       const { data, error } = await supabase.from("discord_configs").insert({
@@ -545,7 +554,7 @@ export function ServerSettingsView() {
       setNewDiscordLabel("");
       setNewDiscordPrefix("!");
       bumpWebhookVersion();
-      toast("success", `Discord server linked! Use \`${prefix}notifhere\` in Discord to set up notifications.`);
+      toast("success", `Discord server linked! Use \`${prefix}notifhere\` for alerts and \`${prefix}cmdhere\` to restrict commands.`);
     } catch (err: any) {
       toast("error", err?.message ?? "Failed to link");
     } finally {
@@ -836,16 +845,22 @@ export function ServerSettingsView() {
       {tab === "general" && (
         <div className="space-y-4">
           <section className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3">
-            <div className="flex items-center gap-2">
-              <h3 className="text-sm font-semibold text-white">Server Name</h3>
-              <span className="text-xs text-slate-600 italic">(editing coming soon)</span>
+            <h3 className="text-sm font-semibold text-white mb-2">Server Name</h3>
+            <div className="flex gap-2">
+              <input type="text" value={name} onChange={(e) => setName(e.target.value)} disabled={!isOwner} className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 outline-none focus:border-purple-500 transition disabled:opacity-50" />
+              {isOwner && (
+                <button onClick={async () => {
+                  const trimmed = name.trim();
+                  if (!trimmed) return toast("error", "Server name cannot be empty.");
+                  if (trimmed === currentServer.name) return;
+                  const { data: dup } = await supabase.from("servers").select("id").eq("name", trimmed).neq("id", currentServer.id).maybeSingle();
+                  if (dup) return toast("error", `A server named "${trimmed}" already exists.`);
+                  await supabase.from("servers").update({ name: trimmed }).eq("id", currentServer.id);
+                  setCurrentServer({ ...currentServer, name: trimmed });
+                  toast("success", "Server name updated!");
+                }} className="px-3 py-2 rounded-lg text-xs font-medium bg-purple-600 text-white hover:bg-purple-500 transition">Save</button>
+              )}
             </div>
-            <input
-              type="text"
-              value={name}
-              readOnly
-              className="w-full bg-slate-800/50 border border-slate-700/50 rounded-lg px-3 py-2 text-sm text-slate-400 outline-none cursor-not-allowed select-none"
-            />
           </section>
 
           <section className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3">
@@ -1724,32 +1739,6 @@ export function ServerSettingsView() {
 
           {/* Add new link */}
           <div className="flex gap-2">
-            <select
-              value={newDiscordPrefix}
-              onChange={(e) => setNewDiscordPrefix(e.target.value)}
-              className="bg-slate-800 border border-slate-700 rounded-lg px-2 py-2 text-sm text-white outline-none focus:border-purple-500 transition font-mono w-16"
-            >
-              <option value="!">!</option>
-              <option value=";">;</option>
-              <option value="$">$</option>
-              <option value=".">.</option>
-              <option value="~">~</option>
-              <option value="?">?</option>
-              <option value="%">%</option>
-              <option value="&">&amp;</option>
-              <option value="-">-</option>
-              <option value="+">+</option>
-              <option value="=">=</option>
-              <option value=":">:</option>
-              <option value="rs!">rs!</option>
-              <option value="rs;">rs;</option>
-              <option value="rs.">rs.</option>
-              <option value="rb!">rb!</option>
-              <option value="rb;">rb;</option>
-              <option value="boss!">boss!</option>
-              <option value="boss;">boss;</option>
-              <option value="w!">w!</option>
-            </select>
             <input
               type="text"
               value={newDiscordId}

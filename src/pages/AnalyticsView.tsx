@@ -25,6 +25,10 @@ export function AnalyticsView() {
   const [period, setPeriod] = useState<"week" | "month" | "all">("week");
   const [huntersPage, setHuntersPage] = useState(1);
   const HUNTERS_PER_PAGE = 10;
+  const BOSSES_PER_PAGE = 10;
+  const [bossesPage, setBossesPage] = useState(1);
+  const WEEKS_PER_PAGE = 5;
+  const [weeksPage, setWeeksPage] = useState(1);
   const tz = useServerTimezone();
 
   // Reset pagination when period changes
@@ -244,7 +248,7 @@ export function AnalyticsView() {
       {period !== "week" && (
       <Section title="Kills per Week" icon={<TrendingUp className="w-4 h-4" />}>
         <div className="space-y-1.5">
-          {data.killsByWeek.slice(-12).reverse().map((w) => (
+          {data.killsByWeek.slice(-(weeksPage * WEEKS_PER_PAGE)).reverse().map((w) => (
             <div key={w.week} className="flex items-center gap-2 text-sm">
               <span className="text-slate-400 w-20 shrink-0 text-left">{w.week}</span>
               <div className="flex-1 h-6 bg-slate-800 rounded overflow-hidden">
@@ -254,13 +258,19 @@ export function AnalyticsView() {
               </div>
             </div>
           ))}
+          {data.killsByWeek.length > weeksPage * WEEKS_PER_PAGE && (
+            <button onClick={() => setWeeksPage(p => p + 1)} className="w-full py-1.5 text-xs text-purple-400 hover:text-purple-300 hover:bg-slate-800/50 rounded transition">Show more ({data.killsByWeek.length - weeksPage * WEEKS_PER_PAGE} remaining)</button>
+          )}
+          {weeksPage > 1 && (
+            <button onClick={() => setWeeksPage(1)} className="w-full py-1.5 text-xs text-slate-500 hover:text-slate-300 hover:bg-slate-800/50 rounded transition">Show less</button>
+          )}
         </div>
       </Section>
       )}
 
       <Section title="Most Killed Bosses" icon={<Skull className="w-4 h-4" />}>
         <div className="space-y-1.5">
-          {data.topBosses.map((b, i) => (
+          {data.topBosses.slice(0, bossesPage * BOSSES_PER_PAGE).map((b, i) => (
             <div key={b.name} className="flex items-center gap-2 text-sm">
               <span className="text-slate-400 w-5 shrink-0 text-left">{i + 1}.</span>
               <span className="text-white w-24 shrink-0 truncate text-left">{b.name}</span>
@@ -271,6 +281,12 @@ export function AnalyticsView() {
               </div>
             </div>
           ))}
+          {data.topBosses.length > bossesPage * BOSSES_PER_PAGE && (
+            <button onClick={() => setBossesPage(p => p + 1)} className="w-full py-1.5 text-xs text-red-400 hover:text-red-300 hover:bg-slate-800/50 rounded transition">Show more ({data.topBosses.length - bossesPage * BOSSES_PER_PAGE} remaining)</button>
+          )}
+          {bossesPage > 1 && (
+            <button onClick={() => setBossesPage(1)} className="w-full py-1.5 text-xs text-slate-500 hover:text-slate-300 hover:bg-slate-800/50 rounded transition">Show less</button>
+          )}
         </div>
       </Section>
 

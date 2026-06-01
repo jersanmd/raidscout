@@ -283,7 +283,7 @@ export function Layout() {
         <div className="max-w-[90rem] mx-auto px-4 py-5 space-y-3">
           <div className="flex items-center gap-2 text-xs text-slate-500">
             <img src="/logo.png" alt="" className="w-4 h-4 rounded opacity-40" />
-            <span>RaidScout — Track LordNine boss respawn timers, schedule hunts, and monitor member performance across your guild. <span className="text-emerald-500/80">100% Free.</span></span>
+            <span>RaidScout — Track LordNine boss respawn timers, schedule hunts, and monitor member performance across your guild. </span>
           </div>
           <div className="flex items-center gap-4 text-xs text-slate-600 flex-wrap">
             <a href="https://discord.gg/738AmkeQtU" target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 hover:text-indigo-400 transition" title="Join our Discord community">
