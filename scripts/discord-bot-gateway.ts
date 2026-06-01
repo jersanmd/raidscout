@@ -437,28 +437,38 @@ async function handleMessage(msg: any) {
   // ── list ─────────────────────────────────────────────
   if (cmd === "list") {
     const serverId = await resolveServerId(guildId, matchedPrefix);
-    if (!serverId) return reply("⚠️ This Discord server is not linked to RaidScout. An admin needs to go to **Server Settings → Integrations** on the RaidScout web app and link this Discord server.");
-    const bosses = await supabaseQuery(`bosses?server_id=eq.${serverId}&order=name`);
-    if (!bosses?.length) return reply("No bosses found.");
-    // Split into chunks of 25 (Discord embed field limit)
-    const chunkSize = 25;
-    const chunks: string[] = [];
-    for (let i = 0; i < bosses.length; i += chunkSize) {
-      chunks.push(bosses.slice(i, i + chunkSize).map((b: any, j: number) =>
-        `${i + j + 1}. ${b.name}`
-      ).join("\n"));
+    if (!serverId) return reply("⚠️ This Discord server is not linked to RaidScout.");
+    const [bosses, activities] = await Promise.all([
+      supabaseQuerySafe(`bosses?server_id=eq.${serverId}&is_enabled=eq.true&order=name`),
+      supabaseQuerySafe(`activities?server_id=eq.${serverId}&is_enabled=eq.true&order=name`),
+    ]);
+    if (!bosses?.length && !activities?.length) return reply("No bosses or activities found.");
+
+    // Build combined list: bosses first, then activities
+    const lines: string[] = [];
+    if (bosses?.length) {
+      lines.push("**Bosses**");
+      bosses.forEach((b: any, i: number) => lines.push(`${i + 1}. ${b.name}`));
     }
-    for (let c = 0; c < chunks.length; c++) {
-      const isFirst = c === 0;
+    if (activities?.length) {
+      if (lines.length) lines.push("");
+      lines.push("**Activities**");
+      activities.forEach((a: any, i: number) => lines.push(`📅 ${i + 1}. ${a.name}`));
+    }
+
+    const total = (bosses?.length || 0) + (activities?.length || 0);
+    const chunkSize = 25;
+    for (let i = 0; i < lines.length; i += chunkSize) {
+      const chunk = lines.slice(i, i + chunkSize).join("\n");
       await fetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
         method: "POST",
         headers: { Authorization: `Bot ${TOKEN}`, "Content-Type": "application/json" },
         body: JSON.stringify({
           embeds: [{
-            title: isFirst ? `📋 Boss List (${bosses.length} bosses)` : undefined,
-            description: chunks[c],
+            title: i === 0 ? `📋 List (${total} total)` : undefined,
+            description: chunk,
             color: 0x8b5cf6,
-            footer: isFirst ? { text: "Powered by RaidScout" } : undefined,
+            footer: i === 0 ? { text: "Powered by RaidScout" } : undefined,
           }],
         }),
       });
@@ -534,6 +544,7 @@ async function handleMessage(msg: any) {
         { name: `${p}commands${aliasNote("commands")}`, value: "Show this help message", inline: false },
         { name: `${p}notifhere${aliasNote("notifhere")}`, value: "Set this channel for boss kill & spawn notifications", inline: false },
         { name: `${p}cmdhere${aliasNote("cmdhere")}`, value: "Restrict bot commands to this channel only", inline: false },
+        { name: `${p}activitydone <name>${aliasNote("activitydone")}`, value: "Mark an activity as completed", inline: false },
       ],
     );
   }
@@ -618,8 +629,21 @@ async function handleMessage(msg: any) {
       }
     }
 
+    // Add activities
+    const activities = await supabaseQuerySafe(`activities?server_id=eq.${serverId}&is_enabled=eq.true`);
+    for (const activity of activities || []) {
+      if (filter && !activity.name.toLowerCase().includes(filter.toLowerCase())) continue;
+      const schedule = activity.schedule;
+      if (!schedule?.length) continue;
+      // Find next schedule slot within 24h
+      const nextSlot = findNextScheduleSlot(schedule, now);
+      if (nextSlot.getTime() > cutoff.getTime()) continue;
+      const unix = Math.floor(nextSlot.getTime() / 1000);
+      upcoming.push({ name: `📅 ${activity.name}`, time: `<t:${unix}:t>`, unix, guild: "" });
+    }
+
     if (upcoming.length === 0) {
-      return reply(filter ? `No spawn data for **${filter}** in 24h.` : "No bosses spawning in 24h.");
+      return reply(filter ? `No results for **${filter}** in 24h.` : "No bosses or activities in the next 24h.");
     }
 
     upcoming.sort((a, b) => {
@@ -642,7 +666,7 @@ async function handleMessage(msg: any) {
       headers: { Authorization: `Bot ${TOKEN}`, "Content-Type": "application/json" },
       body: JSON.stringify({
         embeds: [{
-          title: filter ? `${filter} Spawn` : "📋 Upcoming Boss Spawns (24h)",
+          title: filter ? `${filter} Spawn` : "📋 Upcoming (24h)",
           description: desc,
           color: 0x8b5cf6,
           footer: { text: "Powered by RaidScout" },
@@ -817,7 +841,6 @@ async function handleMessage(msg: any) {
       replyFields,
     );
   }
-}
 
   // ── activitydone <name> ────────────────────────────────
   if (cmd === "activitydone") {
@@ -836,6 +859,7 @@ async function handleMessage(msg: any) {
     });
     return reply(`✅ **${activity.name}** marked as completed. Record attendance on the web app.`);
   }
+}
 
 // ── Notification Channel Registry ──────────────────────────
 
