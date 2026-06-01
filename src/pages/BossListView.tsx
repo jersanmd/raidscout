@@ -27,6 +27,7 @@ import { BossCard } from "@/components/BossCard";
 import { DeathRecordModal } from "@/components/DeathRecordModal";
 import { FilterBar } from "@/components/FilterBar";
 import { UpcomingStrip } from "@/components/UpcomingStrip";
+import { UpcomingActivitiesStrip } from "@/components/UpcomingActivitiesStrip";
 import { SavingOverlay } from "@/components/SavingOverlay";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { emitSpawnAlert } from "@/hooks/useSpawnAlerts";
@@ -590,6 +591,9 @@ export function BossListView() {
 
       {/* Upcoming strip — next 3 bosses to spawn */}
       <UpcomingStrip ownerGuildName={ownerGuildName} />
+
+      {/* Upcoming activities — next 3, hidden if none in 24h */}
+      <UpcomingActivitiesStrip />
 
       {/* Filters */}
       <FilterBar
