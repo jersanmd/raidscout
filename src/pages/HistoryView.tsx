@@ -297,12 +297,16 @@ export function HistoryView() {
                       {/* Icon */}
                       <div
                         className={`flex items-center justify-center w-8 h-8 rounded-lg shrink-0 ${
-                          entry.spawnType === "fixed_schedule"
+                          entry.type === "activity"
+                            ? "bg-blue-900/20 text-blue-400"
+                            : entry.spawnType === "fixed_schedule"
                             ? "bg-blue-900/20 text-blue-400"
                             : "bg-orange-900/20 text-orange-400"
                         }`}
                       >
-                        {entry.spawnType === "fixed_schedule" ? (
+                        {entry.type === "activity" ? (
+                          <span className="text-sm">📅</span>
+                        ) : entry.spawnType === "fixed_schedule" ? (
                           <Repeat className="w-4 h-4" />
                         ) : (
                           <Timer className="w-4 h-4" />
@@ -313,9 +317,9 @@ export function HistoryView() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
                           <span className="text-white font-medium text-sm">
-                            {entry.bossName}
+                            {entry.type === "activity" ? entry.activityName : entry.bossName}
                           </span>
-                          {entry.ownerGuildName && (() => {
+                          {entry.type !== "activity" && entry.ownerGuildName && (() => {
                             const c = guildColor(entry.ownerGuildName!);
                             return (
                               <span className={`text-[10px] px-1.5 py-0.5 rounded flex items-center gap-0.5 border ${c.bg} ${c.text} ${c.border}`}>
@@ -325,24 +329,26 @@ export function HistoryView() {
                             );
                           })()}
                           <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-slate-800 text-slate-400">
-                            {entry.spawnType === "fixed_schedule" ? "Schedule" : `+${diffH}h`}
+                            {entry.type === "activity" ? "Activity" : entry.spawnType === "fixed_schedule" ? "Schedule" : `+${diffH}h`}
                           </span>
                           {entry.deathRecordId && (
                             <Users className="w-3 h-3 text-slate-600" />
                           )}
                         </div>
                         <div className="flex items-center gap-2 text-xs text-slate-500 mt-0.5">
-                          <span>
-                            Killed: {formatDate(entry.deathTime)} {formatTime(entry.deathTime)}
-                          </span>
-                          <span>â†’</span>
-                          <span className="text-slate-400">
-                            Spawns: {formatDate(entry.respawnTime)} {formatTime(entry.respawnTime)}
-                          </span>
+                          {entry.type === "activity" ? (
+                            <span>Completed: {entry.completionTime ? formatDate(entry.completionTime) + " " + formatTime(entry.completionTime) : "Unknown"}</span>
+                          ) : (
+                            <>
+                              <span>Killed: {entry.deathTime ? formatDate(entry.deathTime) + " " + formatTime(entry.deathTime) : "Unknown"}</span>
+                              <span>→</span>
+                              <span className="text-slate-400">Spawns: {entry.respawnTime ? formatDate(entry.respawnTime) + " " + formatTime(entry.respawnTime) : "Unknown"}</span>
+                            </>
+                          )}
                         </div>
                       </div>
-                      {/* Edit + Delete buttons */}
-                      {!isViewer && entry.deathRecordId && (
+                      {/* Edit + Delete buttons — bosses only */}
+                      {!isViewer && entry.type !== "activity" && entry.deathRecordId && (
                         <div className="flex items-center gap-0.5">
                           <button
                             onClick={(e) => {
