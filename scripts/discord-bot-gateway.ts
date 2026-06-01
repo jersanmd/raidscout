@@ -883,7 +883,7 @@ createServer(async (req, res) => {
     req.on("data", c => body += c);
     req.on("end", async () => {
       try {
-        const { server_id, event, boss_name, guild_name, activity_name, parties } = JSON.parse(body);
+        const { server_id, event, boss_name, guild_name, activity_name, parties, recorded_by } = JSON.parse(body);
 
         // Dedup: skip duplicate notifs within 30s
         if (boss_name && (event === "boss_spawning" || event === "boss_spawned")) {
