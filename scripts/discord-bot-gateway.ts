@@ -395,7 +395,7 @@ async function handleMessage(msg: any) {
   if (matchedPrefix) {
     const cfgRows = await supabaseQuerySafe(`discord_configs?discord_guild_id=eq.${guildId}&command_prefix=eq.${encodeURIComponent(matchedPrefix)}&select=command_channel_id`);
     const cmdChannel = cfgRows?.[0]?.command_channel_id;
-    if (cmdChannel && channelId !== cmdChannel && cmd !== "cmdhere") return;
+    if (cmdChannel && channelId !== cmdChannel && cmd !== "cmdhere" && cmd !== "notifhere") return;
   }
 
   async function reply(text: string) {
