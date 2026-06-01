@@ -797,8 +797,7 @@ async function handleMessage(msg: any) {
     const brdFields: any[] = [{ name: "Death Time", value: `<t:${killUnix}:f>`, inline: true }, { name: "Recorded By", value: author, inline: true }];
     if (nextSpawnField) brdFields.push(nextSpawnField);
     broadcastNotification(serverId, {
-      title: `☠️ ${boss.name} Killed`,
-      description: guildName ? `**${guildName}** — ${boss.name} has been defeated.` : `${boss.name} has been defeated.`,
+      title: `☠️ ${boss.name} Killed by ${author}`,
       color: 0xef4444,
       fields: brdFields,
       footer: { text: "Powered by RaidScout" },
@@ -811,8 +810,8 @@ async function handleMessage(msg: any) {
     if (nextSpawnField) replyFields.push(nextSpawnField);
 
     return replyEmbed(
-      `☠️ ${boss.name} Killed`,
-      `**${boss.name}**${guildName ? ` — ${guildName}` : ""} recorded as killed.`,
+      `☠️ ${boss.name} Killed by ${author}`,
+      "",
       0xef4444,
       replyFields,
     );
@@ -951,23 +950,20 @@ createServer(async (req, res) => {
           if (recorded_by) fields.push({ name: "Recorded By", value: recorded_by, inline: true });
           if (nextSpawnField) fields.push({ name: "Next Spawn", value: nextSpawnField, inline: true });
           embed = {
-            title: `☠️ ${boss_name} Killed`,
-            description: guild_name ? `**${guild_name}** — ${boss_name} has been defeated.` : `${boss_name} has been defeated.`,
+            title: `☠️ ${boss_name} Killed by ${recorded_by || "Unknown"}`,
             color: 0xef4444,
             fields,
             footer: { text: "Powered by RaidScout" },
           };
         } else if (event === "boss_spawning" && boss_name) {
           embed = {
-            title: `⏰ ${boss_name} Spawning Soon`,
-            description: guild_name ? `**${guild_name}** — ${boss_name} spawns in 5 min.` : `${boss_name} spawns in 5 minutes.`,
+            title: `⏰ ${boss_name}${guild_name ? ` of ${guild_name}` : ""} spawns in 5 min.`,
             color: 0xf59e0b,
             footer: { text: "Powered by RaidScout" },
           };
         } else if (event === "boss_spawned" && boss_name) {
           embed = {
-            title: `🟢 ${boss_name} Spawning Now`,
-            description: guild_name ? `**${guild_name}** — ${boss_name} has spawned!` : `${boss_name} has spawned!`,
+            title: `🟢 ${boss_name}${guild_name ? ` of ${guild_name}` : ""} has spawned.`,
             color: 0x22c55e,
             footer: { text: "Powered by RaidScout" },
           };
