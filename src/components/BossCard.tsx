@@ -92,7 +92,10 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
   // Detect countdown expiry so badge auto-updates to ALIVE without page interaction
   const timer = useTimer(nextSpawn);
   const effectiveStatus = (timer.isPast && status === "countdown") ? "alive" as const : status;
-  const config = statusConfigMap[effectiveStatus];
+  // One-time boss that has been killed: show "Completed"
+  const isCompleted = boss.is_recurring === false && (spawn as any).deathRecord;
+  const displayStatus = isCompleted ? "unknown" as const : effectiveStatus;
+  const config = statusConfigMap[displayStatus];
 
   const formatDateTime = (d: Date) =>
     formatInTimezone(d, tz, {
@@ -148,7 +151,13 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
             </div>
 
             {/* Row 2: Countdown timer + spawn datetime */}
-            {nextSpawn ? (
+            {isCompleted ? (
+              <div className="flex items-center gap-1.5 text-xs">
+                <span className="text-slate-500 font-medium">Completed</span>
+                <span className="text-slate-600">—</span>
+                <span className="text-slate-400">Killed {formatDateTime(new Date(spawn.deathRecord!.death_time))}</span>
+              </div>
+            ) : nextSpawn ? (
               <div className="space-y-1">
                 {!compact && (
                   <div className="flex items-baseline gap-2">
