@@ -361,7 +361,7 @@ async function handleGuildJoin(guild: any) {
           },
           {
             name: "3️⃣ Try a command",
-            value: "`!list` — See all bosses\n`!nextspawn` — Upcoming spawns in 24h\n`!nextspawn <boss>` — Check a specific boss\n`!nextspawn <guild>` — Spawns for a guild\n`!killed <boss>` — Record a kill\n`!commands` — Full command list",
+            value: "`!list` — See all bosses\n`!nextspawn` — Upcoming spawns in 24h\n`!nextspawn <boss>` — Check a specific boss\n`!nextspawn <guild>` — Spawns for a guild\n`!killed <boss>` — Record a kill (only on alive bosses)\n`!forcespawn <boss>` — Force a boss to spawn\n`!forcespawnall` — Spawn all fixed-timer bosses\n`!commands` — Full command list",
           },
           {
             name: "💡 Multiple RaidScout servers?",
@@ -413,7 +413,7 @@ async function handleMessage(msg: any) {
   const cmd = aliases[rawCmd] || rawCmd;
 
   // Valid commands that should trigger ✅ reaction
-  const validCmds = new Set(["list","nextspawn","spawn","killed","commands","help","notifhere","cmdhere","threadhere"]);
+  const validCmds = new Set(["list","nextspawn","spawn","killed","kill","forcespawn","forcespawnall","spawnall","commands","help","notifhere","cmdhere","threadhere"]);
   if (validCmds.has(cmd)) {
     fetch(`https://discord.com/api/v10/channels/${channelId}/messages/${msg.id}/reactions/${encodeURIComponent("✅")}/@me`, {
       method: "PUT",
@@ -425,7 +425,7 @@ async function handleMessage(msg: any) {
   if (matchedPrefix) {
     const cfgRows = await supabaseQuerySafe(`discord_configs?discord_guild_id=eq.${guildId}&command_prefix=eq.${encodeURIComponent(matchedPrefix)}&select=command_channel_id`);
     const cmdChannel = cfgRows?.[0]?.command_channel_id;
-    if (cmdChannel && channelId !== cmdChannel && cmd !== "cmdhere" && cmd !== "notifhere" && cmd !== "threadhere") return;
+    if (cmdChannel && channelId !== cmdChannel && cmd !== "cmdhere" && cmd !== "notifhere" && cmd !== "threadhere" && cmd !== "forcespawn" && cmd !== "forcespawnall" && cmd !== "spawnall") return;
   }
 
   async function reply(text: string) {
@@ -533,6 +533,55 @@ async function handleMessage(msg: any) {
     return reply("✅ Auto-threads for spawn events will be created in this channel. Use **Server Settings → Integrations** to select which guilds trigger threads.");
   }
 
+  // ── forcespawn <boss> ───────────────────────────────
+  if (cmd === "forcespawn") {
+    const serverId = await resolveServerId(guildId, matchedPrefix);
+    if (!serverId) return reply("⚠️ Not linked to RaidScout.");
+
+    const bossName = args.slice(1).join(" ");
+    if (!bossName) return reply("Usage: `!forcespawn Boss Name`");
+
+    const bosses = await supabaseQuery(
+      `bosses?server_id=eq.${serverId}&name=ilike.${encodeURIComponent("%" + bossName + "%")}`
+    );
+    if (!bosses?.length) return reply(`Boss **${bossName}** not found.`);
+    const boss = bosses[0];
+
+    await fetch(`${SUPABASE_URL}/rest/v1/boss_spawn_overrides`, {
+      method: "POST",
+      headers: { apikey: SUPABASE_KEY!, Authorization: `Bearer ${SUPABASE_KEY!}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ server_id: serverId, boss_id: boss.id, override_spawn_time: new Date().toISOString() }),
+    }).catch(() => {});
+
+    return reply(`✅ **${boss.name}** has been force-spawned. Use \`;killed ${boss.name}\` to record the kill.`);
+  }
+
+  // ── forcespawnall ────────────────────────────────────
+  if (cmd === "forcespawnall" || cmd === "spawnall") {
+    const serverId = await resolveServerId(guildId, matchedPrefix);
+    if (!serverId) return reply("⚠️ Not linked to RaidScout.");
+
+    const bosses = await supabaseQuery(
+      `bosses?server_id=eq.${serverId}&spawn_type=eq.fixed_hours`
+    );
+    if (!bosses?.length) return reply("No fixed-timer bosses found.");
+
+    const now = new Date().toISOString();
+    let count = 0;
+    for (const b of bosses) {
+      try {
+        await fetch(`${SUPABASE_URL}/rest/v1/boss_spawn_overrides`, {
+          method: "POST",
+          headers: { apikey: SUPABASE_KEY!, Authorization: `Bearer ${SUPABASE_KEY!}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ server_id: serverId, boss_id: b.id, override_spawn_time: now }),
+        });
+        count++;
+      } catch { /* skip */ }
+    }
+
+    return reply(`✅ **${count}** fixed-timer bosses force-spawned. Use \`;killed <boss>\` to record kills. Schedule bosses follow their normal windows.`);
+  }
+
   // ── commands ─────────────────────────────────────────
   if (cmd === "commands" || cmd === "help") {
     const p = matchedPrefix;
@@ -570,6 +619,8 @@ async function handleMessage(msg: any) {
         { name: `${p}notifhere${aliasNote("notifhere")}`, value: "Set this channel for boss kill & spawn notifications", inline: false },
         { name: `${p}cmdhere${aliasNote("cmdhere")}`, value: "Restrict bot commands to this channel only", inline: false },
         { name: `${p}threadhere${aliasNote("threadhere")}`, value: "Set this channel for auto-created spawn threads", inline: false },
+        { name: `${p}forcespawn <boss>`, value: `Force a boss to spawn (e.g. \`${p}forcespawn Venatus\`)`, inline: false },
+        { name: `${p}forcespawnall`, value: "Force-spawn ALL fixed-timer bosses (use after maintenance)", inline: false },
       ],
     );
   }
@@ -737,6 +788,47 @@ async function handleMessage(msg: any) {
     if (!bosses?.length) return reply(`Boss **${bossName}** not found.`);
     const boss = bosses[0];
 
+    // ── Alive check: only allow killing alive bosses ──
+    let isAlive = false;
+    const tz = await resolveServerTimezone(serverId);
+    const aliveNow = new Date();
+
+    if (boss.spawn_type === "fixed_hours") {
+      const lastDeathForAlive = recentDeaths?.[0];
+      if (lastDeathForAlive) {
+        const spawnTime = new Date(lastDeathForAlive.death_time.getTime() + (boss.respawn_hours ?? 0) * 3600000);
+        isAlive = spawnTime <= aliveNow;
+      } else {
+        isAlive = true; // No death records → initial spawn
+      }
+    } else if (boss.spawn_type === "fixed_schedule" && boss.schedule) {
+      let recentSlot: Date | null = null;
+      for (let d = 0; d <= 7; d++) {
+        const check = new Date(aliveNow);
+        check.setDate(check.getDate() - d);
+        for (const slot of boss.schedule) {
+          const c = scheduleSlotToUTC(tz, check, slot.day, slot.time);
+          if (c <= aliveNow && (!recentSlot || c > recentSlot)) recentSlot = c;
+        }
+      }
+      if (recentSlot) {
+        const nextSlot = findNextScheduleSlot(boss.schedule, new Date(recentSlot.getTime() + 60_000), tz);
+        const aliveUntil = new Date(Math.min(
+          nextSlot.getTime() - 3600_000,
+          recentSlot.getTime() + 4 * 3600_000,
+        ));
+        const wasKilled = recentDeaths?.[0] && new Date(recentDeaths[0].death_time) >= recentSlot;
+        isAlive = !wasKilled && aliveNow >= recentSlot && aliveNow < aliveUntil;
+      }
+    }
+
+    if (!isAlive) {
+      fetch(`https://discord.com/api/v10/channels/${channelId}/messages/${msg.id}/reactions/${encodeURIComponent("❌")}/@me`, {
+        method: "PUT", headers: { Authorization: `Bot ${TOKEN}` },
+      }).catch(() => {});
+      return reply(`❌ **${boss.name}** is not currently alive. Use \`;forcespawn ${boss.name}\` first.`);
+    }
+
     // Cooldown: prevent duplicate kills within 2 hours
     const recentDeaths = await supabaseQuery(
       `death_records?server_id=eq.${serverId}&boss_id=eq.${boss.id}&order=death_time.desc&limit=1`
@@ -795,7 +887,6 @@ async function handleMessage(msg: any) {
     const allBossGuilds = await supabaseQuery(`boss_guilds?select=boss_id,guild_id,sort_order,day_of_week,mode`);
     const serverGuildIds = new Set(serverGuilds.map((g: any) => g.id));
     const serverBossGuilds = allBossGuilds.filter((bg: any) => serverGuildIds.has(bg.guild_id));
-    const tz = await resolveServerTimezone(serverId);
     // Fetch previous death to determine current owner (must advance from the last kill)
     const prevDeaths = await supabaseQuery(`death_records?server_id=eq.${serverId}&boss_id=eq.${boss.id}&order=death_time.desc&limit=1`);
     const lastDeath = prevDeaths?.[0] ?? null;

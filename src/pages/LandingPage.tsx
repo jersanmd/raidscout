@@ -358,7 +358,8 @@ export function LandingPage() {
               { cmd: "!notifhere", desc: "Set notification channel", detail: "Run in your announcements channel to receive boss kill and spawn alerts" },
               { cmd: "!threadhere", desc: "Set auto-thread channel", detail: "Run in a forum or text channel to enable auto-threads for spawn events" },
               { cmd: "!cmdhere", desc: "Restrict commands to one channel", detail: "Keeps your general chat clean, bot only responds in the channel you choose" },
-              { cmd: "Custom Ping", desc: "Per-server notification prefix", detail: "Set a different @role for each linked server in Server Settings → Integrations" },
+              { cmd: "!forcespawn <boss>", desc: "Force a boss to spawn", detail: "Use after maintenance or when a boss was missed — makes it killable" },
+              { cmd: "!forcespawnall", desc: "Force-spawn all fixed-timer bosses", detail: "Batch spawns all fixed-timer bosses after server maintenance" },
               { cmd: "Auto-Threads", desc: "Auto-create spawn threads", detail: "Configure per-guild thread channels in Server Settings — threads created 5 min before spawn" },
             ].map((c, i) => (
               <div key={c.cmd} className="flex items-start gap-4 px-5 py-4 hover:bg-slate-800/30 transition">

@@ -2003,7 +2003,7 @@ export function ServerSettingsView() {
                         {editAliasLinkId === link.id && (
                           <div className="pt-3 border-t border-slate-700/50 animate-slideDown">
                             <div className="space-y-2">
-                              {["list","nextspawn","killed","commands","notifhere","threadhere","cmdhere"].map(cmd => (
+                              {["list","nextspawn","killed","forcespawn","forcespawnall","commands","notifhere","threadhere","cmdhere"].map(cmd => (
                                 <div key={cmd} className="flex items-center gap-2">
                                   <span className="text-xs text-amber-400 w-24 font-mono">{cmd}</span>
                                   <span className="text-xs text-slate-600">→</span>
@@ -2086,6 +2086,8 @@ export function ServerSettingsView() {
                 <p className="text-xs"><code className="text-amber-400 font-mono text-xs">&lt;prefix&gt;nextspawn &lt;guild&gt;</code> <span className="text-slate-500">—</span> <span className="text-slate-400">Spawns for a guild</span></p>
                 <p className="text-xs"><code className="text-amber-400 font-mono text-xs">&lt;prefix&gt;killed &lt;boss&gt;</code> <span className="text-slate-500">—</span> <span className="text-slate-400">Record a kill now</span></p>
                 <p className="text-xs"><code className="text-amber-400 font-mono text-xs">&lt;prefix&gt;killed &lt;boss&gt; HH:MM</code> <span className="text-slate-500">—</span> <span className="text-slate-400">Kill at custom time</span></p>
+                <p className="text-xs"><code className="text-amber-400 font-mono text-xs">&lt;prefix&gt;forcespawn &lt;boss&gt;</code> <span className="text-slate-500">—</span> <span className="text-slate-400">Force a boss to spawn</span></p>
+                <p className="text-xs"><code className="text-amber-400 font-mono text-xs">&lt;prefix&gt;forcespawnall</code> <span className="text-slate-500">—</span> <span className="text-slate-400">Spawn all fixed-timer bosses</span></p>
                 <p className="text-xs"><code className="text-amber-400 font-mono text-xs">&lt;prefix&gt;list</code> <span className="text-slate-500">—</span> <span className="text-slate-400">Show all boss names</span></p>
                 <p className="text-xs"><code className="text-amber-400 font-mono text-xs">&lt;prefix&gt;notifhere</code> <span className="text-slate-500">—</span> <span className="text-slate-400">Set notification channel</span></p>
                 <p className="text-xs"><code className="text-amber-400 font-mono text-xs">&lt;prefix&gt;threadhere</code> <span className="text-slate-500">—</span> <span className="text-slate-400">Set auto-thread channel</span></p>
