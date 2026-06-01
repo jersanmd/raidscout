@@ -394,7 +394,7 @@ async function handleMessage(msg: any) {
   const cmd = aliases[rawCmd] || rawCmd;
 
   // Valid commands that should trigger ✅ reaction
-  const validCmds = new Set(["list","nextspawn","spawn","killed","commands","help","notifhere","cmdhere"]);
+  const validCmds = new Set(["list","nextspawn","spawn","killed","commands","help","notifhere","cmdhere","activitydone"]);
   if (validCmds.has(cmd)) {
     fetch(`https://discord.com/api/v10/channels/${channelId}/messages/${msg.id}/reactions/${encodeURIComponent("✅")}/@me`, {
       method: "PUT",
@@ -818,6 +818,24 @@ async function handleMessage(msg: any) {
     );
   }
 }
+
+  // ── activitydone <name> ────────────────────────────────
+  if (cmd === "activitydone") {
+    const serverId = await resolveServerId(guildId, matchedPrefix);
+    if (!serverId) return reply("⚠️ This Discord server is not linked to RaidScout.");
+    const activityName = args.slice(1).join(" ").trim();
+    if (!activityName) return reply("Usage: `" + matchedPrefix + "activitydone <name>`");
+    const activities = await supabaseQuerySafe(`activities?server_id=eq.${serverId}&name=ilike.${encodeURIComponent(`%${activityName}%`)}&limit=1`);
+    if (!activities?.length) return reply(`Activity **${activityName}** not found.`);
+    const activity = activities[0];
+    const now = new Date().toISOString();
+    await fetch(`${SUPABASE_URL}/rest/v1/activity_instances`, {
+      method: "POST",
+      headers: { apikey: SUPABASE_KEY!, Authorization: `Bearer ${SUPABASE_KEY!}`, "Content-Type": "application/json", Prefer: "return=representation" },
+      body: JSON.stringify({ activity_id: activity.id, start_time: now, end_time: now }),
+    });
+    return reply(`✅ **${activity.name}** marked as completed. Record attendance on the web app.`);
+  }
 
 // ── Notification Channel Registry ──────────────────────────
 
