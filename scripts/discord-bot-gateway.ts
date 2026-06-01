@@ -1148,6 +1148,55 @@ async function runSpawnCron() {
             }
           }
         }
+
+        // ── Activity alerts ────────────────────────────
+        const activities = await supabaseQuerySafe(`activities?server_id=eq.${serverId}&is_enabled=eq.true`);
+        for (const activity of activities || []) {
+          if (!activity.schedule?.length) continue;
+          const nextSlot = findNextScheduleSlot(activity.schedule, new Date());
+          const actUnix = Math.floor(nextSlot.getTime() / 1000);
+          const secsUntil = actUnix - nowUnix;
+
+          if (secsUntil > 0 && secsUntil <= 300) {
+            const existing = await supabaseQuerySafe(
+              `spawn_notifications?server_id=eq.${serverId}&activity_id=eq.${activity.id}&event=eq.boss_spawning&spawn_timestamp=eq.${actUnix}&limit=1`
+            );
+            if (!existing?.length) {
+              const embed = {
+                title: `📋 ${activity.name} Starting Soon`,
+                description: `**${activity.name}** starts in 5 minutes.`,
+                color: 0x3b82f6,
+                footer: { text: "Powered by RaidScout" },
+              };
+              await broadcastNotification(serverId, embed);
+              await fetch(`${SUPABASE_URL}/rest/v1/spawn_notifications`, {
+                method: "POST",
+                headers: { apikey: SUPABASE_KEY!, Authorization: `Bearer ${SUPABASE_KEY!}`, "Content-Type": "application/json", Prefer: "return=minimal" },
+                body: JSON.stringify({ server_id: serverId, activity_id: activity.id, event: "boss_spawning", spawn_timestamp: actUnix }),
+              }).catch((err: any) => console.error("activity spawn_notifs insert failed:", err?.message ?? err));
+            }
+          }
+
+          if (secsUntil <= 0 && secsUntil >= -60) {
+            const existing = await supabaseQuerySafe(
+              `spawn_notifications?server_id=eq.${serverId}&activity_id=eq.${activity.id}&event=eq.boss_spawned&spawn_timestamp=eq.${actUnix}&limit=1`
+            );
+            if (!existing?.length) {
+              const embed = {
+                title: `📋 ${activity.name} Has Started`,
+                description: `**${activity.name}** has started!`,
+                color: 0x22c55e,
+                footer: { text: "Powered by RaidScout" },
+              };
+              await broadcastNotification(serverId, embed);
+              await fetch(`${SUPABASE_URL}/rest/v1/spawn_notifications`, {
+                method: "POST",
+                headers: { apikey: SUPABASE_KEY!, Authorization: `Bearer ${SUPABASE_KEY!}`, "Content-Type": "application/json", Prefer: "return=minimal" },
+                body: JSON.stringify({ server_id: serverId, activity_id: activity.id, event: "boss_spawned", spawn_timestamp: actUnix }),
+              }).catch((err: any) => console.error("activity spawn_notifs insert failed:", err?.message ?? err));
+            }
+          }
+        }
       } catch (serverErr: any) {
         console.error(`Spawn cron error for server ${serverId}:`, serverErr.message);
         // Continue with next server
