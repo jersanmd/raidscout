@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { useServer } from "@/contexts/ServerContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { deleteServer, transferServerOwnership, removeServerModerator, addServerModerator, supabase, fetchServerMembers, type ServerMember, fetchGuilds, createGuild, updateGuildName, deleteGuild, fetchBossGuilds, setBossGuilds, fetchBosses, setBossPoints, setBossSalary, notifyDiscord, fetchModeratorPermissions, updateModeratorPermissions, type ModeratorPermissions, DEFAULT_MODERATOR_PERMISSIONS } from "@/lib/supabase";
+import { deleteServer, transferServerOwnership, removeServerModerator, addServerModerator, supabase, fetchServerMembers, type ServerMember, fetchGuilds, createGuild, updateGuildName, deleteGuild, fetchBossGuilds, setBossGuilds, fetchBosses, setBossPoints, setBossSalary, notifyDiscord, fetchModeratorPermissions, updateModeratorPermissions, updateThreadConfig, type ModeratorPermissions, DEFAULT_MODERATOR_PERMISSIONS } from "@/lib/supabase";
 import type { Guild, BossGuild, Boss } from "@/types";
 import { Loader2, Trash2, Crown, ArrowLeft, Server, Check, Key, Copy, RefreshCw, Plus, LogIn, Users, Bell, Link, Settings, AlertTriangle, X, Shield, Pencil, Swords, ChevronUp, ChevronDown, CheckSquare, Square, Eye, EyeOff, UserPlus, Minus, Trophy, Send, Save } from "lucide-react";
 import { CreateServerModal } from "@/components/CreateServerModal";
@@ -152,7 +152,7 @@ export function ServerSettingsView() {
   const [viewerKey, setViewerKey] = useState("");
   const [showInviteCode, setShowInviteCode] = useState(false);
   const [showViewerKey, setShowViewerKey] = useState(false);
-  const [discordLinks, setDiscordLinks] = useState<{ id: string; discord_guild_id: string; label?: string; webhook_url?: string; command_prefix?: string; notification_channel_id?: string; command_channel_id?: string }[]>([]);
+  const [discordLinks, setDiscordLinks] = useState<{ id: string; discord_guild_id: string; label?: string; webhook_url?: string; command_prefix?: string; notification_channel_id?: string; command_channel_id?: string; thread_channel_id?: string; thread_guilds?: string[] }[]>([]);
   const [newDiscordId, setNewDiscordId] = useState("");
   const [newDiscordLabel, setNewDiscordLabel] = useState("");
   const [newDiscordPrefix, setNewDiscordPrefix] = useState("!");
@@ -161,6 +161,7 @@ export function ServerSettingsView() {
   const [editAliasLinkId, setEditAliasLinkId] = useState<string | null>(null);
   const [editAliases, setEditAliases] = useState<Record<string, string>>({});
   const [channelValues, setChannelValues] = useState<Record<string, { notif: string; cmd: string }>>({});
+  const [threadValues, setThreadValues] = useState<Record<string, { channelId: string; guilds: string[] }>>({});
   const [testingDiscord, setTestingDiscord] = useState<Set<string>>(new Set());
   const [expandedModPerms, setExpandedModPerms] = useState<string | null>(null); // user_id of expanded moderator
   const [modPermsData, setModPermsData] = useState<Record<string, ModeratorPermissions>>({}); // loaded permissions per user
@@ -1858,6 +1859,108 @@ export function ServerSettingsView() {
                     ) : (
                       <div className="text-[10px] text-slate-500">
                         Alerts: {link.notification_channel_id ? <code className="text-slate-400 font-mono">{link.notification_channel_id}</code> : <span className="italic">not set</span>} — Commands: {link.command_channel_id ? <code className="text-slate-400 font-mono">{link.command_channel_id}</code> : <span className="italic">not set</span>}
+                      </div>
+                    )}
+                  </div>
+                  {/* Thread Config */}
+                  <div className="mt-2 space-y-2">
+                    <div className="flex items-center gap-1">
+                      <span className="text-[10px] text-slate-500">Auto-Threads</span>
+                      {!threadValues[link.id] ? (
+                        <button
+                          onClick={() => setThreadValues(prev => ({
+                            ...prev,
+                            [link.id]: {
+                              channelId: link.thread_channel_id || "",
+                              guilds: link.thread_guilds || [],
+                            },
+                          }))}
+                          className="p-0.5 rounded text-slate-500 hover:text-purple-400 transition"
+                          title="Edit thread settings"
+                        >
+                          <Pencil className="w-3 h-3" />
+                        </button>
+                      ) : (
+                        <div className="flex gap-0.5">
+                          <button
+                            onClick={async () => {
+                              const vals = threadValues[link.id];
+                              if (!vals) return;
+                              await updateThreadConfig(link.id, vals.channelId.trim() || null, vals.guilds);
+                              setDiscordLinks(prev => prev.map(d => d.id === link.id ? {
+                                ...d,
+                                thread_channel_id: vals.channelId.trim() || undefined,
+                                thread_guilds: vals.guilds,
+                              } : d));
+                              setThreadValues(prev => { const n = { ...prev }; delete n[link.id]; return n; });
+                            }}
+                            className="p-0.5 rounded text-green-400 hover:text-green-300 transition"
+                            title="Save"
+                          >
+                            <Check className="w-3 h-3" />
+                          </button>
+                          <button
+                            onClick={() => setThreadValues(prev => { const n = { ...prev }; delete n[link.id]; return n; })}
+                            className="p-0.5 rounded text-red-400 hover:text-red-300 transition"
+                            title="Cancel"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                    {threadValues[link.id] ? (
+                      <div className="space-y-2">
+                        {guilds.length > 0 && (
+                          <div className="space-y-1">
+                            <label className="text-[10px] text-slate-500 block">Guilds whose bosses create threads</label>
+                            {guilds.map(g => {
+                              const checked = threadValues[link.id].guilds.includes(g.id);
+                              return (
+                                <label key={g.id} className="flex items-center gap-1.5 cursor-pointer">
+                                  <input
+                                    type="checkbox"
+                                    checked={checked}
+                                    onChange={() => {
+                                      setThreadValues(prev => ({
+                                        ...prev,
+                                        [link.id]: {
+                                          ...prev[link.id],
+                                          guilds: checked
+                                            ? prev[link.id].guilds.filter(id => id !== g.id)
+                                            : [...prev[link.id].guilds, g.id],
+                                        },
+                                      }));
+                                    }}
+                                    className="w-3 h-3 rounded border-slate-600 bg-slate-800 text-purple-500 focus:ring-purple-500"
+                                  />
+                                  <span className="text-[11px] text-slate-300">{g.name}</span>
+                                </label>
+                              );
+                            })}
+                          </div>
+                        )}
+                        <div>
+                          <label className="text-[10px] text-slate-500 block mb-0.5">Thread Channel ID</label>
+                          <input
+                            type="text"
+                            value={threadValues[link.id].channelId}
+                            onChange={(e) => setThreadValues(prev => ({
+                              ...prev,
+                              [link.id]: { ...prev[link.id], channelId: e.target.value },
+                            }))}
+                            placeholder="Paste forum or text channel ID"
+                            className="w-full bg-slate-700 rounded px-2 py-1.5 text-xs text-slate-300 font-mono outline-none focus:ring-1 focus:ring-purple-500"
+                          />
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-[10px] text-slate-500">
+                        Threads: {link.thread_channel_id ? (
+                          <><code className="text-slate-400 font-mono">{link.thread_channel_id}</code> ({((link.thread_guilds || []).map(gid => guilds.find(g => g.id === gid)?.name).filter(Boolean).join(", ")) || "no guilds"})</>
+                        ) : (
+                          <span className="italic">not set</span>
+                        )}
                       </div>
                     )}
                   </div>

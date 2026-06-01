@@ -839,6 +839,104 @@ setInterval(() => {
 
 // ── Shared: send notification embed to ALL linked Discord servers ─
 
+// ── Thread Creation ──────────────────────────────────────
+
+async function createEventThreads(
+  serverId: string,
+  bossName: string,
+  ownerGuildName: string | undefined,
+  spawnUnix: number,
+): Promise<void> {
+  if (!ownerGuildName) return;
+
+  try {
+    // Find the guild ID for the owner guild name
+    const guildRows = await supabaseQuerySafe(
+      `guilds?server_id=eq.${serverId}&name=eq.${encodeURIComponent(ownerGuildName)}&limit=1`
+    );
+    const ownerGuildId = guildRows?.[0]?.id;
+    if (!ownerGuildId) return;
+
+    // Fetch all discord_configs for this server that have thread config
+    const configs = await supabaseQuerySafe(
+      `discord_configs?raidscout_server_id=eq.${serverId}&select=id,thread_channel_id,thread_guilds`
+    );
+
+    for (const cfg of configs) {
+      const channelId: string = cfg.thread_channel_id;
+      const threadGuilds: string[] = cfg.thread_guilds || [];
+      if (!channelId || !threadGuilds.includes(ownerGuildId)) continue;
+
+      const datePart = new Date().toISOString().split("T")[0];
+      const threadName = `⚠️ ${bossName} — ${ownerGuildName} — ${datePart}`;
+      const initialMessage = `⚠️ **${bossName}** will spawn in ~5 minutes!\n**${ownerGuildName}** — <t:${spawnUnix}:f>`;
+
+      // Check channel type (forum vs text)
+      let isForum = false;
+      try {
+        const chRes = await fetch(`https://discord.com/api/v10/channels/${channelId}`, {
+          headers: { Authorization: `Bot ${TOKEN}` },
+        });
+        if (chRes.ok) {
+          const ch = await chRes.json();
+          isForum = ch.type === 15; // GUILD_FORUM
+        }
+      } catch { /* assume text channel */ }
+
+      try {
+        const threadBody: any = {
+          name: threadName,
+          auto_archive_duration: 10080, // 7 days
+        };
+
+        if (isForum) {
+          threadBody.message = { content: initialMessage };
+        } else {
+          threadBody.type = 11; // GUILD_PUBLIC_THREAD
+        }
+
+        const res = await fetch(`https://discord.com/api/v10/channels/${channelId}/threads`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bot ${TOKEN}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(threadBody),
+        });
+
+        if (!res.ok) {
+          const errText = await res.text().catch(() => "");
+          if (res.status === 403) {
+            console.warn(`[thread] Missing permission in channel ${channelId} (403)`);
+          } else {
+            console.error(`[thread] Failed in ${channelId}: ${res.status} ${errText}`);
+          }
+          continue;
+        }
+
+        const thread = await res.json();
+        // For text channels, send the initial message into the thread
+        if (!isForum) {
+          await fetch(`https://discord.com/api/v10/channels/${thread.id}/messages`, {
+            method: "POST",
+            headers: {
+              Authorization: `Bot ${TOKEN}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ content: initialMessage }),
+          });
+        }
+
+        console.log(`[thread] Created "${threadName}" in channel ${channelId}`);
+      } catch (err: any) {
+        console.error(`[thread] Error for channel ${channelId}:`, err.message);
+      }
+    }
+  } catch (err: any) {
+    console.error("[thread] createEventThreads failed:", err.message);
+  }
+}
+
 async function broadcastNotification(serverId: string, embed: any, skipChannelId?: string, textContent?: string): Promise<{ ok: boolean; skipped?: string }> {
   const rows = await supabaseQuerySafe(
     `discord_configs?raidscout_server_id=eq.${serverId}&select=notification_channel_id,discord_guild_id`
@@ -1060,6 +1158,10 @@ async function runSpawnCron() {
               const guildName = computeOwnerGuild(boss, serverBossGuilds, guilds, lastDeath, spawnTime, tz) || "";
               const text = `⚠️ **${boss.name}** will spawn in ~5 minutes!\n${guildName ? `**${guildName}** — ` : ""}<t:${spawnUnix}:f>`;
               await broadcastNotification(serverId, {}, undefined, text);
+              // Auto-create thread for this spawn
+              createEventThreads(serverId, boss.name, guildName || undefined, spawnUnix).catch((err: any) =>
+                console.error(`[thread] createEventThreads error:`, err.message)
+              );
               // Record sent notification
               await fetch(`${SUPABASE_URL}/rest/v1/spawn_notifications`, {
                 method: "POST",

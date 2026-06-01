@@ -1303,6 +1303,22 @@ export async function notifyDiscord(
   }
 }
 
+// ── Thread Config ──────────────────────────────────────────
+
+export async function updateThreadConfig(
+  configId: string,
+  threadChannelId: string | null,
+  threadGuilds: string[]
+): Promise<void> {
+  await supabase
+    .from("discord_configs")
+    .update({
+      thread_channel_id: threadChannelId || null,
+      thread_guilds: threadGuilds,
+    })
+    .eq("id", configId);
+}
+
 export interface SpawnAnnounceBoss {
   name: string;
   spawn_time: string;
