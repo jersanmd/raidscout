@@ -949,11 +949,14 @@ export interface AnalyticsData {
   top_bosses: { name: string; kills: number }[];
   top_hunters: { name: string; attended: number }[];
   kills_by_day: { day: string; count: number }[];
+  total_activities: number;
+  activity_participation: number;
+  activity_completion_rate: number;
 }
 
 export async function fetchAnalytics(since: string, serverId?: string | null): Promise<AnalyticsData> {
   const sid = serverId ?? getCurrentServerId();
-  if (!sid) return { total_kills: 0, total_attendance: 0, active_members: 0, kills_by_week: [], top_bosses: [], top_hunters: [], kills_by_day: [] };
+  if (!sid) return { total_kills: 0, total_attendance: 0, active_members: 0, kills_by_week: [], top_bosses: [], top_hunters: [], kills_by_day: [], total_activities: 0, activity_participation: 0, activity_completion_rate: 0 };
 
   // Get death records since date
   const { data: deaths, error: dErr } = await supabase
@@ -963,7 +966,7 @@ export async function fetchAnalytics(since: string, serverId?: string | null): P
     .gte("death_time", since)
     .order("death_time", { ascending: false });
   if (dErr) throw dErr;
-  if (!deaths?.length) return { total_kills: 0, total_attendance: 0, active_members: 0, kills_by_week: [], top_bosses: [], top_hunters: [], kills_by_day: [] };
+  if (!deaths?.length) return { total_kills: 0, total_attendance: 0, active_members: 0, kills_by_week: [], top_bosses: [], top_hunters: [], kills_by_day: [], total_activities: 0, activity_participation: 0, activity_completion_rate: 0 };
 
   const deathIds = deaths.map(d => d.id);
 
@@ -1039,7 +1042,7 @@ export async function fetchAnalytics(since: string, serverId?: string | null): P
   for (const d of deaths) dayCounts.set(d.death_time ? new Date(d.death_time).getDay() : -1, (dayCounts.get(d.death_time ? new Date(d.death_time).getDay() : -1) || 0) + 1);
   const killsByDay = dayNames.map(day => ({ day, count: dayCounts.get(dayNames.indexOf(day)) || 0 }));
 
-  return { total_kills: totalKills, total_attendance: totalAttendance, active_members: activeMembers, kills_by_week: killsByWeek, top_bosses: topBosses, top_hunters: topHunters, kills_by_day: killsByDay };
+  return { total_kills: totalKills, total_attendance: totalAttendance, active_members: activeMembers, kills_by_week: killsByWeek, top_bosses: topBosses, top_hunters: topHunters, kills_by_day: killsByDay, total_activities: 0, activity_participation: 0, activity_completion_rate: 0 };
 }
 
 // ── History from Supabase ──────────────────────────────────

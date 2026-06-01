@@ -16,6 +16,8 @@ interface AnalyticsUIData {
   topBosses: { name: string; kills: number }[];
   topHunters: { name: string; attended: number }[];
   killsByDay: { day: string; count: number }[];
+  totalActivities: number;
+  activityParticipation: number;
 }
 
 export function AnalyticsView() {
@@ -102,6 +104,8 @@ export function AnalyticsView() {
         topBosses: raw.top_bosses ?? [],
         topHunters: raw.top_hunters ?? [],
         killsByDay: raw.kills_by_day ?? [],
+        totalActivities: raw.total_activities ?? 0,
+        activityParticipation: raw.activity_participation ?? 0,
       };
     },
     staleTime: 0,
@@ -239,10 +243,11 @@ export function AnalyticsView() {
         )}
       </div>
 
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
         <StatCard icon={<Skull className="w-4 h-4" />} label="Total Kills" value={data.totalKills} color="text-red-400" bg="bg-red-900/20 border-red-800" />
         <StatCard icon={<Users className="w-4 h-4" />} label="Active Members" value={data.activeMembers} color="text-blue-400" bg="bg-blue-900/20 border-blue-800" />
         <StatCard icon={<Activity className="w-4 h-4" />} label="Attendances" value={data.totalAttendance} color="text-amber-400" bg="bg-amber-900/20 border-amber-800" />
+        <StatCard icon={<span className="text-sm">📅</span>} label="Activities" value={data.totalActivities} color="text-cyan-400" bg="bg-cyan-900/20 border-cyan-800" />
       </div>
 
       {period !== "week" && (
@@ -370,12 +375,8 @@ function Section({ title, icon, children }: { title: string; icon: React.ReactNo
 
 function emptyAnalytics(): AnalyticsUIData {
   return {
-    totalKills: 0,
-    totalAttendance: 0,
-    activeMembers: 0,
-    killsByWeek: [],
-    topBosses: [],
-    topHunters: [],
-    killsByDay: [],
+    totalKills: 0, totalAttendance: 0, activeMembers: 0,
+    killsByWeek: [], topBosses: [], topHunters: [], killsByDay: [],
+    totalActivities: 0, activityParticipation: 0,
   };
 }
