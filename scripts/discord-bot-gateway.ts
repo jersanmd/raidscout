@@ -1104,7 +1104,8 @@ async function runSpawnCron() {
 
     // Cleanup old dedup rows (>7 days) — once per tick is plenty
     try {
-      await fetch(`${SUPABASE_URL}/rest/v1/spawn_notifications?created_at=lt.${new Date(Date.now() - 7 * 86400_000).toISOString()}`, {
+      const cutoff = new Date(Date.now() - 7 * 86400_000).toISOString();
+      await fetch(`${SUPABASE_URL}/rest/v1/spawn_notifications?created_at=lt.${encodeURIComponent(cutoff)}`, {
         method: "DELETE",
         headers: { apikey: SUPABASE_KEY!, Authorization: `Bearer ${SUPABASE_KEY!}` },
       }).catch(() => {});
