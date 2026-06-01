@@ -99,10 +99,16 @@ export function ParticipantModal({
   const [partyLeaders, setPartyLeaders] = useState<Record<string, string>>({});
   const [partyLeadersLoading, setPartyLeadersLoading] = useState(true);
   useEffect(() => {
-    supabase.from("death_records").select("party_leaders").eq("id", deathRecordId).single()
-      .then(({ data }) => setPartyLeaders((data as any)?.party_leaders || {}))
-      .catch(() => setPartyLeaders({}))
-      .finally(() => setPartyLeadersLoading(false));
+    (async () => {
+      try {
+        const { data } = await supabase.from("death_records").select("party_leaders").eq("id", deathRecordId).single();
+        setPartyLeaders((data as any)?.party_leaders || {});
+      } catch {
+        setPartyLeaders({});
+      } finally {
+        setPartyLeadersLoading(false);
+      }
+    })();
   }, [deathRecordId]);
 
   const savePartyLeaders = async (updated: Record<string, string>) => {
@@ -506,14 +512,15 @@ export function ParticipantModal({
                             {/* Party Leader selector inside guild header */}
                             {!partyLeadersLoading && (
                               readOnly ? (
-                                <span className={`text-xs px-2 py-1 rounded border font-medium ${group.color.text} ${group.color.border} bg-slate-800/50`}>Leader: {members.find(m => m.id === partyLeaders[group.guildId])?.name || "—"}</span>
+                                <span className={`text-xs px-2 py-1 rounded border font-medium ${group.color.text} ${group.color.border} bg-slate-800/50`}>Leader: {members.find(m => m.id === partyLeaders[group.guildId!])?.name || "—"}</span>
                               ) : (
                                 <select
-                                  value={partyLeaders[group.guildId] ?? ""}
+                                  value={partyLeaders[group.guildId!] ?? ""}
                                   onChange={(e) => {
                                     const next = { ...partyLeaders };
-                                    if (e.target.value) next[group.guildId!] = e.target.value;
-                                    else delete next[group.guildId!];
+                                    const gid = group.guildId!;
+                                    if (e.target.value) next[gid] = e.target.value;
+                                    else delete next[gid];
                                     setPartyLeaders(next);
                                     savePartyLeaders(next);
                                   }}
