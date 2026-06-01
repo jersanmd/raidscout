@@ -50,6 +50,16 @@ body {
   animation: pulse-glow 2s ease-in-out infinite;
 }
 
+@keyframes slideDown {
+  from { opacity: 0; max-height: 0; transform: translateY(-8px); }
+  to { opacity: 1; max-height: 400px; transform: translateY(0); }
+}
+
+.animate-slideDown {
+  animation: slideDown 0.25s ease-out forwards;
+  overflow: hidden;
+}
+
 @keyframes bounce-in {
   0% { transform: translate(-50%, 20px); opacity: 0; }
   60% { transform: translate(-50%, -4px); opacity: 1; }

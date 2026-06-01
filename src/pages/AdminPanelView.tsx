@@ -7,7 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Loader2, Shield, Server, Users, Eye, ChevronDown, ChevronUp, ClipboardList, HardDrive, BarChart3, Crosshair, Skull, Activity, Radio, Clock, Trash2, RefreshCw } from "lucide-react";
 
 export function AdminPanelView() {
-  const [tab, setTab] = useState<"servers" | "users" | "audit" | "database" | "plan" | "cron" | "deleted">("servers");
+  const [tab, setTab] = useState<"servers" | "users" | "audit" | "database" | "plan" | "cron" | "deleted" | "infra">("servers");
   const { setCurrentServer } = useServer();
   const { userRole } = useAuth();
   const [expandedUser, setExpandedUser] = useState<string | null>(null);
@@ -65,6 +65,31 @@ export function AdminPanelView() {
     enabled: userRole === "admin" && tab === "cron",
   });
 
+  const BOT_URL = "https://raidscout-bot.fly.dev";
+  const { data: botStatus, isLoading: botLoading, refetch: refetchBot } = useQuery({
+    queryKey: ["admin", "bot"],
+    queryFn: async () => {
+      const res = await fetch(`${BOT_URL}/status`);
+      if (!res.ok) throw new Error("Bot unreachable");
+      return res.json();
+    },
+    staleTime: 10_000,
+    refetchInterval: 15_000,
+    enabled: userRole === "admin" && tab === "infra",
+  });
+
+  const { data: botLogs, isLoading: logsLoading, refetch: refetchLogs } = useQuery({
+    queryKey: ["admin", "bot", "logs"],
+    queryFn: async () => {
+      const res = await fetch(`${BOT_URL}/logs?limit=100`);
+      if (!res.ok) throw new Error("Logs unreachable");
+      return res.json();
+    },
+    staleTime: 5_000,
+    refetchInterval: 10_000,
+    enabled: userRole === "admin" && tab === "infra",
+  });
+
   const { data: deletedServers = [], isLoading: deletedLoading, refetch: refetchDeleted } = useQuery({
     queryKey: ["admin", "deleted"],
     queryFn: async () => {
@@ -108,80 +133,41 @@ export function AdminPanelView() {
   return (
     <div className="max-w-3xl mx-auto px-4 py-6 space-y-6">
       <div className="flex items-center gap-3">
-        <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-pink-400">
-          <Shield className="w-5 h-5 text-white" />
+        <div className="flex items-center justify-center w-11 h-11 rounded-xl bg-gradient-to-br from-purple-600 via-indigo-500 to-pink-500 shadow-lg shadow-purple-900/30">
+          <Shield className="w-6 h-6 text-white" />
         </div>
         <div>
-          <h2 className="text-xl font-bold text-white">Admin Panel</h2>
-          <p className="text-sm text-slate-400">Oversee all servers and users</p>
+          <h2 className="text-xl font-bold text-white tracking-tight">Admin Panel</h2>
+          <p className="text-xs text-slate-500">Manage all servers, users & infrastructure</p>
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="flex bg-slate-800 rounded-lg p-0.5 gap-0.5 overflow-x-auto">
-        <button
-          onClick={() => setTab("servers")}
-          className={`flex flex-1 items-center justify-center gap-1 px-2 py-1.5 rounded-md text-xs font-medium transition whitespace-nowrap ${
-            tab === "servers" ? "bg-slate-700 text-white" : "text-slate-400 hover:text-slate-200"
-          }`}
-        >
-          <Server className="w-3.5 h-3.5" />
-          Servers ({servers.length})
-        </button>
-        <button
-          onClick={() => setTab("users")}
-          className={`flex flex-1 items-center justify-center gap-1 px-2 py-1.5 rounded-md text-xs font-medium transition whitespace-nowrap ${
-            tab === "users" ? "bg-slate-700 text-white" : "text-slate-400 hover:text-slate-200"
-          }`}
-        >
-          <Users className="w-3.5 h-3.5" />
-          Owners ({users.length})
-        </button>
-        <button
-          onClick={() => setTab("audit")}
-          className={`flex flex-1 items-center justify-center gap-1 px-2 py-1.5 rounded-md text-xs font-medium transition whitespace-nowrap ${
-            tab === "audit" ? "bg-slate-700 text-white" : "text-slate-400 hover:text-slate-200"
-          }`}
-        >
-          <ClipboardList className="w-3.5 h-3.5" />
-          Audit Log
-        </button>
-        <button
-          onClick={() => setTab("database")}
-          className={`flex flex-1 items-center justify-center gap-1 px-2 py-1.5 rounded-md text-xs font-medium transition whitespace-nowrap ${
-            tab === "database" ? "bg-slate-700 text-white" : "text-slate-400 hover:text-slate-200"
-          }`}
-        >
-          <HardDrive className="w-3.5 h-3.5" />
-          Database
-        </button>
-        <button
-          onClick={() => setTab("plan")}
-          className={`flex flex-1 items-center justify-center gap-1 px-2 py-1.5 rounded-md text-xs font-medium transition whitespace-nowrap ${
-            tab === "plan" ? "bg-slate-700 text-white" : "text-slate-400 hover:text-slate-200"
-          }`}
-        >
-          <BarChart3 className="w-3.5 h-3.5" />
-          Usage
-        </button>
-        <button
-          onClick={() => setTab("cron")}
-          className={`flex flex-1 items-center justify-center gap-1 px-2 py-1.5 rounded-md text-xs font-medium transition whitespace-nowrap ${
-            tab === "cron" ? "bg-slate-700 text-white" : "text-slate-400 hover:text-slate-200"
-          }`}
-        >
-          <Clock className="w-3.5 h-3.5" />
-          Test Cron
-        </button>
-        <button
-          onClick={() => setTab("deleted")}
-          className={`flex flex-1 items-center justify-center gap-1 px-2 py-1.5 rounded-md text-xs font-medium transition whitespace-nowrap ${
-            tab === "deleted" ? "bg-slate-700 text-white" : "text-slate-400 hover:text-slate-200"
-          }`}
-        >
-          <Trash2 className="w-3.5 h-3.5" />
-          Deleted
-        </button>
+      <div className="flex gap-1.5 bg-slate-800/50 backdrop-blur rounded-xl p-1 overflow-x-auto scrollbar-none">
+        {[
+          { id: "infra", icon: Activity, label: "Infra" },
+          { id: "servers", icon: Server, label: `Servers (${servers.length})` },
+          { id: "users", icon: Users, label: `Owners (${users.length})` },
+          { id: "audit", icon: ClipboardList, label: "Audit" },
+          { id: "database", icon: HardDrive, label: "Database" },
+          { id: "plan", icon: BarChart3, label: "Usage" },
+          { id: "cron", icon: Clock, label: "Cron" },
+          { id: "deleted", icon: Trash2, label: "Deleted" },
+        ].map(t => (
+          <button
+            key={t.id}
+            onClick={() => setTab(t.id as any)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 whitespace-nowrap shrink-0 ${
+              tab === t.id
+                ? "bg-gradient-to-r from-purple-600/80 to-indigo-600/80 text-white shadow-md shadow-purple-900/20"
+                : "bg-slate-800/50 text-slate-400 hover:text-slate-200 hover:bg-slate-700/50"
+            }`}
+          >
+            <t.icon className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">{t.label}</span>
+            <span className="sm:hidden">{t.label.replace(/\s*\(.*/, "")}</span>
+          </button>
+        ))}
       </div>
 
       {/* Servers Tab */}
@@ -801,6 +787,117 @@ export function AdminPanelView() {
               </div>
 
               <p className="text-[10px] text-slate-600">Auto-refreshes every 30s. Cron runs every 5 min.</p>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Infrastructure Tab */}
+      {tab === "infra" && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h4 className="text-sm font-semibold text-white">Bot Status</h4>
+            <button onClick={() => refetchBot()} className="p-1 rounded text-slate-400 hover:text-white transition" title="Refresh">
+              <RefreshCw className="w-3.5 h-3.5" />
+            </button>
+          </div>
+          {botLoading ? (
+            <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 text-slate-500 animate-spin" /></div>
+          ) : !botStatus?.ok ? (
+            <p className="text-slate-500 text-sm text-center py-12">Bot unreachable.</p>
+          ) : (
+            <>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className={`bg-slate-900 border rounded-xl p-4 text-center ${botStatus.discord_connected ? 'border-emerald-500/30' : 'border-red-500/30'}`}>
+                  <div className={`w-3 h-3 rounded-full mx-auto mb-2 ${botStatus.discord_connected ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`} />
+                  <p className={`text-lg font-bold ${botStatus.discord_connected ? 'text-emerald-400' : 'text-red-400'}`}>
+                    {botStatus.discord_connected ? 'ONLINE' : 'OFFLINE'}
+                  </p>
+                  <p className="text-[10px] text-slate-500 mt-1">Discord Gateway</p>
+                </div>
+                <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 text-center">
+                  <Clock className="w-4 h-4 text-blue-400 mx-auto mb-2" />
+                  <p className="text-xs text-blue-300 font-mono">{botStatus.uptime_display}</p>
+                  <p className="text-[10px] text-slate-500 mt-1">Uptime</p>
+                </div>
+                <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 text-center">
+                  <HardDrive className="w-4 h-4 text-purple-400 mx-auto mb-2" />
+                  <p className="text-lg font-bold text-purple-300">{botStatus.memory_mb} / 512 MB</p>
+                  <p className="text-[10px] text-slate-500 mt-1">Memory</p>
+                </div>
+                <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 text-center">
+                  <Radio className="w-4 h-4 text-amber-400 mx-auto mb-2" />
+                  <p className="text-xs text-amber-300 font-mono">{botStatus.region} · 2 vCPU</p>
+                  <p className="text-[10px] text-slate-500 mt-1">Machine</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="bg-slate-900 border border-slate-800 rounded-xl p-3 text-center">
+                  <p className="text-xs text-slate-300 font-mono">{botStatus.node_version}</p>
+                  <p className="text-[10px] text-slate-500 mt-0.5">Node.js</p>
+                </div>
+                <div className="bg-slate-900 border border-slate-800 rounded-xl p-3 text-center">
+                  <p className="text-xs text-slate-300 font-mono">fly.io</p>
+                  <p className="text-[10px] text-slate-500 mt-0.5">Platform</p>
+                </div>
+                <div className="bg-slate-900 border border-slate-800 rounded-xl p-3 text-center">
+                  <p className="text-xs text-slate-300 font-mono">sin</p>
+                  <p className="text-[10px] text-slate-500 mt-0.5">Region</p>
+                </div>
+              </div>
+              <div className="bg-slate-900 border border-slate-800 rounded-xl p-4">
+                <h5 className="text-xs font-semibold text-slate-300 mb-3">Spawn Cron</h5>
+                <div className="grid grid-cols-3 gap-4 text-center">
+                  <div>
+                    <p className="text-lg font-bold text-blue-300 font-mono">{botStatus.spawn_cron.last_tick_seconds_ago ?? "—"}s</p>
+                    <p className="text-[10px] text-slate-500">Last Tick</p>
+                  </div>
+                  <div>
+                    <p className="text-lg font-bold text-purple-300">{botStatus.spawn_cron.servers_checked}</p>
+                    <p className="text-[10px] text-slate-500">Servers</p>
+                  </div>
+                  <div>
+                    <p className="text-lg font-bold text-amber-300">{botStatus.spawn_cron.bosses_checked}</p>
+                    <p className="text-[10px] text-slate-500">Bosses</p>
+                  </div>
+                </div>
+              </div>
+              <p className="text-[10px] text-slate-600">Auto-refreshes every 15s.</p>
+              {/* Recent Logs */}
+              <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+                <div className="flex items-center justify-between px-4 py-2 border-b border-slate-800">
+                  <h5 className="text-xs font-semibold text-slate-300">Recent Logs</h5>
+                  <button onClick={() => refetchLogs()} className="p-1 rounded text-slate-400 hover:text-white transition" title="Refresh logs">
+                    <RefreshCw className="w-3 h-3" />
+                  </button>
+                </div>
+                <div className="max-h-64 overflow-y-auto font-mono text-[10px] leading-relaxed">
+                  {logsLoading ? (
+                    <div className="flex justify-center py-6"><Loader2 className="w-4 h-4 text-slate-500 animate-spin" /></div>
+                  ) : !botLogs?.logs?.length ? (
+                    <p className="text-slate-600 px-4 py-6 text-center">No logs yet.</p>
+                  ) : (
+                    botLogs.logs.map((l: any, i: number) => (
+                      <div key={i} className={`px-4 py-0.5 border-b border-slate-800/50 flex gap-2 ${
+                        l.level === "error" ? "bg-red-950/20" : l.level === "warn" ? "bg-amber-950/10" : ""
+                      }`}>
+                        <span className="text-slate-600 shrink-0 w-[85px]">{l.ts?.slice(11, 19)}</span>
+                        <span className={`shrink-0 w-8 text-right ${
+                          l.level === "error" ? "text-red-400" : l.level === "warn" ? "text-amber-400" : "text-slate-500"
+                        }`}>{l.level}</span>
+                        <span className={`truncate ${
+                          l.level === "error" ? "text-red-300" : l.level === "warn" ? "text-amber-300" : "text-slate-400"
+                        }`}>{l.msg}</span>
+                      </div>
+                    ))
+                  )}
+                </div>
+                {botLogs?.logs?.length > 0 && (
+                  <div className="px-4 py-1.5 border-t border-slate-800 text-[10px] text-slate-600">
+                    Showing {botLogs.logs.length} of {botLogs.total} buffered logs
+                  </div>
+                )}
+              </div>
             </>
           )}
         </div>

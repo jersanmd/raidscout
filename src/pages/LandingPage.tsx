@@ -341,7 +341,7 @@ export function LandingPage() {
             <Bot className="w-3.5 h-3.5" /> DISCORD BOT
           </div>
           <h2 className="text-3xl font-bold">Control RaidScout from Discord</h2>
-          <p className="text-slate-400 mt-2 text-sm">Invite the bot, set alerts with <code className="bg-slate-800 px-1 rounded text-amber-400">!notifhere</code>, and restrict commands to one channel with <code className="bg-slate-800 px-1 rounded text-amber-400">!cmdhere</code>. Multiple RaidScout servers in one Discord? Give each its own prefix.</p>
+          <p className="text-slate-400 mt-2 text-sm">Invite the bot, set alerts with <code className="bg-slate-800 px-1 rounded text-amber-400">!notifhere</code>, and restrict commands with <code className="bg-slate-800 px-1 rounded text-amber-400">!cmdhere</code>. Custom ping per server, auto-threads for spawn events, and multi-prefix support for tracking multiple games in one Discord.</p>
         </div>
         <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
           <div className="divide-y divide-slate-800">
@@ -354,8 +354,12 @@ export function LandingPage() {
               { cmd: "... 14:30 yesterday", desc: "Force yesterday's date", detail: "Add `yesterday` to always record on yesterday's date" },
               { cmd: "!list", desc: "See all boss names", detail: "Numbered list with respawn hours and spawn type" },
               { cmd: "!commands", desc: "Show all available commands", detail: "Quick reference for your members" },
+              { cmd: "!nextspawn <guild>", desc: "Filter spawns by guild", detail: "Only show bosses owned by a specific guild (e.g. !nextspawn Arcane)" },
               { cmd: "!notifhere", desc: "Set notification channel", detail: "Run in your announcements channel to receive boss kill and spawn alerts" },
+              { cmd: "!threadhere", desc: "Set auto-thread channel", detail: "Run in a forum or text channel to enable auto-threads for spawn events" },
               { cmd: "!cmdhere", desc: "Restrict commands to one channel", detail: "Keeps your general chat clean, bot only responds in the channel you choose" },
+              { cmd: "Custom Ping", desc: "Per-server notification prefix", detail: "Set a different @role for each linked server in Server Settings → Integrations" },
+              { cmd: "Auto-Threads", desc: "Auto-create spawn threads", detail: "Configure per-guild thread channels in Server Settings — threads created 5 min before spawn" },
             ].map((c, i) => (
               <div key={c.cmd} className="flex items-start gap-4 px-5 py-4 hover:bg-slate-800/30 transition">
                 <code className="shrink-0 mt-0.5 px-2.5 py-1 rounded-md bg-indigo-900/40 border border-indigo-500/20 text-indigo-300 font-mono text-sm">{c.cmd}</code>

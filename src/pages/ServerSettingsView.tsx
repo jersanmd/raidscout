@@ -5,7 +5,7 @@ import { useServer } from "@/contexts/ServerContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { deleteServer, transferServerOwnership, removeServerModerator, addServerModerator, supabase, fetchServerMembers, type ServerMember, fetchGuilds, createGuild, updateGuildName, deleteGuild, fetchBossGuilds, setBossGuilds, fetchBosses, setBossPoints, setBossSalary, notifyDiscord, fetchModeratorPermissions, updateModeratorPermissions, updateThreadConfig, type ModeratorPermissions, DEFAULT_MODERATOR_PERMISSIONS } from "@/lib/supabase";
 import type { Guild, BossGuild, Boss } from "@/types";
-import { Loader2, Trash2, Crown, ArrowLeft, Server, Check, Key, Copy, RefreshCw, Plus, LogIn, Users, Bell, Link, Settings, AlertTriangle, X, Shield, Pencil, Swords, ChevronUp, ChevronDown, CheckSquare, Square, Eye, EyeOff, UserPlus, Minus, Trophy, Send, Save } from "lucide-react";
+import { Loader2, Trash2, Crown, ArrowLeft, Server, Check, Key, Copy, RefreshCw, Plus, LogIn, Users, Bell, Link, Settings, AlertTriangle, X, Shield, Pencil, Swords, ChevronUp, ChevronDown, CheckSquare, Square, Eye, EyeOff, UserPlus, Minus, Trophy, Send, Save, MessageCircle } from "lucide-react";
 import { CreateServerModal } from "@/components/CreateServerModal";
 import { useToast } from "@/contexts/ToastContext";
 
@@ -152,7 +152,7 @@ export function ServerSettingsView() {
   const [viewerKey, setViewerKey] = useState("");
   const [showInviteCode, setShowInviteCode] = useState(false);
   const [showViewerKey, setShowViewerKey] = useState(false);
-  const [discordLinks, setDiscordLinks] = useState<{ id: string; discord_guild_id: string; label?: string; webhook_url?: string; command_prefix?: string; notification_channel_id?: string; command_channel_id?: string; thread_channel_id?: string; thread_guilds?: string[] }[]>([]);
+  const [discordLinks, setDiscordLinks] = useState<{ id: string; discord_guild_id: string; label?: string; webhook_url?: string; command_prefix?: string; notification_channel_id?: string; command_channel_id?: string; thread_channel_id?: string; thread_guilds?: string[]; notification_prefix?: string }[]>([]);
   const [newDiscordId, setNewDiscordId] = useState("");
   const [newDiscordLabel, setNewDiscordLabel] = useState("");
   const [newDiscordPrefix, setNewDiscordPrefix] = useState("!");
@@ -161,6 +161,7 @@ export function ServerSettingsView() {
   const [editAliasLinkId, setEditAliasLinkId] = useState<string | null>(null);
   const [editAliases, setEditAliases] = useState<Record<string, string>>({});
   const [channelValues, setChannelValues] = useState<Record<string, { notif: string; cmd: string }>>({});
+  const [pingValues, setPingValues] = useState<Record<string, string>>({});
   const [threadValues, setThreadValues] = useState<Record<string, { channelId: string; guilds: string[] }>>({});
   const [testingDiscord, setTestingDiscord] = useState<Set<string>>(new Set());
   const [expandedModPerms, setExpandedModPerms] = useState<string | null>(null); // user_id of expanded moderator
@@ -1793,357 +1794,307 @@ export function ServerSettingsView() {
         </div>
       )}
 
-      {/* Integrations Tab — Discord Bot & Webhooks */}
+      {/* Integrations Tab — Discord Bot & Notifications */}
       {tab === "integrations" && (
-        <section className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3">
-          <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-            <Swords className="w-3 h-3" /> Discord Bot & Notifications
-          </h3>
-          <p className="text-sm text-slate-400">
-            Link your Discord server, then use these commands in Discord to configure channels:
-          </p>
-          {/* Existing links */}
-          {discordLinks.length > 0 && (
-            <div className="space-y-2">
-              {discordLinks.map(link => (
-                <div key={link.id} className="bg-slate-800/50 rounded-lg px-3 py-2 space-y-1">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-mono text-amber-400 bg-slate-700 px-1.5 py-0.5 rounded">{link.command_prefix || ";"}</span>
-                    <span className="flex-1 text-sm text-white font-mono truncate">
-                      {link.discord_guild_id}
-                      {link.label && <span className="text-slate-400 ml-1">— {link.label}</span>}
-                    </span>
-                    <button
-                      onClick={() => handleRemoveDiscordLink(link.id)}
-                      className="p-1 rounded hover:bg-red-900/30 text-slate-400 hover:text-red-400 transition"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                  <p className="text-[10px] text-slate-600 mt-1">Use <code className="text-amber-400 bg-slate-700 px-1 py-0.5 rounded">{link.command_prefix || "!"}notifhere</code> for alerts, <code className="text-amber-400 bg-slate-700 px-1 py-0.5 rounded">{link.command_prefix || "!"}cmdhere</code> for commands. Or paste IDs below.</p>
-                  <div className="mt-2 space-y-2">
-                    <div className="flex items-center gap-1">
-                      <span className="text-[10px] text-slate-500">Channels</span>
-                      {!channelValues[link.id] ? (
-                        <button onClick={() => setChannelValues(prev => ({ ...prev, [link.id]: { notif: link.notification_channel_id || "", cmd: link.command_channel_id || "" } }))} className="p-0.5 rounded text-slate-500 hover:text-purple-400 transition" title="Edit channel IDs">
-                          <Pencil className="w-3 h-3" />
+        <div className="space-y-6">
+          {/* Connected Servers */}
+          <section className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-4">
+            <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+              <Swords className="w-4 h-4" /> Linked Discord Servers
+            </h3>
+
+            {discordLinks.length === 0 ? (
+              <p className="text-xs text-slate-500 italic">No Discord servers linked yet.</p>
+            ) : (
+              <div className="space-y-3">
+                {discordLinks.map(link => {
+                  const isEditingChannels = !!channelValues[link.id];
+                  const isEditingThreads = !!threadValues[link.id];
+                  return (
+                    <div key={link.id} className="bg-slate-800/40 border border-slate-700/50 rounded-lg overflow-hidden">
+                      {/* Header */}
+                      <div className="flex items-center gap-3 px-4 py-3 bg-slate-800/60">
+                        <span className="text-xs font-bold font-mono text-amber-400 bg-slate-700 px-2 py-1 rounded">{link.command_prefix || "!"}</span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm text-white font-mono truncate">{link.discord_guild_id}</p>
+                          {link.label && <p className="text-[11px] text-slate-500 truncate">{link.label}</p>}
+                        </div>
+                        <button onClick={() => handleRemoveDiscordLink(link.id)} className="p-1.5 rounded hover:bg-red-900/30 text-slate-400 hover:text-red-400 transition" title="Remove link">
+                          <Trash2 className="w-4 h-4" />
                         </button>
-                      ) : (
-                        <div className="flex gap-0.5">
+                      </div>
+
+                      {/* Body */}
+                      <div className="p-4 space-y-4">
+                        {/* Channels */}
+                        <div>
+                          <div className="flex items-center justify-between mb-2">
+                            <h4 className="text-xs font-semibold text-blue-400 flex items-center gap-1.5">
+                              <Bell className="w-3.5 h-3.5" /> Notification & Command Channels
+                            </h4>
+                            {!isEditingChannels ? (
+                              <button onClick={() => setChannelValues(prev => ({ ...prev, [link.id]: { notif: link.notification_channel_id || "", cmd: link.command_channel_id || "" } }))}
+                                className="text-xs px-2.5 py-1 rounded bg-slate-700 text-slate-300 hover:text-white hover:bg-slate-600 transition font-medium">
+                                <Pencil className="w-3 h-3 inline mr-1" />Edit
+                              </button>
+                            ) : (
+                              <div className="flex gap-1">
+                                <button onClick={async () => {
+                                  const vals = channelValues[link.id]; if (!vals) return;
+                                  await supabase.from("discord_configs").update({ notification_channel_id: vals.notif.trim() || undefined, command_channel_id: vals.cmd.trim() || undefined }).eq("id", link.id);
+                                  setDiscordLinks(prev => prev.map(d => d.id === link.id ? { ...d, notification_channel_id: vals.notif.trim() || undefined, command_channel_id: vals.cmd.trim() || undefined } : d));
+                                  setChannelValues(prev => { const n = { ...prev }; delete n[link.id]; return n; });
+                                }} className="text-xs px-2 py-1 rounded bg-green-600 text-white hover:bg-green-500 transition font-medium flex items-center gap-1">
+                                  <Check className="w-3 h-3" />Save
+                                </button>
+                                <button onClick={() => setChannelValues(prev => { const n = { ...prev }; delete n[link.id]; return n; })}
+                                  className="text-xs px-2 py-1 rounded bg-slate-700 text-slate-400 hover:text-white transition">Cancel</button>
+                              </div>
+                            )}
+                          </div>
+                          {isEditingChannels ? (
+                            <div className="grid grid-cols-2 gap-2">
+                              <div>
+                                <label className="text-[11px] text-slate-500 block mb-1">Alert Channel ID</label>
+                                <input type="text" value={channelValues[link.id].notif} onChange={(e) => setChannelValues(prev => ({ ...prev, [link.id]: { ...prev[link.id], notif: e.target.value }}))}
+                                  placeholder="e.g. 1510221200259940442"
+                                  className="w-full bg-slate-700 rounded px-2.5 py-1.5 text-xs text-slate-200 font-mono outline-none focus:ring-1 focus:ring-blue-500" />
+                              </div>
+                              <div>
+                                <label className="text-[11px] text-slate-500 block mb-1">Command Channel ID</label>
+                                <input type="text" value={channelValues[link.id].cmd} onChange={(e) => setChannelValues(prev => ({ ...prev, [link.id]: { ...prev[link.id], cmd: e.target.value }}))}
+                                  placeholder="e.g. 1507015001091608729"
+                                  className="w-full bg-slate-700 rounded px-2.5 py-1.5 text-xs text-slate-200 font-mono outline-none focus:ring-1 focus:ring-blue-500" />
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex gap-4 text-xs">
+                              <span className="text-slate-500">Alerts: {link.notification_channel_id ? <code className="text-slate-300 font-mono">{link.notification_channel_id}</code> : <span className="italic text-slate-600">not set</span>}</span>
+                              <span className="text-slate-500">Commands: {link.command_channel_id ? <code className="text-slate-300 font-mono">{link.command_channel_id}</code> : <span className="italic text-slate-600">not set</span>}</span>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Auto-Threads */}
+                        <div>
+                          <div className="flex items-center justify-between mb-2">
+                            <h4 className="text-xs font-semibold text-purple-400 flex items-center gap-1.5">
+                              <MessageCircle className="w-3.5 h-3.5" /> Auto-Threads
+                            </h4>
+                            {!isEditingThreads ? (
+                              <button onClick={() => setThreadValues(prev => ({ ...prev, [link.id]: { channelId: link.thread_channel_id || "", guilds: link.thread_guilds || [] } }))}
+                                className="text-xs px-2.5 py-1 rounded bg-slate-700 text-slate-300 hover:text-white hover:bg-slate-600 transition font-medium">
+                                <Pencil className="w-3 h-3 inline mr-1" />Edit
+                              </button>
+                            ) : (
+                              <div className="flex gap-1">
+                                <button onClick={async () => {
+                                  const vals = threadValues[link.id]; if (!vals) return;
+                                  await updateThreadConfig(link.id, vals.channelId.trim() || null, vals.guilds);
+                                  setDiscordLinks(prev => prev.map(d => d.id === link.id ? { ...d, thread_channel_id: vals.channelId.trim() || undefined, thread_guilds: vals.guilds } : d));
+                                  setThreadValues(prev => { const n = { ...prev }; delete n[link.id]; return n; });
+                                }} className="text-xs px-2 py-1 rounded bg-green-600 text-white hover:bg-green-500 transition font-medium flex items-center gap-1">
+                                  <Check className="w-3 h-3" />Save
+                                </button>
+                                <button onClick={() => setThreadValues(prev => { const n = { ...prev }; delete n[link.id]; return n; })}
+                                  className="text-xs px-2 py-1 rounded bg-slate-700 text-slate-400 hover:text-white transition">Cancel</button>
+                              </div>
+                            )}
+                          </div>
+                          {isEditingThreads ? (
+                            <div className="space-y-3">
+                              {guilds.length > 0 && (
+                                <div>
+                                  <label className="text-[11px] text-slate-500 block mb-1.5">Guilds that trigger threads</label>
+                                  <div className="flex flex-wrap gap-2">
+                                    {guilds.map(g => {
+                                      const checked = threadValues[link.id].guilds.includes(g.id);
+                                      return (
+                                        <label key={g.id} className={`flex items-center gap-1.5 px-2.5 py-1 rounded cursor-pointer border text-xs font-medium transition ${
+                                          checked ? "bg-purple-900/30 border-purple-700 text-purple-300" : "bg-slate-800 border-slate-700 text-slate-500 hover:text-slate-300"
+                                        }`}>
+                                          <input type="checkbox" checked={checked} onChange={() => {
+                                            setThreadValues(prev => ({ ...prev, [link.id]: { ...prev[link.id], guilds: checked ? prev[link.id].guilds.filter(id => id !== g.id) : [...prev[link.id].guilds, g.id] } }));
+                                          }} className="sr-only" />
+                                          {g.name}
+                                        </label>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              )}
+                              <div>
+                                <label className="text-[11px] text-slate-500 block mb-1">Thread Channel ID</label>
+                                <input type="text" value={threadValues[link.id].channelId} onChange={(e) => setThreadValues(prev => ({ ...prev, [link.id]: { ...prev[link.id], channelId: e.target.value } }))}
+                                  placeholder="Paste forum or text channel ID"
+                                  className="w-full bg-slate-700 rounded px-2.5 py-1.5 text-xs text-slate-200 font-mono outline-none focus:ring-1 focus:ring-purple-500" />
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="text-xs text-slate-500">
+                              Threads: {link.thread_channel_id ? (
+                                <><code className="text-slate-300 font-mono">{link.thread_channel_id}</code> <span className="text-purple-400">({((link.thread_guilds || []).map(gid => guilds.find(g => g.id === gid)?.name).filter(Boolean).join(", ")) || "no guilds"})</span></>
+                              ) : (
+                                <span className="italic text-slate-600">not set</span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Actions */}
+                        <div className="flex items-center gap-3 pt-1 border-t border-slate-700/50">
+                          <button onClick={() => {
+                            if (editAliasLinkId === link.id) { setEditAliasLinkId(null); return; }
+                            setEditAliasLinkId(link.id); setEditAliases((link as any).command_aliases || {});
+                          }}
+                            className={`text-xs px-2.5 py-1 rounded font-medium flex items-center gap-1.5 transition ${
+                              editAliasLinkId === link.id ? "bg-amber-600 text-white" : "bg-amber-900/30 text-amber-400 hover:bg-amber-900/50"
+                            }`}>
+                            <Pencil className="w-3 h-3" />{editAliasLinkId === link.id ? "Close Aliases" : "Command Aliases"}
+                          </button>
+                          <div className="flex items-center gap-1.5 ml-auto">
+                            <label className="text-[11px] text-slate-500">Ping:</label>
+                            <input type="text"
+                              value={pingValues[link.id] ?? ((link as any).notification_prefix || "")}
+                              onChange={(e) => setPingValues(prev => ({ ...prev, [link.id]: e.target.value }))}
+                              placeholder="@everyone"
+                              className={`bg-slate-700 border border-slate-600 px-2 py-1 text-xs text-slate-200 font-mono outline-none focus:ring-1 focus:ring-blue-500 transition ${
+                                (pingValues[link.id] ?? "") !== ((link as any).notification_prefix || "")
+                                  ? "rounded-l w-28" : "rounded w-36"
+                              }`} />
+                            {(pingValues[link.id] ?? "") !== ((link as any).notification_prefix || "") && (
+                              <button
+                                onClick={async () => {
+                                  const val = (pingValues[link.id] || "").trim();
+                                  await supabase.from("discord_configs").update({ notification_prefix: val || null }).eq("id", link.id);
+                                  setDiscordLinks(prev => prev.map(d => d.id === link.id ? { ...d, notification_prefix: val } : d));
+                                  setPingValues(prev => { const n = { ...prev }; delete n[link.id]; return n; });
+                                  toast("success", val ? `Ping set to "${val}"` : "Ping reset to default");
+                                }}
+                                className="text-xs px-2 py-1 rounded-r bg-blue-600 text-white hover:bg-blue-500 transition font-medium">Save</button>
+                            )}
+                          </div>
                           <button onClick={async () => {
-                            const vals = channelValues[link.id];
-                            if (!vals) return;
-                            await supabase.from("discord_configs").update({ notification_channel_id: vals.notif.trim() || undefined, command_channel_id: vals.cmd.trim() || undefined }).eq("id", link.id);
-                            setDiscordLinks(prev => prev.map(d => d.id === link.id ? { ...d, notification_channel_id: vals.notif.trim() || undefined, command_channel_id: vals.cmd.trim() || undefined } : d));
-                            setChannelValues(prev => { const n = { ...prev }; delete n[link.id]; return n; });
-                          }} className="p-0.5 rounded text-green-400 hover:text-green-300 transition" title="Save">
-                            <Check className="w-3 h-3" />
-                          </button>
-                          <button onClick={() => setChannelValues(prev => { const n = { ...prev }; delete n[link.id]; return n; })} className="p-0.5 rounded text-red-400 hover:text-red-300 transition" title="Cancel">
-                            <X className="w-3 h-3" />
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                    {channelValues[link.id] ? (
-                      <div className="flex gap-2">
-                        <div className="flex-1">
-                          <label className="text-[10px] text-slate-500 block mb-0.5">Alerts Channel ID</label>
-                          <input type="text" value={channelValues[link.id].notif} onChange={(e) => setChannelValues(prev => ({ ...prev, [link.id]: { ...prev[link.id], notif: e.target.value }}))} placeholder="Channel ID" className="w-full bg-slate-700 rounded px-2 py-1.5 text-xs text-slate-300 font-mono outline-none focus:ring-1 focus:ring-purple-500" />
-                        </div>
-                        <div className="flex-1">
-                          <label className="text-[10px] text-slate-500 block mb-0.5">Commands Channel ID</label>
-                          <input type="text" value={channelValues[link.id].cmd} onChange={(e) => setChannelValues(prev => ({ ...prev, [link.id]: { ...prev[link.id], cmd: e.target.value }}))} placeholder="Channel ID" className="w-full bg-slate-700 rounded px-2 py-1.5 text-xs text-slate-300 font-mono outline-none focus:ring-1 focus:ring-purple-500" />
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="text-[10px] text-slate-500">
-                        Alerts: {link.notification_channel_id ? <code className="text-slate-400 font-mono">{link.notification_channel_id}</code> : <span className="italic">not set</span>} — Commands: {link.command_channel_id ? <code className="text-slate-400 font-mono">{link.command_channel_id}</code> : <span className="italic">not set</span>}
-                      </div>
-                    )}
-                  </div>
-                  {/* Thread Config */}
-                  <div className="mt-2 space-y-2">
-                    <div className="flex items-center gap-1">
-                      <span className="text-[10px] text-slate-500">Auto-Threads</span>
-                      {!threadValues[link.id] ? (
-                        <button
-                          onClick={() => setThreadValues(prev => ({
-                            ...prev,
-                            [link.id]: {
-                              channelId: link.thread_channel_id || "",
-                              guilds: link.thread_guilds || [],
-                            },
-                          }))}
-                          className="p-0.5 rounded text-slate-500 hover:text-purple-400 transition"
-                          title="Edit thread settings"
-                        >
-                          <Pencil className="w-3 h-3" />
-                        </button>
-                      ) : (
-                        <div className="flex gap-0.5">
-                          <button
-                            onClick={async () => {
-                              const vals = threadValues[link.id];
-                              if (!vals) return;
-                              await updateThreadConfig(link.id, vals.channelId.trim() || null, vals.guilds);
-                              setDiscordLinks(prev => prev.map(d => d.id === link.id ? {
-                                ...d,
-                                thread_channel_id: vals.channelId.trim() || undefined,
-                                thread_guilds: vals.guilds,
-                              } : d));
-                              setThreadValues(prev => { const n = { ...prev }; delete n[link.id]; return n; });
-                            }}
-                            className="p-0.5 rounded text-green-400 hover:text-green-300 transition"
-                            title="Save"
-                          >
-                            <Check className="w-3 h-3" />
-                          </button>
-                          <button
-                            onClick={() => setThreadValues(prev => { const n = { ...prev }; delete n[link.id]; return n; })}
-                            className="p-0.5 rounded text-red-400 hover:text-red-300 transition"
-                            title="Cancel"
-                          >
-                            <X className="w-3 h-3" />
+                            if (!currentServer) return;
+                            setTestingDiscord(prev => new Set(prev).add(link.id));
+                            try {
+                              const events: Array<{ event: "boss_spawning" | "boss_spawned" | "boss_died"; delay: number }> = [
+                                { event: "boss_spawning", delay: 0 }, { event: "boss_spawned", delay: 800 }, { event: "boss_died", delay: 1600 },
+                              ];
+                              let okCount = 0;
+                              for (const { event, delay } of events) {
+                                await new Promise(r => setTimeout(r, delay));
+                                const r = await notifyDiscord(currentServer.id, event, { boss_name: "Test Notification (Ignore)", guild_name: "System" });
+                                if (r.ok) okCount++;
+                              }
+                              if (okCount === 3) toast("success", "All 3 test notifications sent!");
+                              else if (okCount > 0) toast("warning", `${okCount}/3 sent. Check channel IDs and bot status.`);
+                              else toast("error", "Failed to send. Check channel IDs and bot status.");
+                            } catch { toast("error", "Failed to send. Is the bot online?"); }
+                            finally { setTestingDiscord(prev => { const n = new Set(prev); n.delete(link.id); return n; }); }
+                          }} disabled={testingDiscord.has(link.id)}
+                            className="text-xs px-2.5 py-1 rounded bg-green-900/30 text-green-400 hover:bg-green-900/50 transition font-medium flex items-center gap-1.5 disabled:opacity-50">
+                            {testingDiscord.has(link.id) ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
+                            Test Notifications
                           </button>
                         </div>
-                      )}
-                    </div>
-                    {threadValues[link.id] ? (
-                      <div className="space-y-2">
-                        {guilds.length > 0 && (
-                          <div className="space-y-1">
-                            <label className="text-[10px] text-slate-500 block">Guilds whose bosses create threads</label>
-                            {guilds.map(g => {
-                              const checked = threadValues[link.id].guilds.includes(g.id);
-                              return (
-                                <label key={g.id} className="flex items-center gap-1.5 cursor-pointer">
-                                  <input
-                                    type="checkbox"
-                                    checked={checked}
-                                    onChange={() => {
-                                      setThreadValues(prev => ({
-                                        ...prev,
-                                        [link.id]: {
-                                          ...prev[link.id],
-                                          guilds: checked
-                                            ? prev[link.id].guilds.filter(id => id !== g.id)
-                                            : [...prev[link.id].guilds, g.id],
-                                        },
-                                      }));
-                                    }}
-                                    className="w-3 h-3 rounded border-slate-600 bg-slate-800 text-purple-500 focus:ring-purple-500"
-                                  />
-                                  <span className="text-[11px] text-slate-300">{g.name}</span>
-                                </label>
-                              );
-                            })}
+
+                        {/* Inline Command Aliases Editor */}
+                        {editAliasLinkId === link.id && (
+                          <div className="pt-3 border-t border-slate-700/50 animate-slideDown">
+                            <div className="space-y-2">
+                              {["list","nextspawn","killed","commands","notifhere","threadhere","cmdhere"].map(cmd => (
+                                <div key={cmd} className="flex items-center gap-2">
+                                  <span className="text-xs text-amber-400 w-24 font-mono">{cmd}</span>
+                                  <span className="text-xs text-slate-600">→</span>
+                                  <input type="text" value={editAliases[cmd] || ""} onChange={e => setEditAliases(prev => ({ ...prev, [cmd]: e.target.value }))}
+                                    placeholder={cmd}
+                                    className="flex-1 bg-slate-700 border border-slate-600 rounded px-2.5 py-1.5 text-xs text-white placeholder-slate-500 outline-none focus:border-amber-500 transition font-mono" />
+                                </div>
+                              ))}
+                              <button onClick={async () => {
+                                const { error } = await supabase.from("discord_configs").update({ command_aliases: editAliases }).eq("id", editAliasLinkId);
+                                if (error) { toast("error", error.message); return; }
+                                setDiscordLinks(prev => prev.map(d => d.id === editAliasLinkId ? { ...d, command_aliases: editAliases } : d));
+                                setEditAliasLinkId(null); toast("success", "Aliases saved!");
+                              }} className="px-4 py-2 rounded-lg text-xs font-medium bg-amber-600 text-white hover:bg-amber-500 transition flex items-center gap-1.5">
+                                <Check className="w-3.5 h-3.5" /> Save Aliases
+                              </button>
+                            </div>
                           </div>
                         )}
-                        <div>
-                          <label className="text-[10px] text-slate-500 block mb-0.5">Thread Channel ID</label>
-                          <input
-                            type="text"
-                            value={threadValues[link.id].channelId}
-                            onChange={(e) => setThreadValues(prev => ({
-                              ...prev,
-                              [link.id]: { ...prev[link.id], channelId: e.target.value },
-                            }))}
-                            placeholder="Paste forum or text channel ID"
-                            className="w-full bg-slate-700 rounded px-2 py-1.5 text-xs text-slate-300 font-mono outline-none focus:ring-1 focus:ring-purple-500"
-                          />
-                        </div>
                       </div>
-                    ) : (
-                      <div className="text-[10px] text-slate-500">
-                        Threads: {link.thread_channel_id ? (
-                          <><code className="text-slate-400 font-mono">{link.thread_channel_id}</code> ({((link.thread_guilds || []).map(gid => guilds.find(g => g.id === gid)?.name).filter(Boolean).join(", ")) || "no guilds"})</>
-                        ) : (
-                          <span className="italic">not set</span>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2 mt-1">
-                    <button onClick={() => { setEditAliasLinkId(link.id); setEditAliases((link as any).command_aliases || {}); }} className="text-[10px] text-slate-500 hover:text-purple-400 transition">
-                      <Pencil className="w-3 h-3 inline mr-1" />Edit Commands
-                    </button>
-                    <button
-                      onClick={async () => {
-                        if (!currentServer) return;
-                        setTestingDiscord(prev => new Set(prev).add(link.id));
-                        try {
-                          const events: Array<{ event: "boss_spawning" | "boss_spawned" | "boss_died"; delay: number }> = [
-                            { event: "boss_spawning", delay: 0 },
-                            { event: "boss_spawned", delay: 800 },
-                            { event: "boss_died", delay: 1600 },
-                          ];
-                          let okCount = 0;
-                          for (const { event, delay } of events) {
-                            await new Promise(r => setTimeout(r, delay));
-                            const r = await notifyDiscord(currentServer.id, event, {
-                              boss_name: "Test Notification (Ignore)",
-                              guild_name: "System",
-                            });
-                            if (r.ok) okCount++;
-                          }
-                          if (okCount === 3) {
-                            toast("success", "All 3 test notifications sent!");
-                          } else if (okCount > 0) {
-                            toast("warning", `${okCount}/3 sent. Check channel IDs and bot status.`);
-                          } else {
-                            toast("error", "Failed to send. Check channel IDs and bot status.");
-                          }
-                        } catch {
-                          toast("error", "Failed to send. Is the bot online?");
-                        } finally {
-                          setTestingDiscord(prev => { const n = new Set(prev); n.delete(link.id); return n; });
-                        }
-                      }}
-                      disabled={testingDiscord.has(link.id)}
-                      className="text-[10px] text-slate-500 hover:text-amber-400 transition disabled:opacity-50 disabled:cursor-not-allowed"
-                      title="Send a test notification to this server"
-                    >
-                      {testingDiscord.has(link.id) ? <Loader2 className="w-3 h-3 inline mr-1 animate-spin" /> : <Send className="w-3 h-3 inline mr-1" />}
-                      Test
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
 
-          {/* Command alias editor */}
-          {editAliasLinkId && (
-            <div className="bg-slate-800/50 rounded-lg p-3 space-y-2">
-              <p className="text-xs font-medium text-purple-400">Custom Command Aliases</p>
-              {["list","nextspawn","killed","commands","notifhere","cmdhere"].map(cmd => (
-                <div key={cmd} className="flex items-center gap-2">
-                  <span className="text-xs text-slate-400 w-20 font-mono">{cmd}</span>
-                  <span className="text-xs text-slate-600">→</span>
-                  <input
-                    type="text"
-                    value={editAliases[cmd] || ""}
-                    onChange={e => setEditAliases(prev => ({ ...prev, [cmd]: e.target.value }))}
-                    placeholder={cmd}
-                    className="flex-1 bg-slate-800 border border-slate-700 rounded px-2 py-1 text-xs text-white placeholder-slate-600 outline-none focus:border-purple-500 transition font-mono"
-                  />
-                </div>
-              ))}
-              <div className="flex gap-2 pt-1">
-                <button
-                  onClick={async () => {
-                    const { error } = await supabase.from("discord_configs").update({ command_aliases: editAliases }).eq("id", editAliasLinkId);
-                    if (error) { toast("error", error.message); return; }
-                    setDiscordLinks(prev => prev.map(d => d.id === editAliasLinkId ? { ...d, command_aliases: editAliases } : d));
-                    setEditAliasLinkId(null);
-                    toast("success", "Command aliases saved!");
-                  }}
-                  className="px-3 py-1.5 rounded text-xs font-medium bg-purple-600 text-white hover:bg-purple-500 transition"
-                >
-                  Save Aliases
+            {/* Add new link */}
+            <div className="pt-2 border-t border-slate-800">
+              <h4 className="text-xs font-semibold text-slate-400 mb-3 flex items-center gap-1.5">
+                <Plus className="w-3.5 h-3.5" /> Link New Discord Server
+              </h4>
+              <div className="flex gap-2">
+                <input type="text" value={newDiscordId} onChange={(e) => setNewDiscordId(e.target.value)}
+                  placeholder="Discord Server ID" ref={discordIdInputRef}
+                  className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 outline-none focus:border-purple-500 transition font-mono" />
+                <input type="text" value={newDiscordLabel} onChange={(e) => setNewDiscordLabel(e.target.value)}
+                  placeholder="Label (optional)"
+                  className="w-36 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 outline-none focus:border-purple-500 transition" />
+                <button onClick={handleAddDiscordLink} disabled={savingDiscord || !newDiscordId.trim()}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium bg-purple-600 text-white hover:bg-purple-500 transition disabled:opacity-50">
+                  {savingDiscord ? <Loader2 className="w-4 h-4 animate-spin" /> : <Link className="w-4 h-4" />}
+                  Link
                 </button>
-                <button onClick={() => setEditAliasLinkId(null)} className="px-3 py-1.5 rounded text-xs text-slate-400 hover:text-white transition">Cancel</button>
               </div>
             </div>
-          )}
+          </section>
 
-          {/* Add new link */}
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={newDiscordId}
-              onChange={(e) => setNewDiscordId(e.target.value)}
-              placeholder="Discord Server ID"
-              ref={discordIdInputRef}
-              className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 outline-none focus:border-purple-500 transition font-mono"
-            />
-            <input
-              type="text"
-              value={newDiscordLabel}
-              onChange={(e) => setNewDiscordLabel(e.target.value)}
-              placeholder="Guild name (e.g. Crimson)"
-              className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 outline-none focus:border-purple-500 transition"
-            />
-            <button
-              onClick={handleAddDiscordLink}
-              disabled={savingDiscord || !newDiscordId.trim()}
-              className="flex items-center gap-1 px-3 py-2 rounded-lg text-xs font-medium bg-purple-600 text-white hover:bg-purple-500 transition disabled:opacity-50"
-            >
-              {savingDiscord ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />}
-              Link
-            </button>
-          </div>
-
-          <div className="bg-slate-800/50 rounded-lg p-3 text-xs space-y-3">
-            <div>
-              <p className="text-slate-300 font-semibold mb-1">Step 1: Choose a prefix & link your Discord server</p>
-              <ol className="list-decimal list-inside space-y-0.5 ml-1 text-slate-400">
-                <li>Pick a command prefix from the dropdown (e.g. <code className="bg-slate-700 px-1 rounded text-amber-400 font-mono">!</code>)</li>
-                <li>Enable <strong>Developer Mode</strong> in Discord (Settings → Advanced)</li>
-                <li>Right-click your server icon → <strong>Copy Server ID</strong></li>
-                <li>Paste it above and click <strong>Link</strong></li>
-              </ol>
-            </div>
-            <div>
-              <p className="text-slate-300 font-semibold mb-1">Step 2: Invite the bot</p>
-              <ol className="list-decimal list-inside space-y-0.5 ml-1 text-slate-400">
-                <li><a href="https://discord.com/api/oauth2/authorize?client_id=1508368991272566975&permissions=2147485696&scope=bot%20applications.commands" target="_blank" rel="noopener noreferrer" className="text-purple-400 hover:text-purple-300 underline font-medium">Click here to invite the bot</a></li>
-              </ol>
-            </div>
-            <div>
-              <p className="text-slate-300 font-semibold mb-1">Step 3: Set notification channel</p>
-              <ol className="list-decimal list-inside space-y-0.5 ml-1 text-slate-400">
-                <li>In Discord, go to your announcements channel</li>
-                <li>Type <code className="bg-slate-700 px-1 rounded text-amber-400 font-mono">&lt;prefix&gt;notifhere</code> (using your chosen prefix)</li>
-                <li>The bot will post all boss kill and spawn alerts to that channel</li>
-              </ol>
-            </div>
-            <div>
-              <p className="text-slate-300 font-semibold mb-1">Available commands (use your chosen prefix):</p>
-              <div className="space-y-0.5 mt-1">
-                <p className="text-xs"><span className="text-amber-400 font-mono">&lt;prefix&gt;nextspawn</span> <span className="text-slate-500">—</span> <span className="text-slate-400">Boss spawns in 24h</span></p>
-                <p className="text-xs"><span className="text-amber-400 font-mono">&lt;prefix&gt;nextspawn &lt;boss&gt;</span> <span className="text-slate-500">—</span> <span className="text-slate-400">Check a specific boss</span></p>
-                <p className="text-xs"><span className="text-amber-400 font-mono">&lt;prefix&gt;nextspawn &lt;guild&gt;</span> <span className="text-slate-500">—</span> <span className="text-slate-400">Spawns for a specific guild</span></p>
-                <p className="text-xs"><span className="text-amber-400 font-mono">&lt;prefix&gt;killed &lt;boss&gt;</span> <span className="text-slate-500">—</span> <span className="text-slate-400">Record a kill now</span></p>
-                <p className="text-xs"><span className="text-amber-400 font-mono">&lt;prefix&gt;killed &lt;boss&gt; HH:MM</span> <span className="text-slate-500">—</span> <span className="text-slate-400">Kill at custom time</span></p>
-                <p className="text-xs"><span className="text-amber-400 font-mono">&lt;prefix&gt;list</span> <span className="text-slate-500">—</span> <span className="text-slate-400">Show all boss names</span></p>
-                <p className="text-xs"><span className="text-amber-400 font-mono">&lt;prefix&gt;notifhere</span> <span className="text-slate-500">—</span> <span className="text-slate-400">Set notification channel</span></p>
-                <p className="text-xs"><span className="text-amber-400 font-mono">&lt;prefix&gt;commands</span> <span className="text-slate-500">—</span> <span className="text-slate-400">Show all commands</span></p>
+          {/* Getting Started Guide */}
+          <section className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-4">
+            <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider">Getting Started</h3>
+            <div className="grid sm:grid-cols-3 gap-4">
+              <div className="space-y-1.5">
+                <span className="text-xs font-bold text-purple-400 bg-purple-900/20 px-2 py-0.5 rounded">Step 1</span>
+                <p className="text-xs text-slate-300 font-medium">Link your Discord server</p>
+                <p className="text-[11px] text-slate-500 leading-relaxed">
+                  Enable <strong>Developer Mode</strong> in Discord (Settings → Advanced). Right-click your server icon → <strong>Copy Server ID</strong>. Paste above and click <strong>Link</strong>.
+                </p>
+              </div>
+              <div className="space-y-1.5">
+                <span className="text-xs font-bold text-purple-400 bg-purple-900/20 px-2 py-0.5 rounded">Step 2</span>
+                <p className="text-xs text-slate-300 font-medium">Invite the bot</p>
+                <p className="text-[11px] text-slate-500 leading-relaxed">
+                  <a href="https://discord.com/api/oauth2/authorize?client_id=1508368991272566975&permissions=2147485696&scope=bot%20applications.commands" target="_blank" rel="noopener noreferrer"
+                    className="text-purple-400 hover:text-purple-300 underline font-medium">Click here to invite RaidScout Bot</a> to your Discord server.
+                </p>
+              </div>
+              <div className="space-y-1.5">
+                <span className="text-xs font-bold text-purple-400 bg-purple-900/20 px-2 py-0.5 rounded">Step 3</span>
+                <p className="text-xs text-slate-300 font-medium">Configure channels</p>
+                <p className="text-[11px] text-slate-500 leading-relaxed">
+                  In Discord, type <code className="bg-slate-800 px-1 rounded text-amber-400 font-mono text-xs">&lt;prefix&gt;notifhere</code> for alerts, <code className="bg-slate-800 px-1 rounded text-amber-400 font-mono text-xs">&lt;prefix&gt;threadhere</code> for auto-threads, and <code className="bg-slate-800 px-1 rounded text-amber-400 font-mono text-xs">&lt;prefix&gt;cmdhere</code> to restrict commands.
+                </p>
               </div>
             </div>
-          </div>
-        </section>
-      )}
-
-      {/* Integrations Tab — Notification Prefix */}
-      {tab === "integrations" && (
-        <section className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3">
-          <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-            <Bell className="w-3 h-3" /> Notification Prefix
-          </h3>
-          <p className="text-sm text-slate-400">
-            Customize the ping text that appears at the start of every Discord notification.
-            Defaults to <code className="bg-slate-800 px-1 rounded text-amber-400">@everyone</code>.
-          </p>
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={notifPrefix}
-              onChange={(e) => setNotifPrefix(e.target.value)}
-              placeholder="@everyone"
-              className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 outline-none focus:border-purple-500 transition"
-            />
-            <button
-              onClick={handleSavePrefix}
-              disabled={savingPrefix || !notifPrefix.trim() || notifPrefix === (currentServer.notification_prefix ?? "@everyone")}
-              className="flex items-center gap-1 px-3 py-2 rounded-lg text-xs font-medium bg-purple-600 text-white hover:bg-purple-500 transition disabled:opacity-50"
-            >
-              {savingPrefix ? <Loader2 className="w-3 h-3 animate-spin" /> : <Link className="w-3 h-3" />}
-              Save
-            </button>
-          </div>
-        </section>
+            <div className="pt-2 border-t border-slate-800">
+              <h4 className="text-xs font-semibold text-slate-400 mb-2">Available Commands</h4>
+              <div className="grid sm:grid-cols-2 gap-x-6 gap-y-1">
+                <p className="text-xs"><code className="text-amber-400 font-mono text-xs">&lt;prefix&gt;nextspawn</code> <span className="text-slate-500">—</span> <span className="text-slate-400">Boss spawns in 24h</span></p>
+                <p className="text-xs"><code className="text-amber-400 font-mono text-xs">&lt;prefix&gt;nextspawn &lt;boss&gt;</code> <span className="text-slate-500">—</span> <span className="text-slate-400">Check a specific boss</span></p>
+                <p className="text-xs"><code className="text-amber-400 font-mono text-xs">&lt;prefix&gt;nextspawn &lt;guild&gt;</code> <span className="text-slate-500">—</span> <span className="text-slate-400">Spawns for a guild</span></p>
+                <p className="text-xs"><code className="text-amber-400 font-mono text-xs">&lt;prefix&gt;killed &lt;boss&gt;</code> <span className="text-slate-500">—</span> <span className="text-slate-400">Record a kill now</span></p>
+                <p className="text-xs"><code className="text-amber-400 font-mono text-xs">&lt;prefix&gt;killed &lt;boss&gt; HH:MM</code> <span className="text-slate-500">—</span> <span className="text-slate-400">Kill at custom time</span></p>
+                <p className="text-xs"><code className="text-amber-400 font-mono text-xs">&lt;prefix&gt;list</code> <span className="text-slate-500">—</span> <span className="text-slate-400">Show all boss names</span></p>
+                <p className="text-xs"><code className="text-amber-400 font-mono text-xs">&lt;prefix&gt;notifhere</code> <span className="text-slate-500">—</span> <span className="text-slate-400">Set notification channel</span></p>
+                <p className="text-xs"><code className="text-amber-400 font-mono text-xs">&lt;prefix&gt;threadhere</code> <span className="text-slate-500">—</span> <span className="text-slate-400">Set auto-thread channel</span></p>
+                <p className="text-xs"><code className="text-amber-400 font-mono text-xs">&lt;prefix&gt;cmdhere</code> <span className="text-slate-500">—</span> <span className="text-slate-400">Restrict commands to channel</span></p>
+                <p className="text-xs"><code className="text-amber-400 font-mono text-xs">&lt;prefix&gt;commands</code> <span className="text-slate-500">—</span> <span className="text-slate-400">Show all commands</span></p>
+              </div>
+            </div>
+          </section>
+        </div>
       )}
 
       {/* Danger Tab */}

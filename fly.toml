@@ -1,0 +1,30 @@
+# fly.toml -- RaidScout Discord Bot deployment config
+
+app = "raidscout-bot"
+primary_region = "sin"
+
+[build]
+
+[env]
+  PORT = "3003"
+  NOTIFY_PORT = "3003"
+
+[[services]]
+  protocol = "tcp"
+  internal_port = 3003
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
+  max_machines_running = 1
+
+  [[services.ports]]
+    port = 80
+    handlers = ["http"]
+  [[services.ports]]
+    port = 443
+    handlers = ["tls", "http"]
+
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 2
+  memory_mb = 512
