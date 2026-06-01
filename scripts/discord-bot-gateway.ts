@@ -904,8 +904,14 @@ createServer(async (req, res) => {
       try {
         const { server_id, event, boss_name, guild_name, activity_name, parties, recorded_by } = JSON.parse(body);
 
-        // Dedup: skip duplicate notifs within 30s
-        if (boss_name && (event === "boss_spawning" || event === "boss_spawned")) {
+        // Spawn alerts are handled by the cron loop — reject browser-initiated ones
+        if (event === "boss_spawning" || event === "boss_spawned") {
+          res.writeHead(200); res.end(JSON.stringify({ skipped: "handled by cron" }));
+          return;
+        }
+
+        // Dedup: skip duplicate boss_died notifs within 30s
+        if (boss_name && event === "boss_died") {
           const dedupKey = `${server_id}-${event}-${boss_name}`;
           const now = Date.now();
           const last = sentNotifs.get(dedupKey);
@@ -1069,7 +1075,7 @@ async function runSpawnCron() {
                 method: "POST",
                 headers: { apikey: SUPABASE_KEY!, Authorization: `Bearer ${SUPABASE_KEY!}`, "Content-Type": "application/json", Prefer: "return=minimal" },
                 body: JSON.stringify({ server_id: serverId, boss_id: boss.id, event: "boss_spawning", spawn_timestamp: spawnUnix }),
-              }).catch(() => {});
+              }).catch((err: any) => console.error("spawn_notifications insert failed (spawning):", err?.message ?? err));
             }
           }
 
@@ -1092,7 +1098,7 @@ async function runSpawnCron() {
                 method: "POST",
                 headers: { apikey: SUPABASE_KEY!, Authorization: `Bearer ${SUPABASE_KEY!}`, "Content-Type": "application/json", Prefer: "return=minimal" },
                 body: JSON.stringify({ server_id: serverId, boss_id: boss.id, event: "boss_spawned", spawn_timestamp: spawnUnix }),
-              }).catch(() => {});
+              }).catch((err: any) => console.error("spawn_notifications insert failed (spawned):", err?.message ?? err));
             }
           }
         }
