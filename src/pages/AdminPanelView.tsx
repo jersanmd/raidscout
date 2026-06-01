@@ -7,7 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Loader2, Shield, Server, Users, Eye, ChevronDown, ChevronUp, ClipboardList, HardDrive, BarChart3, Crosshair, Skull, Activity, Radio, Clock, Trash2, RefreshCw } from "lucide-react";
 
 export function AdminPanelView() {
-  const [tab, setTab] = useState<"servers" | "users" | "audit" | "database" | "plan" | "cron" | "deleted" | "infra">("servers");
+  const [tab, setTab] = useState<"servers" | "users" | "audit" | "database" | "plan" | "cron" | "deleted" | "infra">("infra");
   const { setCurrentServer } = useServer();
   const { userRole } = useAuth();
   const [expandedUser, setExpandedUser] = useState<string | null>(null);

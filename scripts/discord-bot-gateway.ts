@@ -934,7 +934,7 @@ async function handleMessage(msg: any) {
 
     // Send kill notification to all linked Discord servers
     const killUnix = Math.floor(deathTime.getTime() / 1000);
-    const killText = `☠️ **${boss.name}** Killed by **${guildName || author}** — <t:${killUnix}:f>${nextSpawnUnix > 0 ? `\nNext Spawn: <t:${nextSpawnUnix}:f>` : ""}`;
+    const killText = `☠️ ${boss.name} killed by ${guildName || author} — <t:${killUnix}:f>${nextSpawnUnix > 0 ? `\nNext Spawn: <t:${nextSpawnUnix}:f>` : ""}`;
     broadcastNotification(serverId, {}, channelId, killText);
     const unix = Math.floor(deathTime.getTime() / 1000);
     const replyFields: any[] = [
@@ -1233,7 +1233,7 @@ createServer(async (req, res) => {
               }
             }
           } catch {}
-          const killText = `☠️ **${boss_name}** Killed by **${guild_name || recorded_by || "Unknown"}** — <t:${Math.floor(Date.now() / 1000)}:f>${nextSpawnField}`;
+          const killText = `☠️ ${boss_name} killed by ${guild_name || recorded_by || "Unknown"} — <t:${Math.floor(Date.now() / 1000)}:f>${nextSpawnField}`;
           result = await broadcastNotification(server_id, {}, undefined, killText);
         } else if (event === "parties_announced" && activity_name && parties) {
           const embed = {
@@ -1249,10 +1249,10 @@ createServer(async (req, res) => {
           result = await broadcastNotification(server_id, embed);
         } else if (event === "boss_spawning" && boss_name) {
           const spawnUnix = Math.floor(Date.now() / 1000 + 300);
-          const text = `⚠️ **${boss_name}** will spawn in ~5 minutes!\n${guild_name ? `**${guild_name}** — ` : ""}<t:${spawnUnix}:f>`;
+          const text = `⚠️ ${boss_name} spawning soon\n${guild_name ? `${guild_name} — ` : ""}<t:${spawnUnix}:f>`;
           result = await broadcastNotification(server_id, {}, undefined, text);
         } else if (event === "boss_spawned" && boss_name) {
-          const text = `⚠️ **${boss_name}** has spawned!\n${guild_name ? `**${guild_name}** — ` : ""}<t:${Math.floor(Date.now() / 1000)}:f>`;
+          const text = `⚠️ ${boss_name} has spawned\n${guild_name ? `${guild_name} — ` : ""}<t:${Math.floor(Date.now() / 1000)}:f>`;
           result = await broadcastNotification(server_id, {}, undefined, text);
         } else {
           res.writeHead(400); res.end(JSON.stringify({ error: "Invalid event" }));
@@ -1386,7 +1386,7 @@ async function runSpawnCron() {
             );
             if (!existing?.length) {
               const guildName = computeOwnerGuild(boss, serverBossGuilds, guilds, lastDeath, spawnTime, tz) || "";
-              const text = `⚠️ **${boss.name}** will spawn in ~5 minutes!\n${guildName ? `**${guildName}** — ` : ""}<t:${spawnUnix}:f>`;
+              const text = `${boss.name} spawning soon${guildName ? ` (${guildName})` : ""}`;
               await broadcastNotification(serverId, {}, undefined, text);
               // Auto-create thread for this spawn
               createEventThreads(serverId, boss.name, guildName || undefined, spawnUnix).catch((err: any) =>
@@ -1409,7 +1409,7 @@ async function runSpawnCron() {
             );
             if (!existing?.length) {
               const guildName = computeOwnerGuild(boss, serverBossGuilds, guilds, lastDeath, spawnTime, tz) || "";
-              const text = `⚠️ **${boss.name}** has spawned!\n${guildName ? `**${guildName}** — ` : ""}<t:${spawnUnix}:f>`;
+              const text = `${boss.name} has spawned${guildName ? ` (${guildName})` : ""}`;
               await broadcastNotification(serverId, {}, undefined, text);
               await fetch(`${SUPABASE_URL}/rest/v1/spawn_notifications`, {
                 method: "POST",
