@@ -1,4 +1,4 @@
-export type SpawnType = "fixed_hours" | "fixed_schedule";
+export type SpawnType = "fixed_hours" | "fixed_schedule" | "one_time" | "activity_recurring" | "activity_one_time";
 
 export interface ScheduleSlot {
   /** 0=Sunday, 1=Monday, ..., 6=Saturday (JavaScript convention) */
@@ -23,6 +23,14 @@ export interface Boss {
   rotation_adjustment?: number;
   /** Current rotation index (0-based), wraps within guild count on each kill */
   rotation_counter?: number;
+  // Multi-game extensions
+  template_id?: string | null;
+  is_recurring?: boolean;
+  is_enabled?: boolean;
+  category?: string | null;
+  tags?: string[];
+  is_custom?: boolean;
+  points?: number;
 }
 
 export interface DeathRecord {
@@ -36,6 +44,7 @@ export interface DeathRecord {
   owner_guild_id?: string | null;
   is_initial_spawn?: boolean | null;
   display_owner_guild_id?: string | null;
+  is_final?: boolean;
 }
 
 // ── Attendance System ───────────────────────────────────────
@@ -94,6 +103,12 @@ export interface SnapshotRanking {
   memberId: string;
   memberName: string;
   points: number;
+  bossPoints?: number;
+  activityPoints?: number;
+  bossKills?: number;
+  activitiesAttended?: number;
+  bossesByKill?: Record<string, number>;
+  activitiesByAttendance?: Record<string, number>;
 }
 
 export interface LeaderboardSnapshot {
@@ -127,4 +142,91 @@ export interface WeekDaySpawns {
   date: Date;
   isToday: boolean;
   spawns: SpawnInfo[];
+}
+
+// ── Multi-Game Types ───────────────────────────────────────
+
+export interface Game {
+  id: string;
+  name: string;
+  slug: string;
+  icon_url?: string | null;
+  supported_spawn_types: string[];
+  created_at: string;
+}
+
+export interface BossTemplate {
+  id: string;
+  game_id: string;
+  name: string;
+  spawn_type: string;
+  respawn_hours?: number | null;
+  schedule?: ScheduleSlot[] | null;
+  is_recurring: boolean;
+  category?: string | null;
+  tags?: string[];
+  points: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ActivityTemplate {
+  id: string;
+  game_id: string;
+  name: string;
+  schedule_type: "recurring" | "one_time";
+  schedule?: ScheduleSlot[] | null;
+  duration_minutes?: number | null;
+  points_per_participant: number;
+  party_size?: number | null;
+  category?: string | null;
+  tags?: string[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Activity {
+  id: string;
+  server_id: string;
+  template_id?: string | null;
+  name: string;
+  schedule_type: "recurring" | "one_time";
+  schedule?: ScheduleSlot[] | null;
+  duration_minutes?: number | null;
+  points_per_participant: number;
+  party_size?: number | null;
+  is_enabled: boolean;
+  is_custom: boolean;
+  created_at: string;
+}
+
+export interface ActivityInstance {
+  id: string;
+  activity_id: string;
+  start_time: string;
+  end_time?: string | null;
+  created_at: string;
+}
+
+export interface ActivityParty {
+  id: string;
+  activity_instance_id: string;
+  party_number: number;
+  member_ids: string[];
+  created_at: string;
+}
+
+export interface ActivityAttendance {
+  id: string;
+  activity_instance_id: string;
+  member_id: string;
+  present: boolean;
+  created_at: string;
+}
+
+export interface ActivityInfo {
+  activity: Activity;
+  activityInstance: ActivityInstance;
+  startTime: Date;
+  status: "countdown" | "active" | "completed";
 }
