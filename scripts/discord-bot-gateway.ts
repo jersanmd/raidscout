@@ -933,8 +933,7 @@ async function handleMessage(msg: any) {
     const nextSpawnField = nextSpawnUnix > 0 ? { name: "Next Spawn", value: `<t:${nextSpawnUnix}:f>`, inline: true } : null;
 
     // Send kill notification to all linked Discord servers
-    const killUnix = Math.floor(deathTime.getTime() / 1000);
-    const killText = `☠️ ${boss.name} killed by ${guildName || author} — <t:${killUnix}:f>${nextSpawnUnix > 0 ? `\nNext Spawn: <t:${nextSpawnUnix}:f>` : ""}`;
+    const killText = `${boss.name} killed by ${guildName || author}`;
     broadcastNotification(serverId, {}, channelId, killText);
     const unix = Math.floor(deathTime.getTime() / 1000);
     const replyFields: any[] = [
@@ -1212,28 +1211,7 @@ createServer(async (req, res) => {
 
         let result;
         if (event === "boss_died" && boss_name) {
-          // Compute next spawn time
-          let nextSpawnField = "";
-          try {
-            const bossRows = await supabaseQuerySafe(`bosses?server_id=eq.${server_id}&name=eq.${encodeURIComponent(boss_name)}&limit=1`);
-            if (bossRows?.[0]) {
-              const boss = bossRows[0];
-              const deathRows = await supabaseQuerySafe(`death_records?server_id=eq.${server_id}&boss_id=eq.${boss.id}&order=death_time.desc&limit=1`);
-              const lastDeath = deathRows?.[0];
-              const now = new Date();
-              let spawn: Date;
-              if (boss.spawn_type === "fixed_hours") {
-                spawn = lastDeath ? addHours(new Date(lastDeath.death_time), boss.respawn_hours ?? 0) : now;
-              } else if (boss.spawn_type === "fixed_schedule" && boss.schedule) {
-                const tz = await resolveServerTimezone(server_id);
-                spawn = findNextScheduleSlot(boss.schedule, now, tz);
-              } else { spawn = now; }
-              if (spawn > now) {
-                nextSpawnField = `\nNext Spawn: <t:${Math.floor(spawn.getTime() / 1000)}:f>`;
-              }
-            }
-          } catch {}
-          const killText = `☠️ ${boss_name} killed by ${guild_name || recorded_by || "Unknown"} — <t:${Math.floor(Date.now() / 1000)}:f>${nextSpawnField}`;
+          const killText = `${boss_name} killed by ${guild_name || recorded_by || "Unknown"}`;
           result = await broadcastNotification(server_id, {}, undefined, killText);
         } else if (event === "parties_announced" && activity_name && parties) {
           const embed = {
