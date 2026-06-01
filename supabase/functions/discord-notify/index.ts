@@ -90,10 +90,10 @@ serve(async (req: Request) => {
       const attendeeList = attendees?.length
         ? attendees.join(", ")
         : "No participants recorded";
-      const guildLine = guild_name ? ` - ${guild_name}` : "";
-      content = `${ping} ${boss_name} has been defeated!`;
+      const byLine = guild_name ? ` by ${guild_name}` : "";
+      content = `${ping} ${boss_name}${byLine} — defeated!`;
       embed = {
-        title: `☠️ ${boss_name}${guildLine} has been defeated!`,
+        title: `☠️ ${boss_name}${byLine}`,
         color: 0xef4444, // red
         fields: [
           { name: "Participants", value: attendeeList, inline: false },

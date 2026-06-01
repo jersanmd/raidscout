@@ -797,7 +797,7 @@ async function handleMessage(msg: any) {
     const brdFields: any[] = [{ name: "Death Time", value: `<t:${killUnix}:f>`, inline: true }, { name: "Recorded By", value: author, inline: true }];
     if (nextSpawnField) brdFields.push(nextSpawnField);
     broadcastNotification(serverId, {
-      title: `☠️ ${boss.name} Killed by ${author}`,
+      title: `☠️ ${boss.name} Killed by ${guildName || author}`,
       color: 0xef4444,
       fields: brdFields,
       footer: { text: "Powered by RaidScout" },
@@ -810,7 +810,7 @@ async function handleMessage(msg: any) {
     if (nextSpawnField) replyFields.push(nextSpawnField);
 
     return replyEmbed(
-      `☠️ ${boss.name} Killed by ${author}`,
+      `☠️ ${boss.name} Killed by ${guildName || author}`,
       "",
       0xef4444,
       replyFields,
@@ -950,7 +950,7 @@ createServer(async (req, res) => {
           if (recorded_by) fields.push({ name: "Recorded By", value: recorded_by, inline: true });
           if (nextSpawnField) fields.push({ name: "Next Spawn", value: nextSpawnField, inline: true });
           embed = {
-            title: `☠️ ${boss_name} Killed by ${recorded_by || "Unknown"}`,
+            title: `☠️ ${boss_name} Killed by ${guild_name || recorded_by || "Unknown"}`,
             color: 0xef4444,
             fields,
             footer: { text: "Powered by RaidScout" },
