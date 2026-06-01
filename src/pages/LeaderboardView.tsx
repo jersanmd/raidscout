@@ -604,7 +604,7 @@ export function LeaderboardView() {
         </div>
       ) : (
         <>
-          {/* Search + Guild filter */}
+          {/* Search + Guild filter — always visible */}
           <div className="flex gap-2">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
@@ -635,6 +635,15 @@ export function LeaderboardView() {
             )}
           </div>
 
+          {filteredEntries.length === 0 ? (
+            <div className="text-center py-16">
+              <Users className="w-12 h-12 text-slate-700 mx-auto mb-3" />
+              <p className="text-slate-500 text-lg">No members found</p>
+              <p className="text-slate-600 text-sm mt-1">
+                {searchQuery || guildFilter !== "all" ? "Try adjusting your search or filter." : "Record a boss death with attendees to start the leaderboard."}
+              </p>
+            </div>
+          ) : (
           <div className="space-y-2">
           {filteredEntries.map((entry, index) => {
             const rank = index + 1;

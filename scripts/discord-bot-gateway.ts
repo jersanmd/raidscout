@@ -953,9 +953,15 @@ createServer(async (req, res) => {
             footer: { text: "Powered by RaidScout" },
           };
           result = await broadcastNotification(server_id, embed);
+        } else if (event === "boss_spawning" && boss_name) {
+          const spawnUnix = Math.floor(Date.now() / 1000 + 300);
+          const text = `⚠️ **${boss_name}** will spawn in ~5 minutes!\n${guild_name ? `**${guild_name}** — ` : ""}<t:${spawnUnix}:f>`;
+          result = await broadcastNotification(server_id, {}, undefined, text);
+        } else if (event === "boss_spawned" && boss_name) {
+          const text = `⚠️ **${boss_name}** has spawned!\n${guild_name ? `**${guild_name}** — ` : ""}<t:${Math.floor(Date.now() / 1000)}:f>`;
+          result = await broadcastNotification(server_id, {}, undefined, text);
         } else {
-          // Spawn events are handled by cron, not this endpoint
-          res.writeHead(200); res.end(JSON.stringify({ skipped: "handled by cron or invalid event" }));
+          res.writeHead(400); res.end(JSON.stringify({ error: "Invalid event" }));
           return;
         }
 
