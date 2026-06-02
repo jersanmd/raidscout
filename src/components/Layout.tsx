@@ -8,9 +8,10 @@ import { DiscordWebhookBanner } from "@/components/DiscordWebhookBanner";
 import { NoMembersBanner } from "@/components/NoMembersBanner";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { useSpawnAlerts } from "@/hooks/useSpawnAlerts";
-import { Skull, List, Calendar, LogOut, Clock, Trophy, Users, BarChart3, Server, Settings, Plus, Shield, ExternalLink, Eye, Bell, Volume2, ChevronDown, Globe } from "lucide-react";
+import { Skull, List, Calendar, LogOut, Clock, Trophy, Users, BarChart3, Server, Settings, Plus, Shield, ExternalLink, Eye, Bell, Volume2, ChevronDown, Globe, Sun, Moon } from "lucide-react";
 import { version } from "../../package.json";
 import { useUserTimezone, detectTimezone, formatInTimezone } from "@/hooks/useUserTimezone";
+import { useTheme } from "@/contexts/ThemeContext";
 import { TIMEZONES } from "@/lib/timezones";
 
 let _audioCtx: AudioContext | null = null;
@@ -48,6 +49,7 @@ export function Layout() {
   const { user, signOut, userRole, isViewer, viewerServerName } = useAuth();
   const { servers, currentServer, setCurrentServer } = useServer();
   const { timezone, setTimezone } = useUserTimezone();
+  const { theme, toggleTheme } = useTheme();
   const [showCreate, setShowCreate] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -64,6 +66,21 @@ export function Layout() {
     }
   }, [isAdmin, hasServer, location.pathname, navigate]);
 
+  // Set page title based on route
+  useEffect(() => {
+    const titles: Record<string, string> = {
+      "/": "Bosses — RaidScout",
+      "/schedule": "Weekly Schedule — RaidScout",
+      "/leaderboard": "Leaderboard — RaidScout",
+      "/history": "Kill History — RaidScout",
+      "/members": "Members — RaidScout",
+      "/analytics": "Analytics — RaidScout",
+      "/server-settings": "Server Settings — RaidScout",
+      "/admin": "Admin Panel — RaidScout",
+    };
+    document.title = titles[location.pathname] ?? "RaidScout";
+  }, [location.pathname]);
+
   // Admin without a server: show admin panel button, hide data nav + create
   const showDataNav = !isAdmin || hasServer;
 
@@ -76,8 +93,9 @@ export function Layout() {
 
   return (
     <div className="min-h-screen bg-slate-950 flex flex-col" onClick={() => showUserMenu && setShowUserMenu(false)}>
+      <a href="#main-content" className="skip-to-content">Skip to content</a>
       {/* Header */}
-      <header className="sticky top-0 z-50 bg-slate-950/70 backdrop-blur-xl border-b border-slate-800/50 overflow-visible">
+      <header className="sticky top-0 z-50 bg-slate-950/60 glass-header border-b border-slate-800/40 overflow-visible">
         <div className="max-w-[90rem] mx-auto px-4 min-h-14 py-1.5 flex items-center justify-between gap-2">
           <div className="flex items-center gap-3 shrink-0">
             {/* Logo */}
@@ -255,6 +273,10 @@ export function Layout() {
                           <Settings className="w-4 h-4" /> Server Settings
                         </NavLink>
                       )}
+                      <button onClick={() => { toggleTheme(); setShowUserMenu(false); }} className="w-full text-left flex items-center gap-2 px-4 py-2 text-sm text-slate-300 hover:bg-slate-700 transition">
+                        {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+                        {theme === "dark" ? "Light Mode" : "Dark Mode"}
+                      </button>
                       <button onClick={() => { setShowUserMenu(false); setShowLogoutConfirm(true); }} className="w-full text-left flex items-center gap-2 px-4 py-2 text-sm text-slate-300 hover:bg-slate-700 transition border-t border-slate-700">
                         <LogOut className="w-4 h-4" /> Sign Out
                       </button>
