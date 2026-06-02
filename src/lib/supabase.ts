@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import type { Boss, DeathRecord, Member, AttendanceRecord, LeaderboardEntry } from "@/types";
+import type { Boss, DeathRecord, Member, AttendanceRecord, LeaderboardEntry, PointRule } from "@/types";
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
@@ -392,6 +392,87 @@ export async function fetchServerMembers(serverId: string): Promise<ServerMember
   }));
 }
 
+// ── Moderator Permissions ────────────────────────────────────
+
+export type ModeratorPermissions = {
+  can_access_settings: boolean;
+  can_manage_guilds: boolean;
+  can_manage_viewer_key: boolean;
+  can_change_timezone: boolean;
+  can_manage_boss_guilds: boolean;
+  can_manage_moderators: boolean;
+  can_access_integrations: boolean;
+  can_edit_participants: boolean;
+  can_export_attendance: boolean;
+  can_manage_raid_members: boolean;
+  can_adjust_points: boolean;
+  can_record_death: boolean;
+  can_edit_death_records: boolean;
+  can_set_spawn: boolean;
+  can_rotate_guilds: boolean;
+  can_announce_discord: boolean;
+};
+
+export const DEFAULT_MODERATOR_PERMISSIONS: ModeratorPermissions = {
+  can_access_settings: false,
+  can_manage_guilds: false,
+  can_manage_viewer_key: false,
+  can_change_timezone: false,
+  can_manage_boss_guilds: false,
+  can_manage_moderators: false,
+  can_access_integrations: false,
+  can_edit_participants: false,
+  can_export_attendance: false,
+  can_manage_raid_members: false,
+  can_adjust_points: false,
+  can_record_death: false,
+  can_edit_death_records: false,
+  can_set_spawn: false,
+  can_rotate_guilds: false,
+  can_announce_discord: false,
+};
+
+export async function fetchModeratorPermissions(serverId: string): Promise<Record<string, ModeratorPermissions>> {
+  const { data, error } = await supabase
+    .from("moderator_permissions")
+    .select("*")
+    .eq("server_id", serverId);
+  if (error) throw error;
+  const result: Record<string, ModeratorPermissions> = {};
+  for (const row of (data as any[]) ?? []) {
+    result[row.user_id] = {
+      can_access_settings: row.can_access_settings,
+      can_manage_guilds: row.can_manage_guilds,
+      can_manage_viewer_key: row.can_manage_viewer_key,
+      can_change_timezone: row.can_change_timezone,
+      can_manage_boss_guilds: row.can_manage_boss_guilds,
+      can_manage_moderators: row.can_manage_moderators,
+      can_access_integrations: row.can_access_integrations,
+      can_edit_participants: row.can_edit_participants,
+      can_export_attendance: row.can_export_attendance,
+      can_manage_raid_members: row.can_manage_raid_members,
+      can_adjust_points: row.can_adjust_points,
+      can_record_death: row.can_record_death,
+      can_edit_death_records: row.can_edit_death_records,
+      can_set_spawn: row.can_set_spawn,
+      can_rotate_guilds: row.can_rotate_guilds,
+      can_announce_discord: row.can_announce_discord,
+    };
+  }
+  return result;
+}
+
+export async function updateModeratorPermissions(
+  serverId: string,
+  userId: string,
+  permissions: Partial<ModeratorPermissions>
+): Promise<void> {
+  const { error } = await supabase
+    .from("moderator_permissions")
+    .upsert({ server_id: serverId, user_id: userId, ...permissions }, { onConflict: "server_id,user_id" });
+  if (error) throw error;
+}
+
 // ── Bosses ──────────────────────────────────────────────────
 
 export async function fetchBosses(serverId?: string | null): Promise<Boss[]> {
@@ -408,6 +489,14 @@ export async function fetchBosses(serverId?: string | null): Promise<Boss[]> {
 export async function setBossPoints(bossId: string, points: number): Promise<void> {
   const { error } = await supabase
     .rpc("set_boss_points", { p_boss_id: bossId, p_points: points });
+  if (error) throw error;
+}
+
+export async function setBossSalary(bossId: string, hasSalary: boolean): Promise<void> {
+  const { error } = await supabase
+    .from("bosses")
+    .update({ has_salary: hasSalary })
+    .eq("id", bossId);
   if (error) throw error;
 }
 
@@ -442,7 +531,8 @@ export async function fetchDeathRecords(serverId?: string | null): Promise<Death
 export async function insertDeathRecord(
   bossId: string,
   deathTime: Date,
-  ownerGuildId?: string | null
+  ownerGuildId?: string | null,
+  partyLeaders?: Record<string, string> | null
 ): Promise<DeathRecord> {
   // Prefer direct insert when user has a valid session
   const { data: { session } } = await supabase.auth.getSession();
@@ -455,6 +545,7 @@ export async function insertDeathRecord(
         server_id: _currentServerId,
         death_time: deathTime.toISOString(),
         owner_guild_id: ownerGuildId ?? null,
+        party_leaders: partyLeaders ?? {},
       })
       .select()
       .single();
@@ -703,10 +794,11 @@ export async function upsertMember(name: string, guildId?: string | null): Promi
   throw new Error("Not authenticated");
 }
 
-export async function bulkAddMembers(names: string[]): Promise<number> {
+export async function bulkAddMembers(names: string[], guildId?: string | null): Promise<number> {
   const rows = names.map((name) => ({
     name: name.trim(),
     server_id: _currentServerId,
+    guild_id: guildId || null,
   }));
 
   const { data: { session } } = await supabase.auth.getSession();
@@ -728,6 +820,7 @@ export async function bulkAddMembers(names: string[]): Promise<number> {
           p_name: row.name,
           p_server_id: _currentServerId,
           p_viewer_key: _currentViewerKey,
+          p_guild_id: row.guild_id,
         });
         added++;
       } catch { /* skip duplicates */ }
@@ -816,11 +909,40 @@ export async function fetchBossGuilds(serverId?: string | null): Promise<BossGui
   return data as BossGuild[];
 }
 
+/** Fetch all boss_guilds rows for a server (for the Boss Points matrix).
+ *  Unlike fetchBossGuilds, returns rows even if they only have points/salary
+ *  and no rotation assignment (no sort_order/day_of_week/mode). */
+export async function fetchAllBossGuildsForServer(serverId?: string | null): Promise<BossGuild[]> {
+  const sid = serverId ?? getCurrentServerId();
+  if (!sid) return [];
+  // Get all boss IDs for this server first
+  const { data: bossRows } = await supabase
+    .from("bosses")
+    .select("id")
+    .eq("server_id", sid);
+  const bossIds = (bossRows || []).map(b => b.id);
+  if (!bossIds.length) return [];
+  // Fetch all boss_guilds for these bosses
+  const { data, error } = await supabase
+    .from("boss_guilds")
+    .select("*")
+    .in("boss_id", bossIds);
+  if (error) throw error;
+  return data as BossGuild[];
+}
+
 export async function setBossGuilds(
   bossId: string,
   assignments: { guild_id: string; sort_order?: number; day_of_week?: number }[],
   mode: "rotation" | "schedule" | "daily" = "rotation"
 ): Promise<void> {
+  // Preserve existing points/salary for this boss before deleting
+  const { data: existing } = await supabase
+    .from("boss_guilds")
+    .select("guild_id, points, has_salary")
+    .eq("boss_id", bossId);
+  const preserved = new Map((existing || []).map((r: any) => [r.guild_id, { points: r.points, has_salary: r.has_salary }]));
+
   // Delete existing assignments for this boss, then insert new ones
   const { error: delErr } = await supabase
     .from("boss_guilds")
@@ -830,16 +952,82 @@ export async function setBossGuilds(
 
   if (assignments.length === 0) return;
 
-  const rows = assignments.map((a) => ({
-    boss_id: bossId,
-    guild_id: a.guild_id,
-    sort_order: a.sort_order ?? null,
-    day_of_week: a.day_of_week ?? null,
-    mode,
-  }));
+  const rows = assignments.map((a) => {
+    const prev = preserved.get(a.guild_id);
+    return {
+      boss_id: bossId,
+      guild_id: a.guild_id,
+      sort_order: a.sort_order ?? null,
+      day_of_week: a.day_of_week ?? null,
+      mode,
+      points: prev?.points ?? null,
+      has_salary: prev?.has_salary ?? false,
+    };
+  });
 
   const { error } = await supabase.from("boss_guilds").insert(rows);
   if (error) throw error;
+}
+
+/** Upsert per-guild points and/or salary for a boss-guild pair.
+ *  Creates the row if it doesn't exist (without rotation fields),
+ *  or updates only the points/salary columns on an existing row. */
+export async function upsertBossGuildPoints(
+  bossId: string,
+  guildId: string,
+  points?: number | null,
+  hasSalary?: boolean
+): Promise<void> {
+  // Check if a row already exists for this boss-guild pair
+  const { data: existing } = await supabase
+    .from("boss_guilds")
+    .select("id")
+    .eq("boss_id", bossId)
+    .eq("guild_id", guildId)
+    .limit(1);
+
+  if (existing && existing.length > 0) {
+    // Update only points/salary fields
+    const update: Record<string, any> = {};
+    if (points !== undefined) update.points = points;
+    if (hasSalary !== undefined) update.has_salary = hasSalary;
+    if (Object.keys(update).length === 0) return;
+    const { error } = await supabase
+      .from("boss_guilds")
+      .update(update)
+      .eq("id", existing[0].id);
+    if (error) throw error;
+  } else {
+    // Insert new row — match the schema that setBossGuilds uses
+    const row: Record<string, any> = {
+      boss_id: bossId,
+      guild_id: guildId,
+      sort_order: 0,
+      day_of_week: null,
+      mode: "rotation",
+    };
+    if (points !== undefined) row.points = points;
+    if (hasSalary !== undefined) row.has_salary = hasSalary;
+    const { error } = await supabase.from("boss_guilds").insert(row);
+    if (error) throw error;
+  }
+}
+
+/** Batch-set salary for a guild across multiple bosses in a single RPC call. */
+export async function batchSetGuildSalary(
+  guildId: string,
+  bossIds: string[],
+  hasSalary: boolean
+): Promise<void> {
+  if (!bossIds.length) return;
+  // Fallback: do individual upserts in parallel batches of 10
+  const BATCH_SIZE = 10;
+  for (let i = 0; i < bossIds.length; i += BATCH_SIZE) {
+    const chunk = bossIds.slice(i, i + BATCH_SIZE);
+    await Promise.all(chunk.map(bossId =>
+      upsertBossGuildPoints(bossId, guildId, undefined, hasSalary)
+    ));
+  }
 }
 
 export async function getBossOwnerGuild(bossId: string): Promise<string | null> {
@@ -887,7 +1075,7 @@ export async function fetchLeaderboardByPeriod(
   return ((data as any[]) ?? []).map((row: any) => ({
     id: row.member_id,
     name: row.member_name,
-    points: row.points,
+    points: row.total_points,
     last_attended: row.last_attended,
   }));
 }
@@ -1367,6 +1555,22 @@ export async function notifyDiscord(
   }
 }
 
+// ── Thread Config ──────────────────────────────────────────
+
+export async function updateThreadConfig(
+  configId: string,
+  threadChannelId: string | null,
+  threadGuilds: string[]
+): Promise<void> {
+  await supabase
+    .from("discord_configs")
+    .update({
+      thread_channel_id: threadChannelId || null,
+      thread_guilds: threadGuilds,
+    })
+    .eq("id", configId);
+}
+
 export interface SpawnAnnounceBoss {
   name: string;
   spawn_time: string;
@@ -1458,4 +1662,74 @@ export async function toggleViewerCanMarkDied(serverId: string): Promise<boolean
   });
   if (error) throw new Error(error.message);
   return data as boolean;
+}
+
+// ── Point Rules ─────────────────────────────────────────────
+
+/** Fetch all point rules for a server. */
+export async function fetchPointRules(serverId?: string | null): Promise<PointRule[]> {
+  const sid = serverId ?? getCurrentServerId();
+  if (!sid) return [];
+  const { data, error } = await supabase
+    .from("point_rules")
+    .select("*")
+    .eq("server_id", sid)
+    .order("created_at", { ascending: true });
+  if (error) throw error;
+  return (data || []) as PointRule[];
+}
+
+/** Create a new point rule. */
+export async function createPointRule(
+  serverId: string,
+  guildId: string,
+  ruleType: "time_multiplier",
+  config: Record<string, unknown>,
+): Promise<PointRule> {
+  const { data, error } = await supabase
+    .from("point_rules")
+    .insert({ server_id: serverId, guild_id: guildId, rule_type: ruleType, config })
+    .select()
+    .single();
+  if (error) throw error;
+  return data as PointRule;
+}
+
+/** Update a point rule's config or enabled state. */
+export async function updatePointRule(
+  ruleId: string,
+  updates: { config?: Record<string, unknown>; enabled?: boolean },
+): Promise<void> {
+  const { error } = await supabase
+    .from("point_rules")
+    .update({ ...updates, updated_at: new Date().toISOString() })
+    .eq("id", ruleId);
+  if (error) throw error;
+}
+
+/** Delete a point rule. */
+export async function deletePointRule(ruleId: string): Promise<void> {
+  const { error } = await supabase
+    .from("point_rules")
+    .delete()
+    .eq("id", ruleId);
+  if (error) throw error;
+}
+
+/** Get the effective point multiplier for a guild at a specific kill time. */
+export async function getPointMultiplier(
+  guildId: string,
+  killTime: string,
+  serverId?: string | null,
+): Promise<number> {
+  const sid = serverId ?? getCurrentServerId();
+  if (!sid) return 1;
+  const { data, error } = await supabase
+    .rpc("get_point_multiplier", {
+      p_guild_id: guildId,
+      p_kill_time: killTime,
+      p_server_id: sid,
+    });
+  if (error) throw error;
+  return (data as number) ?? 1;
 }

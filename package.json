@@ -1,7 +1,7 @@
 {
     "name": "lordnine-boss-timer",
     "private": true,
-    "version": "0.13.20",
+    "version": "0.13.21",
     "type": "module",
     "scripts": {
         "dev": "vite",
@@ -12,7 +12,7 @@
         "test:watch": "vitest",
         "test:coverage": "vitest run --coverage",
         "start:bot": "node dist/bot.js",
-    "build:bot": "esbuild scripts/discord-bot-gateway.ts --bundle --platform=node --target=node22 --outfile=dist/bot.js --external:ws"
+    "build:bot": "esbuild scripts/discord-bot-gateway.ts --bundle --platform=node --target=node22 --format=esm --outfile=dist/bot.js --external:ws"
     },
     "dependencies": {
         "@supabase/supabase-js": "^2.49.1",

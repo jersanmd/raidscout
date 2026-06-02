@@ -103,17 +103,9 @@ serve(async (req: Request) => {
         footer: { text: "Powered by RaidScout" },
       };
     } else if (event === "boss_spawned") {
-      const guildLine = guild_name ? ` of ${guild_name}` : "";
-      content = `${ping} ${boss_name} is spawning!!!`;
-      embed = {
-        title: `⚔️ ${boss_name}${guildLine} has spawned.`,
-        color: 0x22c55e, // green
-        fields: [
-          { name: "Server", value: serverName, inline: true },
-        ],
-        timestamp: new Date().toISOString(),
-        footer: { text: "Powered by RaidScout" },
-      };
+      const guildLine = guild_name ? `**${guild_name}** — ` : "";
+      content = `${ping} ⚠️ **${boss_name}** has spawned!\n${guildLine}<t:${Math.floor(Date.now() / 1000)}:f>`;
+      embed = null;
     } else if (event === "spawn_announce") {
       const bossList = Array.isArray(bosses) ? bosses : [];
 

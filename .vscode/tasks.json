@@ -12,6 +12,12 @@
 			"type": "shell",
 			"command": "npx vite --host",
 			"isBackground": true
+		},
+		{
+			"label": "Deploy Discord bot",
+			"type": "shell",
+			"command": "npx esbuild scripts/discord-bot-gateway.ts --bundle --platform=node --target=node22 --format=esm --outfile=dist/bot.mjs && flyctl deploy",
+			"isBackground": false
 		}
 	]
 }

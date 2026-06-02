@@ -5,12 +5,14 @@ import { useLeaderboard, type LeaderboardPeriod } from "@/hooks/useAttendance";
 import { useLeaderboardSnapshots, getLastFinalized, getLeaderboardResetAt } from "@/hooks/useLeaderboardSnapshots";
 import { guildColor } from "@/lib/constants";
 import { useAuth } from "@/contexts/AuthContext";
-import { useServerId, useServer } from "@/contexts/ServerContext";
-import { fetchMemberKills, type MemberBossKill, isSupabaseConfigured, fetchGuilds, adjustMemberPoints, fetchPointAdjustments, supabase } from "@/lib/supabase";
+import { useServerId, useServer, useHasPermission } from "@/contexts/ServerContext";
+import { useServerTimezone } from "@/hooks/useServerTimezone";
+import { fetchMemberKills, type MemberBossKill, isSupabaseConfigured, fetchGuilds, adjustMemberPoints, fetchPointAdjustments, fetchPointRules, supabase } from "@/lib/supabase";
 import { useAttendance } from "@/hooks/useAttendance";
 import { useMembers } from "@/hooks/useMembers";
 import type { Guild, LeaderboardSnapshot, PointAdjustment } from "@/types";
 import { Trophy, Medal, Crown, Users, Loader2, X, Skull, CheckCheck, History, ChevronRight, ChevronLeft, ChevronUp, ChevronDown, Search, Shield, Plus, Minus, Edit3, Share2 } from "lucide-react";
+import { TableRowSkeleton } from "@/components/Skeletons";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 
 const rankColors: Record<number, { icon: React.ReactNode; text: string; bg: string }> = {
@@ -68,11 +70,15 @@ export function LeaderboardView() {
   const [exportStartDate, setExportStartDate] = useState(weekAgoStr);
   const [exportEndDate, setExportEndDate] = useState(todayStr);
   const [exportGuildFilter, setExportGuildFilter] = useState<string>("all");
+  const [exportGuildOnly, setExportGuildOnly] = useState(false); // only export bosses owned by selected guild
   const [exportLoading, setExportLoading] = useState(false);
   const [showExport, setShowExport] = useState(false);
 
   // Point adjustment modal state
   const { currentServer } = useServer();
+  const serverTimezone = useServerTimezone();
+  const canAdjustPoints = useHasPermission("can_adjust_points");
+  const canExportAttendance = useHasPermission("can_export_attendance");
   const isStaff = !isViewer && (currentServer?.role === "owner" || currentServer?.role === "moderator");
   const [adjustMember, setAdjustMember] = useState<{ id: string; name: string; points: number } | null>(null);
   const [adjustValue, setAdjustValue] = useState(0);
@@ -85,7 +91,10 @@ export function LeaderboardView() {
   // Fetch guilds and members for filtering
   const { data: members = [] } = useMembers();
   const [guilds, setGuilds] = useState<Guild[]>([]);
-  useEffect(() => { fetchGuilds().then(setGuilds).catch(() => setGuilds([])); }, []);
+  useEffect(() => {
+    if (!currentServer?.id) return;
+    fetchGuilds(currentServer.id).then(setGuilds).catch(() => setGuilds([]));
+  }, [currentServer?.id]);
 
   // Build member-guild lookup
   const memberGuildMap = new Map(members.map(m => [m.id, m.guild_id]));
@@ -191,8 +200,16 @@ export function LeaderboardView() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-32">
-        <div className="w-8 h-8 border-2 border-slate-600 border-t-amber-500 rounded-full animate-spin" />
+      <div className="max-w-2xl mx-auto px-4 py-6">
+        <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+          <table className="w-full text-sm">
+            <tbody>
+              {Array.from({ length: 8 }).map((_, i) => (
+                <TableRowSkeleton key={i} cols={4} />
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     );
   }
@@ -224,13 +241,16 @@ export function LeaderboardView() {
       // Fetch death records in date range
       const startISO = new Date(exportStartDate).toISOString();
       const endISO = new Date(exportEndDate + "T23:59:59").toISOString();
-      const { data: deaths, error: deathsErr } = await supabase
+      let deathQuery = supabase
         .from("death_records")
-        .select("id,boss_id,death_time")
+        .select("id,boss_id,death_time,party_leaders,owner_guild_id")
         .eq("server_id", serverId)
         .gte("death_time", startISO)
-        .lte("death_time", endISO)
-        .order("death_time", { ascending: true });
+        .lte("death_time", endISO);
+      if (exportGuildOnly && exportGuildFilter !== "all") {
+        deathQuery = deathQuery.eq("owner_guild_id", exportGuildFilter);
+      }
+      const { data: deaths, error: deathsErr } = await deathQuery.order("death_time", { ascending: true });
       if (deathsErr) throw new Error(`Death records: ${deathsErr.message}`);
       if (!deaths?.length) { alert("No death records in this date range."); setExportLoading(false); return; }
 
@@ -240,10 +260,24 @@ export function LeaderboardView() {
       // Fetch bosses
       const { data: bosses, error: bossesErr } = await supabase
         .from("bosses")
-        .select("id,name,boss_points")
+        .select("id,name,boss_points,has_salary")
         .in("id", bossIds);
       if (bossesErr) throw new Error(`Bosses: ${bossesErr.message}`);
       const bossMap = new Map((bosses || []).map(b => [b.id, b]));
+
+      // Fetch per-guild salary overrides for this server
+      const { data: bgData } = await supabase
+        .from("boss_guilds")
+        .select("boss_id,guild_id,has_salary,points, bosses!inner(server_id)")
+        .eq("bosses.server_id", serverId)
+        .in("boss_id", bossIds);
+      // Build lookups: "bossId|guildId" → has_salary | points
+      const bgSalaryMap = new Map<string, boolean>();
+      const bgPointsMap = new Map<string, number>();
+      for (const bg of (bgData || [])) {
+        if (bg.has_salary) bgSalaryMap.set(`${bg.boss_id}|${bg.guild_id}`, true);
+        if (bg.points != null) bgPointsMap.set(`${bg.boss_id}|${bg.guild_id}`, bg.points);
+      }
 
       // Fetch attendance records
       const { data: attRecords, error: attErr } = await supabase
@@ -259,6 +293,49 @@ export function LeaderboardView() {
         .eq("server_id", serverId);
       if (memErr) throw new Error(`Members: ${memErr.message}`);
       const memberMap = new Map((allMembers || []).map(m => [m.id, m]));
+
+      // Fetch point rules for multiplier calculation
+      const { data: pointRules, error: rulesErr } = await supabase
+        .from("point_rules")
+        .select("*")
+        .eq("server_id", serverId);
+      if (rulesErr) console.warn("Failed to fetch point rules:", rulesErr.message);
+
+      // Build multiplier lookup: guildId → [{start_hour, end_hour, multiplier}]
+      const guildMultipliers = new Map<string, { start_hour: number; end_hour: number; multiplier: number }[]>();
+      for (const rule of (pointRules || [])) {
+        if (!rule.enabled || rule.rule_type !== "time_multiplier") continue;
+        const cfg = rule.config as any;
+        if (!guildMultipliers.has(rule.guild_id)) guildMultipliers.set(rule.guild_id, []);
+        guildMultipliers.get(rule.guild_id)!.push({
+          start_hour: cfg.start_hour,
+          end_hour: cfg.end_hour,
+          multiplier: cfg.multiplier,
+        });
+      }
+
+      // Helper: get multiplier for a given guild at a given death time (server timezone)
+      const getMultiplier = (guildId: string, deathTime: string): number => {
+        const rules = guildMultipliers.get(guildId);
+        if (!rules || rules.length === 0) return 1;
+        // Format the death time in the server's timezone and extract the hour
+        const dt = new Date(deathTime);
+        const hour = parseInt(
+          dt.toLocaleString("en-US", { timeZone: serverTimezone, hour: "2-digit", hour12: false }),
+          10
+        );
+        let mult = 1;
+        for (const r of rules) {
+          let match = false;
+          if (r.start_hour <= r.end_hour) {
+            match = hour >= r.start_hour && hour < r.end_hour;
+          } else {
+            match = hour >= r.start_hour || hour < r.end_hour;
+          }
+          if (match) mult = Math.max(mult, r.multiplier);
+        }
+        return mult;
+      };
 
       // Filter members by guild
       const guildMemberIds = new Set(
@@ -280,44 +357,74 @@ export function LeaderboardView() {
         allAttendedMembers.add(att.member_id);
       }
 
-      // Sort members alphabetically
-      const sortedMembers = [...allAttendedMembers].sort((a, b) => {
+      // Sort members alphabetically — include ALL members (even 0 attendance) for consistent export format
+      const sortedMembers = [...guildMemberIds].sort((a, b) => {
         const ma = memberMap.get(a);
         const mb = memberMap.get(b);
         return (ma?.name || "").localeCompare(mb?.name || "");
       });
 
-      // Compute player totals
+      // Compute player totals — initialize all members with 0
       const memberTotals = new Map<string, number>();
+      for (const mid of guildMemberIds) memberTotals.set(mid, 0);
       for (const [deathId, memberSet] of deathAttendees) {
         const death = deathBossMap.get(deathId);
         const boss = bossMap.get(death?.boss_id);
-        const pts = (boss as any)?.boss_points || 0;
         for (const mid of memberSet) {
-          memberTotals.set(mid, (memberTotals.get(mid) || 0) + pts);
+          const member = memberMap.get(mid);
+          const guildId = member?.guild_id;
+          // Per-guild point override (bossId|guildId), fallback to boss default
+          const basePts = guildId ? (bgPointsMap.get(`${death.boss_id}|${guildId}`) ?? ((boss as any)?.boss_points || 0)) : ((boss as any)?.boss_points || 0);
+          const mult = guildId ? getMultiplier(guildId, death.death_time) : 1;
+          memberTotals.set(mid, (memberTotals.get(mid) || 0) + basePts * mult);
         }
       }
 
       // Build data rows: one per death
       const dataRows: any[][] = [];
-      const timeFmt = new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+      const dateFmt = new Intl.DateTimeFormat("en-US", { timeZone: serverTimezone, month: "short", day: "numeric", year: "numeric" });
+      const timeFmt = new Intl.DateTimeFormat("en-US", { timeZone: serverTimezone, hour: "2-digit", minute: "2-digit" });
       for (const death of deaths) {
         const attendees = deathAttendees.get(death.id);
         if (!attendees || attendees.size === 0) continue;
         const boss = bossMap.get(death.boss_id);
+        const dt = new Date(death.death_time);
+        // Determine salary: per-guild override if filter active, else global default
+        let salaryYes: boolean;
+        if (exportGuildFilter !== "all" && boss) {
+          salaryYes = bgSalaryMap.get(`${boss.id}|${exportGuildFilter}`) ?? ((boss as any)?.has_salary ?? false);
+        } else {
+          salaryYes = (boss as any)?.has_salary ?? false;
+        }
         const row: any[] = [
           attendees.size,
-          timeFmt.format(new Date(death.death_time)),
+          dateFmt.format(dt),
+          timeFmt.format(dt),
           boss?.name || "?",
+          salaryYes ? "YES" : "NO",
+          (() => {
+            const pl = (death as any).party_leaders || {};
+            if (exportGuildFilter !== "all" || exportGuildOnly) {
+              return pl[exportGuildFilter] ? (memberMap.get(pl[exportGuildFilter])?.name || "") : "";
+            }
+            return Object.entries(pl)
+              .map(([, mid]) => memberMap.get(mid as string)?.name)
+              .filter(Boolean)
+              .join(", ");
+          })(),
         ];
         for (const mid of sortedMembers) {
-          row.push(attendees.has(mid) ? ((boss as any)?.boss_points || 0) : 0);
+          const member = memberMap.get(mid);
+          const guildId = member?.guild_id;
+          const basePts = guildId ? (bgPointsMap.get(`${death.boss_id}|${guildId}`) ?? ((boss as any)?.boss_points || 0)) : ((boss as any)?.boss_points || 0);
+          const mult = guildId ? getMultiplier(guildId, death.death_time) : 1;
+          row.push(attendees.has(mid) ? basePts * mult : 0);
         }
         dataRows.push(row);
       }
 
       // Build Excel with SheetJS
-      const numCols = 3 + sortedMembers.length;
+      const numCols = 6 + sortedMembers.length;
 
       // Build styled HTML table (Excel opens .xls HTML natively with full styling)
       const playerColors = ["#7C3AED", "#059669", "#D97706", "#0891B2", "#DB2777", "#4F46E5", "#E11D48", "#0D9488", "#EA580C", "#65A30D"];
@@ -341,20 +448,19 @@ export function LeaderboardView() {
         .num { text-align: center; color: #FBBF24; font-weight: bold; }
 </style></head><body><table>`;
 
-      // Build ranking data
+      // Build ranking data — include all members even with 0 points
       const sortedRanking = [...memberTotals.entries()]
-        .sort((a, b) => b[1] - a[1])
-        .filter(([, pts]) => pts > 0);
+        .sort((a, b) => b[1] - a[1]);
 
       // Row 0: Player name headers + ranking header
-      html += `<tr><th class="hdr"></th><th class="hdr"></th><th class="hdr"></th>`;
+      html += `<tr><th class="hdr">#</th><th class="hdr">Date</th><th class="hdr">Time</th><th class="hdr boss" style="text-align:left">Boss</th><th class="hdr">Salary</th><th class="hdr">Party Leader</th>`;
       sortedMembers.forEach((mid, i) => {
         html += `<th class="hdr" style="background:${playerColor(i)}">${memberMap.get(mid)?.name || "?"}</th>`;
       });
       html += `<th class="hdr" style="background:#1E293B;min-width:16px"></th><th class="hdr" colspan="3" style="background:#7C3AED">🏆 Ranking</th></tr>`;
 
       // Row 1: Labels + totals + ranking sub-header
-      html += `<tr><th class="hdr">P</th><th class="hdr">Date & Time</th><th class="hdr">Boss</th>`;
+      html += `<tr><th class="hdr">#</th><th class="hdr">Date</th><th class="hdr">Time</th><th class="hdr">Boss</th><th class="hdr">Salary</th><th class="hdr">Party Leader</th>`;
       sortedMembers.forEach((mid, i) => {
         html += `<th class="hdr" style="background:${playerColor(i)};font-size:14px">${memberTotals.get(mid) || 0}</th>`;
       });
@@ -367,14 +473,14 @@ export function LeaderboardView() {
         html += `<tr>`;
         if (ri < dataRows.length) {
           const row = dataRows[ri];
-          html += `<td class="${cls}">${row[0]}</td><td class="dt ${cls}">${row[1]}</td><td class="boss ${cls}">${row[2]}</td>`;
-          for (let c = 3; c < numCols; c++) {
+          html += `<td class="${cls}">${row[0]}</td><td class="dt ${cls}">${row[1]}</td><td class="dt ${cls}">${row[2]}</td><td class="boss ${cls}">${row[3]}</td><td class="num ${cls}" style="color:${row[4] === 'YES' ? '#34D399' : '#64748B'}">${row[4]}</td><td class="nm ${cls}">${row[5] || ""}</td>`;
+          for (let c = 6; c < numCols; c++) {
             const val = row[c] || 0;
             html += `<td class="${cls} ${val > 0 ? 'pts-yes' : 'pts-no'}">${val}</td>`;
           }
         } else {
-          html += `<td class="${cls}"></td><td class="${cls}"></td><td class="${cls}"></td>`;
-          for (let c = 3; c < numCols; c++) html += `<td class="${cls}"></td>`;
+          html += `<td class="${cls}"></td><td class="${cls}"></td><td class="${cls}"></td><td class="${cls}"></td><td class="${cls}"></td><td class="${cls}"></td>`;
+          for (let c = 6; c < numCols; c++) html += `<td class="${cls}"></td>`;
         }
         html += `<td class="${cls}"></td>`;
         if (ri < sortedRanking.length) {
@@ -540,7 +646,7 @@ export function LeaderboardView() {
       )}
 
       {/* Attendance Export toggle — hidden from viewers */}
-      {!isViewer && (<>
+      {canExportAttendance && (<>
       <button
         onClick={() => setShowExport(!showExport)}
         className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-300 transition"
@@ -562,10 +668,18 @@ export function LeaderboardView() {
           </div>
           <div className="flex flex-col gap-0.5">
             <label className="text-[10px] text-slate-500">Guild</label>
-            <select value={exportGuildFilter} onChange={(e) => setExportGuildFilter(e.target.value)} className="px-2 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-white text-xs outline-none focus:ring-2 focus:ring-amber-500 transition">
-              <option value="all">All Guilds</option>
-              {guilds.map(g => (<option key={g.id} value={g.id}>{g.name}</option>))}
-            </select>
+            <div className="flex items-center gap-2">
+              <select value={exportGuildFilter} onChange={(e) => { setExportGuildFilter(e.target.value); if (e.target.value === "all") setExportGuildOnly(false); }} className="px-2 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-white text-xs outline-none focus:ring-2 focus:ring-amber-500 transition flex-1">
+                <option value="all">All Guilds</option>
+                {guilds.map(g => (<option key={g.id} value={g.id}>{g.name}</option>))}
+              </select>
+              {exportGuildFilter !== "all" && (
+                <label className="flex items-center gap-1.5 cursor-pointer shrink-0">
+                  <input type="checkbox" checked={exportGuildOnly} onChange={(e) => setExportGuildOnly(e.target.checked)} className="w-3 h-3 rounded border-slate-600 bg-slate-800 text-amber-600 focus:ring-amber-500/50 cursor-pointer" />
+                  <span className="text-[10px] text-slate-400 whitespace-nowrap">My guild only</span>
+                </label>
+              )}
+            </div>
           </div>
           <button onClick={handleExportAttendance} disabled={exportLoading || !exportStartDate || !exportEndDate} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-amber-600 text-white hover:bg-amber-500 transition disabled:opacity-50 flex items-center gap-1.5">
             {exportLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
@@ -604,7 +718,7 @@ export function LeaderboardView() {
         </div>
       ) : (
         <>
-          {/* Search + Guild filter */}
+          {/* Search + Guild filter — always visible */}
           <div className="flex gap-2">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
@@ -635,6 +749,15 @@ export function LeaderboardView() {
             )}
           </div>
 
+          {filteredEntries.length === 0 ? (
+            <div className="text-center py-16">
+              <Users className="w-12 h-12 text-slate-700 mx-auto mb-3" />
+              <p className="text-slate-500 text-lg">No members found</p>
+              <p className="text-slate-600 text-sm mt-1">
+                {searchQuery || guildFilter !== "all" ? "Try adjusting your search or filter." : "Record a boss death with attendees to start the leaderboard."}
+              </p>
+            </div>
+          ) : (
           <div className="space-y-2">
           {filteredEntries.map((entry, index) => {
             const rank = index + 1;
@@ -738,7 +861,7 @@ export function LeaderboardView() {
                   <span className="text-xs text-slate-500">
                     pt{entry.points !== 1 ? "s" : ""}
                   </span>
-                  {isStaff && (
+                  {canAdjustPoints && (
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
@@ -758,6 +881,7 @@ export function LeaderboardView() {
             );
           })}
         </div>
+        )}
         </>
       )}
 

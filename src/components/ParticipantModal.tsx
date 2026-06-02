@@ -5,7 +5,7 @@ import { useAttendance, useAddAttendance, useRemoveAttendance } from "@/hooks/us
 import { useMembers } from "@/hooks/useMembers";
 import { useServerId } from "@/contexts/ServerContext";
 import { extractNamesWithAI } from "@/lib/vision";
-import { fetchGuilds } from "@/lib/supabase";
+import { fetchGuilds, supabase } from "@/lib/supabase";
 import { guildColor } from "@/lib/constants";
 import { Loader2, X, Plus, Check, Sparkles, ImagePlus, Shield, Pencil } from "lucide-react";
 import type { Guild, Member } from "@/types";
@@ -94,6 +94,41 @@ export function ParticipantModal({
   // Guild data for grouping members
   const [guilds, setGuilds] = useState<Guild[]>([]);
   useEffect(() => { fetchGuilds().then(setGuilds).catch(() => setGuilds([])); }, []);
+
+  // Party leaders state (per guild)
+  const [partyLeaders, setPartyLeaders] = useState<Record<string, string>>({});
+  const [partyLeadersLoading, setPartyLeadersLoading] = useState(true);
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data } = await supabase.from("death_records").select("party_leaders").eq("id", deathRecordId).single();
+        setPartyLeaders((data as any)?.party_leaders || {});
+      } catch {
+        setPartyLeaders({});
+      } finally {
+        setPartyLeadersLoading(false);
+      }
+    })();
+  }, [deathRecordId]);
+
+  const savePartyLeaders = async (updated: Record<string, string>) => {
+    try { await supabase.from("death_records").update({ party_leaders: updated }).eq("id", deathRecordId); } catch {}
+  };
+
+  // Group members by guild for party leader selectors
+  const groupedMembers = useMemo(() => {
+    const map = new Map<string, { guildId: string | null; guildName: string; members: Member[] }>();
+    for (const m of members) {
+      const gid = (m as any).guild_id || null;
+      const key = gid ?? "_none_";
+      if (!map.has(key)) {
+        const g = guilds.find(x => x.id === gid);
+        map.set(key, { guildId: gid, guildName: g?.name || "No Guild", members: [] });
+      }
+      map.get(key)!.members.push(m);
+    }
+    return [...map.values()];
+  }, [members, guilds]);
 
   // AI rally scan state
   const [rallyImages, setRallyImages] = useState<File[]>([]);
@@ -469,9 +504,35 @@ export function ParticipantModal({
                       <div key={group.guildId ?? "noguild"}>
                         {/* Guild header */}
                         {group.guildId && (
-                          <div className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium mb-1 ${group.color.bg} ${group.color.text} ${group.color.border} border w-fit`}>
-                            <Shield className="w-2.5 h-2.5" />
-                            {group.guildName}
+                          <div className="flex items-center gap-2 mb-1">
+                            <div className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium ${group.color.bg} ${group.color.text} ${group.color.border} border w-fit`}>
+                              <Shield className="w-2.5 h-2.5" />
+                              {group.guildName}
+                            </div>
+                            {/* Party Leader selector inside guild header */}
+                            {!partyLeadersLoading && (
+                              readOnly ? (
+                                <span className={`text-xs px-2 py-1 rounded border font-medium ${group.color.text} ${group.color.border} bg-slate-800/50`}>Leader: {members.find(m => m.id === partyLeaders[group.guildId!])?.name || "—"}</span>
+                              ) : (
+                                <select
+                                  value={partyLeaders[group.guildId!] ?? ""}
+                                  onChange={(e) => {
+                                    const next = { ...partyLeaders };
+                                    const gid = group.guildId!;
+                                    if (e.target.value) next[gid] = e.target.value;
+                                    else delete next[gid];
+                                    setPartyLeaders(next);
+                                    savePartyLeaders(next);
+                                  }}
+                                  className={`text-xs px-2 py-1 rounded border font-medium bg-slate-800 focus:outline-none focus:ring-1 focus:ring-purple-500 ${group.color.text} ${group.color.border}`}
+                                >
+                                  <option value="">No leader</option>
+                                  {group.members.filter(m => attendedIds.has(m.id)).map(m => (
+                                    <option key={m.id} value={m.id}>{m.name}</option>
+                                  ))}
+                                </select>
+                              )
+                            )}
                           </div>
                         )}
                         {!group.guildId && guilds.length > 0 && (

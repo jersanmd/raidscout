@@ -13,7 +13,7 @@ import type { Boss, Member, Guild } from "@/types";
 interface DeathRecordModalProps {
   boss: Boss;
   onClose: () => void;
-  onSubmit: (deathTime: Date, rallyImages: File[], attendeeIds: string[]) => void;
+  onSubmit: (deathTime: Date, rallyImages: File[], attendeeIds: string[], partyLeaders?: Record<string, string> | null) => void;
   /** Pre-set death time (e.g., schedule spawn time). Skips the time-selection step entirely. */
   defaultDeathTime?: Date;
   /** Hide the "Custom Time" tab — only allow the pre-set or "now" time */
@@ -78,6 +78,7 @@ export function DeathRecordModal({ boss, onClose, onSubmit, defaultDeathTime, hi
     return groups;
   }, [members, guilds]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [partyLeaders, setPartyLeaders] = useState<Record<string, string>>({}); // guild_id → member_id
   const [rallyImages, setRallyImages] = useState<File[]>([]);
   const [rallyPreviews, setRallyPreviews] = useState<string[]>([]);
   const rallyPreviewsRef = useRef<string[]>([]);
@@ -529,7 +530,7 @@ export function DeathRecordModal({ boss, onClose, onSubmit, defaultDeathTime, hi
       }
     }
 
-    onSubmit(deathTime, rallyImages, finalIds);
+    onSubmit(deathTime, rallyImages, finalIds, Object.keys(partyLeaders).length > 0 ? partyLeaders : null);
   };
 
   const filteredGroupedMembers = useMemo(() => {
@@ -1038,7 +1039,33 @@ export function DeathRecordModal({ boss, onClose, onSubmit, defaultDeathTime, hi
 
         {/* Sticky footer — always visible even when body scrolls */}
         {step === "attendance" && (
-          <div className="p-4 border-t border-slate-800 shrink-0">
+          <div className="p-4 border-t border-slate-800 shrink-0 space-y-2">
+            {/* Per-guild Party Leader selectors */}
+            {selectedIds.size > 0 && groupedMembers.length > 1 && (
+              <div className="space-y-1.5">
+                <span className="text-[10px] text-slate-500 uppercase tracking-wider">Party Leaders (per guild)</span>
+                {groupedMembers.filter(g => g.members.some(m => selectedIds.has(m.id))).map(g => (
+                  <div key={g.guildId ?? "_none_"} className="flex items-center gap-2">
+                    <span className="text-[10px] text-slate-500 w-16 truncate shrink-0" title={g.guildName}>{g.guildName || "No Guild"}</span>
+                    <select
+                      value={partyLeaders[g.guildId ?? "_none_"] ?? ""}
+                      onChange={(e) => setPartyLeaders(prev => {
+                        const next = { ...prev };
+                        if (e.target.value) next[g.guildId ?? "_none_"] = e.target.value;
+                        else delete next[g.guildId ?? "_none_"];
+                        return next;
+                      })}
+                      className="flex-1 px-2 py-1 bg-slate-800 border border-slate-700 rounded text-xs text-white focus:outline-none focus:ring-1 focus:ring-purple-500"
+                    >
+                      <option value="">None</option>
+                      {g.members.filter(m => selectedIds.has(m.id)).map(m => (
+                        <option key={m.id} value={m.id}>{m.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                ))}
+              </div>
+            )}
             <button
               onClick={handleFinalSubmit}
               disabled={submitting}

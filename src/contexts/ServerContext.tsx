@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useRef, useCallback, type ReactNode } from "react";
-import { supabase, setCurrentServerId } from "@/lib/supabase";
+import { supabase, setCurrentServerId, fetchModeratorPermissions, type ModeratorPermissions, DEFAULT_MODERATOR_PERMISSIONS } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 
 export interface Server {
@@ -24,6 +24,7 @@ interface ServerState {
   refreshServers: () => Promise<void>;
   webhookVersion: number;
   bumpWebhookVersion: () => void;
+  permissions: ModeratorPermissions | null;
 }
 
 const ServerContext = createContext<ServerState | undefined>(undefined);
@@ -36,6 +37,7 @@ export function ServerProvider({ children }: { children: ReactNode }) {
   const currentRef = useRef<Server | null>(null);
   const [webhookVersion, setWebhookVersion] = useState(0);
   const bumpWebhookVersion = useCallback(() => setWebhookVersion(v => v + 1), []);
+  const [permissions, setPermissions] = useState<ModeratorPermissions | null>(null);
 
   // Viewer mode: directly set the viewer's server
   useEffect(() => {
@@ -154,9 +156,23 @@ export function ServerProvider({ children }: { children: ReactNode }) {
     setCurrentServerId(currentServer?.id ?? null);
   }, [currentServer]);
 
+  // Load moderator permissions when server changes
+  useEffect(() => {
+    if (!user) return;
+    if (currentServer && currentServer.role === "moderator" && !isViewer) {
+      fetchModeratorPermissions(currentServer.id)
+        .then(all => setPermissions(all[user.id] ?? DEFAULT_MODERATOR_PERMISSIONS))
+        .catch(() => setPermissions(DEFAULT_MODERATOR_PERMISSIONS));
+    } else if (currentServer?.role === "owner" || userRole === "admin") {
+      setPermissions(null); // null = full access
+    } else {
+      setPermissions(DEFAULT_MODERATOR_PERMISSIONS);
+    }
+  }, [currentServer?.id, currentServer?.role, userRole, user?.id, isViewer]);
+
   return (
     <ServerContext.Provider
-      value={{ servers, currentServer, loading, setCurrentServer: setCurrentServerWrapped, refreshServers, webhookVersion, bumpWebhookVersion }}
+      value={{ servers, currentServer, loading, setCurrentServer: setCurrentServerWrapped, refreshServers, webhookVersion, bumpWebhookVersion, permissions }}
     >
       {children}
     </ServerContext.Provider>
@@ -173,4 +189,17 @@ export function useServer() {
 export function useServerId(): string | null {
   const { currentServer } = useServer();
   return currentServer?.id ?? null;
+}
+
+/** Check if the current user has a specific moderator permission.
+ *  Owners and platform admins always return true.
+ *  Moderators check their permissions object.
+ *  Returns false if no server is selected. */
+export function useHasPermission(permission: keyof ModeratorPermissions): boolean {
+  const { currentServer, permissions } = useServer();
+  const { userRole } = useAuth();
+  if (!currentServer) return false;
+  if (currentServer.role === "owner" || userRole === "admin") return true;
+  if (!permissions) return false;
+  return permissions[permission] === true;
 }

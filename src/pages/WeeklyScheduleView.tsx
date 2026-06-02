@@ -45,7 +45,9 @@ export function WeeklyScheduleView() {
   useEffect(() => { setWeekLoading(false); }, [weekOffset]);
 
   // Disable Previous Week if no death records exist before the displayed week
-  const prevWeekHasData = useMemo(() => {
+  // Always allow navigating back from future weeks
+  const prevWeekDisabled = useMemo(() => {
+    if (weekOffset > 0) return false; // future weeks: always allow going back
     const now = new Date();
     const refDate = new Date(now);
     refDate.setDate(refDate.getDate() + weekOffset * 7);
@@ -54,7 +56,7 @@ export function WeeklyScheduleView() {
     const monday = new Date(refDate);
     monday.setDate(refDate.getDate() - daysFromMonday);
     monday.setHours(0, 0, 0, 0);
-    return deathRecords.some(dr => !dr.is_initial_spawn && new Date(dr.death_time) < monday);
+    return !deathRecords.some(dr => !dr.is_initial_spawn && new Date(dr.death_time) < monday);
   }, [deathRecords, weekOffset]);
 
   // Selected death for participant modal
@@ -310,9 +312,9 @@ export function WeeklyScheduleView() {
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-xl font-bold text-white">Weekly Schedule</h2>
         <div className="flex items-center gap-3">
-          <button onClick={() => { setWeekLoading(true); setWeekOffset(w => w - 1); }} disabled={!prevWeekHasData} className="px-3 py-1.5 rounded-lg text-xs bg-slate-800 border border-slate-700 text-slate-300 hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed transition">← Previous Week</button>
-          <span className="text-sm text-slate-400">{weekOffset === 0 ? "This Week" : weekOffset === -1 ? "Last Week" : `${Math.abs(weekOffset)} weeks ago`}</span>
-          <button onClick={() => { setWeekLoading(true); setWeekOffset(w => w + 1); }} disabled={weekOffset >= 0} className="px-3 py-1.5 rounded-lg text-xs bg-slate-800 border border-slate-700 text-slate-300 hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed transition">Next Week →</button>
+          <button onClick={() => { setWeekLoading(true); setWeekOffset(w => w - 1); }} disabled={prevWeekDisabled} className="px-3 py-1.5 rounded-lg text-xs bg-slate-800 border border-slate-700 text-slate-300 hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed transition">← Previous Week</button>
+          <span className="text-sm text-slate-400">{weekOffset === 0 ? "This Week" : weekOffset === 1 ? "Next Week" : weekOffset > 0 ? `${weekOffset} weeks ahead` : weekOffset === -1 ? "Last Week" : `${Math.abs(weekOffset)} weeks ago`}</span>
+          <button onClick={() => { setWeekLoading(true); setWeekOffset(w => w + 1); }} disabled={weekOffset >= 4} className="px-3 py-1.5 rounded-lg text-xs bg-slate-800 border border-slate-700 text-slate-300 hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed transition">Next Week →</button>
         </div>
       </div>
 
