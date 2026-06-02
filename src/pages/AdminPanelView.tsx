@@ -205,6 +205,15 @@ export function AdminPanelView() {
       {/* Tabs */}
       <div className="flex bg-slate-800 rounded-lg p-0.5 gap-0.5 overflow-x-auto">
         <button
+          onClick={() => setTab("infra")}
+          className={`flex flex-1 items-center justify-center gap-1 px-2 py-1.5 rounded-md text-xs font-medium transition whitespace-nowrap ${
+            tab === "infra" ? "bg-slate-700 text-white" : "text-slate-400 hover:text-slate-200"
+          }`}
+        >
+          <Radio className="w-3.5 h-3.5" />
+          Infra
+        </button>
+        <button
           onClick={() => setTab("games")}
           className={`flex flex-1 items-center justify-center gap-1 px-2 py-1.5 rounded-md text-xs font-medium transition whitespace-nowrap ${
             tab === "games" ? "bg-slate-700 text-white" : "text-slate-400 hover:text-slate-200"
@@ -221,15 +230,6 @@ export function AdminPanelView() {
         >
           <Server className="w-3.5 h-3.5" />
           Servers ({servers.length})
-        </button>
-        <button
-          onClick={() => setTab("infra")}
-          className={`flex flex-1 items-center justify-center gap-1 px-2 py-1.5 rounded-md text-xs font-medium transition whitespace-nowrap ${
-            tab === "infra" ? "bg-slate-700 text-white" : "text-slate-400 hover:text-slate-200"
-          }`}
-        >
-          <Radio className="w-3.5 h-3.5" />
-          Infra
         </button>
         <button
           onClick={() => setTab("users")}
