@@ -153,3 +153,15 @@ export interface PointRuleTimeMultiplierConfig {
   end_hour: number;    // 0-23
   multiplier: number;  // e.g. 2.0 = double
 }
+
+// ── Boss Assists ────────────────────────────────────────────
+
+/** A guild that assists another guild on a specific boss */
+export interface BossAssist {
+  id: string;
+  boss_id: string;
+  owner_guild_id: string;
+  assistant_guild_id: string;
+  server_id: string;
+  created_at: string;
+}

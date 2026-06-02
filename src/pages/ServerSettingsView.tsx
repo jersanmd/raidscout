@@ -3,8 +3,8 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { useServer } from "@/contexts/ServerContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { deleteServer, transferServerOwnership, removeServerModerator, addServerModerator, supabase, fetchServerMembers, type ServerMember, fetchGuilds, createGuild, updateGuildName, deleteGuild, fetchBossGuilds, setBossGuilds, fetchAllBossGuildsForServer, upsertBossGuildPoints, batchSetGuildSalary, fetchBosses, setBossPoints, setBossSalary, notifyDiscord, fetchModeratorPermissions, updateModeratorPermissions, updateThreadConfig, fetchPointRules, createPointRule, updatePointRule, deletePointRule, type ModeratorPermissions, DEFAULT_MODERATOR_PERMISSIONS } from "@/lib/supabase";
-import type { Guild, BossGuild, Boss, PointRule } from "@/types";
+import { deleteServer, transferServerOwnership, removeServerModerator, addServerModerator, supabase, fetchServerMembers, type ServerMember, fetchGuilds, createGuild, updateGuildName, deleteGuild, fetchBossGuilds, setBossGuilds, fetchAllBossGuildsForServer, upsertBossGuildPoints, batchSetGuildSalary, fetchBosses, setBossPoints, setBossSalary, notifyDiscord, fetchModeratorPermissions, updateModeratorPermissions, updateThreadConfig, fetchPointRules, createPointRule, updatePointRule, deletePointRule, fetchBossAssists, toggleBossAssist, type ModeratorPermissions, DEFAULT_MODERATOR_PERMISSIONS } from "@/lib/supabase";
+import type { Guild, BossGuild, Boss, PointRule, BossAssist } from "@/types";
 import { Loader2, Trash2, Crown, ArrowLeft, Server, Check, Key, Copy, RefreshCw, Plus, LogIn, Users, Bell, Link, Settings, AlertTriangle, X, Shield, Pencil, Swords, ChevronUp, ChevronDown, CheckSquare, Square, Eye, EyeOff, UserPlus, Minus, Trophy, Send, Save, MessageCircle, Zap } from "lucide-react";
 import { CreateServerModal } from "@/components/CreateServerModal";
 import { useToast } from "@/contexts/ToastContext";
@@ -109,7 +109,8 @@ export function ServerSettingsView() {
         // Initialize bossModes from data
         const modes: Record<string, "none" | "rotation" | "schedule" | "daily"> = {};
         for (const boss of b) {
-          const bgs = bg.filter(x => x.boss_id === boss.id);
+          // Filter out points-only rows (sort_order = -1 sentinel)
+          const bgs = bg.filter(x => x.boss_id === boss.id && x.sort_order !== -1);
           if (bgs.length === 0) modes[boss.id] = "none";
           else if (bgs[0].mode === "daily") modes[boss.id] = "daily";
           else if (bgs[0].mode === "schedule") modes[boss.id] = "schedule";
@@ -137,6 +138,12 @@ export function ServerSettingsView() {
         .then(setPointRules)
         .catch(() => setPointRules([]))
         .finally(() => setRulesLoading(false));
+      // Fetch boss assists
+      setAssistsLoading(true);
+      fetchBossAssists(currentServer.id)
+        .then(setBossAssists)
+        .catch(() => setBossAssists([]))
+        .finally(() => setAssistsLoading(false));
     }
   }, [currentServer?.id]);
 
@@ -228,6 +235,10 @@ export function ServerSettingsView() {
   const [newRuleEndHour, setNewRuleEndHour] = useState(6);
   const [newRuleMultiplier, setNewRuleMultiplier] = useState(2);
   const [savingRule, setSavingRule] = useState(false);
+
+  // Boss Assists state
+  const [bossAssists, setBossAssists] = useState<BossAssist[]>([]);
+  const [assistsLoading, setAssistsLoading] = useState(false);
 
   // Boss priority ordering (for display in Boss Guilds tab)
   const BOSS_PRIORITY = [
@@ -804,7 +815,7 @@ export function ServerSettingsView() {
 
   const getBossMode = (bossId: string): "none" | "rotation" | "schedule" | "daily" => {
     if (bossModes[bossId]) return bossModes[bossId];
-    const bgs = getBossGuildsForBoss(bossId);
+    const bgs = getBossGuildsForBoss(bossId).filter(bg => bg.sort_order !== -1);
     if (bgs.length === 0) return "none";
     if (bgs[0].mode === "daily") return "daily";
     if (bgs[0].mode === "schedule") return "schedule";
@@ -835,7 +846,7 @@ export function ServerSettingsView() {
   const handleAddRotationGuild = async (bossId: string, guildId: string) => {
     setSavingBossId(bossId);
     try {
-      const existing = getBossGuildsForBoss(bossId).filter(bg => bg.sort_order !== null);
+      const existing = getBossGuildsForBoss(bossId).filter(bg => bg.sort_order !== null && bg.sort_order > 0);
       const nextOrder = existing.length > 0 ? Math.max(...existing.map(bg => bg.sort_order ?? 0)) + 1 : 1;
       const newAssignments = [...existing.map(bg => ({ guild_id: bg.guild_id, sort_order: bg.sort_order! })), { guild_id: guildId, sort_order: nextOrder }];
       await setBossGuilds(bossId, newAssignments, "rotation");
@@ -1843,6 +1854,7 @@ export function ServerSettingsView() {
             bosses={sortedBosses}
             guilds={guilds}
             allBossGuilds={allBossGuilds}
+            bossAssists={bossAssists}
             savingCell={savingCell}
             onPointsChange={async (bossId, guildId, points) => {
               const cellKey = `${bossId}-${guildId}`;
@@ -1880,6 +1892,16 @@ export function ServerSettingsView() {
                 const updated = await fetchAllBossGuildsForServer(currentServer!.id);
                 setAllBossGuilds(updated);
               } catch { /* refresh failed, but data is saved */ }
+            }}
+            onAssistToggle={async (bossId, ownerGuildId, assistantGuildId) => {
+              try {
+                const added = await toggleBossAssist(bossId, ownerGuildId, assistantGuildId, currentServer!.id);
+                if (added) {
+                  setBossAssists(prev => [...prev, { id: "", boss_id: bossId, owner_guild_id: ownerGuildId, assistant_guild_id: assistantGuildId, server_id: currentServer!.id, created_at: new Date().toISOString() } as BossAssist]);
+                } else {
+                  setBossAssists(prev => prev.filter(a => !(a.boss_id === bossId && a.owner_guild_id === ownerGuildId && a.assistant_guild_id === assistantGuildId)));
+                }
+              } catch { /* ignore */ }
             }}
           />
         </>
@@ -2422,18 +2444,22 @@ function BossPointsMatrix({
   bosses,
   guilds,
   allBossGuilds,
+  bossAssists,
   savingCell,
   onPointsChange,
   onSalaryChange,
   onBatchSalaryChange,
+  onAssistToggle,
 }: {
   bosses: Boss[];
   guilds: Guild[];
   allBossGuilds: BossGuild[];
+  bossAssists: BossAssist[];
   savingCell: string | null;
   onPointsChange: (bossId: string, guildId: string, points: number | null) => Promise<void>;
   onSalaryChange: (bossId: string, guildId: string, hasSalary: boolean) => Promise<void>;
   onBatchSalaryChange: (guildId: string, bossIds: string[], hasSalary: boolean) => Promise<void>;
+  onAssistToggle: (bossId: string, ownerGuildId: string, assistantGuildId: string) => Promise<void>;
 }) {
   const sortedBosses = useMemo(() => {
     return [...bosses].sort((a, b) => {
@@ -2454,6 +2480,17 @@ function BossPointsMatrix({
     }
     return map;
   }, [allBossGuilds]);
+
+  // Build assist lookup: "bossId|ownerGuildId" → Set<assistantGuildId>
+  const assistLookup = useMemo(() => {
+    const map = new Map<string, Set<string>>();
+    for (const a of bossAssists) {
+      const key = `${a.boss_id}|${a.owner_guild_id}`;
+      if (!map.has(key)) map.set(key, new Set());
+      map.get(key)!.add(a.assistant_guild_id);
+    }
+    return map;
+  }, [bossAssists]);
 
   // Compute whether each guild has all salaries checked (from data)
   const guildAllChecked = useMemo(() => {
@@ -2500,7 +2537,7 @@ function BossPointsMatrix({
               Boss
             </th>
             {guilds.map(g => (
-              <th key={g.id} colSpan={2} className="px-3 py-2 text-center text-slate-400 font-medium border-b border-slate-700/50 border-l border-slate-700/30">
+              <th key={g.id} colSpan={3} className="px-3 py-2 text-center text-slate-400 font-medium border-b border-slate-700/50 border-l border-slate-700/30">
                 {g.name}
               </th>
             ))}
@@ -2521,6 +2558,7 @@ function BossPointsMatrix({
                     <span className="text-[10px] text-slate-500 font-normal">Salary</span>
                   </label>
                 </th>
+                <th className="px-2 py-1 text-center text-[10px] text-slate-500 font-normal border-l border-slate-700/30">Ast</th>
               </Fragment>
             ))}
           </tr>
@@ -2574,6 +2612,46 @@ function BossPointsMatrix({
                         onChange={() => onSalaryChange(boss.id, guild.id, !hasSalary)}
                         className="w-3 h-3 rounded border-slate-600 bg-slate-800 text-emerald-600 focus:ring-emerald-500/50 cursor-pointer disabled:opacity-50"
                       />
+                    </td>
+                    {/* Assist cell */}
+                    <td className="px-1 py-1 text-center border-l border-slate-700/30">
+                      {(() => {
+                        // Find assists where this guild is the assistant on this boss
+                        const myAssists = bossAssists.filter(a => a.boss_id === boss.id && a.assistant_guild_id === guild.id);
+                        const ownerIds = myAssists.map(a => a.owner_guild_id);
+                        // Show existing assists as small removable tags
+                        return (
+                          <div className="flex flex-wrap items-center justify-center gap-0.5 min-w-[28px]">
+                            {ownerIds.map(oid => {
+                              const ownerGuild = guilds.find(g => g.id === oid);
+                              return (
+                                <span key={oid} className="inline-flex items-center gap-0.5 bg-purple-900/30 border border-purple-700/50 rounded px-1 py-0.5 text-[9px] text-purple-300 leading-none">
+                                  {ownerGuild?.name?.slice(0, 6) || "?"}
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); onAssistToggle(boss.id, oid, guild.id); }}
+                                    className="text-purple-400 hover:text-red-400 leading-none"
+                                  >×</button>
+                                </span>
+                              );
+                            })}
+                            {/* + button to add assist — only show guilds that aren't self and aren't already assisted */}
+                            {(() => {
+                              const availGuilds = guilds.filter(g => g.id !== guild.id && !ownerIds.includes(g.id));
+                              if (availGuilds.length === 0) return null;
+                              return (
+                                <select
+                                  value=""
+                                  onChange={(e) => { if (e.target.value) { onAssistToggle(boss.id, e.target.value, guild.id); e.target.value = ""; }}}
+                                  className="bg-transparent text-[9px] text-slate-500 hover:text-purple-400 cursor-pointer outline-none"
+                                >
+                                  <option value="">+</option>
+                                  {availGuilds.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+                                </select>
+                              );
+                            })()}
+                          </div>
+                        );
+                      })()}
                     </td>
                   </Fragment>
                 );
