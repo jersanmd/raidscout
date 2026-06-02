@@ -813,18 +813,23 @@ export function ServerSettingsView() {
   };
 
   const handleSetBossMode = async (bossId: string, mode: "none" | "rotation" | "schedule" | "daily") => {
-    // Update state immediately so UI reflects the change
-    setBossModes(prev => ({ ...prev, [bossId]: mode }));
-    setExpandedBoss(bossId); // keep expanded
+    const currentMode = bossModes[bossId];
+    if (currentMode === mode) return;
 
-    if (mode === "none") {
+    setSavingBossId(bossId);
+    setBossModes(prev => ({ ...prev, [bossId]: mode }));
+    setExpandedBoss(bossId);
+
+    try {
       await setBossGuilds(bossId, []);
       setBossGuildsState(prev => prev.filter(bg => bg.boss_id !== bossId));
-      return;
+    } catch (err: any) {
+      toast("error", err?.message ?? "Failed to set mode");
+      // Revert the mode change on error
+      setBossModes(prev => ({ ...prev, [bossId]: currentMode }));
+    } finally {
+      setSavingBossId(null);
     }
-    // Clear existing assignments for the new mode
-    await setBossGuilds(bossId, []);
-    setBossGuildsState(prev => prev.filter(bg => bg.boss_id !== bossId));
   };
 
   const handleAddRotationGuild = async (bossId: string, guildId: string) => {
@@ -1421,7 +1426,7 @@ export function ServerSettingsView() {
                                 <select
                                   key={`add-daily-${boss.id}-${bossAssignments.length}`}
                                   value=""
-                                  onChange={(e) => { if (e.target.value) handleBulkAddDailyGuild(e.target.value); }}
+                                  onChange={(e) => { if (e.target.value) handleAddDailyGuild(boss.id, e.target.value); }}
                                   className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-xs text-slate-400 outline-none focus:border-cyan-500"
                                 >
                                   <option value="">+ Add guild to daily rotation...</option>
@@ -1459,7 +1464,7 @@ export function ServerSettingsView() {
                                 <select
                                   key={`add-${boss.id}-${bossAssignments.length}`}
                                   value=""
-                                  onChange={(e) => { if (e.target.value) handleBulkAddRotationGuild(e.target.value); }}
+                                  onChange={(e) => { if (e.target.value) handleAddRotationGuild(boss.id, e.target.value); }}
                                   className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-xs text-slate-400 outline-none focus:border-blue-500"
                                 >
                                   <option value="">+ Add guild to rotation...</option>
