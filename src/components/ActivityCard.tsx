@@ -14,7 +14,7 @@ export function ActivityCard({ info }: ActivityCardProps) {
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2 min-w-0">
           <span className="text-lg">📅</span>
-          <h3 className="text-sm font-semibold text-white truncate">{activity.name}</h3>
+          <h3 className="text-sm font-semibold text-[#fafafa] truncate">{activity.name}</h3>
         </div>
         <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full shrink-0 ${
           status === "active" ? "bg-emerald-900/40 text-emerald-400 border border-emerald-800" :

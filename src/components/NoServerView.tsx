@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { supabase, createServer, fetchGames } from "@/lib/supabase";
 import { useServer } from "@/contexts/ServerContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -77,7 +77,7 @@ export function NoServerView() {
             <div className="absolute inset-0 rounded-full border-4 border-t-emerald-400 border-r-emerald-400/30 border-b-emerald-400/10 border-l-emerald-400/60 animate-spin" />
           </div>
           <div>
-            <h2 className="text-lg font-bold text-white">Creating your server</h2>
+            <h2 className="text-lg font-bold text-[#fafafa]">Creating your server</h2>
             <p className="text-sm text-slate-400 mt-1">
               {isSeeded ? `Seeding from ${selectedGame?.name ?? "templates"}...` : "Setting up empty server..."}
             </p>
@@ -93,10 +93,10 @@ export function NoServerView() {
       <div className="min-h-[60vh] flex items-center justify-center p-4">
         <div className="text-center space-y-6 max-w-md w-full">
           <div className="flex items-center justify-center w-16 h-16 mx-auto rounded-2xl bg-gradient-to-br from-purple-500 to-pink-400">
-            <Gamepad2 className="w-8 h-8 text-white" />
+            <Gamepad2 className="w-8 h-8 text-[#fafafa]" />
           </div>
           <div>
-            <h2 className="text-xl font-bold text-white">Pick a Game</h2>
+            <h2 className="text-xl font-bold text-[#fafafa]">Pick a Game</h2>
             <p className="text-slate-400 text-sm mt-1">Select a game to start tracking bosses and activities.</p>
           </div>
 
@@ -109,7 +109,7 @@ export function NoServerView() {
                 <button
                   key={g.id}
                   onClick={() => { setSelectedGame(g); setMode("create"); }}
-                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-slate-800 border border-slate-700 text-white hover:border-emerald-500 hover:bg-black/5 dark:hover:bg-white/5 transition text-left"
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-slate-800 border border-slate-700 text-[#fafafa] hover:border-emerald-500 hover:bg-black/5 dark:hover:bg-white/5 transition text-left"
                 >
                   <Gamepad2 className="w-5 h-5 text-purple-400 shrink-0" />
                   <div className="flex-1 text-left">
@@ -122,7 +122,7 @@ export function NoServerView() {
             )}
             <button
               onClick={() => { setSelectedGame({ id: "custom", name: "Custom (no seed)" }); setMode("create"); }}
-              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-slate-800/50 border border-dashed border-slate-700 text-slate-400 hover:text-slate-900 dark:hover:text-white hover:border-slate-500 transition text-left"
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-slate-800/50 border border-dashed border-slate-700 text-slate-400 hover:text-slate-900 dark:hover:text-[#fafafa] hover:border-slate-500 transition text-left"
             >
               <Plus className="w-5 h-5 shrink-0" />
               <div className="flex-1 text-left">
@@ -148,12 +148,12 @@ export function NoServerView() {
               onChange={(e) => setInviteCode(e.target.value)}
               placeholder="Invite code..."
               onKeyDown={(e) => e.key === "Enter" && handleJoin()}
-              className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 outline-none focus:border-blue-500 transition text-center"
+              className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-[#fafafa] placeholder-slate-500 outline-none focus:border-blue-500 transition text-center"
             />
             <button
               onClick={handleJoin}
               disabled={loading || !inviteCode.trim()}
-              className="px-4 py-2 rounded-lg text-sm font-medium bg-blue-600 text-white hover:bg-blue-500 transition disabled:opacity-50"
+              className="px-4 py-2 rounded-lg text-sm font-medium bg-blue-600 text-[#fafafa] hover:bg-blue-500 transition disabled:opacity-50"
             >
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Join"}
             </button>
@@ -176,7 +176,7 @@ export function NoServerView() {
           <div className="flex items-center justify-center w-12 h-12 mx-auto rounded-xl bg-emerald-900/30">
             <Server className="w-6 h-6 text-emerald-400" />
           </div>
-          <h2 className="text-lg font-bold text-white">Create Server</h2>
+          <h2 className="text-lg font-bold text-[#fafafa]">Create Server</h2>
           <p className="text-sm text-slate-400">
             {isCustom ? "Start with an empty server. Add bosses and activities later." : `Based on ${selectedGame?.name ?? "templates"}.`}
           </p>
@@ -184,7 +184,7 @@ export function NoServerView() {
           {hasSeeds && (
             <label className="flex items-center justify-between px-4 py-3 rounded-xl bg-slate-800/50 border border-slate-700 cursor-pointer hover:border-emerald-700/50 transition">
               <div className="text-left">
-                <p className="text-sm text-white">Seed with {selectedGame?.name} templates</p>
+                <p className="text-sm text-[#fafafa]">Seed with {selectedGame?.name} templates</p>
                 <p className="text-xs text-slate-500">Pre-load bosses and activities</p>
               </div>
               <input type="checkbox" checked={seed} onChange={(e) => setSeed(e.target.checked)} className="w-4 h-4 rounded accent-emerald-500" />
@@ -198,7 +198,7 @@ export function NoServerView() {
             placeholder="Server name..."
             autoFocus
             onKeyDown={(e) => e.key === "Enter" && handleCreate()}
-            className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 outline-none focus:border-emerald-500 transition"
+            className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-[#fafafa] placeholder-slate-500 outline-none focus:border-emerald-500 transition"
           />
           <input
             type="text"
@@ -206,19 +206,19 @@ export function NoServerView() {
             onChange={(e) => setGuildName(e.target.value)}
             placeholder="Default guild name (required)..."
             onKeyDown={(e) => e.key === "Enter" && handleCreate()}
-            className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 outline-none focus:border-purple-500 transition"
+            className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-[#fafafa] placeholder-slate-500 outline-none focus:border-purple-500 transition"
           />
           {error && <p className="text-xs text-red-400">{error}</p>}
           <button
             onClick={handleCreate}
             disabled={loading || !serverName.trim() || !guildName.trim()}
-            className="w-full py-2.5 rounded-lg font-medium text-sm bg-gradient-to-r from-emerald-600 to-green-500 text-white hover:from-emerald-500 hover:to-green-400 transition disabled:opacity-50 flex items-center justify-center gap-2"
+            className="w-full py-2.5 rounded-lg font-medium text-sm bg-gradient-to-r from-emerald-600 to-green-500 text-[#fafafa] hover:from-emerald-500 hover:to-green-400 transition disabled:opacity-50 flex items-center justify-center gap-2"
           >
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Server className="w-4 h-4" />}
             Create Server
           </button>
           <button onClick={() => { setMode("choose"); setError(null); }} className="text-xs text-slate-500 hover:text-slate-400">
-            ← Back
+            ? Back
           </button>
         </div>
       </div>
@@ -231,15 +231,15 @@ export function NoServerView() {
         <div className="flex items-center justify-center w-12 h-12 mx-auto rounded-xl bg-blue-900/30">
           <Key className="w-6 h-6 text-blue-400" />
         </div>
-        <h2 className="text-lg font-bold text-white">Join as Moderator</h2>
+        <h2 className="text-lg font-bold text-[#fafafa]">Join as Moderator</h2>
         <p className="text-sm text-slate-400">Ask the server owner for their invite code.</p>
-        <input type="text" value={inviteCode} onChange={(e) => setInviteCode(e.target.value)} placeholder="Enter invite code..." autoFocus onKeyDown={(e) => e.key === "Enter" && handleJoin()} className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 outline-none focus:border-blue-500 transition text-center" />
+        <input type="text" value={inviteCode} onChange={(e) => setInviteCode(e.target.value)} placeholder="Enter invite code..." autoFocus onKeyDown={(e) => e.key === "Enter" && handleJoin()} className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-[#fafafa] placeholder-slate-500 outline-none focus:border-blue-500 transition text-center" />
         {error && <p className="text-xs text-red-400">{error}</p>}
-        <button onClick={handleJoin} disabled={loading || !inviteCode.trim()} className="w-full py-2.5 rounded-lg font-medium text-sm bg-blue-600 text-white hover:bg-blue-500 transition disabled:opacity-50 flex items-center justify-center gap-2">
+        <button onClick={handleJoin} disabled={loading || !inviteCode.trim()} className="w-full py-2.5 rounded-lg font-medium text-sm bg-blue-600 text-[#fafafa] hover:bg-blue-500 transition disabled:opacity-50 flex items-center justify-center gap-2">
           {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Key className="w-4 h-4" />}
           Join Server
         </button>
-        <button onClick={() => { setMode("choose"); setError(null); }} className="text-xs text-slate-500 hover:text-slate-400">← Back</button>
+        <button onClick={() => { setMode("choose"); setError(null); }} className="text-xs text-slate-500 hover:text-slate-400">? Back</button>
       </div>
     </div>
   );

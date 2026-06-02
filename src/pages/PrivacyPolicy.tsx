@@ -13,15 +13,15 @@ export function PrivacyPolicyView() {
         noindex
       />
       <div className="max-w-2xl mx-auto px-4 py-8 space-y-6 text-slate-300 text-sm leading-relaxed">
-        <button onClick={() => navigate(-1)} className="flex items-center gap-1 text-slate-500 hover:text-white transition text-xs mb-2">
+        <button onClick={() => navigate(-1)} className="flex items-center gap-1 text-slate-500 hover:text-[#fafafa] transition text-xs mb-2">
           <ArrowLeft className="w-3.5 h-3.5" />
           Back
         </button>
-      <h1 className="text-2xl font-bold text-white">Privacy Policy</h1>
+      <h1 className="text-2xl font-bold text-[#fafafa]">Privacy Policy</h1>
       <p className="text-slate-500 text-xs">Last updated: June 1, 2026</p>
 
       <section className="space-y-2">
-        <h2 className="text-lg font-semibold text-white">1. Information We Collect</h2>
+        <h2 className="text-lg font-semibold text-[#fafafa]">1. Information We Collect</h2>
         <p>When you create an account and use RaidScout, we collect the following categories of information:</p>
 
         <h3 className="text-base font-medium text-slate-200 mt-3">1.1 Account Information</h3>
@@ -63,7 +63,7 @@ export function PrivacyPolicyView() {
       </section>
 
       <section className="space-y-2">
-        <h2 className="text-lg font-semibold text-white">2. How We Use Your Information</h2>
+        <h2 className="text-lg font-semibold text-[#fafafa]">2. How We Use Your Information</h2>
         <p>We use the collected information for the following purposes:</p>
         <ul className="list-disc pl-5 space-y-1">
           <li><strong>Service Delivery:</strong> To provide core features — boss timers, spawn tracking, leaderboards, guild management, activity scheduling, and server administration</li>
@@ -76,7 +76,7 @@ export function PrivacyPolicyView() {
       </section>
 
       <section className="space-y-2">
-        <h2 className="text-lg font-semibold text-white">3. Legal Basis for Processing</h2>
+        <h2 className="text-lg font-semibold text-[#fafafa]">3. Legal Basis for Processing</h2>
         <p>
           We process your personal data based on the following legal grounds:
         </p>
@@ -88,7 +88,7 @@ export function PrivacyPolicyView() {
       </section>
 
       <section className="space-y-2">
-        <h2 className="text-lg font-semibold text-white">4. Data Storage &amp; Security</h2>
+        <h2 className="text-lg font-semibold text-[#fafafa]">4. Data Storage &amp; Security</h2>
         <p>
           All data is stored on Supabase, a SOC 2 compliant cloud platform built on Amazon Web Services (AWS)
           infrastructure with PostgreSQL databases. Security measures include:
@@ -107,7 +107,7 @@ export function PrivacyPolicyView() {
       </section>
 
       <section className="space-y-2">
-        <h2 className="text-lg font-semibold text-white">5. Data Sharing &amp; Third-Party Processors</h2>
+        <h2 className="text-lg font-semibold text-[#fafafa]">5. Data Sharing &amp; Third-Party Processors</h2>
         <p>We do <strong>not</strong> sell, trade, rent, or share your personal data with third parties for their
         marketing purposes. Data is shared only with the following service providers necessary to operate the Service:</p>
 
@@ -140,7 +140,7 @@ export function PrivacyPolicyView() {
       </section>
 
       <section className="space-y-2">
-        <h2 className="text-lg font-semibold text-white">6. Cookies</h2>
+        <h2 className="text-lg font-semibold text-[#fafafa]">6. Cookies</h2>
         <p>
           RaidScout uses only essential authentication cookies (session tokens managed by Supabase Auth) required
           for the Service to function. We do not use:
@@ -157,7 +157,7 @@ export function PrivacyPolicyView() {
       </section>
 
       <section className="space-y-2">
-        <h2 className="text-lg font-semibold text-white">7. Data Retention</h2>
+        <h2 className="text-lg font-semibold text-[#fafafa]">7. Data Retention</h2>
         <ul className="list-disc pl-5 space-y-1">
           <li><strong>Account Data:</strong> Retained until you delete your account. Upon deletion, your email and
           authentication data are removed from Supabase Auth</li>
@@ -169,7 +169,7 @@ export function PrivacyPolicyView() {
       </section>
 
       <section className="space-y-2">
-        <h2 className="text-lg font-semibold text-white">8. Your Rights</h2>
+        <h2 className="text-lg font-semibold text-[#fafafa]">8. Your Rights</h2>
         <p>Depending on your jurisdiction, you may have the following rights regarding your personal data:</p>
         <ul className="list-disc pl-5 space-y-1">
           <li><strong>Access:</strong> Request a copy of your personal data</li>
@@ -186,7 +186,7 @@ export function PrivacyPolicyView() {
       </section>
 
       <section className="space-y-2">
-        <h2 className="text-lg font-semibold text-white">9. Children&apos;s Privacy</h2>
+        <h2 className="text-lg font-semibold text-[#fafafa]">9. Children&apos;s Privacy</h2>
         <p>
           The Service is not directed at children under the age of 13. We do not knowingly collect personal
           information from children under 13. If we become aware that a child under 13 has provided us with
@@ -196,7 +196,7 @@ export function PrivacyPolicyView() {
       </section>
 
       <section className="space-y-2">
-        <h2 className="text-lg font-semibold text-white">10. International Data Transfers</h2>
+        <h2 className="text-lg font-semibold text-[#fafafa]">10. International Data Transfers</h2>
         <p>
           Your data is stored on Supabase servers located in the Asia-Pacific region. By using the Service,
           you consent to the transfer and processing of your data in this jurisdiction. We take appropriate
@@ -205,7 +205,7 @@ export function PrivacyPolicyView() {
       </section>
 
       <section className="space-y-2">
-        <h2 className="text-lg font-semibold text-white">11. Changes to This Policy</h2>
+        <h2 className="text-lg font-semibold text-[#fafafa]">11. Changes to This Policy</h2>
         <p>
           We may update this Privacy Policy from time to time. Material changes will be communicated through
           our Discord community. The &ldquo;Last updated&rdquo; date at the top of this page reflects the most
@@ -215,7 +215,7 @@ export function PrivacyPolicyView() {
       </section>
 
       <section className="space-y-2">
-        <h2 className="text-lg font-semibold text-white">12. Contact Us</h2>
+        <h2 className="text-lg font-semibold text-[#fafafa]">12. Contact Us</h2>
         <p>
           For privacy-related inquiries, data requests, or concerns, reach out through our{" "}
           <a href="https://discord.gg/738AmkeQtU" target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:text-indigo-300 transition">

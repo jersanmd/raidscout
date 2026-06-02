@@ -13,7 +13,7 @@ export function CountdownTimer({ target, bossName, onUrgent, onCritical, onSpawn
   const timer = useTimer(target);
   const urgentKey = target && bossName ? `alert-urgent-${bossName}-${target.getTime()}` : null;
   const criticalKey = target && bossName ? `alert-critical-${bossName}-${target.getTime()}` : null;
-  const spawnedKey = target && bossName ? `alert-spawned-${bossName}-${target.getTime()}` : null;
+  const SpawnedKey = target && bossName ? `alert-Spawned-${bossName}-${target.getTime()}` : null;
 
   const isUrgent = !timer.isPast && timer.totalSeconds > 0 && timer.totalSeconds <= 300;
   const isCritical = !timer.isPast && timer.totalSeconds > 0 && timer.totalSeconds <= 5;
@@ -34,32 +34,34 @@ export function CountdownTimer({ target, bossName, onUrgent, onCritical, onSpawn
   }, [isCritical, bossName, onCritical, criticalKey]);
 
   useEffect(() => {
-    if (justSpawned && spawnedKey && !localStorage.getItem(spawnedKey) && bossName && onSpawned) {
-      localStorage.setItem(spawnedKey, "1");
+    if (justSpawned && SpawnedKey && !localStorage.getItem(SpawnedKey) && bossName && onSpawned) {
+      localStorage.setItem(SpawnedKey, "1");
       onSpawned(bossName);
     }
-  }, [justSpawned, bossName, onSpawned, spawnedKey]);
+  }, [justSpawned, bossName, onSpawned, SpawnedKey]);
 
   if (!target) {
-    return <span className="text-slate-500 font-mono">--:--:--</span>;
+    return <span className="text-[#52525b] font-mono text-sm">--:--:--</span>;
   }
 
   if (timer.isPast) {
     return (
-      <span className="text-green-400 font-mono font-bold text-lg animate-pulse">
-        SPAWNED
+      <span className="text-[#a1a1aa] font-mono font-medium text-base animate-pulse drop-">
+        Spawned
       </span>
     );
   }
 
   return (
     <span
-      className={`font-mono font-bold tabular-nums ${
-        isUrgent
-          ? "text-red-400 animate-pulse text-lg"
-          : timer.totalSeconds < 3600
-            ? "text-amber-400"
-            : "text-slate-200"
+      className={`font-mono font-medium tabular-nums text-base tracking-tight ${
+        isCritical
+          ? "text-[#a1a1aa] animate-pulse drop-"
+          : isUrgent
+            ? "text-[#a1a1aa] animate-pulse drop-"
+            : timer.totalSeconds < 3600
+              ? "text-[#a1a1aa] drop-"
+              : "text-[#fafafa]"
       }`}
     >
       {timer.display}

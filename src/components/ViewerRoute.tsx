@@ -49,7 +49,7 @@ export function ViewerRoute() {
           <div className="w-12 h-12 mx-auto rounded-xl bg-red-900/30 flex items-center justify-center">
             <span className="text-2xl">🔑</span>
           </div>
-          <h1 className="text-xl font-bold text-white">Invalid Viewer Key</h1>
+          <h1 className="text-xl font-bold text-[#fafafa]">Invalid Viewer Key</h1>
           <p className="text-slate-400 text-sm">{error}</p>
           <button
             onClick={() => navigate("/", { replace: true })}

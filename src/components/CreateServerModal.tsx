@@ -58,7 +58,7 @@ export function CreateServerModal({ onClose }: { onClose: () => void }) {
               <div className="absolute inset-0 rounded-full border-4 border-t-emerald-400 border-r-emerald-400/30 border-b-emerald-400/10 border-l-emerald-400/60 animate-spin" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-white">Creating your server</h3>
+              <h3 className="text-base font-bold text-[#fafafa]">Creating your server</h3>
               <p className="text-sm text-slate-400 mt-1">Seeding 39 bosses and setting up your guild...</p>
               <p className="text-xs text-slate-600 mt-2">This may take a few seconds</p>
             </div>
@@ -67,11 +67,11 @@ export function CreateServerModal({ onClose }: { onClose: () => void }) {
       ) : (
       <div className="relative bg-slate-900 border border-slate-700 rounded-xl w-full max-w-sm shadow-2xl">
         <div className="flex items-center justify-between p-4 border-b border-slate-800">
-          <h3 className="text-sm font-bold text-white flex items-center gap-2">
+          <h3 className="text-sm font-bold text-[#fafafa] flex items-center gap-2">
             <Plus className="w-4 h-4 text-emerald-400" />
             Create Server
           </h3>
-          <button onClick={onClose} className="text-slate-400 hover:text-white p-1">
+          <button onClick={onClose} className="text-slate-400 hover:text-[#fafafa] p-1">
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -88,7 +88,7 @@ export function CreateServerModal({ onClose }: { onClose: () => void }) {
               placeholder="My Server"
               autoFocus
               onKeyDown={(e) => e.key === "Enter" && handleCreate()}
-              className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 outline-none focus:border-emerald-500 transition"
+              className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-[#fafafa] placeholder-slate-500 outline-none focus:border-emerald-500 transition"
             />
           </div>
           <div>
@@ -99,7 +99,7 @@ export function CreateServerModal({ onClose }: { onClose: () => void }) {
               onChange={(e) => setGuildName(e.target.value)}
               placeholder="My Guild"
               onKeyDown={(e) => e.key === "Enter" && handleCreate()}
-              className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 outline-none focus:border-purple-500 transition"
+              className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-[#fafafa] placeholder-slate-500 outline-none focus:border-purple-500 transition"
             />
             <p className="text-[10px] text-slate-600 mt-1">All 39 bosses will be assigned to this guild by default.</p>
           </div>
@@ -107,7 +107,7 @@ export function CreateServerModal({ onClose }: { onClose: () => void }) {
           <button
             onClick={handleCreate}
             disabled={loading || !name.trim() || !guildName.trim()}
-            className="w-full py-2.5 rounded-lg font-medium text-sm bg-gradient-to-r from-emerald-600 to-green-500 text-white hover:from-emerald-500 hover:to-green-400 transition disabled:opacity-50 flex items-center justify-center gap-2"
+            className="w-full py-2.5 rounded-lg font-medium text-sm bg-gradient-to-r from-emerald-600 to-green-500 text-[#fafafa] hover:from-emerald-500 hover:to-green-400 transition disabled:opacity-50 flex items-center justify-center gap-2"
           >
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Server className="w-4 h-4" />}
             Create Server

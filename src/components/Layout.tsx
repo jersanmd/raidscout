@@ -8,10 +8,9 @@ import { DiscordWebhookBanner } from "@/components/DiscordWebhookBanner";
 import { NoMembersBanner } from "@/components/NoMembersBanner";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { useSpawnAlerts } from "@/hooks/useSpawnAlerts";
-import { Skull, List, Calendar, LogOut, Clock, Trophy, Users, BarChart3, Server, Settings, Plus, Shield, ExternalLink, Eye, Bell, Volume2, ChevronDown, Globe, Sun, Moon } from "lucide-react";
+import { Skull, List, Calendar, LogOut, Clock, Trophy, Users, BarChart3, Server, Settings, Plus, Shield, ExternalLink, Eye, Bell, Volume2, ChevronDown, Globe } from "lucide-react";
 import { version } from "../../package.json";
 import { useUserTimezone, detectTimezone, formatInTimezone } from "@/hooks/useUserTimezone";
-import { useTheme } from "@/contexts/ThemeContext";
 import { TIMEZONES } from "@/lib/timezones";
 
 let _audioCtx: AudioContext | null = null;
@@ -49,7 +48,6 @@ export function Layout() {
   const { user, signOut, userRole, isViewer, viewerServerName } = useAuth();
   const { servers, currentServer, setCurrentServer } = useServer();
   const { timezone, setTimezone } = useUserTimezone();
-  const { theme, toggleTheme } = useTheme();
   const [showCreate, setShowCreate] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -92,10 +90,10 @@ export function Layout() {
   });
 
   return (
-    <div className="min-h-screen bg-slate-950 flex flex-col" onClick={() => showUserMenu && setShowUserMenu(false)}>
+    <div className="min-h-screen bg-[#09090b] flex flex-col" onClick={() => showUserMenu && setShowUserMenu(false)}>
       <a href="#main-content" className="skip-to-content">Skip to content</a>
       {/* Header */}
-      <header className="sticky top-0 z-50 bg-slate-950/60 glass-header border-b border-slate-800/40 overflow-visible">
+      <header className="sticky top-0 z-50 bg-[#09090b]/80 backdrop-blur-xl border-b border-[#27272a] overflow-visible">
         <div className="max-w-[90rem] mx-auto px-4 min-h-14 py-1.5 flex items-center justify-between gap-2">
           <div className="flex items-center gap-3 shrink-0">
             {/* Logo */}
@@ -104,18 +102,17 @@ export function Layout() {
               alt="RaidScout"
               className="w-8 h-8 rounded-lg object-contain"
               onError={(e) => {
-                // Fallback to skull icon if logo not found
                 e.currentTarget.style.display = "none";
                 const fallback = e.currentTarget.nextElementSibling;
                 if (fallback) (fallback as HTMLElement).style.display = "flex";
               }}
             />
-            <div className="hidden w-8 h-8 rounded-lg bg-gradient-to-br from-red-600 to-orange-500 items-center justify-center">
-              <Skull className="w-4 h-4 text-white" />
+            <div className="hidden w-8 h-8 rounded-lg bg-[#18181b] items-center justify-center">
+              <Skull className="w-4 h-4 text-[#a1a1aa]" />
             </div>
-            <span className="font-bold text-white hidden sm:block">RaidScout</span>
+            <span className="font-semibold text-[#fafafa] hidden sm:block tracking-tight">RaidScout</span>
             {isViewer && viewerServerName && (
-              <span className="text-xs text-emerald-400 flex items-center gap-1">
+              <span className="text-xs text-[#a1a1aa] flex items-center gap-1">
                 <Eye className="w-3 h-3" />
                 {viewerServerName}
               </span>
@@ -125,15 +122,15 @@ export function Layout() {
           <div className="flex items-center gap-2 overflow-x-auto scrollbar-none touch-pan-x -mr-2 pr-2 min-w-0">
             {/* Nav tabs — hidden for admin without a selected server */}
             {showDataNav && (
-            <nav className="flex bg-slate-800 rounded-lg p-0.5 shrink-0">
+            <nav className="flex bg-[#18181b] rounded-lg p-0.5 shrink-0">
               <NavLink
                 to="/"
                 end
                 className={({ isActive }) =>
-                  `flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-md text-sm font-medium transition whitespace-nowrap ${
+                  `flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-150 whitespace-nowrap ${
                     isActive
-                      ? "bg-slate-700 text-white"
-                      : "text-slate-400 hover:text-slate-200"
+                      ? "bg-[#27272a] text-[#fafafa]"
+                      : "text-[#71717a] hover:text-[#a1a1aa]"
                   }`
                 }
               >
@@ -143,10 +140,10 @@ export function Layout() {
               <NavLink
                 to="/schedule"
                 className={({ isActive }) =>
-                  `flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-md text-sm font-medium transition whitespace-nowrap ${
+                  `flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-200 whitespace-nowrap ${
                     isActive
-                      ? "bg-slate-700 text-white"
-                      : "text-slate-400 hover:text-slate-200"
+                      ? "bg-[#27272a] text-[#fafafa]"
+                      : "text-[#71717a] hover:text-[#a1a1aa]"
                   }`
                 }
               >
@@ -156,10 +153,10 @@ export function Layout() {
               <NavLink
                 to="/history"
                 className={({ isActive }) =>
-                  `flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-md text-sm font-medium transition whitespace-nowrap ${
+                  `flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-200 whitespace-nowrap ${
                     isActive
-                      ? "bg-slate-700 text-white"
-                      : "text-slate-400 hover:text-slate-200"
+                      ? "bg-[#27272a] text-[#fafafa]"
+                      : "text-[#71717a] hover:text-[#a1a1aa]"
                   }`
                 }
               >
@@ -169,10 +166,10 @@ export function Layout() {
               <NavLink
                 to="/leaderboard"
                 className={({ isActive }) =>
-                  `flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-md text-sm font-medium transition whitespace-nowrap ${
+                  `flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-200 whitespace-nowrap ${
                     isActive
-                      ? "bg-slate-700 text-white"
-                      : "text-slate-400 hover:text-slate-200"
+                      ? "bg-[#27272a] text-[#fafafa]"
+                      : "text-[#71717a] hover:text-[#a1a1aa]"
                   }`
                 }
               >
@@ -183,10 +180,10 @@ export function Layout() {
               <NavLink
                 to="/members"
                 className={({ isActive }) =>
-                  `flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-md text-sm font-medium transition whitespace-nowrap ${
+                  `flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-200 whitespace-nowrap ${
                     isActive
-                      ? "bg-slate-700 text-white"
-                      : "text-slate-400 hover:text-slate-200"
+                      ? "bg-[#27272a] text-[#fafafa]"
+                      : "text-[#71717a] hover:text-[#a1a1aa]"
                   }`
                 }
               >
@@ -197,10 +194,10 @@ export function Layout() {
               <NavLink
                 to="/analytics"
                 className={({ isActive }) =>
-                  `flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-md text-sm font-medium transition whitespace-nowrap ${
+                  `flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-200 whitespace-nowrap ${
                     isActive
-                      ? "bg-slate-700 text-white"
-                      : "text-slate-400 hover:text-slate-200"
+                      ? "bg-[#27272a] text-[#fafafa]"
+                      : "text-[#71717a] hover:text-[#a1a1aa]"
                   }`
                 }
               >
@@ -213,22 +210,22 @@ export function Layout() {
             {/* Server selector */}
             <div className="flex items-center gap-1">
               {isViewer ? (
-                <div className="flex items-center gap-1 bg-slate-800/50 rounded-lg px-2 py-1">
-                  <Eye className="w-3.5 h-3.5 text-emerald-400" />
-                  <span className="text-xs text-slate-300">Read-only</span>
+                <div className="flex items-center gap-1 bg-[#18181b] rounded-lg px-2 py-1">
+                  <Eye className="w-3.5 h-3.5 text-[#a1a1aa]" />
+                  <span className="text-xs text-[#a1a1aa]">Read-only</span>
                 </div>
               ) : currentServer ? (
                 <>
-                  <div className="flex items-center gap-1 bg-slate-800/50 rounded-lg px-2 py-1">
-                    <Server className="w-3.5 h-3.5 text-emerald-400" />
-                    <span className="text-xs text-slate-300 max-w-[100px] truncate">{currentServer.name}</span>
+                  <div className="flex items-center gap-1 bg-[#18181b] rounded-lg px-2 py-1">
+                    <Server className="w-3.5 h-3.5 text-[#a1a1aa]" />
+                    <span className="text-xs text-[#d4d4d8] max-w-[100px] truncate">{currentServer.name}</span>
                   </div>
 
                 </>
               ) : !isAdmin ? (
                 <button
                   onClick={() => setShowCreate(true)}
-                  className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium bg-emerald-600 text-white hover:bg-emerald-500 transition"
+                  className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium bg-[#fafafa] text-[#09090b] hover:bg-[#e4e4e7] transition"
                 >
                   <Plus className="w-3 h-3" />
                   Create Server
@@ -238,46 +235,43 @@ export function Layout() {
 
             {/* User menu dropdown */}
             <div className="relative">
-              <button onClick={() => setShowUserMenu(!showUserMenu)} className="flex items-center gap-1 text-slate-400 hover:text-white text-sm transition p-1.5 rounded-md hover:bg-slate-800" title="Menu">
+              <button onClick={() => setShowUserMenu(!showUserMenu)} className="flex items-center gap-1 text-[#fafafa]/50 hover:text-[#d4d4d8] text-sm transition p-1.5 rounded-md hover:bg-[#18181b]" title="Menu">
                 <span className="text-xs hidden md:block">{user?.email?.split("@")[0]}</span>
                 <ChevronDown className={`w-3 h-3 transition ${showUserMenu ? "rotate-180" : ""}`} />
               </button>
               {showUserMenu && createPortal(
                 <>
                   <div className="fixed inset-0 z-[9998] bg-black/30 sm:bg-transparent" onClick={() => setShowUserMenu(false)} />
-                  <div className="fixed inset-x-4 top-[30%] sm:inset-x-auto sm:right-4 sm:top-12 sm:translate-y-0 max-w-sm mx-auto sm:mx-0 w-full sm:w-56 bg-slate-800 border border-slate-700 rounded-xl shadow-2xl z-[9999] overflow-hidden">
-                    <div className="px-4 py-3 border-b border-slate-700">
-                      <div className="text-sm font-semibold text-white">{user?.email?.split("@")[0]}</div>
-                      <div className="text-xs text-slate-500">{user?.email}</div>
+                  <div className="fixed inset-x-4 top-[30%] sm:inset-x-auto sm:right-4 sm:top-12 sm:translate-y-0 max-w-sm mx-auto sm:mx-0 w-full sm:w-56 bg-[#18181b] border border-[#27272a] rounded-xl shadow-2xl z-[9999] overflow-hidden backdrop-blur-xl">
+                    <div className="px-4 py-3 border-b border-[#27272a]">
+                      <div className="text-sm font-semibold text-[#fafafa]">{user?.email?.split("@")[0]}</div>
+                      <div className="text-xs text-[#71717a]">{user?.email}</div>
                     </div>
                     <div className="py-1">
-                      <div className="px-4 py-1.5 flex items-center gap-2 text-xs text-slate-500">
+                      <div className="px-4 py-1.5 flex items-center gap-2 text-xs text-[#71717a]">
                         <Globe className="w-3.5 h-3.5" />
                         <select
-                          value={timezone}
+                          defaultValue={timezone}
                           onChange={e => setTimezone(e.target.value)}
-                          className="flex-1 bg-transparent text-slate-300 text-xs focus:outline-none cursor-pointer"
+                          onClick={(e) => e.stopPropagation()}
+                          className="flex-1 bg-transparent text-[#a1a1aa] text-xs focus:outline-none cursor-pointer"
                         >
                           {TIMEZONES.map(tz => (
-                            <option key={tz.value} value={tz.value} className="bg-slate-800">{tz.label}</option>
+                            <option key={tz.value} value={tz.value} className="bg-[#11161e]">{tz.label}</option>
                           ))}
                         </select>
                       </div>
                       {isAdmin && (
-                        <NavLink to="/admin" onClick={() => setShowUserMenu(false)} className="flex items-center gap-2 px-4 py-2 text-sm text-purple-300 hover:bg-slate-700 transition">
+                        <NavLink to="/admin" onClick={() => setShowUserMenu(false)} className="flex items-center gap-2 px-4 py-2 text-sm text-[#a1a1aa] hover:bg-[#18181b] transition">
                           <Shield className="w-4 h-4" /> Admin Panel
                         </NavLink>
                       )}
                       {hasServer && (
-                        <NavLink to="/server-settings" onClick={() => setShowUserMenu(false)} className="flex items-center gap-2 px-4 py-2 text-sm text-slate-300 hover:bg-slate-700 transition">
+                        <NavLink to="/server-settings" onClick={() => setShowUserMenu(false)} className="flex items-center gap-2 px-4 py-2 text-sm text-[#a1a1aa] hover:bg-[#18181b] transition">
                           <Settings className="w-4 h-4" /> Server Settings
                         </NavLink>
                       )}
-                      <button onClick={() => { toggleTheme(); setShowUserMenu(false); }} className="w-full text-left flex items-center gap-2 px-4 py-2 text-sm text-slate-300 hover:bg-slate-700 transition">
-                        {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-                        {theme === "dark" ? "Light Mode" : "Dark Mode"}
-                      </button>
-                      <button onClick={() => { setShowUserMenu(false); setShowLogoutConfirm(true); }} className="w-full text-left flex items-center gap-2 px-4 py-2 text-sm text-slate-300 hover:bg-slate-700 transition border-t border-slate-700">
+                      <button onClick={() => { setShowUserMenu(false); setShowLogoutConfirm(true); }} className="w-full text-left flex items-center gap-2 px-4 py-2 text-sm text-[#a1a1aa] hover:bg-[#18181b] transition border-t border-white/[0.06]">
                         <LogOut className="w-4 h-4" /> Sign Out
                       </button>
                     </div>
@@ -302,22 +296,22 @@ export function Layout() {
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-slate-800/50 bg-gradient-to-b from-slate-900/30 to-slate-950">
+      <footer className="border-t border-[#27272a] bg-[#09090b]">
         <div className="max-w-[90rem] mx-auto px-4 py-5 space-y-3">
-          <div className="flex items-center gap-2 text-xs text-slate-500">
+          <div className="flex items-center gap-2 text-xs text-[#71717a]">
             <img src="/logo.png" alt="" className="w-4 h-4 rounded opacity-40" />
             <span>RaidScout — Track LordNine boss respawn timers, schedule hunts, and monitor member performance across your guild. </span>
           </div>
-          <div className="flex items-center gap-4 text-xs text-slate-600 flex-wrap">
-            <a href="https://discord.gg/738AmkeQtU" target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 hover:text-indigo-400 transition" title="Join our Discord community">
+          <div className="flex items-center gap-4 text-xs text-[#fafafa]/20 flex-wrap">
+            <a href="https://discord.gg/738AmkeQtU" target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 hover:text-[#5865f2] transition" title="Join our Discord community">
               <ExternalLink className="w-3 h-3" />
               Discord Community
             </a>
-            <a href="https://www.facebook.com/profile.php?id=61590144185090" target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 hover:text-blue-400 transition" title="Follow us on Facebook">
+            <a href="https://www.facebook.com/profile.php?id=61590144185090" target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 hover:text-[#1877f2] transition" title="Follow us on Facebook">
               <ExternalLink className="w-3 h-3" />
               Facebook Page
             </a>
-            <span className="text-slate-800">|</span>
+            <span className="text-[#fafafa]/[0.06]">|</span>
             <Link to="/terms" className="hover:text-slate-400 transition">Terms of Service</Link>
             <Link to="/privacy" className="hover:text-slate-400 transition">Privacy Policy</Link>
             <span className="text-slate-800">|</span>
@@ -343,9 +337,9 @@ export function Layout() {
 
       {/* Spawn Alert Toast */}
       {spawnToast && (
-        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-emerald-900/90 border border-emerald-700 rounded-xl px-4 py-2.5 shadow-lg flex items-center gap-2 animate-bounce">
-          <Bell className="w-4 h-4 text-emerald-400" />
-          <span className="text-sm text-white font-medium">{spawnToast}</span>
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-[#18181b] border border-[#27272a] rounded-xl px-4 py-2.5 shadow-lg flex items-center gap-2 animate-bounce">
+          <Bell className="w-4 h-4 text-[#a1a1aa]" />
+          <span className="text-sm text-[#fafafa] font-medium">{spawnToast}</span>
         </div>
       )}
     </div>

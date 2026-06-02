@@ -39,15 +39,15 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const icons: Record<ToastType, ReactNode> = {
-    success: <CheckCircle className="w-4 h-4 text-emerald-400" />,
-    error: <XCircle className="w-4 h-4 text-red-400" />,
-    warning: <AlertTriangle className="w-4 h-4 text-amber-400" />,
+    success: <CheckCircle className="w-4 h-4 text-[#a1a1aa]" />,
+    error: <XCircle className="w-4 h-4 text-[#a1a1aa]" />,
+    warning: <AlertTriangle className="w-4 h-4 text-[#a1a1aa]" />,
   };
 
   const bgColors: Record<ToastType, string> = {
-    success: "bg-emerald-900/80 border-emerald-800",
-    error: "bg-red-900/80 border-red-800",
-    warning: "bg-amber-900/80 border-amber-800",
+    success: "bg-[#18181b] border-[#27272a]",
+    error: "bg-[#18181b] border-[#27272a]",
+    warning: "bg-[#18181b] border-[#27272a]",
   };
 
   return (
@@ -61,8 +61,8 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             className={`flex items-center gap-2 px-4 py-3 rounded-lg border text-sm shadow-lg animate-slide-up ${bgColors[t.type]}`}
           >
             {icons[t.type]}
-            <span className="text-white flex-1">{t.message}</span>
-            <button onClick={() => removeToast(t.id)} className="text-slate-400 hover:text-white shrink-0">
+            <span className="text-[#fafafa] flex-1">{t.message}</span>
+            <button onClick={() => removeToast(t.id)} className="text-[#71717a] hover:text-[#fafafa] shrink-0">
               <X className="w-3.5 h-3.5" />
             </button>
           </div>

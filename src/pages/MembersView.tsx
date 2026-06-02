@@ -188,22 +188,22 @@ export function MembersView() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <Loader2 className="w-8 h-8 text-slate-400 animate-spin" />
+        <Loader2 className="w-8 h-8 text-[#a1a1aa] animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="max-w-xl mx-auto px-4 py-6 space-y-6">
+    <div className="max-w-7xl mx-auto px-4 py-6 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-400">
-            <Users className="w-5 h-5 text-white" />
+          <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-[#18181b] border border-[#27272a]">
+            <Users className="w-5 h-5 text-[#fafafa]" />
           </div>
           <div>
-            <h2 className="text-xl font-bold text-white">Members</h2>
-            <p className="text-sm text-slate-400">
+            <h2 className="text-xl font-bold text-[#fafafa]">Members</h2>
+            <p className="text-sm text-[#a1a1aa]">
               {members.length} member{members.length !== 1 ? "s" : ""}
             </p>
           </div>
@@ -215,7 +215,7 @@ export function MembersView() {
               navigator.clipboard.writeText(names);
               setToast({ type: "success", message: `${members.length} names copied!` });
             }}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-400 text-xs font-medium hover:bg-slate-700 hover:text-white transition"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#18181b] border border-[#27272a] text-[#a1a1aa] text-xs font-medium hover:bg-[#27272a] hover:text-[#fafafa] transition"
           >
             <Copy className="w-3.5 h-3.5" />
             Copy All
@@ -238,13 +238,13 @@ export function MembersView() {
           onChange={(e) => setAddName(e.target.value)}
           placeholder="Member name..."
           ref={memberInputRef}
-          className="flex-1 px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition text-sm"
+          className="flex-1 px-3 py-2 bg-[#18181b] border border-[#27272a] rounded-lg text-[#fafafa] placeholder-[#71717a] focus:outline-none focus:ring-2 focus:ring-[#52525b] focus:border-transparent transition text-sm"
         />
         {guilds.length > 0 && (
           <select
             value={addGuild}
             onChange={(e) => setAddGuild(e.target.value)}
-            className="px-2 py-2 bg-slate-800 border border-slate-700 rounded-lg text-xs text-slate-400 outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition max-w-[100px] truncate"
+            className="px-2 py-2 bg-[#18181b] border border-[#27272a] rounded-lg text-xs text-[#a1a1aa] outline-none focus:ring-2 focus:ring-[#52525b] focus:border-transparent transition max-w-[100px] truncate"
           >
             <option value="">No guild</option>
             {guilds.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
@@ -253,7 +253,7 @@ export function MembersView() {
         <button
           type="submit"
           disabled={adding || !addName.trim()}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-500 disabled:opacity-50 transition"
+          className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#fafafa] text-[#09090b] text-sm font-medium hover:bg-[#e4e4e7] disabled:opacity-50 transition"
         >
           {adding ? (
             <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -265,7 +265,7 @@ export function MembersView() {
         <button
           type="button"
           onClick={() => setShowBulkModal(true)}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 text-sm font-medium hover:bg-slate-700 transition"
+          className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[#18181b] border border-[#27272a] text-[#d4d4d8] text-sm font-medium hover:bg-[#27272a] transition"
         >
           <Upload className="w-4 h-4" />
           Bulk
@@ -276,16 +276,16 @@ export function MembersView() {
       {/* Search */}
       {members.length > 5 && (
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#71717a]" />
           <input
             type="text"
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
             placeholder="Search members..."
-            className="w-full pl-10 pr-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-sm placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+            className="w-full pl-10 pr-3 py-2 bg-[#18181b] border border-[#27272a] rounded-lg text-[#fafafa] text-sm placeholder-[#71717a] focus:outline-none focus:ring-2 focus:ring-[#52525b] focus:border-transparent transition"
           />
           {searchText && (
-            <button onClick={() => setSearchText("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white">
+            <button onClick={() => setSearchText("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#71717a] hover:text-[#fafafa]">
               <X className="w-3.5 h-3.5" />
             </button>
           )}
@@ -295,8 +295,8 @@ export function MembersView() {
       {/* Member list */}
       {members.length === 0 ? (
         <div className="text-center py-12">
-          <Users className="w-10 h-10 text-slate-700 mx-auto mb-2" />
-          <p className="text-slate-500 text-sm">No members yet</p>
+          <Users className="w-10 h-10 text-[#3f3f46] mx-auto mb-2" />
+          <p className="text-[#71717a] text-sm">No members yet</p>
         </div>
       ) : (
         (() => {
@@ -316,21 +316,21 @@ export function MembersView() {
           });
 
           return (
-        <div className="space-y-4">
+        <div className="flex flex-wrap justify-center gap-4">
           {groups.map(group => {
             const c = group.guild ? guildColor(group.guild.name) : null;
             return (
-              <div key={group.guild?.id ?? "noguild"}>
-                <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+              <div key={group.guild?.id ?? "noguild"} className="w-96">
+                <h3 className="text-xs font-semibold text-[#a1a1aa] uppercase tracking-wider mb-2 flex items-center gap-1.5">
                   {group.guild && c ? (
                     <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] border ${c.bg} ${c.text} ${c.border}`}>
                       <Shield className="w-3 h-3" />
                       {group.guild.name}
                     </span>
                   ) : (
-                    <span className="text-slate-500">No Guild</span>
+                    <span className="text-[#71717a]">No Guild</span>
                   )}
-                  <span className="text-slate-600 font-normal normal-case text-[11px]">
+                  <span className="text-[#52525b] font-normal normal-case text-[11px]">
                     {group.members.length} member{group.members.length !== 1 ? "s" : ""}
                   </span>
                 </h3>
@@ -338,9 +338,9 @@ export function MembersView() {
                   {group.members.map(member => (
             <div
               key={member.id}
-              className="flex items-center gap-3 px-4 py-2.5 rounded-lg bg-slate-900/50 border border-slate-800/50 group"
+              className="flex items-center gap-3 px-4 py-2.5 rounded-lg bg-[#09090b]/50 border border-[#27272a]/50 group"
             >
-              <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-blue-900/20 text-blue-400 font-bold text-sm shrink-0">
+              <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-[#18181b] text-[#a1a1aa] font-bold text-sm shrink-0">
                 {member.name.charAt(0).toUpperCase()}
               </div>
 
@@ -352,19 +352,19 @@ export function MembersView() {
                     onChange={(e) => setEditName(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && handleEdit(member.id)}
                     autoFocus
-                    className="flex-1 px-2 py-1 bg-slate-800 border border-slate-600 rounded text-white text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className="flex-1 px-2 py-1 bg-[#18181b] border border-[#3f3f46] rounded text-[#fafafa] text-sm focus:outline-none focus:ring-1 focus:ring-[#52525b]"
                   />
-                  <button onClick={() => handleEdit(member.id)} disabled={saving} className="p-1 text-emerald-400 hover:text-emerald-300 transition"><Check className="w-4 h-4" /></button>
-                  <button onClick={() => setEditingId(null)} className="p-1 text-slate-400 hover:text-white transition"><X className="w-4 h-4" /></button>
+                  <button onClick={() => handleEdit(member.id)} disabled={saving} className="p-1 text-[#a1a1aa] hover:text-[#fafafa] transition"><Check className="w-4 h-4" /></button>
+                  <button onClick={() => setEditingId(null)} className="p-1 text-[#a1a1aa] hover:text-[#fafafa] transition"><X className="w-4 h-4" /></button>
                 </div>
               ) : (
-                <span className="flex-1 text-white text-sm font-medium">{member.name}</span>
+                <span className="flex-1 text-[#fafafa] text-sm font-medium text-center">{member.name}</span>
               )}
 
               {editingId !== member.id && canManageRaidMembers && (
                 <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition">
-                  <button onClick={() => startEdit(member)} className="p-1.5 text-slate-500 hover:text-white transition rounded" title="Edit"><Pencil className="w-3.5 h-3.5" /></button>
-                  <button onClick={() => setDeleteId(member.id)} className="p-1.5 text-slate-500 hover:text-red-400 transition rounded" title="Delete"><Trash2 className="w-3.5 h-3.5" /></button>
+                  <button onClick={() => startEdit(member)} className="p-1.5 text-[#71717a] hover:text-[#fafafa] transition rounded" title="Edit"><Pencil className="w-3.5 h-3.5" /></button>
+                  <button onClick={() => setDeleteId(member.id)} className="p-1.5 text-[#71717a] hover:text-red-400 transition rounded" title="Delete"><Trash2 className="w-3.5 h-3.5" /></button>
                 </div>
               )}
 
@@ -375,7 +375,7 @@ export function MembersView() {
                     const gid = e.target.value || null;
                     try { await setMemberGuild(member.id, gid); invalidate(); } catch {}
                   }}
-                  className="bg-slate-800 border border-slate-700 rounded px-2 py-1 text-xs text-slate-400 outline-none focus:border-blue-500 transition max-w-[120px] truncate"
+                  className="bg-[#18181b] border border-[#27272a] rounded px-2 py-1 text-xs text-[#a1a1aa] outline-none focus:border-[#52525b] transition max-w-[120px] truncate"
                 >
                   <option value="">No guild</option>
                   {guilds.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
@@ -396,28 +396,28 @@ export function MembersView() {
       {showBulkModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/60" onClick={() => { setShowBulkModal(false); setBulkNames(""); }} />
-          <div className="relative bg-slate-900 border border-slate-700 rounded-xl w-full max-w-md shadow-2xl max-h-[85vh] flex flex-col">
-            <div className="flex items-center justify-between p-4 border-b border-slate-800 shrink-0">
-              <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                <Upload className="w-5 h-5 text-blue-400" />
+          <div className="relative bg-[#09090b] border border-[#27272a] rounded-xl w-full max-w-md shadow-2xl max-h-[85vh] flex flex-col">
+            <div className="flex items-center justify-between p-4 border-b border-[#27272a] shrink-0">
+              <h2 className="text-lg font-bold text-[#fafafa] flex items-center gap-2">
+                <Upload className="w-5 h-5 text-[#a1a1aa]" />
                 Bulk Add Members
               </h2>
-              <button onClick={() => { setShowBulkModal(false); setBulkNames(""); }} className="text-slate-400 hover:text-white transition p-1">
+              <button onClick={() => { setShowBulkModal(false); setBulkNames(""); }} className="text-[#a1a1aa] hover:text-[#fafafa] transition p-1">
                 <X className="w-5 h-5" />
               </button>
             </div>
             <div className="overflow-y-auto p-4 space-y-4 flex-1">
-              <p className="text-slate-400 text-xs">
+              <p className="text-[#a1a1aa] text-xs">
                 Paste names from a screenshot — one per line, or comma-separated.
                 Members already in the list will be skipped.
               </p>
               {guilds.length > 0 && (
                 <div className="flex items-center gap-2">
-                  <Shield className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                  <Shield className="w-3.5 h-3.5 text-[#71717a] shrink-0" />
                   <select
                     value={bulkGuild}
                     onChange={(e) => setBulkGuild(e.target.value)}
-                    className="flex-1 px-2.5 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-slate-300 outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                    className="flex-1 px-2.5 py-1.5 bg-[#18181b] border border-[#27272a] rounded-lg text-xs text-[#d4d4d8] outline-none focus:ring-2 focus:ring-[#52525b] focus:border-transparent transition"
                   >
                     <option value="">No guild (assign later)</option>
                     {guilds.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
@@ -429,7 +429,7 @@ export function MembersView() {
                 onChange={(e) => setBulkNames(e.target.value)}
                 placeholder={"Astro\nShadowKing\nLunaStar"}
                 rows={6}
-                className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition text-sm resize-none"
+                className="w-full px-3 py-2 bg-[#18181b] border border-[#27272a] rounded-lg text-[#fafafa] placeholder-[#71717a] focus:outline-none focus:ring-2 focus:ring-[#52525b] focus:border-transparent transition text-sm resize-none"
               />
 
               {/* Preview */}
@@ -437,13 +437,13 @@ export function MembersView() {
                 <div className="space-y-2">
                   {alreadyExisting.length > 0 && (
                     <div>
-                      <p className="text-xs text-slate-500 mb-1 flex items-center gap-1">
-                        <CheckCircle className="w-3 h-3 text-emerald-400" />
+                      <p className="text-xs text-[#71717a] mb-1 flex items-center gap-1">
+                        <CheckCircle className="w-3 h-3 text-[#a1a1aa]" />
                         Already in ranks ({alreadyExisting.length})
                       </p>
                       <div className="flex flex-wrap gap-1.5">
                         {alreadyExisting.map((name) => (
-                          <span key={name} className="px-2 py-0.5 rounded-md bg-emerald-900/20 border border-emerald-800/30 text-emerald-400 text-xs">
+                          <span key={name} className="px-2 py-0.5 rounded-md bg-[#18181b] border border-[#27272a] text-[#a1a1aa] text-xs">
                             {name}
                           </span>
                         ))}
@@ -453,13 +453,13 @@ export function MembersView() {
 
                   {newNames.length > 0 && (
                     <div>
-                      <p className="text-xs text-slate-500 mb-1 flex items-center gap-1">
-                        <UserPlus className="w-3 h-3 text-blue-400" />
+                      <p className="text-xs text-[#71717a] mb-1 flex items-center gap-1">
+                        <UserPlus className="w-3 h-3 text-[#a1a1aa]" />
                         New members ({newNames.length})
                       </p>
                       <div className="flex flex-wrap gap-1.5">
                         {newNames.map((name) => (
-                          <span key={name} className="px-2 py-0.5 rounded-md bg-blue-900/20 border border-blue-800/30 text-blue-400 text-xs">
+                          <span key={name} className="px-2 py-0.5 rounded-md bg-[#18181b] border border-[#27272a] text-[#a1a1aa] text-xs">
                             {name}
                           </span>
                         ))}
@@ -468,23 +468,23 @@ export function MembersView() {
                   )}
 
                   {newNames.length === 0 && alreadyExisting.length > 0 && (
-                    <p className="text-amber-400 text-xs">All names already exist — nothing to add.</p>
+                    <p className="text-[#71717a] text-xs">All names already exist — nothing to add.</p>
                   )}
                 </div>
               )}
             </div>
 
-            <div className="flex gap-2 p-4 border-t border-slate-800 shrink-0">
+            <div className="flex gap-2 p-4 border-t border-[#27272a] shrink-0">
               <button
                 onClick={() => { setShowBulkModal(false); setBulkNames(""); }}
-                className="flex-1 py-2 rounded-lg bg-slate-800 text-slate-300 text-sm"
+                className="flex-1 py-2 rounded-lg bg-[#18181b] text-[#d4d4d8] text-sm"
               >
                 Cancel
               </button>
               <button
                 onClick={handleBulkAdd}
                 disabled={bulkAdding || newNames.length === 0}
-                className="flex-1 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-500 disabled:opacity-50 flex items-center justify-center gap-1.5 transition"
+                className="flex-1 py-2 rounded-lg bg-[#fafafa] text-[#09090b] text-sm font-medium hover:bg-[#e4e4e7] disabled:opacity-50 flex items-center justify-center gap-1.5 transition"
               >
                 {bulkAdding ? (
                   <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -500,8 +500,8 @@ export function MembersView() {
       {deleteId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/60" onClick={() => setDeleteId(null)} />
-          <div className="relative bg-slate-900 border border-slate-700 rounded-xl w-full max-w-xs shadow-2xl p-4 space-y-4">
-            <p className="text-white text-sm text-center">
+          <div className="relative bg-[#09090b] border border-[#27272a] rounded-xl w-full max-w-xs shadow-2xl p-4 space-y-4">
+            <p className="text-[#fafafa] text-sm text-center">
               Delete{" "}
               <span className="font-bold">{members.find((m) => m.id === deleteId)?.name}</span>?
               This will also remove their attendance records.
@@ -510,17 +510,17 @@ export function MembersView() {
               <button
                 onClick={() => setDeleteId(null)}
                 disabled={deleting}
-                className="flex-1 py-2 rounded-lg bg-slate-800 text-slate-300 text-sm"
+                className="flex-1 py-2 rounded-lg bg-[#18181b] text-[#d4d4d8] text-sm"
               >
                 Cancel
               </button>
               <button
                 onClick={() => handleDelete(deleteId)}
                 disabled={deleting}
-                className="flex-1 py-2 rounded-lg bg-red-900/30 border border-red-800 text-red-400 text-sm flex items-center justify-center gap-1.5"
+                className="flex-1 py-2 rounded-lg bg-[#18181b] border border-[#27272a] text-[#f87171] text-sm flex items-center justify-center gap-1.5"
               >
                 {deleting ? (
-                  <span className="w-4 h-4 border-2 border-red-400/30 border-t-red-400 rounded-full animate-spin" />
+                  <span className="w-4 h-4 border-2 border-[#3f3f46] border-t-[#fafafa] rounded-full animate-spin" />
                 ) : (
                   "Delete"
                 )}
@@ -553,8 +553,8 @@ function ToastMessage({
       <div
         className={`flex items-center gap-3 px-4 py-3 rounded-xl shadow-2xl border ${
           isSuccess
-            ? "bg-emerald-900/90 border-emerald-700 text-emerald-200"
-            : "bg-red-900/90 border-red-700 text-red-200"
+            ? "bg-[#09090b] border-[#27272a] text-[#fafafa]"
+            : "bg-[#09090b] border-[#27272a] text-[#fafafa]"
         }`}
       >
         {isSuccess ? (

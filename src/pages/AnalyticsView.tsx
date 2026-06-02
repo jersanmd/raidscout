@@ -199,7 +199,7 @@ export function AnalyticsView() {
   if (isLoading || !data) {
     return (
       <div className="flex items-center justify-center py-20">
-        <Loader2 className="w-8 h-8 text-slate-400 animate-spin" />
+        <Loader2 className="w-8 h-8 text-[#a1a1aa] animate-spin" />
       </div>
     );
   }
@@ -210,21 +210,21 @@ export function AnalyticsView() {
   const maxDaily = Math.max(...data.killsByDay.map((d) => d.count), 1);
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-6 space-y-6">
+    <div className="max-w-7xl mx-auto px-4 py-6 space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-pink-400">
-            <BarChart3 className="w-5 h-5 text-white" />
+          <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-[#18181b] border border-[#27272a]">
+            <BarChart3 className="w-5 h-5 text-[#fafafa]" />
           </div>
-          <h2 className="text-xl font-bold text-white">Analytics</h2>
+          <h2 className="text-xl font-bold text-[#fafafa]">Analytics</h2>
         </div>
-        <div className="flex bg-slate-800 rounded-lg p-0.5">
+        <div className="flex bg-[#18181b] rounded-lg p-0.5">
           {(["week", "month", "all"] as const).map((p) => (
             <button
               key={p}
               onClick={() => { setPeriod(p); setHuntersPage(1); }}
               className={`px-3 py-1.5 rounded-md text-xs font-medium transition ${
-                period === p ? "bg-slate-700 text-white" : "text-slate-400 hover:text-slate-200"
+                period === p ? "bg-[#27272a] text-[#fafafa]" : "text-[#a1a1aa] hover:text-[#e4e4e7]"
               }`}
             >
               {p === "week" ? "This Week" : p === "month" ? "This Month" : "All Time"}
@@ -235,7 +235,7 @@ export function AnalyticsView() {
         <button
           onClick={handleExportAnalytics}
           disabled={exportLoading}
-          className="flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-medium bg-purple-600 text-white hover:bg-purple-500 transition disabled:opacity-50"
+          className="flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-medium bg-[#fafafa] text-[#09090b] hover:bg-[#e4e4e7] transition disabled:opacity-50"
         >
           {exportLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Download className="w-3 h-3" />}
           Export
@@ -244,10 +244,10 @@ export function AnalyticsView() {
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-        <StatCard icon={<Skull className="w-4 h-4" />} label="Total Kills" value={data.totalKills} color="text-red-400" bg="bg-red-900/20 border-red-800" />
-        <StatCard icon={<Users className="w-4 h-4" />} label="Active Members" value={data.activeMembers} color="text-blue-400" bg="bg-blue-900/20 border-blue-800" />
-        <StatCard icon={<Activity className="w-4 h-4" />} label="Attendances" value={data.totalAttendance} color="text-amber-400" bg="bg-amber-900/20 border-amber-800" />
-        <StatCard icon={<span className="text-sm">📅</span>} label="Activities" value={data.totalActivities} color="text-cyan-400" bg="bg-cyan-900/20 border-cyan-800" />
+        <StatCard icon={<Skull className="w-4 h-4" />} label="Total Kills" value={data.totalKills} color="text-[#a1a1aa]" bg="bg-[#18181b] border-[#27272a]" />
+        <StatCard icon={<Users className="w-4 h-4" />} label="Active Members" value={data.activeMembers} color="text-[#a1a1aa]" bg="bg-[#18181b] border-[#27272a]" />
+        <StatCard icon={<Activity className="w-4 h-4" />} label="Attendances" value={data.totalAttendance} color="text-[#a1a1aa]" bg="bg-[#18181b] border-[#27272a]" />
+        <StatCard icon={<span className="text-sm">📅</span>} label="Activities" value={data.totalActivities} color="text-[#a1a1aa]" bg="bg-[#18181b] border-[#27272a]" />
       </div>
 
       {period !== "week" && (
@@ -255,46 +255,25 @@ export function AnalyticsView() {
         <div className="space-y-1.5">
           {data.killsByWeek.slice(-(weeksPage * WEEKS_PER_PAGE)).reverse().map((w) => (
             <div key={w.week} className="flex items-center gap-2 text-sm">
-              <span className="text-slate-400 w-20 shrink-0 text-left">{w.week}</span>
-              <div className="flex-1 h-6 bg-slate-800 rounded overflow-hidden">
-                <div className="h-full bg-gradient-to-r from-purple-600 to-pink-500 rounded flex items-center justify-end px-2" style={{ width: `${Math.max((w.count / maxWeeklyKills) * 100, 8)}%` }}>
-                  <span className="text-xs text-white font-mono font-bold drop-shadow">{w.count}</span>
+              <span className="text-[#a1a1aa] w-20 shrink-0 text-left">{w.week}</span>
+              <div className="flex-1 h-6 bg-[#18181b] rounded overflow-hidden">
+                <div className="h-full bg-gradient-to-r from-[#3f3f46] to-[#52525b] rounded flex items-center justify-end px-2" style={{ width: `${Math.max((w.count / maxWeeklyKills) * 100, 8)}%` }}>
+                  <span className="text-xs text-[#fafafa] font-mono font-bold drop-shadow">{w.count}</span>
                 </div>
               </div>
             </div>
           ))}
           {data.killsByWeek.length > weeksPage * WEEKS_PER_PAGE && (
-            <button onClick={() => setWeeksPage(p => p + 1)} className="w-full py-1.5 text-xs text-purple-400 hover:text-purple-300 hover:bg-slate-800/50 rounded transition">Show more ({data.killsByWeek.length - weeksPage * WEEKS_PER_PAGE} remaining)</button>
+            <button onClick={() => setWeeksPage(p => p + 1)} className="w-full py-1.5 text-xs text-[#a1a1aa] hover:text-[#d4d4d8] hover:bg-[#18181b]/50 rounded transition">Show more ({data.killsByWeek.length - weeksPage * WEEKS_PER_PAGE} remaining)</button>
           )}
           {weeksPage > 1 && (
-            <button onClick={() => setWeeksPage(1)} className="w-full py-1.5 text-xs text-slate-500 hover:text-slate-300 hover:bg-slate-800/50 rounded transition">Show less</button>
+            <button onClick={() => setWeeksPage(1)} className="w-full py-1.5 text-xs text-[#71717a] hover:text-[#d4d4d8] hover:bg-[#18181b]/50 rounded transition">Show less</button>
           )}
         </div>
       </Section>
       )}
 
-      <Section title="Most Killed Bosses" icon={<Skull className="w-4 h-4" />}>
-        <div className="space-y-1.5">
-          {data.topBosses.slice(0, bossesPage * BOSSES_PER_PAGE).map((b, i) => (
-            <div key={b.name} className="flex items-center gap-2 text-sm">
-              <span className="text-slate-400 w-5 shrink-0 text-left">{i + 1}.</span>
-              <span className="text-white w-24 shrink-0 truncate text-left">{b.name}</span>
-              <div className="flex-1 h-6 bg-slate-800 rounded overflow-hidden">
-                <div className="h-full bg-gradient-to-r from-red-600 to-orange-500 rounded flex items-center justify-end px-2" style={{ width: `${Math.max((b.kills / maxBossKills) * 100, 8)}%` }}>
-                  <span className="text-xs text-white font-mono font-bold drop-shadow">{b.kills}</span>
-                </div>
-              </div>
-            </div>
-          ))}
-          {data.topBosses.length > bossesPage * BOSSES_PER_PAGE && (
-            <button onClick={() => setBossesPage(p => p + 1)} className="w-full py-1.5 text-xs text-red-400 hover:text-red-300 hover:bg-slate-800/50 rounded transition">Show more ({data.topBosses.length - bossesPage * BOSSES_PER_PAGE} remaining)</button>
-          )}
-          {bossesPage > 1 && (
-            <button onClick={() => setBossesPage(1)} className="w-full py-1.5 text-xs text-slate-500 hover:text-slate-300 hover:bg-slate-800/50 rounded transition">Show less</button>
-          )}
-        </div>
-      </Section>
-
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
       <Section title="Most Active Hunters" icon={<Users className="w-4 h-4" />}>
         <div className="space-y-1.5">
           {data.topHunters.slice(0, huntersPage * HUNTERS_PER_PAGE).map((h, i) => {
@@ -303,16 +282,16 @@ export function AnalyticsView() {
             const c = guild ? guildColor(guild.name) : null;
             return (
             <div key={h.name} className="flex items-center gap-2 text-sm">
-              <span className="text-slate-400 w-5 shrink-0 text-left">{i + 1}.</span>
-              <span className="text-white w-24 shrink-0 truncate text-left">{h.name}</span>
+              <span className="text-[#a1a1aa] w-5 shrink-0 text-left">{i + 1}.</span>
+              <span className="text-[#fafafa] w-24 shrink-0 truncate text-left">{h.name}</span>
               {guild && c && (
                 <span className={`text-[10px] px-1.5 py-0.5 rounded border shrink-0 ${c.bg} ${c.text} ${c.border}`}>
                   <Shield className="w-2.5 h-2.5 inline mr-0.5" />{guild.name}
                 </span>
               )}
-              <div className="flex-1 h-6 bg-slate-800 rounded overflow-hidden">
-                <div className="h-full bg-gradient-to-r from-blue-600 to-cyan-500 rounded flex items-center justify-end px-2" style={{ width: `${Math.max((h.attended / maxAttended) * 100, 8)}%` }}>
-                  <span className="text-xs text-white font-mono font-bold drop-shadow">{h.attended}</span>
+              <div className="flex-1 h-6 bg-[#18181b] rounded overflow-hidden">
+                <div className="h-full bg-gradient-to-r from-[#3f3f46] to-[#52525b] rounded flex items-center justify-end px-2" style={{ width: `${Math.max((h.attended / maxAttended) * 100, 8)}%` }}>
+                  <span className="text-xs text-[#fafafa] font-mono font-bold drop-shadow">{h.attended}</span>
                 </div>
               </div>
             </div>
@@ -320,7 +299,7 @@ export function AnalyticsView() {
           {data.topHunters.length > huntersPage * HUNTERS_PER_PAGE && (
             <button
               onClick={() => setHuntersPage(p => p + 1)}
-              className="w-full py-1.5 text-xs text-blue-400 hover:text-blue-300 hover:bg-slate-800/50 rounded transition"
+              className="w-full py-1.5 text-xs text-[#a1a1aa] hover:text-[#d4d4d8] hover:bg-[#18181b]/50 rounded transition"
             >
               Show more ({data.topHunters.length - huntersPage * HUNTERS_PER_PAGE} remaining)
             </button>
@@ -328,7 +307,7 @@ export function AnalyticsView() {
           {huntersPage > 1 && (
             <button
               onClick={() => setHuntersPage(1)}
-              className="w-full py-1.5 text-xs text-slate-500 hover:text-slate-300 hover:bg-slate-800/50 rounded transition"
+              className="w-full py-1.5 text-xs text-[#71717a] hover:text-[#d4d4d8] hover:bg-[#18181b]/50 rounded transition"
             >
               Show less
             </button>
@@ -336,14 +315,37 @@ export function AnalyticsView() {
         </div>
       </Section>
 
+      <Section title="Most Killed Bosses" icon={<Skull className="w-4 h-4" />}>
+        <div className="space-y-1.5">
+          {data.topBosses.slice(0, bossesPage * BOSSES_PER_PAGE).map((b, i) => (
+            <div key={b.name} className="flex items-center gap-2 text-sm">
+              <span className="text-[#a1a1aa] w-5 shrink-0 text-left">{i + 1}.</span>
+              <span className="text-[#fafafa] w-24 shrink-0 truncate text-left">{b.name}</span>
+              <div className="flex-1 h-6 bg-[#18181b] rounded overflow-hidden">
+                <div className="h-full bg-gradient-to-r from-[#3f3f46] to-[#52525b] rounded flex items-center justify-end px-2" style={{ width: `${Math.max((b.kills / maxBossKills) * 100, 8)}%` }}>
+                  <span className="text-xs text-[#fafafa] font-mono font-bold drop-shadow">{b.kills}</span>
+                </div>
+              </div>
+            </div>
+          ))}
+          {data.topBosses.length > bossesPage * BOSSES_PER_PAGE && (
+            <button onClick={() => setBossesPage(p => p + 1)} className="w-full py-1.5 text-xs text-[#a1a1aa] hover:text-[#d4d4d8] hover:bg-[#18181b]/50 rounded transition">Show more ({data.topBosses.length - bossesPage * BOSSES_PER_PAGE} remaining)</button>
+          )}
+          {bossesPage > 1 && (
+            <button onClick={() => setBossesPage(1)} className="w-full py-1.5 text-xs text-[#71717a] hover:text-[#d4d4d8] hover:bg-[#18181b]/50 rounded transition">Show less</button>
+          )}
+        </div>
+      </Section>
+      </div>
+
       <Section title="Activity by Day" icon={<Activity className="w-4 h-4" />}>
         <div className="space-y-1.5">
           {data.killsByDay.map((d) => (
             <div key={d.day} className="flex items-center gap-2 text-sm">
-              <span className="text-slate-400 w-12 shrink-0 text-xs">{d.day.slice(0, 3)}</span>
-              <div className="flex-1 h-6 bg-slate-800 rounded overflow-hidden">
-                <div className="h-full bg-gradient-to-r from-amber-600 to-yellow-500 rounded flex items-center justify-end px-2" style={{ width: `${Math.max((d.count / maxDaily) * 100, 8)}%` }}>
-                  <span className="text-xs text-white font-mono font-bold drop-shadow">{d.count}</span>
+              <span className="text-[#a1a1aa] w-12 shrink-0 text-xs">{d.day.slice(0, 3)}</span>
+              <div className="flex-1 h-6 bg-[#18181b] rounded overflow-hidden">
+                <div className="h-full bg-gradient-to-r from-[#3f3f46] to-[#52525b] rounded flex items-center justify-end px-2" style={{ width: `${Math.max((d.count / maxDaily) * 100, 8)}%` }}>
+                  <span className="text-xs text-[#fafafa] font-mono font-bold drop-shadow">{d.count}</span>
                 </div>
               </div>
             </div>
@@ -358,8 +360,8 @@ function StatCard({ icon, label, value, color, bg }: { icon: React.ReactNode; la
   return (
     <div className={`rounded-xl border ${bg} p-3 text-center`}>
       <div className={`flex justify-center mb-1 ${color}`}>{icon}</div>
-      <div className="text-lg font-bold text-white tabular-nums">{value}</div>
-      <div className="text-xs text-slate-500">{label}</div>
+      <div className="text-lg font-bold text-[#fafafa] tabular-nums">{value}</div>
+      <div className="text-xs text-[#71717a]">{label}</div>
     </div>
   );
 }
@@ -367,7 +369,7 @@ function StatCard({ icon, label, value, color, bg }: { icon: React.ReactNode; la
 function Section({ title, icon, children }: { title: string; icon: React.ReactNode; children: React.ReactNode }) {
   return (
     <div className="space-y-2">
-      <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-2">{icon} {title}</h3>
+      <h3 className="text-sm font-semibold text-[#a1a1aa] uppercase tracking-wider flex items-center gap-2">{icon} {title}</h3>
       {children}
     </div>
   );

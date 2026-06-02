@@ -69,28 +69,34 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
 
   const statusConfigMap = {
     unknown: {
-      bg: "bg-gradient-to-br from-blue-950/20 to-slate-900/80",
-      border: "border-blue-900/40",
-      badge: "bg-blue-900/50 text-blue-400",
+      bg: "bg-[#18181b]",
+      border: "border-[#27272a]",
+      accentBorder: "border-l-[#27272a]",
+      badge: "text-[#71717a]",
       badgeText: "Unknown",
-      dot: "bg-blue-500",
-      header: "text-blue-400",
+      dot: "bg-[#a1a1aa]",
+      header: "text-[#fafafa]",
+      glow: "",
     },
     alive: {
-      bg: "bg-gradient-to-br from-emerald-950/30 to-emerald-900/10",
-      border: "border-emerald-800/60",
-      badge: "bg-emerald-900/50 text-emerald-400",
-      badgeText: "ALIVE",
+      bg: "bg-[#18181b]",
+      border: "border-[#27272a]",
+      accentBorder: "border-l-[#27272a]",
+      badge: "text-[#71717a]",
+      badgeText: "Alive",
       dot: "bg-emerald-500",
-      header: "text-emerald-400",
+      header: "text-[#fafafa]",
+      glow: "",
     },
     countdown: {
-      bg: "bg-gradient-to-br from-amber-950/20 to-slate-900/80",
-      border: "border-amber-900/40",
-      badge: "bg-amber-900/50 text-amber-400",
+      bg: "bg-[#18181b]",
+      border: "border-[#27272a]",
+      accentBorder: "border-l-[#27272a]",
+      badge: "text-[#71717a]",
       badgeText: "Timer",
       dot: "bg-amber-500",
-      header: "text-amber-400",
+      header: "text-[#fafafa]",
+      glow: "",
     },
   } as const;
 
@@ -115,34 +121,38 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
     <>
       <div
         onClick={() => multiMode && onToggleSelect?.(boss.id)}
-        className={`relative rounded-xl border ${config.border} ${config.bg} p-4 transition-all duration-300 animate-[fadeIn_0.5s_ease-out] card-lift shadow-card hover:shadow-card-hover ${status === "alive" ? "hover:shadow-emerald-500/10" : status === "countdown" ? "hover:shadow-amber-500/10" : "hover:shadow-blue-500/10"} ${justKilled ? "animate-[fadeOut_0.4s_ease-out]" : ""} ${
+        className={`relative rounded-xl border ${config.border} ${config.accentBorder} border-l-2 ${config.bg} p-4 transition-all duration-300 ${config.glow} backdrop-blur-sm ${
+          justKilled ? "animate-[fadeOut_0.4s_ease-out] scale-95 opacity-0" : ""
+        } ${
           multiMode ? "cursor-pointer" : ""
-        } hover:border-slate-500 ${
-          selected ? "ring-2 ring-blue-500 border-blue-500" : ""
+        } hover:border-[#52525b] hover:-translate-y-0.5 ${
+          selected ? "ring-1 ring-[#52525b] border-[#52525b]" : ""
         }`}
       >
+        
+
         {multiMode && (
           <div className="absolute top-3 right-3 z-10">
             {selected ? (
-              <CheckSquare className="w-5 h-5 text-blue-400" />
+              <CheckSquare className="w-5 h-5 text-[#a1a1aa] " />
             ) : (
-              <Square className="w-5 h-5 text-slate-600" />
+              <Square className="w-5 h-5 text-[#3f3f46]" />
             )}
           </div>
         )}
-        <div className="flex gap-4">
-          {/* Large boss image */}
+        <div className="flex gap-4 relative z-[1]">
+          {/* Boss image */}
           <BossImage bossName={boss.name} size="lg" />
 
           {/* Right side: all info */}
           <div className="flex-1 min-w-0 space-y-1.5">
             {/* Row 1: name + type icon + guild badge + status badge */}
             <div className="flex items-center gap-2">
-              <h3 className="font-bold text-white truncate text-sm">{boss.name}</h3>
+              <h3 className="font-bold text-[#fafafa] truncate text-sm tracking-wide">{boss.name}</h3>
               {boss.spawn_type === "fixed_schedule" ? (
-                <span title="Fixed schedule"><Repeat className="w-3.5 h-3.5 text-blue-400 shrink-0" /></span>
+                <span title="Fixed schedule"><Repeat className="w-3.5 h-3.5 text-[#a1a1aa] shrink-0" /></span>
               ) : (
-                <span title="Fixed hours"><Timer className="w-3.5 h-3.5 text-orange-400 shrink-0" /></span>
+                <span title="Fixed hours"><Timer className="w-3.5 h-3.5 text-[#a1a1aa] shrink-0" /></span>
               )}
               {displayOwner && (() => { const c = guildColor(displayOwner); return (
                 <span className={`flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded border shrink-0 ${c.bg} ${c.text} ${c.border}`}>
@@ -150,7 +160,8 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
                   {displayOwner}
                 </span>
               ); })()}
-              <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full shrink-0 ${config.badge}`}>
+              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full border shrink-0 tracking-wider ${config.badge}`}>
+                <span className={`inline-block w-1.5 h-1.5 rounded-full mr-1 ${config.dot}`} />
                 {config.badgeText}
               </span>
             </div>
@@ -158,9 +169,9 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
             {/* Row 2: Countdown timer + spawn datetime */}
             {isCompleted ? (
               <div className="flex items-center gap-1.5 text-xs">
-                <span className="text-slate-500 font-medium">Completed</span>
-                <span className="text-slate-600">—</span>
-                <span className="text-slate-400">Killed {formatDateTime(new Date(spawn.deathRecord!.death_time))}</span>
+                <span className="text-[#71717a] font-medium">Completed</span>
+                <span className="text-[#3f3f46]">—</span>
+                <span className="text-[#a1a1aa] font-mono">Killed {formatDateTime(new Date(spawn.deathRecord!.death_time))}</span>
               </div>
             ) : nextSpawn ? (
               <div className="space-y-1">
@@ -169,22 +180,22 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
                     <CountdownTimer target={nextSpawn} bossName={boss.name} onUrgent={onUrgentSpawn} onCritical={onCriticalSpawn} onSpawned={onSpawned} />
                   </div>
                 )}
-                <div className="flex items-center gap-1.5 text-xs">
-                  <span className="text-slate-500">
-                    {status === "alive" ? "SPAWN" : "Spawning"}
+                <div className="flex items-center gap-1.5 text-[11px]">
+                  <span className="text-[#71717a] font-mono uppercase tracking-wider">
+                    {status === "alive" ? "SPAWN" : "SPAWNING"}
                   </span>
-                  <span className="text-slate-400">{formatDateTime(nextSpawn)}</span>
+                  <span className="text-[#a1a1aa] font-mono">{formatDateTime(nextSpawn)}</span>
                 </div>
               </div>
             ) : (
-              <div className="flex items-center gap-1.5 text-xs">
-                <span className="text-slate-500">Set spawn time to start timer</span>
+              <div className="flex items-center gap-1.5 text-[11px]">
+                <span className="text-[#71717a] font-mono">Set spawn time to start timer</span>
               </div>
             )}
 
             {/* Row 3: Respawn / schedule info */}
             {(boss.respawn_hours || boss.schedule) && (
-            <div className="flex items-center gap-2 text-xs text-slate-600">
+            <div className="flex items-center gap-2 text-[10px] text-[#52525b] font-mono">
               {boss.respawn_hours && <span>+{boss.respawn_hours}h respawn</span>}
               {boss.schedule && (
                 <span>
@@ -200,7 +211,7 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
 
         {/* Bottom action buttons */}
         {!compact && !multiMode && (canEdit || canMarkDied) && (
-          <div className="flex items-center justify-end gap-1.5 mt-3 pt-3 border-t border-slate-700/50">
+          <div className="flex items-center justify-end gap-1.5 mt-3 pt-3 border-t border-white/[0.05] relative z-[1]">
             {canEdit && (
               <button
                 onClick={() => {
@@ -209,18 +220,18 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
                   setEditSpawnDate(local);
                   setShowEditSpawnModal(true);
                 }}
-                className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md bg-blue-900/30 border border-blue-800 text-blue-400 text-xs font-medium hover:bg-blue-900/50 hover:scale-105 active:scale-95 transition-all duration-200 whitespace-nowrap"
+                className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#27272a] border border-[#27272a] text-[#a1a1aa] text-[11px] font-semibold hover:bg-[#3f3f46] active:scale-95 transition-all duration-200 whitespace-nowrap"
               >
-                <Pencil className="w-3.5 h-3.5" />
-                Edit Spawn Time
+                <Pencil className="w-3 h-3" />
+                Edit Spawn
               </button>
             )}
             {canMarkDied && (
             <button
               onClick={() => setShowModal(true)}
-              className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md bg-red-900/30 border border-red-800 text-red-400 text-xs font-medium hover:bg-red-900/50 hover:scale-105 active:scale-95 transition-all duration-200 whitespace-nowrap"
+              className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#18181b] border border-[#27272a] text-[#fafafa] text-[11px] font-medium hover:bg-[#27272a] active:scale-95 transition-all duration-200 whitespace-nowrap"
             >
-              <Skull className="w-3.5 h-3.5" />
+              <Skull className="w-3 h-3" />
               Mark Died
             </button>
             )}
@@ -229,8 +240,8 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
 
         {/* No guild assigned notice */}
         {!compact && !multiMode && !isViewer && !hasGuilds && canRotateGuilds && (
-          <div className="mt-2 pt-2 border-t border-slate-700/50">
-            <span className="text-[10px] text-amber-500/80 flex items-center gap-1">
+          <div className="mt-2 pt-2 border-t border-white/[0.05] relative z-[1]">
+            <span className="text-[10px] text-[#a1a1aa]/60 flex items-center gap-1">
               <Shield className="w-3 h-3" />
               No guild assigned — set up in Server Settings → Boss Guilds
             </span>
@@ -239,8 +250,8 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
 
         {/* Rotation guild row */}
         {!compact && !multiMode && !isViewer && rotationGuilds && rotationGuilds.length > 1 && canRotateGuilds && (
-          <div className="mt-2 pt-2 border-t border-slate-700/50">
-            <span className="text-[10px] text-slate-500 font-medium uppercase tracking-wider">
+          <div className="mt-2 pt-2 border-t border-white/[0.05] relative z-[1]">
+            <span className="text-[10px] text-[#71717a] font-mono uppercase tracking-wider">
               Rotation {rotationMode ? `· ${rotationMode}` : ""}
             </span>
             <div className="flex items-center gap-1 mt-1.5">
@@ -250,10 +261,10 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
                   <button
                     key={i}
                     onClick={(e) => { e.stopPropagation(); setOptimisticOwner(g.name); onSetRotation?.(i); }}
-                    className={`flex-1 text-center px-2 py-1 rounded text-[10px] font-medium border transition-all duration-200 hover:scale-105 active:scale-95 ${
+                    className={`flex-1 text-center px-2 py-1 rounded text-[10px] font-semibold border transition-all duration-200 hover:scale-105 active:scale-95 ${
                       isCurrent
-                        ? `${g.color.bg} ${g.color.text} ${g.color.border}`
-                        : "bg-slate-800/50 border-slate-700 text-slate-500 hover:text-slate-300 hover:border-slate-500"
+                        ? `${g.color.bg} ${g.color.text} ${g.color.border} shadow-sm`
+                        : "bg-[#18181b] border-[#27272a] text-[#52525b] hover:text-[#a1a1aa] hover:border-[#3f3f46]"
                     }`}
                     title={isCurrent ? `Current: ${g.name}` : `Set rotation to ${g.name}`}
                   >
@@ -280,28 +291,28 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
 
       {showEditSpawnModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/60" onClick={() => setShowEditSpawnModal(false)} />
-          <div className="relative bg-slate-800 border border-slate-700 rounded-xl p-6 w-full max-w-sm shadow-2xl">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowEditSpawnModal(false)} />
+          <div className="relative bg-[#11161e] border border-[#27272a] rounded-xl p-6 w-full max-w-sm shadow-2xl shadow-black/40 backdrop-blur-xl">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold text-white">Edit Spawn Time</h3>
-              <button onClick={() => setShowEditSpawnModal(false)} className="p-1 rounded-md text-slate-400 hover:text-white hover:bg-slate-700 transition">
+              <h3 className="text-lg font-bold text-[#fafafa]">Edit Spawn Time</h3>
+              <button onClick={() => setShowEditSpawnModal(false)} className="p-1 rounded-md text-[#71717a] hover:text-[#fafafa] hover:bg-[#27272a] transition">
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <p className="text-sm text-slate-400 mb-3">
-              Set a new spawn time for <span className="text-white font-medium">{boss.name}</span>
+            <p className="text-sm text-[#a1a1aa] mb-3">
+              Set a new spawn time for <span className="text-[#fafafa] font-medium">{boss.name}</span>
             </p>
             <input
               type="datetime-local"
               value={editSpawnDate}
               onChange={(e) => setEditSpawnDate(e.target.value)}
-              className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-blue-500 mb-4"
+              className="w-full bg-[#18181b] border border-[#27272a] rounded-xl px-3 py-2.5 text-sm text-[#fafafa] outline-none focus:border-[#52525b] focus:ring-1 focus:ring-[#27272a] transition-all duration-200 mb-4"
               autoFocus
             />
             <div className="flex justify-end gap-2">
               <button
                 onClick={() => setShowEditSpawnModal(false)}
-                className="px-4 py-2 rounded-md text-sm text-slate-300 hover:bg-slate-700 transition"
+                className="px-4 py-2 rounded-lg text-sm text-[#a1a1aa] hover:text-[#fafafa] hover:bg-[#27272a] transition"
               >
                 Cancel
               </button>
@@ -318,7 +329,7 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
                   }
                   setShowEditSpawnModal(false);
                 }}
-                className="px-4 py-2 rounded-md text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 transition"
+                className="px-4 py-2 rounded-lg text-sm font-semibold bg-[#27272a] border border-[#27272a] text-[#a1a1aa] hover:bg-[#3f3f46] transition"
               >
                 Save
               </button>

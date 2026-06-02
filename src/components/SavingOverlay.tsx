@@ -12,9 +12,9 @@ interface SavingOverlayProps {
 export function SavingOverlay({ message = "Saving attendance..." }: SavingOverlayProps) {
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center">
-      <div className="bg-slate-900 border border-slate-700 rounded-xl px-6 py-4 shadow-2xl flex items-center gap-3">
-        <Loader2 className="w-5 h-5 text-amber-400 animate-spin" />
-        <span className="text-white text-sm font-medium">{message}</span>
+      <div className="bg-[#18181b] border border-[#27272a] rounded-xl px-6 py-4 shadow-lg flex items-center gap-3">
+        <Loader2 className="w-5 h-5 text-[#a1a1aa] animate-spin" />
+        <span className="text-[#fafafa] text-sm font-medium">{message}</span>
       </div>
     </div>
   );

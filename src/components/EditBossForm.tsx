@@ -73,26 +73,26 @@ export function EditBossForm({ boss, gameSlug, onSaved, onCancel }: Props) {
   };
 
   return (
-    <div className="border-t border-slate-700/50 px-3 py-3 space-y-2 bg-slate-900/30">
+    <div className="border-t border-[#27272a] px-3 py-3 space-y-2 bg-[#18181b]">
       <div className="flex items-center justify-between">
-        <span className="text-xs font-medium text-white">Edit: {boss.name}</span>
-        <button onClick={onCancel} className="text-slate-500 hover:text-white"><X className="w-3 h-3" /></button>
+        <span className="text-xs font-medium text-[#fafafa]">Edit: {boss.name}</span>
+        <button onClick={onCancel} className="text-[#71717a] hover:text-[#fafafa]"><X className="w-3 h-3" /></button>
       </div>
       <div className="grid grid-cols-2 gap-2">
         <div>
-          <label className="block text-xs text-slate-500 mb-0.5">Name</label>
-          <input value={name} onChange={e => setName(e.target.value)} className="w-full px-2.5 py-2 bg-slate-800 border border-slate-700 rounded text-sm text-white focus:outline-none focus:ring-1 focus:ring-purple-500" />
+          <label className="block text-xs text-[#71717a] mb-0.5">Name</label>
+          <input value={name} onChange={e => setName(e.target.value)} className="w-full px-2.5 py-2 bg-[#18181b] border border-[#27272a] rounded text-sm text-[#fafafa] focus:outline-none focus:ring-1 focus:ring-[#52525b]" />
         </div>
         <div>
-          <label className="block text-xs text-slate-500 mb-0.5">Spawn Type</label>
-          <select value={spawnType} onChange={e => setSpawnType(e.target.value)} className="w-full px-2.5 py-2 bg-slate-800 border border-slate-700 rounded text-sm text-white focus:outline-none focus:ring-1 focus:ring-purple-500">
+          <label className="block text-xs text-[#71717a] mb-0.5">Spawn Type</label>
+          <select value={spawnType} onChange={e => setSpawnType(e.target.value)} className="w-full px-2.5 py-2 bg-[#18181b] border border-[#27272a] rounded text-sm text-[#fafafa] focus:outline-none focus:ring-1 focus:ring-[#52525b]">
             <option value="fixed_hours">Fixed Hours</option>
             <option value="fixed_schedule">Fixed Schedule</option>
           </select>
         </div>
         {spawnType === "fixed_hours" && (
           <div className="col-span-2">
-            <label className="block text-xs text-slate-500 mb-1">Respawn Time</label>
+            <label className="block text-xs text-[#71717a] mb-1">Respawn Time</label>
             <div className="flex items-center gap-2">
               <div className="flex items-center gap-1">
                 <select value={respawnHours != null ? Math.floor(respawnHours) : ""}
@@ -101,7 +101,7 @@ export function EditBossForm({ boss, gameSlug, onSaved, onCancel }: Props) {
                     const m = respawnHours != null ? Math.round((respawnHours % 1) * 60) : 0;
                     setRespawnHours(h + m / 60);
                   }}
-                  className="w-20 px-2.5 py-2 bg-slate-800 border border-slate-700 rounded text-sm text-white focus:outline-none focus:ring-1 focus:ring-purple-500">
+                  className="w-20 px-2.5 py-2 bg-[#18181b] border border-[#27272a] rounded text-sm text-[#fafafa] focus:outline-none focus:ring-1 focus:ring-[#52525b]">
                   <option value="">h</option>
                   {Array.from({ length: 200 }, (_, i) => i).map(h => <option key={h} value={h}>{h}h</option>)}
                 </select>
@@ -111,11 +111,11 @@ export function EditBossForm({ boss, gameSlug, onSaved, onCancel }: Props) {
                     const h = respawnHours != null ? Math.floor(respawnHours) : 0;
                     setRespawnHours(h + m / 60);
                   }}
-                  className="w-16 px-2.5 py-2 bg-slate-800 border border-slate-700 rounded text-sm text-white focus:outline-none focus:ring-1 focus:ring-purple-500">
+                  className="w-16 px-2.5 py-2 bg-[#18181b] border border-[#27272a] rounded text-sm text-[#fafafa] focus:outline-none focus:ring-1 focus:ring-[#52525b]">
                   {[0, 15, 30, 45].map(m => <option key={m} value={m}>{m}m</option>)}
                 </select>
               </div>
-              <span className="text-xs text-slate-600">
+              <span className="text-xs text-[#52525b]">
                 {respawnHours != null ? `${Math.floor(respawnHours)}h ${Math.round((respawnHours % 1) * 60)}m` : "—"}
               </span>
             </div>
@@ -123,7 +123,7 @@ export function EditBossForm({ boss, gameSlug, onSaved, onCancel }: Props) {
         )}
         {spawnType === "fixed_schedule" && (
           <div className="col-span-2">
-            <label className="block text-xs text-slate-500 mb-1">Weekly Schedule <span className="text-slate-600 ml-1">(your local time — saved as UTC)</span></label>
+            <label className="block text-xs text-[#71717a] mb-1">Weekly Schedule <span className="text-[#52525b] ml-1">(your local time — saved as UTC)</span></label>
             <div className="space-y-1.5">
               {(Array.isArray(schedule) ? schedule : []).map((slot: ScheduleSlot, i: number) => (
                 <div key={i} className="flex items-center gap-1.5">
@@ -131,52 +131,52 @@ export function EditBossForm({ boss, gameSlug, onSaved, onCancel }: Props) {
                     const updated = [...(Array.isArray(schedule) ? schedule : [])];
                     updated[i] = { ...updated[i], day: Number(e.target.value) };
                     setSchedule(updated);
-                  }} className="w-16 px-2.5 py-2 bg-slate-800 border border-slate-700 rounded text-sm text-white focus:outline-none focus:ring-1 focus:ring-purple-500">
+                  }} className="w-16 px-2.5 py-2 bg-[#18181b] border border-[#27272a] rounded text-sm text-[#fafafa] focus:outline-none focus:ring-1 focus:ring-[#52525b]">
                     {DAYS.map((d, idx) => <option key={idx} value={idx}>{d}</option>)}
                   </select>
                   <input type="time" value={slot.time} onChange={e => {
                     const updated = [...(Array.isArray(schedule) ? schedule : [])];
                     updated[i] = { ...updated[i], time: e.target.value };
                     setSchedule(updated);
-                  }} className="w-28 px-2.5 py-2 bg-slate-800 border border-slate-700 rounded text-sm text-white focus:outline-none focus:ring-1 focus:ring-purple-500" />
+                  }} className="w-28 px-2.5 py-2 bg-[#18181b] border border-[#27272a] rounded text-sm text-[#fafafa] focus:outline-none focus:ring-1 focus:ring-[#52525b]" />
                   <button onClick={() => {
                     setSchedule((Array.isArray(schedule) ? schedule : []).filter((_, j) => j !== i));
-                  }} className="text-slate-500 hover:text-red-400 transition"><X className="w-3 h-3" /></button>
+                  }} className="text-[#71717a] hover:text-[#f87171] transition"><X className="w-3 h-3" /></button>
                 </div>
               ))}
-              <button type="button" onClick={() => setSchedule([...(Array.isArray(schedule) ? schedule : []), { day: 0, time: "21:00" }])} className="flex items-center gap-1 text-xs text-purple-400 hover:text-purple-300 transition">
+              <button type="button" onClick={() => setSchedule([...(Array.isArray(schedule) ? schedule : []), { day: 0, time: "21:00" }])} className="flex items-center gap-1 text-xs text-[#a1a1aa] hover:text-[#d4d4d8] transition">
                 <Plus className="w-3 h-3" /> Add spawn time
               </button>
             </div>
           </div>
         )}
         <div>
-          <label className="block text-xs text-slate-500 mb-0.5">Category</label>
+          <label className="block text-xs text-[#71717a] mb-0.5">Category</label>
           {(() => {
             const isCustom = category && !BOSS_CATEGORIES.includes(category);
             return (
               <>
-                <select value={isCustom ? "__custom__" : category} onChange={e => setCategory(e.target.value === "__custom__" ? "" : e.target.value)} className="w-full px-2.5 py-2 bg-slate-800 border border-slate-700 rounded text-sm text-white focus:outline-none focus:ring-1 focus:ring-purple-500">
+                <select value={isCustom ? "__custom__" : category} onChange={e => setCategory(e.target.value === "__custom__" ? "" : e.target.value)} className="w-full px-2.5 py-2 bg-[#18181b] border border-[#27272a] rounded text-sm text-[#fafafa] focus:outline-none focus:ring-1 focus:ring-[#52525b]">
                   <option value="">None</option>
                   {BOSS_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
                   <option value="__custom__">Other...</option>
                 </select>
                 {(isCustom || category === "") && (
-                  <input value={category} onChange={e => setCategory(e.target.value)} placeholder="Type custom category..." className="mt-1 w-full px-2.5 py-2 bg-slate-800 border border-slate-700 rounded text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-purple-500" />
+                  <input value={category} onChange={e => setCategory(e.target.value)} placeholder="Type custom category..." className="mt-1 w-full px-2.5 py-2 bg-[#18181b] border border-[#27272a] rounded text-sm text-[#fafafa] placeholder-[#52525b] focus:outline-none focus:ring-1 focus:ring-[#52525b]" />
                 )}
               </>
             );
           })()}
         </div>
         <div>
-          <label className="block text-xs text-slate-500 mb-0.5">Points</label>
-          <input value={points} onChange={e => setPoints(e.target.value === "" ? 0 : Number(e.target.value))} type="number" className="w-full px-2.5 py-2 bg-slate-800 border border-slate-700 rounded text-sm text-white focus:outline-none focus:ring-1 focus:ring-purple-500" />
+          <label className="block text-xs text-[#71717a] mb-0.5">Points</label>
+          <input value={points} onChange={e => setPoints(e.target.value === "" ? 0 : Number(e.target.value))} type="number" className="w-full px-2.5 py-2 bg-[#18181b] border border-[#27272a] rounded text-sm text-[#fafafa] focus:outline-none focus:ring-1 focus:ring-[#52525b]" />
         </div>
         <div className="col-span-2">
-          <label className="block text-xs text-slate-500 mb-1">Tags</label>
+          <label className="block text-xs text-[#71717a] mb-1">Tags</label>
           <div className="flex flex-wrap gap-1.5">
             {BOSS_TAGS.map(t => (
-              <label key={t} className={`flex items-center gap-1 px-2 py-1 rounded text-xs cursor-pointer transition ${tags.includes(t) ? "bg-purple-600/30 text-purple-300 border border-purple-500/50" : "bg-slate-800 text-slate-500 border border-slate-700 hover:text-slate-300"}`}>
+              <label key={t} className={`flex items-center gap-1 px-2 py-1 rounded text-xs cursor-pointer transition ${tags.includes(t) ? "bg-[#18181b] text-[#d4d4d8] border-[#27272a]" : "bg-[#18181b] text-[#71717a] border border-[#27272a] hover:text-[#d4d4d8]"}`}>
                 <input type="checkbox" checked={tags.includes(t)}
                   onChange={e => setTags(e.target.checked ? [...tags, t] : tags.filter(x => x !== t))}
                   className="sr-only" />
@@ -187,7 +187,7 @@ export function EditBossForm({ boss, gameSlug, onSaved, onCancel }: Props) {
         </div>
       </div>
       <div className="flex items-center gap-3">
-        <label className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-300 cursor-pointer transition">
+        <label className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-[#27272a] hover:bg-[#3f3f46] text-[#d4d4d8] cursor-pointer transition">
           <Image className="w-3.5 h-3.5" /> {imageUrl ? "Replace Image" : "Add Image"}
           <input type="file" accept="image/png,image/jpeg,image/webp,image/gif"
             onChange={e => { const file = e.target.files?.[0]; if (file) handleImageUpload(file); }}
@@ -195,14 +195,14 @@ export function EditBossForm({ boss, gameSlug, onSaved, onCancel }: Props) {
         </label>
         {imageUrl && (
           <div className="relative">
-            <img src={imageUrl} alt="Boss" className="w-8 h-8 rounded object-cover border border-slate-600" />
-            <button onClick={() => setImageUrl(null)} className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-red-500 text-white flex items-center justify-center hover:bg-red-400 transition">
+            <img src={imageUrl} alt="Boss" className="w-8 h-8 rounded object-cover border border-[#3f3f46]" />
+            <button onClick={() => setImageUrl(null)} className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-[#3f3f46] text-[#fafafa] flex items-center justify-center hover:bg-[#52525b] transition">
               <X className="w-2.5 h-2.5" />
             </button>
           </div>
         )}
       </div>
-      <button onClick={handleSave} disabled={saving} className="flex items-center gap-1 px-3 py-2 text-xs font-medium rounded bg-purple-600 hover:bg-purple-500 text-white transition disabled:opacity-50 disabled:cursor-not-allowed">
+      <button onClick={handleSave} disabled={saving} className="flex items-center gap-1 px-3 py-2 text-xs font-medium rounded bg-[#fafafa] hover:bg-[#e4e4e7] text-[#fafafa] transition disabled:opacity-50 disabled:cursor-not-allowed">
         {saving ? <><Loader2 className="w-3 h-3 animate-spin" /> Saving...</> : <><Save className="w-3 h-3" /> Save</>}
       </button>
     </div>

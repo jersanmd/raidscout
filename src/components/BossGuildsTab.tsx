@@ -141,7 +141,7 @@ export function BossGuildsTab({ bosses, guilds, bossGuilds, onBossGuildsChange, 
   };
 
   if (guilds.length === 0) {
-    return <div className="text-center py-16"><p className="text-slate-500">No guilds created yet.</p><p className="text-slate-600 text-sm mt-1">Create guilds in the Guilds tab first.</p></div>;
+    return <div className="text-center py-16"><p className="text-[#71717a]">No guilds created yet.</p><p className="text-[#52525b] text-sm mt-1">Create guilds in the Guilds tab first.</p></div>;
   }
 
   return (
@@ -150,52 +150,52 @@ export function BossGuildsTab({ bosses, guilds, bossGuilds, onBossGuildsChange, 
       <div className="flex items-center gap-2">
         <button onClick={() => { setBossMultiMode(!bossMultiMode); clearBossSelection(); }}
           className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium transition ${
-            bossMultiMode ? "bg-purple-600 text-white" : "bg-slate-800 text-slate-400 hover:text-white"
+            bossMultiMode ? "bg-[#27272a] text-[#fafafa]" : "bg-[#18181b] text-[#a1a1aa] hover:text-[#fafafa]"
           }`}>
           <CheckSquare className="w-3.5 h-3.5" />{bossMultiMode ? "Exit Multi-Select" : "Multi-Select"}
         </button>
         {bossMultiMode && selectedBossIds.size > 0 && (
-          <span className="text-xs text-slate-400">{selectedBossIds.size} selected</span>
+          <span className="text-xs text-[#a1a1aa]">{selectedBossIds.size} selected</span>
         )}
       </div>
 
       {/* Multi-select bulk actions */}
       {bossMultiMode && selectedBossIds.size > 0 && (
-        <div className="bg-slate-800/50 border border-slate-700 rounded-lg p-3 space-y-2">
+        <div className="bg-[#18181b] border border-[#27272a] rounded-lg p-3 space-y-2">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-xs text-slate-400">Bulk set mode:</span>
+            <span className="text-xs text-[#a1a1aa]">Bulk set mode:</span>
             {(["rotation", "daily", "schedule", "none"] as const).map(m => (
               <button key={m} onClick={() => { setBulkMode(m); }}
                 disabled={bulkProcessing}
                 className={`px-2 py-1 rounded text-xs font-medium transition capitalize ${
-                  bulkMode === m ? "bg-purple-600 text-white" : "bg-slate-700 text-slate-300 hover:bg-slate-600"
+                  bulkMode === m ? "bg-[#27272a] text-[#fafafa]" : "bg-[#27272a] text-[#d4d4d8] hover:bg-[#3f3f46]"
                 } disabled:opacity-50`}>{m}</button>
             ))}
           </div>
           {bulkMode === "rotation" && (
             <div>
-              <p className="text-xs text-slate-500 mb-1">Add guilds to rotation (in order):</p>
+              <p className="text-xs text-[#71717a] mb-1">Add guilds to rotation (in order):</p>
               <div className="flex flex-wrap gap-1 mb-2">
                 {bulkRotationAdded.map((gid, i) => { const g = guilds.find(x => x.id === gid); return <span key={i} className="text-xs bg-blue-900/30 border border-blue-700/50 rounded px-2 py-0.5 text-blue-300">{g?.name}</span>; })}
               </div>
               <select value="" onChange={e => { if (e.target.value) { setBulkRotationAdded(prev => [...prev, e.target.value]); e.target.value = ""; }}}
-                className="bg-slate-700 border border-slate-600 rounded px-2 py-1 text-xs text-white">
+                className="bg-[#27272a] border border-[#3f3f46] rounded px-2 py-1 text-xs text-[#fafafa]">
                 <option value="">+ Add guild...</option>
                 {guilds.filter(g => !bulkRotationAdded.includes(g.id)).map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
               </select>
               {bulkRotationAdded.length > 0 && (
-                <button onClick={() => setBulkRotationAdded([])} className="ml-2 text-xs text-slate-400 hover:text-red-400">Clear</button>
+                <button onClick={() => setBulkRotationAdded([])} className="ml-2 text-xs text-[#a1a1aa] hover:text-[#f87171]">Clear</button>
               )}
             </div>
           )}
           {bulkMode === "daily" && (
             <div>
-              <p className="text-xs text-slate-500 mb-1">Add guilds to daily rotation:</p>
+              <p className="text-xs text-[#71717a] mb-1">Add guilds to daily rotation:</p>
               <div className="flex flex-wrap gap-1 mb-2">
                 {bulkDailyAdded.map((gid, i) => { const g = guilds.find(x => x.id === gid); return <span key={i} className="text-xs bg-cyan-900/30 border border-cyan-700/50 rounded px-2 py-0.5 text-cyan-300">{g?.name}</span>; })}
               </div>
               <select value="" onChange={e => { if (e.target.value) { setBulkDailyAdded(prev => [...prev, e.target.value]); e.target.value = ""; }}}
-                className="bg-slate-700 border border-slate-600 rounded px-2 py-1 text-xs text-white">
+                className="bg-[#27272a] border border-[#3f3f46] rounded px-2 py-1 text-xs text-[#fafafa]">
                 <option value="">+ Add guild...</option>
                 {guilds.filter(g => !bulkDailyAdded.includes(g.id)).map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
               </select>
@@ -204,7 +204,7 @@ export function BossGuildsTab({ bosses, guilds, bossGuilds, onBossGuildsChange, 
           {bulkMode && (
             <button onClick={() => { if (bulkMode === "rotation") bulkRotationAdded.forEach(gid => { selectedBossIds.forEach(bid => { handleAddRotationGuild(bid, gid); }); }); clearBossSelection(); }}
               disabled={bulkProcessing}
-              className="px-3 py-1.5 rounded text-xs font-medium bg-purple-600 text-white hover:bg-purple-500 disabled:opacity-50">
+              className="px-3 py-1.5 rounded text-xs font-medium bg-[#27272a] text-[#fafafa] hover:bg-[#3f3f46] disabled:opacity-50">
               {bulkProcessing ? "Applying..." : `Apply ${bulkMode} to ${selectedBossIds.size} bosses`}
             </button>
           )}
@@ -219,35 +219,35 @@ export function BossGuildsTab({ bosses, guilds, bossGuilds, onBossGuildsChange, 
         const isSaving = savingBossId === boss.id;
 
         return (
-          <div key={boss.id} className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+          <div key={boss.id} className="bg-[#09090b] border border-[#27272a] rounded-xl overflow-hidden">
             <button onClick={() => setExpandedBoss(isExpanded ? null : boss.id)}
-              className={`w-full flex items-center justify-between px-4 py-3 text-left transition ${isExpanded ? "border-b border-slate-800" : ""}`}>
+              className={`w-full flex items-center justify-between px-4 py-3 text-left transition ${isExpanded ? "border-b border-[#27272a]" : ""}`}>
               <div className="flex items-center gap-3">
                 {bossMultiMode && (
                   <input type="checkbox" checked={selectedBossIds.has(boss.id)}
                     onChange={() => toggleBossSelect(boss.id)}
-                    className="w-3.5 h-3.5 rounded border-slate-600 bg-slate-800 text-purple-600 focus:ring-purple-500/50" />
+                    className="w-3.5 h-3.5 rounded border-[#3f3f46] bg-[#18181b] text-[#a1a1aa] focus:ring-[#52525b]/50" />
                 )}
-                <span className="text-sm text-white font-medium">{boss.name}</span>
+                <span className="text-sm text-[#fafafa] font-medium">{boss.name}</span>
                 <span className={`text-[10px] px-1.5 py-0.5 rounded ${
-                  mode === "rotation" ? "bg-blue-900/30 text-blue-400" :
-                  mode === "daily" ? "bg-cyan-900/30 text-cyan-400" :
-                  mode === "schedule" ? "bg-purple-900/30 text-purple-400" :
-                  "bg-slate-800 text-slate-500"
+                  mode === "rotation" ? "bg-[#18181b] text-[#a1a1aa]" :
+                  mode === "daily" ? "bg-[#18181b] text-[#a1a1aa]" :
+                  mode === "schedule" ? "bg-[#18181b] text-[#a1a1aa]" :
+                  "bg-[#18181b] text-[#71717a]"
                 }`}>{mode === "none" ? "—" : mode}</span>
               </div>
               <div className="flex items-center gap-2">
-                {isSaving && <Loader2 className="w-4 h-4 text-slate-400 animate-spin" />}
-                {!bossMultiMode && (isExpanded ? <ChevronUp className="w-4 h-4 text-slate-500" /> : <ChevronDown className="w-4 h-4 text-slate-500" />)}
+                {isSaving && <Loader2 className="w-4 h-4 text-[#a1a1aa] animate-spin" />}
+                {!bossMultiMode && (isExpanded ? <ChevronUp className="w-4 h-4 text-[#71717a]" /> : <ChevronDown className="w-4 h-4 text-[#71717a]" />)}
               </div>
             </button>
 
             {!bossMultiMode && isExpanded && (
               <div className="px-4 py-3 space-y-3">
                 <div className="flex items-center gap-2">
-                  <span className="text-xs text-slate-500 w-12">Mode:</span>
+                  <span className="text-xs text-[#71717a] w-12">Mode:</span>
                   <select value={mode} onChange={e => handleSetBossMode(boss.id, e.target.value as any)}
-                    className="bg-slate-700 border border-slate-600 rounded px-2 py-1 text-xs text-white outline-none">
+                    className="bg-[#27272a] border border-[#3f3f46] rounded px-2 py-1 text-xs text-[#fafafa] outline-none">
                     <option value="none">None</option>
                     <option value="rotation">Rotation (per kill)</option>
                     <option value="daily">Daily (per day)</option>
@@ -257,24 +257,24 @@ export function BossGuildsTab({ bosses, guilds, bossGuilds, onBossGuildsChange, 
 
                 {mode === "rotation" && (
                   <div className="space-y-1.5">
-                    <p className="text-xs text-slate-500">Guild rotation order (first → last):</p>
+                    <p className="text-xs text-[#71717a]">Guild rotation order (first → last):</p>
                     {bossAssignments.sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)).map((bg, idx) => {
                       const guild = guilds.find(g => g.id === bg.guild_id);
                       return (
-                        <div key={bg.id} className="flex items-center gap-1 bg-slate-800/50 rounded px-2 py-1.5">
-                          <span className="text-xs text-slate-500 w-4">{idx + 1}.</span>
+                        <div key={bg.id} className="flex items-center gap-1 bg-[#18181b] rounded px-2 py-1.5">
+                          <span className="text-xs text-[#71717a] w-4">{idx + 1}.</span>
                           <span className="text-sm text-slate-200 flex-1">{guild?.name ?? "?"}</span>
-                          <button onClick={() => handleMoveRotationGuild(boss.id, bg.id, "up")} disabled={idx === 0} className="p-0.5 text-slate-500 hover:text-emerald-400 disabled:opacity-30"><Plus className="w-3 h-3" /></button>
-                          <button onClick={() => handleMoveRotationGuild(boss.id, bg.id, "down")} disabled={idx === bossAssignments.length - 1} className="p-0.5 text-slate-500 hover:text-red-400 disabled:opacity-30"><Minus className="w-3 h-3" /></button>
-                          <button onClick={() => handleRemoveRotationGuild(boss.id, bg.id)} className="p-0.5 text-slate-500 hover:text-red-400"><X className="w-3 h-3" /></button>
+                          <button onClick={() => handleMoveRotationGuild(boss.id, bg.id, "up")} disabled={idx === 0} className="p-0.5 text-[#71717a] hover:text-emerald-400 disabled:opacity-30"><Plus className="w-3 h-3" /></button>
+                          <button onClick={() => handleMoveRotationGuild(boss.id, bg.id, "down")} disabled={idx === bossAssignments.length - 1} className="p-0.5 text-[#71717a] hover:text-[#f87171] disabled:opacity-30"><Minus className="w-3 h-3" /></button>
+                          <button onClick={() => handleRemoveRotationGuild(boss.id, bg.id)} className="p-0.5 text-[#71717a] hover:text-[#f87171]"><X className="w-3 h-3" /></button>
                         </div>
                       );
                     })}
                     {isSaving ? (
-                      <div className="flex items-center gap-2 text-xs text-slate-400 py-1"><Loader2 className="w-3 h-3 animate-spin" />Adding...</div>
+                      <div className="flex items-center gap-2 text-xs text-[#a1a1aa] py-1"><Loader2 className="w-3 h-3 animate-spin" />Adding...</div>
                     ) : (
                       <select value="" onChange={e => { if (e.target.value) handleAddRotationGuild(boss.id, e.target.value); }}
-                        className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-xs text-slate-400 outline-none">
+                        className="w-full bg-[#18181b] border border-[#27272a] rounded px-2 py-1.5 text-xs text-[#a1a1aa] outline-none">
                         <option value="">+ Add guild to rotation...</option>
                         {guilds.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
                       </select>
@@ -284,24 +284,24 @@ export function BossGuildsTab({ bosses, guilds, bossGuilds, onBossGuildsChange, 
 
                 {mode === "daily" && (
                   <div className="space-y-1.5">
-                    <p className="text-xs text-slate-500">Daily rotation order:</p>
+                    <p className="text-xs text-[#71717a]">Daily rotation order:</p>
                     {bossAssignments.sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)).map((bg, idx) => {
                       const guild = guilds.find(g => g.id === bg.guild_id);
                       return (
-                        <div key={bg.id} className="flex items-center gap-1 bg-slate-800/50 rounded px-2 py-1.5">
-                          <span className="text-xs text-slate-500 w-4">{idx + 1}.</span>
+                        <div key={bg.id} className="flex items-center gap-1 bg-[#18181b] rounded px-2 py-1.5">
+                          <span className="text-xs text-[#71717a] w-4">{idx + 1}.</span>
                           <span className="text-sm text-slate-200 flex-1">{guild?.name ?? "?"}</span>
-                          <button onClick={() => handleMoveDailyGuild(boss.id, bg.id, "up")} disabled={idx === 0} className="p-0.5 text-slate-500 hover:text-emerald-400 disabled:opacity-30"><Plus className="w-3 h-3" /></button>
-                          <button onClick={() => handleMoveDailyGuild(boss.id, bg.id, "down")} disabled={idx === bossAssignments.length - 1} className="p-0.5 text-slate-500 hover:text-red-400 disabled:opacity-30"><Minus className="w-3 h-3" /></button>
-                          <button onClick={() => handleRemoveDailyGuild(boss.id, bg.id)} className="p-0.5 text-slate-500 hover:text-red-400"><X className="w-3 h-3" /></button>
+                          <button onClick={() => handleMoveDailyGuild(boss.id, bg.id, "up")} disabled={idx === 0} className="p-0.5 text-[#71717a] hover:text-emerald-400 disabled:opacity-30"><Plus className="w-3 h-3" /></button>
+                          <button onClick={() => handleMoveDailyGuild(boss.id, bg.id, "down")} disabled={idx === bossAssignments.length - 1} className="p-0.5 text-[#71717a] hover:text-[#f87171] disabled:opacity-30"><Minus className="w-3 h-3" /></button>
+                          <button onClick={() => handleRemoveDailyGuild(boss.id, bg.id)} className="p-0.5 text-[#71717a] hover:text-[#f87171]"><X className="w-3 h-3" /></button>
                         </div>
                       );
                     })}
                     {isSaving ? (
-                      <div className="flex items-center gap-2 text-xs text-slate-400 py-1"><Loader2 className="w-3 h-3 animate-spin" />Adding...</div>
+                      <div className="flex items-center gap-2 text-xs text-[#a1a1aa] py-1"><Loader2 className="w-3 h-3 animate-spin" />Adding...</div>
                     ) : (
                       <select value="" onChange={e => { if (e.target.value) handleAddDailyGuild(boss.id, e.target.value); }}
-                        className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-xs text-slate-400 outline-none">
+                        className="w-full bg-[#18181b] border border-[#27272a] rounded px-2 py-1.5 text-xs text-[#a1a1aa] outline-none">
                         <option value="">+ Add guild to daily rotation...</option>
                         {guilds.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
                       </select>
@@ -311,17 +311,17 @@ export function BossGuildsTab({ bosses, guilds, bossGuilds, onBossGuildsChange, 
 
                 {mode === "schedule" && (
                   <div className="space-y-1.5">
-                    <p className="text-xs text-slate-500">Assign guild per day:</p>
+                    <p className="text-xs text-[#71717a]">Assign guild per day:</p>
                     <div className="grid grid-cols-7 gap-1">
                       {DAY_LABELS.map((label, dow) => {
                         const bg = bossAssignments.find(a => a.day_of_week === dow);
                         const guild = bg ? guilds.find(g => g.id === bg.guild_id) : null;
                         return (
                           <div key={dow} className="text-center space-y-1">
-                            <span className="text-xs text-slate-500 block">{label}</span>
+                            <span className="text-xs text-[#71717a] block">{label}</span>
                             <select value={guild?.id ?? ""} onChange={e => handleSetScheduleGuild(boss.id, dow, e.target.value || null)}
                               className={`w-full rounded-lg px-1.5 py-1.5 text-xs outline-none border ${
-                                guild ? "bg-purple-900/20 border-purple-700 text-purple-300" : "bg-slate-800 border-slate-700 text-white"
+                                guild ? "bg-purple-900/20 border-purple-700 text-purple-300" : "bg-[#18181b] border-[#27272a] text-[#fafafa]"
                               }`}>
                               <option value="">—</option>
                               {guilds.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}

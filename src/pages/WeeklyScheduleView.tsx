@@ -23,7 +23,7 @@ import {
   uploadRallyImage,
   addRallyImageToDeath,
 } from "@/lib/supabase";
-import { Loader2, ChevronLeft, ChevronRight, Users, Shield, X, Calendar } from "lucide-react";
+import { Loader2, Users, X, Calendar } from "lucide-react";
 import { SavingOverlay } from "@/components/SavingOverlay";
 import { getOwnerGuildName as getOwnerGuildNameLib } from "@/lib/rotation";
 import { useActivities } from "@/hooks/useActivities";
@@ -310,28 +310,28 @@ export function WeeklyScheduleView() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <Loader2 className="w-8 h-8 text-slate-400 animate-spin" />
+        <Loader2 className="w-8 h-8 text-[#a1a1aa] animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="max-w-[90rem] mx-auto px-4 py-6">
+    <div className="max-w-7xl mx-auto px-4 py-6">
       {/* Saving overlay � blocks all interaction */}
       {savingMessage && <SavingOverlay message={savingMessage} />}
 
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-bold text-white">Weekly Schedule</h2>
+        <h2 className="text-xl font-bold text-[#fafafa]">Weekly Schedule</h2>
         <div className="flex items-center gap-3">
-          <button onClick={() => { setWeekLoading(true); setWeekOffset(w => w - 1); }} disabled={prevWeekDisabled} className="px-3 py-1.5 rounded-lg text-xs bg-slate-800 border border-slate-700 text-slate-300 hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed transition">← Previous Week</button>
-          <span className="text-sm text-slate-400">{weekOffset === 0 ? "This Week" : weekOffset === 1 ? "Next Week" : weekOffset > 0 ? `${weekOffset} weeks ahead` : weekOffset === -1 ? "Last Week" : `${Math.abs(weekOffset)} weeks ago`}</span>
-          <button onClick={() => { setWeekLoading(true); setWeekOffset(w => w + 1); }} disabled={weekOffset >= 4} className="px-3 py-1.5 rounded-lg text-xs bg-slate-800 border border-slate-700 text-slate-300 hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed transition">Next Week →</button>
+          <button onClick={() => { setWeekLoading(true); setWeekOffset(w => w - 1); }} disabled={prevWeekDisabled} className="px-3 py-1.5 rounded-lg text-xs bg-[#18181b] border border-[#27272a] text-[#d4d4d8] hover:bg-[#27272a] disabled:opacity-30 disabled:cursor-not-allowed transition">← Previous Week</button>
+          <span className="text-sm text-[#a1a1aa] font-medium">{weekOffset === 0 ? "This Week" : weekOffset === 1 ? "Next Week" : weekOffset > 0 ? `${weekOffset} weeks ahead` : weekOffset === -1 ? "Last Week" : `${Math.abs(weekOffset)} weeks ago`}</span>
+          <button onClick={() => { setWeekLoading(true); setWeekOffset(w => w + 1); }} disabled={weekOffset >= 4} className="px-3 py-1.5 rounded-lg text-xs bg-[#18181b] border border-[#27272a] text-[#d4d4d8] hover:bg-[#27272a] disabled:opacity-30 disabled:cursor-not-allowed transition">Next Week →</button>
         </div>
       </div>
 
       {weekLoading ? (
         <div className="flex items-center justify-center py-16">
-          <Loader2 className="w-8 h-8 text-slate-400 animate-spin" />
+          <Loader2 className="w-8 h-8 text-[#a1a1aa] animate-spin" />
         </div>
       ) : (<>
       {/* Mobile: list view */}
@@ -341,32 +341,27 @@ export function WeeklyScheduleView() {
             key={day.day}
             className={`rounded-xl border p-4 transition-all duration-300 ${
               day.isToday
-                ? "border-red-700/60 bg-gradient-to-br from-red-950/40 to-slate-900 shadow-lg shadow-red-900/10"
-                : "border-slate-700/50 bg-slate-900/80 hover:border-slate-600"
+                ? "border-[#27272a] bg-[#18181b] shadow-sm "
+                : "border-[#27272a] bg-[#18181b] hover:border-[#3f3f46]"
             }`}
           >
             <div className="flex items-center justify-between mb-3">
               <div>
-                <span className="text-white font-bold">{day.dayName}</span>
-                <span className="text-slate-500 text-sm ml-2">
+                <span className={`font-semibold ${day.isToday ? "text-[#fafafa]" : "text-[#a1a1aa]"}`}>{day.dayName}</span>
+                <span className="text-[#71717a] text-sm ml-2">
                   {day.date.toLocaleDateString(undefined, {
                     month: "short",
                     day: "numeric",
                   })}
                 </span>
-                {day.isToday && (
-                  <span className="ml-2 text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-red-900/50 text-red-400">Today</span>
-                )}
               </div>
               {day.isToday && (
-                <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-red-900/50 text-red-400">
-                  Today
-                </span>
+                <span className="text-[10px] font-medium text-[#71717a]">Today</span>
               )}
             </div>
 
             {day.spawns.length === 0 ? (
-              <p className="text-slate-600 text-sm">No spawns</p>
+              <p className="text-[#52525b] text-sm">No spawns</p>
             ) : (
               <div className="space-y-2">
                 {day.spawns.map((s, i) => {
@@ -391,24 +386,35 @@ export function WeeklyScheduleView() {
                         });
                       }
                     }}
-                    className={`flex items-center justify-between py-1.5 px-2 rounded-lg transition-all duration-200 hover:scale-[1.01] ${
+                    className={`flex items-center justify-between py-1.5 px-2 rounded-lg transition-all duration-200 ${
                       isDeathEvent
-                        ? "bg-gradient-to-r from-red-950/40 to-red-900/10 border border-red-900/30 cursor-pointer hover:from-red-950/60"
+                        ? "bg-[#0d0d10] border border-[#27272a] cursor-pointer hover:bg-[#18181b]"
                         : (isViewer && !viewerCanMarkDied)
-                        ? "bg-slate-800/30 cursor-default"
-                        : "bg-slate-800/30 cursor-pointer hover:bg-slate-700/40"
+                        ? "bg-[#18181b] cursor-default opacity-60"
+                        : "bg-[#1c1c20] border border-[#27272a] cursor-pointer hover:bg-[#27272a] hover:border-[#52525b] hover:scale-[1.01]"
                     }`}
                   >
                     <div className="flex items-center gap-2">
                       <span
                         className={`w-2 h-2 rounded-full ${
-                          isDeathEvent ? "bg-red-400" :
+                          isDeathEvent ? "bg-[#a1a1aa]" :
                           s.boss.spawn_type === "fixed_schedule"
-                            ? "bg-blue-400"
-                            : "bg-orange-400"
+                            ? "bg-[#a1a1aa]"
+                            : "bg-[#a1a1aa]"
                         }`}
                       />
-                      <span className="text-white text-sm">{s.boss.name}</span>
+                      <span className="text-[#fafafa] text-sm">{s.boss.name}</span>
+                      {isDeathEvent && (
+                        <span className="text-[10px] text-[#71717a] inline-flex items-center gap-1">Killed <Users className="w-3 h-3" /></span>
+                      )}
+                    </div>
+                    <div className="text-right">
+                      <span className="text-[#a1a1aa] text-sm">
+                        {s.nextSpawn?.toLocaleTimeString(undefined, {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </span>
                       {(() => {
                         let gName: string | null | undefined;
                         if (isDeathEvent && s.deathRecord) {
@@ -417,20 +423,10 @@ export function WeeklyScheduleView() {
                           gName = getOwnerGuildName(s.boss.id, day.day);
                         }
                         if (!gName) return null;
-                        const c = guildColor(gName);
                         return (
-                        <span className={`text-[10px] px-1.5 py-0.5 rounded flex items-center gap-0.5 border ${c.bg} ${c.text} ${c.border}`}><Shield className="w-2.5 h-2.5" />{gName}</span>
+                        <div className={`text-[10px] font-medium ${guildColor(gName).text}`}>{gName}</div>
                       ); })()}
-                      {isDeathEvent && (
-                        <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-red-900/40 text-red-400 inline-flex items-center gap-1">Killed <Users className="w-3 h-3" /></span>
-                      )}
                     </div>
-                    <span className="text-slate-400 text-sm">
-                        {s.nextSpawn?.toLocaleTimeString(undefined, {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </span>
                   </div>
                 )})}
               </div>
@@ -444,36 +440,31 @@ export function WeeklyScheduleView() {
         {weekDays.map((day) => (
           <div
             key={day.day}
-            className={`rounded-xl border overflow-hidden transition-all duration-300 hover:shadow-lg ${
+            className={`rounded-xl border overflow-hidden transition-all duration-300 ${
               day.isToday
-                ? "border-red-700/60 bg-gradient-to-b from-red-950/40 to-slate-900 shadow-lg shadow-red-900/10"
-                : "border-slate-700/50 bg-slate-900 hover:border-slate-600"
+                ? "border-[#27272a] bg-[#18181b] shadow-sm"
+                : "border-[#27272a] bg-[#18181b] hover:border-[#3f3f46]"
             }`}
           >
             {/* Day header */}
             <div
-              className={`text-center py-2.5 border-b transition-colors ${
-                day.isToday ? "border-red-700/60 bg-gradient-to-r from-red-950/30 to-red-900/10" : "border-slate-700/50"
+              className={`text-center py-2.5 border-b ${
+                day.isToday ? "border-[#27272a] bg-[#18181b]" : "border-[#27272a]"
               }`}
             >
-              <div className="text-white font-bold text-sm">{day.dayName}</div>
-              <div className="text-slate-500 text-xs">
+              <div className={`font-semibold text-sm ${day.isToday ? "text-[#fafafa]" : "text-[#a1a1aa]"}`}>{day.dayName}</div>
+              <div className="text-[#71717a] text-xs">
                 {day.date.toLocaleDateString(undefined, {
                   month: "short",
                   day: "numeric",
                 })}
               </div>
-              {day.isToday && (
-                <span className="inline-block mt-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-red-900/50 text-red-400 animate-pulse">
-                  Today
-                </span>
-              )}
             </div>
 
             {/* Spawns */}
             <div className="p-2 space-y-1.5 min-h-[120px]">
               {day.spawns.length === 0 ? (
-                <p className="text-slate-700 text-xs text-center py-4 italic">No spawns</p>
+                <p className="text-[#3f3f46] text-xs text-center py-4 italic">No spawns</p>
               ) : (
                 day.spawns.map((s, i) => {
                   const isDeathEvent = s.deathRecord !== null && !s.deathRecord.is_initial_spawn && s.nextSpawn?.getTime() === new Date(s.deathRecord.death_time).getTime();
@@ -497,41 +488,40 @@ export function WeeklyScheduleView() {
                         });
                       }
                     }}
-                    className={`text-xs rounded px-1.5 py-1 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] ${
+                    className={`text-xs rounded px-1.5 py-1 transition-all duration-200 ${
                       isDeathEvent
-                        ? "bg-gradient-to-r from-red-950/50 to-red-900/20 border border-red-900/30 cursor-pointer hover:from-red-950/70"
+                        ? "bg-[#0d0d10] border border-[#27272a] cursor-pointer hover:bg-[#18181b]"
                         : (isViewer && !viewerCanMarkDied)
-                        ? "bg-slate-800/30 cursor-default"
-                        : isScheduleBoss
-                        ? "bg-gradient-to-r from-blue-950/30 to-slate-800/30 border border-blue-900/20 cursor-pointer hover:from-blue-950/50"
-                        : "bg-gradient-to-r from-orange-950/30 to-slate-800/30 border border-orange-900/20 cursor-pointer hover:from-orange-950/50"
+                        ? "bg-[#18181b] cursor-default opacity-60"
+                        : "bg-[#1c1c20] border border-[#27272a] cursor-pointer hover:bg-[#27272a] hover:border-[#52525b] hover:scale-[1.02]"
                     }`}
                   >
                     <div className="flex items-center justify-between">
-                      <span className="text-white font-medium truncate">
+                      <span className="text-[#fafafa] font-medium truncate">
                         {s.boss.name}
                       </span>
-                      <span className="text-slate-400 shrink-0 ml-1">
-                        {s.nextSpawn?.toLocaleTimeString(undefined, {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </span>
+                      <div className="text-right shrink-0 ml-1">
+                        <div className="text-[#a1a1aa]">
+                          {s.nextSpawn?.toLocaleTimeString(undefined, {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </div>
+                        {(() => {
+                          let gName: string | null | undefined;
+                          if (isDeathEvent && s.deathRecord) {
+                            gName = guilds.find(g => g.id === (s.deathRecord!.display_owner_guild_id ?? s.deathRecord!.owner_guild_id))?.name;
+                          } else {
+                            gName = getOwnerGuildName(s.boss.id, day.day);
+                          }
+                          if (!gName) return null;
+                          return (
+                          <div className={`text-[9px] font-medium ${guildColor(gName).text}`}>{gName}</div>
+                        ); })()}
+                      </div>
                     </div>
-                    {(() => {
-                      let gName: string | null | undefined;
-                      if (isDeathEvent && s.deathRecord) {
-                        gName = guilds.find(g => g.id === (s.deathRecord!.display_owner_guild_id ?? s.deathRecord!.owner_guild_id))?.name;
-                      } else {
-                        gName = getOwnerGuildName(s.boss.id, day.day);
-                      }
-                      if (!gName) return null;
-                      const c = guildColor(gName);
-                      return (
-                      <span className={`text-[9px] px-1 py-0.5 rounded flex items-center gap-0.5 w-fit border ${c.bg} ${c.text} ${c.border}`}><Shield className="w-2 h-2" />{gName}</span>
-                    ); })()}
                     {isDeathEvent && (
-                      <span className="text-[10px] text-red-400 font-medium flex items-center gap-1">
+                      <span className="text-[10px] text-[#71717a] font-medium flex items-center gap-1">
                         Killed <Users className="w-3 h-3" />
                       </span>
                     )}
@@ -546,18 +536,14 @@ export function WeeklyScheduleView() {
       </> )}
 
       {/* Legend */}
-      <div className="flex items-center gap-5 mt-6 text-xs text-slate-400 bg-slate-900/50 border border-slate-800 rounded-lg px-4 py-2 w-fit">
+      <div className="flex items-center gap-5 mt-6 text-[11px] text-[#71717a] bg-[#18181b] border border-[#27272a] rounded-lg px-4 py-2 w-fit">
         <div className="flex items-center gap-1.5">
-          <span className="w-2.5 h-2.5 rounded-full bg-red-400 shadow-[0_0_6px_rgba(248,113,113,0.4)]" />
-          Killed (click for participants)
+          <span className="w-2 h-2 rounded-full bg-emerald-500" />
+          Scheduled spawn
         </div>
         <div className="flex items-center gap-1.5">
-          <span className="w-2.5 h-2.5 rounded-full bg-blue-400 shadow-[0_0_6px_rgba(96,165,250,0.4)]" />
-          Fixed Schedule
-        </div>
-        <div className="flex items-center gap-1.5">
-          <span className="w-2.5 h-2.5 rounded-full bg-orange-400 shadow-[0_0_6px_rgba(251,146,60,0.4)]" />
-          Fixed Hours (timer)
+          <span className="w-2 h-2 rounded-full bg-[#a1a1aa]" />
+          Killed (click for details)
         </div>
       </div>
 
@@ -601,27 +587,27 @@ export function WeeklyScheduleView() {
       {editDeath && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/60" onClick={() => setEditDeath(null)} />
-          <div className="relative bg-slate-800 border border-slate-700 rounded-xl p-6 w-full max-w-sm shadow-2xl">
+          <div className="relative bg-[#18181b] border border-[#27272a] rounded-xl p-6 w-full max-w-sm shadow-2xl">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold text-white">Edit Death Time</h3>
-              <button onClick={() => setEditDeath(null)} className="p-1 rounded-md text-slate-400 hover:text-white hover:bg-slate-700 transition">
+              <h3 className="text-lg font-bold text-[#fafafa]">Edit Death Time</h3>
+              <button onClick={() => setEditDeath(null)} className="p-1 rounded-md text-[#a1a1aa] hover:text-[#fafafa] hover:bg-[#27272a] transition">
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <p className="text-sm text-slate-400 mb-3">
-              Change the recorded death time for <span className="text-white font-medium">{editDeath.bossName}</span>
+            <p className="text-sm text-[#a1a1aa] mb-3">
+              Change the recorded death time for <span className="text-[#fafafa] font-medium">{editDeath.bossName}</span>
             </p>
             <input
               type="datetime-local"
               value={editDeathDate}
               onChange={(e) => setEditDeathDate(e.target.value)}
-              className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-blue-500 mb-4"
+              className="w-full bg-[#27272a] border border-[#3f3f46] rounded-lg px-3 py-2 text-sm text-[#fafafa] outline-none focus:border-[#52525b] mb-4"
               autoFocus
             />
             <div className="flex justify-end gap-2">
               <button
                 onClick={() => setEditDeath(null)}
-                className="px-4 py-2 rounded-md text-sm text-slate-300 hover:bg-slate-700 transition"
+                className="px-4 py-2 rounded-md text-sm text-[#d4d4d8] hover:bg-[#27272a] transition"
                 disabled={editDeathSaving}
               >
                 Cancel
@@ -629,7 +615,7 @@ export function WeeklyScheduleView() {
               <button
                 onClick={handleEditDeathTime}
                 disabled={editDeathSaving}
-                className="px-4 py-2 rounded-md text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 transition disabled:opacity-50"
+                className="px-4 py-2 rounded-md text-sm font-medium bg-blue-600 text-[#fafafa] hover:bg-blue-700 transition disabled:opacity-50"
               >
                 {editDeathSaving ? "Saving..." : "Save"}
               </button>
@@ -641,7 +627,7 @@ export function WeeklyScheduleView() {
       {/* Edit death time toast */}
       {editToast && (
         <div className="fixed bottom-4 right-4 z-50">
-          <div className={`px-4 py-2 rounded-lg text-sm text-white shadow-lg ${editToast.type === "success" ? "bg-emerald-600" : "bg-red-600"}`}>
+          <div className={`px-4 py-2 rounded-lg text-sm text-[#fafafa] shadow-lg ${editToast.type === "success" ? "bg-[#18181b] border border-[#27272a]" : "bg-[#18181b] border border-[#27272a]"}`}>
             {editToast.message}
           </div>
         </div>
@@ -651,35 +637,33 @@ export function WeeklyScheduleView() {
       {editGuildDeath && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/60" onClick={() => setEditGuildDeath(null)} />
-          <div className="relative bg-slate-800 border border-slate-700 rounded-xl p-6 w-full max-w-xs shadow-2xl">
+          <div className="relative bg-[#18181b] border border-[#27272a] rounded-xl p-6 w-full max-w-xs shadow-2xl">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold text-white">Change Guild</h3>
-              <button onClick={() => setEditGuildDeath(null)} className="p-1 rounded-md text-slate-400 hover:text-white hover:bg-slate-700 transition">
+              <h3 className="text-lg font-bold text-[#fafafa]">Change Guild</h3>
+              <button onClick={() => setEditGuildDeath(null)} className="p-1 rounded-md text-[#a1a1aa] hover:text-[#fafafa] hover:bg-[#27272a] transition">
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <p className="text-sm text-slate-400 mb-3">
-              Select who killed <span className="text-white font-medium">{editGuildDeath.bossName}</span>
+            <p className="text-sm text-[#a1a1aa] mb-3">
+              Select who killed <span className="text-[#fafafa] font-medium">{editGuildDeath.bossName}</span>
             </p>
-            <p className="text-[10px] text-slate-500 mb-3">This does not affect the guild rotation sequence.</p>
+            <p className="text-[10px] text-[#71717a] mb-3">This does not affect the guild rotation sequence.</p>
             <div className="space-y-1 max-h-48 overflow-y-auto">
               <button
                 onClick={() => handleSetDisplayGuild(null)}
                 disabled={editGuildSaving}
-                className="w-full text-left px-3 py-2 rounded-md text-sm text-slate-400 hover:bg-slate-700 transition"
+                className="w-full text-left px-3 py-2 rounded-md text-sm text-[#a1a1aa] hover:bg-[#27272a] transition"
               >
                 None (use rotation)
               </button>
               {guilds.map((g) => {
-                const c = guildColor(g.name);
                 return (
                   <button
                     key={g.id}
                     onClick={() => handleSetDisplayGuild(g.id)}
                     disabled={editGuildSaving}
-                    className={`w-full text-left px-3 py-2 rounded-md text-sm transition flex items-center gap-2 ${c.bg} ${c.text} border ${c.border} hover:opacity-80`}
+                    className="w-full text-left px-3 py-2 rounded-md text-sm transition flex items-center gap-2 text-[#d4d4d8] hover:bg-[#27272a]"
                   >
-                    <Shield className="w-3.5 h-3.5" />
                     {g.name}
                   </button>
                 );
@@ -691,8 +675,8 @@ export function WeeklyScheduleView() {
 
       {/* Activities for the week */}
       {activities.length > 0 && (
-        <section className="mt-6 pt-4 border-t border-slate-800">
-          <h3 className="text-sm font-semibold text-blue-400 uppercase tracking-wider flex items-center gap-2 mb-3">
+        <section className="mt-6 pt-4 border-t border-[#27272a]">
+          <h3 className="text-sm font-semibold text-[#a1a1aa] uppercase tracking-wider flex items-center gap-2 mb-3">
             <Calendar className="w-4 h-4" /> Activities
           </h3>
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
@@ -701,10 +685,10 @@ export function WeeklyScheduleView() {
               return slots.map((slot, i) => {
                 const dayName = DAY_NAMES_SHORT[slot.day];
                 return (
-                  <div key={`${a.id}-${i}`} className="flex items-center gap-2 bg-slate-800/50 border border-blue-900/20 rounded-lg px-3 py-2">
+                  <div key={`${a.id}-${i}`} className="flex items-center gap-2 bg-[#18181b]/50 border border-[#27272a] rounded-lg px-3 py-2">
                     <span className="text-xs">📅</span>
-                    <span className="text-sm text-blue-300 flex-1 truncate">{a.name}</span>
-                    <span className="text-xs text-slate-500">{dayName} {slot.time}</span>
+                    <span className="text-sm text-[#a1a1aa] flex-1 truncate">{a.name}</span>
+                    <span className="text-xs text-[#71717a]">{dayName} {slot.time}</span>
                   </div>
                 );
               });

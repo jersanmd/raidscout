@@ -60,7 +60,7 @@ export function DiscordWebhookBanner() {
         <div className="flex items-center gap-2 shrink-0">
           <button
             onClick={() => navigate("/server-settings?tab=integrations")}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-amber-600 text-white hover:bg-amber-500 transition"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-amber-600 text-[#fafafa] hover:bg-amber-500 transition"
           >
             <ExternalLink className="w-3 h-3" />
             Link Discord

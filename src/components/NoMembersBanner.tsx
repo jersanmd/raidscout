@@ -60,7 +60,7 @@ export function NoMembersBanner() {
         <div className="flex items-center gap-2 shrink-0">
           <button
             onClick={() => navigate("/members?highlight=add-member")}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-blue-600 text-white hover:bg-blue-500 transition"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-blue-600 text-[#fafafa] hover:bg-blue-500 transition"
           >
             <ExternalLink className="w-3 h-3" />
             Add Members

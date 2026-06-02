@@ -35,7 +35,7 @@ import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { emitSpawnAlert } from "@/hooks/useSpawnAlerts";
 import { guildColor } from "@/lib/constants";
 import { getOwnerGuildName, getRotationInfo } from "@/lib/rotation";
-import { Skull, Loader2, X, CheckCircle, AlertTriangle, CheckSquare, Megaphone, Volume2, VolumeX, Eye, Copy, Settings } from "lucide-react";
+import { Skull, Loader2, X, CheckCircle, AlertTriangle, CheckSquare, Megaphone, Volume2, VolumeX, Eye, Copy, Settings, Search } from "lucide-react";
 import type { BossWithSpawn, BossGuild, Guild, DeathRecord } from "@/types";
 
 const sentAlerts = new Set<string>();
@@ -491,27 +491,32 @@ export function BossListView() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-32">
-        <div className="w-8 h-8 border-2 border-slate-600 border-t-red-500 rounded-full animate-spin" />
+        <div className="w-8 h-8 border-2 border-[#27272a] border-t-cyan-400 rounded-full animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="max-w-[90rem] mx-auto px-4 py-6 space-y-6">
+    <div className="max-w-7xl mx-auto px-4 py-6 space-y-6">
       {/* Saving overlay — blocks all interaction */}
       {savingMessage && <SavingOverlay message={savingMessage} />}
 
-      {/* Stats banner */}
-      <div className="flex items-center gap-4 flex-wrap">
+      {/* ── Stats Banner — tactical status bar ── */}
+      <div className="flex items-center gap-4 flex-wrap rounded-xl border border-[#27272a] bg-[#18181b] backdrop-blur-sm px-4 py-3">
         <div className="flex items-center gap-2">
-          <Skull className="w-5 h-5 text-red-400" />
-          <span className="text-white font-bold">{spawns.length} Bosses</span>
+          <div className="w-8 h-8 rounded-lg bg-[#18181b] border border-[#27272a] flex items-center justify-center">
+            <Skull className="w-4 h-4 text-[#a1a1aa]" />
+          </div>
+          <span className="text-[#fafafa] font-bold text-sm">{spawns.length} Bosses</span>
         </div>
-        <div className="flex gap-3 text-sm">
-          <span className="text-emerald-400">
+        <span className="w-px h-6 bg-[#27272a]" />
+        <div className="flex gap-4 text-xs">
+          <span className="flex items-center gap-1.5 text-[#a1a1aa]">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 " />
             {spawns.filter((s) => s.status === "alive").length} Alive
           </span>
-          <span className="text-amber-400">
+          <span className="flex items-center gap-1.5 text-[#a1a1aa]">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-400 " />
             {
               spawns.filter(
                 (s) => s.status === "countdown" && s.remainingMs <= 3600_000
@@ -520,9 +525,11 @@ export function BossListView() {
             &lt;1h
           </span>
         </div>
-        <div className="flex items-center gap-2 ml-auto">
-          <div className="flex items-center gap-1.5 text-xs text-slate-400">
-            <span className="hidden sm:inline">Notification volume</span>
+
+        {/* Right side: volume + viewer controls */}
+        <div className="flex items-center gap-3 ml-auto flex-wrap">
+          <div className="flex items-center gap-1.5 text-xs">
+            <span className="hidden sm:inline text-[#71717a] font-mono">VOL</span>
             <input
               type="range"
               min="0"
@@ -555,7 +562,7 @@ export function BossListView() {
             />
             <button
               onClick={() => { const m = localStorage.getItem("raidscout-alert-muted") !== "true"; localStorage.setItem("raidscout-alert-muted", String(m)); setIsMuted(m); }}
-              className={`p-1 rounded transition ${isMuted ? "text-red-400 hover:text-red-300" : "text-slate-500 hover:text-slate-300"}`}
+              className={`p-1 rounded transition ${isMuted ? "text-[#a1a1aa] hover:text-[#a1a1aa]" : "text-[#71717a] hover:text-[#a1a1aa]"}`}
               title={isMuted ? "Unmute alerts" : "Mute alerts"}
             >
               {isMuted ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
@@ -566,32 +573,32 @@ export function BossListView() {
         {!isViewer && (
           <>
             {viewerKey && (
-              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800/50 border border-slate-700">
-                <Eye className="w-3.5 h-3.5 text-slate-500" />
-                <code className="text-xs text-slate-400 font-mono select-all">{window.location.origin}/view/{viewerKey}</code>
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#18181b] border border-[#27272a]">
+                <Eye className="w-3.5 h-3.5 text-[#71717a]" />
+                <code className="text-xs text-[#a1a1aa] font-mono select-all">{window.location.origin}/view/{viewerKey}</code>
                 <button
                   onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/view/${viewerKey}`); setToast({ type: "success", message: "Viewer link copied!" }); }}
-                  className="p-1 rounded text-slate-500 hover:text-white hover:bg-slate-700 transition"
+                  className="p-1 rounded text-[#71717a] hover:text-[#fafafa] hover:bg-[#27272a] transition"
                   title="Copy viewer link"
                 >
                   <Copy className="w-3 h-3" />
                 </button>
               </div>
             )}
-            <div className="flex items-center gap-4 ml-auto">
-            <span className="text-[10px] text-slate-500 uppercase tracking-wider">Viewer Permissions</span>
-            <label className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-800/50 border border-slate-700 cursor-pointer hover:border-slate-600 transition">
-              <span className="text-xs text-slate-400">Allow editing spawn time</span>
+            <div className="flex items-center gap-3 ml-auto">
+            <span className="text-[10px] text-[#52525b] uppercase tracking-wider font-mono hidden lg:inline">Viewer Permissions</span>
+            <label className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#18181b] border border-[#27272a] cursor-pointer hover:border-[#3f3f46] transition">
+              <span className="text-[11px] text-[#a1a1aa]">Allow editing spawn time</span>
               <div className="relative">
                 <input type="checkbox" checked={viewerCanEdit} onChange={handleToggleViewerEdit} className="sr-only peer" />
-                <div className="w-8 h-4 bg-slate-600 rounded-full peer-checked:bg-emerald-600 transition after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:w-3 after:h-3 after:bg-white after:rounded-full after:transition peer-checked:after:translate-x-4" />
+                <div className="w-8 h-4 bg-[#27272a] rounded-full peer-checked:bg-[#fafafa] transition after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:w-3 after:h-3 after:bg-white after:rounded-full after:transition peer-checked:after:translate-x-4" />
               </div>
             </label>
-            <label className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-800/50 border border-slate-700 cursor-pointer hover:border-slate-600 transition">
-              <span className="text-xs text-slate-400">Allow marking as died</span>
+            <label className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#18181b] border border-[#27272a] cursor-pointer hover:border-[#3f3f46] transition">
+              <span className="text-[11px] text-[#a1a1aa]">Allow marking as died</span>
               <div className="relative">
                 <input type="checkbox" checked={viewerCanMarkDied} onChange={handleToggleViewerMarkDied} className="sr-only peer" />
-                <div className="w-8 h-4 bg-slate-600 rounded-full peer-checked:bg-emerald-600 transition after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:w-3 after:h-3 after:bg-white after:rounded-full after:transition peer-checked:after:translate-x-4" />
+                <div className="w-8 h-4 bg-[#27272a] rounded-full peer-checked:bg-[#fafafa] transition after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:w-3 after:h-3 after:bg-white after:rounded-full after:transition peer-checked:after:translate-x-4" />
               </div>
             </label>
           </div>
@@ -616,10 +623,10 @@ export function BossListView() {
         extra={isViewer ? undefined : (
           <button
             onClick={() => { if (multiMode) clearSelection(); setMultiMode(!multiMode); }}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 ${
               multiMode
-                ? "bg-blue-900/30 border border-blue-800 text-blue-400"
-                : "bg-slate-800 border border-slate-700 text-slate-400 hover:text-slate-200"
+                ? "bg-[#27272a] border border-[#3f3f46] text-[#a1a1aa] "
+                : "bg-[#18181b] border border-[#27272a] text-[#71717a] hover:text-[#d4d4d8] hover:border-[#3f3f46]"
             }`}
           >
             <CheckSquare className="w-3.5 h-3.5" />
@@ -632,30 +639,33 @@ export function BossListView() {
       {groupedSpawns.length === 0 ? (
         (searchText || filterType !== "all" || filterWindow) ? (
         <div className="text-center py-16">
-          <p className="text-slate-500 text-lg">No bosses match your filters</p>
+          <div className="w-14 h-14 mx-auto rounded-2xl bg-[#18181b] border border-[#27272a] flex items-center justify-center mb-4">
+            <Search className="w-6 h-6 text-[#52525b]" />
+          </div>
+          <p className="text-[#71717a] text-lg">No bosses match your filters</p>
           <button
             onClick={() => {
               setSearchText("");
               setFilterType("all");
               setFilterWindow(null);
             }}
-            className="mt-2 text-red-400 hover:text-red-300 text-sm transition"
+            className="mt-2 text-[#a1a1aa] hover:text-cyan-300 text-sm transition"
           >
             Clear filters
           </button>
         </div>
         ) : (
         <div className="text-center py-16 space-y-4">
-          <div className="flex items-center justify-center w-16 h-16 mx-auto rounded-2xl bg-slate-800 border border-slate-700">
+          <div className="flex items-center justify-center w-16 h-16 mx-auto rounded-2xl bg-[#18181b] border border-[#27272a]">
             <span className="text-2xl">📋</span>
           </div>
-          <p className="text-slate-400 text-lg">Nothing to track yet</p>
-          <p className="text-slate-500 text-sm max-w-sm mx-auto">
+          <p className="text-[#71717a] text-lg">Nothing to track yet</p>
+          <p className="text-[#52525b] text-sm max-w-sm mx-auto">
             Add bosses or activities in Server Settings to get started.
           </p>
           <button
             onClick={() => navigate("/server-settings")}
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium bg-purple-600 text-white hover:bg-purple-500 transition"
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold bg-[#27272a] border border-[#27272a] text-[#a1a1aa] hover:bg-violet-500/20 transition"
           >
             <Settings className="w-4 h-4" />
             Go to Server Settings
@@ -669,13 +679,13 @@ export function BossListView() {
               {/* Day header with color-coded dot */}
               {(() => {
                 const firstStatus = group.spawns[0]?.status;
-                const dotColor = firstStatus === "alive" ? "bg-emerald-500" : firstStatus === "countdown" ? "bg-amber-500" : "bg-blue-500";
-                const textColor = firstStatus === "alive" ? "text-emerald-400" : firstStatus === "countdown" ? "text-amber-400" : "text-blue-400";
+                const dotColor = firstStatus === "alive" ? "bg-emerald-400 " : firstStatus === "countdown" ? "bg-amber-400 " : "bg-cyan-400 ";
+                const textColor = firstStatus === "alive" ? "text-[#a1a1aa]" : firstStatus === "countdown" ? "text-[#a1a1aa]" : "text-[#a1a1aa]";
                 return (
-                  <h3 className={`text-sm font-semibold uppercase tracking-wider mb-3 flex items-center gap-2 ${textColor}`}>
-                    <span className={`w-1.5 h-1.5 rounded-full ${dotColor}`} />
+                  <h3 className={`text-xs font-bold uppercase tracking-[0.15em] mb-4 flex items-center gap-2 ${textColor}`}>
+                    <span className={`w-2 h-2 rounded-full ${dotColor}`} />
                     {group.label}
-                    <span className="text-slate-600 font-normal normal-case text-xs">
+                    <span className="text-[#3f3f46] font-mono font-normal normal-case tracking-normal text-[11px] ml-2">
                       {group.spawns.length} boss{group.spawns.length !== 1 ? "es" : ""}
                     </span>
                   </h3>
@@ -731,17 +741,17 @@ export function BossListView() {
 
       {/* Floating multi-select action bar */}
       {multiMode && selectedIds.size > 0 && (
-        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 flex items-center gap-3 bg-slate-900 border border-blue-800 rounded-xl px-4 py-3 shadow-2xl">
-          <span className="text-sm text-white font-medium">{selectedIds.size} selected</span>
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 flex items-center gap-3 bg-[#11161e] border border-[#3f3f46] rounded-xl px-4 py-3 shadow-2xl shadow-black/50 backdrop-blur-xl">
+          <span className="text-sm text-[#fafafa] font-semibold">{selectedIds.size} selected</span>
           <button
             onClick={clearSelection}
-            className="text-xs text-slate-400 hover:text-white transition"
+            className="text-xs text-[#71717a] hover:text-[#fafafa] transition"
           >
             Clear
           </button>
           <button
             onClick={() => setShowBulkDeathModal(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-500 transition"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#27272a] border border-[#3f3f46] text-[#a1a1aa] text-sm font-semibold hover:bg-red-500/25 hover: transition"
           >
             <Skull className="w-3.5 h-3.5" />
             Mark as Died
@@ -786,19 +796,19 @@ function ToastMessage({
   return (
     <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 animate-bounce-in">
       <div
-        className={`flex items-center gap-3 px-4 py-3 rounded-xl shadow-2xl border ${
+        className={`flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg border ${
           isSuccess
-            ? "bg-emerald-900/90 border-emerald-700 text-emerald-200"
-            : "bg-red-900/90 border-red-700 text-red-200"
+            ? "bg-[#18181b] border-[#27272a] text-[#fafafa]"
+            : "bg-[#18181b] border-[#27272a] text-[#fafafa]"
         }`}
       >
         {isSuccess ? (
-          <CheckCircle className="w-5 h-5 shrink-0" />
+          <CheckCircle className="w-5 h-5 shrink-0 text-[#a1a1aa]" />
         ) : (
-          <AlertTriangle className="w-5 h-5 shrink-0" />
+          <AlertTriangle className="w-5 h-5 shrink-0 text-[#a1a1aa]" />
         )}
         <p className="text-sm font-medium">{toast.message}</p>
-        <button onClick={onDismiss} className="ml-2 text-white/50 hover:text-white transition">
+        <button onClick={onDismiss} className="ml-2 text-[#71717a] hover:text-[#fafafa] transition">
           <X className="w-4 h-4" />
         </button>
       </div>

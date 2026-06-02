@@ -7,7 +7,6 @@ import { deleteServer, transferServerOwnership, removeServerModerator, addServer
 import type { Guild, BossGuild, Boss, PointRule, BossAssist } from "@/types";
 import { Loader2, Trash2, Crown, ArrowLeft, Server, Check, Key, Copy, RefreshCw, Plus, LogIn, Users, Bell, Link, Settings, AlertTriangle, X, Shield, Pencil, Swords, ChevronUp, ChevronDown, CheckSquare, Square, Eye, EyeOff, UserPlus, Minus, Trophy, Send, Save, MessageCircle, Zap } from "lucide-react";
 import { CreateServerModal } from "@/components/CreateServerModal";
-import { BossGuildsTab } from "@/components/BossGuildsTab";
 import { useToast } from "@/contexts/ToastContext";
 
 export function ServerSettingsView() {
@@ -421,7 +420,7 @@ export function ServerSettingsView() {
   if (serversLoading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <Loader2 className="w-6 h-6 text-slate-500 animate-spin" />
+        <Loader2 className="w-6 h-6 text-[#71717a] animate-spin" />
       </div>
     );
   }
@@ -430,8 +429,8 @@ export function ServerSettingsView() {
     const isAdmin = userRole === "admin";
     return (
       <div className="max-w-lg mx-auto px-4 py-20 text-center space-y-3">
-        <Server className="w-12 h-12 text-slate-700 mx-auto" />
-        <p className="text-slate-400">
+        <Server className="w-12 h-12 text-[#3f3f46] mx-auto" />
+        <p className="text-[#a1a1aa]">
           {isAdmin
             ? "As an admin, use the Admin Panel to select a server first."
             : "No server selected. Create one first."}
@@ -439,7 +438,7 @@ export function ServerSettingsView() {
         {isAdmin && (
           <button
             onClick={() => navigate("/admin")}
-            className="text-sm text-purple-400 hover:text-purple-300 transition"
+            className="text-sm text-[#a1a1aa] hover:text-[#d4d4d8] transition"
           >
             Go to Admin Panel →
           </button>
@@ -941,106 +940,71 @@ export function ServerSettingsView() {
   const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-6 space-y-6">
+    <div className="max-w-7xl mx-auto px-4 py-6">
       <div className="flex items-center gap-3">
-        <button onClick={() => navigate("/")} className="text-slate-400 hover:text-white p-1">
+        <button onClick={() => navigate("/")} className="text-[#a1a1aa] hover:text-[#fafafa] p-1">
           <ArrowLeft className="w-5 h-5" />
         </button>
-        <h2 className="text-xl font-bold text-white">Server Settings</h2>
-        {isOwner && <span className="text-xs bg-amber-900/50 text-amber-400 px-2 py-0.5 rounded-full">Owner</span>}
+        <h2 className="text-xl font-bold text-[#fafafa]">Server Settings</h2>
+        {isOwner && <span className="text-xs bg-[#18181b] text-[#a1a1aa] px-2 py-0.5 rounded-full">Owner</span>}
       </div>
 
-      {/* My Servers — always visible */}
-      {servers.length > 0 && (
-        <section className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3">
-          <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-            <Server className="w-3 h-3" /> My Servers
-          </h3>
-          <div className="space-y-1">
-            {servers.map((s) => (
-              <button
-                key={s.id}
-                onClick={() => setCurrentServer(s)}
-                className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition ${
-                  s.id === currentServer.id
-                    ? "bg-blue-900/30 border border-blue-800 text-white"
-                    : "bg-slate-800/50 border border-transparent text-slate-400 hover:text-slate-200 hover:border-slate-700"
-                }`}
-              >
-                <span>{s.name}</span>
-                <span className="flex items-center gap-1.5">
-                  {s.role === "owner" && <span className="text-xs text-amber-400 bg-amber-900/30 px-1.5 py-0.5 rounded">Owner</span>}
-                  {s.role === "moderator" && <span className="text-xs text-slate-400 bg-slate-800 px-1.5 py-0.5 rounded">Mod</span>}
-                  {s.id === currentServer.id && <Check className="w-3.5 h-3.5 text-blue-400" />}
-                </span>
-              </button>
-            ))}
-          </div>
-
-          <div className="border-t border-slate-800 pt-3 space-y-2">
-            <p className="text-xs text-slate-500 uppercase tracking-wider">Add Server</p>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setShowCreateModal(true)}
-                className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium bg-emerald-600 text-white hover:bg-emerald-500 transition"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                Create New
-              </button>
-              <div className="flex-1 flex gap-1">
-                <input
-                  type="text"
-                  value={inviteCode}
-                  onChange={(e) => setInviteCode(e.target.value)}
-                  placeholder="Invite code..."
-                  className="w-full bg-slate-800 border border-slate-700 rounded-lg px-2 py-2 text-sm text-white placeholder-slate-500 outline-none focus:border-blue-500 transition"
-                />
-                <button
-                  onClick={handleJoin}
-                  disabled={joining || !inviteCode.trim()}
-                  className="px-3 py-2 rounded-lg text-xs font-medium bg-blue-600 text-white hover:bg-blue-500 transition disabled:opacity-50 whitespace-nowrap"
-                >
-                  {joining ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <LogIn className="w-3.5 h-3.5" />}
+      <div className="flex gap-6 items-start">
+        {/* Sidebar */}
+        <div className="w-[260px] shrink-0 space-y-4 sticky top-6">
+          {servers.length > 0 && (
+            <div className="space-y-1">
+              <h3 className="text-[11px] font-semibold text-[#71717a] uppercase tracking-wider px-1">My Servers</h3>
+              {servers.map((s) => (
+                <button key={s.id} onClick={() => setCurrentServer(s)}
+                  className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition text-left ${
+                    s.id === currentServer.id ? "bg-[#18181b] border border-[#27272a] text-[#fafafa]" : "text-[#a1a1aa] hover:text-[#fafafa] hover:bg-[#18181b]/50 border border-transparent"
+                  }`}>
+                  <span className="truncate">{s.name}</span>
+                  <span className="flex items-center gap-1 shrink-0 ml-2">
+                    {s.role === "owner" && <span className="text-[10px] text-[#71717a]">Owner</span>}
+                    {s.role === "moderator" && <span className="text-[10px] text-[#71717a]">Mod</span>}
+                    {s.id === currentServer.id && <Check className="w-3 h-3 text-[#a1a1aa]" />}
+                  </span>
                 </button>
-              </div>
+              ))}
+            </div>
+          )}
+          <div className="space-y-2">
+            <button onClick={() => setShowCreateModal(true)} className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium bg-[#18181b] border border-[#27272a] text-[#fafafa] hover:bg-[#27272a] transition">
+              <Plus className="w-3.5 h-3.5" /> Create New
+            </button>
+            <div className="flex gap-1">
+              <input type="text" value={inviteCode} onChange={(e) => setInviteCode(e.target.value)} placeholder="Invite code..."
+                className="flex-1 bg-[#18181b] border border-[#27272a] rounded-lg px-2.5 py-2 text-xs text-[#fafafa] placeholder-[#71717a] outline-none focus:border-[#52525b] transition" />
+              <button onClick={handleJoin} disabled={joining || !inviteCode.trim()}
+                className="px-3 py-2 rounded-lg text-xs font-medium bg-[#18181b] border border-[#27272a] text-[#fafafa] hover:bg-[#27272a] transition disabled:opacity-40">
+                {joining ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <LogIn className="w-3.5 h-3.5" />}
+              </button>
             </div>
           </div>
-        </section>
-      )}
-
-      {showCreateModal && <CreateServerModal onClose={() => setShowCreateModal(false)} />}
-
-      {/* Tabs */}
-      <div className="flex bg-slate-800 rounded-lg p-0.5">
-        {([
-          ["general", "General", Settings],
-          ["guilds", "Guilds", Shield],
-          ["boss-guilds", "Boss Guilds", Swords],
-          ["boss-points", "Boss Points", Trophy],
-          ["members", "Members", Users],
-          ["integrations", "Integrations", Bell],
-          ...(isOwner ? [["danger", "Danger", AlertTriangle] as const] : []),
-        ] as readonly (readonly [string, string, React.ComponentType<{ className?: string }>])[]).map(([key, label, Icon]) => (
-          <button
-            key={key}
-            onClick={() => setTab(key)}
-            className={`flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-md text-sm font-medium transition ${
-              tab === key ? "bg-slate-700 text-white" : "text-slate-400 hover:text-slate-200"
-            }`}
-          >
-            <Icon className="w-3 h-3" />
-            <span className="hidden sm:inline">{label}</span>
-          </button>
-        ))}
-      </div>
+          {showCreateModal && <CreateServerModal onClose={() => setShowCreateModal(false)} />}
+          <nav className="bg-[#18181b] border border-[#27272a] rounded-xl p-1 space-y-0.5">
+            {(["general","guilds","boss-guilds","boss-points","members","integrations",...(isOwner?["danger"]:[])] as string[]).map((key) => {
+              const icons: Record<string,React.ComponentType<{className?:string}>> = {general:Settings,guilds:Shield,"boss-guilds":Swords,"boss-points":Trophy,members:Users,integrations:Bell,danger:AlertTriangle};
+              const labels: Record<string,string> = {general:"General",guilds:"Guilds","boss-guilds":"Boss Guilds","boss-points":"Boss Points",members:"Members",integrations:"Integrations",danger:"Danger"};
+              const Icon = icons[key];
+              return <button key={key} onClick={() => setTab(key)}
+                className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition ${tab===key?"bg-[#27272a] text-[#fafafa]":"text-[#a1a1aa] hover:text-[#fafafa] hover:bg-[#27272a]/50"}`}>
+                <Icon className="w-3.5 h-3.5 shrink-0" />{labels[key]}
+              </button>;
+            })}
+          </nav>
+        </div>
+        <div className="flex-1 min-w-0 space-y-4">
 
       {/* General Tab */}
       {tab === "general" && (
         <div className="space-y-4">
-          <section className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3">
-            <h3 className="text-sm font-semibold text-white mb-2">Server Name</h3>
+          <section className="bg-[#09090b] border border-[#27272a] rounded-xl p-4 space-y-3">
+            <h3 className="text-sm font-semibold text-[#fafafa] mb-2">Server Name</h3>
             <div className="flex gap-2">
-              <input type="text" value={name} onChange={(e) => setName(e.target.value)} disabled={!isOwner} className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 outline-none focus:border-purple-500 transition disabled:opacity-50" />
+              <input type="text" value={name} onChange={(e) => setName(e.target.value)} disabled={!isOwner} className="flex-1 bg-[#18181b] border border-[#27272a] rounded-lg px-3 py-2 text-sm text-[#fafafa] placeholder-[#71717a] outline-none focus:border-[#52525b] transition disabled:opacity-50" />
               {isOwner && (
                 <button onClick={async () => {
                   const trimmed = name.trim();
@@ -1051,14 +1015,14 @@ export function ServerSettingsView() {
                   await supabase.from("servers").update({ name: trimmed }).eq("id", currentServer.id);
                   setCurrentServer({ ...currentServer, name: trimmed });
                   toast("success", "Server name updated!");
-                }} className="px-3 py-2 rounded-lg text-xs font-medium bg-purple-600 text-white hover:bg-purple-500 transition">Save</button>
+                }} className="px-3 py-2 rounded-lg text-xs font-medium bg-[#fafafa] text-[#09090b] hover:bg-[#e4e4e7] transition">Save</button>
               )}
             </div>
           </section>
 
-          <section className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3">
-            <h3 className="text-sm font-semibold text-white">Server Timezone</h3>
-            <p className="text-sm text-slate-400">All spawn times will display in this timezone.</p>
+          <section className="bg-[#09090b] border border-[#27272a] rounded-xl p-4 space-y-3">
+            <h3 className="text-sm font-semibold text-[#fafafa]">Server Timezone</h3>
+            <p className="text-sm text-[#a1a1aa]">All spawn times will display in this timezone.</p>
             <select
               value={currentServer.timezone || "Asia/Manila"}
               onChange={async (e) => {
@@ -1067,7 +1031,7 @@ export function ServerSettingsView() {
                 setCurrentServer({ ...currentServer, timezone: tz });
                 toast("success", "Timezone updated");
               }}
-              className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-purple-500 transition"
+              className="w-full bg-[#18181b] border border-[#27272a] rounded-lg px-3 py-2 text-sm text-[#fafafa] outline-none focus:border-[#52525b] transition"
             >
               <option value="Asia/Manila">GMT+8 — Asia/Manila</option>
               <option value="Asia/Singapore">GMT+8 — Asia/Singapore</option>
@@ -1091,27 +1055,27 @@ export function ServerSettingsView() {
           </section>
 
           {isOwner && (
-            <section className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3">
-              <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+            <section className="bg-[#09090b] border border-[#27272a] rounded-xl p-4 space-y-3">
+              <h3 className="text-sm font-semibold text-[#a1a1aa] uppercase tracking-wider flex items-center gap-1.5">
                 <Key className="w-3 h-3" /> Invite Code
               </h3>
-              <p className="text-sm text-slate-400">
+              <p className="text-sm text-[#a1a1aa]">
                 Share this code with others so they can join as moderators.
               </p>
               <div className="flex items-center gap-2">
-                <code className={`flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-base font-mono tracking-wider text-center select-all transition ${showInviteCode ? "text-blue-400" : "text-slate-500"}`}>
+                <code className={`flex-1 bg-[#18181b] border border-[#27272a] rounded-lg px-3 py-2 text-base font-mono tracking-wider text-center select-all transition ${showInviteCode ? "text-[#a1a1aa]" : "text-[#71717a]"}`}>
                   {showInviteCode ? currentServer.invite_code : "••••••••"}
                 </code>
                 <button
                   onClick={() => setShowInviteCode(!showInviteCode)}
-                  className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition"
+                  className="p-2 rounded-lg text-[#a1a1aa] hover:text-[#fafafa] hover:bg-[#18181b] transition"
                   title={showInviteCode ? "Hide" : "Show"}
                 >
                   {showInviteCode ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
                 <button
                   onClick={() => { navigator.clipboard.writeText(currentServer.invite_code); toast("success", "Invite code copied!"); }}
-                  className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition"
+                  className="p-2 rounded-lg text-[#a1a1aa] hover:text-[#fafafa] hover:bg-[#18181b] transition"
                   title="Copy invite code"
                 >
                   <Copy className="w-4 h-4" />
@@ -1119,7 +1083,7 @@ export function ServerSettingsView() {
               </div>
               <button
                 onClick={handleRegenerateInvite}
-                className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-amber-400 transition"
+                className="flex items-center gap-1.5 text-xs text-[#a1a1aa] hover:text-[#a1a1aa] transition"
               >
                 <RefreshCw className="w-3 h-3" />
                 Regenerate code
@@ -1128,41 +1092,41 @@ export function ServerSettingsView() {
           )}
 
           {isOwnerOrModerator && (
-            <section className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3">
-              <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+            <section className="bg-[#09090b] border border-[#27272a] rounded-xl p-4 space-y-3">
+              <h3 className="text-sm font-semibold text-[#a1a1aa] uppercase tracking-wider flex items-center gap-1.5">
                 <Eye className="w-3 h-3" /> Viewer Key
               </h3>
-              <p className="text-sm text-slate-400">
+              <p className="text-sm text-[#a1a1aa]">
                 Share this key to let others monitor your server without an account. Viewers cannot make changes.
               </p>
               {viewerKey ? (
                 <>
                   <div className="flex items-center gap-2">
-                    <code className={`flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-base font-mono tracking-wider text-center select-all transition ${showViewerKey ? "text-emerald-400" : "text-slate-500"}`}>
+                    <code className={`flex-1 bg-[#18181b] border border-[#27272a] rounded-lg px-3 py-2 text-base font-mono tracking-wider text-center select-all transition ${showViewerKey ? "text-[#a1a1aa]" : "text-[#71717a]"}`}>
                       {showViewerKey ? viewerKey : "••••••••"}
                     </code>
                     <button
                       onClick={() => setShowViewerKey(!showViewerKey)}
-                      className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition"
+                      className="p-2 rounded-lg text-[#a1a1aa] hover:text-[#fafafa] hover:bg-[#18181b] transition"
                       title={showViewerKey ? "Hide" : "Show"}
                     >
                       {showViewerKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
                     <button
                       onClick={() => { navigator.clipboard.writeText(viewerKey); toast("success", "Viewer key copied!"); }}
-                      className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition"
+                      className="p-2 rounded-lg text-[#a1a1aa] hover:text-[#fafafa] hover:bg-[#18181b] transition"
                       title="Copy viewer key"
                     >
                       <Copy className="w-4 h-4" />
                     </button>
                   </div>
                   <div className="flex items-center gap-2">
-                    <code className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-400 truncate select-all">
+                    <code className="flex-1 bg-[#18181b] border border-[#27272a] rounded-lg px-3 py-2 text-xs text-[#a1a1aa] truncate select-all">
                       {window.location.origin}/view/{viewerKey}
                     </code>
                     <button
                       onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/view/${viewerKey}`); toast("success", "Viewer link copied!"); }}
-                      className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition shrink-0"
+                      className="p-2 rounded-lg text-[#a1a1aa] hover:text-[#fafafa] hover:bg-[#18181b] transition shrink-0"
                       title="Copy viewer link"
                     >
                       <Link className="w-4 h-4" />
@@ -1170,12 +1134,12 @@ export function ServerSettingsView() {
                   </div>
                 </>
               ) : (
-                <p className="text-xs text-slate-500">Loading...</p>
+                <p className="text-xs text-[#71717a]">Loading...</p>
               )}
               {isOwner && (
               <button
                 onClick={handleRegenerateViewerKey}
-                className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-amber-400 transition"
+                className="flex items-center gap-1.5 text-xs text-[#a1a1aa] hover:text-[#a1a1aa] transition"
               >
                 <RefreshCw className="w-3 h-3" />
                 Regenerate key
@@ -1189,8 +1153,8 @@ export function ServerSettingsView() {
       {/* Guilds Tab */}
       {tab === "guilds" && (
         <div className="space-y-4">
-          <section className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3">
-            <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+          <section className="bg-[#09090b] border border-[#27272a] rounded-xl p-4 space-y-3">
+            <h3 className="text-sm font-semibold text-[#a1a1aa] uppercase tracking-wider flex items-center gap-1.5">
               <Shield className="w-3 h-3" /> Guilds ({guilds.length})
             </h3>
 
@@ -1202,12 +1166,12 @@ export function ServerSettingsView() {
                 onChange={(e) => setNewGuildName(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleAddGuild()}
                 placeholder="New guild name..."
-                className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 outline-none focus:border-emerald-500 transition"
+                className="flex-1 bg-[#18181b] border border-[#27272a] rounded-lg px-3 py-2 text-sm text-[#fafafa] placeholder-[#71717a] outline-none focus:border-[#52525b] transition"
               />
               <button
                 onClick={handleAddGuild}
                 disabled={addingGuild || !newGuildName.trim()}
-                className="px-3 py-2 rounded-lg text-xs font-medium bg-emerald-600 text-white hover:bg-emerald-500 transition disabled:opacity-50 flex items-center gap-1"
+                className="px-3 py-2 rounded-lg text-xs font-medium bg-[#fafafa] text-[#09090b] hover:bg-[#e4e4e7] transition disabled:opacity-50 flex items-center gap-1"
               >
                 {addingGuild ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
                 Add
@@ -1217,16 +1181,16 @@ export function ServerSettingsView() {
             {/* Guild list */}
             {guildsLoading ? (
               <div className="flex items-center justify-center py-3">
-                <Loader2 className="w-4 h-4 text-slate-500 animate-spin" />
+                <Loader2 className="w-4 h-4 text-[#71717a] animate-spin" />
               </div>
             ) : guilds.length === 0 ? (
-              <p className="text-xs text-slate-500 text-center py-2">No guilds yet. Create one above.</p>
+              <p className="text-xs text-[#71717a] text-center py-2">No guilds yet. Create one above.</p>
             ) : (
               <div className="space-y-1">
                 {guilds.map((g) => (
                   <div
                     key={g.id}
-                    className="flex items-center justify-between px-3 py-2 rounded-lg bg-slate-800/30 text-sm"
+                    className="flex items-center justify-between px-3 py-2 rounded-lg bg-[#18181b]/30 text-sm"
                   >
                     {editingGuildId === g.id ? (
                       <div className="flex items-center gap-2 flex-1">
@@ -1235,25 +1199,25 @@ export function ServerSettingsView() {
                           value={editGuildName}
                           onChange={(e) => setEditGuildName(e.target.value)}
                           onKeyDown={(e) => { if (e.key === "Enter") handleEditGuild(g.id); if (e.key === "Escape") setEditingGuildId(null); }}
-                          className="flex-1 bg-slate-700 border border-slate-600 rounded px-2 py-1 text-xs text-white outline-none focus:border-blue-500"
+                          className="flex-1 bg-[#27272a] border border-[#3f3f46] rounded px-2 py-1 text-xs text-[#fafafa] outline-none focus:border-[#52525b]"
                           autoFocus
                         />
-                        <button onClick={() => handleEditGuild(g.id)} className="p-1 text-emerald-400 hover:text-emerald-300"><Check className="w-3.5 h-3.5" /></button>
-                        <button onClick={() => setEditingGuildId(null)} className="p-1 text-slate-400 hover:text-white"><X className="w-3.5 h-3.5" /></button>
+                        <button onClick={() => handleEditGuild(g.id)} className="p-1 text-[#a1a1aa] hover:text-[#d4d4d8]"><Check className="w-3.5 h-3.5" /></button>
+                        <button onClick={() => setEditingGuildId(null)} className="p-1 text-[#a1a1aa] hover:text-[#fafafa]"><X className="w-3.5 h-3.5" /></button>
                       </div>
                     ) : (
                       <>
-                        <span className="text-slate-300 text-xs">{g.name}</span>
+                        <span className="text-[#d4d4d8] text-xs">{g.name}</span>
                         <div className="flex items-center gap-1">
                           <button
                             onClick={() => { setEditingGuildId(g.id); setEditGuildName(g.name); }}
-                            className="p-1 rounded text-slate-500 hover:text-white hover:bg-slate-700 transition"
+                            className="p-1 rounded text-[#71717a] hover:text-[#fafafa] hover:bg-[#27272a] transition"
                           >
                             <Pencil className="w-3 h-3" />
                           </button>
                           <button
                             onClick={() => handleDeleteGuild(g.id, g.name)}
-                            className="p-1 rounded text-slate-500 hover:text-red-400 hover:bg-red-900/20 transition"
+                            className="p-1 rounded text-[#71717a] hover:text-[#f87171] hover:bg-red-900/20 transition"
                           >
                             <Trash2 className="w-3 h-3" />
                           </button>
@@ -1271,16 +1235,16 @@ export function ServerSettingsView() {
       {/* Boss Guilds Tab */}
       {tab === "boss-guilds" && (
         <div className="space-y-4">
-          <section className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3">
+          <section className="bg-[#09090b] border border-[#27272a] rounded-xl p-4 space-y-3">
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+              <h3 className="text-sm font-semibold text-[#a1a1aa] uppercase tracking-wider flex items-center gap-1.5">
                 <Swords className="w-3 h-3" /> Boss Guild Assignments
               </h3>
               {guilds.length > 0 && sortedBosses.length > 0 && (
                 <button
                   onClick={() => { if (bossMultiMode) clearBossSelection(); setBossMultiMode(!bossMultiMode); setBulkMode(null); }}
                   className={`flex items-center gap-1 px-2.5 py-1 rounded text-xs font-medium transition ${
-                    bossMultiMode ? "bg-blue-900/30 border border-blue-800 text-blue-400" : "bg-slate-800 border border-slate-700 text-slate-400 hover:text-slate-200"
+                    bossMultiMode ? "bg-[#18181b] border border-[#27272a] text-[#a1a1aa]" : "bg-[#18181b] border border-[#27272a] text-[#a1a1aa] hover:text-[#e4e4e7]"
                   }`}
                 >
                   <CheckSquare className="w-3 h-3" />
@@ -1288,26 +1252,26 @@ export function ServerSettingsView() {
                 </button>
               )}
             </div>
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-[#71717a]">
               Assign guilds to bosses and set custom points per boss.
               Rotation mode alternates guilds each spawn.
               Schedule mode assigns a guild per day of the week.
             </p>
-            <p className="text-xs text-amber-400/80 flex items-center gap-1">
+            <p className="text-xs text-[#a1a1aa]/80 flex items-center gap-1">
               <Trophy className="w-3 h-3" />
-              The <span className="text-white font-mono">- 1 +</span> controls set <strong>boss points</strong> — each attendee earns this many points per kill on the leaderboard.
+              The <span className="text-[#fafafa] font-mono">- 1 +</span> controls set <strong>boss points</strong> — each attendee earns this many points per kill on the leaderboard.
             </p>
-            <div className="flex items-center gap-3 text-xs text-slate-500">
-              <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-orange-400" /> Fixed Hours</span>
-              <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-blue-400" /> Fixed Schedule</span>
+            <div className="flex items-center gap-3 text-xs text-[#71717a]">
+              <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-[#a1a1aa]" /> Fixed Hours</span>
+              <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-[#a1a1aa]" /> Fixed Schedule</span>
             </div>
 
             {bossGuildsLoading ? (
-              <div className="flex items-center justify-center py-6"><Loader2 className="w-5 h-5 text-slate-500 animate-spin" /></div>
+              <div className="flex items-center justify-center py-6"><Loader2 className="w-5 h-5 text-[#71717a] animate-spin" /></div>
             ) : sortedBosses.length === 0 ? (
-              <p className="text-xs text-slate-500 text-center py-4">No bosses in this server.</p>
+              <p className="text-xs text-[#71717a] text-center py-4">No bosses in this server.</p>
             ) : guilds.length === 0 ? (
-              <p className="text-xs text-amber-400 text-center py-4">Create guilds first (in the Guilds tab) before assigning them to bosses.</p>
+              <p className="text-xs text-[#a1a1aa] text-center py-4">Create guilds first (in the Guilds tab) before assigning them to bosses.</p>
             ) : (
               <div className={`space-y-2 max-h-[60vh] overflow-y-auto ${bossMultiMode && selectedBossIds.size > 0 ? "pb-32" : ""}`}>
                 {sortedBosses.map((boss) => {
@@ -1317,25 +1281,25 @@ export function ServerSettingsView() {
                   const isSelected = selectedBossIds.has(boss.id);
 
                   return (
-                    <div key={boss.id} className={`bg-slate-800/30 rounded-lg overflow-hidden ${isSelected ? "ring-2 ring-blue-500 ring-inset" : ""}`}>
+                    <div key={boss.id} className={`bg-[#18181b]/30 rounded-lg overflow-hidden ${isSelected ? "ring-2 ring-[#52525b] ring-inset" : ""}`}>
                       {/* Boss header row */}
                       <button
                         onClick={() => {
                           if (bossMultiMode) { toggleBossSelect(boss.id); return; }
                           setExpandedBoss(isExpanded ? null : boss.id);
                         }}
-                        className="w-full flex items-center gap-2 px-4 py-3 hover:bg-slate-700/30 transition text-left"
+                        className="w-full flex items-center gap-2 px-4 py-3 hover:bg-[#27272a]/30 transition text-left"
                       >
                         {bossMultiMode && (
-                          isSelected ? <CheckSquare className="w-4 h-4 text-blue-400 shrink-0" /> : <Square className="w-4 h-4 text-slate-600 shrink-0" />
+                          isSelected ? <CheckSquare className="w-4 h-4 text-[#a1a1aa] shrink-0" /> : <Square className="w-4 h-4 text-[#52525b] shrink-0" />
                         )}
-                        <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${boss.spawn_type === "fixed_schedule" ? "bg-blue-400" : "bg-orange-400"}`} title={boss.spawn_type === "fixed_schedule" ? "Fixed Schedule" : "Fixed Hours"} />
-                        <span className="text-xs text-white font-medium flex-1 truncate">{boss.name}</span>
+                        <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${boss.spawn_type === "fixed_schedule" ? "bg-[#a1a1aa]" : "bg-[#a1a1aa]"}`} title={boss.spawn_type === "fixed_schedule" ? "Fixed Schedule" : "Fixed Hours"} />
+                        <span className="text-xs text-[#fafafa] font-medium flex-1 truncate">{boss.name}</span>
                         <span className={`text-xs px-1.5 py-0.5 rounded ${
-                          mode === "rotation" ? "text-blue-400 bg-blue-900/30" :
-                          mode === "daily" ? "text-cyan-400 bg-cyan-900/30" :
-                          mode === "schedule" ? "text-purple-400 bg-purple-900/30" :
-                          "text-slate-500 bg-slate-800"
+                          mode === "rotation" ? "text-[#a1a1aa] bg-[#18181b]" :
+                          mode === "daily" ? "text-[#a1a1aa] bg-cyan-900/30" :
+                          mode === "schedule" ? "text-[#a1a1aa] bg-purple-900/30" :
+                          "text-[#71717a] bg-[#18181b]"
                         }`}>
                           {mode === "rotation" ? `Rotation (${bossAssignments.length})` :
                            mode === "daily" ? `Daily (${bossAssignments.length})` :
@@ -1352,14 +1316,14 @@ export function ServerSettingsView() {
                                 setBosses(prev => prev.map(b => b.id === boss.id ? { ...b, boss_points: val } : b));
                               } catch { /* ignore */ }
                             }}
-                            className={`p-0.5 rounded cursor-pointer transition ${(boss.boss_points ?? 1) <= 0 ? "text-slate-700 cursor-default" : "text-slate-500 hover:text-red-400"}`}
+                            className={`p-0.5 rounded cursor-pointer transition ${(boss.boss_points ?? 1) <= 0 ? "text-[#3f3f46] cursor-default" : "text-[#71717a] hover:text-[#f87171]"}`}
                             role="button"
                             tabIndex={0}
                             onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.currentTarget.click(); } }}
                           >
                             <Minus className="w-3 h-3" />
                           </span>
-                          <span className="text-xs text-white font-mono w-5 text-center tabular-nums">{boss.boss_points ?? 1}</span>
+                          <span className="text-xs text-[#fafafa] font-mono w-5 text-center tabular-nums">{boss.boss_points ?? 1}</span>
                           <span
                             onClick={async () => {
                               const val = Math.min(99, (boss.boss_points ?? 1) + 1);
@@ -1369,7 +1333,7 @@ export function ServerSettingsView() {
                                 setBosses(prev => prev.map(b => b.id === boss.id ? { ...b, boss_points: val } : b));
                               } catch { /* ignore */ }
                             }}
-                            className={`p-0.5 rounded cursor-pointer transition ${(boss.boss_points ?? 1) >= 99 ? "text-slate-700 cursor-default" : "text-slate-500 hover:text-emerald-400"}`}
+                            className={`p-0.5 rounded cursor-pointer transition ${(boss.boss_points ?? 1) >= 99 ? "text-[#3f3f46] cursor-default" : "text-[#71717a] hover:text-[#a1a1aa]"}`}
                             role="button"
                             tabIndex={0}
                             onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.currentTarget.click(); } }}
@@ -1377,33 +1341,33 @@ export function ServerSettingsView() {
                             <Plus className="w-3 h-3" />
                           </span>
                         </span>
-                        <span className="text-slate-600 mx-1">|</span>
+                        <span className="text-[#52525b] mx-1">|</span>
                         {/* Salary toggle (deprecated — per-guild salary now in Boss Points tab) */}
                         <label className="flex items-center gap-1 cursor-not-allowed shrink-0 opacity-40" title="Salary is now per-guild — use the Boss Points tab">
                           <input
                             type="checkbox"
                             checked={(boss as any).has_salary === true}
                             disabled
-                            className="w-3 h-3 rounded border-slate-600 bg-slate-800 text-slate-600"
+                            className="w-3 h-3 rounded border-[#3f3f46] bg-[#18181b] text-[#52525b]"
                           />
-                          <span className="text-[10px] text-slate-600">Sal</span>
+                          <span className="text-[10px] text-[#52525b]">Sal</span>
                         </label>
-                        {!bossMultiMode && (isExpanded ? <ChevronUp className="w-4 h-4 text-slate-500" /> : <ChevronDown className="w-4 h-4 text-slate-500" />)}
+                        {!bossMultiMode && (isExpanded ? <ChevronUp className="w-4 h-4 text-[#71717a]" /> : <ChevronDown className="w-4 h-4 text-[#71717a]" />)}
                       </button>
 
                       {/* Expanded config (hidden in multi-mode) */}
                       {!bossMultiMode && isExpanded && (
-                        <div className="border-t border-slate-700/50 px-4 py-3 space-y-3">
+                        <div className="border-t border-[#27272a]/50 px-4 py-3 space-y-3">
                           {/* Mode selector */}
                           <div className="flex items-center gap-2">
-                            <span className="text-xs text-slate-500 w-12">Mode:</span>
+                            <span className="text-xs text-[#71717a] w-12">Mode:</span>
                             <select
                               value={mode}
                               onChange={(e) => {
                                 const newMode = e.target.value as "none" | "rotation" | "schedule" | "daily";
                                 handleSetBossMode(boss.id, newMode);
                               }}
-                              className="bg-slate-700 border border-slate-600 rounded px-2 py-1 text-xs text-white outline-none focus:border-blue-500"
+                              className="bg-[#27272a] border border-[#3f3f46] rounded px-2 py-1 text-xs text-[#fafafa] outline-none focus:border-[#52525b]"
                             >
                               <option value="none">None</option>
                               <option value="rotation">Rotation (per kill)</option>
@@ -1415,23 +1379,23 @@ export function ServerSettingsView() {
                           {/* Daily mode */}
                           {mode === "daily" && (
                             <div className="space-y-1.5">
-                              <p className="text-xs text-slate-500">Guild rotation order (first → last):</p>
+                              <p className="text-xs text-[#71717a]">Guild rotation order (first → last):</p>
                               {bossAssignments
                                 .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
                                 .map((bg, idx) => {
                                   const guild = guilds.find(g => g.id === bg.guild_id);
                                   return (
-                                    <div key={bg.id} className="flex items-center gap-1 bg-slate-800/50 rounded px-2 py-1.5">
-                                      <span className="text-xs text-slate-500 w-4">{idx + 1}.</span>
-                                      <span className="text-sm text-slate-200 flex-1">{guild?.name ?? "Unknown"}</span>
-                                      <button onClick={() => handleMoveDailyGuild(boss.id, bg.id, "up")} disabled={idx === 0} className="p-0.5 text-slate-500 hover:text-emerald-400 disabled:opacity-30"><Plus className="w-3 h-3" /></button>
-                                      <button onClick={() => handleMoveDailyGuild(boss.id, bg.id, "down")} disabled={idx === bossAssignments.length - 1} className="p-0.5 text-slate-500 hover:text-red-400 disabled:opacity-30"><Minus className="w-3 h-3" /></button>
-                                      <button onClick={() => handleRemoveDailyGuild(boss.id, bg.id)} className="p-0.5 text-slate-500 hover:text-red-400"><X className="w-3 h-3" /></button>
+                                    <div key={bg.id} className="flex items-center gap-1 bg-[#18181b]/50 rounded px-2 py-1.5">
+                                      <span className="text-xs text-[#71717a] w-4">{idx + 1}.</span>
+                                      <span className="text-sm text-[#e4e4e7] flex-1">{guild?.name ?? "Unknown"}</span>
+                                      <button onClick={() => handleMoveDailyGuild(boss.id, bg.id, "up")} disabled={idx === 0} className="p-0.5 text-[#71717a] hover:text-[#a1a1aa] disabled:opacity-30"><Plus className="w-3 h-3" /></button>
+                                      <button onClick={() => handleMoveDailyGuild(boss.id, bg.id, "down")} disabled={idx === bossAssignments.length - 1} className="p-0.5 text-[#71717a] hover:text-[#f87171] disabled:opacity-30"><Minus className="w-3 h-3" /></button>
+                                      <button onClick={() => handleRemoveDailyGuild(boss.id, bg.id)} className="p-0.5 text-[#71717a] hover:text-[#f87171]"><X className="w-3 h-3" /></button>
                                     </div>
                                   );
                                 })}
                               {savingBossId === boss.id ? (
-                                <div className="flex items-center gap-2 text-xs text-slate-400 py-1">
+                                <div className="flex items-center gap-2 text-xs text-[#a1a1aa] py-1">
                                   <Loader2 className="w-3 h-3 animate-spin" /> Adding...
                                 </div>
                               ) : (
@@ -1439,7 +1403,7 @@ export function ServerSettingsView() {
                                   key={`add-daily-${boss.id}-${bossAssignments.length}`}
                                   value=""
                                   onChange={(e) => { if (e.target.value) handleAddDailyGuild(boss.id, e.target.value); }}
-                                  className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-xs text-slate-400 outline-none focus:border-cyan-500"
+                                  className="w-full bg-[#18181b] border border-[#27272a] rounded px-2 py-1.5 text-xs text-[#a1a1aa] outline-none focus:border-[#52525b]"
                                 >
                                   <option value="">+ Add guild to daily rotation...</option>
                                   {guilds.map(g => (
@@ -1453,23 +1417,23 @@ export function ServerSettingsView() {
                           {/* Rotation mode */}
                           {mode === "rotation" && (
                             <div className="space-y-1.5">
-                              <p className="text-xs text-slate-500">Guild rotation order (first → last):</p>
+                              <p className="text-xs text-[#71717a]">Guild rotation order (first → last):</p>
                               {bossAssignments
                                 .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
                                 .map((bg, idx) => {
                                   const guild = guilds.find(g => g.id === bg.guild_id);
                                   return (
-                                    <div key={bg.id} className="flex items-center gap-1 bg-slate-800/50 rounded px-2 py-1.5">
-                                      <span className="text-xs text-slate-500 w-4">{idx + 1}.</span>
-                                      <span className="text-sm text-slate-200 flex-1">{guild?.name ?? "Unknown"}</span>
-                                      <button onClick={() => handleMoveRotationGuild(boss.id, bg.id, "up")} disabled={idx === 0} className="p-0.5 text-slate-500 hover:text-emerald-400 disabled:opacity-30"><Plus className="w-3 h-3" /></button>
-                                      <button onClick={() => handleMoveRotationGuild(boss.id, bg.id, "down")} disabled={idx === bossAssignments.length - 1} className="p-0.5 text-slate-500 hover:text-red-400 disabled:opacity-30"><Minus className="w-3 h-3" /></button>
-                                      <button onClick={() => handleRemoveRotationGuild(boss.id, bg.id)} className="p-0.5 text-slate-500 hover:text-red-400"><X className="w-3 h-3" /></button>
+                                    <div key={bg.id} className="flex items-center gap-1 bg-[#18181b]/50 rounded px-2 py-1.5">
+                                      <span className="text-xs text-[#71717a] w-4">{idx + 1}.</span>
+                                      <span className="text-sm text-[#e4e4e7] flex-1">{guild?.name ?? "Unknown"}</span>
+                                      <button onClick={() => handleMoveRotationGuild(boss.id, bg.id, "up")} disabled={idx === 0} className="p-0.5 text-[#71717a] hover:text-[#a1a1aa] disabled:opacity-30"><Plus className="w-3 h-3" /></button>
+                                      <button onClick={() => handleMoveRotationGuild(boss.id, bg.id, "down")} disabled={idx === bossAssignments.length - 1} className="p-0.5 text-[#71717a] hover:text-[#f87171] disabled:opacity-30"><Minus className="w-3 h-3" /></button>
+                                      <button onClick={() => handleRemoveRotationGuild(boss.id, bg.id)} className="p-0.5 text-[#71717a] hover:text-[#f87171]"><X className="w-3 h-3" /></button>
                                     </div>
                                   );
                                 })}
                               {savingBossId === boss.id ? (
-                                <div className="flex items-center gap-2 text-xs text-slate-400 py-1">
+                                <div className="flex items-center gap-2 text-xs text-[#a1a1aa] py-1">
                                   <Loader2 className="w-3 h-3 animate-spin" /> Adding...
                                 </div>
                               ) : (
@@ -1477,7 +1441,7 @@ export function ServerSettingsView() {
                                   key={`add-${boss.id}-${bossAssignments.length}`}
                                   value=""
                                   onChange={(e) => { if (e.target.value) handleAddRotationGuild(boss.id, e.target.value); }}
-                                  className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-xs text-slate-400 outline-none focus:border-blue-500"
+                                  className="w-full bg-[#18181b] border border-[#27272a] rounded px-2 py-1.5 text-xs text-[#a1a1aa] outline-none focus:border-[#52525b]"
                                 >
                                   <option value="">+ Add guild to rotation...</option>
                                   {guilds.map(g => (
@@ -1491,22 +1455,22 @@ export function ServerSettingsView() {
                           {/* Schedule mode */}
                           {mode === "schedule" && (
                             <div className="space-y-1.5">
-                              <p className="text-xs text-slate-500">Assign guild per day:</p>
+                              <p className="text-xs text-[#71717a]">Assign guild per day:</p>
                               <div className="grid grid-cols-7 gap-1">
                                 {DAY_LABELS.map((label, dow) => {
                                   const bg = bossAssignments.find(a => a.day_of_week === dow);
                                   const guild = bg ? guilds.find(g => g.id === bg.guild_id) : null;
                                   return (
                                     <div key={dow} className="text-center space-y-1">
-                                      <span className="text-xs text-slate-500 block">{label}</span>
+                                      <span className="text-xs text-[#71717a] block">{label}</span>
                                       <select
                                         value={guild?.id ?? ""}
                                         onChange={(e) => handleSetScheduleGuild(boss.id, dow, e.target.value || null)}
                                         className={`w-full rounded-lg px-1.5 py-1.5 text-xs outline-none disabled:opacity-50 border ${
                                           guild
-                                            ? "bg-purple-900/20 border-purple-700 text-purple-300"
-                                            : "bg-slate-800 border-slate-700 text-white"
-                                        } focus:border-purple-500`}
+                                            ? "bg-[#18181b] border-[#27272a] text-[#d4d4d8]"
+                                            : "bg-[#18181b] border-[#27272a] text-[#fafafa]"
+                                        } focus:border-[#52525b]`}
                                       >
                                         <option value="">—</option>
                                         <option value="">Clear</option>
@@ -1529,38 +1493,38 @@ export function ServerSettingsView() {
 
           {/* Floating multi-select action bar */}
           {bossMultiMode && selectedBossIds.size > 0 && (
-            <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 bg-slate-900 border border-blue-800 rounded-xl px-5 py-4 shadow-2xl space-y-4 w-[95vw] max-w-2xl">
+            <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 bg-[#09090b] border border-[#27272a] rounded-xl px-5 py-4 shadow-2xl space-y-4 w-[95vw] max-w-2xl">
               {/* Close button */}
               <button
                 onClick={() => { clearBossSelection(); setBossMultiMode(false); }}
                 disabled={bulkProcessing}
-                className="absolute top-3 right-3 p-1 text-slate-500 hover:text-white transition disabled:opacity-50"
+                className="absolute top-3 right-3 p-1 text-[#71717a] hover:text-[#fafafa] transition disabled:opacity-50"
               >
                 <X className="w-4 h-4" />
               </button>
 
               {/* Spinner overlay */}
               {bulkProcessing && (
-                <div className="absolute inset-0 bg-slate-900/80 rounded-xl flex items-center justify-center gap-2 z-10">
-                  <Loader2 className="w-5 h-5 text-blue-400 animate-spin" />
-                  <span className="text-sm text-slate-300">Applying...</span>
+                <div className="absolute inset-0 bg-[#09090b]/80 rounded-xl flex items-center justify-center gap-2 z-10">
+                  <Loader2 className="w-5 h-5 text-[#a1a1aa] animate-spin" />
+                  <span className="text-sm text-[#d4d4d8]">Applying...</span>
                 </div>
               )}
 
               {/* Header */}
               <div className="flex items-center gap-3">
-                <span className="text-sm text-white font-medium">{selectedBossIds.size} boss{selectedBossIds.size !== 1 ? "es" : ""} selected</span>
+                <span className="text-sm text-[#fafafa] font-medium">{selectedBossIds.size} boss{selectedBossIds.size !== 1 ? "es" : ""} selected</span>
               </div>
 
               {/* Step 1: Choose mode */}
               {!bulkMode && (
                 <div className="space-y-2">
-                  <span className="text-xs text-slate-400 font-medium">Choose assignment mode:</span>
+                  <span className="text-xs text-[#a1a1aa] font-medium">Choose assignment mode:</span>
                   <div className="flex gap-2">
-                    <button onClick={() => handleBulkSetMode("rotation")} disabled={bulkProcessing} className="flex-1 py-2.5 rounded-lg text-sm font-medium bg-blue-600 text-white hover:bg-blue-500 transition disabled:opacity-50">🔄 Rotation</button>
-                    <button onClick={() => handleBulkSetMode("daily")} disabled={bulkProcessing} className="flex-1 py-2.5 rounded-lg text-sm font-medium bg-cyan-600 text-white hover:bg-cyan-500 transition disabled:opacity-50">📆 Daily</button>
-                    <button onClick={() => handleBulkSetMode("schedule")} disabled={bulkProcessing} className="flex-1 py-2.5 rounded-lg text-sm font-medium bg-purple-600 text-white hover:bg-purple-500 transition disabled:opacity-50">📅 Schedule</button>
-                    <button onClick={() => handleBulkSetMode("none")} disabled={bulkProcessing} className="py-2.5 px-4 rounded-lg text-sm font-medium bg-slate-700 text-slate-300 hover:bg-slate-600 transition disabled:opacity-50">Clear</button>
+                    <button onClick={() => handleBulkSetMode("rotation")} disabled={bulkProcessing} className="flex-1 py-2.5 rounded-lg text-sm font-medium bg-[#fafafa] text-[#09090b] hover:bg-[#e4e4e7] transition disabled:opacity-50">🔄 Rotation</button>
+                    <button onClick={() => handleBulkSetMode("daily")} disabled={bulkProcessing} className="flex-1 py-2.5 rounded-lg text-sm font-medium bg-[#fafafa] text-[#09090b] hover:bg-[#e4e4e7] transition disabled:opacity-50">📆 Daily</button>
+                    <button onClick={() => handleBulkSetMode("schedule")} disabled={bulkProcessing} className="flex-1 py-2.5 rounded-lg text-sm font-medium bg-[#fafafa] text-[#09090b] hover:bg-[#e4e4e7] transition disabled:opacity-50">📅 Schedule</button>
+                    <button onClick={() => handleBulkSetMode("none")} disabled={bulkProcessing} className="py-2.5 px-4 rounded-lg text-sm font-medium bg-[#27272a] text-[#d4d4d8] hover:bg-[#3f3f46] transition disabled:opacity-50">Clear</button>
                   </div>
                 </div>
               )}
@@ -1569,36 +1533,36 @@ export function ServerSettingsView() {
               {bulkMode === "daily" && guilds.length > 0 && (
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs text-cyan-400 font-medium">Daily — guilds alternate by day across all selected bosses</span>
-                    <button onClick={() => setBulkMode(null)} disabled={bulkProcessing} className="text-xs text-slate-400 hover:text-white transition disabled:opacity-50">← Change mode</button>
+                    <span className="text-xs text-[#a1a1aa] font-medium">Daily — guilds alternate by day across all selected bosses</span>
+                    <button onClick={() => setBulkMode(null)} disabled={bulkProcessing} className="text-xs text-[#a1a1aa] hover:text-[#fafafa] transition disabled:opacity-50">← Change mode</button>
                   </div>
-                  <p className="text-xs text-slate-500">Guild alternation order (first → last):</p>
+                  <p className="text-xs text-[#71717a]">Guild alternation order (first → last):</p>
                   {bulkDailyAdded.map((gid, idx) => {
                     const guild = guilds.find(g => g.id === gid);
                     return (
-                      <div key={`daily-${gid}-${idx}`} className="flex items-center gap-1 bg-slate-800/50 rounded px-2 py-1.5">
-                        <span className="text-xs text-slate-500 w-4">{idx + 1}.</span>
-                        <span className="text-sm text-slate-200 flex-1">{guild?.name ?? "Unknown"}</span>
+                      <div key={`daily-${gid}-${idx}`} className="flex items-center gap-1 bg-[#18181b]/50 rounded px-2 py-1.5">
+                        <span className="text-xs text-[#71717a] w-4">{idx + 1}.</span>
+                        <span className="text-sm text-[#e4e4e7] flex-1">{guild?.name ?? "Unknown"}</span>
                         <button
                           onClick={() => setBulkDailyAdded(prev => { if (idx === 0) return prev; const n = [...prev]; [n[idx], n[idx-1]] = [n[idx-1], n[idx]]; return n; })}
                           disabled={idx === 0 || bulkProcessing}
-                          className="p-0.5 text-slate-500 hover:text-white disabled:opacity-30"
+                          className="p-0.5 text-[#71717a] hover:text-[#fafafa] disabled:opacity-30"
                         ><ChevronUp className="w-3 h-3" /></button>
                         <button
                           onClick={() => setBulkDailyAdded(prev => { if (idx === prev.length-1) return prev; const n = [...prev]; [n[idx], n[idx+1]] = [n[idx+1], n[idx]]; return n; })}
                           disabled={idx === bulkDailyAdded.length - 1 || bulkProcessing}
-                          className="p-0.5 text-slate-500 hover:text-white disabled:opacity-30"
+                          className="p-0.5 text-[#71717a] hover:text-[#fafafa] disabled:opacity-30"
                         ><ChevronDown className="w-3 h-3" /></button>
                         <button
                           onClick={() => setBulkDailyAdded(prev => prev.filter((_, i) => i !== idx))}
                           disabled={bulkProcessing}
-                          className="p-0.5 text-slate-500 hover:text-red-400 disabled:opacity-50"
+                          className="p-0.5 text-[#71717a] hover:text-[#f87171] disabled:opacity-50"
                         ><X className="w-3 h-3" /></button>
                       </div>
                     );
                   })}
                   {bulkProcessing ? (
-                    <div className="flex items-center gap-2 text-xs text-slate-400 py-1">
+                    <div className="flex items-center gap-2 text-xs text-[#a1a1aa] py-1">
                       <Loader2 className="w-3 h-3 animate-spin" /> Adding...
                     </div>
                   ) : (
@@ -1606,7 +1570,7 @@ export function ServerSettingsView() {
                       key={`bulk-add-daily-${bulkDailyAdded.length}`}
                       value=""
                       onChange={(e) => { if (e.target.value) handleBulkAddDailyGuild(e.target.value); }}
-                      className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-xs text-slate-400 outline-none focus:border-cyan-500"
+                      className="w-full bg-[#18181b] border border-[#27272a] rounded px-2 py-1.5 text-xs text-[#a1a1aa] outline-none focus:border-[#52525b]"
                     >
                       <option value="">+ Add guild to daily rotation...</option>
                       {guilds.map(g => (
@@ -1621,36 +1585,36 @@ export function ServerSettingsView() {
               {bulkMode === "rotation" && guilds.length > 0 && (
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs text-blue-400 font-medium">Rotation — guilds to add to all selected bosses</span>
-                    <button onClick={() => setBulkMode(null)} disabled={bulkProcessing} className="text-xs text-slate-400 hover:text-white transition disabled:opacity-50">← Change mode</button>
+                    <span className="text-xs text-[#a1a1aa] font-medium">Rotation — guilds to add to all selected bosses</span>
+                    <button onClick={() => setBulkMode(null)} disabled={bulkProcessing} className="text-xs text-[#a1a1aa] hover:text-[#fafafa] transition disabled:opacity-50">← Change mode</button>
                   </div>
-                  <p className="text-xs text-slate-500">Guild rotation order (first → last):</p>
+                  <p className="text-xs text-[#71717a]">Guild rotation order (first → last):</p>
                   {bulkRotationAdded.map((gid, idx) => {
                     const guild = guilds.find(g => g.id === gid);
                     return (
-                      <div key={`${gid}-${idx}`} className="flex items-center gap-1 bg-slate-800/50 rounded px-2 py-1.5">
-                        <span className="text-xs text-slate-500 w-4">{idx + 1}.</span>
-                        <span className="text-sm text-slate-200 flex-1">{guild?.name ?? "Unknown"}</span>
+                      <div key={`${gid}-${idx}`} className="flex items-center gap-1 bg-[#18181b]/50 rounded px-2 py-1.5">
+                        <span className="text-xs text-[#71717a] w-4">{idx + 1}.</span>
+                        <span className="text-sm text-[#e4e4e7] flex-1">{guild?.name ?? "Unknown"}</span>
                         <button
                           onClick={() => setBulkRotationAdded(prev => { if (idx === 0) return prev; const n = [...prev]; [n[idx], n[idx-1]] = [n[idx-1], n[idx]]; return n; })}
                           disabled={idx === 0 || bulkProcessing}
-                          className="p-0.5 text-slate-500 hover:text-white disabled:opacity-30"
+                          className="p-0.5 text-[#71717a] hover:text-[#fafafa] disabled:opacity-30"
                         ><ChevronUp className="w-3 h-3" /></button>
                         <button
                           onClick={() => setBulkRotationAdded(prev => { if (idx === prev.length-1) return prev; const n = [...prev]; [n[idx], n[idx+1]] = [n[idx+1], n[idx]]; return n; })}
                           disabled={idx === bulkRotationAdded.length - 1 || bulkProcessing}
-                          className="p-0.5 text-slate-500 hover:text-white disabled:opacity-30"
+                          className="p-0.5 text-[#71717a] hover:text-[#fafafa] disabled:opacity-30"
                         ><ChevronDown className="w-3 h-3" /></button>
                         <button
                           onClick={() => setBulkRotationAdded(prev => prev.filter((_, i) => i !== idx))}
                           disabled={bulkProcessing}
-                          className="p-0.5 text-slate-500 hover:text-red-400 disabled:opacity-50"
+                          className="p-0.5 text-[#71717a] hover:text-[#f87171] disabled:opacity-50"
                         ><X className="w-3 h-3" /></button>
                       </div>
                     );
                   })}
                   {bulkProcessing ? (
-                    <div className="flex items-center gap-2 text-xs text-slate-400 py-1">
+                    <div className="flex items-center gap-2 text-xs text-[#a1a1aa] py-1">
                       <Loader2 className="w-3 h-3 animate-spin" /> Adding...
                     </div>
                   ) : (
@@ -1658,7 +1622,7 @@ export function ServerSettingsView() {
                       key={`bulk-add-${bulkRotationAdded.length}`}
                       value=""
                       onChange={(e) => { if (e.target.value) handleBulkAddRotationGuild(e.target.value); }}
-                      className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-xs text-slate-400 outline-none focus:border-blue-500"
+                      className="w-full bg-[#18181b] border border-[#27272a] rounded px-2 py-1.5 text-xs text-[#a1a1aa] outline-none focus:border-[#52525b]"
                     >
                       <option value="">+ Add guild to rotation...</option>
                       {guilds.map(g => (
@@ -1673,8 +1637,8 @@ export function ServerSettingsView() {
               {bulkMode === "schedule" && (
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs text-purple-400 font-medium">Schedule — assign guild per day to all selected bosses</span>
-                    <button onClick={() => setBulkMode(null)} disabled={bulkProcessing} className="text-xs text-slate-400 hover:text-white transition disabled:opacity-50">← Change mode</button>
+                    <span className="text-xs text-[#a1a1aa] font-medium">Schedule — assign guild per day to all selected bosses</span>
+                    <button onClick={() => setBulkMode(null)} disabled={bulkProcessing} className="text-xs text-[#a1a1aa] hover:text-[#fafafa] transition disabled:opacity-50">← Change mode</button>
                   </div>
                   <div className="grid grid-cols-7 gap-2">
                     {DAY_LABELS.map((label, dow) => {
@@ -1682,7 +1646,7 @@ export function ServerSettingsView() {
                       const selectedGuild = selectedGuildId ? guilds.find(g => g.id === selectedGuildId) : null;
                       return (
                         <div key={dow} className="space-y-1">
-                          <span className="text-xs text-slate-500 text-center block">{label}</span>
+                          <span className="text-xs text-[#71717a] text-center block">{label}</span>
                           <select
                             value={selectedGuildId ?? ""}
                             disabled={bulkProcessing}
@@ -1692,9 +1656,9 @@ export function ServerSettingsView() {
                             }}
                             className={`w-full rounded-lg px-1.5 py-1.5 text-xs outline-none disabled:opacity-50 border ${
                               selectedGuild
-                                ? "bg-purple-900/20 border-purple-700 text-purple-300"
-                                : "bg-slate-800 border-slate-700 text-white"
-                            } focus:border-purple-500`}
+                                ? "bg-[#18181b] border-[#27272a] text-[#d4d4d8]"
+                                : "bg-[#18181b] border-[#27272a] text-[#fafafa]"
+                            } focus:border-[#52525b]`}
                           >
                             <option value="">—</option>
                             <option value="">Clear</option>
@@ -1711,48 +1675,38 @@ export function ServerSettingsView() {
         </div>
       )}
 
-      {/* Boss Guilds Tab */}
-      {tab === "boss-guilds" && currentServer && (
-        <BossGuildsTab
-          bosses={sortedBosses}
-          guilds={guilds}
-          bossGuilds={bossGuilds}
-          onBossGuildsChange={setBossGuildsState}
-          serverId={currentServer.id}
-        />
-      )}
 
       {/* Boss Points Tab */}
       {tab === "boss-points" && (
         <>
           {/* Point Rules — at the top */}
-          <section className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-4 mb-4">
+          <section className="bg-[#09090b] border border-[#27272a] rounded-xl p-4 space-y-4 mb-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+              <h3 className="text-sm font-semibold text-[#a1a1aa] uppercase tracking-wider flex items-center gap-1.5">
                 <Zap className="w-3 h-3" /> Point Rules
               </h3>
               <button
                 onClick={() => setShowAddRule(!showAddRule)}
-                className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-purple-600 text-white hover:bg-purple-500 transition"
+                className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-[#fafafa] text-[#09090b] hover:bg-[#e4e4e7] transition"
               >
                 <Plus className="w-3 h-3" />
                 Add Rule
               </button>
             </div>
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-[#71717a]">
               Create time-based multipliers that boost guild points during specific hours (server timezone).
             </p>
 
             {/* Add Rule Form */}
             {showAddRule && (
-              <div className="bg-slate-800/50 border border-slate-700 rounded-lg p-3 space-y-3">
+              <div className="bg-[#18181b]/50 border border-[#27272a] rounded-lg p-3 space-y-3">
                 <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
                   <div>
-                    <label className="text-[10px] text-slate-500 block mb-1">Guild</label>
+                    <label className="text-[10px] text-[#71717a] block mb-1">Guild</label>
                     <select
                       value={newRuleGuildId}
                       onChange={e => setNewRuleGuildId(e.target.value)}
-                      className="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white"
+                      className="w-full bg-[#18181b] border border-[#27272a] rounded-lg px-2.5 py-1.5 text-xs text-[#fafafa]"
                     >
                       <option value="">Select guild...</option>
                       {guilds.map(g => (
@@ -1761,11 +1715,11 @@ export function ServerSettingsView() {
                     </select>
                   </div>
                   <div>
-                    <label className="text-[10px] text-slate-500 block mb-1">Start Hour</label>
+                    <label className="text-[10px] text-[#71717a] block mb-1">Start Hour</label>
                     <select
                       value={newRuleStartHour}
                       onChange={e => setNewRuleStartHour(Number(e.target.value))}
-                      className="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white"
+                      className="w-full bg-[#18181b] border border-[#27272a] rounded-lg px-2.5 py-1.5 text-xs text-[#fafafa]"
                     >
                       {Array.from({ length: 24 }, (_, i) => (
                         <option key={i} value={i}>{i.toString().padStart(2, "0")}:00</option>
@@ -1773,11 +1727,11 @@ export function ServerSettingsView() {
                     </select>
                   </div>
                   <div>
-                    <label className="text-[10px] text-slate-500 block mb-1">End Hour</label>
+                    <label className="text-[10px] text-[#71717a] block mb-1">End Hour</label>
                     <select
                       value={newRuleEndHour}
                       onChange={e => setNewRuleEndHour(Number(e.target.value))}
-                      className="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white"
+                      className="w-full bg-[#18181b] border border-[#27272a] rounded-lg px-2.5 py-1.5 text-xs text-[#fafafa]"
                     >
                       {Array.from({ length: 24 }, (_, i) => (
                         <option key={i} value={i}>{i.toString().padStart(2, "0")}:00</option>
@@ -1785,11 +1739,11 @@ export function ServerSettingsView() {
                     </select>
                   </div>
                   <div>
-                    <label className="text-[10px] text-slate-500 block mb-1">Multiplier</label>
+                    <label className="text-[10px] text-[#71717a] block mb-1">Multiplier</label>
                     <select
                       value={newRuleMultiplier}
                       onChange={e => setNewRuleMultiplier(Number(e.target.value))}
-                      className="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white"
+                      className="w-full bg-[#18181b] border border-[#27272a] rounded-lg px-2.5 py-1.5 text-xs text-[#fafafa]"
                     >
                       {[1.5, 2, 2.5, 3, 4, 5].map(m => (
                         <option key={m} value={m}>{m}x</option>
@@ -1801,13 +1755,13 @@ export function ServerSettingsView() {
                   <button
                     onClick={handleAddPointRule}
                     disabled={!newRuleGuildId || savingRule}
-                    className="flex-1 px-3 py-1.5 rounded-lg text-xs font-medium bg-purple-600 text-white hover:bg-purple-500 disabled:opacity-50 transition"
+                    className="flex-1 px-3 py-1.5 rounded-lg text-xs font-medium bg-[#fafafa] text-[#09090b] hover:bg-[#e4e4e7] disabled:opacity-50 transition"
                   >
                     {savingRule ? "Saving..." : "Save Rule"}
                   </button>
                   <button
                     onClick={() => setShowAddRule(false)}
-                    className="px-3 py-1.5 rounded-lg text-xs text-slate-400 hover:text-white transition"
+                    className="px-3 py-1.5 rounded-lg text-xs text-[#a1a1aa] hover:text-[#fafafa] transition"
                   >
                     Cancel
                   </button>
@@ -1818,10 +1772,10 @@ export function ServerSettingsView() {
             {/* Existing Rules */}
             {rulesLoading ? (
               <div className="flex items-center justify-center py-3">
-                <Loader2 className="w-4 h-4 text-slate-500 animate-spin" />
+                <Loader2 className="w-4 h-4 text-[#71717a] animate-spin" />
               </div>
             ) : pointRules.length === 0 ? (
-              <p className="text-xs text-slate-600">No point rules yet. Add one above to boost guild points during specific hours.</p>
+              <p className="text-xs text-[#52525b]">No point rules yet. Add one above to boost guild points during specific hours.</p>
             ) : (
               <div className="space-y-2">
                 {pointRules.map(rule => {
@@ -1830,26 +1784,26 @@ export function ServerSettingsView() {
                   const startLabel = `${String(cfg.start_hour).padStart(2, "0")}:00`;
                   const endLabel = `${String(cfg.end_hour).padStart(2, "0")}:00`;
                   return (
-                    <div key={rule.id} className={`flex items-center justify-between bg-slate-800/30 rounded-lg px-3 py-2.5 gap-3 ${!rule.enabled ? "opacity-50" : ""}`}>
+                    <div key={rule.id} className={`flex items-center justify-between bg-[#18181b]/30 rounded-lg px-3 py-2.5 gap-3 ${!rule.enabled ? "opacity-50" : ""}`}>
                       <div className="flex items-center gap-3 min-w-0">
                         <label className="flex items-center gap-2 cursor-pointer shrink-0">
                           <input
                             type="checkbox"
                             checked={rule.enabled}
                             onChange={() => handleToggleRule(rule.id, !rule.enabled)}
-                            className="w-3.5 h-3.5 rounded border-slate-600 bg-slate-800 text-purple-600 focus:ring-purple-500/50 cursor-pointer"
+                            className="w-3.5 h-3.5 rounded border-[#3f3f46] bg-[#18181b] text-[#a1a1aa] focus:ring-[#52525b]/50 cursor-pointer"
                           />
                         </label>
-                        <span className="text-xs font-medium text-white truncate">{guild?.name || "Unknown"}</span>
-                        <span className="text-[10px] text-slate-500 shrink-0">
+                        <span className="text-xs font-medium text-[#fafafa] truncate">{guild?.name || "Unknown"}</span>
+                        <span className="text-[10px] text-[#71717a] shrink-0">
                           {startLabel} – {endLabel}
                         </span>
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
-                        <span className="text-xs font-mono text-amber-400 font-bold">{cfg.multiplier}x</span>
+                        <span className="text-xs font-mono text-[#a1a1aa] font-bold">{cfg.multiplier}x</span>
                         <button
                           onClick={() => handleDeleteRule(rule.id)}
-                          className="p-1 rounded text-slate-500 hover:text-red-400 hover:bg-red-900/20 transition"
+                          className="p-1 rounded text-[#71717a] hover:text-[#f87171] hover:bg-red-900/20 transition"
                           title="Delete rule"
                         >
                           <Trash2 className="w-3 h-3" />
@@ -1924,16 +1878,16 @@ export function ServerSettingsView() {
       {/* Members Tab */}
       {tab === "members" && (
         <div className="space-y-4">
-          <section className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3">
-            <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+          <section className="bg-[#09090b] border border-[#27272a] rounded-xl p-4 space-y-3">
+            <h3 className="text-sm font-semibold text-[#a1a1aa] uppercase tracking-wider flex items-center gap-1.5">
               <Users className="w-3 h-3" /> Members ({members.length})
             </h3>
             {membersLoading ? (
               <div className="flex items-center justify-center py-3">
-                <Loader2 className="w-4 h-4 text-slate-500 animate-spin" />
+                <Loader2 className="w-4 h-4 text-[#71717a] animate-spin" />
               </div>
             ) : members.length === 0 ? (
-              <p className="text-xs text-slate-500">No members yet.</p>
+              <p className="text-xs text-[#71717a]">No members yet.</p>
             ) : (
               <div className="space-y-1">
                 {members.map((m) => {
@@ -1942,22 +1896,22 @@ export function ServerSettingsView() {
                   return (
                   <div key={m.user_id}>
                     <div
-                      className={`flex items-center justify-between px-3 py-2 rounded-lg bg-slate-800/30 text-sm ${m.role === "moderator" && isOwner ? "cursor-pointer hover:bg-slate-800/50 transition" : ""}`}
+                      className={`flex items-center justify-between px-3 py-2 rounded-lg bg-[#18181b]/30 text-sm ${m.role === "moderator" && isOwner ? "cursor-pointer hover:bg-[#18181b]/50 transition" : ""}`}
                       onClick={() => m.role === "moderator" && isOwner && handleToggleModPerms(m.user_id)}
                     >
-                    <span className="text-slate-300 text-xs truncate max-w-[200px]">
+                    <span className="text-[#d4d4d8] text-xs truncate max-w-[200px]">
                       {m.email ?? m.user_id}
                     </span>
                     <div className="flex items-center gap-2">
                       <span className={`text-xs px-1.5 py-0.5 rounded ${
-                        m.role === "owner" ? "text-amber-400 bg-amber-900/30" : "text-slate-400 bg-slate-800"
+                        m.role === "owner" ? "text-[#a1a1aa] bg-[#18181b]" : "text-[#a1a1aa] bg-[#18181b]"
                       }`}>
                         {m.role}
                       </span>
                       {isOwner && m.role === "moderator" && (
                         <button
                           onClick={(e) => { e.stopPropagation(); handleRemoveMod(m.user_id); }}
-                          className="p-1 rounded text-slate-500 hover:text-red-400 hover:bg-red-900/20 transition"
+                          className="p-1 rounded text-[#71717a] hover:text-[#f87171] hover:bg-red-900/20 transition"
                           title="Remove moderator"
                         >
                           <X className="w-3 h-3" />
@@ -1968,21 +1922,21 @@ export function ServerSettingsView() {
                   {/* Permissions panel — slide down for moderators */}
                   {isOwner && m.role === "moderator" && (
                     <div className={`transition-all duration-300 ease-in-out overflow-hidden ${isExpanded ? "max-h-[800px] opacity-100" : "max-h-0 opacity-0"}`}>
-                      <div className="border-t border-slate-700/50 px-3 py-3 bg-slate-900/30 space-y-3">
-                        <span className="text-xs font-medium text-white">Permissions for {m.email ?? "moderator"}</span>
+                      <div className="border-t border-[#27272a]/50 px-3 py-3 bg-[#09090b]/30 space-y-3">
+                        <span className="text-xs font-medium text-[#fafafa]">Permissions for {m.email ?? "moderator"}</span>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                           {PERMISSION_SECTIONS.map(section => (
                             <div key={section.section} className="space-y-1.5">
-                              <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">{section.section}</span>
+                              <span className="text-[10px] font-semibold text-[#71717a] uppercase tracking-wider">{section.section}</span>
                               {section.items.map(({ key, label, indent, parent }) => (
                                 <label key={key} className={`flex items-center gap-2 cursor-pointer group ${indent ? "ml-5" : ""}`}>
                                   <input
                                     type="checkbox"
                                     checked={perms[key] === true}
                                     onChange={() => handleTogglePermission(m.user_id, key)}
-                                    className={`rounded border-slate-600 bg-slate-800 focus:ring-purple-500/50 cursor-pointer ${parent ? "w-4 h-4 text-purple-600" : "w-3.5 h-3.5 text-purple-500/70"}`}
+                                    className={`rounded border-[#3f3f46] bg-[#18181b] focus:ring-[#52525b]/50 cursor-pointer ${parent ? "w-4 h-4 text-[#a1a1aa]" : "w-3.5 h-3.5 text-[#71717a]"}`}
                                   />
-                                  <span className={`group-hover:text-slate-300 transition ${parent ? "text-xs text-slate-300 font-medium" : "text-xs text-slate-400"}`}>{label}</span>
+                                  <span className={`group-hover:text-[#d4d4d8] transition ${parent ? "text-xs text-[#d4d4d8] font-medium" : "text-xs text-[#a1a1aa]"}`}>{label}</span>
                                 </label>
                               ))}
                             </div>
@@ -1991,7 +1945,7 @@ export function ServerSettingsView() {
                         <button
                           onClick={() => handleSavePermissions(m.user_id)}
                           disabled={savingPerms === m.user_id}
-                          className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded bg-purple-600 hover:bg-purple-500 text-white transition disabled:opacity-50"
+                          className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded bg-[#fafafa] hover:bg-[#e4e4e7] text-[#09090b] transition disabled:opacity-50"
                         >
                           {savingPerms === m.user_id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
                           Save Permissions
@@ -2008,11 +1962,11 @@ export function ServerSettingsView() {
 
           {/* Add Moderator — owner only */}
           {isOwner && (
-          <section className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3">
-            <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+          <section className="bg-[#09090b] border border-[#27272a] rounded-xl p-4 space-y-3">
+            <h3 className="text-sm font-semibold text-[#a1a1aa] uppercase tracking-wider flex items-center gap-1.5">
               <UserPlus className="w-3 h-3" /> Add Moderator
             </h3>
-            <p className="text-sm text-slate-400">
+            <p className="text-sm text-[#a1a1aa]">
               Moderators can manage bosses, configure Discord webhooks, and edit server settings.
             </p>
             <div className="flex gap-2">
@@ -2022,12 +1976,12 @@ export function ServerSettingsView() {
                 onChange={(e) => setModEmail(e.target.value)}
                 placeholder="user@email.com"
                 onKeyDown={(e) => e.key === "Enter" && handleAddMod()}
-                className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 outline-none focus:border-purple-500 transition"
+                className="flex-1 bg-[#18181b] border border-[#27272a] rounded-lg px-3 py-2 text-sm text-[#fafafa] placeholder-[#71717a] outline-none focus:border-[#52525b] transition"
               />
               <button
                 onClick={handleAddMod}
                 disabled={addingMod || !modEmail.trim()}
-                className="flex items-center gap-1 px-3 py-2 rounded-lg text-xs font-medium bg-purple-600 text-white hover:bg-purple-500 transition disabled:opacity-50"
+                className="flex items-center gap-1 px-3 py-2 rounded-lg text-xs font-medium bg-[#fafafa] text-[#09090b] hover:bg-[#e4e4e7] transition disabled:opacity-50"
               >
                 {addingMod ? <Loader2 className="w-3 h-3 animate-spin" /> : <UserPlus className="w-3 h-3" />}
                 Add
@@ -2039,24 +1993,24 @@ export function ServerSettingsView() {
           {isOwner && (() => {
             const moderators = members.filter((m) => m.role === "moderator");
             return (
-            <section className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3">
-              <h3 className="text-sm font-semibold text-white">Ownership</h3>
+            <section className="bg-[#09090b] border border-[#27272a] rounded-xl p-4 space-y-3">
+              <h3 className="text-sm font-semibold text-[#fafafa]">Ownership</h3>
 
               <div>
-                <h4 className="text-xs font-semibold text-amber-400 flex items-center gap-1 mb-2">
+                <h4 className="text-xs font-semibold text-[#a1a1aa] flex items-center gap-1 mb-2">
                   <Crown className="w-3 h-3" /> Transfer Ownership
                 </h4>
-                <p className="text-xs text-slate-400 mb-2">
+                <p className="text-xs text-[#a1a1aa] mb-2">
                   Transfer ownership to a current moderator. You'll become a moderator.
                 </p>
                 {moderators.length === 0 ? (
-                  <p className="text-xs text-slate-500 italic">No moderators to transfer to. Share the invite code to add moderators first.</p>
+                  <p className="text-xs text-[#71717a] italic">No moderators to transfer to. Share the invite code to add moderators first.</p>
                 ) : (
                 <div className="flex gap-2">
                   <select
                     value={transferId}
                     onChange={(e) => setTransferId(e.target.value)}
-                    className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white outline-none focus:border-amber-500 transition"
+                    className="flex-1 bg-[#18181b] border border-[#27272a] rounded-lg px-3 py-2 text-xs text-[#fafafa] outline-none focus:border-[#52525b] transition"
                   >
                     <option value="">Select a moderator...</option>
                     {moderators.map((m) => (
@@ -2068,7 +2022,7 @@ export function ServerSettingsView() {
                   <button
                     onClick={handleTransfer}
                     disabled={transferring || !transferId}
-                    className="flex items-center gap-1 px-3 py-2 rounded-lg text-xs font-medium bg-amber-600 text-white hover:bg-amber-500 transition disabled:opacity-50"
+                    className="flex items-center gap-1 px-3 py-2 rounded-lg text-xs font-medium bg-[#fafafa] text-[#09090b] hover:bg-[#e4e4e7] transition disabled:opacity-50"
                   >
                     {transferring ? <Loader2 className="w-3 h-3 animate-spin" /> : <Crown className="w-3 h-3" />}
                     Transfer
@@ -2086,28 +2040,28 @@ export function ServerSettingsView() {
       {tab === "integrations" && (
         <div className="space-y-6">
           {/* Connected Servers */}
-          <section className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-4">
-            <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+          <section className="bg-[#09090b] border border-[#27272a] rounded-xl p-4 space-y-4">
+            <h3 className="text-sm font-semibold text-[#a1a1aa] uppercase tracking-wider flex items-center gap-2">
               <Swords className="w-4 h-4" /> Linked Discord Servers
             </h3>
 
             {discordLinks.length === 0 ? (
-              <p className="text-xs text-slate-500 italic">No Discord servers linked yet.</p>
+              <p className="text-xs text-[#71717a] italic">No Discord servers linked yet.</p>
             ) : (
               <div className="space-y-3">
                 {discordLinks.map(link => {
                   const isEditingChannels = !!channelValues[link.id];
                   const isEditingThreads = !!threadValues[link.id];
                   return (
-                    <div key={link.id} className="bg-slate-800/40 border border-slate-700/50 rounded-lg overflow-hidden">
+                    <div key={link.id} className="bg-[#18181b]/40 border border-[#27272a]/50 rounded-lg overflow-hidden">
                       {/* Header */}
-                      <div className="flex items-center gap-3 px-4 py-3 bg-slate-800/60">
-                        <span className="text-xs font-bold font-mono text-amber-400 bg-slate-700 px-2 py-1 rounded">{link.command_prefix || "!"}</span>
+                      <div className="flex items-center gap-3 px-4 py-3 bg-[#18181b]/60">
+                        <span className="text-xs font-bold font-mono text-[#a1a1aa] bg-[#27272a] px-2 py-1 rounded">{link.command_prefix || "!"}</span>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm text-white font-mono truncate">{link.discord_guild_id}</p>
-                          {link.label && <p className="text-[11px] text-slate-500 truncate">{link.label}</p>}
+                          <p className="text-sm text-[#fafafa] font-mono truncate">{link.discord_guild_id}</p>
+                          {link.label && <p className="text-[11px] text-[#71717a] truncate">{link.label}</p>}
                         </div>
-                        <button onClick={() => handleRemoveDiscordLink(link.id)} className="p-1.5 rounded hover:bg-red-900/30 text-slate-400 hover:text-red-400 transition" title="Remove link">
+                        <button onClick={() => handleRemoveDiscordLink(link.id)} className="p-1.5 rounded hover:bg-[#18181b] text-[#a1a1aa] hover:text-[#f87171] transition" title="Remove link">
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
@@ -2117,12 +2071,12 @@ export function ServerSettingsView() {
                         {/* Channels */}
                         <div>
                           <div className="flex items-center justify-between mb-2">
-                            <h4 className="text-xs font-semibold text-blue-400 flex items-center gap-1.5">
+                            <h4 className="text-xs font-semibold text-[#a1a1aa] flex items-center gap-1.5">
                               <Bell className="w-3.5 h-3.5" /> Notification & Command Channels
                             </h4>
                             {!isEditingChannels ? (
                               <button onClick={() => setChannelValues(prev => ({ ...prev, [link.id]: { notif: link.notification_channel_id || "", cmd: link.command_channel_id || "" } }))}
-                                className="text-xs px-2.5 py-1 rounded bg-slate-700 text-slate-300 hover:text-white hover:bg-slate-600 transition font-medium">
+                                className="text-xs px-2.5 py-1 rounded bg-[#27272a] text-[#d4d4d8] hover:text-[#fafafa] hover:bg-[#3f3f46] transition font-medium">
                                 <Pencil className="w-3 h-3 inline mr-1" />Edit
                               </button>
                             ) : (
@@ -2132,33 +2086,33 @@ export function ServerSettingsView() {
                                   await supabase.from("discord_configs").update({ notification_channel_id: vals.notif.trim() || undefined, command_channel_id: vals.cmd.trim() || undefined }).eq("id", link.id);
                                   setDiscordLinks(prev => prev.map(d => d.id === link.id ? { ...d, notification_channel_id: vals.notif.trim() || undefined, command_channel_id: vals.cmd.trim() || undefined } : d));
                                   setChannelValues(prev => { const n = { ...prev }; delete n[link.id]; return n; });
-                                }} className="text-xs px-2 py-1 rounded bg-green-600 text-white hover:bg-green-500 transition font-medium flex items-center gap-1">
+                                }} className="text-xs px-2 py-1 rounded bg-green-600 text-[#fafafa] hover:bg-green-500 transition font-medium flex items-center gap-1">
                                   <Check className="w-3 h-3" />Save
                                 </button>
                                 <button onClick={() => setChannelValues(prev => { const n = { ...prev }; delete n[link.id]; return n; })}
-                                  className="text-xs px-2 py-1 rounded bg-slate-700 text-slate-400 hover:text-white transition">Cancel</button>
+                                  className="text-xs px-2 py-1 rounded bg-[#27272a] text-[#a1a1aa] hover:text-[#fafafa] transition">Cancel</button>
                               </div>
                             )}
                           </div>
                           {isEditingChannels ? (
                             <div className="grid grid-cols-2 gap-2">
                               <div>
-                                <label className="text-[11px] text-slate-500 block mb-1">Alert Channel ID</label>
+                                <label className="text-[11px] text-[#71717a] block mb-1">Alert Channel ID</label>
                                 <input type="text" value={channelValues[link.id].notif} onChange={(e) => setChannelValues(prev => ({ ...prev, [link.id]: { ...prev[link.id], notif: e.target.value }}))}
                                   placeholder="e.g. 1510221200259940442"
-                                  className="w-full bg-slate-700 rounded px-2.5 py-1.5 text-xs text-slate-200 font-mono outline-none focus:ring-1 focus:ring-blue-500" />
+                                  className="w-full bg-[#27272a] rounded px-2.5 py-1.5 text-xs text-[#e4e4e7] font-mono outline-none focus:ring-1 focus:ring-[#52525b]" />
                               </div>
                               <div>
-                                <label className="text-[11px] text-slate-500 block mb-1">Command Channel ID</label>
+                                <label className="text-[11px] text-[#71717a] block mb-1">Command Channel ID</label>
                                 <input type="text" value={channelValues[link.id].cmd} onChange={(e) => setChannelValues(prev => ({ ...prev, [link.id]: { ...prev[link.id], cmd: e.target.value }}))}
                                   placeholder="e.g. 1507015001091608729"
-                                  className="w-full bg-slate-700 rounded px-2.5 py-1.5 text-xs text-slate-200 font-mono outline-none focus:ring-1 focus:ring-blue-500" />
+                                  className="w-full bg-[#27272a] rounded px-2.5 py-1.5 text-xs text-[#e4e4e7] font-mono outline-none focus:ring-1 focus:ring-[#52525b]" />
                               </div>
                             </div>
                           ) : (
                             <div className="flex gap-4 text-xs">
-                              <span className="text-slate-500">Alerts: {link.notification_channel_id ? <code className="text-slate-300 font-mono">{link.notification_channel_id}</code> : <span className="italic text-slate-600">not set</span>}</span>
-                              <span className="text-slate-500">Commands: {link.command_channel_id ? <code className="text-slate-300 font-mono">{link.command_channel_id}</code> : <span className="italic text-slate-600">not set</span>}</span>
+                              <span className="text-[#71717a]">Alerts: {link.notification_channel_id ? <code className="text-[#d4d4d8] font-mono">{link.notification_channel_id}</code> : <span className="italic text-[#52525b]">not set</span>}</span>
+                              <span className="text-[#71717a]">Commands: {link.command_channel_id ? <code className="text-[#d4d4d8] font-mono">{link.command_channel_id}</code> : <span className="italic text-[#52525b]">not set</span>}</span>
                             </div>
                           )}
                         </div>
@@ -2166,12 +2120,12 @@ export function ServerSettingsView() {
                         {/* Auto-Threads */}
                         <div>
                           <div className="flex items-center justify-between mb-2">
-                            <h4 className="text-xs font-semibold text-purple-400 flex items-center gap-1.5">
+                            <h4 className="text-xs font-semibold text-[#a1a1aa] flex items-center gap-1.5">
                               <MessageCircle className="w-3.5 h-3.5" /> Auto-Threads
                             </h4>
                             {!isEditingThreads ? (
                               <button onClick={() => setThreadValues(prev => ({ ...prev, [link.id]: { channelId: link.thread_channel_id || "", guilds: link.thread_guilds || [] } }))}
-                                className="text-xs px-2.5 py-1 rounded bg-slate-700 text-slate-300 hover:text-white hover:bg-slate-600 transition font-medium">
+                                className="text-xs px-2.5 py-1 rounded bg-[#27272a] text-[#d4d4d8] hover:text-[#fafafa] hover:bg-[#3f3f46] transition font-medium">
                                 <Pencil className="w-3 h-3 inline mr-1" />Edit
                               </button>
                             ) : (
@@ -2181,11 +2135,11 @@ export function ServerSettingsView() {
                                   await updateThreadConfig(link.id, vals.channelId.trim() || null, vals.guilds);
                                   setDiscordLinks(prev => prev.map(d => d.id === link.id ? { ...d, thread_channel_id: vals.channelId.trim() || undefined, thread_guilds: vals.guilds } : d));
                                   setThreadValues(prev => { const n = { ...prev }; delete n[link.id]; return n; });
-                                }} className="text-xs px-2 py-1 rounded bg-green-600 text-white hover:bg-green-500 transition font-medium flex items-center gap-1">
+                                }} className="text-xs px-2 py-1 rounded bg-green-600 text-[#fafafa] hover:bg-green-500 transition font-medium flex items-center gap-1">
                                   <Check className="w-3 h-3" />Save
                                 </button>
                                 <button onClick={() => setThreadValues(prev => { const n = { ...prev }; delete n[link.id]; return n; })}
-                                  className="text-xs px-2 py-1 rounded bg-slate-700 text-slate-400 hover:text-white transition">Cancel</button>
+                                  className="text-xs px-2 py-1 rounded bg-[#27272a] text-[#a1a1aa] hover:text-[#fafafa] transition">Cancel</button>
                               </div>
                             )}
                           </div>
@@ -2193,13 +2147,13 @@ export function ServerSettingsView() {
                             <div className="space-y-3">
                               {guilds.length > 0 && (
                                 <div>
-                                  <label className="text-[11px] text-slate-500 block mb-1.5">Guilds that trigger threads</label>
+                                  <label className="text-[11px] text-[#71717a] block mb-1.5">Guilds that trigger threads</label>
                                   <div className="flex flex-wrap gap-2">
                                     {guilds.map(g => {
                                       const checked = threadValues[link.id].guilds.includes(g.id);
                                       return (
                                         <label key={g.id} className={`flex items-center gap-1.5 px-2.5 py-1 rounded cursor-pointer border text-xs font-medium transition ${
-                                          checked ? "bg-purple-900/30 border-purple-700 text-purple-300" : "bg-slate-800 border-slate-700 text-slate-500 hover:text-slate-300"
+                                          checked ? "bg-purple-900/30 border-[#27272a] text-[#d4d4d8]" : "bg-[#18181b] border-[#27272a] text-[#71717a] hover:text-[#d4d4d8]"
                                         }`}>
                                           <input type="checkbox" checked={checked} onChange={() => {
                                             setThreadValues(prev => ({ ...prev, [link.id]: { ...prev[link.id], guilds: checked ? prev[link.id].guilds.filter(id => id !== g.id) : [...prev[link.id].guilds, g.id] } }));
@@ -2212,41 +2166,41 @@ export function ServerSettingsView() {
                                 </div>
                               )}
                               <div>
-                                <label className="text-[11px] text-slate-500 block mb-1">Thread Channel ID</label>
+                                <label className="text-[11px] text-[#71717a] block mb-1">Thread Channel ID</label>
                                 <input type="text" value={threadValues[link.id].channelId} onChange={(e) => setThreadValues(prev => ({ ...prev, [link.id]: { ...prev[link.id], channelId: e.target.value } }))}
                                   placeholder="Paste forum or text channel ID"
-                                  className="w-full bg-slate-700 rounded px-2.5 py-1.5 text-xs text-slate-200 font-mono outline-none focus:ring-1 focus:ring-purple-500" />
+                                  className="w-full bg-[#27272a] rounded px-2.5 py-1.5 text-xs text-[#e4e4e7] font-mono outline-none focus:ring-1 focus:ring-[#52525b]" />
                               </div>
                             </div>
                           ) : (
-                            <div className="text-xs text-slate-500">
+                            <div className="text-xs text-[#71717a]">
                               Threads: {link.thread_channel_id ? (
-                                <><code className="text-slate-300 font-mono">{link.thread_channel_id}</code> <span className="text-purple-400">({((link.thread_guilds || []).map(gid => guilds.find(g => g.id === gid)?.name).filter(Boolean).join(", ")) || "no guilds"})</span></>
+                                <><code className="text-[#d4d4d8] font-mono">{link.thread_channel_id}</code> <span className="text-[#a1a1aa]">({((link.thread_guilds || []).map(gid => guilds.find(g => g.id === gid)?.name).filter(Boolean).join(", ")) || "no guilds"})</span></>
                               ) : (
-                                <span className="italic text-slate-600">not set</span>
+                                <span className="italic text-[#52525b]">not set</span>
                               )}
                             </div>
                           )}
                         </div>
 
                         {/* Actions */}
-                        <div className="flex items-center gap-3 pt-1 border-t border-slate-700/50">
+                        <div className="flex items-center gap-3 pt-1 border-t border-[#27272a]/50">
                           <button onClick={() => {
                             if (editAliasLinkId === link.id) { setEditAliasLinkId(null); return; }
                             setEditAliasLinkId(link.id); setEditAliases((link as any).command_aliases || {});
                           }}
                             className={`text-xs px-2.5 py-1 rounded font-medium flex items-center gap-1.5 transition ${
-                              editAliasLinkId === link.id ? "bg-amber-600 text-white" : "bg-amber-900/30 text-amber-400 hover:bg-amber-900/50"
+                              editAliasLinkId === link.id ? "bg-[#fafafa] text-[#09090b]" : "bg-[#18181b] text-[#a1a1aa] hover:bg-[#18181b]"
                             }`}>
                             <Pencil className="w-3 h-3" />{editAliasLinkId === link.id ? "Close Aliases" : "Command Aliases"}
                           </button>
                           <div className="flex items-center gap-1.5 ml-auto">
-                            <label className="text-[11px] text-slate-500">Ping:</label>
+                            <label className="text-[11px] text-[#71717a]">Ping:</label>
                             <input type="text"
                               value={pingValues[link.id] ?? ((link as any).notification_prefix || "")}
                               onChange={(e) => setPingValues(prev => ({ ...prev, [link.id]: e.target.value }))}
                               placeholder="@everyone"
-                              className={`bg-slate-700 border border-slate-600 px-2 py-1 text-xs text-slate-200 font-mono outline-none focus:ring-1 focus:ring-blue-500 transition ${
+                              className={`bg-[#27272a] border border-[#3f3f46] px-2 py-1 text-xs text-[#e4e4e7] font-mono outline-none focus:ring-1 focus:ring-[#52525b] transition ${
                                 (pingValues[link.id] ?? "") !== ((link as any).notification_prefix || "")
                                   ? "rounded-l w-28" : "rounded w-36"
                               }`} />
@@ -2259,7 +2213,7 @@ export function ServerSettingsView() {
                                   setPingValues(prev => { const n = { ...prev }; delete n[link.id]; return n; });
                                   toast("success", val ? `Ping set to "${val}"` : "Ping reset to default");
                                 }}
-                                className="text-xs px-2 py-1 rounded-r bg-blue-600 text-white hover:bg-blue-500 transition font-medium">Save</button>
+                                className="text-xs px-2 py-1 rounded-r bg-[#fafafa] text-[#09090b] hover:bg-[#e4e4e7] transition font-medium">Save</button>
                             )}
                           </div>
                           <button onClick={async () => {
@@ -2289,15 +2243,15 @@ export function ServerSettingsView() {
 
                         {/* Inline Command Aliases Editor */}
                         {editAliasLinkId === link.id && (
-                          <div className="pt-3 border-t border-slate-700/50 animate-slideDown">
+                          <div className="pt-3 border-t border-[#27272a]/50 animate-slideDown">
                             <div className="space-y-2">
                               {["list","nextspawn","killed","forcespawn","forcespawnall","commands","notifhere","threadhere","cmdhere"].map(cmd => (
                                 <div key={cmd} className="flex items-center gap-2">
-                                  <span className="text-xs text-amber-400 w-24 font-mono">{cmd}</span>
-                                  <span className="text-xs text-slate-600">→</span>
+                                  <span className="text-xs text-[#a1a1aa] w-24 font-mono">{cmd}</span>
+                                  <span className="text-xs text-[#52525b]">→</span>
                                   <input type="text" value={editAliases[cmd] || ""} onChange={e => setEditAliases(prev => ({ ...prev, [cmd]: e.target.value }))}
                                     placeholder={cmd}
-                                    className="flex-1 bg-slate-700 border border-slate-600 rounded px-2.5 py-1.5 text-xs text-white placeholder-slate-500 outline-none focus:border-amber-500 transition font-mono" />
+                                    className="flex-1 bg-[#27272a] border border-[#3f3f46] rounded px-2.5 py-1.5 text-xs text-[#fafafa] placeholder-[#71717a] outline-none focus:border-[#52525b] transition font-mono" />
                                 </div>
                               ))}
                               <button onClick={async () => {
@@ -2305,7 +2259,7 @@ export function ServerSettingsView() {
                                 if (error) { toast("error", error.message); return; }
                                 setDiscordLinks(prev => prev.map(d => d.id === editAliasLinkId ? { ...d, command_aliases: editAliases } : d));
                                 setEditAliasLinkId(null); toast("success", "Aliases saved!");
-                              }} className="px-4 py-2 rounded-lg text-xs font-medium bg-amber-600 text-white hover:bg-amber-500 transition flex items-center gap-1.5">
+                              }} className="px-4 py-2 rounded-lg text-xs font-medium bg-[#fafafa] text-[#09090b] hover:bg-[#e4e4e7] transition flex items-center gap-1.5">
                                 <Check className="w-3.5 h-3.5" /> Save Aliases
                               </button>
                             </div>
@@ -2319,19 +2273,19 @@ export function ServerSettingsView() {
             )}
 
             {/* Add new link */}
-            <div className="pt-2 border-t border-slate-800">
-              <h4 className="text-xs font-semibold text-slate-400 mb-3 flex items-center gap-1.5">
+            <div className="pt-2 border-t border-[#27272a]">
+              <h4 className="text-xs font-semibold text-[#a1a1aa] mb-3 flex items-center gap-1.5">
                 <Plus className="w-3.5 h-3.5" /> Link New Discord Server
               </h4>
               <div className="flex gap-2">
                 <input type="text" value={newDiscordId} onChange={(e) => setNewDiscordId(e.target.value)}
                   placeholder="Discord Server ID" ref={discordIdInputRef}
-                  className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 outline-none focus:border-purple-500 transition font-mono" />
+                  className="flex-1 bg-[#18181b] border border-[#27272a] rounded-lg px-3 py-2 text-sm text-[#fafafa] placeholder-[#71717a] outline-none focus:border-[#52525b] transition font-mono" />
                 <input type="text" value={newDiscordLabel} onChange={(e) => setNewDiscordLabel(e.target.value)}
                   placeholder="Label (optional)"
-                  className="w-36 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 outline-none focus:border-purple-500 transition" />
+                  className="w-36 bg-[#18181b] border border-[#27272a] rounded-lg px-3 py-2 text-sm text-[#fafafa] placeholder-[#71717a] outline-none focus:border-[#52525b] transition" />
                 <button onClick={handleAddDiscordLink} disabled={savingDiscord || !newDiscordId.trim()}
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium bg-purple-600 text-white hover:bg-purple-500 transition disabled:opacity-50">
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium bg-[#fafafa] text-[#09090b] hover:bg-[#e4e4e7] transition disabled:opacity-50">
                   {savingDiscord ? <Loader2 className="w-4 h-4 animate-spin" /> : <Link className="w-4 h-4" />}
                   Link
                 </button>
@@ -2340,47 +2294,47 @@ export function ServerSettingsView() {
           </section>
 
           {/* Getting Started Guide */}
-          <section className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-4">
-            <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider">Getting Started</h3>
+          <section className="bg-[#09090b] border border-[#27272a] rounded-xl p-4 space-y-4">
+            <h3 className="text-sm font-semibold text-[#a1a1aa] uppercase tracking-wider">Getting Started</h3>
             <div className="grid sm:grid-cols-3 gap-4">
               <div className="space-y-1.5">
-                <span className="text-xs font-bold text-purple-400 bg-purple-900/20 px-2 py-0.5 rounded">Step 1</span>
-                <p className="text-xs text-slate-300 font-medium">Link your Discord server</p>
-                <p className="text-[11px] text-slate-500 leading-relaxed">
+                <span className="text-xs font-bold text-[#a1a1aa] bg-[#18181b] px-2 py-0.5 rounded">Step 1</span>
+                <p className="text-xs text-[#d4d4d8] font-medium">Link your Discord server</p>
+                <p className="text-[11px] text-[#71717a] leading-relaxed">
                   Enable <strong>Developer Mode</strong> in Discord (Settings → Advanced). Right-click your server icon → <strong>Copy Server ID</strong>. Paste above and click <strong>Link</strong>.
                 </p>
               </div>
               <div className="space-y-1.5">
-                <span className="text-xs font-bold text-purple-400 bg-purple-900/20 px-2 py-0.5 rounded">Step 2</span>
-                <p className="text-xs text-slate-300 font-medium">Invite the bot</p>
-                <p className="text-[11px] text-slate-500 leading-relaxed">
+                <span className="text-xs font-bold text-[#a1a1aa] bg-[#18181b] px-2 py-0.5 rounded">Step 2</span>
+                <p className="text-xs text-[#d4d4d8] font-medium">Invite the bot</p>
+                <p className="text-[11px] text-[#71717a] leading-relaxed">
                   <a href="https://discord.com/api/oauth2/authorize?client_id=1508368991272566975&permissions=2147485696&scope=bot%20applications.commands" target="_blank" rel="noopener noreferrer"
-                    className="text-purple-400 hover:text-purple-300 underline font-medium">Click here to invite RaidScout Bot</a> to your Discord server.
+                    className="text-[#a1a1aa] hover:text-[#d4d4d8] underline font-medium">Click here to invite RaidScout Bot</a> to your Discord server.
                 </p>
               </div>
               <div className="space-y-1.5">
-                <span className="text-xs font-bold text-purple-400 bg-purple-900/20 px-2 py-0.5 rounded">Step 3</span>
-                <p className="text-xs text-slate-300 font-medium">Configure channels</p>
-                <p className="text-[11px] text-slate-500 leading-relaxed">
-                  In Discord, type <code className="bg-slate-800 px-1 rounded text-amber-400 font-mono text-xs">&lt;prefix&gt;notifhere</code> for alerts, <code className="bg-slate-800 px-1 rounded text-amber-400 font-mono text-xs">&lt;prefix&gt;threadhere</code> for auto-threads, and <code className="bg-slate-800 px-1 rounded text-amber-400 font-mono text-xs">&lt;prefix&gt;cmdhere</code> to restrict commands.
+                <span className="text-xs font-bold text-[#a1a1aa] bg-[#18181b] px-2 py-0.5 rounded">Step 3</span>
+                <p className="text-xs text-[#d4d4d8] font-medium">Configure channels</p>
+                <p className="text-[11px] text-[#71717a] leading-relaxed">
+                  In Discord, type <code className="bg-[#18181b] px-1 rounded text-[#a1a1aa] font-mono text-xs">&lt;prefix&gt;notifhere</code> for alerts, <code className="bg-[#18181b] px-1 rounded text-[#a1a1aa] font-mono text-xs">&lt;prefix&gt;threadhere</code> for auto-threads, and <code className="bg-[#18181b] px-1 rounded text-[#a1a1aa] font-mono text-xs">&lt;prefix&gt;cmdhere</code> to restrict commands.
                 </p>
               </div>
             </div>
-            <div className="pt-2 border-t border-slate-800">
-              <h4 className="text-xs font-semibold text-slate-400 mb-2">Available Commands</h4>
+            <div className="pt-2 border-t border-[#27272a]">
+              <h4 className="text-xs font-semibold text-[#a1a1aa] mb-2">Available Commands</h4>
               <div className="grid sm:grid-cols-2 gap-x-6 gap-y-1">
-                <p className="text-xs"><code className="text-amber-400 font-mono text-xs">&lt;prefix&gt;nextspawn</code> <span className="text-slate-500">—</span> <span className="text-slate-400">Boss spawns in 24h</span></p>
-                <p className="text-xs"><code className="text-amber-400 font-mono text-xs">&lt;prefix&gt;nextspawn &lt;boss&gt;</code> <span className="text-slate-500">—</span> <span className="text-slate-400">Check a specific boss</span></p>
-                <p className="text-xs"><code className="text-amber-400 font-mono text-xs">&lt;prefix&gt;nextspawn &lt;guild&gt;</code> <span className="text-slate-500">—</span> <span className="text-slate-400">Spawns for a guild</span></p>
-                <p className="text-xs"><code className="text-amber-400 font-mono text-xs">&lt;prefix&gt;killed &lt;boss&gt;</code> <span className="text-slate-500">—</span> <span className="text-slate-400">Record a kill now</span></p>
-                <p className="text-xs"><code className="text-amber-400 font-mono text-xs">&lt;prefix&gt;killed &lt;boss&gt; HH:MM</code> <span className="text-slate-500">—</span> <span className="text-slate-400">Kill at custom time</span></p>
-                <p className="text-xs"><code className="text-amber-400 font-mono text-xs">&lt;prefix&gt;forcespawn &lt;boss&gt;</code> <span className="text-slate-500">—</span> <span className="text-slate-400">Force a boss to spawn</span></p>
-                <p className="text-xs"><code className="text-amber-400 font-mono text-xs">&lt;prefix&gt;forcespawnall</code> <span className="text-slate-500">—</span> <span className="text-slate-400">Spawn all fixed-timer bosses</span></p>
-                <p className="text-xs"><code className="text-amber-400 font-mono text-xs">&lt;prefix&gt;list</code> <span className="text-slate-500">—</span> <span className="text-slate-400">Show all boss names</span></p>
-                <p className="text-xs"><code className="text-amber-400 font-mono text-xs">&lt;prefix&gt;notifhere</code> <span className="text-slate-500">—</span> <span className="text-slate-400">Set notification channel</span></p>
-                <p className="text-xs"><code className="text-amber-400 font-mono text-xs">&lt;prefix&gt;threadhere</code> <span className="text-slate-500">—</span> <span className="text-slate-400">Set auto-thread channel</span></p>
-                <p className="text-xs"><code className="text-amber-400 font-mono text-xs">&lt;prefix&gt;cmdhere</code> <span className="text-slate-500">—</span> <span className="text-slate-400">Restrict commands to channel</span></p>
-                <p className="text-xs"><code className="text-amber-400 font-mono text-xs">&lt;prefix&gt;commands</code> <span className="text-slate-500">—</span> <span className="text-slate-400">Show all commands</span></p>
+                <p className="text-xs"><code className="text-[#a1a1aa] font-mono text-xs">&lt;prefix&gt;nextspawn</code> <span className="text-[#71717a]">—</span> <span className="text-[#a1a1aa]">Boss spawns in 24h</span></p>
+                <p className="text-xs"><code className="text-[#a1a1aa] font-mono text-xs">&lt;prefix&gt;nextspawn &lt;boss&gt;</code> <span className="text-[#71717a]">—</span> <span className="text-[#a1a1aa]">Check a specific boss</span></p>
+                <p className="text-xs"><code className="text-[#a1a1aa] font-mono text-xs">&lt;prefix&gt;nextspawn &lt;guild&gt;</code> <span className="text-[#71717a]">—</span> <span className="text-[#a1a1aa]">Spawns for a guild</span></p>
+                <p className="text-xs"><code className="text-[#a1a1aa] font-mono text-xs">&lt;prefix&gt;killed &lt;boss&gt;</code> <span className="text-[#71717a]">—</span> <span className="text-[#a1a1aa]">Record a kill now</span></p>
+                <p className="text-xs"><code className="text-[#a1a1aa] font-mono text-xs">&lt;prefix&gt;killed &lt;boss&gt; HH:MM</code> <span className="text-[#71717a]">—</span> <span className="text-[#a1a1aa]">Kill at custom time</span></p>
+                <p className="text-xs"><code className="text-[#a1a1aa] font-mono text-xs">&lt;prefix&gt;forcespawn &lt;boss&gt;</code> <span className="text-[#71717a]">—</span> <span className="text-[#a1a1aa]">Force a boss to spawn</span></p>
+                <p className="text-xs"><code className="text-[#a1a1aa] font-mono text-xs">&lt;prefix&gt;forcespawnall</code> <span className="text-[#71717a]">—</span> <span className="text-[#a1a1aa]">Spawn all fixed-timer bosses</span></p>
+                <p className="text-xs"><code className="text-[#a1a1aa] font-mono text-xs">&lt;prefix&gt;list</code> <span className="text-[#71717a]">—</span> <span className="text-[#a1a1aa]">Show all boss names</span></p>
+                <p className="text-xs"><code className="text-[#a1a1aa] font-mono text-xs">&lt;prefix&gt;notifhere</code> <span className="text-[#71717a]">—</span> <span className="text-[#a1a1aa]">Set notification channel</span></p>
+                <p className="text-xs"><code className="text-[#a1a1aa] font-mono text-xs">&lt;prefix&gt;threadhere</code> <span className="text-[#71717a]">—</span> <span className="text-[#a1a1aa]">Set auto-thread channel</span></p>
+                <p className="text-xs"><code className="text-[#a1a1aa] font-mono text-xs">&lt;prefix&gt;cmdhere</code> <span className="text-[#71717a]">—</span> <span className="text-[#a1a1aa]">Restrict commands to channel</span></p>
+                <p className="text-xs"><code className="text-[#a1a1aa] font-mono text-xs">&lt;prefix&gt;commands</code> <span className="text-[#71717a]">—</span> <span className="text-[#a1a1aa]">Show all commands</span></p>
               </div>
             </div>
           </section>
@@ -2389,16 +2343,16 @@ export function ServerSettingsView() {
 
       {/* Danger Tab */}
       {tab === "danger" && isOwner && (
-        <section className="bg-slate-900 border border-red-900/30 rounded-xl p-4 space-y-3">
+        <section className="bg-[#09090b] border border-red-900/30 rounded-xl p-4 space-y-3">
           <h3 className="text-sm font-semibold text-red-400">Danger Zone</h3>
-          <p className="text-sm text-slate-400">
+          <p className="text-sm text-[#a1a1aa]">
             Archive this server. Your data is preserved and can be restored by an admin. You won't see this server anymore.
           </p>
 
           {!showDeleteConfirm ? (
             <button
               onClick={() => setShowDeleteConfirm(true)}
-              className="flex items-center gap-1 px-4 py-2 rounded-lg text-sm font-medium bg-red-900/30 text-red-400 hover:bg-red-900/50 transition border border-red-800"
+              className="flex items-center gap-1 px-4 py-2 rounded-lg text-sm font-medium bg-[#18181b] text-red-400 hover:bg-red-900/50 transition border border-[#27272a]"
             >
               <Trash2 className="w-3.5 h-3.5" />
               Archive Server
@@ -2406,26 +2360,26 @@ export function ServerSettingsView() {
           ) : (
             <div className="space-y-3 p-3 rounded-lg bg-red-900/10 border border-red-900/30">
               <p className="text-xs text-red-300 font-medium">
-                Type <code className="bg-red-900/30 px-1 rounded text-red-200">{currentServer.name}</code> to confirm:
+                Type <code className="bg-[#18181b] px-1 rounded text-red-200">{currentServer.name}</code> to confirm:
               </p>
               <input
                 type="text"
                 value={deleteConfirmName}
                 onChange={(e) => setDeleteConfirmName(e.target.value)}
                 placeholder={currentServer.name}
-                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 outline-none focus:border-red-500 transition"
+                className="w-full bg-[#18181b] border border-[#27272a] rounded-lg px-3 py-2 text-sm text-[#fafafa] placeholder-[#71717a] outline-none focus:border-red-500 transition"
               />
               <div className="flex gap-2">
                 <button
                   onClick={() => { setShowDeleteConfirm(false); setDeleteConfirmName(""); }}
-                  className="flex-1 py-2 rounded-lg text-sm font-medium bg-slate-800 text-slate-300 hover:bg-slate-700 transition"
+                  className="flex-1 py-2 rounded-lg text-sm font-medium bg-[#18181b] text-[#d4d4d8] hover:bg-[#27272a] transition"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleDelete}
                   disabled={deleting || deleteConfirmName.trim() !== currentServer.name}
-                  className="flex-1 py-2 rounded-lg text-sm font-medium bg-red-600 text-white hover:bg-red-500 transition disabled:opacity-50 flex items-center justify-center gap-1.5"
+                  className="flex-1 py-2 rounded-lg text-sm font-medium bg-red-600 text-[#fafafa] hover:bg-red-500 transition disabled:opacity-50 flex items-center justify-center gap-1.5"
                 >
                   {deleting ? (
                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -2439,6 +2393,8 @@ export function ServerSettingsView() {
           )}
         </section>
       )}
+      </div>
+    </div>
     </div>
   );
 }
@@ -2535,54 +2491,54 @@ function BossPointsMatrix({
   if (guilds.length === 0) {
     return (
       <div className="text-center py-16">
-        <Shield className="w-10 h-10 text-slate-700 mx-auto mb-3" />
-        <p className="text-slate-500">No guilds created yet.</p>
-        <p className="text-slate-600 text-sm mt-1">Create guilds in the Guilds tab first.</p>
+        <Shield className="w-10 h-10 text-[#3f3f46] mx-auto mb-3" />
+        <p className="text-[#71717a]">No guilds created yet.</p>
+        <p className="text-[#52525b] text-sm mt-1">Create guilds in the Guilds tab first.</p>
       </div>
     );
   }
 
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 overflow-x-auto">
+    <div className="bg-[#09090b] border border-[#27272a] rounded-xl p-4 overflow-x-auto">
       <table className="w-full text-xs">
         <thead>
           <tr>
-            <th className="sticky left-0 bg-slate-900 px-3 py-2 text-left text-slate-400 font-medium border-b border-r border-slate-700/50 z-10 min-w-[160px]">
+            <th className="sticky left-0 bg-[#09090b] px-3 py-2 text-left text-[#a1a1aa] font-medium border-b border-r border-[#27272a]/50 z-10 min-w-[160px]">
               Boss
             </th>
             {guilds.map(g => (
-              <th key={g.id} colSpan={3} className="px-3 py-2 text-center text-slate-400 font-medium border-b border-slate-700/50 border-l border-slate-700/30">
+              <th key={g.id} colSpan={3} className="px-3 py-2 text-center text-[#a1a1aa] font-medium border-b border-[#27272a]/50 border-l border-[#27272a]/30">
                 {g.name}
               </th>
             ))}
           </tr>
           <tr>
-            <th className="sticky left-0 bg-slate-900 px-3 py-1 border-r border-slate-700/50 z-10" />
+            <th className="sticky left-0 bg-[#09090b] px-3 py-1 border-r border-[#27272a]/50 z-10" />
             {guilds.map(g => (
               <Fragment key={g.id}>
-                <th className="px-2 py-1 text-center text-[10px] text-slate-500 font-normal border-l border-slate-700/30">Pts</th>
+                <th className="px-2 py-1 text-center text-[10px] text-[#71717a] font-normal border-l border-[#27272a]/30">Pts</th>
                 <th className="px-2 py-1 text-center border-l-0">
                   <label className="flex items-center justify-center gap-1 cursor-pointer" title="Check/uncheck all salaries for this guild">
                     <input
                       type="checkbox"
                       checked={guildAllChecked.get(g.id) ?? false}
                       onChange={() => handleCheckAllSalary(g.id)}
-                      className="w-3 h-3 rounded border-slate-600 bg-slate-800 text-emerald-600 focus:ring-emerald-500/50 cursor-pointer"
+                      className="w-3 h-3 rounded border-[#3f3f46] bg-[#18181b] text-[#a1a1aa] focus:ring-[#52525b]/50 cursor-pointer"
                     />
-                    <span className="text-[10px] text-slate-500 font-normal">Salary</span>
+                    <span className="text-[10px] text-[#71717a] font-normal">Salary</span>
                   </label>
                 </th>
-                <th className="px-2 py-1 text-center text-[10px] text-slate-500 font-normal border-l border-slate-700/30">Ast</th>
+                <th className="px-2 py-1 text-center text-[10px] text-[#71717a] font-normal border-l border-[#27272a]/30">Ast</th>
               </Fragment>
             ))}
           </tr>
         </thead>
         <tbody>
           {sortedBosses.map(boss => (
-            <tr key={boss.id} className="group border-b border-slate-800/50 hover:bg-slate-800/20 transition">
-              <td className="sticky left-0 bg-slate-900 group-hover:bg-slate-800/20 px-3 py-2 text-white font-medium border-r border-slate-700/30 z-10 transition">
+            <tr key={boss.id} className="group border-b border-[#27272a]/50 hover:bg-[#18181b]/20 transition">
+              <td className="sticky left-0 bg-[#09090b] group-hover:bg-[#18181b]/20 px-3 py-2 text-[#fafafa] font-medium border-r border-[#27272a]/30 z-10 transition">
                 <div className="flex items-center gap-2">
-                  <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${boss.spawn_type === "fixed_schedule" ? "bg-blue-400" : "bg-orange-400"}`} />
+                  <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${boss.spawn_type === "fixed_schedule" ? "bg-[#a1a1aa]" : "bg-[#a1a1aa]"}`} />
                   {boss.name}
                 </div>
               </td>
@@ -2596,22 +2552,22 @@ function BossPointsMatrix({
                 return (
                   <Fragment key={guild.id}>
                     {/* Points cell */}
-                    <td className="px-1 py-1 text-center border-l border-slate-700/30">
+                    <td className="px-1 py-1 text-center border-l border-[#27272a]/30">
                       <div className="flex items-center justify-center gap-0.5">
                         <button
                           onClick={() => onPointsChange(boss.id, guild.id, Math.max(0, (points ?? 1) - 1))}
                           disabled={isSaving || (points ?? 1) <= 0}
-                          className={`p-0.5 rounded transition ${(points ?? 1) <= 0 ? "text-slate-700 cursor-default" : "text-slate-500 hover:text-red-400"}`}
+                          className={`p-0.5 rounded transition ${(points ?? 1) <= 0 ? "text-[#3f3f46] cursor-default" : "text-[#71717a] hover:text-[#f87171]"}`}
                         >
                           <Minus className="w-3 h-3" />
                         </button>
-                        <span className={`font-mono tabular-nums min-w-[1.5em] text-center ${points != null ? "text-amber-400" : "text-slate-500"}`}>
+                        <span className={`font-mono tabular-nums min-w-[1.5em] text-center ${points != null ? "text-[#a1a1aa]" : "text-[#71717a]"}`}>
                           {isSaving ? <Loader2 className="w-3 h-3 animate-spin inline" /> : (points ?? boss.boss_points ?? 1)}
                         </span>
                         <button
                           onClick={() => onPointsChange(boss.id, guild.id, Math.min(99, (points ?? 1) + 1))}
                           disabled={isSaving || (points ?? 1) >= 99}
-                          className={`p-0.5 rounded transition ${(points ?? 1) >= 99 ? "text-slate-700 cursor-default" : "text-slate-500 hover:text-emerald-400"}`}
+                          className={`p-0.5 rounded transition ${(points ?? 1) >= 99 ? "text-[#3f3f46] cursor-default" : "text-[#71717a] hover:text-[#a1a1aa]"}`}
                         >
                           <Plus className="w-3 h-3" />
                         </button>
@@ -2624,11 +2580,11 @@ function BossPointsMatrix({
                         checked={hasSalary}
                         disabled={isSaving}
                         onChange={() => onSalaryChange(boss.id, guild.id, !hasSalary)}
-                        className="w-3 h-3 rounded border-slate-600 bg-slate-800 text-emerald-600 focus:ring-emerald-500/50 cursor-pointer disabled:opacity-50"
+                        className="w-3 h-3 rounded border-[#3f3f46] bg-[#18181b] text-[#a1a1aa] focus:ring-[#52525b]/50 cursor-pointer disabled:opacity-50"
                       />
                     </td>
                     {/* Assist cell */}
-                    <td className="px-1 py-1 text-center border-l border-slate-700/30">
+                    <td className="px-1 py-1 text-center border-l border-[#27272a]/30">
                       {(() => {
                         // Find assists where this guild is the assistant on this boss
                         const myAssists = bossAssists.filter(a => a.boss_id === boss.id && a.assistant_guild_id === guild.id);
@@ -2639,11 +2595,11 @@ function BossPointsMatrix({
                             {ownerIds.map(oid => {
                               const ownerGuild = guilds.find(g => g.id === oid);
                               return (
-                                <span key={oid} className="inline-flex items-center gap-0.5 bg-purple-900/30 border border-purple-700/50 rounded px-1 py-0.5 text-[9px] text-purple-300 leading-none">
+                                <span key={oid} className="inline-flex items-center gap-0.5 bg-purple-900/30 border border-[#27272a]/50 rounded px-1 py-0.5 text-[9px] text-[#d4d4d8] leading-none">
                                   {ownerGuild?.name?.slice(0, 6) || "?"}
                                   <button
                                     onClick={(e) => { e.stopPropagation(); onAssistToggle(boss.id, oid, guild.id); }}
-                                    className="text-purple-400 hover:text-red-400 leading-none"
+                                    className="text-[#a1a1aa] hover:text-[#f87171] leading-none"
                                   >×</button>
                                 </span>
                               );
@@ -2656,7 +2612,7 @@ function BossPointsMatrix({
                                 <select
                                   value=""
                                   onChange={(e) => { if (e.target.value) { onAssistToggle(boss.id, e.target.value, guild.id); e.target.value = ""; }}}
-                                  className="bg-transparent text-[9px] text-slate-500 hover:text-purple-400 cursor-pointer outline-none"
+                                  className="bg-transparent text-[9px] text-[#71717a] hover:text-[#a1a1aa] cursor-pointer outline-none"
                                 >
                                   <option value="">+</option>
                                   {availGuilds.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
@@ -2674,7 +2630,7 @@ function BossPointsMatrix({
           ))}
         </tbody>
       </table>
-      <p className="text-[10px] text-slate-600 mt-2 text-center">
+      <p className="text-[10px] text-[#52525b] mt-2 text-center">
         Points default to server-wide value if not overridden. Salary is per-guild.
       </p>
     </div>
