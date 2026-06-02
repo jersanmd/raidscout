@@ -5,7 +5,7 @@ import { useAttendance, useAddAttendance, useRemoveAttendance } from "@/hooks/us
 import { useMembers } from "@/hooks/useMembers";
 import { useServerId } from "@/contexts/ServerContext";
 import { extractNamesWithAI } from "@/lib/vision";
-import { fetchGuilds, supabase, fetchDeathRallyImages, addRallyImageToDeath, removeRallyImageFromDeath, uploadRallyImage } from "@/lib/supabase";
+import { fetchGuilds, supabase, addRallyImageToDeath, removeRallyImageFromDeath, uploadRallyImage, fetchDeathRallyImages } from "@/lib/supabase";
 import { guildColor } from "@/lib/constants";
 import { Loader2, X, Plus, Check, Sparkles, ImagePlus, Shield, Pencil } from "lucide-react";
 import type { Guild, Member } from "@/types";
@@ -98,30 +98,11 @@ export function ParticipantModal({
   const [guilds, setGuilds] = useState<Guild[]>([]);
   useEffect(() => { fetchGuilds().then(setGuilds).catch(() => setGuilds([])); }, []);
 
-  // Existing rally images
-  const [existingRallyUrls, setExistingRallyUrls] = useState<string[]>([]);
-  const [rallyUploading, setRallyUploading] = useState(false);
+  // Saved rally images from DB
+  const [savedRallyUrls, setSavedRallyUrls] = useState<string[]>([]);
   useEffect(() => {
-    fetchDeathRallyImages(deathRecordId).then(setExistingRallyUrls).catch(() => {});
+    fetchDeathRallyImages(deathRecordId).then(setSavedRallyUrls).catch(() => {});
   }, [deathRecordId]);
-
-  const handleAddRallyImage = async (file: File) => {
-    setRallyUploading(true);
-    try {
-      const url = await uploadRallyImage(file);
-      if (url) {
-        await addRallyImageToDeath(deathRecordId, url);
-        setExistingRallyUrls(prev => [...prev, url]);
-      }
-    } catch {} finally {
-      setRallyUploading(false);
-    }
-  };
-
-  const handleRemoveRallyImage = async (url: string) => {
-    setExistingRallyUrls(prev => prev.filter(u => u !== url));
-    try { await removeRallyImageFromDeath(deathRecordId, url); } catch {}
-  };
 
   // Party leaders state (per guild)
   const [partyLeaders, setPartyLeaders] = useState<Record<string, string>>({});
@@ -235,15 +216,21 @@ export function ParticipantModal({
     setAlreadyAttendedNames([]);
     e.target.value = "";
     scanImages(updated);
-
-    // Also save images to the death record
-    for (const file of files) {
-      handleAddRallyImage(file);
-    }
   };
 
   const scanImages = async (images: File[]) => {
     if (images.length === 0) return;
+
+    // Save images to storage immediately
+    for (const file of images) {
+      uploadRallyImage(file).then(url => {
+        if (url) {
+          addRallyImageToDeath(deathRecordId, url);
+          setSavedRallyUrls(prev => [...prev, url]);
+        }
+      });
+    }
+
     setAiLoading(true);
     setAiError(null);
     setExactMatchNames([]);
@@ -539,33 +526,19 @@ export function ParticipantModal({
                 </div>
               )}
 
-              {/* Rally images gallery */}
-              {existingRallyUrls.length > 0 && (
+              {/* Saved rally images from DB */}
+              {savedRallyUrls.length > 0 && (
                 <div className="mb-3">
-                  <div className="flex items-center justify-between mb-1.5">
-                    <p className="text-[10px] text-slate-400 uppercase tracking-wider">Rally Screenshots ({existingRallyUrls.length})</p>
-                    {!readOnly && (
-                      <label className="flex items-center gap-1 text-[10px] text-sky-400 hover:text-sky-300 cursor-pointer transition">
-                        {rallyUploading ? <Loader2 className="w-3 h-3 animate-spin" /> : <ImagePlus className="w-3 h-3" />}
-                        Add
-                        <input type="file" accept="image/*" onChange={e => { const f = e.target.files?.[0]; if (f) handleAddRallyImage(f); e.target.value = ""; }} className="hidden" />
-                      </label>
-                    )}
-                  </div>
+                  <p className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Rally Screenshots ({savedRallyUrls.length})</p>
                   <div className="flex flex-wrap gap-2">
-                    {existingRallyUrls.map((url, i) => (
+                    {savedRallyUrls.map((url, i) => (
                       <div key={i} className="relative group">
-                        <img
-                          src={url}
-                          alt={`Rally ${i + 1}`}
+                        <img src={url} alt={`Rally ${i + 1}`}
                           className="h-20 w-auto rounded-lg object-cover border border-slate-700 cursor-pointer hover:border-slate-500 transition"
-                          onClick={() => { setFullscreenPreviewIndex(i); setRallyPreviews(existingRallyUrls); }}
-                        />
+                          onClick={() => { setFullscreenPreviewIndex(i); setRallyPreviews(savedRallyUrls); }} />
                         {!readOnly && (
-                          <button
-                            onClick={(e) => { e.stopPropagation(); handleRemoveRallyImage(url); }}
-                            className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-red-500 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition hover:bg-red-400"
-                          >
+                          <button onClick={(e) => { e.stopPropagation(); setSavedRallyUrls(p => p.filter(u => u !== url)); removeRallyImageFromDeath(deathRecordId, url); }}
+                            className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-red-500 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition hover:bg-red-400">
                             <X className="w-2.5 h-2.5" />
                           </button>
                         )}

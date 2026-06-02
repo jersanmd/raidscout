@@ -1647,13 +1647,35 @@ export async function uploadRallyImage(file: File): Promise<string | null> {
     if (!serverId) return null;
     const ext = file.name.split(".").pop() || "png";
     const fileName = `${serverId}/${Date.now()}-${crypto.randomUUID().slice(0, 8)}.${ext}`;
-    const { error } = await supabase.storage
-      .from("rally-images")
-      .upload(fileName, file, { cacheControl: "3600", upsert: false });
-    if (error) { console.error("Rally image upload failed:", error); return null; }
+
+    // Upload via REST API directly for reliability
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token ?? supabaseKey;
+
+    const res = await fetch(
+      `${supabaseUrl}/storage/v1/object/rally-images/${fileName}`,
+      {
+        method: "POST",
+        headers: { apikey: supabaseKey, Authorization: `Bearer ${token}` },
+        body: formData,
+      }
+    );
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      console.error("Rally image upload failed:", res.status, err);
+      return null;
+    }
+
     const { data: urlData } = supabase.storage.from("rally-images").getPublicUrl(fileName);
     return urlData.publicUrl;
-  } catch (err) { console.error("Rally image upload error:", err); return null; }
+  } catch (err) {
+    console.error("Rally image upload error:", err);
+    return null;
+  }
 }
 
 /** Add a rally image URL to a death record (stores as JSON array). */
