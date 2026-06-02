@@ -52,7 +52,7 @@ export function getOwnerGuildName(
 
   // ── Rotation mode: use rotation_counter ──
   const rotationEntries = bgs
-    .filter(bg => bg.sort_order !== null && bg.mode !== "daily")
+    .filter(bg => bg.sort_order !== null && bg.sort_order > 0 && bg.mode !== "daily")
     .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
   if (rotationEntries.length > 0) {
     const bossData = spawns.find(s => s.boss.id === bossId)?.boss;
@@ -85,7 +85,7 @@ export function getRotationInfo(
 
   // ── Per-kill rotation mode ──
   const rotationEntries = bgs
-    .filter(bg => bg.sort_order !== null && bg.mode !== "daily")
+    .filter(bg => bg.sort_order !== null && bg.sort_order > 0 && bg.mode !== "daily")
     .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
   if (rotationEntries.length > 1) {
     const counter = bossData?.rotation_counter ?? 1;

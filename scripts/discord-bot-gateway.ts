@@ -1064,6 +1064,68 @@ async function createEventThreads(
         console.error(`[thread] Error for channel ${channelId}:`, err.message);
       }
     }
+
+    // ── Assist threads ──
+    try {
+      // Look up boss_id from boss name
+      const bossRows = await supabaseQuerySafe(
+        `bosses?server_id=eq.${serverId}&name=eq.${encodeURIComponent(bossName)}&limit=1`
+      );
+      const bossId = bossRows?.[0]?.id;
+      if (!bossId) return;
+
+      // Find assists where this owner guild is the target
+      const assistRows = await supabaseQuerySafe(
+        `boss_assists?boss_id=eq.${bossId}&owner_guild_id=eq.${ownerGuildId}&select=assistant_guild_id`
+      );
+      if (!assistRows?.length) return;
+
+      for (const assist of assistRows) {
+        // Get assistant guild name
+        const agRows = await supabaseQuerySafe(`guilds?id=eq.${assist.assistant_guild_id}&limit=1`);
+        const assistantName: string = agRows?.[0]?.name;
+        if (!assistantName) continue;
+
+        // Create threads for each config that has thread_guilds including the assistant
+        for (const cfg of configs) {
+          const chId: string = cfg.thread_channel_id;
+          const tg: string[] = cfg.thread_guilds || [];
+          if (!chId || !tg.includes(assist.assistant_guild_id)) continue;
+
+          const tz2 = await resolveServerTimezone(serverId).catch(() => "Asia/Manila");
+          const sDate = new Date(spawnUnix * 1000);
+          const ls2 = sDate.toLocaleString("en-US", { timeZone: tz2, month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: true });
+          const aThreadName = `🔹 ${bossName} — Assist for ${assistantName} — ${ls2}`;
+
+          let isForum2 = false;
+          try {
+            const chRes2 = await fetch(`https://discord.com/api/v10/channels/${chId}`, { headers: { Authorization: `Bot ${TOKEN}` } });
+            if (chRes2.ok) { const ch2 = await chRes2.json(); isForum2 = ch2.type === 15; }
+          } catch {}
+
+          try {
+            const tb2: any = { name: aThreadName, auto_archive_duration: 10080 };
+            if (isForum2) { tb2.message = { content: "." }; } else { tb2.type = 11; }
+            const res2 = await fetch(`https://discord.com/api/v10/channels/${chId}/threads`, {
+              method: "POST", headers: { Authorization: `Bot ${TOKEN}`, "Content-Type": "application/json" }, body: JSON.stringify(tb2),
+            });
+            if (res2.ok) {
+              const thread2 = await res2.json();
+              if (!isForum2) {
+                await fetch(`https://discord.com/api/v10/channels/${thread2.id}/messages`, {
+                  method: "POST", headers: { Authorization: `Bot ${TOKEN}`, "Content-Type": "application/json" }, body: JSON.stringify({ content: "." }),
+                });
+              }
+              console.log(`[thread] Assist: "${aThreadName}" in channel ${chId}`);
+            }
+          } catch (err2: any) {
+            console.error(`[thread] Assist error for channel ${chId}:`, err2.message);
+          }
+        }
+      }
+    } catch (assistErr: any) {
+      console.error("[thread] Assist lookup failed:", assistErr.message);
+    }
   } catch (err: any) {
     console.error("[thread] createEventThreads failed:", err.message);
   }

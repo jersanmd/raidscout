@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import type { Boss, DeathRecord, Member, AttendanceRecord, LeaderboardEntry, PointRule } from "@/types";
+import type { Boss, DeathRecord, Member, AttendanceRecord, LeaderboardEntry, PointRule, BossAssist } from "@/types";
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
@@ -998,11 +998,12 @@ export async function upsertBossGuildPoints(
       .eq("id", existing[0].id);
     if (error) throw error;
   } else {
-    // Insert new row — match the schema that setBossGuilds uses
+    // Insert new row — points/salary only. Use sort_order: -1 as sentinel
+    // (check constraint requires sort_order when mode=rotation)
     const row: Record<string, any> = {
       boss_id: bossId,
       guild_id: guildId,
-      sort_order: 0,
+      sort_order: -1,
       day_of_week: null,
       mode: "rotation",
     };
@@ -1732,4 +1733,52 @@ export async function getPointMultiplier(
     });
   if (error) throw error;
   return (data as number) ?? 1;
+}
+
+// ── Boss Assists ────────────────────────────────────────────
+
+/** Fetch all boss assists for a server. */
+export async function fetchBossAssists(serverId?: string | null): Promise<BossAssist[]> {
+  const sid = serverId ?? getCurrentServerId();
+  if (!sid) return [];
+  const { data, error } = await supabase
+    .from("boss_assists")
+    .select("*")
+    .eq("server_id", sid);
+  if (error) throw error;
+  return (data || []) as BossAssist[];
+}
+
+/** Toggle an assist: add if not exists, remove if exists. Returns true if added. */
+export async function toggleBossAssist(
+  bossId: string,
+  ownerGuildId: string,
+  assistantGuildId: string,
+  serverId: string,
+): Promise<boolean> {
+  // Check if already exists
+  const { data: existing } = await supabase
+    .from("boss_assists")
+    .select("id")
+    .eq("boss_id", bossId)
+    .eq("owner_guild_id", ownerGuildId)
+    .eq("assistant_guild_id", assistantGuildId)
+    .maybeSingle();
+
+  if (existing) {
+    // Remove
+    const { error } = await supabase
+      .from("boss_assists")
+      .delete()
+      .eq("id", existing.id);
+    if (error) throw error;
+    return false;
+  }
+
+  // Add
+  const { error } = await supabase
+    .from("boss_assists")
+    .insert({ boss_id: bossId, owner_guild_id: ownerGuildId, assistant_guild_id: assistantGuildId, server_id: serverId });
+  if (error) throw error;
+  return true;
 }
