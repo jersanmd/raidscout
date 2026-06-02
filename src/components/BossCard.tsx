@@ -22,6 +22,7 @@ interface BossCardProps {
   selected?: boolean;
   onToggleSelect?: (bossId: string) => void;
   ownerGuildName?: string;
+  ownerGuildId?: string | null;
   /** Guild rotation — ordered list of guild names with colors */
   rotationGuilds?: { name: string; color: { bg: string; text: string; border: string } }[];
   /** Current rotation index */
@@ -39,7 +40,7 @@ interface BossCardProps {
   justKilled?: boolean;
 }
 
-export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, onCriticalSpawn, onSpawned, compact = false, multiMode = false, selected = false, onToggleSelect, ownerGuildName, rotationGuilds, rotationCurrentIndex, rotationMode, onSetRotation, viewerCanEdit, viewerCanMarkDied, hasGuilds, justKilled }: BossCardProps) {
+export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, onCriticalSpawn, onSpawned, compact = false, multiMode = false, selected = false, onToggleSelect, ownerGuildName, ownerGuildId, rotationGuilds, rotationCurrentIndex, rotationMode, onSetRotation, viewerCanEdit, viewerCanMarkDied, hasGuilds, justKilled }: BossCardProps) {
   const { isViewer } = useAuth();
   const { currentServer } = useServer();
   const { timezone: tz } = useUserTimezone();
@@ -268,6 +269,7 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
       {showModal && (
         <DeathRecordModal
           boss={boss}
+          ownerGuildId={ownerGuildId}
           onClose={() => setShowModal(false)}
           onSubmit={(dt, imgs, ids) => {
             onRecordDeath(boss.id, dt, imgs, ids);

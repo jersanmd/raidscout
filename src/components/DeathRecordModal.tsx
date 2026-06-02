@@ -18,9 +18,11 @@ interface DeathRecordModalProps {
   defaultDeathTime?: Date;
   /** Hide the "Custom Time" tab — only allow the pre-set or "now" time */
   hideCustomTime?: boolean;
+  /** Guild ID that currently owns this boss — its members will be sorted to the top */
+  ownerGuildId?: string | null;
 }
 
-export function DeathRecordModal({ boss, onClose, onSubmit, defaultDeathTime, hideCustomTime }: DeathRecordModalProps) {
+export function DeathRecordModal({ boss, onClose, onSubmit, defaultDeathTime, hideCustomTime, ownerGuildId }: DeathRecordModalProps) {
   const { user, isViewer } = useAuth();
   const serverId = useServerId();
   const queryClient = useQueryClient();
@@ -56,7 +58,7 @@ export function DeathRecordModal({ boss, onClose, onSubmit, defaultDeathTime, hi
     if (serverId) fetchGuilds(serverId).then(setGuilds).catch(() => setGuilds([]));
   }, [serverId]);
   const guildMap = new Map(guilds.map(g => [g.id, g]));
-  // Group members by guild
+  // Group members by guild — owner guild sorted first, members alphabetical within each group
   const groupedMembers = useMemo(() => {
     const groups: { guildName: string; guildId: string | null; members: Member[] }[] = [];
     const guildGroups = new Map<string, Member[]>();
@@ -75,8 +77,23 @@ export function DeathRecordModal({ boss, onClose, onSubmit, defaultDeathTime, hi
       groups.push({ guildName: g.name, guildId: gid, members: gmembers });
     }
     if (ungrouped.length > 0) groups.push({ guildName: "Ungrouped", guildId: null, members: ungrouped });
+
+    // Sort members alphabetically within each group
+    for (const group of groups) {
+      group.members.sort((a, b) => a.name.localeCompare(b.name));
+    }
+
+    // Move owner guild to the top
+    if (ownerGuildId) {
+      const ownerIdx = groups.findIndex(g => g.guildId === ownerGuildId);
+      if (ownerIdx > 0) {
+        const [owner] = groups.splice(ownerIdx, 1);
+        groups.unshift(owner);
+      }
+    }
+
     return groups;
-  }, [members, guilds]);
+  }, [members, guilds, ownerGuildId]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [partyLeaders, setPartyLeaders] = useState<Record<string, string>>({}); // guild_id → member_id
   const [rallyImages, setRallyImages] = useState<File[]>([]);

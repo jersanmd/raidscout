@@ -5,7 +5,7 @@ import { useAttendance, useAddAttendance, useRemoveAttendance } from "@/hooks/us
 import { useMembers } from "@/hooks/useMembers";
 import { useServerId } from "@/contexts/ServerContext";
 import { extractNamesWithAI } from "@/lib/vision";
-import { fetchGuilds, supabase } from "@/lib/supabase";
+import { fetchGuilds, supabase, addRallyImageToDeath, removeRallyImageFromDeath, uploadRallyImage, fetchDeathRallyImages } from "@/lib/supabase";
 import { guildColor } from "@/lib/constants";
 import { Loader2, X, Plus, Check, Sparkles, ImagePlus, Shield, Pencil } from "lucide-react";
 import type { Guild, Member } from "@/types";
@@ -69,6 +69,8 @@ interface ParticipantModalProps {
   onChangeGuild?: () => void;
   /** Optional: called when user wants to delete this death record */
   onDelete?: () => void;
+  /** Guild ID that owns this boss — its members sorted to top */
+  ownerGuildId?: string | null;
 }
 
 export function ParticipantModal({
@@ -81,6 +83,7 @@ export function ParticipantModal({
   onEditDeathTime,
   onChangeGuild,
   onDelete,
+  ownerGuildId,
 }: ParticipantModalProps) {
   const { data: attendance = [], isLoading } = useAttendance(deathRecordId);
   const { data: members = [] } = useMembers();
@@ -94,6 +97,12 @@ export function ParticipantModal({
   // Guild data for grouping members
   const [guilds, setGuilds] = useState<Guild[]>([]);
   useEffect(() => { fetchGuilds().then(setGuilds).catch(() => setGuilds([])); }, []);
+
+  // Saved rally images from DB
+  const [savedRallyUrls, setSavedRallyUrls] = useState<string[]>([]);
+  useEffect(() => {
+    fetchDeathRallyImages(deathRecordId).then(setSavedRallyUrls).catch(() => {});
+  }, [deathRecordId]);
 
   // Party leaders state (per guild)
   const [partyLeaders, setPartyLeaders] = useState<Record<string, string>>({});
@@ -154,7 +163,7 @@ export function ParticipantModal({
     ? members.filter((m) => m.name.toLowerCase().includes(memberSearch.toLowerCase().trim()))
     : members;
 
-  // Group members by guild
+  // Group members by guild — owner guild first, alphabetical within groups
   const guildGroups = useMemo(() => {
     const map = new Map<string | null, Member[]>();
     map.set(null, []); // no guild
@@ -165,7 +174,7 @@ export function ParticipantModal({
       map.get(key)!.push(m);
     }
     // Only return groups that have members
-    return [...map.entries()]
+    const groups = [...map.entries()]
       .filter(([, ms]) => ms.length > 0)
       .map(([gid, ms]) => ({
         guildId: gid,
@@ -173,7 +182,23 @@ export function ParticipantModal({
         color: gid ? guildColor(guilds.find(g => g.id === gid)?.name ?? "") : { bg: "", text: "", border: "" },
         members: ms,
       }));
-  }, [allFilteredMembers, guilds]);
+
+    // Sort members alphabetically within each group
+    for (const group of groups) {
+      group.members.sort((a, b) => a.name.localeCompare(b.name));
+    }
+
+    // Move owner guild to the top
+    if (ownerGuildId) {
+      const ownerIdx = groups.findIndex(g => g.guildId === ownerGuildId);
+      if (ownerIdx > 0) {
+        const [owner] = groups.splice(ownerIdx, 1);
+        groups.unshift(owner);
+      }
+    }
+
+    return groups;
+  }, [allFilteredMembers, guilds, ownerGuildId]);
 
   // Reset guild map when attendees change
 
@@ -195,6 +220,17 @@ export function ParticipantModal({
 
   const scanImages = async (images: File[]) => {
     if (images.length === 0) return;
+
+    // Save images to storage immediately
+    for (const file of images) {
+      uploadRallyImage(file).then(url => {
+        if (url) {
+          addRallyImageToDeath(deathRecordId, url);
+          setSavedRallyUrls(prev => [...prev, url]);
+        }
+      });
+    }
+
     setAiLoading(true);
     setAiError(null);
     setExactMatchNames([]);
@@ -490,6 +526,28 @@ export function ParticipantModal({
                 </div>
               )}
 
+              {/* Saved rally images from DB */}
+              {savedRallyUrls.length > 0 && (
+                <div className="mb-3">
+                  <p className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Rally Screenshots ({savedRallyUrls.length})</p>
+                  <div className="flex flex-wrap gap-2">
+                    {savedRallyUrls.map((url, i) => (
+                      <div key={i} className="relative group">
+                        <img src={url} alt={`Rally ${i + 1}`}
+                          className="h-20 w-auto rounded-lg object-cover border border-slate-700 cursor-pointer hover:border-slate-500 transition"
+                          onClick={() => { setFullscreenPreviewIndex(i); setRallyPreviews(savedRallyUrls); }} />
+                        {!readOnly && (
+                          <button onClick={(e) => { e.stopPropagation(); setSavedRallyUrls(p => p.filter(u => u !== url)); removeRallyImageFromDeath(deathRecordId, url); }}
+                            className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-red-500 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition hover:bg-red-400">
+                            <X className="w-2.5 h-2.5" />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* All Members — check = attending, uncheck = not */}
               <div>
                 <div className="flex items-center justify-between mb-1.5">
@@ -564,13 +622,18 @@ export function ParticipantModal({
         </div>
       </div>
       {/* Fullscreen image preview */}
-      {fullscreenPreviewIndex !== null && rallyPreviews[fullscreenPreviewIndex] && createPortal(
+      {fullscreenPreviewIndex !== null && rallyPreviews[fullscreenPreviewIndex] ? createPortal(
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/90" onClick={() => setFullscreenPreviewIndex(null)}>
           <button onClick={() => setFullscreenPreviewIndex(null)} className="absolute top-4 right-4 p-2 rounded-full bg-white/10 text-white hover:bg-white/20 transition z-10"><X className="w-6 h-6" /></button>
-          <img src={rallyPreviews[fullscreenPreviewIndex]} alt="Rally screenshot" className="max-w-full max-h-[90vh] object-contain rounded-lg" onClick={(e) => e.stopPropagation()} />
+          <img
+            src={rallyPreviews[fullscreenPreviewIndex]}
+            alt="Rally screenshot"
+            className="max-w-full max-h-[90vh] object-contain rounded-lg"
+            onClick={(e) => e.stopPropagation()}
+          />
         </div>,
         document.body
-      )}
+      ) : null}
     </div>
   );
 }
