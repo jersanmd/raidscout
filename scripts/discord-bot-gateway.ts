@@ -1331,6 +1331,10 @@ async function runSpawnCron() {
       guildsByServer.get(g.server_id)!.push(g);
     }
 
+    // Log which servers are being scanned this tick
+    const serverList = serverIds.map(id => serverStatusMap[id]?.name || id.slice(0, 8)).join(", ");
+    console.log(`[cron] tick — ${serverIds.length} server(s): ${serverList}`);
+
     for (const serverId of serverIds) {
       try {
         const sv = serverStatusMap[serverId];
@@ -1342,6 +1346,9 @@ async function runSpawnCron() {
         const guilds = guildsByServer.get(serverId) || [];
         const serverGuildIds = new Set(guilds.map((g: any) => g.id));
         const serverBossGuilds = allBossGuilds.filter((bg: any) => serverGuildIds.has(bg.guild_id));
+
+        const svName = sv?.name || serverId.slice(0, 8);
+        console.log(`[cron]   ${svName}: ${bosses.length} bosses, ${guilds.length} guilds`);
 
         const tz = sv?.timezone || "UTC";
 
@@ -1412,6 +1419,7 @@ async function runSpawnCron() {
           }
         }
         lastSpawnCronBosses = bossCount;
+        console.log(`[cron] tick done — ${bossCount} bosses checked across ${serverIds.length} server(s)`);
       } catch (serverErr: any) {
         console.error(`Spawn cron error for server ${serverId}:`, serverErr.message);
         // Continue with next server

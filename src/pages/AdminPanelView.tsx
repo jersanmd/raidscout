@@ -86,7 +86,7 @@ export function AdminPanelView() {
       return res.json();
     },
     staleTime: 5_000,
-    refetchInterval: 10_000,
+    refetchInterval: 5_000,
     enabled: userRole === "admin" && tab === "infra",
   });
 
