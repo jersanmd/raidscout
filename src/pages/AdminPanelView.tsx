@@ -12,7 +12,7 @@ import { TIMEZONES } from "@/lib/timezones";
 import { version } from "../../package.json";
 
 export function AdminPanelView() {
-  const [tab, setTab] = useState<"servers" | "users" | "audit" | "games" | "infra" | "database" | "plan" | "cron" | "deleted">("games");
+  const [tab, setTab] = useState<"servers" | "users" | "audit" | "games" | "infra" | "database" | "plan" | "cron" | "deleted">("infra");
   const { setCurrentServer } = useServer();
   const { userRole, user, signOut } = useAuth();
   const { timezone, setTimezone } = useUserTimezone();
