@@ -933,7 +933,8 @@ async function handleMessage(msg: any) {
     const nextSpawnField = nextSpawnUnix > 0 ? { name: "Next Spawn", value: `<t:${nextSpawnUnix}:f>`, inline: true } : null;
 
     // Send kill notification to all linked Discord servers
-    const killText = `${boss.name} killed by ${guildName || author}`;
+    const deathTimeStr = deathTime.toLocaleString("en-US", { timeZone: tz || "Asia/Manila", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: true });
+    const killText = `${boss.name} killed by ${guildName || author} ${deathTimeStr}`;
     broadcastNotification(serverId, {}, channelId, killText);
     const unix = Math.floor(deathTime.getTime() / 1000);
     const replyFields: any[] = [
@@ -993,9 +994,17 @@ async function createEventThreads(
       const threadGuilds: string[] = cfg.thread_guilds || [];
       if (!channelId || !threadGuilds.includes(ownerGuildId)) continue;
 
-      const datePart = new Date().toISOString().split("T")[0];
-      const timePart = new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true });
-      const threadName = `${bossName} — ${ownerGuildName} — ${datePart} — ${timePart}`;
+      const tz = await resolveServerTimezone(serverId).catch(() => "Asia/Manila");
+      const spawnDate = new Date(spawnUnix * 1000);
+      const localeString = spawnDate.toLocaleString("en-US", {
+        timeZone: tz,
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true,
+      });
+      const threadName = `${bossName} — ${ownerGuildName} — ${localeString}`;
 
       // Check channel type (forum vs text)
       let isForum = false;
@@ -1099,9 +1108,9 @@ async function broadcastNotification(serverId: string, embed: any, skipChannelId
         return id ? `<@&${id}>` : `@${name}`;
       });
     }
-    const body: any = { allowed_mentions: { parse: ["everyone"] } };
+    const body: any = { allowed_mentions: { parse: ["everyone", "roles"] } };
     if (textContent) {
-      body.content = (prefix || "") + textContent;
+      body.content = prefix ? `${prefix} ${textContent}` : textContent;
     } else {
       body.content = prefix || undefined;
       body.embeds = [embed];
@@ -1226,11 +1235,14 @@ createServer(async (req, res) => {
           };
           result = await broadcastNotification(server_id, embed);
         } else if (event === "boss_spawning" && boss_name) {
-          const spawnUnix = Math.floor(Date.now() / 1000 + 300);
-          const text = `⚠️ ${boss_name} spawning soon\n${guild_name ? `${guild_name} — ` : ""}<t:${spawnUnix}:f>`;
+          const tz = await resolveServerTimezone(server_id).catch(() => "Asia/Manila");
+          const timeStr = new Date(Date.now() + 300000).toLocaleString("en-US", { timeZone: tz, month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: true });
+          const text = `${boss_name}${guild_name ? ` (${guild_name})` : ""} spawning in 5 minutes ${timeStr}`;
           result = await broadcastNotification(server_id, {}, undefined, text);
         } else if (event === "boss_spawned" && boss_name) {
-          const text = `⚠️ ${boss_name} has spawned\n${guild_name ? `${guild_name} — ` : ""}<t:${Math.floor(Date.now() / 1000)}:f>`;
+          const tz = await resolveServerTimezone(server_id).catch(() => "Asia/Manila");
+          const timeStr = new Date().toLocaleString("en-US", { timeZone: tz, month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: true });
+          const text = `${boss_name}${guild_name ? ` (${guild_name})` : ""} has spawned ${timeStr}`;
           result = await broadcastNotification(server_id, {}, undefined, text);
         } else {
           res.writeHead(400); res.end(JSON.stringify({ error: "Invalid event" }));
@@ -1364,7 +1376,8 @@ async function runSpawnCron() {
             );
             if (!existing?.length) {
               const guildName = computeOwnerGuild(boss, serverBossGuilds, guilds, lastDeath, spawnTime, tz) || "";
-              const text = `${boss.name} spawning soon${guildName ? ` (${guildName})` : ""}`;
+              const timeStr = spawnTime.toLocaleString("en-US", { timeZone: tz || "Asia/Manila", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: true });
+              const text = `${boss.name}${guildName ? ` (${guildName})` : ""} spawning in 5 minutes ${timeStr}`;
               await broadcastNotification(serverId, {}, undefined, text);
               // Auto-create thread for this spawn
               createEventThreads(serverId, boss.name, guildName || undefined, spawnUnix).catch((err: any) =>
@@ -1387,7 +1400,8 @@ async function runSpawnCron() {
             );
             if (!existing?.length) {
               const guildName = computeOwnerGuild(boss, serverBossGuilds, guilds, lastDeath, spawnTime, tz) || "";
-              const text = `${boss.name} has spawned${guildName ? ` (${guildName})` : ""}`;
+              const timeStr = new Date().toLocaleString("en-US", { timeZone: tz || "Asia/Manila", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: true });
+              const text = `${boss.name}${guildName ? ` (${guildName})` : ""} has spawned ${timeStr}`;
               await broadcastNotification(serverId, {}, undefined, text);
               await fetch(`${SUPABASE_URL}/rest/v1/spawn_notifications`, {
                 method: "POST",
