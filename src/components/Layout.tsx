@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { NavLink, Outlet, useNavigate, useLocation, Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useServer } from "@/contexts/ServerContext";
@@ -74,7 +75,7 @@ export function Layout() {
   });
 
   return (
-    <div className="min-h-screen bg-slate-950 flex flex-col">
+    <div className="min-h-screen bg-slate-950 flex flex-col" onClick={() => showUserMenu && setShowUserMenu(false)}>
       {/* Header */}
       <header className="sticky top-0 z-50 bg-slate-950/70 backdrop-blur-xl border-b border-slate-800/50 overflow-visible">
         <div className="max-w-[90rem] mx-auto px-4 min-h-14 py-1.5 flex items-center justify-between gap-2">
@@ -223,10 +224,10 @@ export function Layout() {
                 <span className="text-xs hidden md:block">{user?.email?.split("@")[0]}</span>
                 <ChevronDown className={`w-3 h-3 transition ${showUserMenu ? "rotate-180" : ""}`} />
               </button>
-              {showUserMenu && (
+              {showUserMenu && createPortal(
                 <>
-                  <div className="fixed inset-0 z-40" onClick={() => setShowUserMenu(false)} />
-                  <div className="fixed right-4 top-12 w-56 bg-slate-800 border border-slate-700 rounded-xl shadow-2xl z-[9999] overflow-hidden">
+                  <div className="fixed inset-0 z-[9998] bg-black/30 sm:bg-transparent" onClick={() => setShowUserMenu(false)} />
+                  <div className="fixed inset-x-4 top-[30%] sm:inset-x-auto sm:right-4 sm:top-12 sm:translate-y-0 max-w-sm mx-auto sm:mx-0 w-full sm:w-56 bg-slate-800 border border-slate-700 rounded-xl shadow-2xl z-[9999] overflow-hidden">
                     <div className="px-4 py-3 border-b border-slate-700">
                       <div className="text-sm font-semibold text-white">{user?.email?.split("@")[0]}</div>
                       <div className="text-xs text-slate-500">{user?.email}</div>
@@ -259,7 +260,8 @@ export function Layout() {
                       </button>
                     </div>
                   </div>
-                </>
+                </>,
+                document.body
               )}
             </div>
           </div>

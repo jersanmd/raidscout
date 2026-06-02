@@ -1052,6 +1052,9 @@ async function runSpawnCron() {
 
     const now = Date.now();
     const nowUnix = Math.floor(now / 1000);
+    let totalBossesChecked = 0;
+
+    console.log(`[cron] tick — ${serverIds.length} server(s): ${serverIds.map(id => id.slice(0, 8)).join(", ")}`);
 
     for (const serverId of serverIds) {
       try {
@@ -1075,7 +1078,10 @@ async function runSpawnCron() {
 
         const tz = await resolveServerTimezone(serverId);
 
+        console.log(`[cron]   ${serverId.slice(0, 8)}: ${bosses.length} bosses, ${guilds?.length || 0} guilds, ${(allDeaths || []).length} deaths`);
+
         for (const boss of bosses) {
+          totalBossesChecked++;
           // Get latest non-initial death record for this boss
           const lastDeath = (allDeaths || [])
             .filter((d: any) => d.boss_id === boss.id && !d.is_initial_spawn)
@@ -1198,6 +1204,11 @@ async function runSpawnCron() {
         // Continue with next server
       }
     }
+
+    lastSpawnCronTick = Date.now();
+    lastSpawnCronServers = serverIds.length;
+    lastSpawnCronBosses = totalBossesChecked;
+    console.log(`[cron] tick done — ${totalBossesChecked} bosses across ${serverIds.length} server(s)`);
 
     // Cleanup old dedup rows (>7 days) — once per tick is plenty
     try {
