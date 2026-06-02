@@ -12,7 +12,7 @@ import { TIMEZONES } from "@/lib/timezones";
 import { version } from "../../package.json";
 
 export function AdminPanelView() {
-  const [tab, setTab] = useState<"servers" | "users" | "audit" | "games" | "database" | "plan" | "cron" | "deleted">("games");
+  const [tab, setTab] = useState<"servers" | "users" | "audit" | "games" | "infra" | "database" | "plan" | "cron" | "deleted">("games");
   const { setCurrentServer } = useServer();
   const { userRole, user, signOut } = useAuth();
   const { timezone, setTimezone } = useUserTimezone();
@@ -71,6 +71,31 @@ export function AdminPanelView() {
     staleTime: 15_000,
     refetchInterval: 30_000,
     enabled: userRole === "admin" && tab === "cron",
+  });
+
+  const BOT_URL = "https://raidscout-bot.fly.dev";
+  const { data: botStatus, isLoading: botLoading, refetch: refetchBot } = useQuery({
+    queryKey: ["admin", "bot"],
+    queryFn: async () => {
+      const res = await fetch(`${BOT_URL}/status`);
+      if (!res.ok) throw new Error("Bot unreachable");
+      return res.json();
+    },
+    staleTime: 10_000,
+    refetchInterval: 15_000,
+    enabled: userRole === "admin" && tab === "infra",
+  });
+
+  const { data: botLogs, isLoading: logsLoading, refetch: refetchLogs } = useQuery({
+    queryKey: ["admin", "bot", "logs"],
+    queryFn: async () => {
+      const res = await fetch(`${BOT_URL}/logs?limit=100`);
+      if (!res.ok) throw new Error("Logs unreachable");
+      return res.json();
+    },
+    staleTime: 5_000,
+    refetchInterval: 5_000,
+    enabled: userRole === "admin" && tab === "infra",
   });
 
   const { data: deletedServers = [], isLoading: deletedLoading, refetch: refetchDeleted } = useQuery({
@@ -196,6 +221,15 @@ export function AdminPanelView() {
         >
           <Server className="w-3.5 h-3.5" />
           Servers ({servers.length})
+        </button>
+        <button
+          onClick={() => setTab("infra")}
+          className={`flex flex-1 items-center justify-center gap-1 px-2 py-1.5 rounded-md text-xs font-medium transition whitespace-nowrap ${
+            tab === "infra" ? "bg-slate-700 text-white" : "text-slate-400 hover:text-slate-200"
+          }`}
+        >
+          <Radio className="w-3.5 h-3.5" />
+          Infra
         </button>
         <button
           onClick={() => setTab("users")}
@@ -905,6 +939,116 @@ export function AdminPanelView() {
                 </button>
               </div>
             ))
+          )}
+        </div>
+      )}
+
+      {/* Infra Tab */}
+      {tab === "infra" && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h4 className="text-sm font-semibold text-white">Bot Status</h4>
+            <button onClick={() => refetchBot()} className="p-1 rounded text-slate-400 hover:text-white transition" title="Refresh">
+              <RefreshCw className="w-3.5 h-3.5" />
+            </button>
+          </div>
+          {botLoading ? (
+            <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 text-slate-500 animate-spin" /></div>
+          ) : !botStatus?.ok ? (
+            <p className="text-slate-500 text-sm text-center py-12">Bot unreachable.</p>
+          ) : (
+            <>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className={`bg-slate-900 border rounded-xl p-4 text-center ${botStatus.discord_connected ? 'border-emerald-500/30' : 'border-red-500/30'}`}>
+                  <div className={`w-3 h-3 rounded-full mx-auto mb-2 ${botStatus.discord_connected ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`} />
+                  <p className={`text-lg font-bold ${botStatus.discord_connected ? 'text-emerald-400' : 'text-red-400'}`}>
+                    {botStatus.discord_connected ? 'ONLINE' : 'OFFLINE'}
+                  </p>
+                  <p className="text-[10px] text-slate-500 mt-1">Discord Gateway</p>
+                </div>
+                <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 text-center">
+                  <Clock className="w-4 h-4 text-blue-400 mx-auto mb-2" />
+                  <p className="text-xs text-blue-300 font-mono">{botStatus.uptime_display}</p>
+                  <p className="text-[10px] text-slate-500 mt-1">Uptime</p>
+                </div>
+                <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 text-center">
+                  <HardDrive className="w-4 h-4 text-purple-400 mx-auto mb-2" />
+                  <p className="text-lg font-bold text-purple-300">{botStatus.memory_mb} / 512 MB</p>
+                  <p className="text-[10px] text-slate-500 mt-1">Memory</p>
+                </div>
+                <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 text-center">
+                  <Radio className="w-4 h-4 text-amber-400 mx-auto mb-2" />
+                  <p className="text-xs text-amber-300 font-mono">{botStatus.region} · 2 vCPU</p>
+                  <p className="text-[10px] text-slate-500 mt-1">Machine</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="bg-slate-900 border border-slate-800 rounded-xl p-3 text-center">
+                  <p className="text-xs text-slate-300 font-mono">{botStatus.node_version}</p>
+                  <p className="text-[10px] text-slate-500 mt-0.5">Node.js</p>
+                </div>
+                <div className="bg-slate-900 border border-slate-800 rounded-xl p-3 text-center">
+                  <p className="text-xs text-slate-300 font-mono">fly.io</p>
+                  <p className="text-[10px] text-slate-500 mt-0.5">Platform</p>
+                </div>
+                <div className="bg-slate-900 border border-slate-800 rounded-xl p-3 text-center">
+                  <p className="text-xs text-slate-300 font-mono">sin</p>
+                  <p className="text-[10px] text-slate-500 mt-0.5">Region</p>
+                </div>
+              </div>
+              <div className="bg-slate-900 border border-slate-800 rounded-xl p-4">
+                <h5 className="text-xs font-semibold text-slate-300 mb-3">Spawn Cron</h5>
+                <div className="grid grid-cols-3 gap-4 text-center">
+                  <div>
+                    <p className="text-lg font-bold text-blue-300 font-mono">{botStatus.spawn_cron?.last_tick_seconds_ago ?? "—"}s</p>
+                    <p className="text-[10px] text-slate-500">Last Tick</p>
+                  </div>
+                  <div>
+                    <p className="text-lg font-bold text-purple-300">{botStatus.spawn_cron?.servers_checked}</p>
+                    <p className="text-[10px] text-slate-500">Servers</p>
+                  </div>
+                  <div>
+                    <p className="text-lg font-bold text-amber-300">{botStatus.spawn_cron?.bosses_checked}</p>
+                    <p className="text-[10px] text-slate-500">Bosses</p>
+                  </div>
+                </div>
+              </div>
+              <p className="text-[10px] text-slate-600">Auto-refreshes every 15s.</p>
+              <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+                <div className="flex items-center justify-between px-4 py-2 border-b border-slate-800">
+                  <h5 className="text-xs font-semibold text-slate-300">Recent Logs</h5>
+                  <button onClick={() => refetchLogs()} className="p-1 rounded text-slate-400 hover:text-white transition" title="Refresh logs">
+                    <RefreshCw className="w-3 h-3" />
+                  </button>
+                </div>
+                <div className="max-h-64 overflow-y-auto font-mono text-[10px] leading-relaxed">
+                  {logsLoading ? (
+                    <div className="flex justify-center py-6"><Loader2 className="w-4 h-4 text-slate-500 animate-spin" /></div>
+                  ) : !botLogs?.logs?.length ? (
+                    <p className="text-slate-600 px-4 py-6 text-center">No logs yet.</p>
+                  ) : (
+                    botLogs.logs.map((l: any, i: number) => (
+                      <div key={i} className={`px-4 py-0.5 border-b border-slate-800/50 flex gap-2 ${
+                        l.level === "error" ? "bg-red-950/20" : l.level === "warn" ? "bg-amber-950/10" : ""
+                      }`}>
+                        <span className="text-slate-600 shrink-0 w-[85px]">{l.ts?.slice(11, 19)}</span>
+                        <span className={`shrink-0 w-8 text-right ${
+                          l.level === "error" ? "text-red-400" : l.level === "warn" ? "text-amber-400" : "text-slate-500"
+                        }`}>{l.level}</span>
+                        <span className={`truncate ${
+                          l.level === "error" ? "text-red-300" : l.level === "warn" ? "text-amber-300" : "text-slate-400"
+                        }`}>{l.msg}</span>
+                      </div>
+                    ))
+                  )}
+                </div>
+                {botLogs?.logs?.length > 0 && (
+                  <div className="px-4 py-1.5 border-t border-slate-800 text-[10px] text-slate-600">
+                    Showing {botLogs.logs.length} of {botLogs.total} buffered logs
+                  </div>
+                )}
+              </div>
+            </>
           )}
         </div>
       )}
