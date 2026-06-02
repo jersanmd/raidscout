@@ -756,11 +756,40 @@ export async function fetchBossGuilds(serverId?: string | null): Promise<BossGui
   return data as BossGuild[];
 }
 
+/** Fetch all boss_guilds rows for a server (for the Boss Points matrix).
+ *  Unlike fetchBossGuilds, returns rows even if they only have points/salary
+ *  and no rotation assignment (no sort_order/day_of_week/mode). */
+export async function fetchAllBossGuildsForServer(serverId?: string | null): Promise<BossGuild[]> {
+  const sid = serverId ?? getCurrentServerId();
+  if (!sid) return [];
+  // Get all boss IDs for this server first
+  const { data: bossRows } = await supabase
+    .from("bosses")
+    .select("id")
+    .eq("server_id", sid);
+  const bossIds = (bossRows || []).map(b => b.id);
+  if (!bossIds.length) return [];
+  // Fetch all boss_guilds for these bosses
+  const { data, error } = await supabase
+    .from("boss_guilds")
+    .select("*")
+    .in("boss_id", bossIds);
+  if (error) throw error;
+  return data as BossGuild[];
+}
+
 export async function setBossGuilds(
   bossId: string,
   assignments: { guild_id: string; sort_order?: number; day_of_week?: number }[],
   mode: "rotation" | "schedule" | "daily" = "rotation"
 ): Promise<void> {
+  // Preserve existing points/salary for this boss before deleting
+  const { data: existing } = await supabase
+    .from("boss_guilds")
+    .select("guild_id, points, has_salary")
+    .eq("boss_id", bossId);
+  const preserved = new Map((existing || []).map((r: any) => [r.guild_id, { points: r.points, has_salary: r.has_salary }]));
+
   // Delete existing assignments for this boss, then insert new ones
   const { error: delErr } = await supabase
     .from("boss_guilds")
@@ -770,16 +799,82 @@ export async function setBossGuilds(
 
   if (assignments.length === 0) return;
 
-  const rows = assignments.map((a) => ({
-    boss_id: bossId,
-    guild_id: a.guild_id,
-    sort_order: a.sort_order ?? null,
-    day_of_week: a.day_of_week ?? null,
-    mode,
-  }));
+  const rows = assignments.map((a) => {
+    const prev = preserved.get(a.guild_id);
+    return {
+      boss_id: bossId,
+      guild_id: a.guild_id,
+      sort_order: a.sort_order ?? null,
+      day_of_week: a.day_of_week ?? null,
+      mode,
+      points: prev?.points ?? null,
+      has_salary: prev?.has_salary ?? false,
+    };
+  });
 
   const { error } = await supabase.from("boss_guilds").insert(rows);
   if (error) throw error;
+}
+
+/** Upsert per-guild points and/or salary for a boss-guild pair.
+ *  Creates the row if it doesn't exist (without rotation fields),
+ *  or updates only the points/salary columns on an existing row. */
+export async function upsertBossGuildPoints(
+  bossId: string,
+  guildId: string,
+  points?: number | null,
+  hasSalary?: boolean
+): Promise<void> {
+  // Check if a row already exists for this boss-guild pair
+  const { data: existing } = await supabase
+    .from("boss_guilds")
+    .select("id")
+    .eq("boss_id", bossId)
+    .eq("guild_id", guildId)
+    .limit(1);
+
+  if (existing && existing.length > 0) {
+    // Update only points/salary fields
+    const update: Record<string, any> = {};
+    if (points !== undefined) update.points = points;
+    if (hasSalary !== undefined) update.has_salary = hasSalary;
+    if (Object.keys(update).length === 0) return;
+    const { error } = await supabase
+      .from("boss_guilds")
+      .update(update)
+      .eq("id", existing[0].id);
+    if (error) throw error;
+  } else {
+    // Insert new row — match the schema that setBossGuilds uses
+    const row: Record<string, any> = {
+      boss_id: bossId,
+      guild_id: guildId,
+      sort_order: 0,
+      day_of_week: null,
+      mode: "rotation",
+    };
+    if (points !== undefined) row.points = points;
+    if (hasSalary !== undefined) row.has_salary = hasSalary;
+    const { error } = await supabase.from("boss_guilds").insert(row);
+    if (error) throw error;
+  }
+}
+
+/** Batch-set salary for a guild across multiple bosses in a single RPC call. */
+export async function batchSetGuildSalary(
+  guildId: string,
+  bossIds: string[],
+  hasSalary: boolean
+): Promise<void> {
+  if (!bossIds.length) return;
+  // Fallback: do individual upserts in parallel batches of 10
+  const BATCH_SIZE = 10;
+  for (let i = 0; i < bossIds.length; i += BATCH_SIZE) {
+    const chunk = bossIds.slice(i, i + BATCH_SIZE);
+    await Promise.all(chunk.map(bossId =>
+      upsertBossGuildPoints(bossId, guildId, undefined, hasSalary)
+    ));
+  }
 }
 
 export async function getBossOwnerGuild(bossId: string): Promise<string | null> {

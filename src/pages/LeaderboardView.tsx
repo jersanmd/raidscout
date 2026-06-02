@@ -251,6 +251,18 @@ export function LeaderboardView() {
       if (bossesErr) throw new Error(`Bosses: ${bossesErr.message}`);
       const bossMap = new Map((bosses || []).map(b => [b.id, b]));
 
+      // Fetch per-guild salary overrides for this server
+      const { data: bgData } = await supabase
+        .from("boss_guilds")
+        .select("boss_id,guild_id,has_salary, bosses!inner(server_id)")
+        .eq("bosses.server_id", serverId)
+        .in("boss_id", bossIds);
+      // Build lookup: "bossId|guildId" → has_salary
+      const bgSalaryMap = new Map<string, boolean>();
+      for (const bg of (bgData || [])) {
+        if (bg.has_salary) bgSalaryMap.set(`${bg.boss_id}|${bg.guild_id}`, true);
+      }
+
       // Fetch attendance records
       const { data: attRecords, error: attErr } = await supabase
         .from("attendance_records")
@@ -313,12 +325,19 @@ export function LeaderboardView() {
         if (!attendees || attendees.size === 0) continue;
         const boss = bossMap.get(death.boss_id);
         const dt = new Date(death.death_time);
+        // Determine salary: per-guild override if filter active, else global default
+        let salaryYes: boolean;
+        if (exportGuildFilter !== "all" && boss) {
+          salaryYes = bgSalaryMap.get(`${boss.id}|${exportGuildFilter}`) ?? ((boss as any)?.has_salary ?? false);
+        } else {
+          salaryYes = (boss as any)?.has_salary ?? false;
+        }
         const row: any[] = [
           attendees.size,
           dateFmt.format(dt),
           timeFmt.format(dt),
           boss?.name || "?",
-          (boss as any)?.has_salary ? "YES" : "NO",
+          salaryYes ? "YES" : "NO",
           (() => {
             const pl = (death as any).party_leaders || {};
             if (exportGuildFilter !== "all" || exportGuildOnly) {

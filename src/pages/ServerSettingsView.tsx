@@ -1,9 +1,9 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, Fragment } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { useServer } from "@/contexts/ServerContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { deleteServer, transferServerOwnership, removeServerModerator, addServerModerator, supabase, fetchServerMembers, type ServerMember, fetchGuilds, createGuild, updateGuildName, deleteGuild, fetchBossGuilds, setBossGuilds, fetchBosses, setBossPoints, setBossSalary, notifyDiscord, fetchModeratorPermissions, updateModeratorPermissions, updateThreadConfig, type ModeratorPermissions, DEFAULT_MODERATOR_PERMISSIONS } from "@/lib/supabase";
+import { deleteServer, transferServerOwnership, removeServerModerator, addServerModerator, supabase, fetchServerMembers, type ServerMember, fetchGuilds, createGuild, updateGuildName, deleteGuild, fetchBossGuilds, setBossGuilds, fetchAllBossGuildsForServer, upsertBossGuildPoints, batchSetGuildSalary, fetchBosses, setBossPoints, setBossSalary, notifyDiscord, fetchModeratorPermissions, updateModeratorPermissions, updateThreadConfig, type ModeratorPermissions, DEFAULT_MODERATOR_PERMISSIONS } from "@/lib/supabase";
 import type { Guild, BossGuild, Boss } from "@/types";
 import { Loader2, Trash2, Crown, ArrowLeft, Server, Check, Key, Copy, RefreshCw, Plus, LogIn, Users, Bell, Link, Settings, AlertTriangle, X, Shield, Pencil, Swords, ChevronUp, ChevronDown, CheckSquare, Square, Eye, EyeOff, UserPlus, Minus, Trophy, Send, Save, MessageCircle } from "lucide-react";
 import { CreateServerModal } from "@/components/CreateServerModal";
@@ -96,14 +96,16 @@ export function ServerSettingsView() {
         .then(setGuilds)
         .catch(() => setGuilds([]))
         .finally(() => setGuildsLoading(false));
-      // Fetch bosses + guild assignments
+      // Fetch bosses + guild assignments + boss points matrix
       setBossGuildsLoading(true);
       Promise.all([
         fetchBosses(currentServer.id),
         fetchBossGuilds(currentServer.id),
-      ]).then(([b, bg]) => {
+        fetchAllBossGuildsForServer(currentServer.id),
+      ]).then(([b, bg, abg]) => {
         setBosses(b);
         setBossGuildsState(bg);
+        setAllBossGuilds(abg);
         // Initialize bossModes from data
         const modes: Record<string, "none" | "rotation" | "schedule" | "daily"> = {};
         for (const boss of b) {
@@ -116,7 +118,7 @@ export function ServerSettingsView() {
         }
         setBossModes(modes);
       })
-        .catch(() => { setBosses([]); setBossGuildsState([]); })
+        .catch(() => { setBosses([]); setBossGuildsState([]); setAllBossGuilds([]); })
         .finally(() => setBossGuildsLoading(false));
       // Fetch Discord bot configs
       (async () => {
@@ -169,7 +171,7 @@ export function ServerSettingsView() {
   const [savingPerms, setSavingPerms] = useState<string | null>(null); // user_id being saved
   const [searchParams] = useSearchParams();
   const tabParam = searchParams.get("tab");
-  const initialTab = (tabParam === "general" || tabParam === "members" || tabParam === "integrations" || tabParam === "danger")
+  const initialTab = (tabParam === "general" || tabParam === "members" || tabParam === "integrations" || tabParam === "danger" || tabParam === "boss-points")
     ? tabParam
     : "general";
   const [tab, setTab] = useState<string>(initialTab);
@@ -205,6 +207,11 @@ export function ServerSettingsView() {
   const [bosses, setBosses] = useState<Boss[]>([]);
   const [bossGuilds, setBossGuildsState] = useState<BossGuild[]>([]);
   const [bossGuildsLoading, setBossGuildsLoading] = useState(false);
+
+  // Boss Points matrix state
+  const [allBossGuilds, setAllBossGuilds] = useState<BossGuild[]>([]);
+  const [bossPointsLoading, setBossPointsLoading] = useState(false);
+  const [savingCell, setSavingCell] = useState<string | null>(null); // "bossId-guildId" while saving
 
   // Boss priority ordering (for display in Boss Guilds tab)
   const BOSS_PRIORITY = [
@@ -932,6 +939,7 @@ export function ServerSettingsView() {
           ["general", "General", Settings],
           ["guilds", "Guilds", Shield],
           ["boss-guilds", "Boss Guilds", Swords],
+          ["boss-points", "Boss Points", Trophy],
           ["members", "Members", Users],
           ["integrations", "Integrations", Bell],
           ...(isOwner ? [["danger", "Danger", AlertTriangle] as const] : []),
@@ -1293,22 +1301,15 @@ export function ServerSettingsView() {
                           </span>
                         </span>
                         <span className="text-slate-600 mx-1">|</span>
-                        {/* Salary toggle */}
-                        <label className="flex items-center gap-1 cursor-pointer shrink-0" onClick={(e) => e.stopPropagation()} title="Grants salary/allowance">
+                        {/* Salary toggle (deprecated — per-guild salary now in Boss Points tab) */}
+                        <label className="flex items-center gap-1 cursor-not-allowed shrink-0 opacity-40" title="Salary is now per-guild — use the Boss Points tab">
                           <input
                             type="checkbox"
                             checked={(boss as any).has_salary === true}
-                            onChange={async () => {
-                              const newVal = !(boss as any).has_salary;
-                              try {
-                                await setBossSalary(boss.id, newVal);
-                                queryClient.invalidateQueries({ queryKey: ["bosses"] });
-                                setBosses(prev => prev.map(b => b.id === boss.id ? { ...b, has_salary: newVal } : b));
-                              } catch { /* ignore */ }
-                            }}
-                            className="w-3 h-3 rounded border-slate-600 bg-slate-800 text-emerald-600 focus:ring-emerald-500/50 cursor-pointer"
+                            disabled
+                            className="w-3 h-3 rounded border-slate-600 bg-slate-800 text-slate-600"
                           />
-                          <span className="text-[10px] text-slate-500">Salary</span>
+                          <span className="text-[10px] text-slate-600">Sal</span>
                         </label>
                         {!bossMultiMode && (isExpanded ? <ChevronUp className="w-4 h-4 text-slate-500" /> : <ChevronDown className="w-4 h-4 text-slate-500" />)}
                       </button>
@@ -1631,6 +1632,54 @@ export function ServerSettingsView() {
             </div>
           )}
         </div>
+      )}
+
+      {/* Boss Points Tab */}
+      {tab === "boss-points" && (
+        <BossPointsMatrix
+          bosses={sortedBosses}
+          guilds={guilds}
+          allBossGuilds={allBossGuilds}
+          savingCell={savingCell}
+          onPointsChange={async (bossId, guildId, points) => {
+            const cellKey = `${bossId}-${guildId}`;
+            setSavingCell(cellKey);
+            try {
+              await upsertBossGuildPoints(bossId, guildId, points, undefined);
+              setAllBossGuilds(prev => {
+                const existing = prev.find(bg => bg.boss_id === bossId && bg.guild_id === guildId);
+                if (existing) {
+                  return prev.map(bg => bg.boss_id === bossId && bg.guild_id === guildId ? { ...bg, points } : bg);
+                }
+                return [...prev, { id: "", boss_id: bossId, guild_id: guildId, sort_order: null, day_of_week: null, points } as BossGuild];
+              });
+            } catch { /* ignore */ }
+            setSavingCell(null);
+          }}
+          onSalaryChange={async (bossId, guildId, hasSalary) => {
+            const cellKey = `${bossId}-${guildId}`;
+            setSavingCell(cellKey);
+            try {
+              await upsertBossGuildPoints(bossId, guildId, undefined, hasSalary);
+              setAllBossGuilds(prev => {
+                const existing = prev.find(bg => bg.boss_id === bossId && bg.guild_id === guildId);
+                if (existing) {
+                  return prev.map(bg => bg.boss_id === bossId && bg.guild_id === guildId ? { ...bg, has_salary: hasSalary } : bg);
+                }
+                return [...prev, { id: "", boss_id: bossId, guild_id: guildId, sort_order: null, day_of_week: null, has_salary: hasSalary } as BossGuild];
+              });
+            } catch { /* ignore */ }
+            setSavingCell(null);
+          }}
+          onBatchSalaryChange={async (guildId, bossIds, hasSalary) => {
+            await batchSetGuildSalary(guildId, bossIds, hasSalary);
+            // Refresh allBossGuilds
+            try {
+              const updated = await fetchAllBossGuildsForServer(currentServer!.id);
+              setAllBossGuilds(updated);
+            } catch { /* refresh failed, but data is saved */ }
+          }}
+        />
       )}
 
       {/* Members Tab */}
@@ -2151,6 +2200,188 @@ export function ServerSettingsView() {
           )}
         </section>
       )}
+    </div>
+  );
+}
+
+// ── Boss Points Matrix (per-guild points + salary) ─────────
+
+const BOSS_PRIORITY_LIST = [
+  "Venatus", "Viorent", "Ego", "Clemantis", "Livera", "Araneo", "Undomiel",
+  "Saphirus", "Neutro", "Lady Dalia", "General Aquleus", "Thymele", "Amentis",
+  "Baron", "Milavy", "Wannitas", "Metus", "Duplican", "Shuliar", "Ringor",
+  "Roderick", "Gareth", "Titore", "Larba", "Catena", "Auraq", "Secreta",
+  "Ordo", "Asta", "Supore", "Chaiflock", "Benji", "Libitina", "Rakajeth",
+  "Icaruthia", "Motti", "Nevaeh", "Tumier", "Lucus",
+];
+
+function BossPointsMatrix({
+  bosses,
+  guilds,
+  allBossGuilds,
+  savingCell,
+  onPointsChange,
+  onSalaryChange,
+  onBatchSalaryChange,
+}: {
+  bosses: Boss[];
+  guilds: Guild[];
+  allBossGuilds: BossGuild[];
+  savingCell: string | null;
+  onPointsChange: (bossId: string, guildId: string, points: number | null) => Promise<void>;
+  onSalaryChange: (bossId: string, guildId: string, hasSalary: boolean) => Promise<void>;
+  onBatchSalaryChange: (guildId: string, bossIds: string[], hasSalary: boolean) => Promise<void>;
+}) {
+  const sortedBosses = useMemo(() => {
+    return [...bosses].sort((a, b) => {
+      const ia = BOSS_PRIORITY_LIST.indexOf(a.name);
+      const ib = BOSS_PRIORITY_LIST.indexOf(b.name);
+      if (ia === -1 && ib === -1) return a.name.localeCompare(b.name);
+      if (ia === -1) return 1;
+      if (ib === -1) return -1;
+      return ia - ib;
+    });
+  }, [bosses]);
+
+  // Build lookup: "bossId|guildId" → BossGuild
+  const bgLookup = useMemo(() => {
+    const map = new Map<string, BossGuild>();
+    for (const bg of allBossGuilds) {
+      map.set(`${bg.boss_id}|${bg.guild_id}`, bg);
+    }
+    return map;
+  }, [allBossGuilds]);
+
+  // Compute whether each guild has all salaries checked (from data)
+  const guildAllChecked = useMemo(() => {
+    const result = new Map<string, boolean>();
+    for (const guild of guilds) {
+      const allChecked = sortedBosses.every(boss => {
+        const bg = bgLookup.get(`${boss.id}|${guild.id}`);
+        return bg?.has_salary === true;
+      });
+      result.set(guild.id, allChecked);
+    }
+    return result;
+  }, [guilds, sortedBosses, bgLookup]);
+
+  const handleCheckAllSalary = async (guildId: string) => {
+    const currentlyAll = guildAllChecked.get(guildId) ?? false;
+
+    // Batch all bosses
+    const target = !currentlyAll;
+    const bossIds = sortedBosses.map(b => b.id);
+    try {
+      await onBatchSalaryChange(guildId, bossIds, target);
+    } catch (err: any) {
+      console.error("Check-all salary failed:", err?.message ?? err);
+    }
+  };
+
+  if (guilds.length === 0) {
+    return (
+      <div className="text-center py-16">
+        <Shield className="w-10 h-10 text-slate-700 mx-auto mb-3" />
+        <p className="text-slate-500">No guilds created yet.</p>
+        <p className="text-slate-600 text-sm mt-1">Create guilds in the Guilds tab first.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 overflow-x-auto">
+      <table className="w-full text-xs">
+        <thead>
+          <tr>
+            <th className="sticky left-0 bg-slate-900 px-3 py-2 text-left text-slate-400 font-medium border-b border-r border-slate-700/50 z-10 min-w-[160px]">
+              Boss
+            </th>
+            {guilds.map(g => (
+              <th key={g.id} colSpan={2} className="px-3 py-2 text-center text-slate-400 font-medium border-b border-slate-700/50 border-l border-slate-700/30">
+                {g.name}
+              </th>
+            ))}
+          </tr>
+          <tr>
+            <th className="sticky left-0 bg-slate-900 px-3 py-1 border-r border-slate-700/50 z-10" />
+            {guilds.map(g => (
+              <Fragment key={g.id}>
+                <th className="px-2 py-1 text-center text-[10px] text-slate-500 font-normal border-l border-slate-700/30">Pts</th>
+                <th className="px-2 py-1 text-center border-l-0">
+                  <label className="flex items-center justify-center gap-1 cursor-pointer" title="Check/uncheck all salaries for this guild">
+                    <input
+                      type="checkbox"
+                      checked={guildAllChecked.get(g.id) ?? false}
+                      onChange={() => handleCheckAllSalary(g.id)}
+                      className="w-3 h-3 rounded border-slate-600 bg-slate-800 text-emerald-600 focus:ring-emerald-500/50 cursor-pointer"
+                    />
+                    <span className="text-[10px] text-slate-500 font-normal">Salary</span>
+                  </label>
+                </th>
+              </Fragment>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {sortedBosses.map(boss => (
+            <tr key={boss.id} className="group border-b border-slate-800/50 hover:bg-slate-800/20 transition">
+              <td className="sticky left-0 bg-slate-900 group-hover:bg-slate-800/20 px-3 py-2 text-white font-medium border-r border-slate-700/30 z-10 transition">
+                <div className="flex items-center gap-2">
+                  <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${boss.spawn_type === "fixed_schedule" ? "bg-blue-400" : "bg-orange-400"}`} />
+                  {boss.name}
+                </div>
+              </td>
+              {guilds.map(guild => {
+                const key = `${boss.id}|${guild.id}`;
+                const bg = bgLookup.get(key);
+                const points = bg?.points ?? null;
+                const hasSalary = bg?.has_salary ?? false;
+                const isSaving = savingCell === `${boss.id}-${guild.id}`;
+
+                return (
+                  <Fragment key={guild.id}>
+                    {/* Points cell */}
+                    <td className="px-1 py-1 text-center border-l border-slate-700/30">
+                      <div className="flex items-center justify-center gap-0.5">
+                        <button
+                          onClick={() => onPointsChange(boss.id, guild.id, Math.max(0, (points ?? 1) - 1))}
+                          disabled={isSaving || (points ?? 1) <= 0}
+                          className={`p-0.5 rounded transition ${(points ?? 1) <= 0 ? "text-slate-700 cursor-default" : "text-slate-500 hover:text-red-400"}`}
+                        >
+                          <Minus className="w-3 h-3" />
+                        </button>
+                        <span className={`font-mono tabular-nums min-w-[1.5em] text-center ${points != null ? "text-amber-400" : "text-slate-500"}`}>
+                          {isSaving ? <Loader2 className="w-3 h-3 animate-spin inline" /> : (points ?? boss.boss_points ?? 1)}
+                        </span>
+                        <button
+                          onClick={() => onPointsChange(boss.id, guild.id, Math.min(99, (points ?? 1) + 1))}
+                          disabled={isSaving || (points ?? 1) >= 99}
+                          className={`p-0.5 rounded transition ${(points ?? 1) >= 99 ? "text-slate-700 cursor-default" : "text-slate-500 hover:text-emerald-400"}`}
+                        >
+                          <Plus className="w-3 h-3" />
+                        </button>
+                      </div>
+                    </td>
+                    {/* Salary cell */}
+                    <td className="px-1 py-1 text-center">
+                      <input
+                        type="checkbox"
+                        checked={hasSalary}
+                        disabled={isSaving}
+                        onChange={() => onSalaryChange(boss.id, guild.id, !hasSalary)}
+                        className="w-3 h-3 rounded border-slate-600 bg-slate-800 text-emerald-600 focus:ring-emerald-500/50 cursor-pointer disabled:opacity-50"
+                      />
+                    </td>
+                  </Fragment>
+                );
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <p className="text-[10px] text-slate-600 mt-2 text-center">
+        Points default to server-wide value if not overridden. Salary is per-guild.
+      </p>
     </div>
   );
 }

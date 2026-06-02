@@ -9,6 +9,7 @@ import { ResetPasswordForm } from "@/components/ResetPasswordForm";
 import { ViewerRoute } from "@/components/ViewerRoute";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { ToastProvider } from "@/contexts/ToastContext";
+import { ThemeProvider } from "@/contexts/ThemeContext";
 import { NoServerView } from "@/components/NoServerView";
 
 // ── Route-level code splitting ──────────────────────────────
@@ -149,7 +150,9 @@ export default function App() {
         <AuthProvider>
           <ErrorBoundary>
             <ToastProvider>
-              <AppContent />
+              <ThemeProvider>
+                <AppContent />
+              </ThemeProvider>
             </ToastProvider>
           </ErrorBoundary>
         </AuthProvider>

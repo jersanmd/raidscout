@@ -2,12 +2,13 @@ import { useState, useEffect } from "react";
 import { NavLink, Outlet, useNavigate, useLocation, Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useServer, useHasPermission } from "@/contexts/ServerContext";
+import { useTheme } from "@/contexts/ThemeContext";
 import { CreateServerModal } from "@/components/CreateServerModal";
 import { DiscordWebhookBanner } from "@/components/DiscordWebhookBanner";
 import { NoMembersBanner } from "@/components/NoMembersBanner";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { useSpawnAlerts } from "@/hooks/useSpawnAlerts";
-import { Skull, List, Calendar, LogOut, Clock, Trophy, Users, BarChart3, Server, Settings, Plus, Shield, ExternalLink, Eye, Bell, Volume2, ChevronDown } from "lucide-react";
+import { Skull, List, Calendar, LogOut, Clock, Trophy, Users, BarChart3, Server, Settings, Plus, Shield, ExternalLink, Eye, Bell, Volume2, ChevronDown, Sun, Moon } from "lucide-react";
 import { version } from "../../package.json";
 
 let _audioCtx: AudioContext | null = null;
@@ -44,6 +45,7 @@ function playAlertSound() {
 export function Layout() {
   const { user, signOut, userRole, isViewer, viewerServerName } = useAuth();
   const { servers, currentServer, setCurrentServer } = useServer();
+  const { theme, toggleTheme } = useTheme();
   const canAccessSettings = useHasPermission("can_access_settings");
   const [showCreate, setShowCreate] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
@@ -240,6 +242,10 @@ export function Layout() {
                           <Settings className="w-4 h-4" /> Server Settings
                         </NavLink>
                       )}
+                      <button onClick={() => { toggleTheme(); setShowUserMenu(false); }} className="w-full text-left flex items-center gap-2 px-4 py-2 text-sm text-slate-300 hover:bg-slate-700 transition">
+                        {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+                        {theme === "dark" ? "Light Mode" : "Dark Mode"}
+                      </button>
                       <button onClick={() => { setShowUserMenu(false); setShowLogoutConfirm(true); }} className="w-full text-left flex items-center gap-2 px-4 py-2 text-sm text-slate-300 hover:bg-slate-700 transition border-t border-slate-700">
                         <LogOut className="w-4 h-4" /> Sign Out
                       </button>
