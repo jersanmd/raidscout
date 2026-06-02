@@ -70,6 +70,10 @@ export interface BossGuild {
   sort_order: number | null;  // rotation/daily mode
   day_of_week: number | null;  // schedule mode (0=Sun..6=Sat)
   mode?: "rotation" | "schedule" | "daily";  // assignment mode
+  /** Per-guild point override (null = use server default boss_points) */
+  points?: number | null;
+  /** Per-guild salary toggle */
+  has_salary?: boolean;
 }
 
 export interface AttendanceRecord {

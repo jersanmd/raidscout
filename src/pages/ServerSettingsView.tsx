@@ -7,6 +7,7 @@ import { deleteServer, transferServerOwnership, removeServerModerator, addServer
 import type { Guild, BossGuild, Boss, PointRule, BossAssist } from "@/types";
 import { Loader2, Trash2, Crown, ArrowLeft, Server, Check, Key, Copy, RefreshCw, Plus, LogIn, Users, Bell, Link, Settings, AlertTriangle, X, Shield, Pencil, Swords, ChevronUp, ChevronDown, CheckSquare, Square, Eye, EyeOff, UserPlus, Minus, Trophy, Send, Save, MessageCircle, Zap } from "lucide-react";
 import { CreateServerModal } from "@/components/CreateServerModal";
+import { BossGuildsTab } from "@/components/BossGuildsTab";
 import { useToast } from "@/contexts/ToastContext";
 
 export function ServerSettingsView() {
@@ -1708,6 +1709,17 @@ export function ServerSettingsView() {
             </div>
           )}
         </div>
+      )}
+
+      {/* Boss Guilds Tab */}
+      {tab === "boss-guilds" && currentServer && (
+        <BossGuildsTab
+          bosses={sortedBosses}
+          guilds={guilds}
+          bossGuilds={bossGuilds}
+          onBossGuildsChange={setBossGuildsState}
+          serverId={currentServer.id}
+        />
       )}
 
       {/* Boss Points Tab */}

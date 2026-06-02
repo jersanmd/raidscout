@@ -1,0 +1,342 @@
+import { useState, useMemo, Fragment } from "react";
+import type { Boss, Guild, BossGuild } from "@/types";
+import { fetchBossGuilds, setBossGuilds } from "@/lib/supabase";
+import { Loader2, ChevronUp, ChevronDown, Plus, Minus, X, CheckSquare, Square } from "lucide-react";
+import { useToast } from "@/contexts/ToastContext";
+
+const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+interface Props {
+  bosses: Boss[];
+  guilds: Guild[];
+  bossGuilds: BossGuild[];
+  onBossGuildsChange: (bg: BossGuild[]) => void;
+  serverId: string;
+}
+
+export function BossGuildsTab({ bosses, guilds, bossGuilds, onBossGuildsChange, serverId }: Props) {
+  const { toast } = useToast();
+  const [expandedBoss, setExpandedBoss] = useState<string | null>(null);
+  const [savingBossId, setSavingBossId] = useState<string | null>(null);
+  const [bossMultiMode, setBossMultiMode] = useState(false);
+  const [selectedBossIds, setSelectedBossIds] = useState<Set<string>>(new Set());
+  const [bulkMode, setBulkMode] = useState<"rotation" | "schedule" | "daily" | null>(null);
+  const [bulkProcessing, setBulkProcessing] = useState(false);
+  const [bulkRotationAdded, setBulkRotationAdded] = useState<string[]>([]);
+  const [bulkDailyAdded, setBulkDailyAdded] = useState<string[]>([]);
+  const [bulkScheduleDays, setBulkScheduleDays] = useState<Record<number, string | null>>({});
+
+  const sortedBosses = useMemo(() => [...bosses].sort((a, b) => a.name.localeCompare(b.name)), [bosses]);
+
+  const getBossGuildsForBoss = (bossId: string) => bossGuilds.filter(bg => bg.boss_id === bossId);
+
+  const getBossMode = (bossId: string): "none" | "rotation" | "schedule" | "daily" => {
+    const bgs = getBossGuildsForBoss(bossId).filter(bg => bg.sort_order !== -1);
+    if (bgs.length === 0) return "none";
+    if (bgs[0].mode === "daily") return "daily";
+    if (bgs[0].mode === "schedule") return "schedule";
+    if (bgs[0].sort_order !== null && bgs[0].sort_order > 0) return "rotation";
+    return "none";
+  };
+
+  const toggleBossSelect = (bossId: string) => {
+    setSelectedBossIds(prev => { const n = new Set(prev); n.has(bossId) ? n.delete(bossId) : n.add(bossId); return n; });
+  };
+  const clearBossSelection = () => {
+    setSelectedBossIds(new Set()); setBulkMode(null); setBulkRotationAdded([]); setBulkDailyAdded([]); setBulkScheduleDays({});
+  };
+
+  const handleSetBossMode = async (bossId: string, mode: "none" | "rotation" | "schedule" | "daily") => {
+    const currentMode = getBossMode(bossId);
+    if (currentMode === mode) return;
+    setSavingBossId(bossId);
+    try {
+      await setBossGuilds(bossId, []);
+      if (mode === "none") {
+        onBossGuildsChange(bossGuilds.filter(bg => bg.boss_id !== bossId));
+      } else {
+        onBossGuildsChange(bossGuilds.filter(bg => bg.boss_id !== bossId));
+      }
+    } catch (err: any) { toast("error", err?.message ?? "Failed to set mode"); }
+    finally { setSavingBossId(null); }
+  };
+
+  const handleAddRotationGuild = async (bossId: string, guildId: string) => {
+    setSavingBossId(bossId);
+    try {
+      const existing = getBossGuildsForBoss(bossId).filter(bg => bg.sort_order !== null && bg.sort_order > 0);
+      const nextOrder = existing.length > 0 ? Math.max(...existing.map(bg => bg.sort_order ?? 0)) + 1 : 1;
+      const newAssignments = [...existing.map(bg => ({ guild_id: bg.guild_id, sort_order: bg.sort_order! })), { guild_id: guildId, sort_order: nextOrder }];
+      await setBossGuilds(bossId, newAssignments, "rotation");
+      const updated = await fetchBossGuilds(serverId);
+      onBossGuildsChange(updated);
+    } catch (err: any) { toast("error", err?.message ?? "Failed to add guild"); }
+    finally { setSavingBossId(null); }
+  };
+
+  const handleRemoveRotationGuild = async (bossId: string, entryId: string) => {
+    const existing = getBossGuildsForBoss(bossId).filter(bg => bg.id !== entryId);
+    const reordered = existing.map((bg, i) => ({ guild_id: bg.guild_id, sort_order: i + 1 }));
+    await setBossGuilds(bossId, reordered, "rotation");
+    const updated = await fetchBossGuilds(serverId);
+    onBossGuildsChange(updated);
+  };
+
+  const handleMoveRotationGuild = async (bossId: string, entryId: string, direction: "up" | "down") => {
+    const existing = getBossGuildsForBoss(bossId).sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+    const idx = existing.findIndex(bg => bg.id === entryId);
+    if (idx === -1) return;
+    if (direction === "up" && idx === 0) return;
+    if (direction === "down" && idx === existing.length - 1) return;
+    const swapIdx = direction === "up" ? idx - 1 : idx + 1;
+    [existing[idx], existing[swapIdx]] = [existing[swapIdx], existing[idx]];
+    const reordered = existing.map((bg, i) => ({ guild_id: bg.guild_id, sort_order: i + 1 }));
+    await setBossGuilds(bossId, reordered, "rotation");
+    const updated = await fetchBossGuilds(serverId);
+    onBossGuildsChange(updated);
+  };
+
+  const handleAddDailyGuild = async (bossId: string, guildId: string) => {
+    setSavingBossId(bossId);
+    try {
+      const existing = getBossGuildsForBoss(bossId);
+      const nextOrder = existing.length > 0 ? Math.max(...existing.map(bg => bg.sort_order ?? 0)) + 1 : 1;
+      const newAssignments = [...existing.map(bg => ({ guild_id: bg.guild_id, sort_order: bg.sort_order! })), { guild_id: guildId, sort_order: nextOrder }];
+      await setBossGuilds(bossId, newAssignments, "daily");
+      const updated = await fetchBossGuilds(serverId);
+      onBossGuildsChange(updated);
+    } catch (err: any) { toast("error", err?.message ?? "Failed to add guild"); }
+    finally { setSavingBossId(null); }
+  };
+
+  const handleRemoveDailyGuild = async (bossId: string, entryId: string) => {
+    const existing = getBossGuildsForBoss(bossId).filter(bg => bg.id !== entryId);
+    const reordered = existing.map((bg, i) => ({ guild_id: bg.guild_id, sort_order: i + 1 }));
+    await setBossGuilds(bossId, reordered, "daily");
+    const updated = await fetchBossGuilds(serverId);
+    onBossGuildsChange(updated);
+  };
+
+  const handleMoveDailyGuild = async (bossId: string, entryId: string, direction: "up" | "down") => {
+    const existing = getBossGuildsForBoss(bossId).sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+    const idx = existing.findIndex(bg => bg.id === entryId);
+    if (idx === -1) return;
+    if (direction === "up" && idx === 0) return;
+    if (direction === "down" && idx === existing.length - 1) return;
+    const swapIdx = direction === "up" ? idx - 1 : idx + 1;
+    [existing[idx], existing[swapIdx]] = [existing[swapIdx], existing[idx]];
+    const reordered = existing.map((bg, i) => ({ guild_id: bg.guild_id, sort_order: i + 1 }));
+    await setBossGuilds(bossId, reordered, "daily");
+    const updated = await fetchBossGuilds(serverId);
+    onBossGuildsChange(updated);
+  };
+
+  const handleSetScheduleGuild = async (bossId: string, dayOfWeek: number, guildId: string | null) => {
+    const existing = getBossGuildsForBoss(bossId).filter(bg => bg.day_of_week !== dayOfWeek);
+    const newAssignments = existing.map(bg => ({ guild_id: bg.guild_id, day_of_week: bg.day_of_week! }));
+    if (guildId) newAssignments.push({ guild_id: guildId, day_of_week: dayOfWeek });
+    await setBossGuilds(bossId, newAssignments, "schedule");
+    const updated = await fetchBossGuilds(serverId);
+    onBossGuildsChange(updated);
+  };
+
+  if (guilds.length === 0) {
+    return <div className="text-center py-16"><p className="text-slate-500">No guilds created yet.</p><p className="text-slate-600 text-sm mt-1">Create guilds in the Guilds tab first.</p></div>;
+  }
+
+  return (
+    <div className="space-y-2">
+      {/* Multi-select controls */}
+      <div className="flex items-center gap-2">
+        <button onClick={() => { setBossMultiMode(!bossMultiMode); clearBossSelection(); }}
+          className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium transition ${
+            bossMultiMode ? "bg-purple-600 text-white" : "bg-slate-800 text-slate-400 hover:text-white"
+          }`}>
+          <CheckSquare className="w-3.5 h-3.5" />{bossMultiMode ? "Exit Multi-Select" : "Multi-Select"}
+        </button>
+        {bossMultiMode && selectedBossIds.size > 0 && (
+          <span className="text-xs text-slate-400">{selectedBossIds.size} selected</span>
+        )}
+      </div>
+
+      {/* Multi-select bulk actions */}
+      {bossMultiMode && selectedBossIds.size > 0 && (
+        <div className="bg-slate-800/50 border border-slate-700 rounded-lg p-3 space-y-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-xs text-slate-400">Bulk set mode:</span>
+            {(["rotation", "daily", "schedule", "none"] as const).map(m => (
+              <button key={m} onClick={() => { setBulkMode(m); }}
+                disabled={bulkProcessing}
+                className={`px-2 py-1 rounded text-xs font-medium transition capitalize ${
+                  bulkMode === m ? "bg-purple-600 text-white" : "bg-slate-700 text-slate-300 hover:bg-slate-600"
+                } disabled:opacity-50`}>{m}</button>
+            ))}
+          </div>
+          {bulkMode === "rotation" && (
+            <div>
+              <p className="text-xs text-slate-500 mb-1">Add guilds to rotation (in order):</p>
+              <div className="flex flex-wrap gap-1 mb-2">
+                {bulkRotationAdded.map((gid, i) => { const g = guilds.find(x => x.id === gid); return <span key={i} className="text-xs bg-blue-900/30 border border-blue-700/50 rounded px-2 py-0.5 text-blue-300">{g?.name}</span>; })}
+              </div>
+              <select value="" onChange={e => { if (e.target.value) { setBulkRotationAdded(prev => [...prev, e.target.value]); e.target.value = ""; }}}
+                className="bg-slate-700 border border-slate-600 rounded px-2 py-1 text-xs text-white">
+                <option value="">+ Add guild...</option>
+                {guilds.filter(g => !bulkRotationAdded.includes(g.id)).map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+              </select>
+              {bulkRotationAdded.length > 0 && (
+                <button onClick={() => setBulkRotationAdded([])} className="ml-2 text-xs text-slate-400 hover:text-red-400">Clear</button>
+              )}
+            </div>
+          )}
+          {bulkMode === "daily" && (
+            <div>
+              <p className="text-xs text-slate-500 mb-1">Add guilds to daily rotation:</p>
+              <div className="flex flex-wrap gap-1 mb-2">
+                {bulkDailyAdded.map((gid, i) => { const g = guilds.find(x => x.id === gid); return <span key={i} className="text-xs bg-cyan-900/30 border border-cyan-700/50 rounded px-2 py-0.5 text-cyan-300">{g?.name}</span>; })}
+              </div>
+              <select value="" onChange={e => { if (e.target.value) { setBulkDailyAdded(prev => [...prev, e.target.value]); e.target.value = ""; }}}
+                className="bg-slate-700 border border-slate-600 rounded px-2 py-1 text-xs text-white">
+                <option value="">+ Add guild...</option>
+                {guilds.filter(g => !bulkDailyAdded.includes(g.id)).map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+              </select>
+            </div>
+          )}
+          {bulkMode && (
+            <button onClick={() => { if (bulkMode === "rotation") bulkRotationAdded.forEach(gid => { selectedBossIds.forEach(bid => { handleAddRotationGuild(bid, gid); }); }); clearBossSelection(); }}
+              disabled={bulkProcessing}
+              className="px-3 py-1.5 rounded text-xs font-medium bg-purple-600 text-white hover:bg-purple-500 disabled:opacity-50">
+              {bulkProcessing ? "Applying..." : `Apply ${bulkMode} to ${selectedBossIds.size} bosses`}
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Per-boss list */}
+      {sortedBosses.map(boss => {
+        const mode = getBossMode(boss.id);
+        const bossAssignments = getBossGuildsForBoss(boss.id).filter(bg => bg.sort_order !== -1);
+        const isExpanded = expandedBoss === boss.id;
+        const isSaving = savingBossId === boss.id;
+
+        return (
+          <div key={boss.id} className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+            <button onClick={() => setExpandedBoss(isExpanded ? null : boss.id)}
+              className={`w-full flex items-center justify-between px-4 py-3 text-left transition ${isExpanded ? "border-b border-slate-800" : ""}`}>
+              <div className="flex items-center gap-3">
+                {bossMultiMode && (
+                  <input type="checkbox" checked={selectedBossIds.has(boss.id)}
+                    onChange={() => toggleBossSelect(boss.id)}
+                    className="w-3.5 h-3.5 rounded border-slate-600 bg-slate-800 text-purple-600 focus:ring-purple-500/50" />
+                )}
+                <span className="text-sm text-white font-medium">{boss.name}</span>
+                <span className={`text-[10px] px-1.5 py-0.5 rounded ${
+                  mode === "rotation" ? "bg-blue-900/30 text-blue-400" :
+                  mode === "daily" ? "bg-cyan-900/30 text-cyan-400" :
+                  mode === "schedule" ? "bg-purple-900/30 text-purple-400" :
+                  "bg-slate-800 text-slate-500"
+                }`}>{mode === "none" ? "—" : mode}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                {isSaving && <Loader2 className="w-4 h-4 text-slate-400 animate-spin" />}
+                {!bossMultiMode && (isExpanded ? <ChevronUp className="w-4 h-4 text-slate-500" /> : <ChevronDown className="w-4 h-4 text-slate-500" />)}
+              </div>
+            </button>
+
+            {!bossMultiMode && isExpanded && (
+              <div className="px-4 py-3 space-y-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-slate-500 w-12">Mode:</span>
+                  <select value={mode} onChange={e => handleSetBossMode(boss.id, e.target.value as any)}
+                    className="bg-slate-700 border border-slate-600 rounded px-2 py-1 text-xs text-white outline-none">
+                    <option value="none">None</option>
+                    <option value="rotation">Rotation (per kill)</option>
+                    <option value="daily">Daily (per day)</option>
+                    <option value="schedule">Schedule</option>
+                  </select>
+                </div>
+
+                {mode === "rotation" && (
+                  <div className="space-y-1.5">
+                    <p className="text-xs text-slate-500">Guild rotation order (first → last):</p>
+                    {bossAssignments.sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)).map((bg, idx) => {
+                      const guild = guilds.find(g => g.id === bg.guild_id);
+                      return (
+                        <div key={bg.id} className="flex items-center gap-1 bg-slate-800/50 rounded px-2 py-1.5">
+                          <span className="text-xs text-slate-500 w-4">{idx + 1}.</span>
+                          <span className="text-sm text-slate-200 flex-1">{guild?.name ?? "?"}</span>
+                          <button onClick={() => handleMoveRotationGuild(boss.id, bg.id, "up")} disabled={idx === 0} className="p-0.5 text-slate-500 hover:text-emerald-400 disabled:opacity-30"><Plus className="w-3 h-3" /></button>
+                          <button onClick={() => handleMoveRotationGuild(boss.id, bg.id, "down")} disabled={idx === bossAssignments.length - 1} className="p-0.5 text-slate-500 hover:text-red-400 disabled:opacity-30"><Minus className="w-3 h-3" /></button>
+                          <button onClick={() => handleRemoveRotationGuild(boss.id, bg.id)} className="p-0.5 text-slate-500 hover:text-red-400"><X className="w-3 h-3" /></button>
+                        </div>
+                      );
+                    })}
+                    {isSaving ? (
+                      <div className="flex items-center gap-2 text-xs text-slate-400 py-1"><Loader2 className="w-3 h-3 animate-spin" />Adding...</div>
+                    ) : (
+                      <select value="" onChange={e => { if (e.target.value) handleAddRotationGuild(boss.id, e.target.value); }}
+                        className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-xs text-slate-400 outline-none">
+                        <option value="">+ Add guild to rotation...</option>
+                        {guilds.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+                      </select>
+                    )}
+                  </div>
+                )}
+
+                {mode === "daily" && (
+                  <div className="space-y-1.5">
+                    <p className="text-xs text-slate-500">Daily rotation order:</p>
+                    {bossAssignments.sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)).map((bg, idx) => {
+                      const guild = guilds.find(g => g.id === bg.guild_id);
+                      return (
+                        <div key={bg.id} className="flex items-center gap-1 bg-slate-800/50 rounded px-2 py-1.5">
+                          <span className="text-xs text-slate-500 w-4">{idx + 1}.</span>
+                          <span className="text-sm text-slate-200 flex-1">{guild?.name ?? "?"}</span>
+                          <button onClick={() => handleMoveDailyGuild(boss.id, bg.id, "up")} disabled={idx === 0} className="p-0.5 text-slate-500 hover:text-emerald-400 disabled:opacity-30"><Plus className="w-3 h-3" /></button>
+                          <button onClick={() => handleMoveDailyGuild(boss.id, bg.id, "down")} disabled={idx === bossAssignments.length - 1} className="p-0.5 text-slate-500 hover:text-red-400 disabled:opacity-30"><Minus className="w-3 h-3" /></button>
+                          <button onClick={() => handleRemoveDailyGuild(boss.id, bg.id)} className="p-0.5 text-slate-500 hover:text-red-400"><X className="w-3 h-3" /></button>
+                        </div>
+                      );
+                    })}
+                    {isSaving ? (
+                      <div className="flex items-center gap-2 text-xs text-slate-400 py-1"><Loader2 className="w-3 h-3 animate-spin" />Adding...</div>
+                    ) : (
+                      <select value="" onChange={e => { if (e.target.value) handleAddDailyGuild(boss.id, e.target.value); }}
+                        className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-xs text-slate-400 outline-none">
+                        <option value="">+ Add guild to daily rotation...</option>
+                        {guilds.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+                      </select>
+                    )}
+                  </div>
+                )}
+
+                {mode === "schedule" && (
+                  <div className="space-y-1.5">
+                    <p className="text-xs text-slate-500">Assign guild per day:</p>
+                    <div className="grid grid-cols-7 gap-1">
+                      {DAY_LABELS.map((label, dow) => {
+                        const bg = bossAssignments.find(a => a.day_of_week === dow);
+                        const guild = bg ? guilds.find(g => g.id === bg.guild_id) : null;
+                        return (
+                          <div key={dow} className="text-center space-y-1">
+                            <span className="text-xs text-slate-500 block">{label}</span>
+                            <select value={guild?.id ?? ""} onChange={e => handleSetScheduleGuild(boss.id, dow, e.target.value || null)}
+                              className={`w-full rounded-lg px-1.5 py-1.5 text-xs outline-none border ${
+                                guild ? "bg-purple-900/20 border-purple-700 text-purple-300" : "bg-slate-800 border-slate-700 text-white"
+                              }`}>
+                              <option value="">—</option>
+                              {guilds.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+                            </select>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
