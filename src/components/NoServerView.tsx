@@ -42,8 +42,9 @@ export function NoServerView() {
         setLoading(false);
         return;
       }
+      const gameId = selectedGame.id === "custom" ? null : selectedGame.id;
       const isSeeded = selectedGame.id !== "custom" && seed;
-      await createServer(serverTrimmed, selectedGame.id, isSeeded, guildTrimmed);
+      await createServer(serverTrimmed, gameId as any, isSeeded, guildTrimmed);
       await refreshServers();
     } catch (err: any) {
       setError(err?.message ?? "Failed to create server");
