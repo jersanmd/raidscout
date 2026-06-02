@@ -77,6 +77,18 @@ html:not(.dark) .border-slate-800\/50 { border-color: var(--c-border) !important
 html:not(.dark) .border-slate-700,
 html:not(.dark) .border-slate-700\/50,
 html:not(.dark) .border-slate-700\/30 { border-color: var(--c-border-light) !important; }
+/* Light mode hover fixes — use darker shades so hover is visible against surface */
+html:not(.dark) .hover\:bg-slate-800\3A hover,
+html:not(.dark) .hover\:bg-slate-800\/50\3A hover,
+html:not(.dark) .hover\:bg-slate-800\/30\3A hover,
+html:not(.dark) .hover\:bg-slate-800\/20\3A hover { background-color: var(--c-border) !important; }
+html:not(.dark) .hover\:bg-slate-700\3A hover,
+html:not(.dark) .hover\:bg-slate-700\/50\3A hover,
+html:not(.dark) .hover\:bg-slate-700\/30\3A hover { background-color: #cbd5e1 !important; }
+html:not(.dark) .hover\:text-white\3A hover { color: #0f172a !important; }
+/* Light mode group-hover fixes */
+html:not(.dark) .group\:hover .group-hover\:bg-slate-800\/20,
+html:not(.dark) .group:hover .group-hover\:bg-slate-800\/20 { background-color: var(--c-bg-alt) !important; }
 html:not(.dark) .shadow-card { box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 4px 12px rgba(0,0,0,0.04); }
 html:not(.dark) .shadow-card-hover { box-shadow: 0 2px 8px rgba(0,0,0,0.08), 0 8px 24px rgba(0,0,0,0.06); }
 html:not(.dark) .skeleton { background: #e2e8f0; }
