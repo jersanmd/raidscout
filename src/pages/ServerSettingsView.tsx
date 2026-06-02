@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, Fragment } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { useServer } from "@/contexts/ServerContext";
@@ -15,6 +15,52 @@ export function ServerSettingsView() {
   const { toast } = useToast();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+
+  // Permission hierarchy: parent → children
+  const PERMISSION_HIERARCHY: Record<string, string[]> = {
+    can_access_settings: ["can_change_timezone", "can_access_integrations", "can_manage_viewer_key"],
+    can_manage_guilds: ["can_manage_boss_guilds"],
+    can_record_death: ["can_edit_death_records", "can_edit_participants", "can_set_spawn", "can_rotate_guilds"],
+    can_manage_moderators: ["can_manage_raid_members", "can_adjust_points", "can_export_attendance"],
+  };
+
+  // Reverse map: child → parent
+  const PERMISSION_PARENT: Record<string, string> = {};
+  for (const [parent, children] of Object.entries(PERMISSION_HIERARCHY)) {
+    for (const child of children) {
+      PERMISSION_PARENT[child] = parent;
+    }
+  }
+
+  // Permission labels grouped by section with hierarchy (indent)
+  const PERMISSION_SECTIONS = [
+    { section: "Server Access", items: [
+      { key: "can_access_settings" as const, label: "Access Server Settings", indent: false, parent: true },
+      { key: "can_change_timezone" as const, label: "Change Timezone", indent: true, parent: false },
+      { key: "can_access_integrations" as const, label: "Access Integrations", indent: true, parent: false },
+      { key: "can_manage_viewer_key" as const, label: "Manage Viewer Key", indent: true, parent: false },
+    ]},
+    { section: "Guilds", items: [
+      { key: "can_manage_guilds" as const, label: "Manage Guilds", indent: false, parent: true },
+      { key: "can_manage_boss_guilds" as const, label: "Boss-Guild Assignments", indent: true, parent: false },
+    ]},
+    { section: "Boss Actions", items: [
+      { key: "can_record_death" as const, label: "Record Boss Kills", indent: false, parent: true },
+      { key: "can_edit_death_records" as const, label: "Edit/Delete Death Records", indent: true, parent: false },
+      { key: "can_edit_participants" as const, label: "Edit Kill Participants", indent: true, parent: false },
+      { key: "can_set_spawn" as const, label: "Set Spawn Overrides", indent: true, parent: false },
+      { key: "can_rotate_guilds" as const, label: "Rotate Guild Assignments", indent: true, parent: false },
+    ]},
+    { section: "Members & Points", items: [
+      { key: "can_manage_moderators" as const, label: "Manage Moderators", indent: false, parent: true },
+      { key: "can_manage_raid_members" as const, label: "Manage Raid Members", indent: true, parent: false },
+      { key: "can_adjust_points" as const, label: "Adjust Points", indent: true, parent: false },
+      { key: "can_export_attendance" as const, label: "Export Attendance", indent: true, parent: false },
+    ]},
+    { section: "Discord", items: [
+      { key: "can_announce_discord" as const, label: "Announce 24h Spawns to Discord", indent: false, parent: false },
+    ]},
+  ];
 
   // Redirect viewers — they have no business in settings
   useEffect(() => {
@@ -50,18 +96,21 @@ export function ServerSettingsView() {
         .then(setGuilds)
         .catch(() => setGuilds([]))
         .finally(() => setGuildsLoading(false));
-      // Fetch bosses + guild assignments
+      // Fetch bosses + guild assignments + boss points matrix
       setBossGuildsLoading(true);
       Promise.all([
         fetchBosses(currentServer.id),
         fetchBossGuilds(currentServer.id),
-      ]).then(([b, bg]) => {
+        fetchAllBossGuildsForServer(currentServer.id),
+      ]).then(([b, bg, abg]) => {
         setBosses(b);
         setBossGuildsState(bg);
+        setAllBossGuilds(abg);
         // Initialize bossModes from data
         const modes: Record<string, "none" | "rotation" | "schedule" | "daily"> = {};
         for (const boss of b) {
-          const bgs = bg.filter(x => x.boss_id === boss.id);
+          // Filter out points-only rows (sort_order = -1 sentinel)
+          const bgs = bg.filter(x => x.boss_id === boss.id && x.sort_order !== -1);
           if (bgs.length === 0) modes[boss.id] = "none";
           else if (bgs[0].mode === "daily") modes[boss.id] = "daily";
           else if (bgs[0].mode === "schedule") modes[boss.id] = "schedule";
@@ -70,7 +119,7 @@ export function ServerSettingsView() {
         }
         setBossModes(modes);
       })
-        .catch(() => { setBosses([]); setBossGuildsState([]); })
+        .catch(() => { setBosses([]); setBossGuildsState([]); setAllBossGuilds([]); })
         .finally(() => setBossGuildsLoading(false));
       // Fetch Discord bot configs
       (async () => {
@@ -83,6 +132,18 @@ export function ServerSettingsView() {
           setDiscordLinks(data || []);
         } catch { /* ignore */ }
       })();
+      // Fetch point rules
+      setRulesLoading(true);
+      fetchPointRules(currentServer.id)
+        .then(setPointRules)
+        .catch(() => setPointRules([]))
+        .finally(() => setRulesLoading(false));
+      // Fetch boss assists
+      setAssistsLoading(true);
+      fetchBossAssists(currentServer.id)
+        .then(setBossAssists)
+        .catch(() => setBossAssists([]))
+        .finally(() => setAssistsLoading(false));
     }
   }, [currentServer?.id]);
 
@@ -106,7 +167,7 @@ export function ServerSettingsView() {
   const [viewerKey, setViewerKey] = useState("");
   const [showInviteCode, setShowInviteCode] = useState(false);
   const [showViewerKey, setShowViewerKey] = useState(false);
-  const [discordLinks, setDiscordLinks] = useState<{ id: string; discord_guild_id: string; label?: string; webhook_url?: string; command_prefix?: string; notification_channel_id?: string; command_channel_id?: string }[]>([]);
+  const [discordLinks, setDiscordLinks] = useState<{ id: string; discord_guild_id: string; label?: string; webhook_url?: string; command_prefix?: string; notification_channel_id?: string; command_channel_id?: string; thread_channel_id?: string; thread_guilds?: string[]; notification_prefix?: string }[]>([]);
   const [newDiscordId, setNewDiscordId] = useState("");
   const [newDiscordLabel, setNewDiscordLabel] = useState("");
   const [newDiscordPrefix, setNewDiscordPrefix] = useState("!");
@@ -115,10 +176,15 @@ export function ServerSettingsView() {
   const [editAliasLinkId, setEditAliasLinkId] = useState<string | null>(null);
   const [editAliases, setEditAliases] = useState<Record<string, string>>({});
   const [channelValues, setChannelValues] = useState<Record<string, { notif: string; cmd: string }>>({});
+  const [pingValues, setPingValues] = useState<Record<string, string>>({});
+  const [threadValues, setThreadValues] = useState<Record<string, { channelId: string; guilds: string[] }>>({});
   const [testingDiscord, setTestingDiscord] = useState<Set<string>>(new Set());
+  const [expandedModPerms, setExpandedModPerms] = useState<string | null>(null); // user_id of expanded moderator
+  const [modPermsData, setModPermsData] = useState<Record<string, ModeratorPermissions>>({}); // loaded permissions per user
+  const [savingPerms, setSavingPerms] = useState<string | null>(null); // user_id being saved
   const [searchParams] = useSearchParams();
   const tabParam = searchParams.get("tab");
-  const initialTab = (tabParam === "general" || tabParam === "members" || tabParam === "integrations" || tabParam === "danger" || tabParam === "boss-guilds" || tabParam === "boss-points")
+  const initialTab = (tabParam === "general" || tabParam === "members" || tabParam === "integrations" || tabParam === "danger" || tabParam === "boss-points")
     ? tabParam
     : "general";
   const [tab, setTab] = useState<string>(initialTab);
@@ -155,9 +221,43 @@ export function ServerSettingsView() {
   const [bossGuilds, setBossGuildsState] = useState<BossGuild[]>([]);
   const [bossGuildsLoading, setBossGuildsLoading] = useState(false);
 
+  // Boss Points matrix state
+  const [allBossGuilds, setAllBossGuilds] = useState<BossGuild[]>([]);
+  const [bossPointsLoading, setBossPointsLoading] = useState(false);
+  const [savingCell, setSavingCell] = useState<string | null>(null); // "bossId-guildId" while saving
+
+  // Point Rules state
+  const [pointRules, setPointRules] = useState<PointRule[]>([]);
+  const [rulesLoading, setRulesLoading] = useState(false);
+  const [showAddRule, setShowAddRule] = useState(false);
+  const [newRuleGuildId, setNewRuleGuildId] = useState("");
+  const [newRuleStartHour, setNewRuleStartHour] = useState(0);
+  const [newRuleEndHour, setNewRuleEndHour] = useState(6);
+  const [newRuleMultiplier, setNewRuleMultiplier] = useState(2);
+  const [savingRule, setSavingRule] = useState(false);
+
+  // Boss Assists state
+  const [bossAssists, setBossAssists] = useState<BossAssist[]>([]);
+  const [assistsLoading, setAssistsLoading] = useState(false);
+
+  // Boss priority ordering (for display in Boss Guilds tab)
+  const BOSS_PRIORITY = [
+    "Venatus", "Viorent", "Ego", "Clemantis", "Livera", "Araneo", "Undomiel",
+    "Saphirus", "Neutro", "Lady Dalia", "General Aquleus", "Thymele", "Amentis",
+    "Baron", "Milavy", "Wannitas", "Metus", "Duplican", "Shuliar", "Ringor",
+    "Roderick", "Gareth", "Titore", "Larba", "Catena", "Auraq", "Secreta",
+    "Ordo", "Asta", "Supore", "Chaiflock", "Benji", "Libitina", "Rakajeth",
+    "Icaruthia", "Motti", "Nevaeh", "Tumier", "Lucus",
+  ];
+
   const sortedBosses = useMemo(() => {
-    return [...bosses].sort((a, b) => a.name.localeCompare(b.name));
-  }, [bosses]);
+    return [...bosses].sort((a, b) => {
+      const ia = BOSS_PRIORITY.indexOf(a.name);
+      const ib = BOSS_PRIORITY.indexOf(b.name);
+      if (ia === -1 && ib === -1) return a.name.localeCompare(b.name);
+      if (ia === -1) return 1;
+      if (ib === -1) return -1;
+      return ia - ib;
     });
   }, [bosses]);
 
@@ -410,6 +510,62 @@ export function ServerSettingsView() {
     }
   };
 
+  // ── Moderator Permissions ──────────────────────────────────
+
+  const handleToggleModPerms = async (userId: string) => {
+    if (expandedModPerms === userId) {
+      setExpandedModPerms(null);
+      return;
+    }
+    setExpandedModPerms(userId);
+    if (!modPermsData[userId] && currentServer) {
+      const all = await fetchModeratorPermissions(currentServer.id).catch(() => ({} as Record<string, ModeratorPermissions>));
+      setModPermsData(prev => ({ ...prev, [userId]: all[userId] ?? { ...DEFAULT_MODERATOR_PERMISSIONS } }));
+    }
+  };
+
+  const handleTogglePermission = (userId: string, perm: keyof ModeratorPermissions) => {
+    setModPermsData(prev => {
+      const current = prev[userId] ?? { ...DEFAULT_MODERATOR_PERMISSIONS };
+      const newValue = !current[perm];
+      const updated = { ...current, [perm]: newValue };
+
+      // Cascade: if checking a parent, auto-check all children
+      if (newValue && PERMISSION_HIERARCHY[perm]) {
+        for (const child of PERMISSION_HIERARCHY[perm]) {
+          updated[child as keyof ModeratorPermissions] = true;
+        }
+      }
+
+      // Cascade: if unchecking a parent, auto-uncheck all children
+      if (!newValue && PERMISSION_HIERARCHY[perm]) {
+        for (const child of PERMISSION_HIERARCHY[perm]) {
+          updated[child as keyof ModeratorPermissions] = false;
+        }
+      }
+
+      // Cascade: if checking a child, auto-check its parent
+      if (newValue && PERMISSION_PARENT[perm]) {
+        updated[PERMISSION_PARENT[perm] as keyof ModeratorPermissions] = true;
+      }
+
+      return { ...prev, [userId]: updated };
+    });
+  };
+
+  const handleSavePermissions = async (userId: string) => {
+    if (!currentServer) return;
+    setSavingPerms(userId);
+    try {
+      await updateModeratorPermissions(currentServer.id, userId, modPermsData[userId] ?? {});
+      toast("success", "Permissions saved");
+    } catch (err: any) {
+      toast("error", err?.message ?? "Failed to save permissions");
+    } finally {
+      setSavingPerms(null);
+    }
+  };
+
   const handleJoin = async () => {
     if (!inviteCode.trim()) return;
     setJoining(true);
@@ -454,6 +610,50 @@ export function ServerSettingsView() {
       toast("success", "Viewer key regenerated!");
     } catch (err: any) {
       toast("error", err?.message ?? "Failed to regenerate viewer key");
+    }
+  };
+
+  // ── Point Rules handlers ──────────────────────────────────
+
+  const handleAddPointRule = async () => {
+    if (!newRuleGuildId || !currentServer) return;
+    setSavingRule(true);
+    try {
+      const rule = await createPointRule(currentServer.id, newRuleGuildId, "time_multiplier", {
+        start_hour: newRuleStartHour,
+        end_hour: newRuleEndHour,
+        multiplier: newRuleMultiplier,
+      });
+      setPointRules(prev => [...prev, rule]);
+      setShowAddRule(false);
+      setNewRuleGuildId("");
+      setNewRuleStartHour(0);
+      setNewRuleEndHour(6);
+      setNewRuleMultiplier(2);
+      toast("success", "Point rule added!");
+    } catch (err: any) {
+      toast("error", err?.message ?? "Failed to add rule");
+    } finally {
+      setSavingRule(false);
+    }
+  };
+
+  const handleToggleRule = async (ruleId: string, enabled: boolean) => {
+    try {
+      await updatePointRule(ruleId, { enabled });
+      setPointRules(prev => prev.map(r => r.id === ruleId ? { ...r, enabled } : r));
+    } catch (err: any) {
+      toast("error", err?.message ?? "Failed to toggle rule");
+    }
+  };
+
+  const handleDeleteRule = async (ruleId: string) => {
+    try {
+      await deletePointRule(ruleId);
+      setPointRules(prev => prev.filter(r => r.id !== ruleId));
+      toast("success", "Rule deleted");
+    } catch (err: any) {
+      toast("error", err?.message ?? "Failed to delete rule");
     }
   };
 
@@ -615,7 +815,7 @@ export function ServerSettingsView() {
 
   const getBossMode = (bossId: string): "none" | "rotation" | "schedule" | "daily" => {
     if (bossModes[bossId]) return bossModes[bossId];
-    const bgs = getBossGuildsForBoss(bossId);
+    const bgs = getBossGuildsForBoss(bossId).filter(bg => bg.sort_order !== -1);
     if (bgs.length === 0) return "none";
     if (bgs[0].mode === "daily") return "daily";
     if (bgs[0].mode === "schedule") return "schedule";
@@ -624,24 +824,29 @@ export function ServerSettingsView() {
   };
 
   const handleSetBossMode = async (bossId: string, mode: "none" | "rotation" | "schedule" | "daily") => {
-    // Update state immediately so UI reflects the change
-    setBossModes(prev => ({ ...prev, [bossId]: mode }));
-    setExpandedBoss(bossId); // keep expanded
+    const currentMode = bossModes[bossId];
+    if (currentMode === mode) return;
 
-    if (mode === "none") {
+    setSavingBossId(bossId);
+    setBossModes(prev => ({ ...prev, [bossId]: mode }));
+    setExpandedBoss(bossId);
+
+    try {
       await setBossGuilds(bossId, []);
       setBossGuildsState(prev => prev.filter(bg => bg.boss_id !== bossId));
-      return;
+    } catch (err: any) {
+      toast("error", err?.message ?? "Failed to set mode");
+      // Revert the mode change on error
+      setBossModes(prev => ({ ...prev, [bossId]: currentMode }));
+    } finally {
+      setSavingBossId(null);
     }
-    // Clear existing assignments for the new mode
-    await setBossGuilds(bossId, []);
-    setBossGuildsState(prev => prev.filter(bg => bg.boss_id !== bossId));
   };
 
   const handleAddRotationGuild = async (bossId: string, guildId: string) => {
     setSavingBossId(bossId);
     try {
-      const existing = getBossGuildsForBoss(bossId).filter(bg => bg.sort_order !== null);
+      const existing = getBossGuildsForBoss(bossId).filter(bg => bg.sort_order !== null && bg.sort_order > 0);
       const nextOrder = existing.length > 0 ? Math.max(...existing.map(bg => bg.sort_order ?? 0)) + 1 : 1;
       const newAssignments = [...existing.map(bg => ({ guild_id: bg.guild_id, sort_order: bg.sort_order! })), { guild_id: guildId, sort_order: nextOrder }];
       await setBossGuilds(bossId, newAssignments, "rotation");
@@ -1171,6 +1376,17 @@ export function ServerSettingsView() {
                             <Plus className="w-3 h-3" />
                           </span>
                         </span>
+                        <span className="text-slate-600 mx-1">|</span>
+                        {/* Salary toggle (deprecated — per-guild salary now in Boss Points tab) */}
+                        <label className="flex items-center gap-1 cursor-not-allowed shrink-0 opacity-40" title="Salary is now per-guild — use the Boss Points tab">
+                          <input
+                            type="checkbox"
+                            checked={(boss as any).has_salary === true}
+                            disabled
+                            className="w-3 h-3 rounded border-slate-600 bg-slate-800 text-slate-600"
+                          />
+                          <span className="text-[10px] text-slate-600">Sal</span>
+                        </label>
                         {!bossMultiMode && (isExpanded ? <ChevronUp className="w-4 h-4 text-slate-500" /> : <ChevronDown className="w-4 h-4 text-slate-500" />)}
                       </button>
 
@@ -1221,7 +1437,7 @@ export function ServerSettingsView() {
                                 <select
                                   key={`add-daily-${boss.id}-${bossAssignments.length}`}
                                   value=""
-                                  onChange={(e) => { if (e.target.value) handleBulkAddDailyGuild(e.target.value); }}
+                                  onChange={(e) => { if (e.target.value) handleAddDailyGuild(boss.id, e.target.value); }}
                                   className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-xs text-slate-400 outline-none focus:border-cyan-500"
                                 >
                                   <option value="">+ Add guild to daily rotation...</option>
@@ -1259,7 +1475,7 @@ export function ServerSettingsView() {
                                 <select
                                   key={`add-${boss.id}-${bossAssignments.length}`}
                                   value=""
-                                  onChange={(e) => { if (e.target.value) handleBulkAddRotationGuild(e.target.value); }}
+                                  onChange={(e) => { if (e.target.value) handleAddRotationGuild(boss.id, e.target.value); }}
                                   className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-xs text-slate-400 outline-none focus:border-blue-500"
                                 >
                                   <option value="">+ Add guild to rotation...</option>
@@ -1494,6 +1710,205 @@ export function ServerSettingsView() {
         </div>
       )}
 
+      {/* Boss Points Tab */}
+      {tab === "boss-points" && (
+        <>
+          {/* Point Rules — at the top */}
+          <section className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-4 mb-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                <Zap className="w-3 h-3" /> Point Rules
+              </h3>
+              <button
+                onClick={() => setShowAddRule(!showAddRule)}
+                className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-purple-600 text-white hover:bg-purple-500 transition"
+              >
+                <Plus className="w-3 h-3" />
+                Add Rule
+              </button>
+            </div>
+            <p className="text-xs text-slate-500">
+              Create time-based multipliers that boost guild points during specific hours (server timezone).
+            </p>
+
+            {/* Add Rule Form */}
+            {showAddRule && (
+              <div className="bg-slate-800/50 border border-slate-700 rounded-lg p-3 space-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                  <div>
+                    <label className="text-[10px] text-slate-500 block mb-1">Guild</label>
+                    <select
+                      value={newRuleGuildId}
+                      onChange={e => setNewRuleGuildId(e.target.value)}
+                      className="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white"
+                    >
+                      <option value="">Select guild...</option>
+                      {guilds.map(g => (
+                        <option key={g.id} value={g.id}>{g.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-slate-500 block mb-1">Start Hour</label>
+                    <select
+                      value={newRuleStartHour}
+                      onChange={e => setNewRuleStartHour(Number(e.target.value))}
+                      className="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white"
+                    >
+                      {Array.from({ length: 24 }, (_, i) => (
+                        <option key={i} value={i}>{i.toString().padStart(2, "0")}:00</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-slate-500 block mb-1">End Hour</label>
+                    <select
+                      value={newRuleEndHour}
+                      onChange={e => setNewRuleEndHour(Number(e.target.value))}
+                      className="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white"
+                    >
+                      {Array.from({ length: 24 }, (_, i) => (
+                        <option key={i} value={i}>{i.toString().padStart(2, "0")}:00</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-slate-500 block mb-1">Multiplier</label>
+                    <select
+                      value={newRuleMultiplier}
+                      onChange={e => setNewRuleMultiplier(Number(e.target.value))}
+                      className="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white"
+                    >
+                      {[1.5, 2, 2.5, 3, 4, 5].map(m => (
+                        <option key={m} value={m}>{m}x</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleAddPointRule}
+                    disabled={!newRuleGuildId || savingRule}
+                    className="flex-1 px-3 py-1.5 rounded-lg text-xs font-medium bg-purple-600 text-white hover:bg-purple-500 disabled:opacity-50 transition"
+                  >
+                    {savingRule ? "Saving..." : "Save Rule"}
+                  </button>
+                  <button
+                    onClick={() => setShowAddRule(false)}
+                    className="px-3 py-1.5 rounded-lg text-xs text-slate-400 hover:text-white transition"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Existing Rules */}
+            {rulesLoading ? (
+              <div className="flex items-center justify-center py-3">
+                <Loader2 className="w-4 h-4 text-slate-500 animate-spin" />
+              </div>
+            ) : pointRules.length === 0 ? (
+              <p className="text-xs text-slate-600">No point rules yet. Add one above to boost guild points during specific hours.</p>
+            ) : (
+              <div className="space-y-2">
+                {pointRules.map(rule => {
+                  const guild = guilds.find(g => g.id === rule.guild_id);
+                  const cfg = rule.config;
+                  const startLabel = `${String(cfg.start_hour).padStart(2, "0")}:00`;
+                  const endLabel = `${String(cfg.end_hour).padStart(2, "0")}:00`;
+                  return (
+                    <div key={rule.id} className={`flex items-center justify-between bg-slate-800/30 rounded-lg px-3 py-2.5 gap-3 ${!rule.enabled ? "opacity-50" : ""}`}>
+                      <div className="flex items-center gap-3 min-w-0">
+                        <label className="flex items-center gap-2 cursor-pointer shrink-0">
+                          <input
+                            type="checkbox"
+                            checked={rule.enabled}
+                            onChange={() => handleToggleRule(rule.id, !rule.enabled)}
+                            className="w-3.5 h-3.5 rounded border-slate-600 bg-slate-800 text-purple-600 focus:ring-purple-500/50 cursor-pointer"
+                          />
+                        </label>
+                        <span className="text-xs font-medium text-white truncate">{guild?.name || "Unknown"}</span>
+                        <span className="text-[10px] text-slate-500 shrink-0">
+                          {startLabel} – {endLabel}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="text-xs font-mono text-amber-400 font-bold">{cfg.multiplier}x</span>
+                        <button
+                          onClick={() => handleDeleteRule(rule.id)}
+                          className="p-1 rounded text-slate-500 hover:text-red-400 hover:bg-red-900/20 transition"
+                          title="Delete rule"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+
+          <BossPointsMatrix
+            bosses={sortedBosses}
+            guilds={guilds}
+            allBossGuilds={allBossGuilds}
+            bossAssists={bossAssists}
+            savingCell={savingCell}
+            onPointsChange={async (bossId, guildId, points) => {
+              const cellKey = `${bossId}-${guildId}`;
+              setSavingCell(cellKey);
+              try {
+                await upsertBossGuildPoints(bossId, guildId, points, undefined);
+                setAllBossGuilds(prev => {
+                  const existing = prev.find(bg => bg.boss_id === bossId && bg.guild_id === guildId);
+                  if (existing) {
+                    return prev.map(bg => bg.boss_id === bossId && bg.guild_id === guildId ? { ...bg, points } : bg);
+                  }
+                  return [...prev, { id: "", boss_id: bossId, guild_id: guildId, sort_order: null, day_of_week: null, points } as BossGuild];
+                });
+              } catch { /* ignore */ }
+              setSavingCell(null);
+            }}
+            onSalaryChange={async (bossId, guildId, hasSalary) => {
+              const cellKey = `${bossId}-${guildId}`;
+              setSavingCell(cellKey);
+              try {
+                await upsertBossGuildPoints(bossId, guildId, undefined, hasSalary);
+                setAllBossGuilds(prev => {
+                  const existing = prev.find(bg => bg.boss_id === bossId && bg.guild_id === guildId);
+                  if (existing) {
+                    return prev.map(bg => bg.boss_id === bossId && bg.guild_id === guildId ? { ...bg, has_salary: hasSalary } : bg);
+                  }
+                  return [...prev, { id: "", boss_id: bossId, guild_id: guildId, sort_order: null, day_of_week: null, has_salary: hasSalary } as BossGuild];
+                });
+              } catch { /* ignore */ }
+              setSavingCell(null);
+            }}
+            onBatchSalaryChange={async (guildId, bossIds, hasSalary) => {
+              await batchSetGuildSalary(guildId, bossIds, hasSalary);
+              try {
+                const updated = await fetchAllBossGuildsForServer(currentServer!.id);
+                setAllBossGuilds(updated);
+              } catch { /* refresh failed, but data is saved */ }
+            }}
+            onAssistToggle={async (bossId, ownerGuildId, assistantGuildId) => {
+              try {
+                const added = await toggleBossAssist(bossId, ownerGuildId, assistantGuildId, currentServer!.id);
+                if (added) {
+                  setBossAssists(prev => [...prev, { id: "", boss_id: bossId, owner_guild_id: ownerGuildId, assistant_guild_id: assistantGuildId, server_id: currentServer!.id, created_at: new Date().toISOString() } as BossAssist]);
+                } else {
+                  setBossAssists(prev => prev.filter(a => !(a.boss_id === bossId && a.owner_guild_id === ownerGuildId && a.assistant_guild_id === assistantGuildId)));
+                }
+              } catch (err: any) {
+                toast("error", err?.message ?? "Failed to toggle assist");
+              }
+            }}
+          />
+        </>
+      )}
+
       {/* Members Tab */}
       {tab === "members" && (
         <div className="space-y-4">
@@ -1509,11 +1924,15 @@ export function ServerSettingsView() {
               <p className="text-xs text-slate-500">No members yet.</p>
             ) : (
               <div className="space-y-1">
-                {members.map((m) => (
-                  <div
-                    key={m.user_id}
-                    className="flex items-center justify-between px-3 py-2 rounded-lg bg-slate-800/30 text-sm"
-                  >
+                {members.map((m) => {
+                  const isExpanded = expandedModPerms === m.user_id;
+                  const perms = modPermsData[m.user_id] ?? DEFAULT_MODERATOR_PERMISSIONS;
+                  return (
+                  <div key={m.user_id}>
+                    <div
+                      className={`flex items-center justify-between px-3 py-2 rounded-lg bg-slate-800/30 text-sm ${m.role === "moderator" && isOwner ? "cursor-pointer hover:bg-slate-800/50 transition" : ""}`}
+                      onClick={() => m.role === "moderator" && isOwner && handleToggleModPerms(m.user_id)}
+                    >
                     <span className="text-slate-300 text-xs truncate max-w-[200px]">
                       {m.email ?? m.user_id}
                     </span>
@@ -1525,7 +1944,7 @@ export function ServerSettingsView() {
                       </span>
                       {isOwner && m.role === "moderator" && (
                         <button
-                          onClick={() => handleRemoveMod(m.user_id)}
+                          onClick={(e) => { e.stopPropagation(); handleRemoveMod(m.user_id); }}
                           className="p-1 rounded text-slate-500 hover:text-red-400 hover:bg-red-900/20 transition"
                           title="Remove moderator"
                         >
@@ -1534,7 +1953,43 @@ export function ServerSettingsView() {
                       )}
                     </div>
                   </div>
-                ))}
+                  {/* Permissions panel — slide down for moderators */}
+                  {isOwner && m.role === "moderator" && (
+                    <div className={`transition-all duration-300 ease-in-out overflow-hidden ${isExpanded ? "max-h-[800px] opacity-100" : "max-h-0 opacity-0"}`}>
+                      <div className="border-t border-slate-700/50 px-3 py-3 bg-slate-900/30 space-y-3">
+                        <span className="text-xs font-medium text-white">Permissions for {m.email ?? "moderator"}</span>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          {PERMISSION_SECTIONS.map(section => (
+                            <div key={section.section} className="space-y-1.5">
+                              <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">{section.section}</span>
+                              {section.items.map(({ key, label, indent, parent }) => (
+                                <label key={key} className={`flex items-center gap-2 cursor-pointer group ${indent ? "ml-5" : ""}`}>
+                                  <input
+                                    type="checkbox"
+                                    checked={perms[key] === true}
+                                    onChange={() => handleTogglePermission(m.user_id, key)}
+                                    className={`rounded border-slate-600 bg-slate-800 focus:ring-purple-500/50 cursor-pointer ${parent ? "w-4 h-4 text-purple-600" : "w-3.5 h-3.5 text-purple-500/70"}`}
+                                  />
+                                  <span className={`group-hover:text-slate-300 transition ${parent ? "text-xs text-slate-300 font-medium" : "text-xs text-slate-400"}`}>{label}</span>
+                                </label>
+                              ))}
+                            </div>
+                          ))}
+                        </div>
+                        <button
+                          onClick={() => handleSavePermissions(m.user_id)}
+                          disabled={savingPerms === m.user_id}
+                          className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded bg-purple-600 hover:bg-purple-500 text-white transition disabled:opacity-50"
+                        >
+                          {savingPerms === m.user_id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                          Save Permissions
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+                );
+              })}
               </div>
             )}
           </section>
@@ -1615,242 +2070,309 @@ export function ServerSettingsView() {
         </div>
       )}
 
-      {/* Integrations Tab — Discord Bot & Webhooks */}
+      {/* Integrations Tab — Discord Bot & Notifications */}
       {tab === "integrations" && (
-        <section className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3">
-          <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-            <Swords className="w-3 h-3" /> Discord Bot & Notifications
-          </h3>
-          <p className="text-sm text-slate-400">
-            Link your Discord server, then use these commands in Discord to configure channels:
-          </p>
-          {/* Existing links */}
-          {discordLinks.length > 0 && (
-            <div className="space-y-2">
-              {discordLinks.map(link => (
-                <div key={link.id} className="bg-slate-800/50 rounded-lg px-3 py-2 space-y-1">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-mono text-amber-400 bg-slate-700 px-1.5 py-0.5 rounded">{link.command_prefix || ";"}</span>
-                    <span className="flex-1 text-sm text-white font-mono truncate">
-                      {link.discord_guild_id}
-                      {link.label && <span className="text-slate-400 ml-1">— {link.label}</span>}
-                    </span>
-                    <button
-                      onClick={() => handleRemoveDiscordLink(link.id)}
-                      className="p-1 rounded hover:bg-red-900/30 text-slate-400 hover:text-red-400 transition"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                  <p className="text-[10px] text-slate-600 mt-1">Use <code className="text-amber-400 bg-slate-700 px-1 py-0.5 rounded">{link.command_prefix || "!"}notifhere</code> for alerts, <code className="text-amber-400 bg-slate-700 px-1 py-0.5 rounded">{link.command_prefix || "!"}cmdhere</code> for commands. Or paste IDs below.</p>
-                  <div className="mt-2 space-y-2">
-                    <div className="flex items-center gap-1">
-                      <span className="text-[10px] text-slate-500">Channels</span>
-                      {!channelValues[link.id] ? (
-                        <button onClick={() => setChannelValues(prev => ({ ...prev, [link.id]: { notif: link.notification_channel_id || "", cmd: link.command_channel_id || "" } }))} className="p-0.5 rounded text-slate-500 hover:text-purple-400 transition" title="Edit channel IDs">
-                          <Pencil className="w-3 h-3" />
+        <div className="space-y-6">
+          {/* Connected Servers */}
+          <section className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-4">
+            <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+              <Swords className="w-4 h-4" /> Linked Discord Servers
+            </h3>
+
+            {discordLinks.length === 0 ? (
+              <p className="text-xs text-slate-500 italic">No Discord servers linked yet.</p>
+            ) : (
+              <div className="space-y-3">
+                {discordLinks.map(link => {
+                  const isEditingChannels = !!channelValues[link.id];
+                  const isEditingThreads = !!threadValues[link.id];
+                  return (
+                    <div key={link.id} className="bg-slate-800/40 border border-slate-700/50 rounded-lg overflow-hidden">
+                      {/* Header */}
+                      <div className="flex items-center gap-3 px-4 py-3 bg-slate-800/60">
+                        <span className="text-xs font-bold font-mono text-amber-400 bg-slate-700 px-2 py-1 rounded">{link.command_prefix || "!"}</span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm text-white font-mono truncate">{link.discord_guild_id}</p>
+                          {link.label && <p className="text-[11px] text-slate-500 truncate">{link.label}</p>}
+                        </div>
+                        <button onClick={() => handleRemoveDiscordLink(link.id)} className="p-1.5 rounded hover:bg-red-900/30 text-slate-400 hover:text-red-400 transition" title="Remove link">
+                          <Trash2 className="w-4 h-4" />
                         </button>
-                      ) : (
-                        <div className="flex gap-0.5">
+                      </div>
+
+                      {/* Body */}
+                      <div className="p-4 space-y-4">
+                        {/* Channels */}
+                        <div>
+                          <div className="flex items-center justify-between mb-2">
+                            <h4 className="text-xs font-semibold text-blue-400 flex items-center gap-1.5">
+                              <Bell className="w-3.5 h-3.5" /> Notification & Command Channels
+                            </h4>
+                            {!isEditingChannels ? (
+                              <button onClick={() => setChannelValues(prev => ({ ...prev, [link.id]: { notif: link.notification_channel_id || "", cmd: link.command_channel_id || "" } }))}
+                                className="text-xs px-2.5 py-1 rounded bg-slate-700 text-slate-300 hover:text-white hover:bg-slate-600 transition font-medium">
+                                <Pencil className="w-3 h-3 inline mr-1" />Edit
+                              </button>
+                            ) : (
+                              <div className="flex gap-1">
+                                <button onClick={async () => {
+                                  const vals = channelValues[link.id]; if (!vals) return;
+                                  await supabase.from("discord_configs").update({ notification_channel_id: vals.notif.trim() || undefined, command_channel_id: vals.cmd.trim() || undefined }).eq("id", link.id);
+                                  setDiscordLinks(prev => prev.map(d => d.id === link.id ? { ...d, notification_channel_id: vals.notif.trim() || undefined, command_channel_id: vals.cmd.trim() || undefined } : d));
+                                  setChannelValues(prev => { const n = { ...prev }; delete n[link.id]; return n; });
+                                }} className="text-xs px-2 py-1 rounded bg-green-600 text-white hover:bg-green-500 transition font-medium flex items-center gap-1">
+                                  <Check className="w-3 h-3" />Save
+                                </button>
+                                <button onClick={() => setChannelValues(prev => { const n = { ...prev }; delete n[link.id]; return n; })}
+                                  className="text-xs px-2 py-1 rounded bg-slate-700 text-slate-400 hover:text-white transition">Cancel</button>
+                              </div>
+                            )}
+                          </div>
+                          {isEditingChannels ? (
+                            <div className="grid grid-cols-2 gap-2">
+                              <div>
+                                <label className="text-[11px] text-slate-500 block mb-1">Alert Channel ID</label>
+                                <input type="text" value={channelValues[link.id].notif} onChange={(e) => setChannelValues(prev => ({ ...prev, [link.id]: { ...prev[link.id], notif: e.target.value }}))}
+                                  placeholder="e.g. 1510221200259940442"
+                                  className="w-full bg-slate-700 rounded px-2.5 py-1.5 text-xs text-slate-200 font-mono outline-none focus:ring-1 focus:ring-blue-500" />
+                              </div>
+                              <div>
+                                <label className="text-[11px] text-slate-500 block mb-1">Command Channel ID</label>
+                                <input type="text" value={channelValues[link.id].cmd} onChange={(e) => setChannelValues(prev => ({ ...prev, [link.id]: { ...prev[link.id], cmd: e.target.value }}))}
+                                  placeholder="e.g. 1507015001091608729"
+                                  className="w-full bg-slate-700 rounded px-2.5 py-1.5 text-xs text-slate-200 font-mono outline-none focus:ring-1 focus:ring-blue-500" />
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex gap-4 text-xs">
+                              <span className="text-slate-500">Alerts: {link.notification_channel_id ? <code className="text-slate-300 font-mono">{link.notification_channel_id}</code> : <span className="italic text-slate-600">not set</span>}</span>
+                              <span className="text-slate-500">Commands: {link.command_channel_id ? <code className="text-slate-300 font-mono">{link.command_channel_id}</code> : <span className="italic text-slate-600">not set</span>}</span>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Auto-Threads */}
+                        <div>
+                          <div className="flex items-center justify-between mb-2">
+                            <h4 className="text-xs font-semibold text-purple-400 flex items-center gap-1.5">
+                              <MessageCircle className="w-3.5 h-3.5" /> Auto-Threads
+                            </h4>
+                            {!isEditingThreads ? (
+                              <button onClick={() => setThreadValues(prev => ({ ...prev, [link.id]: { channelId: link.thread_channel_id || "", guilds: link.thread_guilds || [] } }))}
+                                className="text-xs px-2.5 py-1 rounded bg-slate-700 text-slate-300 hover:text-white hover:bg-slate-600 transition font-medium">
+                                <Pencil className="w-3 h-3 inline mr-1" />Edit
+                              </button>
+                            ) : (
+                              <div className="flex gap-1">
+                                <button onClick={async () => {
+                                  const vals = threadValues[link.id]; if (!vals) return;
+                                  await updateThreadConfig(link.id, vals.channelId.trim() || null, vals.guilds);
+                                  setDiscordLinks(prev => prev.map(d => d.id === link.id ? { ...d, thread_channel_id: vals.channelId.trim() || undefined, thread_guilds: vals.guilds } : d));
+                                  setThreadValues(prev => { const n = { ...prev }; delete n[link.id]; return n; });
+                                }} className="text-xs px-2 py-1 rounded bg-green-600 text-white hover:bg-green-500 transition font-medium flex items-center gap-1">
+                                  <Check className="w-3 h-3" />Save
+                                </button>
+                                <button onClick={() => setThreadValues(prev => { const n = { ...prev }; delete n[link.id]; return n; })}
+                                  className="text-xs px-2 py-1 rounded bg-slate-700 text-slate-400 hover:text-white transition">Cancel</button>
+                              </div>
+                            )}
+                          </div>
+                          {isEditingThreads ? (
+                            <div className="space-y-3">
+                              {guilds.length > 0 && (
+                                <div>
+                                  <label className="text-[11px] text-slate-500 block mb-1.5">Guilds that trigger threads</label>
+                                  <div className="flex flex-wrap gap-2">
+                                    {guilds.map(g => {
+                                      const checked = threadValues[link.id].guilds.includes(g.id);
+                                      return (
+                                        <label key={g.id} className={`flex items-center gap-1.5 px-2.5 py-1 rounded cursor-pointer border text-xs font-medium transition ${
+                                          checked ? "bg-purple-900/30 border-purple-700 text-purple-300" : "bg-slate-800 border-slate-700 text-slate-500 hover:text-slate-300"
+                                        }`}>
+                                          <input type="checkbox" checked={checked} onChange={() => {
+                                            setThreadValues(prev => ({ ...prev, [link.id]: { ...prev[link.id], guilds: checked ? prev[link.id].guilds.filter(id => id !== g.id) : [...prev[link.id].guilds, g.id] } }));
+                                          }} className="sr-only" />
+                                          {g.name}
+                                        </label>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              )}
+                              <div>
+                                <label className="text-[11px] text-slate-500 block mb-1">Thread Channel ID</label>
+                                <input type="text" value={threadValues[link.id].channelId} onChange={(e) => setThreadValues(prev => ({ ...prev, [link.id]: { ...prev[link.id], channelId: e.target.value } }))}
+                                  placeholder="Paste forum or text channel ID"
+                                  className="w-full bg-slate-700 rounded px-2.5 py-1.5 text-xs text-slate-200 font-mono outline-none focus:ring-1 focus:ring-purple-500" />
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="text-xs text-slate-500">
+                              Threads: {link.thread_channel_id ? (
+                                <><code className="text-slate-300 font-mono">{link.thread_channel_id}</code> <span className="text-purple-400">({((link.thread_guilds || []).map(gid => guilds.find(g => g.id === gid)?.name).filter(Boolean).join(", ")) || "no guilds"})</span></>
+                              ) : (
+                                <span className="italic text-slate-600">not set</span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Actions */}
+                        <div className="flex items-center gap-3 pt-1 border-t border-slate-700/50">
+                          <button onClick={() => {
+                            if (editAliasLinkId === link.id) { setEditAliasLinkId(null); return; }
+                            setEditAliasLinkId(link.id); setEditAliases((link as any).command_aliases || {});
+                          }}
+                            className={`text-xs px-2.5 py-1 rounded font-medium flex items-center gap-1.5 transition ${
+                              editAliasLinkId === link.id ? "bg-amber-600 text-white" : "bg-amber-900/30 text-amber-400 hover:bg-amber-900/50"
+                            }`}>
+                            <Pencil className="w-3 h-3" />{editAliasLinkId === link.id ? "Close Aliases" : "Command Aliases"}
+                          </button>
+                          <div className="flex items-center gap-1.5 ml-auto">
+                            <label className="text-[11px] text-slate-500">Ping:</label>
+                            <input type="text"
+                              value={pingValues[link.id] ?? ((link as any).notification_prefix || "")}
+                              onChange={(e) => setPingValues(prev => ({ ...prev, [link.id]: e.target.value }))}
+                              placeholder="@everyone"
+                              className={`bg-slate-700 border border-slate-600 px-2 py-1 text-xs text-slate-200 font-mono outline-none focus:ring-1 focus:ring-blue-500 transition ${
+                                (pingValues[link.id] ?? "") !== ((link as any).notification_prefix || "")
+                                  ? "rounded-l w-28" : "rounded w-36"
+                              }`} />
+                            {(pingValues[link.id] ?? "") !== ((link as any).notification_prefix || "") && (
+                              <button
+                                onClick={async () => {
+                                  const val = (pingValues[link.id] || "").trim();
+                                  await supabase.from("discord_configs").update({ notification_prefix: val || null }).eq("id", link.id);
+                                  setDiscordLinks(prev => prev.map(d => d.id === link.id ? { ...d, notification_prefix: val } : d));
+                                  setPingValues(prev => { const n = { ...prev }; delete n[link.id]; return n; });
+                                  toast("success", val ? `Ping set to "${val}"` : "Ping reset to default");
+                                }}
+                                className="text-xs px-2 py-1 rounded-r bg-blue-600 text-white hover:bg-blue-500 transition font-medium">Save</button>
+                            )}
+                          </div>
                           <button onClick={async () => {
-                            const vals = channelValues[link.id];
-                            if (!vals) return;
-                            await supabase.from("discord_configs").update({ notification_channel_id: vals.notif.trim() || undefined, command_channel_id: vals.cmd.trim() || undefined }).eq("id", link.id);
-                            setDiscordLinks(prev => prev.map(d => d.id === link.id ? { ...d, notification_channel_id: vals.notif.trim() || undefined, command_channel_id: vals.cmd.trim() || undefined } : d));
-                            setChannelValues(prev => { const n = { ...prev }; delete n[link.id]; return n; });
-                          }} className="p-0.5 rounded text-green-400 hover:text-green-300 transition" title="Save">
-                            <Check className="w-3 h-3" />
-                          </button>
-                          <button onClick={() => setChannelValues(prev => { const n = { ...prev }; delete n[link.id]; return n; })} className="p-0.5 rounded text-red-400 hover:text-red-300 transition" title="Cancel">
-                            <X className="w-3 h-3" />
+                            if (!currentServer) return;
+                            setTestingDiscord(prev => new Set(prev).add(link.id));
+                            try {
+                              const events: Array<{ event: "boss_spawning" | "boss_spawned" | "boss_died"; delay: number }> = [
+                                { event: "boss_spawning", delay: 0 }, { event: "boss_spawned", delay: 800 }, { event: "boss_died", delay: 1600 },
+                              ];
+                              let okCount = 0;
+                              for (const { event, delay } of events) {
+                                await new Promise(r => setTimeout(r, delay));
+                                const r = await notifyDiscord(currentServer.id, event, { boss_name: "Test Notification (Ignore)", guild_name: "System" });
+                                if (r.ok) okCount++;
+                              }
+                              if (okCount === 3) toast("success", "All 3 test notifications sent!");
+                              else if (okCount > 0) toast("warning", `${okCount}/3 sent. Check channel IDs and bot status.`);
+                              else toast("error", "Failed to send. Check channel IDs and bot status.");
+                            } catch { toast("error", "Failed to send. Is the bot online?"); }
+                            finally { setTestingDiscord(prev => { const n = new Set(prev); n.delete(link.id); return n; }); }
+                          }} disabled={testingDiscord.has(link.id)}
+                            className="text-xs px-2.5 py-1 rounded bg-green-900/30 text-green-400 hover:bg-green-900/50 transition font-medium flex items-center gap-1.5 disabled:opacity-50">
+                            {testingDiscord.has(link.id) ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
+                            Test Notifications
                           </button>
                         </div>
-                      )}
+
+                        {/* Inline Command Aliases Editor */}
+                        {editAliasLinkId === link.id && (
+                          <div className="pt-3 border-t border-slate-700/50 animate-slideDown">
+                            <div className="space-y-2">
+                              {["list","nextspawn","killed","forcespawn","forcespawnall","commands","notifhere","threadhere","cmdhere"].map(cmd => (
+                                <div key={cmd} className="flex items-center gap-2">
+                                  <span className="text-xs text-amber-400 w-24 font-mono">{cmd}</span>
+                                  <span className="text-xs text-slate-600">→</span>
+                                  <input type="text" value={editAliases[cmd] || ""} onChange={e => setEditAliases(prev => ({ ...prev, [cmd]: e.target.value }))}
+                                    placeholder={cmd}
+                                    className="flex-1 bg-slate-700 border border-slate-600 rounded px-2.5 py-1.5 text-xs text-white placeholder-slate-500 outline-none focus:border-amber-500 transition font-mono" />
+                                </div>
+                              ))}
+                              <button onClick={async () => {
+                                const { error } = await supabase.from("discord_configs").update({ command_aliases: editAliases }).eq("id", editAliasLinkId);
+                                if (error) { toast("error", error.message); return; }
+                                setDiscordLinks(prev => prev.map(d => d.id === editAliasLinkId ? { ...d, command_aliases: editAliases } : d));
+                                setEditAliasLinkId(null); toast("success", "Aliases saved!");
+                              }} className="px-4 py-2 rounded-lg text-xs font-medium bg-amber-600 text-white hover:bg-amber-500 transition flex items-center gap-1.5">
+                                <Check className="w-3.5 h-3.5" /> Save Aliases
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                    {channelValues[link.id] ? (
-                      <div className="flex gap-2">
-                        <div className="flex-1">
-                          <label className="text-[10px] text-slate-500 block mb-0.5">Alerts Channel ID</label>
-                          <input type="text" value={channelValues[link.id].notif} onChange={(e) => setChannelValues(prev => ({ ...prev, [link.id]: { ...prev[link.id], notif: e.target.value }}))} placeholder="Channel ID" className="w-full bg-slate-700 rounded px-2 py-1.5 text-xs text-slate-300 font-mono outline-none focus:ring-1 focus:ring-purple-500" />
-                        </div>
-                        <div className="flex-1">
-                          <label className="text-[10px] text-slate-500 block mb-0.5">Commands Channel ID</label>
-                          <input type="text" value={channelValues[link.id].cmd} onChange={(e) => setChannelValues(prev => ({ ...prev, [link.id]: { ...prev[link.id], cmd: e.target.value }}))} placeholder="Channel ID" className="w-full bg-slate-700 rounded px-2 py-1.5 text-xs text-slate-300 font-mono outline-none focus:ring-1 focus:ring-purple-500" />
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="text-[10px] text-slate-500">
-                        Alerts: {link.notification_channel_id ? <code className="text-slate-400 font-mono">{link.notification_channel_id}</code> : <span className="italic">not set</span>} — Commands: {link.command_channel_id ? <code className="text-slate-400 font-mono">{link.command_channel_id}</code> : <span className="italic">not set</span>}
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2 mt-1">
-                    <button onClick={() => { setEditAliasLinkId(link.id); setEditAliases((link as any).command_aliases || {}); }} className="text-[10px] text-slate-500 hover:text-purple-400 transition">
-                      <Pencil className="w-3 h-3 inline mr-1" />Edit Commands
-                    </button>
-                    <button
-                      onClick={async () => {
-                        if (!currentServer) return;
-                        setTestingDiscord(prev => new Set(prev).add(link.id));
-                        try {
-                          const r = await notifyDiscord(currentServer.id, "boss_died", {
-                            boss_name: "Test Notification (Ignore)",
-                            guild_name: "System",
-                          });
-                          if (r.ok) {
-                            toast("success", "Test notification sent!");
-                          } else {
-                            toast("error", "Failed to send. Check channel IDs and bot status.");
-                          }
-                        } catch {
-                          toast("error", "Failed to send. Is the bot online?");
-                        } finally {
-                          setTestingDiscord(prev => { const n = new Set(prev); n.delete(link.id); return n; });
-                        }
-                      }}
-                      disabled={testingDiscord.has(link.id)}
-                      className="text-[10px] text-slate-500 hover:text-amber-400 transition disabled:opacity-50 disabled:cursor-not-allowed"
-                      title="Send a test notification to this server"
-                    >
-                      {testingDiscord.has(link.id) ? <Loader2 className="w-3 h-3 inline mr-1 animate-spin" /> : <Send className="w-3 h-3 inline mr-1" />}
-                      Test
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+                  );
+                })}
+              </div>
+            )}
 
-          {/* Command alias editor */}
-          {editAliasLinkId && (
-            <div className="bg-slate-800/50 rounded-lg p-3 space-y-2">
-              <p className="text-xs font-medium text-purple-400">Custom Command Aliases</p>
-              {["list","nextspawn","killed","commands","notifhere","cmdhere"].map(cmd => (
-                <div key={cmd} className="flex items-center gap-2">
-                  <span className="text-xs text-slate-400 w-20 font-mono">{cmd}</span>
-                  <span className="text-xs text-slate-600">→</span>
-                  <input
-                    type="text"
-                    value={editAliases[cmd] || ""}
-                    onChange={e => setEditAliases(prev => ({ ...prev, [cmd]: e.target.value }))}
-                    placeholder={cmd}
-                    className="flex-1 bg-slate-800 border border-slate-700 rounded px-2 py-1 text-xs text-white placeholder-slate-600 outline-none focus:border-purple-500 transition font-mono"
-                  />
-                </div>
-              ))}
-              <div className="flex gap-2 pt-1">
-                <button
-                  onClick={async () => {
-                    const { error } = await supabase.from("discord_configs").update({ command_aliases: editAliases }).eq("id", editAliasLinkId);
-                    if (error) { toast("error", error.message); return; }
-                    setDiscordLinks(prev => prev.map(d => d.id === editAliasLinkId ? { ...d, command_aliases: editAliases } : d));
-                    setEditAliasLinkId(null);
-                    toast("success", "Command aliases saved!");
-                  }}
-                  className="px-3 py-1.5 rounded text-xs font-medium bg-purple-600 text-white hover:bg-purple-500 transition"
-                >
-                  Save Aliases
+            {/* Add new link */}
+            <div className="pt-2 border-t border-slate-800">
+              <h4 className="text-xs font-semibold text-slate-400 mb-3 flex items-center gap-1.5">
+                <Plus className="w-3.5 h-3.5" /> Link New Discord Server
+              </h4>
+              <div className="flex gap-2">
+                <input type="text" value={newDiscordId} onChange={(e) => setNewDiscordId(e.target.value)}
+                  placeholder="Discord Server ID" ref={discordIdInputRef}
+                  className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 outline-none focus:border-purple-500 transition font-mono" />
+                <input type="text" value={newDiscordLabel} onChange={(e) => setNewDiscordLabel(e.target.value)}
+                  placeholder="Label (optional)"
+                  className="w-36 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 outline-none focus:border-purple-500 transition" />
+                <button onClick={handleAddDiscordLink} disabled={savingDiscord || !newDiscordId.trim()}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium bg-purple-600 text-white hover:bg-purple-500 transition disabled:opacity-50">
+                  {savingDiscord ? <Loader2 className="w-4 h-4 animate-spin" /> : <Link className="w-4 h-4" />}
+                  Link
                 </button>
-                <button onClick={() => setEditAliasLinkId(null)} className="px-3 py-1.5 rounded text-xs text-slate-400 hover:text-white transition">Cancel</button>
               </div>
             </div>
-          )}
+          </section>
 
-          {/* Add new link */}
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={newDiscordId}
-              onChange={(e) => setNewDiscordId(e.target.value)}
-              placeholder="Discord Server ID"
-              ref={discordIdInputRef}
-              className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 outline-none focus:border-purple-500 transition font-mono"
-            />
-            <input
-              type="text"
-              value={newDiscordLabel}
-              onChange={(e) => setNewDiscordLabel(e.target.value)}
-              placeholder="Guild name (e.g. Crimson)"
-              className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 outline-none focus:border-purple-500 transition"
-            />
-            <button
-              onClick={handleAddDiscordLink}
-              disabled={savingDiscord || !newDiscordId.trim()}
-              className="flex items-center gap-1 px-3 py-2 rounded-lg text-xs font-medium bg-purple-600 text-white hover:bg-purple-500 transition disabled:opacity-50"
-            >
-              {savingDiscord ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />}
-              Link
-            </button>
-          </div>
-
-          <div className="bg-slate-800/50 rounded-lg p-3 text-xs space-y-3">
-            <div>
-              <p className="text-slate-300 font-semibold mb-1">Step 1: Choose a prefix & link your Discord server</p>
-              <ol className="list-decimal list-inside space-y-0.5 ml-1 text-slate-400">
-                <li>Pick a command prefix from the dropdown (e.g. <code className="bg-slate-700 px-1 rounded text-amber-400 font-mono">!</code>)</li>
-                <li>Enable <strong>Developer Mode</strong> in Discord (Settings → Advanced)</li>
-                <li>Right-click your server icon → <strong>Copy Server ID</strong></li>
-                <li>Paste it above and click <strong>Link</strong></li>
-              </ol>
-            </div>
-            <div>
-              <p className="text-slate-300 font-semibold mb-1">Step 2: Invite the bot</p>
-              <ol className="list-decimal list-inside space-y-0.5 ml-1 text-slate-400">
-                <li><a href="https://discord.com/api/oauth2/authorize?client_id=1508368991272566975&permissions=2147485696&scope=bot%20applications.commands" target="_blank" rel="noopener noreferrer" className="text-purple-400 hover:text-purple-300 underline font-medium">Click here to invite the bot</a></li>
-              </ol>
-            </div>
-            <div>
-              <p className="text-slate-300 font-semibold mb-1">Step 3: Set notification channel</p>
-              <ol className="list-decimal list-inside space-y-0.5 ml-1 text-slate-400">
-                <li>In Discord, go to your announcements channel</li>
-                <li>Type <code className="bg-slate-700 px-1 rounded text-amber-400 font-mono">&lt;prefix&gt;notifhere</code> (using your chosen prefix)</li>
-                <li>The bot will post all boss kill and spawn alerts to that channel</li>
-              </ol>
-            </div>
-            <div>
-              <p className="text-slate-300 font-semibold mb-1">Available commands (use your chosen prefix):</p>
-              <div className="space-y-0.5 mt-1">
-                <p className="text-xs"><span className="text-amber-400 font-mono">&lt;prefix&gt;nextspawn</span> <span className="text-slate-500">—</span> <span className="text-slate-400">Boss spawns in 24h</span></p>
-                <p className="text-xs"><span className="text-amber-400 font-mono">&lt;prefix&gt;nextspawn &lt;boss&gt;</span> <span className="text-slate-500">—</span> <span className="text-slate-400">Check a specific boss</span></p>
-                <p className="text-xs"><span className="text-amber-400 font-mono">&lt;prefix&gt;killed &lt;boss&gt;</span> <span className="text-slate-500">—</span> <span className="text-slate-400">Record a kill now</span></p>
-                <p className="text-xs"><span className="text-amber-400 font-mono">&lt;prefix&gt;killed &lt;boss&gt; HH:MM</span> <span className="text-slate-500">—</span> <span className="text-slate-400">Kill at custom time</span></p>
-                <p className="text-xs"><span className="text-amber-400 font-mono">&lt;prefix&gt;list</span> <span className="text-slate-500">—</span> <span className="text-slate-400">Show all boss names</span></p>
-                <p className="text-xs"><span className="text-amber-400 font-mono">&lt;prefix&gt;notifhere</span> <span className="text-slate-500">—</span> <span className="text-slate-400">Set notification channel</span></p>
-                <p className="text-xs"><span className="text-amber-400 font-mono">&lt;prefix&gt;commands</span> <span className="text-slate-500">—</span> <span className="text-slate-400">Show all commands</span></p>
+          {/* Getting Started Guide */}
+          <section className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-4">
+            <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider">Getting Started</h3>
+            <div className="grid sm:grid-cols-3 gap-4">
+              <div className="space-y-1.5">
+                <span className="text-xs font-bold text-purple-400 bg-purple-900/20 px-2 py-0.5 rounded">Step 1</span>
+                <p className="text-xs text-slate-300 font-medium">Link your Discord server</p>
+                <p className="text-[11px] text-slate-500 leading-relaxed">
+                  Enable <strong>Developer Mode</strong> in Discord (Settings → Advanced). Right-click your server icon → <strong>Copy Server ID</strong>. Paste above and click <strong>Link</strong>.
+                </p>
+              </div>
+              <div className="space-y-1.5">
+                <span className="text-xs font-bold text-purple-400 bg-purple-900/20 px-2 py-0.5 rounded">Step 2</span>
+                <p className="text-xs text-slate-300 font-medium">Invite the bot</p>
+                <p className="text-[11px] text-slate-500 leading-relaxed">
+                  <a href="https://discord.com/api/oauth2/authorize?client_id=1508368991272566975&permissions=2147485696&scope=bot%20applications.commands" target="_blank" rel="noopener noreferrer"
+                    className="text-purple-400 hover:text-purple-300 underline font-medium">Click here to invite RaidScout Bot</a> to your Discord server.
+                </p>
+              </div>
+              <div className="space-y-1.5">
+                <span className="text-xs font-bold text-purple-400 bg-purple-900/20 px-2 py-0.5 rounded">Step 3</span>
+                <p className="text-xs text-slate-300 font-medium">Configure channels</p>
+                <p className="text-[11px] text-slate-500 leading-relaxed">
+                  In Discord, type <code className="bg-slate-800 px-1 rounded text-amber-400 font-mono text-xs">&lt;prefix&gt;notifhere</code> for alerts, <code className="bg-slate-800 px-1 rounded text-amber-400 font-mono text-xs">&lt;prefix&gt;threadhere</code> for auto-threads, and <code className="bg-slate-800 px-1 rounded text-amber-400 font-mono text-xs">&lt;prefix&gt;cmdhere</code> to restrict commands.
+                </p>
               </div>
             </div>
-          </div>
-        </section>
-      )}
-
-      {/* Integrations Tab — Notification Prefix */}
-      {tab === "integrations" && (
-        <section className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3">
-          <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-            <Bell className="w-3 h-3" /> Notification Prefix
-          </h3>
-          <p className="text-sm text-slate-400">
-            Customize the ping text that appears at the start of every Discord notification.
-            Defaults to <code className="bg-slate-800 px-1 rounded text-amber-400">@everyone</code>.
-          </p>
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={notifPrefix}
-              onChange={(e) => setNotifPrefix(e.target.value)}
-              placeholder="@everyone"
-              className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 outline-none focus:border-purple-500 transition"
-            />
-            <button
-              onClick={handleSavePrefix}
-              disabled={savingPrefix || !notifPrefix.trim() || notifPrefix === (currentServer.notification_prefix ?? "@everyone")}
-              className="flex items-center gap-1 px-3 py-2 rounded-lg text-xs font-medium bg-purple-600 text-white hover:bg-purple-500 transition disabled:opacity-50"
-            >
-              {savingPrefix ? <Loader2 className="w-3 h-3 animate-spin" /> : <Link className="w-3 h-3" />}
-              Save
-            </button>
-          </div>
-        </section>
+            <div className="pt-2 border-t border-slate-800">
+              <h4 className="text-xs font-semibold text-slate-400 mb-2">Available Commands</h4>
+              <div className="grid sm:grid-cols-2 gap-x-6 gap-y-1">
+                <p className="text-xs"><code className="text-amber-400 font-mono text-xs">&lt;prefix&gt;nextspawn</code> <span className="text-slate-500">—</span> <span className="text-slate-400">Boss spawns in 24h</span></p>
+                <p className="text-xs"><code className="text-amber-400 font-mono text-xs">&lt;prefix&gt;nextspawn &lt;boss&gt;</code> <span className="text-slate-500">—</span> <span className="text-slate-400">Check a specific boss</span></p>
+                <p className="text-xs"><code className="text-amber-400 font-mono text-xs">&lt;prefix&gt;nextspawn &lt;guild&gt;</code> <span className="text-slate-500">—</span> <span className="text-slate-400">Spawns for a guild</span></p>
+                <p className="text-xs"><code className="text-amber-400 font-mono text-xs">&lt;prefix&gt;killed &lt;boss&gt;</code> <span className="text-slate-500">—</span> <span className="text-slate-400">Record a kill now</span></p>
+                <p className="text-xs"><code className="text-amber-400 font-mono text-xs">&lt;prefix&gt;killed &lt;boss&gt; HH:MM</code> <span className="text-slate-500">—</span> <span className="text-slate-400">Kill at custom time</span></p>
+                <p className="text-xs"><code className="text-amber-400 font-mono text-xs">&lt;prefix&gt;forcespawn &lt;boss&gt;</code> <span className="text-slate-500">—</span> <span className="text-slate-400">Force a boss to spawn</span></p>
+                <p className="text-xs"><code className="text-amber-400 font-mono text-xs">&lt;prefix&gt;forcespawnall</code> <span className="text-slate-500">—</span> <span className="text-slate-400">Spawn all fixed-timer bosses</span></p>
+                <p className="text-xs"><code className="text-amber-400 font-mono text-xs">&lt;prefix&gt;list</code> <span className="text-slate-500">—</span> <span className="text-slate-400">Show all boss names</span></p>
+                <p className="text-xs"><code className="text-amber-400 font-mono text-xs">&lt;prefix&gt;notifhere</code> <span className="text-slate-500">—</span> <span className="text-slate-400">Set notification channel</span></p>
+                <p className="text-xs"><code className="text-amber-400 font-mono text-xs">&lt;prefix&gt;threadhere</code> <span className="text-slate-500">—</span> <span className="text-slate-400">Set auto-thread channel</span></p>
+                <p className="text-xs"><code className="text-amber-400 font-mono text-xs">&lt;prefix&gt;cmdhere</code> <span className="text-slate-500">—</span> <span className="text-slate-400">Restrict commands to channel</span></p>
+                <p className="text-xs"><code className="text-amber-400 font-mono text-xs">&lt;prefix&gt;commands</code> <span className="text-slate-500">—</span> <span className="text-slate-400">Show all commands</span></p>
+              </div>
+            </div>
+          </section>
+        </div>
       )}
 
       {/* Danger Tab */}
@@ -1905,6 +2427,244 @@ export function ServerSettingsView() {
           )}
         </section>
       )}
+    </div>
+  );
+}
+
+// ── Boss Points Matrix (per-guild points + salary) ─────────
+
+const BOSS_PRIORITY_LIST = [
+  "Venatus", "Viorent", "Ego", "Clemantis", "Livera", "Araneo", "Undomiel",
+  "Saphirus", "Neutro", "Lady Dalia", "General Aquleus", "Thymele", "Amentis",
+  "Baron", "Milavy", "Wannitas", "Metus", "Duplican", "Shuliar", "Ringor",
+  "Roderick", "Gareth", "Titore", "Larba", "Catena", "Auraq", "Secreta",
+  "Ordo", "Asta", "Supore", "Chaiflock", "Benji", "Libitina", "Rakajeth",
+  "Icaruthia", "Motti", "Nevaeh", "Tumier", "Lucus",
+];
+
+function BossPointsMatrix({
+  bosses,
+  guilds,
+  allBossGuilds,
+  bossAssists,
+  savingCell,
+  onPointsChange,
+  onSalaryChange,
+  onBatchSalaryChange,
+  onAssistToggle,
+}: {
+  bosses: Boss[];
+  guilds: Guild[];
+  allBossGuilds: BossGuild[];
+  bossAssists: BossAssist[];
+  savingCell: string | null;
+  onPointsChange: (bossId: string, guildId: string, points: number | null) => Promise<void>;
+  onSalaryChange: (bossId: string, guildId: string, hasSalary: boolean) => Promise<void>;
+  onBatchSalaryChange: (guildId: string, bossIds: string[], hasSalary: boolean) => Promise<void>;
+  onAssistToggle: (bossId: string, ownerGuildId: string, assistantGuildId: string) => Promise<void>;
+}) {
+  const sortedBosses = useMemo(() => {
+    return [...bosses].sort((a, b) => {
+      const ia = BOSS_PRIORITY_LIST.indexOf(a.name);
+      const ib = BOSS_PRIORITY_LIST.indexOf(b.name);
+      if (ia === -1 && ib === -1) return a.name.localeCompare(b.name);
+      if (ia === -1) return 1;
+      if (ib === -1) return -1;
+      return ia - ib;
+    });
+  }, [bosses]);
+
+  // Build lookup: "bossId|guildId" → BossGuild
+  const bgLookup = useMemo(() => {
+    const map = new Map<string, BossGuild>();
+    for (const bg of allBossGuilds) {
+      map.set(`${bg.boss_id}|${bg.guild_id}`, bg);
+    }
+    return map;
+  }, [allBossGuilds]);
+
+  // Build assist lookup: "bossId|ownerGuildId" → Set<assistantGuildId>
+  const assistLookup = useMemo(() => {
+    const map = new Map<string, Set<string>>();
+    for (const a of bossAssists) {
+      const key = `${a.boss_id}|${a.owner_guild_id}`;
+      if (!map.has(key)) map.set(key, new Set());
+      map.get(key)!.add(a.assistant_guild_id);
+    }
+    return map;
+  }, [bossAssists]);
+
+  // Compute whether each guild has all salaries checked (from data)
+  const guildAllChecked = useMemo(() => {
+    const result = new Map<string, boolean>();
+    for (const guild of guilds) {
+      const allChecked = sortedBosses.every(boss => {
+        const bg = bgLookup.get(`${boss.id}|${guild.id}`);
+        return bg?.has_salary === true;
+      });
+      result.set(guild.id, allChecked);
+    }
+    return result;
+  }, [guilds, sortedBosses, bgLookup]);
+
+  const handleCheckAllSalary = async (guildId: string) => {
+    const currentlyAll = guildAllChecked.get(guildId) ?? false;
+
+    // Batch all bosses
+    const target = !currentlyAll;
+    const bossIds = sortedBosses.map(b => b.id);
+    try {
+      await onBatchSalaryChange(guildId, bossIds, target);
+    } catch (err: any) {
+      console.error("Check-all salary failed:", err?.message ?? err);
+    }
+  };
+
+  if (guilds.length === 0) {
+    return (
+      <div className="text-center py-16">
+        <Shield className="w-10 h-10 text-slate-700 mx-auto mb-3" />
+        <p className="text-slate-500">No guilds created yet.</p>
+        <p className="text-slate-600 text-sm mt-1">Create guilds in the Guilds tab first.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 overflow-x-auto">
+      <table className="w-full text-xs">
+        <thead>
+          <tr>
+            <th className="sticky left-0 bg-slate-900 px-3 py-2 text-left text-slate-400 font-medium border-b border-r border-slate-700/50 z-10 min-w-[160px]">
+              Boss
+            </th>
+            {guilds.map(g => (
+              <th key={g.id} colSpan={3} className="px-3 py-2 text-center text-slate-400 font-medium border-b border-slate-700/50 border-l border-slate-700/30">
+                {g.name}
+              </th>
+            ))}
+          </tr>
+          <tr>
+            <th className="sticky left-0 bg-slate-900 px-3 py-1 border-r border-slate-700/50 z-10" />
+            {guilds.map(g => (
+              <Fragment key={g.id}>
+                <th className="px-2 py-1 text-center text-[10px] text-slate-500 font-normal border-l border-slate-700/30">Pts</th>
+                <th className="px-2 py-1 text-center border-l-0">
+                  <label className="flex items-center justify-center gap-1 cursor-pointer" title="Check/uncheck all salaries for this guild">
+                    <input
+                      type="checkbox"
+                      checked={guildAllChecked.get(g.id) ?? false}
+                      onChange={() => handleCheckAllSalary(g.id)}
+                      className="w-3 h-3 rounded border-slate-600 bg-slate-800 text-emerald-600 focus:ring-emerald-500/50 cursor-pointer"
+                    />
+                    <span className="text-[10px] text-slate-500 font-normal">Salary</span>
+                  </label>
+                </th>
+                <th className="px-2 py-1 text-center text-[10px] text-slate-500 font-normal border-l border-slate-700/30">Ast</th>
+              </Fragment>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {sortedBosses.map(boss => (
+            <tr key={boss.id} className="group border-b border-slate-800/50 hover:bg-slate-800/20 transition">
+              <td className="sticky left-0 bg-slate-900 group-hover:bg-slate-800/20 px-3 py-2 text-white font-medium border-r border-slate-700/30 z-10 transition">
+                <div className="flex items-center gap-2">
+                  <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${boss.spawn_type === "fixed_schedule" ? "bg-blue-400" : "bg-orange-400"}`} />
+                  {boss.name}
+                </div>
+              </td>
+              {guilds.map(guild => {
+                const key = `${boss.id}|${guild.id}`;
+                const bg = bgLookup.get(key);
+                const points = bg?.points ?? null;
+                const hasSalary = bg?.has_salary ?? false;
+                const isSaving = savingCell === `${boss.id}-${guild.id}`;
+
+                return (
+                  <Fragment key={guild.id}>
+                    {/* Points cell */}
+                    <td className="px-1 py-1 text-center border-l border-slate-700/30">
+                      <div className="flex items-center justify-center gap-0.5">
+                        <button
+                          onClick={() => onPointsChange(boss.id, guild.id, Math.max(0, (points ?? 1) - 1))}
+                          disabled={isSaving || (points ?? 1) <= 0}
+                          className={`p-0.5 rounded transition ${(points ?? 1) <= 0 ? "text-slate-700 cursor-default" : "text-slate-500 hover:text-red-400"}`}
+                        >
+                          <Minus className="w-3 h-3" />
+                        </button>
+                        <span className={`font-mono tabular-nums min-w-[1.5em] text-center ${points != null ? "text-amber-400" : "text-slate-500"}`}>
+                          {isSaving ? <Loader2 className="w-3 h-3 animate-spin inline" /> : (points ?? boss.boss_points ?? 1)}
+                        </span>
+                        <button
+                          onClick={() => onPointsChange(boss.id, guild.id, Math.min(99, (points ?? 1) + 1))}
+                          disabled={isSaving || (points ?? 1) >= 99}
+                          className={`p-0.5 rounded transition ${(points ?? 1) >= 99 ? "text-slate-700 cursor-default" : "text-slate-500 hover:text-emerald-400"}`}
+                        >
+                          <Plus className="w-3 h-3" />
+                        </button>
+                      </div>
+                    </td>
+                    {/* Salary cell */}
+                    <td className="px-1 py-1 text-center">
+                      <input
+                        type="checkbox"
+                        checked={hasSalary}
+                        disabled={isSaving}
+                        onChange={() => onSalaryChange(boss.id, guild.id, !hasSalary)}
+                        className="w-3 h-3 rounded border-slate-600 bg-slate-800 text-emerald-600 focus:ring-emerald-500/50 cursor-pointer disabled:opacity-50"
+                      />
+                    </td>
+                    {/* Assist cell */}
+                    <td className="px-1 py-1 text-center border-l border-slate-700/30">
+                      {(() => {
+                        // Find assists where this guild is the assistant on this boss
+                        const myAssists = bossAssists.filter(a => a.boss_id === boss.id && a.assistant_guild_id === guild.id);
+                        const ownerIds = myAssists.map(a => a.owner_guild_id);
+                        // Show existing assists as small removable tags
+                        return (
+                          <div className="flex flex-wrap items-center justify-center gap-0.5 min-w-[28px]">
+                            {ownerIds.map(oid => {
+                              const ownerGuild = guilds.find(g => g.id === oid);
+                              return (
+                                <span key={oid} className="inline-flex items-center gap-0.5 bg-purple-900/30 border border-purple-700/50 rounded px-1 py-0.5 text-[9px] text-purple-300 leading-none">
+                                  {ownerGuild?.name?.slice(0, 6) || "?"}
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); onAssistToggle(boss.id, oid, guild.id); }}
+                                    className="text-purple-400 hover:text-red-400 leading-none"
+                                  >×</button>
+                                </span>
+                              );
+                            })}
+                            {/* + button to add assist — only show guilds that aren't self and aren't already assisted */}
+                            {(() => {
+                              const availGuilds = guilds.filter(g => g.id !== guild.id && !ownerIds.includes(g.id));
+                              if (availGuilds.length === 0) return null;
+                              return (
+                                <select
+                                  value=""
+                                  onChange={(e) => { if (e.target.value) { onAssistToggle(boss.id, e.target.value, guild.id); e.target.value = ""; }}}
+                                  className="bg-transparent text-[9px] text-slate-500 hover:text-purple-400 cursor-pointer outline-none"
+                                >
+                                  <option value="">+</option>
+                                  {availGuilds.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+                                </select>
+                              );
+                            })()}
+                          </div>
+                        );
+                      })()}
+                    </td>
+                  </Fragment>
+                );
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <p className="text-[10px] text-slate-600 mt-2 text-center">
+        Points default to server-wide value if not overridden. Salary is per-guild.
+      </p>
     </div>
   );
 }
