@@ -8,18 +8,18 @@
 
 /* ── Dark Mode (default) ──────────────────────────────────── */
 :root {
-  --c-text-primary: #f1f5f9;
+  --c-text-primary: #f8fafc;
   --c-text-secondary: #94a3b8;
   --c-text-muted: #64748b;
-  --c-bg: #0b1120;
-  --c-bg-alt: #0f172a;
-  --c-surface: #1e293b;
-  --c-surface-raised: #273449;
-  --c-surface-hover: #334155;
-  --c-border: #2a3441;
-  --c-border-light: #334155;
-  --c-accent: #ef4444;
-  --c-accent-hover: #dc2626;
+  --c-bg: #040816;
+  --c-bg-alt: #080e1c;
+  --c-surface: #111827;
+  --c-surface-raised: #1a2236;
+  --c-surface-hover: #1f2937;
+  --c-border: #1e293b;
+  --c-border-light: #283345;
+  --c-accent: #38bdf8;
+  --c-accent-hover: #0ea5e9;
 
   --color-slate-50: #f8fafc;
   --color-slate-100: #f1f5f9;
@@ -30,8 +30,8 @@
   --color-slate-600: #475569;
   --color-slate-700: #334155;
   --color-slate-800: #1e293b;
-  --color-slate-900: #0f172a;
-  --color-slate-950: #0b1120;
+  --color-slate-900: #111827;
+  --color-slate-950: #030712;
 }
 
 /* ── Light Mode ───────────────────────────────────────────── */
@@ -46,8 +46,8 @@ html:not(.dark) {
   --c-surface-hover: #f1f5f9;
   --c-border: #e2e8f0;
   --c-border-light: #f1f5f9;
-  --c-accent: #ef4444;
-  --c-accent-hover: #dc2626;
+  --c-accent: #38bdf8;
+  --c-accent-hover: #0ea5e9;
 
   --color-slate-50: #0f172a;
   --color-slate-100: #1e293b;
@@ -115,8 +115,9 @@ body {
 
 html.dark body {
   background-image:
-    radial-gradient(ellipse at 50% 0%, rgba(239, 68, 68, 0.03) 0%, transparent 60%),
-    radial-gradient(ellipse at 80% 100%, rgba(59, 130, 246, 0.02) 0%, transparent 50%);
+    radial-gradient(ellipse at 50% 0%, rgba(56, 189, 248, 0.06) 0%, transparent 50%),
+    radial-gradient(ellipse at 85% 100%, rgba(139, 92, 246, 0.04) 0%, transparent 50%),
+    radial-gradient(ellipse at 15% 80%, rgba(56, 189, 248, 0.02) 0%, transparent 40%);
   background-attachment: fixed;
 }
 
@@ -215,7 +216,7 @@ html.dark body {
 
 /* Focus-visible ring for accessibility */
 *:focus-visible {
-  outline: 2px solid #ef4444 !important;
+  outline: 2px solid #38bdf8 !important;
   outline-offset: 2px;
   border-radius: 4px;
 }
@@ -253,7 +254,7 @@ main > * { animation: fadeIn 0.25s ease-out; }
 /* Skip-to-content */
 .skip-to-content {
   position: absolute; top: -100px; left: 8px; z-index: 9999;
-  padding: 8px 16px; background: #ef4444; color: white;
+  padding: 8px 16px; background: #38bdf8; color: #030712;
   border-radius: 6px; font-size: 14px; font-weight: 600;
   transition: top 0.2s ease;
 }
@@ -266,7 +267,7 @@ main > * { animation: fadeIn 0.25s ease-out; }
   box-shadow: 0 1px 2px rgba(0,0,0,0.3), 0 4px 12px rgba(0,0,0,0.15);
 }
 .shadow-card-hover {
-  box-shadow: 0 2px 4px rgba(239,68,68,0.06), 0 8px 24px rgba(0,0,0,0.25);
+  box-shadow: 0 2px 4px rgba(56,189,248,0.08), 0 8px 24px rgba(0,0,0,0.25);
 }
 
 /* Glass morphism */
@@ -277,7 +278,7 @@ main > * { animation: fadeIn 0.25s ease-out; }
 
 /* Gradient text */
 .gradient-text {
-  background: linear-gradient(135deg, #fff 0%, #fecaca 40%, #fb923c 100%);
+  background: linear-gradient(135deg, #fff 0%, #7dd3fc 40%, #a78bfa 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -290,7 +291,7 @@ main > * { animation: fadeIn 0.25s ease-out; }
 .gradient-border::before {
   content: "";
   position: absolute; inset: 0; border-radius: inherit; padding: 1px;
-  background: linear-gradient(135deg, rgba(239,68,68,0.3), rgba(249,115,22,0.2), transparent 60%);
+  background: linear-gradient(135deg, rgba(56,189,248,0.3), rgba(139,92,246,0.2), transparent 60%);
   -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor; mask-composite: exclude; pointer-events: none;
 }
@@ -317,8 +318,8 @@ main > * { animation: fadeIn 0.25s ease-out; }
 
 /* CTA glow pulse */
 @keyframes glow-pulse {
-  0%, 100% { box-shadow: 0 0 20px rgba(239,68,68,0.15); }
-  50% { box-shadow: 0 0 35px rgba(239,68,68,0.3); }
+  0%, 100% { box-shadow: 0 0 20px rgba(56,189,248,0.15); }
+  50% { box-shadow: 0 0 35px rgba(56,189,248,0.3); }
 }
 .glow-pulse { animation: glow-pulse 3s ease-in-out infinite; }
 
@@ -349,10 +350,31 @@ main > * { animation: fadeIn 0.25s ease-out; }
 
 /* Timer pulse for <1h */
 @keyframes timer-pulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.3); }
-  50% { box-shadow: 0 0 0 8px rgba(239,68,68,0); }
+  0%, 100% { box-shadow: 0 0 0 0 rgba(56,189,248,0.3); }
+  50% { box-shadow: 0 0 0 8px rgba(56,189,248,0); }
 }
 .timer-urgent { animation: timer-pulse 2s ease-in-out infinite; }
+
+/* ── Tactical / Command Center ─────────────────────────────── */
+
+/* Radar sweep line */
+@keyframes scan-line {
+  0% { transform: translateY(-100%); opacity: 0; }
+  50% { opacity: 0.6; }
+  100% { transform: translateY(100vh); opacity: 0; }
+}
+.animate-scan-line {
+  animation: scan-line 8s linear infinite;
+}
+
+/* Radar ping */
+@keyframes radar-ping {
+  0% { transform: scale(0.5); opacity: 0.8; }
+  100% { transform: scale(3); opacity: 0; }
+}
+.animate-radar-ping {
+  animation: radar-ping 4s ease-out infinite;
+}
 
 /* Green flash on kill */
 @keyframes kill-flash {

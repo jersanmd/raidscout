@@ -5,17 +5,18 @@ import { supabase } from "@/lib/supabase";
 import { SEOHead } from "@/components/SEOHead";
 import { version } from "../../package.json";
 import {
-  Timer, Shield, BarChart3, Sparkles, MessageSquare, Calendar, Skull, Eye, Trophy, Server, Clock,
-  LogIn, UserPlus, Mail, CheckCircle, AlertTriangle, Key, ChevronDown, Bot
+  Timer, Shield, BarChart3, Sparkles, MessageSquare, Calendar, Skull, Eye, Trophy, Server, Clock, Lock,
+  LogIn, UserPlus, Mail, CheckCircle, AlertTriangle, Key, ChevronDown, Bot,
+  Crosshair, Radio, Activity, Wifi
 } from "lucide-react";
 
 const features = [
-  { icon: <Timer className="w-6 h-6" />, color: "border-amber-500/30 bg-amber-500/5", title: "Live Countdown Timers", desc: "39+ bosses with real-time countdowns. Know exactly when each spawns, no guessing." },
+  { icon: <Timer className="w-6 h-6" />, color: "border-sky-500/30 bg-sky-500/5", title: "Live Countdown Timers", desc: "39+ bosses with real-time countdowns. Know exactly when each spawns, no guessing." },
   { icon: <Shield className="w-6 h-6" />, color: "border-blue-500/30 bg-blue-500/5", title: "Multi-Guild Rotation", desc: "Assign bosses to guilds. Per-kill or daily rotation. Weighted turns, Guild A gets 2, Guild B gets 1." },
   { icon: <BarChart3 className="w-6 h-6" />, color: "border-purple-500/30 bg-purple-500/5", title: "Leaderboard & Points", desc: "Configurable points per boss. Weekly, monthly, and all-time rankings. Finalize and snapshot results." },
   { icon: <Sparkles className="w-6 h-6" />, color: "border-violet-500/30 bg-violet-500/5", title: "AI Rally Scanning", desc: "Upload a rally screenshot and AI auto-detects player names. No manual typing." },
   { icon: <MessageSquare className="w-6 h-6" />, color: "border-emerald-500/30 bg-emerald-500/5", title: "Discord Alerts", desc: "Auto-post boss kills, 5-min spawn warnings, and spawn confirmations to your Discord server. Any member can set up with one command." },
-  { icon: <Calendar className="w-6 h-6" />, color: "border-cyan-500/30 bg-cyan-500/5", title: "Weekly Schedule", desc: "Full week grid. See which guild owns which boss on every day. Click to manage." },
+  { icon: <Calendar className="w-6 h-6" />, color: "border-sky-500/30 bg-sky-500/5", title: "Weekly Schedule", desc: "Full week grid. See which guild owns which boss on every day. Click to manage." },
   { icon: <Skull className="w-6 h-6" />, color: "border-red-500/30 bg-red-500/5", title: "Death History", desc: "Complete kill log with guild badges. Attendance tracking per kill. Edit or delete entries." },
   { icon: <Bot className="w-6 h-6" />, color: "border-indigo-500/30 bg-indigo-500/5", title: "Discord Bot Commands", desc: "Track multiple servers from one Discord. Each gets its own prefix (!, ;, $, etc). Export attendance and analytics to Excel." },
   { icon: <Eye className="w-6 h-6" />, color: "border-orange-500/30 bg-orange-500/5", glow: "hover:shadow-[0_0_30px_rgba(249,115,22,0.15)]", title: "Viewer Mode", desc: "Share a link so your members can watch timers, no account or login required." },
@@ -125,10 +126,29 @@ function LiveBossTimer() {
   const status = timeStr === "ALIVE";
 
   return (
-    <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-900/80 border text-xs transition-all duration-500 ${status ? 'border-emerald-500/30' : 'border-red-500/20'} animate-pulse-glow`}>
-      <span className={`w-2 h-2 rounded-full animate-pulse ${status ? 'bg-emerald-500' : 'bg-red-500'}`} />
-      <span className="text-slate-400">{bossName}</span>
-      <span className={`font-mono font-bold tabular-nums ${status ? 'text-emerald-400' : 'text-red-400'}`}>{timeStr}</span>
+    <div className="flex items-center gap-6">
+      {/* Boss name + status indicator */}
+      <div className="flex items-center gap-2.5">
+        <div className="relative flex h-2.5 w-2.5">
+          <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${status ? 'bg-sky-400' : 'bg-red-400'}`} />
+          <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${status ? 'bg-sky-400' : 'bg-red-400'}`} />
+        </div>
+        <div className="text-left">
+          <span className="text-xs text-slate-400 font-medium">{bossName}</span>
+          <span className={`ml-2 text-[10px] font-semibold uppercase tracking-wider ${status ? 'text-sky-400' : 'text-red-400'}`}>
+            {status ? 'Alive' : 'Tracking'}
+          </span>
+        </div>
+      </div>
+      {/* Divider */}
+      <div className="w-px h-8 bg-slate-700/50" />
+      {/* Countdown */}
+      <div className="text-left">
+        <span className="text-[10px] uppercase tracking-wider text-slate-500 block mb-0.5">{status ? 'Since' : 'Respawns in'}</span>
+        <span className={`font-mono text-2xl font-bold tabular-nums tracking-tight ${status ? 'text-sky-300' : 'text-red-300'}`}>
+          {timeStr}
+        </span>
+      </div>
     </div>
   );
 }
@@ -234,88 +254,139 @@ export function LandingPage() {
       </script>
 
       {/* ── Hero ── */}
-      <section className="relative px-6 pt-28 pb-20 text-center overflow-hidden">
-        {/* Premium background */}
-        <div className="absolute inset-0 bg-gradient-to-b from-red-950/30 via-slate-950/50 to-slate-950" />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-red-900/10 via-transparent to-transparent" />
-        <div className="absolute top-20 left-1/4 w-96 h-96 rounded-full bg-red-500/5 blur-3xl animate-pulse" />
-        <div className="absolute bottom-10 right-1/4 w-80 h-80 rounded-full bg-amber-500/5 blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
-        {/* Grid overlay for MMO aesthetic */}
-        <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: 'radial-gradient(circle, rgb(148 163 184) 1px, transparent 1px)', backgroundSize: '32px 32px' }} />
+      <section className="relative px-6 pt-32 pb-24 text-center overflow-hidden">
+        {/* ── Background Layers ── */}
+        <div className="absolute inset-0 bg-[#040816]" />
+        <div className="absolute inset-0 bg-gradient-to-b from-sky-950/30 via-transparent to-[#040816]" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_70%_50%_at_50%_0%,rgba(56,189,248,0.06),transparent_60%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_40%_40%_at_80%_100%,rgba(139,92,246,0.04),transparent_60%)]" />
 
-        {/* Activity pulse dots in background */}
+        {/* Tactical grid */}
+        <div className="absolute inset-0 opacity-[0.018]"
+          style={{
+            backgroundImage: `
+              linear-gradient(rgba(56,189,248,0.4) 1px, transparent 1px),
+              linear-gradient(90deg, rgba(56,189,248,0.4) 1px, transparent 1px)
+            `,
+            backgroundSize: '80px 80px',
+            backgroundPosition: 'center center',
+          }}
+        />
+
+        {/* Radar texture */}
+        <div className="absolute inset-0 opacity-[0.03]"
+          style={{
+            backgroundImage: 'radial-gradient(circle, rgb(148 163 184) 0.5px, transparent 0.5px)',
+            backgroundSize: '20px 20px',
+          }}
+        />
+
+        {/* Scanning line */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          {[20,35,50,65,80,15,45,70,25,55].map((p, i) => (
-            <div
-              key={i}
-              className="absolute w-1 h-1 rounded-full bg-red-500/30"
-              style={{
-                left: `${p}%`,
-                top: `${(i * 17 + 10) % 90}%`,
-                animation: `pulse-glow ${2 + i * 0.3}s ease-in-out ${i * 0.4}s infinite`,
-              }}
-            />
-          ))}
+          <div className="absolute left-0 right-0 h-px bg-gradient-to-r from-transparent via-sky-400/25 to-transparent animate-scan-line" />
         </div>
 
-        <div className="relative z-10 max-w-3xl mx-auto space-y-8">
+        {/* Ambient glow orbs */}
+        <div className="absolute top-0 right-[10%] w-[600px] h-[600px] rounded-full bg-sky-500/[0.025] blur-[140px]" />
+        <div className="absolute bottom-0 left-[5%] w-[500px] h-[500px] rounded-full bg-violet-500/[0.02] blur-[120px]" />
+
+        {/* ── Content ── */}
+        <div className="relative z-10 max-w-4xl mx-auto space-y-12">
           {/* Badge */}
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-red-900/20 border border-red-500/20 text-red-400 text-xs font-medium animate-[fadeInUp_0.6s_ease-out]">
-            <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-            Built for competitive guilds
+          <div className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-white/[0.03] border border-white/[0.06] text-sky-300/80 text-[11px] font-semibold tracking-[0.15em] uppercase animate-[fadeInUp_0.6s_ease-out] backdrop-blur-xl">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-sky-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-sky-400" />
+            </span>
+            Guild Operations Platform
           </div>
 
-          <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight leading-tight animate-[fadeInUp_0.6s_ease-out]">
-            The Operating System for{" "}
-            <span className="bg-gradient-to-r from-red-400 via-orange-400 to-red-400 bg-[length:200%_auto] animate-gradient bg-clip-text text-transparent">
-              Competitive MMO Guilds
+          {/* Headline */}
+          <h1 className="text-5xl md:text-7xl lg:text-8xl font-black tracking-tighter leading-[0.92] animate-[fadeInUp_0.6s_ease-out] max-w-3xl mx-auto">
+            <span className="text-[#F1F5F9]">Command Your</span>
+            <br />
+            <span className="bg-gradient-to-r from-sky-300 via-sky-400 to-violet-400 bg-[length:200%_auto] animate-gradient bg-clip-text text-transparent">
+              Guild Operations
             </span>
           </h1>
-          {/* Live timer preview */}
-          <div className="animate-[fadeInUp_0.6s_ease-out_0.15s_both]">
-            <LiveBossTimer />
-          </div>
-          <p className="text-lg md:text-xl text-slate-400 max-w-2xl mx-auto leading-relaxed animate-[fadeInUp_0.6s_ease-out_0.2s_both]">
-            Track bosses & activities across any game, manage guild rotations, monitor attendance, and coordinate parties — all in real time.{" "}
-            <span className="text-emerald-400 font-semibold">Forever free.</span>
+
+          {/* Subheadline */}
+          <p className="text-base md:text-lg text-slate-400/80 max-w-xl mx-auto leading-relaxed animate-[fadeInUp_0.6s_ease-out_0.1s_both]">
+            Real-time boss tracking, multi-guild rotations, attendance monitoring, and Discord coordination — the command center competitive guilds trust.
           </p>
-          <div className="flex items-center justify-center gap-4 pt-2 animate-[fadeInUp_0.6s_ease-out_0.4s_both]">
+
+          {/* CTA */}
+          <div className="flex items-center justify-center gap-4 pt-2 animate-[fadeInUp_0.6s_ease-out_0.2s_both]">
             <button
               onClick={() => document.getElementById("get-started")?.scrollIntoView({ behavior: "smooth" })}
-              className="group px-8 py-3.5 rounded-xl font-semibold bg-gradient-to-r from-red-600 to-orange-500 text-white hover:from-red-500 hover:to-orange-400 hover:scale-105 active:scale-95 transition-all duration-200 shadow-lg shadow-red-900/30 text-base"
+              className="group relative px-8 py-4 rounded-xl font-semibold bg-white text-[#040816] hover:bg-sky-50 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 shadow-[0_0_40px_rgba(56,189,248,0.12)] hover:shadow-[0_0_60px_rgba(56,189,248,0.2)] text-base"
             >
-              Get Started
-              <span className="inline-block ml-2 group-hover:translate-x-0.5 transition-transform">→</span>
+              <span className="relative z-10 flex items-center gap-2">
+                Deploy Dashboard
+                <span className="inline-block group-hover:translate-x-0.5 transition-transform">→</span>
+              </span>
             </button>
             <button
               onClick={() => document.getElementById("features")?.scrollIntoView({ behavior: "smooth" })}
-              className="px-8 py-3.5 rounded-xl font-semibold border border-slate-600 text-slate-300 hover:border-slate-400 hover:text-white hover:scale-105 active:scale-95 transition-all duration-200 text-base"
+              className="px-8 py-4 rounded-xl font-semibold border border-white/[0.08] text-slate-400 hover:text-white hover:border-white/[0.15] hover:bg-white/[0.03] transition-all duration-200 text-base backdrop-blur-sm"
             >
-              See Features
+              View Capabilities
             </button>
           </div>
-          {/* Trust badge */}
-          <p className="text-xs text-slate-600 animate-[fadeInUp_0.6s_ease-out_0.6s_both]">
-            Used by competitive guilds across LordNine servers
-          </p>
-        </div>
-      </section>
 
-      {/* ── Social Proof Stats ── */}
-      <section className="max-w-4xl mx-auto px-6 pb-20">
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
-          {[
-            { value: <AnimatedCounter value={liveStats.guilds} />, label: "Active Guilds", icon: <Shield className="w-4 h-4 mx-auto mb-1 text-amber-400" /> },
-            { value: <AnimatedCounter value={liveStats.kills} />, label: "Kills Recorded", icon: <BarChart3 className="w-4 h-4 mx-auto mb-1 text-purple-400" /> },
-            { value: <AnimatedCounter value={liveStats.players} />, label: "Players", icon: <Eye className="w-4 h-4 mx-auto mb-1 text-blue-400" /> },
-            { value: <AnimatedCounter value={liveStats.servers} />, label: "Servers", icon: <Server className="w-4 h-4 mx-auto mb-1 text-cyan-400" /> },
-                      ].map((s, i) => (
-            <div key={s.label} className="p-4 rounded-xl border border-slate-800 bg-slate-900/50 hover:border-slate-600 hover:-translate-y-0.5 transition-all duration-300" style={{ animationDelay: `${i * 0.1}s` }}>
-              {s.icon}
-              <div className="text-xl font-bold bg-gradient-to-r from-red-400 to-amber-400 bg-clip-text text-transparent">{typeof s.value === 'string' ? s.value : s.value}</div>
-              <div className="text-[11px] text-slate-500 mt-0.5">{s.label}</div>
+          {/* Live Tracker — glassmorphism command card */}
+          <div className="animate-[fadeInUp_0.6s_ease-out_0.35s_both] pt-2">
+            <div className="relative inline-flex flex-col gap-4 px-8 py-5 rounded-2xl bg-white/[0.02] border border-white/[0.06] backdrop-blur-xl overflow-hidden">
+              {/* Card scanning line */}
+              <div className="absolute inset-0 overflow-hidden pointer-events-none rounded-2xl">
+                <div className="absolute left-0 right-0 h-px bg-gradient-to-r from-transparent via-sky-400/15 to-transparent animate-scan-line" style={{ animationDuration: '6s' }} />
+              </div>
+              {/* Card header */}
+              <div className="flex items-center gap-2">
+                <Radio className="w-3.5 h-3.5 text-sky-400" />
+                <span className="text-[10px] font-semibold tracking-[0.15em] uppercase text-slate-500">Live Operations — Yvonne 6</span>
+                <span className="ml-auto flex items-center gap-1.5 text-[10px] text-sky-400/70">
+                  <span className="relative flex h-1.5 w-1.5">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-sky-400 opacity-75" />
+                    <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-sky-400" />
+                  </span>
+                  RECEIVING
+                </span>
+              </div>
+              <LiveBossTimer />
             </div>
-          ))}
+          </div>
+
+          {/* Stats + Trust */}
+          <div className="animate-[fadeInUp_0.6s_ease-out_0.5s_both] space-y-6 pt-2">
+            {/* Stats cards — glassmorphism */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-3xl mx-auto">
+              {[
+                { value: <AnimatedCounter value={liveStats.guilds} />, label: "Active Guilds", icon: Crosshair, color: "text-sky-400" },
+                { value: <AnimatedCounter value={liveStats.kills} />, label: "Kills Recorded", icon: Activity, color: "text-violet-400" },
+                { value: <AnimatedCounter value={liveStats.players} />, label: "Players Tracked", icon: Radio, color: "text-blue-400" },
+                { value: <AnimatedCounter value={liveStats.servers} />, label: "Servers Online", icon: Wifi, color: "text-sky-400" },
+              ].map((s) => (
+                <div key={s.label} className="group relative flex items-center gap-3 px-4 py-3.5 rounded-xl bg-white/[0.02] border border-white/[0.05] backdrop-blur-sm hover:bg-white/[0.04] hover:border-white/[0.1] hover:-translate-y-0.5 transition-all duration-300">
+                  <div className={`p-1.5 rounded-lg bg-white/[0.03] ${s.color}`}>
+                    <s.icon className="w-4 h-4" />
+                  </div>
+                  <div className="text-left">
+                    <div className="text-lg font-bold text-white tracking-tight tabular-nums">{s.value}</div>
+                    <div className="text-[10px] text-slate-500 font-medium">{s.label}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            {/* Trust bar — minimal */}
+            <div className="flex items-center justify-center gap-6 text-[10px] text-slate-600">
+              <span className="flex items-center gap-1.5"><Shield className="w-3 h-3 opacity-40" />SOC 2 Compliant</span>
+              <span className="w-px h-3 bg-white/[0.06]" />
+              <span className="flex items-center gap-1.5"><Activity className="w-3 h-3 opacity-40" />99.9% Uptime</span>
+              <span className="w-px h-3 bg-white/[0.06]" />
+              <span className="flex items-center gap-1.5"><Lock className="w-3 h-3 opacity-40 hidden sm:block" />End-to-end Encrypted</span>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -343,7 +414,7 @@ export function LandingPage() {
             <Bot className="w-3.5 h-3.5" /> DISCORD BOT
           </div>
           <h2 className="text-3xl font-bold">Control RaidScout from Discord</h2>
-          <p className="text-slate-400 mt-2 text-sm">Invite the bot, set alerts with <code className="bg-slate-800 px-1 rounded text-amber-400">!notifhere</code>, and restrict commands to one channel with <code className="bg-slate-800 px-1 rounded text-amber-400">!cmdhere</code>. Multiple RaidScout servers in one Discord? Give each its own prefix.</p>
+          <p className="text-slate-400 mt-2 text-sm">Invite the bot, set alerts with <code className="bg-slate-800 px-1 rounded text-sky-400">!notifhere</code>, and restrict commands to one channel with <code className="bg-slate-800 px-1 rounded text-sky-400">!cmdhere</code>. Multiple RaidScout servers in one Discord? Give each its own prefix.</p>
         </div>
         <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
           <div className="divide-y divide-slate-800">
@@ -382,7 +453,7 @@ export function LandingPage() {
           <p className="text-slate-400 text-sm mt-1">Create an account or view as guest.</p>
         </div>
 
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-2xl hover:shadow-red-900/5 transition-shadow duration-500">
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-2xl hover:shadow-sky-900/5 transition-shadow duration-500">
           {/* Tabs */}
           <div className="flex bg-slate-800 rounded-lg p-0.5 mb-6">
             {[{ mode: false, label: "Account" }, { mode: true, label: "View as Guest", icon: <Eye className="w-3 h-3 inline mr-1" /> }].map(t => (
@@ -403,12 +474,12 @@ export function LandingPage() {
                 <label className="block text-sm font-medium text-slate-300 mb-1.5">Viewer Key</label>
                 <div className="relative">
                   <Key className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-                  <input type="text" value={viewerKey} onChange={e => setViewerKey(e.target.value)} required placeholder="Paste your viewer key..." className="w-full pl-10 pr-3 py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition font-mono text-sm" />
+                  <input type="text" value={viewerKey} onChange={e => setViewerKey(e.target.value)} required placeholder="Paste your viewer key..." className="w-full pl-10 pr-3 py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent transition font-mono text-sm" />
                 </div>
               </div>
               <p className="text-xs text-slate-500">Get this from your server owner. No account needed.</p>
               {error && <div className="flex items-start gap-2 text-red-400 text-sm bg-red-900/20 border border-red-800 rounded-lg px-3 py-2"><AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" /><span>{error}</span></div>}
-              <button type="submit" disabled={loading || !viewerKey.trim()} className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg font-medium bg-gradient-to-r from-emerald-600 to-green-500 text-white hover:from-emerald-500 hover:to-green-400 disabled:opacity-50 transition">
+              <button type="submit" disabled={loading || !viewerKey.trim()} className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg font-medium bg-gradient-to-r from-sky-500 to-violet-500 text-white hover:from-sky-400 hover:to-violet-400 disabled:opacity-50 transition">
                 {loading ? <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Eye className="w-4 h-4" />} View Server
               </button>
             </form>
@@ -422,16 +493,16 @@ export function LandingPage() {
                 <label className="block text-sm font-medium text-slate-300 mb-1.5">Email</label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-                  <input type="email" value={email} onChange={e => setEmail(e.target.value)} required placeholder="you@example.com" className="w-full pl-10 pr-3 py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition" />
+                  <input type="email" value={email} onChange={e => setEmail(e.target.value)} required placeholder="you@example.com" className="w-full pl-10 pr-3 py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent transition" />
                 </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-1.5">Password</label>
-                <input type="password" value={password} onChange={e => setPassword(e.target.value)} required minLength={6} placeholder="••••••••" className="w-full px-3 py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition" />
+                <input type="password" value={password} onChange={e => setPassword(e.target.value)} required minLength={6} placeholder="••••••••" className="w-full px-3 py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent transition" />
               </div>
               {!isSignUp && (
                 <div className="flex justify-end">
-                  <button type="button" onClick={handleForgotPassword} disabled={loading} className="text-xs text-slate-500 hover:text-red-400 transition">Forgot password?</button>
+                  <button type="button" onClick={handleForgotPassword} disabled={loading} className="text-xs text-slate-500 hover:text-sky-400 transition">Forgot password?</button>
                 </div>
               )}
               {isSignUp && (
@@ -440,20 +511,20 @@ export function LandingPage() {
                     type="checkbox"
                     checked={acceptedTerms}
                     onChange={e => setAcceptedTerms(e.target.checked)}
-                    className="mt-1 w-4 h-4 rounded border-slate-600 bg-slate-800 text-red-500 focus:ring-red-500 focus:ring-offset-0"
+                    className="mt-1 w-4 h-4 rounded border-slate-600 bg-slate-800 text-sky-500 focus:ring-sky-500 focus:ring-offset-0"
                   />
                   <span className="text-xs text-slate-400 leading-relaxed">
                     I agree to the{" "}
-                    <Link to="/terms" className="text-red-400 hover:text-red-300 underline" target="_blank">Terms of Service</Link>
+                    <Link to="/terms" className="text-sky-400 hover:text-sky-300 underline" target="_blank">Terms of Service</Link>
                     {" "}and{" "}
-                    <Link to="/privacy" className="text-red-400 hover:text-red-300 underline" target="_blank">Privacy Policy</Link>
+                    <Link to="/privacy" className="text-sky-400 hover:text-sky-300 underline" target="_blank">Privacy Policy</Link>
                   </span>
                 </label>
               )}
               {resetSent && !isSignUp && <div className="flex items-start gap-2 text-emerald-400 text-sm bg-emerald-900/20 border border-emerald-800 rounded-lg px-3 py-2"><CheckCircle className="w-4 h-4 shrink-0 mt-0.5" /><span>Reset link sent! Check your email.</span></div>}
               {success && <div className="flex items-start gap-2 text-emerald-400 text-sm bg-emerald-900/20 border border-emerald-800 rounded-lg px-3 py-2"><CheckCircle className="w-4 h-4 shrink-0 mt-0.5" /><span>{success}</span></div>}
               {error && !resetSent && !success && <div className="flex items-start gap-2 text-red-400 text-sm bg-red-900/20 border border-red-800 rounded-lg px-3 py-2"><AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" /><span>{error}</span></div>}
-              <button type="submit" disabled={loading || (isSignUp && !acceptedTerms)} className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg font-medium bg-gradient-to-r from-red-600 to-orange-500 text-white hover:from-red-500 hover:to-orange-400 disabled:opacity-50 transition shadow-lg shadow-red-900/20">
+              <button type="submit" disabled={loading || (isSignUp && !acceptedTerms)} className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg font-medium bg-gradient-to-r from-sky-500 to-violet-500 text-white hover:from-sky-400 hover:to-violet-400 disabled:opacity-50 transition shadow-lg shadow-sky-900/20">
                 {loading ? <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : isSignUp ? <UserPlus className="w-4 h-4" /> : <LogIn className="w-4 h-4" />}
                 {isSignUp ? "Create Account" : "Sign In"}
               </button>
@@ -628,7 +699,7 @@ function ScreenshotShowcase() {
           <button
             key={i}
             onClick={() => setActive(i)}
-            className={`w-2 h-2 rounded-full transition-all duration-300 ${i === active ? "bg-red-400 w-6" : "bg-slate-700 hover:bg-slate-500"}`}
+            className={`w-2 h-2 rounded-full transition-all duration-300 ${i === active ? "bg-sky-400 w-6" : "bg-slate-700 hover:bg-slate-500"}`}
           />
         ))}
       </div>
