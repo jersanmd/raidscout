@@ -111,7 +111,7 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
     <>
       <div
         onClick={() => multiMode && onToggleSelect?.(boss.id)}
-        className={`relative rounded-xl border ${config.border} ${config.bg} p-4 transition-all duration-300 animate-[fadeIn_0.5s_ease-out] hover:-translate-y-0.5 hover:shadow-lg ${status === "alive" ? "hover:shadow-emerald-500/10" : status === "countdown" ? "hover:shadow-amber-500/10" : "hover:shadow-blue-500/10"} ${justKilled ? "animate-[fadeOut_0.4s_ease-out]" : ""} ${
+        className={`relative rounded-xl border ${config.border} ${config.bg} p-4 transition-all duration-300 animate-[fadeIn_0.5s_ease-out] card-lift shadow-card hover:shadow-card-hover ${status === "alive" ? "hover:shadow-emerald-500/10" : status === "countdown" ? "hover:shadow-amber-500/10" : "hover:shadow-blue-500/10"} ${justKilled ? "animate-[fadeOut_0.4s_ease-out]" : ""} ${
           multiMode ? "cursor-pointer" : ""
         } hover:border-slate-500 ${
           selected ? "ring-2 ring-blue-500 border-blue-500" : ""

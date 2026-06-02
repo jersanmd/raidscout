@@ -47,6 +47,7 @@ export function BossImage({ bossName, size = "md", className = "" }: BossImagePr
       <img
         src={src}
         alt={bossName}
+        loading="lazy"
         className={`${sizeMap[size]} rounded-xl object-cover shrink-0 ${className}`}
         onError={() => setImgError(true)}
       />

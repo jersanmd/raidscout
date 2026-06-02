@@ -11,6 +11,7 @@ import { useAttendance } from "@/hooks/useAttendance";
 import { useMembers } from "@/hooks/useMembers";
 import type { Guild, LeaderboardSnapshot, PointAdjustment } from "@/types";
 import { Trophy, Medal, Crown, Users, Loader2, X, Skull, CheckCheck, History, ChevronRight, ChevronLeft, ChevronUp, ChevronDown, Search, Shield, Plus, Minus, Edit3, Share2 } from "lucide-react";
+import { TableRowSkeleton } from "@/components/Skeletons";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 
 const rankColors: Record<number, { icon: React.ReactNode; text: string; bg: string }> = {
@@ -194,8 +195,16 @@ export function LeaderboardView() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-32">
-        <div className="w-8 h-8 border-2 border-slate-600 border-t-amber-500 rounded-full animate-spin" />
+      <div className="max-w-2xl mx-auto px-4 py-6">
+        <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+          <table className="w-full text-sm">
+            <tbody>
+              {Array.from({ length: 8 }).map((_, i) => (
+                <TableRowSkeleton key={i} cols={4} />
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     );
   }

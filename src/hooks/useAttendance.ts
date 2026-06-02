@@ -115,7 +115,7 @@ export function useLeaderboard(period: LeaderboardPeriod = "all") {
       const since = effectiveReset && effectiveReset > periodStart ? effectiveReset : periodStart;
       return await fetchLeaderboardByPeriod(since, serverId);
     },
-    staleTime: 0,
+    staleTime: 30_000,
     refetchOnMount: true,
     refetchOnWindowFocus: true,
     retry: 2,

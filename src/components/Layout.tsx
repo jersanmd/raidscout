@@ -63,6 +63,21 @@ export function Layout() {
     }
   }, [isAdmin, hasServer, location.pathname, navigate]);
 
+  // Set page title based on route
+  useEffect(() => {
+    const titles: Record<string, string> = {
+      "/": "Bosses — RaidScout",
+      "/schedule": "Weekly Schedule — RaidScout",
+      "/leaderboard": "Leaderboard — RaidScout",
+      "/history": "Kill History — RaidScout",
+      "/members": "Members — RaidScout",
+      "/analytics": "Analytics — RaidScout",
+      "/server-settings": "Server Settings — RaidScout",
+      "/admin": "Admin Panel — RaidScout",
+    };
+    document.title = titles[location.pathname] ?? "RaidScout";
+  }, [location.pathname]);
+
   // Admin without a server: show admin panel button, hide data nav + create
   const showDataNav = !isAdmin || hasServer;
 
@@ -75,11 +90,15 @@ export function Layout() {
 
   return (
     <div className="min-h-screen bg-slate-950 flex flex-col">
+      {/* Skip to content — accessibility */}
+      <a href="#main-content" className="skip-to-content">Skip to content</a>
+
       {/* Header */}
-      <header className="sticky top-0 z-50 bg-slate-950/70 backdrop-blur-xl border-b border-slate-800/50 overflow-visible">
+      <header className="sticky top-0 z-50 bg-slate-950/60 glass-header border-b border-slate-800/40 overflow-visible">
         <div className="max-w-[90rem] mx-auto px-4 min-h-14 py-1.5 flex items-center justify-between gap-2">
           <div className="flex items-center gap-3 shrink-0">
             {/* Logo */}
+            <Link to="/" aria-label="RaidScout Home" className="shrink-0">
             <img
               src="/logo.png"
               alt="RaidScout"
@@ -94,6 +113,7 @@ export function Layout() {
             <div className="hidden w-8 h-8 rounded-lg bg-gradient-to-br from-red-600 to-orange-500 items-center justify-center">
               <Skull className="w-4 h-4 text-white" />
             </div>
+            </Link>
             <span className="font-bold text-white hidden sm:block">RaidScout</span>
             {isViewer && viewerServerName && (
               <span className="text-xs text-emerald-400 flex items-center gap-1">
@@ -106,7 +126,7 @@ export function Layout() {
           <div className="flex items-center gap-2 overflow-x-auto scrollbar-none touch-pan-x -mr-2 pr-2 min-w-0">
             {/* Nav tabs — hidden for admin without a selected server */}
             {showDataNav && (
-            <nav className="flex bg-slate-800 rounded-lg p-0.5 shrink-0">
+            <nav className="flex bg-slate-800 rounded-lg p-0.5 shrink-0" aria-label="Main navigation">
               <NavLink
                 to="/"
                 end
@@ -219,7 +239,7 @@ export function Layout() {
 
             {/* User menu dropdown */}
             <div className="relative">
-              <button onClick={() => setShowUserMenu(!showUserMenu)} className="flex items-center gap-1 text-slate-400 hover:text-white text-sm transition p-1.5 rounded-md hover:bg-slate-800" title="Menu">
+              <button onClick={() => setShowUserMenu(!showUserMenu)} className="flex items-center gap-1 text-slate-400 hover:text-white text-sm transition p-1.5 rounded-md hover:bg-slate-800" title="Menu" aria-label="User menu">
                 <span className="text-xs hidden md:block">{user?.email?.split("@")[0]}</span>
                 <ChevronDown className={`w-3 h-3 transition ${showUserMenu ? "rotate-180" : ""}`} />
               </button>
@@ -265,7 +285,7 @@ export function Layout() {
       <NoMembersBanner />
 
       {/* Content */}
-      <main className="flex-1">
+      <main id="main-content" className="flex-1">
         <Outlet />
       </main>
 

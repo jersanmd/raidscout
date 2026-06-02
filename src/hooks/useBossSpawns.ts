@@ -15,7 +15,7 @@ export function useBossSpawns(filterText: string = "", filterType: string = "all
   const { data: overrides = [] } = useQuery({
     queryKey: ["spawn_overrides", serverId],
     queryFn: () => fetchSpawnOverrides(serverId!),
-    staleTime: 0,
+    staleTime: 10_000,
     enabled: !!serverId,
   });
 

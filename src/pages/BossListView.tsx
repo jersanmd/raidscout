@@ -32,6 +32,7 @@ import { emitSpawnAlert } from "@/hooks/useSpawnAlerts";
 import { guildColor } from "@/lib/constants";
 import { getOwnerGuildName, getRotationInfo } from "@/lib/rotation";
 import { Skull, Loader2, X, CheckCircle, AlertTriangle, CheckSquare, Megaphone, Volume2, VolumeX, Eye, Copy, Shield } from "lucide-react";
+import { CardGridSkeleton } from "@/components/Skeletons";
 import type { BossWithSpawn, BossGuild, Guild, DeathRecord } from "@/types";
 
 const sentAlerts = new Set<string>();
@@ -478,8 +479,8 @@ export function BossListView() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-32">
-        <div className="w-8 h-8 border-2 border-slate-600 border-t-red-500 rounded-full animate-spin" />
+      <div className="max-w-[90rem] mx-auto px-4 py-6">
+        <CardGridSkeleton count={8} />
       </div>
     );
   }
