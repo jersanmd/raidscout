@@ -20,6 +20,8 @@ import {
   deleteDeathRecord,
   supabase,
   advanceBossRotation,
+  uploadRallyImage,
+  addRallyImageToDeath,
 } from "@/lib/supabase";
 import { Loader2, ChevronLeft, ChevronRight, Users, Shield, X } from "lucide-react";
 import { SavingOverlay } from "@/components/SavingOverlay";
@@ -62,6 +64,7 @@ export function WeeklyScheduleView() {
     deathRecordId: string;
     bossName: string;
     deathTime: string;
+    ownerGuildId?: string | null;
   } | null>(null);
 
   // Selected boss for "Mark as Died" modal (with optional spawn time for schedule bosses)
@@ -159,6 +162,14 @@ export function WeeklyScheduleView() {
         const ownerGuildName = getOwnerGuildName(boss.id);
         const ownerGuildId = ownerGuildName ? guilds.find(g => g.name === ownerGuildName)?.id ?? null : null;
         const record = await insertDeathRecord(bossId, deathTime, ownerGuildId);
+
+        // Upload rally images to storage
+        for (const img of rallyImages) {
+          const url = await uploadRallyImage(img);
+          if (url) {
+            try { await addRallyImageToDeath(record.id, url); } catch {}
+          }
+        }
 
         for (const memberId of attendeeIds) {
           try { await addAttendance(record.id, memberId); } catch {}
@@ -369,6 +380,7 @@ export function WeeklyScheduleView() {
                           deathRecordId: s.deathRecord.id,
                           bossName: s.boss.name,
                           deathTime: s.deathRecord.death_time,
+                          ownerGuildId: s.deathRecord.display_owner_guild_id ?? s.deathRecord.owner_guild_id,
                         });
                       } else if (!isViewer || viewerCanMarkDied) {
                         setMarkBoss({
@@ -474,6 +486,7 @@ export function WeeklyScheduleView() {
                           deathRecordId: s.deathRecord.id,
                           bossName: s.boss.name,
                           deathTime: s.deathRecord.death_time,
+                          ownerGuildId: s.deathRecord.display_owner_guild_id ?? s.deathRecord.owner_guild_id,
                         });
                       } else if (!isViewer || viewerCanMarkDied) {
                         setMarkBoss({
@@ -552,6 +565,7 @@ export function WeeklyScheduleView() {
           deathRecordId={selectedDeath.deathRecordId}
           bossName={selectedDeath.bossName}
           deathTime={selectedDeath.deathTime}
+          ownerGuildId={selectedDeath.ownerGuildId}
           onClose={() => setSelectedDeath(null)}
           readOnly={isViewer}
           onEditDeathTime={!isViewer ? () => {
@@ -572,6 +586,7 @@ export function WeeklyScheduleView() {
           boss={markBoss.boss}
           defaultDeathTime={markBoss.spawnTime}
           hideCustomTime={markBoss.boss.spawn_type === "fixed_schedule"}
+          ownerGuildId={(() => { const n = getOwnerGuildName(markBoss.boss.id); return n ? guilds.find(g => g.name === n)?.id ?? null : null; })()}
           onClose={() => setMarkBoss(null)}
           onSubmit={(deathTime, rallyImages, attendeeIds) => {
             handleRecordDeath(markBoss.boss.id, deathTime, rallyImages, attendeeIds);

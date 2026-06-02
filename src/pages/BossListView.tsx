@@ -21,6 +21,8 @@ import {
   advanceBossRotation,
   subscribeToServerSettings,
   cleanupChannel,
+  uploadRallyImage,
+  addRallyImageToDeath,
 } from "@/lib/supabase";
 import { BossCard } from "@/components/BossCard";
 import { DeathRecordModal } from "@/components/DeathRecordModal";
@@ -279,6 +281,14 @@ export function BossListView() {
           const ownerGuildId = ownerGuildNameStr ? guilds.find(g => g.name === ownerGuildNameStr)?.id ?? null : null;
           const record = await insertDeathRecord(bossId, deathTime, ownerGuildId, partyLeaders);
           deathRecordId = record.id;
+
+          // Upload rally images to storage
+          for (const img of rallyImages) {
+            const url = await uploadRallyImage(img);
+            if (url) {
+              try { await addRallyImageToDeath(deathRecordId, url); } catch {}
+            }
+          }
 
           // Delete override from DB and cache so the kill's countdown takes priority
           const sid = getCurrentServerId();
@@ -689,6 +699,7 @@ export function BossListView() {
                     selected={selectedIds.has(s.boss.id)}
                     onToggleSelect={toggleSelect}
                     ownerGuildName={ownerGuildName(s.boss.id)}
+                    ownerGuildId={(() => { const n = ownerGuildName(s.boss.id); return n ? guilds.find(g => g.name === n)?.id ?? null : null; })()}
                     onUrgentSpawn={(name) => {
                       emitSpawnAlert(name);
                     }}
@@ -746,6 +757,7 @@ export function BossListView() {
       {showBulkDeathModal && bulkBoss && (
         <DeathRecordModal
           boss={bulkBoss}
+          ownerGuildId={(() => { const n = ownerGuildName(bulkBoss.id); return n ? guilds.find(g => g.name === n)?.id ?? null : null; })()}
           onClose={() => setShowBulkDeathModal(false)}
           onSubmit={(dt, imgs, ids) => {
             handleBulkRecordDeath(dt, imgs, ids);

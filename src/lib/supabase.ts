@@ -379,7 +379,8 @@ export async function insertDeathRecord(
   bossId: string,
   deathTime: Date,
   ownerGuildId?: string | null,
-  partyLeaders?: Record<string, string> | null
+  partyLeaders?: Record<string, string> | null,
+  rallyImageUrl?: string | null
 ): Promise<DeathRecord> {
   // Prefer direct insert when user has a valid session
   const { data: { session } } = await supabase.auth.getSession();
@@ -393,6 +394,7 @@ export async function insertDeathRecord(
         death_time: deathTime.toISOString(),
         owner_guild_id: ownerGuildId ?? null,
         party_leaders: partyLeaders ?? {},
+        rally_image_url: rallyImageUrl ?? null,
       })
       .select()
       .single();
@@ -1370,6 +1372,10 @@ export async function notifyDiscord(
   data: { boss_name: string; attendees?: string[]; spawn_time?: string; guild_name?: string; recorded_by?: string },
   target?: "commands"
 ): Promise<{ ok: boolean; skipped?: boolean }> {
+  // Skip bot notifications on localhost — the bot server handles its own notifications
+  if (typeof window !== "undefined" && window.location.hostname === "localhost") {
+    return { ok: false, skipped: true };
+  }
   try {
     const res = await fetch(`${BOT_NOTIFY_URL}/notify`, {
       method: "POST",
@@ -1426,6 +1432,10 @@ export async function announceSpawns(
   serverId: string,
   bosses: SpawnAnnounceBoss[]
 ): Promise<{ success: boolean; skipped: number; failed: number }> {
+  // Skip on localhost
+  if (typeof window !== "undefined" && window.location.hostname === "localhost") {
+    return { success: true, skipped: bosses.length, failed: 0 };
+  }
   let skipped = 0;
   let failed = 0;
   for (const boss of bosses) {
@@ -1624,4 +1634,83 @@ export async function toggleBossAssist(
     .insert({ boss_id: bossId, owner_guild_id: ownerGuildId, assistant_guild_id: assistantGuildId, server_id: serverId });
   if (error) throw error;
   return true;
+}
+
+// ------------------------------------------------------------
+// Rally Image Storage
+// ------------------------------------------------------------
+
+/** Upload a rally screenshot to Supabase Storage. Returns public URL or null. */
+export async function uploadRallyImage(file: File): Promise<string | null> {
+  try {
+    const serverId = getCurrentServerId();
+    if (!serverId) return null;
+    const ext = file.name.split(".").pop() || "png";
+    const fileName = `${serverId}/${Date.now()}-${crypto.randomUUID().slice(0, 8)}.${ext}`;
+    const { error } = await supabase.storage
+      .from("rally-images")
+      .upload(fileName, file, { cacheControl: "3600", upsert: false });
+    if (error) { console.error("Rally image upload failed:", error); return null; }
+    const { data: urlData } = supabase.storage.from("rally-images").getPublicUrl(fileName);
+    return urlData.publicUrl;
+  } catch (err) { console.error("Rally image upload error:", err); return null; }
+}
+
+/** Add a rally image URL to a death record (stores as JSON array). */
+export async function addRallyImageToDeath(deathRecordId: string, newUrl: string): Promise<void> {
+  const { data } = await supabase
+    .from("death_records")
+    .select("rally_image_url")
+    .eq("id", deathRecordId)
+    .single();
+  const existing: string[] = parseRallyImageArray((data as any)?.rally_image_url);
+  existing.push(newUrl);
+  const { error } = await supabase
+    .from("death_records")
+    .update({ rally_image_url: JSON.stringify(existing) })
+    .eq("id", deathRecordId);
+  if (error) console.error("Failed to add rally image:", error);
+}
+
+/** Remove a rally image URL from a death record. */
+export async function removeRallyImageFromDeath(deathRecordId: string, urlToRemove: string): Promise<void> {
+  const { data } = await supabase
+    .from("death_records")
+    .select("rally_image_url")
+    .eq("id", deathRecordId)
+    .single();
+  const existing: string[] = parseRallyImageArray((data as any)?.rally_image_url);
+  const filtered = existing.filter(u => u !== urlToRemove);
+  const { error } = await supabase
+    .from("death_records")
+    .update({ rally_image_url: filtered.length > 0 ? JSON.stringify(filtered) : null })
+    .eq("id", deathRecordId);
+  if (error) console.error("Failed to remove rally image:", error);
+
+  // Also delete from storage
+  try {
+    const urlObj = new URL(urlToRemove);
+    const path = urlObj.pathname.split("/rally-images/")[1];
+    if (path) await supabase.storage.from("rally-images").remove([decodeURIComponent(path)]);
+  } catch {}
+}
+
+/** Fetch rally image URLs for a death record. Returns array of URLs. */
+export async function fetchDeathRallyImages(deathRecordId: string): Promise<string[]> {
+  const { data } = await supabase
+    .from("death_records")
+    .select("rally_image_url")
+    .eq("id", deathRecordId)
+    .single();
+  return parseRallyImageArray((data as any)?.rally_image_url);
+}
+
+function parseRallyImageArray(raw: string | null | undefined): string[] {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [raw];
+  } catch {
+    return [raw];
+  }
 }
