@@ -821,7 +821,7 @@ async function handleMessage(msg: any) {
     const brdFields: any[] = [{ name: "Death Time", value: `<t:${killUnix}:f>`, inline: true }, { name: "Recorded By", value: author, inline: true }];
     if (nextSpawnField) brdFields.push(nextSpawnField);
     broadcastNotification(serverId, {
-      title: `☠️ ${boss.name} Killed by ${guildName || author}`,
+      title: `💀 ${boss.name} Killed by ${guildName || author}`,
       color: 0xef4444,
       fields: brdFields,
       footer: { text: "Powered by RaidScout" },
