@@ -934,7 +934,7 @@ async function handleMessage(msg: any) {
 
     // Send kill notification to all linked Discord servers
     const deathTimeStr = deathTime.toLocaleString("en-US", { timeZone: tz || "Asia/Manila", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: true });
-    const killText = `${boss.name} killed by ${guildName || author} ${deathTimeStr}`;
+    const killText = `💀 **${boss.name}** killed by **${guildName || author}** ${deathTimeStr}`;
     broadcastNotification(serverId, {}, channelId, killText);
     const unix = Math.floor(deathTime.getTime() / 1000);
     const replyFields: any[] = [
