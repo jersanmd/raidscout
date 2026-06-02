@@ -109,7 +109,7 @@ export function NoServerView() {
                 <button
                   key={g.id}
                   onClick={() => { setSelectedGame(g); setMode("create"); }}
-                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-slate-800 border border-slate-700 text-white hover:border-emerald-500 hover:bg-slate-700/50 transition text-left"
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-slate-800 border border-slate-700 text-white hover:border-emerald-500 hover:bg-black/5 dark:hover:bg-white/5 transition text-left"
                 >
                   <Gamepad2 className="w-5 h-5 text-purple-400 shrink-0" />
                   <div className="flex-1 text-left">
@@ -122,7 +122,7 @@ export function NoServerView() {
             )}
             <button
               onClick={() => { setSelectedGame({ id: "custom", name: "Custom (no seed)" }); setMode("create"); }}
-              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-slate-800/50 border border-dashed border-slate-700 text-slate-400 hover:text-white hover:border-slate-500 transition text-left"
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-slate-800/50 border border-dashed border-slate-700 text-slate-400 hover:text-slate-900 dark:hover:text-white hover:border-slate-500 transition text-left"
             >
               <Plus className="w-5 h-5 shrink-0" />
               <div className="flex-1 text-left">

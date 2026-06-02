@@ -85,7 +85,6 @@ html:not(.dark) .hover\:bg-slate-800\/20\3A hover { background-color: var(--c-bo
 html:not(.dark) .hover\:bg-slate-700\3A hover,
 html:not(.dark) .hover\:bg-slate-700\/50\3A hover,
 html:not(.dark) .hover\:bg-slate-700\/30\3A hover { background-color: #cbd5e1 !important; }
-html:not(.dark) .hover\:text-white\3A hover { color: #0f172a !important; }
 /* Light mode group-hover fixes */
 html:not(.dark) .group\:hover .group-hover\:bg-slate-800\/20,
 html:not(.dark) .group:hover .group-hover\:bg-slate-800\/20 { background-color: var(--c-bg-alt) !important; }
