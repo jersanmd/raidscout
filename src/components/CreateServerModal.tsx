@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase, createServer } from "@/lib/supabase";
 import { useServer } from "@/contexts/ServerContext";
 import { Loader2, Plus, X, Server, Shield } from "lucide-react";
@@ -8,16 +8,23 @@ export function CreateServerModal({ onClose }: { onClose: () => void }) {
   const [guildName, setGuildName] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [gameId, setGameId] = useState<string>("");
   const { refreshServers } = useServer();
+
+  // Fetch first available game on mount
+  useEffect(() => {
+    supabase.from("games").select("id,name").order("created_at").limit(1).single()
+      .then(({ data }) => { if (data) setGameId(data.id); })
+      .catch(() => {});
+  }, []);
 
   const handleCreate = async () => {
     const trimmed = name.trim();
     const guildTrimmed = guildName.trim();
-    if (!trimmed || !guildTrimmed) return;
+    if (!trimmed || !guildTrimmed || !gameId) return;
     setLoading(true);
     setError(null);
     try {
-      // Check for duplicate server name
       const { data: existing } = await supabase
         .from("servers")
         .select("id")
@@ -29,7 +36,7 @@ export function CreateServerModal({ onClose }: { onClose: () => void }) {
         return;
       }
 
-      const server = await createServer(trimmed, guildTrimmed);
+      const server = await createServer(trimmed, gameId, true, guildTrimmed);
       await refreshServers();
       onClose();
     } catch (err: any) {
