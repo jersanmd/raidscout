@@ -28,6 +28,23 @@ process.on("unhandledRejection", (reason: any) => {
   console.error("Unhandled rejection:", reason?.message ?? reason);
 });
 
+// ── Circular log buffer ───────────────────────────────────
+
+const LOG_BUFFER: { ts: string; level: string; msg: string }[] = [];
+const MAX_LOG_BUFFER = 200;
+
+function bufferLog(level: string, ...args: any[]) {
+  const msg = args.map(a => typeof a === "string" ? a : JSON.stringify(a)).join(" ");
+  LOG_BUFFER.push({ ts: new Date().toISOString(), level, msg });
+  if (LOG_BUFFER.length > MAX_LOG_BUFFER) LOG_BUFFER.shift();
+}
+
+// Override console methods to capture logs
+const _log = console.log, _warn = console.warn, _error = console.error;
+console.log = (...a) => { bufferLog("info", ...a); _log.apply(console, a); };
+console.warn = (...a) => { bufferLog("warn", ...a); _warn.apply(console, a); };
+console.error = (...a) => { bufferLog("error", ...a); _error.apply(console, a); };
+
 // ── Supabase REST helpers ──────────────────────────────────
 
 async function supabaseQuery(path: string): Promise<any> {
@@ -281,6 +298,7 @@ async function connect() {
     // READY — store bot's user ID for mention detection
     if (t === "READY") {
       botUserId = d.user.id;
+      discordConnected = true;
     }
 
     // MESSAGE_CREATE — handle commands
@@ -290,6 +308,7 @@ async function connect() {
   });
 
   ws.on("close", (code) => {
+    discordConnected = false;
     clearInterval(heartbeatInterval);
     console.log(`Disconnected (code ${code}). Reconnecting in 5s...`);
     setTimeout(connect, 5000);
@@ -338,15 +357,15 @@ async function handleGuildJoin(guild: any) {
           },
           {
             name: "2️⃣ Set up notifications",
-            value: "Type `!notifhere` in a channel to receive boss kill/spawn alerts there. Type `!cmdhere` to restrict commands to a specific channel.",
+            value: "Type `!notifhere` in a channel to receive boss kill/spawn alerts there. Type `!cmdhere` to restrict commands to a specific channel.\n\nAdmins can set a custom ping prefix per linked server (e.g. `@Raiders`) in **Server Settings → Integrations**. The bot also supports auto-creating threads for spawn events — configure in the same tab.",
           },
           {
             name: "3️⃣ Try a command",
-            value: "`!list` — See all bosses\n`!nextspawn` — Upcoming spawns in 24h\n`!killed <boss>` — Record a kill\n`!commands` — Full command list",
+            value: "`!list` — See all bosses\n`!nextspawn` — Upcoming spawns in 24h\n`!nextspawn <boss>` — Check a specific boss\n`!nextspawn <guild>` — Spawns for a guild\n`!killed <boss>` — Record a kill (only on alive bosses)\n`!forcespawn <boss>` — Force a boss to spawn\n`!forcespawnall` — Spawn all fixed-timer bosses\n`!commands` — Full command list",
           },
           {
             name: "💡 Multiple RaidScout servers?",
-            value: "If this Discord server tracks bosses for multiple games, each RaidScout server can use a different command prefix (e.g. `!` for Lineage II, `$` for WoW). Set the prefix when linking in Server Settings.",
+            value: "If this Discord server tracks bosses for multiple games, each RaidScout server can use a different command prefix (e.g. `!` for Lineage II, `$` for WoW). Each linked server can have its own notification ping and thread channels.",
           },
         ],
         footer: { text: "Powered by RaidScout" },
@@ -394,7 +413,7 @@ async function handleMessage(msg: any) {
   const cmd = aliases[rawCmd] || rawCmd;
 
   // Valid commands that should trigger ✅ reaction
-  const validCmds = new Set(["list","nextspawn","spawn","killed","commands","help","notifhere","cmdhere","activitydone"]);
+  const validCmds = new Set(["list","nextspawn","spawn","killed","kill","forcespawn","forcespawnall","spawnall","commands","help","notifhere","cmdhere","threadhere"]);
   if (validCmds.has(cmd)) {
     fetch(`https://discord.com/api/v10/channels/${channelId}/messages/${msg.id}/reactions/${encodeURIComponent("✅")}/@me`, {
       method: "PUT",
@@ -406,7 +425,7 @@ async function handleMessage(msg: any) {
   if (matchedPrefix) {
     const cfgRows = await supabaseQuerySafe(`discord_configs?discord_guild_id=eq.${guildId}&command_prefix=eq.${encodeURIComponent(matchedPrefix)}&select=command_channel_id`);
     const cmdChannel = cfgRows?.[0]?.command_channel_id;
-    if (cmdChannel && channelId !== cmdChannel && cmd !== "cmdhere" && cmd !== "notifhere") return;
+    if (cmdChannel && channelId !== cmdChannel && cmd !== "cmdhere" && cmd !== "notifhere" && cmd !== "threadhere" && cmd !== "forcespawn" && cmd !== "forcespawnall" && cmd !== "spawnall") return;
   }
 
   async function reply(text: string) {
@@ -437,38 +456,28 @@ async function handleMessage(msg: any) {
   // ── list ─────────────────────────────────────────────
   if (cmd === "list") {
     const serverId = await resolveServerId(guildId, matchedPrefix);
-    if (!serverId) return reply("⚠️ This Discord server is not linked to RaidScout.");
-    const [bosses, activities] = await Promise.all([
-      supabaseQuerySafe(`bosses?server_id=eq.${serverId}&is_enabled=eq.true&order=name`),
-      supabaseQuerySafe(`activities?server_id=eq.${serverId}&is_enabled=eq.true&order=name`),
-    ]);
-    if (!bosses?.length && !activities?.length) return reply("No bosses or activities found.");
-
-    // Build combined list: bosses first, then activities
-    const lines: string[] = [];
-    if (bosses?.length) {
-      lines.push("**Bosses**");
-      bosses.forEach((b: any, i: number) => lines.push(`${i + 1}. ${b.name}`));
-    }
-    if (activities?.length) {
-      if (lines.length) lines.push("");
-      lines.push("**Activities**");
-      activities.forEach((a: any, i: number) => lines.push(`📅 ${i + 1}. ${a.name}`));
-    }
-
-    const total = (bosses?.length || 0) + (activities?.length || 0);
+    if (!serverId) return reply("⚠️ This Discord server is not linked to RaidScout. An admin needs to go to **Server Settings → Integrations** on the RaidScout web app and link this Discord server.");
+    const bosses = await supabaseQuery(`bosses?server_id=eq.${serverId}&order=name`);
+    if (!bosses?.length) return reply("No bosses found.");
+    // Split into chunks of 25 (Discord embed field limit)
     const chunkSize = 25;
-    for (let i = 0; i < lines.length; i += chunkSize) {
-      const chunk = lines.slice(i, i + chunkSize).join("\n");
+    const chunks: string[] = [];
+    for (let i = 0; i < bosses.length; i += chunkSize) {
+      chunks.push(bosses.slice(i, i + chunkSize).map((b: any, j: number) =>
+        `${i + j + 1}. ${b.name}`
+      ).join("\n"));
+    }
+    for (let c = 0; c < chunks.length; c++) {
+      const isFirst = c === 0;
       await fetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
         method: "POST",
         headers: { Authorization: `Bot ${TOKEN}`, "Content-Type": "application/json" },
         body: JSON.stringify({
           embeds: [{
-            title: i === 0 ? `📋 List (${total} total)` : undefined,
-            description: chunk,
+            title: isFirst ? `📋 Boss List (${bosses.length} bosses)` : undefined,
+            description: chunks[c],
             color: 0x8b5cf6,
-            footer: i === 0 ? { text: "Powered by RaidScout" } : undefined,
+            footer: isFirst ? { text: "Powered by RaidScout" } : undefined,
           }],
         }),
       });
@@ -509,6 +518,70 @@ async function handleMessage(msg: any) {
     return reply("✅ Bot commands will now only work in this channel.");
   }
 
+  // ── threadhere ───────────────────────────────────────
+  if (cmd === "threadhere") {
+    const serverId = await resolveServerId(guildId, matchedPrefix);
+    if (!serverId) return reply("⚠️ This Discord server is not linked to RaidScout.");
+    const existing = await supabaseQuerySafe(`discord_configs?discord_guild_id=eq.${guildId}&command_prefix=eq.${encodeURIComponent(matchedPrefix)}&select=id`);
+    if (existing?.length) {
+      await fetch(`${SUPABASE_URL}/rest/v1/discord_configs?id=eq.${existing[0].id}`, {
+        method: "PATCH",
+        headers: { apikey: SUPABASE_KEY!, Authorization: `Bearer ${SUPABASE_KEY!}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ thread_channel_id: msg.channel_id }),
+      });
+    }
+    return reply("✅ Auto-threads for spawn events will be created in this channel. Use **Server Settings → Integrations** to select which guilds trigger threads.");
+  }
+
+  // ── forcespawn <boss> ───────────────────────────────
+  if (cmd === "forcespawn") {
+    const serverId = await resolveServerId(guildId, matchedPrefix);
+    if (!serverId) return reply("⚠️ Not linked to RaidScout.");
+
+    const bossName = args.slice(1).join(" ");
+    if (!bossName) return reply("Usage: `!forcespawn Boss Name`");
+
+    const bosses = await supabaseQuery(
+      `bosses?server_id=eq.${serverId}&name=ilike.${encodeURIComponent("%" + bossName + "%")}`
+    );
+    if (!bosses?.length) return reply(`Boss **${bossName}** not found.`);
+    const boss = bosses[0];
+
+    await fetch(`${SUPABASE_URL}/rest/v1/boss_spawn_overrides`, {
+      method: "POST",
+      headers: { apikey: SUPABASE_KEY!, Authorization: `Bearer ${SUPABASE_KEY!}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ server_id: serverId, boss_id: boss.id, override_spawn_time: new Date().toISOString() }),
+    }).catch(() => {});
+
+    return reply(`✅ **${boss.name}** has been force-spawned. Use \`;killed ${boss.name}\` to record the kill.`);
+  }
+
+  // ── forcespawnall ────────────────────────────────────
+  if (cmd === "forcespawnall" || cmd === "spawnall") {
+    const serverId = await resolveServerId(guildId, matchedPrefix);
+    if (!serverId) return reply("⚠️ Not linked to RaidScout.");
+
+    const bosses = await supabaseQuery(
+      `bosses?server_id=eq.${serverId}&spawn_type=eq.fixed_hours`
+    );
+    if (!bosses?.length) return reply("No fixed-timer bosses found.");
+
+    const now = new Date().toISOString();
+    let count = 0;
+    for (const b of bosses) {
+      try {
+        await fetch(`${SUPABASE_URL}/rest/v1/boss_spawn_overrides`, {
+          method: "POST",
+          headers: { apikey: SUPABASE_KEY!, Authorization: `Bearer ${SUPABASE_KEY!}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ server_id: serverId, boss_id: b.id, override_spawn_time: now }),
+        });
+        count++;
+      } catch { /* skip */ }
+    }
+
+    return reply(`✅ **${count}** fixed-timer bosses force-spawned. Use \`;killed <boss>\` to record kills. Schedule bosses follow their normal windows.`);
+  }
+
   // ── commands ─────────────────────────────────────────
   if (cmd === "commands" || cmd === "help") {
     const p = matchedPrefix;
@@ -537,6 +610,7 @@ async function handleMessage(msg: any) {
         { name: `${p}list${aliasNote("list")}`, value: "Show all boss names", inline: false },
         { name: `${p}nextspawn${aliasNote("nextspawn")}`, value: "List boss spawns in the next 24 hours", inline: false },
         { name: `${p}nextspawn <boss>`, value: `Check spawn for a specific boss (e.g. \`${p}nextspawn Venatus\`)`, inline: false },
+        { name: `${p}nextspawn <guild>`, value: `List spawns for a specific guild (e.g. \`${p}nextspawn Arcane\`)`, inline: false },
         { name: `${p}killed <boss>${aliasNote("killed")}`, value: `Record a boss kill right now (e.g. \`${p}killed Venatus\`)`, inline: false },
         { name: `${p}killed <boss> HH:MM`, value: "Record a kill at a custom time. Auto: if the time already passed today → today. If it hasn't happened yet → yesterday.", inline: false },
         { name: `${p}killed <boss> HH:MM today`, value: "Force today's date even if the time is in the future", inline: false },
@@ -544,12 +618,14 @@ async function handleMessage(msg: any) {
         { name: `${p}commands${aliasNote("commands")}`, value: "Show this help message", inline: false },
         { name: `${p}notifhere${aliasNote("notifhere")}`, value: "Set this channel for boss kill & spawn notifications", inline: false },
         { name: `${p}cmdhere${aliasNote("cmdhere")}`, value: "Restrict bot commands to this channel only", inline: false },
-        { name: `${p}activitydone <name>${aliasNote("activitydone")}`, value: "Mark an activity as completed", inline: false },
+        { name: `${p}threadhere${aliasNote("threadhere")}`, value: "Set this channel for auto-created spawn threads", inline: false },
+        { name: `${p}forcespawn <boss>`, value: `Force a boss to spawn (e.g. \`${p}forcespawn Venatus\`)`, inline: false },
+        { name: `${p}forcespawnall`, value: "Force-spawn ALL fixed-timer bosses (use after maintenance)", inline: false },
       ],
     );
   }
 
-  // ── nextspawn [boss] ─────────────────────────────────
+  // ── nextspawn [boss|guild] ───────────────────────────
   if (cmd === "nextspawn" || cmd === "spawn") {
     const serverId = await resolveServerId(guildId, matchedPrefix);
     if (!serverId) return reply("⚠️ This Discord server is not linked to RaidScout. An admin needs to go to **Server Settings → Integrations** on the RaidScout web app and link this Discord server.");
@@ -562,6 +638,9 @@ async function handleMessage(msg: any) {
       supabaseQuery(`guilds?server_id=eq.${serverId}`),
     ]);
 
+    // Check if filter matches a guild name (case-insensitive exact match)
+    const filterGuild = filter ? guilds.find((g: any) => g.name.toLowerCase() === filter.toLowerCase()) : null;
+
     const now = new Date();
     const cutoff = addHours(now, 24);
     const upcoming: { name: string; time: string; unix: number; guild: string }[] = [];
@@ -571,7 +650,16 @@ async function handleMessage(msg: any) {
     const serverGuildIds = new Set(guilds.map((g: any) => g.id));
     const serverBossGuilds = bossGuilds.filter((bg: any) => serverGuildIds.has(bg.guild_id));
     for (const boss of bosses) {
-      if (filter && !boss.name.toLowerCase().includes(filter.toLowerCase())) continue;
+      // Skip if filter given and neither boss name nor guild name matches
+      if (filter && !boss.name.toLowerCase().includes(filter.toLowerCase())) {
+        if (!filterGuild) continue;
+        // Check if this boss's owner guild matches the filter guild
+        const lastDeath = deaths
+          .filter((d: any) => d.boss_id === boss.id && !d.is_initial_spawn)
+          .sort((a: any, b: any) => new Date(b.death_time).getTime() - new Date(a.death_time).getTime())[0];
+        const gName = computeOwnerGuild(boss, serverBossGuilds, guilds, lastDeath, now, tz) || "";
+        if (gName.toLowerCase() !== filterGuild.name.toLowerCase()) continue;
+      }
 
       const lastDeath = deaths
         .filter((d: any) => d.boss_id === boss.id && !d.is_initial_spawn)
@@ -629,21 +717,8 @@ async function handleMessage(msg: any) {
       }
     }
 
-    // Add activities
-    const activities = await supabaseQuerySafe(`activities?server_id=eq.${serverId}&is_enabled=eq.true`);
-    for (const activity of activities || []) {
-      if (filter && !activity.name.toLowerCase().includes(filter.toLowerCase())) continue;
-      const schedule = activity.schedule;
-      if (!schedule?.length) continue;
-      // Find next schedule slot within 24h
-      const nextSlot = findNextScheduleSlot(schedule, now);
-      if (nextSlot.getTime() > cutoff.getTime()) continue;
-      const unix = Math.floor(nextSlot.getTime() / 1000);
-      upcoming.push({ name: `📅 ${activity.name}`, time: `<t:${unix}:t>`, unix, guild: "" });
-    }
-
     if (upcoming.length === 0) {
-      return reply(filter ? `No results for **${filter}** in 24h.` : "No bosses or activities in the next 24h.");
+      return reply(filter ? `No spawn data for **${filter}** in 24h.` : "No bosses spawning in 24h.");
     }
 
     upcoming.sort((a, b) => {
@@ -666,7 +741,7 @@ async function handleMessage(msg: any) {
       headers: { Authorization: `Bot ${TOKEN}`, "Content-Type": "application/json" },
       body: JSON.stringify({
         embeds: [{
-          title: filter ? `${filter} Spawn` : "📋 Upcoming (24h)",
+          title: filterGuild ? `📋 ${filterGuild.name} Spawns (24h)` : filter ? `${filter} Spawn` : "📋 Upcoming Boss Spawns (24h)",
           description: desc,
           color: 0x8b5cf6,
           footer: { text: "Powered by RaidScout" },
@@ -713,10 +788,53 @@ async function handleMessage(msg: any) {
     if (!bosses?.length) return reply(`Boss **${bossName}** not found.`);
     const boss = bosses[0];
 
-    // Cooldown: prevent duplicate kills within 2 hours
+    // Fetch recent deaths (needed for both cooldown and alive check)
     const recentDeaths = await supabaseQuery(
       `death_records?server_id=eq.${serverId}&boss_id=eq.${boss.id}&order=death_time.desc&limit=1`
     );
+
+    // ── Alive check: only allow killing alive bosses ──
+    let isAlive = false;
+    const tz = await resolveServerTimezone(serverId);
+    const aliveNow = new Date();
+
+    if (boss.spawn_type === "fixed_hours") {
+      const lastDeathForAlive = recentDeaths?.[0];
+      if (lastDeathForAlive) {
+        const spawnTime = new Date(new Date(lastDeathForAlive.death_time).getTime() + (boss.respawn_hours ?? 0) * 3600000);
+        isAlive = spawnTime <= aliveNow;
+      } else {
+        isAlive = true; // No death records → initial spawn
+      }
+    } else if (boss.spawn_type === "fixed_schedule" && boss.schedule) {
+      let recentSlot: Date | null = null;
+      for (let d = 0; d <= 7; d++) {
+        const check = new Date(aliveNow);
+        check.setDate(check.getDate() - d);
+        for (const slot of boss.schedule) {
+          const c = scheduleSlotToUTC(tz, check, slot.day, slot.time);
+          if (c <= aliveNow && (!recentSlot || c > recentSlot)) recentSlot = c;
+        }
+      }
+      if (recentSlot) {
+        const nextSlot = findNextScheduleSlot(boss.schedule, new Date(recentSlot.getTime() + 60_000), tz);
+        const aliveUntil = new Date(Math.min(
+          nextSlot.getTime() - 3600_000,
+          recentSlot.getTime() + 4 * 3600_000,
+        ));
+        const wasKilled = recentDeaths?.[0] && new Date(recentDeaths[0].death_time) >= recentSlot;
+        isAlive = !wasKilled && aliveNow >= recentSlot && aliveNow < aliveUntil;
+      }
+    }
+
+    if (!isAlive) {
+      fetch(`https://discord.com/api/v10/channels/${channelId}/messages/${msg.id}/reactions/${encodeURIComponent("❌")}/@me`, {
+        method: "PUT", headers: { Authorization: `Bot ${TOKEN}` },
+      }).catch(() => {});
+      return reply(`❌ **${boss.name}** is not currently alive. Use \`;forcespawn ${boss.name}\` first.`);
+    }
+
+    // Cooldown: prevent duplicate kills within 2 hours
     if (recentDeaths?.length) {
       const lastKill = new Date(recentDeaths[0].death_time);
       const cooldownEnd = new Date(lastKill.getTime() + 2 * 3600_000);
@@ -737,7 +855,6 @@ async function handleMessage(msg: any) {
       if (h > 23 || m > 59) return reply("Invalid time.");
 
       // Interpret custom time in the server's timezone
-      const tz = await resolveServerTimezone(serverId);
       const now = new Date();
       const localDate = now.toLocaleDateString("en-CA", { timeZone: tz });
       const [y, mo, d] = localDate.split("-").map(Number);
@@ -771,7 +888,6 @@ async function handleMessage(msg: any) {
     const allBossGuilds = await supabaseQuery(`boss_guilds?select=boss_id,guild_id,sort_order,day_of_week,mode`);
     const serverGuildIds = new Set(serverGuilds.map((g: any) => g.id));
     const serverBossGuilds = allBossGuilds.filter((bg: any) => serverGuildIds.has(bg.guild_id));
-    const tz = await resolveServerTimezone(serverId);
     // Fetch previous death to determine current owner (must advance from the last kill)
     const prevDeaths = await supabaseQuery(`death_records?server_id=eq.${serverId}&boss_id=eq.${boss.id}&order=death_time.desc&limit=1`);
     const lastDeath = prevDeaths?.[0] ?? null;
@@ -817,15 +933,9 @@ async function handleMessage(msg: any) {
     const nextSpawnField = nextSpawnUnix > 0 ? { name: "Next Spawn", value: `<t:${nextSpawnUnix}:f>`, inline: true } : null;
 
     // Send kill notification to all linked Discord servers
-    const killUnix = Math.floor(deathTime.getTime() / 1000);
-    const brdFields: any[] = [{ name: "Death Time", value: `<t:${killUnix}:f>`, inline: true }, { name: "Recorded By", value: author, inline: true }];
-    if (nextSpawnField) brdFields.push(nextSpawnField);
-    broadcastNotification(serverId, {
-      title: `💀 ${boss.name} Killed by ${guildName || author}`,
-      color: 0xef4444,
-      fields: brdFields,
-      footer: { text: "Powered by RaidScout" },
-    }, channelId);
+    const deathTimeStr = deathTime.toLocaleString("en-US", { timeZone: tz || "Asia/Manila", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: true });
+    const killText = `💀 **${boss.name}** killed by **${guildName || author}** ${deathTimeStr}`;
+    broadcastNotification(serverId, {}, channelId, killText);
     const unix = Math.floor(deathTime.getTime() / 1000);
     const replyFields: any[] = [
       { name: "Death Time", value: `<t:${unix}:f>`, inline: true },
@@ -839,24 +949,6 @@ async function handleMessage(msg: any) {
       0xef4444,
       replyFields,
     );
-  }
-
-  // ── activitydone <name> ────────────────────────────────
-  if (cmd === "activitydone") {
-    const serverId = await resolveServerId(guildId, matchedPrefix);
-    if (!serverId) return reply("⚠️ This Discord server is not linked to RaidScout.");
-    const activityName = args.slice(1).join(" ").trim();
-    if (!activityName) return reply("Usage: `" + matchedPrefix + "activitydone <name>`");
-    const activities = await supabaseQuerySafe(`activities?server_id=eq.${serverId}&name=ilike.${encodeURIComponent(`%${activityName}%`)}&limit=1`);
-    if (!activities?.length) return reply(`Activity **${activityName}** not found.`);
-    const activity = activities[0];
-    const now = new Date().toISOString();
-    await fetch(`${SUPABASE_URL}/rest/v1/activity_instances`, {
-      method: "POST",
-      headers: { apikey: SUPABASE_KEY!, Authorization: `Bearer ${SUPABASE_KEY!}`, "Content-Type": "application/json", Prefer: "return=representation" },
-      body: JSON.stringify({ activity_id: activity.id, start_time: now, end_time: now }),
-    });
-    return reply(`✅ **${activity.name}** marked as completed. Record attendance on the web app.`);
   }
 }
 
@@ -874,9 +966,112 @@ setInterval(() => {
 
 // ── Shared: send notification embed to ALL linked Discord servers ─
 
-async function broadcastNotification(serverId: string, embed: any, skipChannelId?: string): Promise<{ ok: boolean; skipped?: string }> {
+// ── Thread Creation ──────────────────────────────────────
+
+async function createEventThreads(
+  serverId: string,
+  bossName: string,
+  ownerGuildName: string | undefined,
+  spawnUnix: number,
+): Promise<void> {
+  if (!ownerGuildName) return;
+
+  try {
+    // Find the guild ID for the owner guild name
+    const guildRows = await supabaseQuerySafe(
+      `guilds?server_id=eq.${serverId}&name=eq.${encodeURIComponent(ownerGuildName)}&limit=1`
+    );
+    const ownerGuildId = guildRows?.[0]?.id;
+    if (!ownerGuildId) return;
+
+    // Fetch all discord_configs for this server that have thread config
+    const configs = await supabaseQuerySafe(
+      `discord_configs?raidscout_server_id=eq.${serverId}&select=id,thread_channel_id,thread_guilds`
+    );
+
+    for (const cfg of configs) {
+      const channelId: string = cfg.thread_channel_id;
+      const threadGuilds: string[] = cfg.thread_guilds || [];
+      if (!channelId || !threadGuilds.includes(ownerGuildId)) continue;
+
+      const tz = await resolveServerTimezone(serverId).catch(() => "Asia/Manila");
+      const spawnDate = new Date(spawnUnix * 1000);
+      const localeString = spawnDate.toLocaleString("en-US", {
+        timeZone: tz,
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true,
+      });
+      const threadName = `${bossName} — ${ownerGuildName} — ${localeString}`;
+
+      // Check channel type (forum vs text)
+      let isForum = false;
+      try {
+        const chRes = await fetch(`https://discord.com/api/v10/channels/${channelId}`, {
+          headers: { Authorization: `Bot ${TOKEN}` },
+        });
+        if (chRes.ok) {
+          const ch = await chRes.json();
+          isForum = ch.type === 15; // GUILD_FORUM
+        }
+      } catch { /* assume text channel */ }
+
+      try {
+        const threadBody: any = {
+          name: threadName,
+          auto_archive_duration: 10080, // 7 days
+        };
+
+        if (isForum) {
+          threadBody.message = { content: "." };
+        } else {
+          threadBody.type = 11; // GUILD_PUBLIC_THREAD
+        }
+
+        const res = await fetch(`https://discord.com/api/v10/channels/${channelId}/threads`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bot ${TOKEN}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(threadBody),
+        });
+
+        if (!res.ok) {
+          const errText = await res.text().catch(() => "");
+          if (res.status === 403) {
+            console.warn(`[thread] Missing permission in channel ${channelId} (403)`);
+          } else {
+            console.error(`[thread] Failed in ${channelId}: ${res.status} ${errText}`);
+          }
+          continue;
+        }
+
+        const thread = await res.json();
+        // Send a minimal message into text channel threads
+        if (!isForum) {
+          await fetch(`https://discord.com/api/v10/channels/${thread.id}/messages`, {
+            method: "POST",
+            headers: { Authorization: `Bot ${TOKEN}`, "Content-Type": "application/json" },
+            body: JSON.stringify({ content: "." }),
+          });
+        }
+
+        console.log(`[thread] Created "${threadName}" in channel ${channelId}`);
+      } catch (err: any) {
+        console.error(`[thread] Error for channel ${channelId}:`, err.message);
+      }
+    }
+  } catch (err: any) {
+    console.error("[thread] createEventThreads failed:", err.message);
+  }
+}
+
+async function broadcastNotification(serverId: string, embed: any, skipChannelId?: string, textContent?: string): Promise<{ ok: boolean; skipped?: string }> {
   const rows = await supabaseQuerySafe(
-    `discord_configs?raidscout_server_id=eq.${serverId}&select=notification_channel_id,discord_guild_id`
+    `discord_configs?raidscout_server_id=eq.${serverId}&select=notification_channel_id,discord_guild_id,notification_prefix`
   );
   const configs = (rows || []).filter((r: any) => r.notification_channel_id && r.notification_channel_id !== skipChannelId);
   if (configs.length === 0) {
@@ -905,7 +1100,7 @@ async function broadcastNotification(serverId: string, embed: any, skipChannelId
   }
 
   for (const cfg of configs) {
-    let prefix = rawPrefix;
+    let prefix = cfg.notification_prefix || rawPrefix;
     const cache = guildRoleCache.get(cfg.discord_guild_id);
     if (cache) {
       prefix = prefix.replace(/@(\S+)/g, (_, name) => {
@@ -913,10 +1108,17 @@ async function broadcastNotification(serverId: string, embed: any, skipChannelId
         return id ? `<@&${id}>` : `@${name}`;
       });
     }
+    const body: any = { allowed_mentions: { parse: ["everyone", "roles"] } };
+    if (textContent) {
+      body.content = prefix ? `${prefix} ${textContent}` : textContent;
+    } else {
+      body.content = prefix || undefined;
+      body.embeds = [embed];
+    }
     const discordRes = await fetch(`https://discord.com/api/v10/channels/${cfg.notification_channel_id}/messages`, {
       method: "POST",
       headers: { Authorization: `Bot ${TOKEN}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ content: prefix || undefined, embeds: [embed], allowed_mentions: { parse: ["everyone"] } }),
+      body: JSON.stringify(body),
     });
     if (!discordRes.ok) {
       const errText = await discordRes.text().catch(() => "");
@@ -930,13 +1132,72 @@ async function broadcastNotification(serverId: string, embed: any, skipChannelId
 import { createServer } from "http";
 
 const NOTIFY_PORT = parseInt(process.env.PORT || process.env.NOTIFY_PORT || "3003");
+const BOT_START_TIME = Date.now();
+let discordConnected = false;
+let lastSpawnCronTick = 0;
+let lastSpawnCronServers = 0;
+let lastSpawnCronBosses = 0;
 
 createServer(async (req, res) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
   if (req.method === "OPTIONS") { res.writeHead(204); res.end(); return; }
+
+  // ── /status ──────────────────────────────────────────
+  if (req.method === "GET" && req.url === "/status") {
+    const uptime = Math.floor((Date.now() - BOT_START_TIME) / 1000);
+    const mem = process.memoryUsage();
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({
+      ok: true,
+      uptime_seconds: uptime,
+      uptime_display: `${Math.floor(uptime / 3600)}h ${Math.floor((uptime % 3600) / 60)}m ${uptime % 60}s`,
+      discord_connected: discordConnected,
+      spawn_cron: {
+        last_tick_iso: lastSpawnCronTick ? new Date(lastSpawnCronTick).toISOString() : null,
+        last_tick_seconds_ago: lastSpawnCronTick ? Math.floor((Date.now() - lastSpawnCronTick) / 1000) : null,
+        servers_checked: lastSpawnCronServers,
+        bosses_checked: lastSpawnCronBosses,
+      },
+      memory_mb: Math.round(mem.heapUsed / 1024 / 1024 * 10) / 10,
+      memory_total_mb: Math.round(mem.heapTotal / 1024 / 1024 * 10) / 10,
+      node_version: process.version,
+      region: process.env.FLY_REGION || "unknown",
+    }));
+    return;
+  }
+
+  // ── /logs ───────────────────────────────────────────
+  if (req.method === "GET" && req.url?.startsWith("/logs")) {
+    const url = new URL(req.url, `http://localhost:${NOTIFY_PORT}`);
+    const limit = parseInt(url.searchParams.get("limit") || "50");
+    const level = url.searchParams.get("level"); // info, warn, error
+    let logs = [...LOG_BUFFER].reverse(); // newest first
+    if (level) logs = logs.filter(l => l.level === level);
+    logs = logs.slice(0, Math.min(limit, 200));
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ ok: true, count: logs.length, total: LOG_BUFFER.length, logs }));
+    return;
+  }
+
+  // ── /test-thread (dev only) ──────────────────────────
+  if (req.method === "POST" && req.url === "/test-thread") {
+    let body = "";
+    req.on("data", c => body += c);
+    req.on("end", async () => {
+      try {
+        const { server_id, boss_name, guild_name } = JSON.parse(body);
+        const spawnUnix = Math.floor(Date.now() / 1000) + 300;
+        await createEventThreads(server_id, boss_name, guild_name, spawnUnix);
+        res.writeHead(200); res.end(JSON.stringify({ ok: true, tested: { boss_name, guild_name } }));
+      } catch (err: any) {
+        res.writeHead(500); res.end(JSON.stringify({ error: err.message }));
+      }
+    });
+    return;
+  }
 
   if (req.method === "POST" && req.url === "/notify") {
     let body = "";
@@ -945,14 +1206,8 @@ createServer(async (req, res) => {
       try {
         const { server_id, event, boss_name, guild_name, activity_name, parties, recorded_by } = JSON.parse(body);
 
-        // Spawn alerts are handled by the cron loop — reject browser-initiated ones
-        if (event === "boss_spawning" || event === "boss_spawned") {
-          res.writeHead(200); res.end(JSON.stringify({ skipped: "handled by cron" }));
-          return;
-        }
-
-        // Dedup: skip duplicate boss_died notifs within 30s
-        if (boss_name && event === "boss_died") {
+        // Dedup: skip duplicate notifs within 30s
+        if (boss_name && event) {
           const dedupKey = `${server_id}-${event}-${boss_name}`;
           const now = Date.now();
           const last = sentNotifs.get(dedupKey);
@@ -963,54 +1218,14 @@ createServer(async (req, res) => {
           sentNotifs.set(dedupKey, now);
         }
 
-        let embed: any;
+        let result;
         if (event === "boss_died" && boss_name) {
-          // Compute next spawn time for the embed
-          let nextSpawnField = "";
-          try {
-            const bossRows = await supabaseQuerySafe(`bosses?server_id=eq.${server_id}&name=eq.${encodeURIComponent(boss_name)}&limit=1`);
-            if (bossRows?.[0]) {
-              const boss = bossRows[0];
-              const deathRows = await supabaseQuerySafe(`death_records?server_id=eq.${server_id}&boss_id=eq.${boss.id}&order=death_time.desc&limit=1`);
-              const lastDeath = deathRows?.[0];
-              const now = new Date();
-              let spawn: Date;
-              if (boss.spawn_type === "fixed_hours") {
-                spawn = lastDeath ? addHours(new Date(lastDeath.death_time), boss.respawn_hours ?? 0) : now;
-              } else if (boss.spawn_type === "fixed_schedule" && boss.schedule) {
-                const tz = await resolveServerTimezone(server_id);
-                spawn = findNextScheduleSlot(boss.schedule, now, tz);
-              } else { spawn = now; }
-              if (spawn > now) {
-                nextSpawnField = `<t:${Math.floor(spawn.getTime() / 1000)}:f>`;
-              } else {
-                nextSpawnField = "Now (Alive)";
-              }
-            }
-          } catch {}
-          const fields: any[] = [{ name: "Death Time", value: `<t:${Math.floor(Date.now() / 1000)}:f>`, inline: true }];
-          if (recorded_by) fields.push({ name: "Recorded By", value: recorded_by, inline: true });
-          if (nextSpawnField) fields.push({ name: "Next Spawn", value: nextSpawnField, inline: true });
-          embed = {
-            title: `☠️ ${boss_name} Killed by ${guild_name || recorded_by || "Unknown"}`,
-            color: 0xef4444,
-            fields,
-            footer: { text: "Powered by RaidScout" },
-          };
-        } else if (event === "boss_spawning" && boss_name) {
-          embed = {
-            title: `⏰ ${boss_name}${guild_name ? ` of ${guild_name}` : ""} spawns in 5 min.`,
-            color: 0xf59e0b,
-            footer: { text: "Powered by RaidScout" },
-          };
-        } else if (event === "boss_spawned" && boss_name) {
-          embed = {
-            title: `🟢 ${boss_name}${guild_name ? ` of ${guild_name}` : ""} has spawned.`,
-            color: 0x22c55e,
-            footer: { text: "Powered by RaidScout" },
-          };
+          const tz = await resolveServerTimezone(server_id).catch(() => "Asia/Manila");
+          const timeStr = new Date().toLocaleString("en-US", { timeZone: tz, month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: true });
+          const killText = `💀 **${boss_name}** killed by **${guild_name || recorded_by || "Unknown"}** ${timeStr}`;
+          result = await broadcastNotification(server_id, {}, undefined, killText);
         } else if (event === "parties_announced" && activity_name && parties) {
-          embed = {
+          const embed = {
             title: `📋 ${activity_name} — Party Assignments`,
             fields: parties.map((p: any) => ({
               name: `Party ${p.party_number}`,
@@ -1020,11 +1235,22 @@ createServer(async (req, res) => {
             color: 0x3b82f6,
             footer: { text: "Powered by RaidScout" },
           };
+          result = await broadcastNotification(server_id, embed);
+        } else if (event === "boss_spawning" && boss_name) {
+          const tz = await resolveServerTimezone(server_id).catch(() => "Asia/Manila");
+          const timeStr = new Date(Date.now() + 300000).toLocaleString("en-US", { timeZone: tz, month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: true });
+          const text = `⚠️ **${boss_name}** spawning in 5 min — **${guild_name}** ${timeStr}`;
+          result = await broadcastNotification(server_id, {}, undefined, text);
+        } else if (event === "boss_spawned" && boss_name) {
+          const tz = await resolveServerTimezone(server_id).catch(() => "Asia/Manila");
+          const timeStr = new Date().toLocaleString("en-US", { timeZone: tz, month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: true });
+          const text = `🟢 **${boss_name}** has spawned — **${guild_name}** ${timeStr}`;
+          result = await broadcastNotification(server_id, {}, undefined, text);
         } else {
-          res.writeHead(400); res.end(JSON.stringify({ error: "Invalid event" })); return;
+          res.writeHead(400); res.end(JSON.stringify({ error: "Invalid event" }));
+          return;
         }
 
-        const result = await broadcastNotification(server_id, embed);
         res.writeHead(200); res.end(JSON.stringify(result));
       } catch (err: any) {
         console.error("Notify error:", err.message);
@@ -1045,46 +1271,94 @@ let cronStarted = false;
 
 async function runSpawnCron() {
   try {
+    lastSpawnCronTick = Date.now();
     // Get all unique servers linked via discord_configs
     const configs = await supabaseQuerySafe("discord_configs?select=raidscout_server_id&order=created_at");
     const serverIds = [...new Set((configs || []).map((c: any) => c.raidscout_server_id))];
+    lastSpawnCronServers = serverIds.length;
+    let bossCount = 0;
     if (serverIds.length === 0) return;
 
     const now = Date.now();
     const nowUnix = Math.floor(now / 1000);
-    let totalBossesChecked = 0;
 
-    console.log(`[cron] tick — ${serverIds.length} server(s): ${serverIds.map(id => id.slice(0, 8)).join(", ")}`);
+    // ── Batched fetch: ~5 calls per chunk, not per server ──
+    const CHUNK_SIZE = 200;
+    const serverChunks: string[][] = [];
+    for (let i = 0; i < serverIds.length; i += CHUNK_SIZE) {
+      serverChunks.push(serverIds.slice(i, i + CHUNK_SIZE));
+    }
+
+    const allBosses: any[] = [];
+    const allDeaths: any[] = [];
+    const allGuilds: any[] = [];
+    const allBossGuilds: any[] = [];
+    const serverStatusMap: Record<string, any> = {};
+
+    for (const chunk of serverChunks) {
+      const ids = chunk.map(encodeURIComponent).join(",");
+      const [bosses, deaths, guilds, bg] = await Promise.all([
+        supabaseQuerySafe(`bosses?server_id=in.(${ids})&order=name`),
+        supabaseQuerySafe(`death_records?server_id=in.(${ids})&order=death_time.desc&limit=2000`),
+        supabaseQuerySafe(`guilds?server_id=in.(${ids})`),
+        supabaseQuerySafe(`boss_guilds?select=*`),
+      ]);
+      allBosses.push(...(bosses || []));
+      allDeaths.push(...(deaths || []));
+      allGuilds.push(...(guilds || []));
+      allBossGuilds.push(...(bg || []));
+
+      const statusRows = await supabaseQuerySafe(`servers?select=id,deleted_at,timezone&id=in.(${ids})`);
+      for (const s of (statusRows || [])) {
+        serverStatusMap[s.id] = s;
+      }
+    }
+
+    // Group by server_id in memory
+    const bossesByServer = new Map<string, any[]>();
+    for (const b of allBosses) {
+      if (!bossesByServer.has(b.server_id)) bossesByServer.set(b.server_id, []);
+      bossesByServer.get(b.server_id)!.push(b);
+    }
+
+    const deathsByBoss = new Map<string, any[]>();
+    for (const d of allDeaths) {
+      if (!deathsByBoss.has(d.boss_id)) deathsByBoss.set(d.boss_id, []);
+      deathsByBoss.get(d.boss_id)!.push(d);
+    }
+
+    const guildsByServer = new Map<string, any[]>();
+    for (const g of allGuilds) {
+      if (!guildsByServer.has(g.server_id)) guildsByServer.set(g.server_id, []);
+      guildsByServer.get(g.server_id)!.push(g);
+    }
+
+    // Log which servers are being scanned this tick
+    const serverList = serverIds.map(id => serverStatusMap[id]?.name || id.slice(0, 8)).join(", ");
+    console.log(`[cron] tick — ${serverIds.length} server(s): ${serverList}`);
 
     for (const serverId of serverIds) {
       try {
-        // Skip soft-deleted servers
-        const serverRows = await supabaseQuerySafe(`servers?select=deleted_at&id=eq.${serverId}&limit=1`);
-        if (serverRows?.[0]?.deleted_at) continue;
+        const sv = serverStatusMap[serverId];
+        if (sv?.deleted_at) continue;
 
-        // Fetch bosses, latest death per boss, guilds, and boss_guilds for this server
-        const [bosses, allDeaths, guilds, bossGuilds] = await Promise.all([
-          supabaseQuerySafe(`bosses?server_id=eq.${serverId}&order=name`),
-          supabaseQuerySafe(`death_records?server_id=eq.${serverId}&order=death_time.desc&limit=500`),
-          supabaseQuerySafe(`guilds?server_id=eq.${serverId}`),
-          supabaseQuerySafe(`boss_guilds?select=*`),
-        ]);
+        const bosses = bossesByServer.get(serverId) || [];
+        if (!bosses.length) continue;
 
-        if (!bosses?.length) continue;
+        const guilds = guildsByServer.get(serverId) || [];
+        const serverGuildIds = new Set(guilds.map((g: any) => g.id));
+        const serverBossGuilds = allBossGuilds.filter((bg: any) => serverGuildIds.has(bg.guild_id));
 
-        // Filter boss_guilds to this server's guilds
-        const serverGuildIds = new Set((guilds || []).map((g: any) => g.id));
-        const serverBossGuilds = (bossGuilds || []).filter((bg: any) => serverGuildIds.has(bg.guild_id));
+        const svName = sv?.name || serverId.slice(0, 8);
+        console.log(`[cron]   ${svName}: ${bosses.length} bosses, ${guilds.length} guilds`);
 
-        const tz = await resolveServerTimezone(serverId);
-
-        console.log(`[cron]   ${serverId.slice(0, 8)}: ${bosses.length} bosses, ${guilds?.length || 0} guilds, ${(allDeaths || []).length} deaths`);
+        const tz = sv?.timezone || "UTC";
 
         for (const boss of bosses) {
-          totalBossesChecked++;
-          // Get latest non-initial death record for this boss
-          const lastDeath = (allDeaths || [])
-            .filter((d: any) => d.boss_id === boss.id && !d.is_initial_spawn)
+          bossCount++;
+          const allBossDeaths = deathsByBoss.get(boss.id) || [];
+          const lastDeath = allBossDeaths
+            .filter((d: any) => !d.is_initial_spawn)
             .sort((a: any, b: any) => new Date(b.death_time).getTime() - new Date(a.death_time).getTime())[0];
 
           // Calculate next spawn time
@@ -1111,13 +1385,13 @@ async function runSpawnCron() {
             );
             if (!existing?.length) {
               const guildName = computeOwnerGuild(boss, serverBossGuilds, guilds, lastDeath, spawnTime, tz) || "";
-              const embed = {
-                title: `⏰ ${boss.name} Spawning Soon`,
-                description: guildName ? `**${guildName}** — ${boss.name} spawns in 5 min.` : `${boss.name} spawns in 5 minutes.`,
-                color: 0xf59e0b,
-                footer: { text: "Powered by RaidScout" },
-              };
-              await broadcastNotification(serverId, embed);
+              const timeStr = spawnTime.toLocaleString("en-US", { timeZone: tz || "Asia/Manila", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: true });
+              const text = `⚠️ **${boss.name}** spawning in 5 min — **${guildName}** ${timeStr}`;
+              await broadcastNotification(serverId, {}, undefined, text);
+              // Auto-create thread for this spawn
+              createEventThreads(serverId, boss.name, guildName || undefined, spawnUnix).catch((err: any) =>
+                console.error(`[thread] createEventThreads error:`, err.message)
+              );
               // Record sent notification
               await fetch(`${SUPABASE_URL}/rest/v1/spawn_notifications`, {
                 method: "POST",
@@ -1135,13 +1409,9 @@ async function runSpawnCron() {
             );
             if (!existing?.length) {
               const guildName = computeOwnerGuild(boss, serverBossGuilds, guilds, lastDeath, spawnTime, tz) || "";
-              const embed = {
-                title: `🟢 ${boss.name} Spawning Now`,
-                description: guildName ? `**${guildName}** — ${boss.name} has spawned!` : `${boss.name} has spawned!`,
-                color: 0x22c55e,
-                footer: { text: "Powered by RaidScout" },
-              };
-              await broadcastNotification(serverId, embed);
+              const timeStr = new Date().toLocaleString("en-US", { timeZone: tz || "Asia/Manila", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: true });
+              const text = `🟢 **${boss.name}** has spawned — **${guildName}** ${timeStr}`;
+              await broadcastNotification(serverId, {}, undefined, text);
               await fetch(`${SUPABASE_URL}/rest/v1/spawn_notifications`, {
                 method: "POST",
                 headers: { apikey: SUPABASE_KEY!, Authorization: `Bearer ${SUPABASE_KEY!}`, "Content-Type": "application/json", Prefer: "return=minimal" },
@@ -1150,65 +1420,13 @@ async function runSpawnCron() {
             }
           }
         }
-
-        // ── Activity alerts ────────────────────────────
-        const activities = await supabaseQuerySafe(`activities?server_id=eq.${serverId}&is_enabled=eq.true`);
-        for (const activity of activities || []) {
-          if (!activity.schedule?.length) continue;
-          const nextSlot = findNextScheduleSlot(activity.schedule, new Date());
-          const actUnix = Math.floor(nextSlot.getTime() / 1000);
-          const secsUntil = actUnix - nowUnix;
-
-          if (secsUntil > 0 && secsUntil <= 300) {
-            const existing = await supabaseQuerySafe(
-              `spawn_notifications?server_id=eq.${serverId}&activity_id=eq.${activity.id}&event=eq.boss_spawning&spawn_timestamp=eq.${actUnix}&limit=1`
-            );
-            if (!existing?.length) {
-              const embed = {
-                title: `📋 ${activity.name} Starting Soon`,
-                description: `**${activity.name}** starts in 5 minutes.`,
-                color: 0x3b82f6,
-                footer: { text: "Powered by RaidScout" },
-              };
-              await broadcastNotification(serverId, embed);
-              await fetch(`${SUPABASE_URL}/rest/v1/spawn_notifications`, {
-                method: "POST",
-                headers: { apikey: SUPABASE_KEY!, Authorization: `Bearer ${SUPABASE_KEY!}`, "Content-Type": "application/json", Prefer: "return=minimal" },
-                body: JSON.stringify({ server_id: serverId, activity_id: activity.id, event: "boss_spawning", spawn_timestamp: actUnix }),
-              }).catch((err: any) => console.error("activity spawn_notifs insert failed:", err?.message ?? err));
-            }
-          }
-
-          if (secsUntil <= 0 && secsUntil >= -60) {
-            const existing = await supabaseQuerySafe(
-              `spawn_notifications?server_id=eq.${serverId}&activity_id=eq.${activity.id}&event=eq.boss_spawned&spawn_timestamp=eq.${actUnix}&limit=1`
-            );
-            if (!existing?.length) {
-              const embed = {
-                title: `📋 ${activity.name} Has Started`,
-                description: `**${activity.name}** has started!`,
-                color: 0x22c55e,
-                footer: { text: "Powered by RaidScout" },
-              };
-              await broadcastNotification(serverId, embed);
-              await fetch(`${SUPABASE_URL}/rest/v1/spawn_notifications`, {
-                method: "POST",
-                headers: { apikey: SUPABASE_KEY!, Authorization: `Bearer ${SUPABASE_KEY!}`, "Content-Type": "application/json", Prefer: "return=minimal" },
-                body: JSON.stringify({ server_id: serverId, activity_id: activity.id, event: "boss_spawned", spawn_timestamp: actUnix }),
-              }).catch((err: any) => console.error("activity spawn_notifs insert failed:", err?.message ?? err));
-            }
-          }
-        }
+        lastSpawnCronBosses = bossCount;
+        console.log(`[cron] tick done — ${bossCount} bosses checked across ${serverIds.length} server(s)`);
       } catch (serverErr: any) {
         console.error(`Spawn cron error for server ${serverId}:`, serverErr.message);
         // Continue with next server
       }
     }
-
-    lastSpawnCronTick = Date.now();
-    lastSpawnCronServers = serverIds.length;
-    lastSpawnCronBosses = totalBossesChecked;
-    console.log(`[cron] tick done — ${totalBossesChecked} bosses across ${serverIds.length} server(s)`);
 
     // Cleanup old dedup rows (>7 days) — once per tick is plenty
     try {
