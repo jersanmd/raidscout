@@ -6,7 +6,8 @@ import { useLeaderboardSnapshots, getLastFinalized, getLeaderboardResetAt } from
 import { guildColor } from "@/lib/constants";
 import { useAuth } from "@/contexts/AuthContext";
 import { useServerId, useServer, useHasPermission } from "@/contexts/ServerContext";
-import { fetchMemberKills, type MemberBossKill, isSupabaseConfigured, fetchGuilds, adjustMemberPoints, fetchPointAdjustments, supabase } from "@/lib/supabase";
+import { useServerTimezone } from "@/hooks/useServerTimezone";
+import { fetchMemberKills, type MemberBossKill, isSupabaseConfigured, fetchGuilds, adjustMemberPoints, fetchPointAdjustments, fetchPointRules, supabase } from "@/lib/supabase";
 import { useAttendance } from "@/hooks/useAttendance";
 import { useMembers } from "@/hooks/useMembers";
 import type { Guild, LeaderboardSnapshot, PointAdjustment } from "@/types";
@@ -75,6 +76,7 @@ export function LeaderboardView() {
 
   // Point adjustment modal state
   const { currentServer } = useServer();
+  const serverTimezone = useServerTimezone();
   const canAdjustPoints = useHasPermission("can_adjust_points");
   const canExportAttendance = useHasPermission("can_export_attendance");
   const isStaff = !isViewer && (currentServer?.role === "owner" || currentServer?.role === "moderator");
@@ -89,7 +91,10 @@ export function LeaderboardView() {
   // Fetch guilds and members for filtering
   const { data: members = [] } = useMembers();
   const [guilds, setGuilds] = useState<Guild[]>([]);
-  useEffect(() => { fetchGuilds().then(setGuilds).catch(() => setGuilds([])); }, []);
+  useEffect(() => {
+    if (!currentServer?.id) return;
+    fetchGuilds(currentServer.id).then(setGuilds).catch(() => setGuilds([]));
+  }, [currentServer?.id]);
 
   // Build member-guild lookup
   const memberGuildMap = new Map(members.map(m => [m.id, m.guild_id]));
@@ -263,13 +268,15 @@ export function LeaderboardView() {
       // Fetch per-guild salary overrides for this server
       const { data: bgData } = await supabase
         .from("boss_guilds")
-        .select("boss_id,guild_id,has_salary, bosses!inner(server_id)")
+        .select("boss_id,guild_id,has_salary,points, bosses!inner(server_id)")
         .eq("bosses.server_id", serverId)
         .in("boss_id", bossIds);
-      // Build lookup: "bossId|guildId" → has_salary
+      // Build lookups: "bossId|guildId" → has_salary | points
       const bgSalaryMap = new Map<string, boolean>();
+      const bgPointsMap = new Map<string, number>();
       for (const bg of (bgData || [])) {
         if (bg.has_salary) bgSalaryMap.set(`${bg.boss_id}|${bg.guild_id}`, true);
+        if (bg.points != null) bgPointsMap.set(`${bg.boss_id}|${bg.guild_id}`, bg.points);
       }
 
       // Fetch attendance records
@@ -286,6 +293,49 @@ export function LeaderboardView() {
         .eq("server_id", serverId);
       if (memErr) throw new Error(`Members: ${memErr.message}`);
       const memberMap = new Map((allMembers || []).map(m => [m.id, m]));
+
+      // Fetch point rules for multiplier calculation
+      const { data: pointRules, error: rulesErr } = await supabase
+        .from("point_rules")
+        .select("*")
+        .eq("server_id", serverId);
+      if (rulesErr) console.warn("Failed to fetch point rules:", rulesErr.message);
+
+      // Build multiplier lookup: guildId → [{start_hour, end_hour, multiplier}]
+      const guildMultipliers = new Map<string, { start_hour: number; end_hour: number; multiplier: number }[]>();
+      for (const rule of (pointRules || [])) {
+        if (!rule.enabled || rule.rule_type !== "time_multiplier") continue;
+        const cfg = rule.config as any;
+        if (!guildMultipliers.has(rule.guild_id)) guildMultipliers.set(rule.guild_id, []);
+        guildMultipliers.get(rule.guild_id)!.push({
+          start_hour: cfg.start_hour,
+          end_hour: cfg.end_hour,
+          multiplier: cfg.multiplier,
+        });
+      }
+
+      // Helper: get multiplier for a given guild at a given death time (server timezone)
+      const getMultiplier = (guildId: string, deathTime: string): number => {
+        const rules = guildMultipliers.get(guildId);
+        if (!rules || rules.length === 0) return 1;
+        // Format the death time in the server's timezone and extract the hour
+        const dt = new Date(deathTime);
+        const hour = parseInt(
+          dt.toLocaleString("en-US", { timeZone: serverTimezone, hour: "2-digit", hour12: false }),
+          10
+        );
+        let mult = 1;
+        for (const r of rules) {
+          let match = false;
+          if (r.start_hour <= r.end_hour) {
+            match = hour >= r.start_hour && hour < r.end_hour;
+          } else {
+            match = hour >= r.start_hour || hour < r.end_hour;
+          }
+          if (match) mult = Math.max(mult, r.multiplier);
+        }
+        return mult;
+      };
 
       // Filter members by guild
       const guildMemberIds = new Set(
@@ -307,28 +357,33 @@ export function LeaderboardView() {
         allAttendedMembers.add(att.member_id);
       }
 
-      // Sort members alphabetically
-      const sortedMembers = [...allAttendedMembers].sort((a, b) => {
+      // Sort members alphabetically — include ALL members (even 0 attendance) for consistent export format
+      const sortedMembers = [...guildMemberIds].sort((a, b) => {
         const ma = memberMap.get(a);
         const mb = memberMap.get(b);
         return (ma?.name || "").localeCompare(mb?.name || "");
       });
 
-      // Compute player totals
+      // Compute player totals — initialize all members with 0
       const memberTotals = new Map<string, number>();
+      for (const mid of guildMemberIds) memberTotals.set(mid, 0);
       for (const [deathId, memberSet] of deathAttendees) {
         const death = deathBossMap.get(deathId);
         const boss = bossMap.get(death?.boss_id);
-        const pts = (boss as any)?.boss_points || 0;
         for (const mid of memberSet) {
-          memberTotals.set(mid, (memberTotals.get(mid) || 0) + pts);
+          const member = memberMap.get(mid);
+          const guildId = member?.guild_id;
+          // Per-guild point override (bossId|guildId), fallback to boss default
+          const basePts = guildId ? (bgPointsMap.get(`${death.boss_id}|${guildId}`) ?? ((boss as any)?.boss_points || 0)) : ((boss as any)?.boss_points || 0);
+          const mult = guildId ? getMultiplier(guildId, death.death_time) : 1;
+          memberTotals.set(mid, (memberTotals.get(mid) || 0) + basePts * mult);
         }
       }
 
       // Build data rows: one per death
       const dataRows: any[][] = [];
-      const dateFmt = new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", year: "numeric" });
-      const timeFmt = new Intl.DateTimeFormat(undefined, { hour: "2-digit", minute: "2-digit" });
+      const dateFmt = new Intl.DateTimeFormat("en-US", { timeZone: serverTimezone, month: "short", day: "numeric", year: "numeric" });
+      const timeFmt = new Intl.DateTimeFormat("en-US", { timeZone: serverTimezone, hour: "2-digit", minute: "2-digit" });
       for (const death of deaths) {
         const attendees = deathAttendees.get(death.id);
         if (!attendees || attendees.size === 0) continue;
@@ -359,7 +414,11 @@ export function LeaderboardView() {
           })(),
         ];
         for (const mid of sortedMembers) {
-          row.push(attendees.has(mid) ? ((boss as any)?.boss_points || 0) : 0);
+          const member = memberMap.get(mid);
+          const guildId = member?.guild_id;
+          const basePts = guildId ? (bgPointsMap.get(`${death.boss_id}|${guildId}`) ?? ((boss as any)?.boss_points || 0)) : ((boss as any)?.boss_points || 0);
+          const mult = guildId ? getMultiplier(guildId, death.death_time) : 1;
+          row.push(attendees.has(mid) ? basePts * mult : 0);
         }
         dataRows.push(row);
       }
@@ -389,10 +448,9 @@ export function LeaderboardView() {
         .num { text-align: center; color: #FBBF24; font-weight: bold; }
 </style></head><body><table>`;
 
-      // Build ranking data
+      // Build ranking data — include all members even with 0 points
       const sortedRanking = [...memberTotals.entries()]
-        .sort((a, b) => b[1] - a[1])
-        .filter(([, pts]) => pts > 0);
+        .sort((a, b) => b[1] - a[1]);
 
       // Row 0: Player name headers + ranking header
       html += `<tr><th class="hdr">#</th><th class="hdr">Date</th><th class="hdr">Time</th><th class="hdr boss" style="text-align:left">Boss</th><th class="hdr">Salary</th><th class="hdr">Party Leader</th>`;

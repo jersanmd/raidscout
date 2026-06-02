@@ -3,9 +3,9 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { useServer } from "@/contexts/ServerContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { deleteServer, transferServerOwnership, removeServerModerator, addServerModerator, supabase, fetchServerMembers, type ServerMember, fetchGuilds, createGuild, updateGuildName, deleteGuild, fetchBossGuilds, setBossGuilds, fetchAllBossGuildsForServer, upsertBossGuildPoints, batchSetGuildSalary, fetchBosses, setBossPoints, setBossSalary, notifyDiscord, fetchModeratorPermissions, updateModeratorPermissions, updateThreadConfig, type ModeratorPermissions, DEFAULT_MODERATOR_PERMISSIONS } from "@/lib/supabase";
-import type { Guild, BossGuild, Boss } from "@/types";
-import { Loader2, Trash2, Crown, ArrowLeft, Server, Check, Key, Copy, RefreshCw, Plus, LogIn, Users, Bell, Link, Settings, AlertTriangle, X, Shield, Pencil, Swords, ChevronUp, ChevronDown, CheckSquare, Square, Eye, EyeOff, UserPlus, Minus, Trophy, Send, Save, MessageCircle } from "lucide-react";
+import { deleteServer, transferServerOwnership, removeServerModerator, addServerModerator, supabase, fetchServerMembers, type ServerMember, fetchGuilds, createGuild, updateGuildName, deleteGuild, fetchBossGuilds, setBossGuilds, fetchAllBossGuildsForServer, upsertBossGuildPoints, batchSetGuildSalary, fetchBosses, setBossPoints, setBossSalary, notifyDiscord, fetchModeratorPermissions, updateModeratorPermissions, updateThreadConfig, fetchPointRules, createPointRule, updatePointRule, deletePointRule, type ModeratorPermissions, DEFAULT_MODERATOR_PERMISSIONS } from "@/lib/supabase";
+import type { Guild, BossGuild, Boss, PointRule } from "@/types";
+import { Loader2, Trash2, Crown, ArrowLeft, Server, Check, Key, Copy, RefreshCw, Plus, LogIn, Users, Bell, Link, Settings, AlertTriangle, X, Shield, Pencil, Swords, ChevronUp, ChevronDown, CheckSquare, Square, Eye, EyeOff, UserPlus, Minus, Trophy, Send, Save, MessageCircle, Zap } from "lucide-react";
 import { CreateServerModal } from "@/components/CreateServerModal";
 import { useToast } from "@/contexts/ToastContext";
 
@@ -131,6 +131,12 @@ export function ServerSettingsView() {
           setDiscordLinks(data || []);
         } catch { /* ignore */ }
       })();
+      // Fetch point rules
+      setRulesLoading(true);
+      fetchPointRules(currentServer.id)
+        .then(setPointRules)
+        .catch(() => setPointRules([]))
+        .finally(() => setRulesLoading(false));
     }
   }, [currentServer?.id]);
 
@@ -212,6 +218,16 @@ export function ServerSettingsView() {
   const [allBossGuilds, setAllBossGuilds] = useState<BossGuild[]>([]);
   const [bossPointsLoading, setBossPointsLoading] = useState(false);
   const [savingCell, setSavingCell] = useState<string | null>(null); // "bossId-guildId" while saving
+
+  // Point Rules state
+  const [pointRules, setPointRules] = useState<PointRule[]>([]);
+  const [rulesLoading, setRulesLoading] = useState(false);
+  const [showAddRule, setShowAddRule] = useState(false);
+  const [newRuleGuildId, setNewRuleGuildId] = useState("");
+  const [newRuleStartHour, setNewRuleStartHour] = useState(0);
+  const [newRuleEndHour, setNewRuleEndHour] = useState(6);
+  const [newRuleMultiplier, setNewRuleMultiplier] = useState(2);
+  const [savingRule, setSavingRule] = useState(false);
 
   // Boss priority ordering (for display in Boss Guilds tab)
   const BOSS_PRIORITY = [
@@ -583,6 +599,50 @@ export function ServerSettingsView() {
       toast("success", "Viewer key regenerated!");
     } catch (err: any) {
       toast("error", err?.message ?? "Failed to regenerate viewer key");
+    }
+  };
+
+  // ── Point Rules handlers ──────────────────────────────────
+
+  const handleAddPointRule = async () => {
+    if (!newRuleGuildId || !currentServer) return;
+    setSavingRule(true);
+    try {
+      const rule = await createPointRule(currentServer.id, newRuleGuildId, "time_multiplier", {
+        start_hour: newRuleStartHour,
+        end_hour: newRuleEndHour,
+        multiplier: newRuleMultiplier,
+      });
+      setPointRules(prev => [...prev, rule]);
+      setShowAddRule(false);
+      setNewRuleGuildId("");
+      setNewRuleStartHour(0);
+      setNewRuleEndHour(6);
+      setNewRuleMultiplier(2);
+      toast("success", "Point rule added!");
+    } catch (err: any) {
+      toast("error", err?.message ?? "Failed to add rule");
+    } finally {
+      setSavingRule(false);
+    }
+  };
+
+  const handleToggleRule = async (ruleId: string, enabled: boolean) => {
+    try {
+      await updatePointRule(ruleId, { enabled });
+      setPointRules(prev => prev.map(r => r.id === ruleId ? { ...r, enabled } : r));
+    } catch (err: any) {
+      toast("error", err?.message ?? "Failed to toggle rule");
+    }
+  };
+
+  const handleDeleteRule = async (ruleId: string) => {
+    try {
+      await deletePointRule(ruleId);
+      setPointRules(prev => prev.filter(r => r.id !== ruleId));
+      toast("success", "Rule deleted");
+    } catch (err: any) {
+      toast("error", err?.message ?? "Failed to delete rule");
     }
   };
 
@@ -1636,50 +1696,188 @@ export function ServerSettingsView() {
 
       {/* Boss Points Tab */}
       {tab === "boss-points" && (
-        <BossPointsMatrix
-          bosses={sortedBosses}
-          guilds={guilds}
-          allBossGuilds={allBossGuilds}
-          savingCell={savingCell}
-          onPointsChange={async (bossId, guildId, points) => {
-            const cellKey = `${bossId}-${guildId}`;
-            setSavingCell(cellKey);
-            try {
-              await upsertBossGuildPoints(bossId, guildId, points, undefined);
-              setAllBossGuilds(prev => {
-                const existing = prev.find(bg => bg.boss_id === bossId && bg.guild_id === guildId);
-                if (existing) {
-                  return prev.map(bg => bg.boss_id === bossId && bg.guild_id === guildId ? { ...bg, points } : bg);
-                }
-                return [...prev, { id: "", boss_id: bossId, guild_id: guildId, sort_order: null, day_of_week: null, points } as BossGuild];
-              });
-            } catch { /* ignore */ }
-            setSavingCell(null);
-          }}
-          onSalaryChange={async (bossId, guildId, hasSalary) => {
-            const cellKey = `${bossId}-${guildId}`;
-            setSavingCell(cellKey);
-            try {
-              await upsertBossGuildPoints(bossId, guildId, undefined, hasSalary);
-              setAllBossGuilds(prev => {
-                const existing = prev.find(bg => bg.boss_id === bossId && bg.guild_id === guildId);
-                if (existing) {
-                  return prev.map(bg => bg.boss_id === bossId && bg.guild_id === guildId ? { ...bg, has_salary: hasSalary } : bg);
-                }
-                return [...prev, { id: "", boss_id: bossId, guild_id: guildId, sort_order: null, day_of_week: null, has_salary: hasSalary } as BossGuild];
-              });
-            } catch { /* ignore */ }
-            setSavingCell(null);
-          }}
-          onBatchSalaryChange={async (guildId, bossIds, hasSalary) => {
-            await batchSetGuildSalary(guildId, bossIds, hasSalary);
-            // Refresh allBossGuilds
-            try {
-              const updated = await fetchAllBossGuildsForServer(currentServer!.id);
-              setAllBossGuilds(updated);
-            } catch { /* refresh failed, but data is saved */ }
-          }}
-        />
+        <>
+          {/* Point Rules — at the top */}
+          <section className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-4 mb-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                <Zap className="w-3 h-3" /> Point Rules
+              </h3>
+              <button
+                onClick={() => setShowAddRule(!showAddRule)}
+                className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-purple-600 text-white hover:bg-purple-500 transition"
+              >
+                <Plus className="w-3 h-3" />
+                Add Rule
+              </button>
+            </div>
+            <p className="text-xs text-slate-500">
+              Create time-based multipliers that boost guild points during specific hours (server timezone).
+            </p>
+
+            {/* Add Rule Form */}
+            {showAddRule && (
+              <div className="bg-slate-800/50 border border-slate-700 rounded-lg p-3 space-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                  <div>
+                    <label className="text-[10px] text-slate-500 block mb-1">Guild</label>
+                    <select
+                      value={newRuleGuildId}
+                      onChange={e => setNewRuleGuildId(e.target.value)}
+                      className="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white"
+                    >
+                      <option value="">Select guild...</option>
+                      {guilds.map(g => (
+                        <option key={g.id} value={g.id}>{g.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-slate-500 block mb-1">Start Hour</label>
+                    <select
+                      value={newRuleStartHour}
+                      onChange={e => setNewRuleStartHour(Number(e.target.value))}
+                      className="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white"
+                    >
+                      {Array.from({ length: 24 }, (_, i) => (
+                        <option key={i} value={i}>{i.toString().padStart(2, "0")}:00</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-slate-500 block mb-1">End Hour</label>
+                    <select
+                      value={newRuleEndHour}
+                      onChange={e => setNewRuleEndHour(Number(e.target.value))}
+                      className="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white"
+                    >
+                      {Array.from({ length: 24 }, (_, i) => (
+                        <option key={i} value={i}>{i.toString().padStart(2, "0")}:00</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-slate-500 block mb-1">Multiplier</label>
+                    <select
+                      value={newRuleMultiplier}
+                      onChange={e => setNewRuleMultiplier(Number(e.target.value))}
+                      className="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white"
+                    >
+                      {[1.5, 2, 2.5, 3, 4, 5].map(m => (
+                        <option key={m} value={m}>{m}x</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleAddPointRule}
+                    disabled={!newRuleGuildId || savingRule}
+                    className="flex-1 px-3 py-1.5 rounded-lg text-xs font-medium bg-purple-600 text-white hover:bg-purple-500 disabled:opacity-50 transition"
+                  >
+                    {savingRule ? "Saving..." : "Save Rule"}
+                  </button>
+                  <button
+                    onClick={() => setShowAddRule(false)}
+                    className="px-3 py-1.5 rounded-lg text-xs text-slate-400 hover:text-white transition"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Existing Rules */}
+            {rulesLoading ? (
+              <div className="flex items-center justify-center py-3">
+                <Loader2 className="w-4 h-4 text-slate-500 animate-spin" />
+              </div>
+            ) : pointRules.length === 0 ? (
+              <p className="text-xs text-slate-600">No point rules yet. Add one above to boost guild points during specific hours.</p>
+            ) : (
+              <div className="space-y-2">
+                {pointRules.map(rule => {
+                  const guild = guilds.find(g => g.id === rule.guild_id);
+                  const cfg = rule.config;
+                  const startLabel = `${String(cfg.start_hour).padStart(2, "0")}:00`;
+                  const endLabel = `${String(cfg.end_hour).padStart(2, "0")}:00`;
+                  return (
+                    <div key={rule.id} className={`flex items-center justify-between bg-slate-800/30 rounded-lg px-3 py-2.5 gap-3 ${!rule.enabled ? "opacity-50" : ""}`}>
+                      <div className="flex items-center gap-3 min-w-0">
+                        <label className="flex items-center gap-2 cursor-pointer shrink-0">
+                          <input
+                            type="checkbox"
+                            checked={rule.enabled}
+                            onChange={() => handleToggleRule(rule.id, !rule.enabled)}
+                            className="w-3.5 h-3.5 rounded border-slate-600 bg-slate-800 text-purple-600 focus:ring-purple-500/50 cursor-pointer"
+                          />
+                        </label>
+                        <span className="text-xs font-medium text-white truncate">{guild?.name || "Unknown"}</span>
+                        <span className="text-[10px] text-slate-500 shrink-0">
+                          {startLabel} – {endLabel}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="text-xs font-mono text-amber-400 font-bold">{cfg.multiplier}x</span>
+                        <button
+                          onClick={() => handleDeleteRule(rule.id)}
+                          className="p-1 rounded text-slate-500 hover:text-red-400 hover:bg-red-900/20 transition"
+                          title="Delete rule"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+
+          <BossPointsMatrix
+            bosses={sortedBosses}
+            guilds={guilds}
+            allBossGuilds={allBossGuilds}
+            savingCell={savingCell}
+            onPointsChange={async (bossId, guildId, points) => {
+              const cellKey = `${bossId}-${guildId}`;
+              setSavingCell(cellKey);
+              try {
+                await upsertBossGuildPoints(bossId, guildId, points, undefined);
+                setAllBossGuilds(prev => {
+                  const existing = prev.find(bg => bg.boss_id === bossId && bg.guild_id === guildId);
+                  if (existing) {
+                    return prev.map(bg => bg.boss_id === bossId && bg.guild_id === guildId ? { ...bg, points } : bg);
+                  }
+                  return [...prev, { id: "", boss_id: bossId, guild_id: guildId, sort_order: null, day_of_week: null, points } as BossGuild];
+                });
+              } catch { /* ignore */ }
+              setSavingCell(null);
+            }}
+            onSalaryChange={async (bossId, guildId, hasSalary) => {
+              const cellKey = `${bossId}-${guildId}`;
+              setSavingCell(cellKey);
+              try {
+                await upsertBossGuildPoints(bossId, guildId, undefined, hasSalary);
+                setAllBossGuilds(prev => {
+                  const existing = prev.find(bg => bg.boss_id === bossId && bg.guild_id === guildId);
+                  if (existing) {
+                    return prev.map(bg => bg.boss_id === bossId && bg.guild_id === guildId ? { ...bg, has_salary: hasSalary } : bg);
+                  }
+                  return [...prev, { id: "", boss_id: bossId, guild_id: guildId, sort_order: null, day_of_week: null, has_salary: hasSalary } as BossGuild];
+                });
+              } catch { /* ignore */ }
+              setSavingCell(null);
+            }}
+            onBatchSalaryChange={async (guildId, bossIds, hasSalary) => {
+              await batchSetGuildSalary(guildId, bossIds, hasSalary);
+              try {
+                const updated = await fetchAllBossGuildsForServer(currentServer!.id);
+                setAllBossGuilds(updated);
+              } catch { /* refresh failed, but data is saved */ }
+            }}
+          />
+        </>
       )}
 
       {/* Members Tab */}

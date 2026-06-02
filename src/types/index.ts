@@ -134,3 +134,22 @@ export interface WeekDaySpawns {
   isToday: boolean;
   spawns: SpawnInfo[];
 }
+
+// ── Point Rules ─────────────────────────────────────────────
+
+export interface PointRule {
+  id: string;
+  server_id: string;
+  guild_id: string;
+  rule_type: "time_multiplier";
+  config: PointRuleTimeMultiplierConfig;
+  enabled: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PointRuleTimeMultiplierConfig {
+  start_hour: number;  // 0-23
+  end_hour: number;    // 0-23
+  multiplier: number;  // e.g. 2.0 = double
+}

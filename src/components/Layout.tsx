@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { NavLink, Outlet, useNavigate, useLocation, Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useServer, useHasPermission } from "@/contexts/ServerContext";
@@ -243,7 +244,7 @@ export function Layout() {
                 <span className="text-xs hidden md:block">{user?.email?.split("@")[0]}</span>
                 <ChevronDown className={`w-3 h-3 transition ${showUserMenu ? "rotate-180" : ""}`} />
               </button>
-              {showUserMenu && (
+              {showUserMenu && createPortal(
                 <>
                   <div className="fixed inset-0 z-[9998] bg-black/30 sm:bg-transparent" onClick={() => setShowUserMenu(false)} />
                   <div className="fixed z-[9999] inset-x-4 top-[30%] sm:inset-x-auto sm:right-4 sm:top-12 sm:translate-y-0 max-w-sm mx-auto sm:mx-0 w-full sm:w-56 bg-slate-800 border border-slate-700 rounded-xl shadow-2xl overflow-hidden">
@@ -271,7 +272,8 @@ export function Layout() {
                       </button>
                     </div>
                   </div>
-                </>
+                </>,
+                document.body
               )}
             </div>
           </div>
