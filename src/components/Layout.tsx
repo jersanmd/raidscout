@@ -89,7 +89,7 @@ export function Layout() {
   });
 
   return (
-    <div className="min-h-screen bg-slate-950 flex flex-col">
+    <div className="min-h-screen bg-slate-950 flex flex-col" onClick={() => showUserMenu && setShowUserMenu(false)}>
       {/* Skip to content — accessibility */}
       <a href="#main-content" className="skip-to-content">Skip to content</a>
 
@@ -245,8 +245,8 @@ export function Layout() {
               </button>
               {showUserMenu && (
                 <>
-                  <div className="fixed inset-0 z-40" onClick={() => setShowUserMenu(false)} />
-                  <div className="fixed right-4 top-12 w-56 bg-slate-800 border border-slate-700 rounded-xl shadow-2xl z-[9999] overflow-hidden">
+                  <div className="fixed inset-0 z-[9998] bg-black/30 sm:bg-transparent" onClick={() => setShowUserMenu(false)} />
+                  <div className="fixed z-[9999] inset-x-4 top-[30%] sm:inset-x-auto sm:right-4 sm:top-12 sm:translate-y-0 max-w-sm mx-auto sm:mx-0 w-full sm:w-56 bg-slate-800 border border-slate-700 rounded-xl shadow-2xl overflow-hidden">
                     <div className="px-4 py-3 border-b border-slate-700">
                       <div className="text-sm font-semibold text-white">{user?.email?.split("@")[0]}</div>
                       <div className="text-xs text-slate-500">{user?.email}</div>
