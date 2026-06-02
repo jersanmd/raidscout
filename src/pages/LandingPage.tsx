@@ -635,5 +635,95 @@ function ScreenshotShowcase() {
         ))}
       </div>
     </section>
+
+    {/* FAQ Section */}
+    <section className="max-w-3xl mx-auto px-6 pb-20">
+      <div className="text-center mb-10">
+        <h2 className="text-2xl font-bold">Frequently Asked Questions</h2>
+        <p className="text-slate-400 text-sm mt-1">Everything you need to know.</p>
+      </div>
+      <FAQ />
+    </section>
+
+    {/* Footer */}
+    <footer className="border-t border-slate-800/50 bg-slate-900/20 py-16 px-6">
+      <div className="max-w-6xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-8 mb-12">
+        <div>
+          <h4 className="text-sm font-semibold text-white mb-4">Product</h4>
+          <div className="space-y-2.5 text-sm text-slate-400">
+            <a href="#" className="block hover:text-white transition">Boss Timer</a>
+            <a href="#" className="block hover:text-white transition">Weekly Schedule</a>
+            <a href="#" className="block hover:text-white transition">Leaderboard</a>
+            <a href="#" className="block hover:text-white transition">AI Scanner</a>
+            <a href="#" className="block hover:text-white transition">Viewer Mode</a>
+          </div>
+        </div>
+        <div>
+          <h4 className="text-sm font-semibold text-white mb-4">Resources</h4>
+          <div className="space-y-2.5 text-sm text-slate-400">
+            <a href="https://discord.gg/738AmkeQtU" target="_blank" rel="noopener noreferrer" className="block hover:text-white transition">Discord Bot Setup</a>
+            <a href="#" className="block hover:text-white transition">Documentation</a>
+            <a href="#" className="block hover:text-white transition">API</a>
+          </div>
+        </div>
+        <div>
+          <h4 className="text-sm font-semibold text-white mb-4">Company</h4>
+          <div className="space-y-2.5 text-sm text-slate-400">
+            <Link to="/terms" className="block hover:text-white transition">Terms of Service</Link>
+            <Link to="/privacy" className="block hover:text-white transition">Privacy Policy</Link>
+          </div>
+        </div>
+        <div>
+          <h4 className="text-sm font-semibold text-white mb-4">Community</h4>
+          <div className="space-y-2.5 text-sm text-slate-400">
+            <a href="https://discord.gg/738AmkeQtU" target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 hover:text-indigo-400 transition">
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/></svg>Discord</a>
+            <a href="https://www.facebook.com/profile.php?id=61590144185090" target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 hover:text-blue-400 transition">
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>Facebook</a>
+          </div>
+        </div>
+      </div>
+      <div className="max-w-6xl mx-auto pt-8 border-t border-slate-800/50 flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="flex items-center gap-2.5 text-slate-500">
+          <img src="/logo.png" alt="" className="w-5 h-5 rounded opacity-50" />
+          <span className="text-sm">&copy; {new Date().getFullYear()} RaidScout. All rights reserved.</span>
+        </div>
+        <span className="text-xs text-slate-600">v{version} — Built for the LordNine community</span>
+      </div>
+    </footer>
+  );
+}
+
+// FAQ Component
+const faqs = [
+  { q: "How does guild rotation work?", a: "Assign multiple guilds to a boss and it rotates on each kill (or daily). You can customize the order and even give guilds weighted turns." },
+  { q: "What's Viewer Mode?", a: "Generate a shareable link that lets your members watch timers in real-time — no account or login required. Perfect for sharing with your guild." },
+  { q: "How do I set up the Discord bot?", a: "Invite the bot to your Discord server, type ;link in your channel, then copy the Server ID into Server Settings → Integrations. Full setup takes under 2 minutes." },
+  { q: "Can I track multiple servers?", a: "Absolutely. Create separate RaidScout servers and link each to its own Discord server. The bot handles it all — each server gets its own command prefix." },
+  { q: "How does the AI rally scanner work?", a: "Upload a screenshot of your rally results and AI automatically detects player names. No more manual typing. Works best with clear, uncropped screenshots." },
+  { q: "What happens when a boss is killed?", a: "The timer resets and starts counting down to the next spawn. The kill is logged in History with timestamp, guild, and attendees. Discord gets notified automatically." },
+  { q: "Can I customize point values per boss?", a: "Yes! Set different point values for each boss. Track per-guild points and salary in the Boss Points tab. Weekly/monthly/all-time leaderboards auto-update." },
+  { q: "Is my data secure?", a: "Your data is stored on Supabase with Row-Level Security. Only members you invite can access your server. We never share or sell your data." },
+  { q: "How do I invite members?", a: "Go to Server Settings → General and share the invite code. Members sign up, enter the code, and they're in. You can also use Viewer Mode for read-only access." },
+];
+
+function FAQ() {
+  const [openIndex, setOpenIndex] = useState<number | null>(null);
+  return (
+    <div className="space-y-3">
+      {faqs.map((faq, i) => (
+        <div key={i} className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+          <button onClick={() => setOpenIndex(openIndex === i ? null : i)} className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-slate-800/50 transition" aria-expanded={openIndex === i}>
+            <span className="text-sm font-medium text-white pr-4">{faq.q}</span>
+            <ChevronDown className={`w-4 h-4 text-slate-500 shrink-0 transition ${openIndex === i ? "rotate-180" : ""}`} />
+          </button>
+          {openIndex === i && (
+            <div className="px-5 pb-4">
+              <p className="text-sm text-slate-400 leading-relaxed">{faq.a}</p>
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
   );
 }
