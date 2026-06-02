@@ -1901,7 +1901,9 @@ export function ServerSettingsView() {
                 } else {
                   setBossAssists(prev => prev.filter(a => !(a.boss_id === bossId && a.owner_guild_id === ownerGuildId && a.assistant_guild_id === assistantGuildId)));
                 }
-              } catch { /* ignore */ }
+              } catch (err: any) {
+                toast("error", err?.message ?? "Failed to toggle assist");
+              }
             }}
           />
         </>
