@@ -390,8 +390,8 @@ export function LeaderboardView() {
           ) : (
             <>
             {/* Per-guild Export Attendance panel */}
-            {showExport && (
-              <div className="mb-3 bg-slate-900 border border-slate-700 rounded-xl p-3 space-y-2">
+            <div className={`transition-all duration-300 ease-out overflow-hidden ${showExport ? "max-h-48 opacity-100 mb-3" : "max-h-0 opacity-0"}`}>
+              <div className="bg-slate-900 border border-slate-700 rounded-xl p-3 space-y-2">
                 <div className="flex items-center justify-between">
                   <p className="text-xs font-medium text-slate-300">
                     Export <span className="text-amber-400">{showExport}</span> Attendance
@@ -416,7 +416,7 @@ export function LeaderboardView() {
                 </div>
                 <p className="text-[10px] text-slate-600">Exports a pivot table: rows = bosses, columns = players, cells = points. Opens in Excel / Google Sheets.</p>
               </div>
-            )}
+            </div>
             <div className="relative">
               {guildGroups.length > 1 && (<>
                 <button onClick={() => setCarouselPage(p => p === 0 ? guildGroups.length - 1 : p - 1)} className="absolute left-0 top-0 bottom-0 z-10 px-1 flex items-center bg-slate-900/40 hover:bg-slate-900/60 transition -ml-1 rounded-l-xl">
