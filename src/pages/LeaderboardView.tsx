@@ -35,7 +35,7 @@ const rankColors: Record<number, { icon: React.ReactNode; text: string; bg: stri
 };
 
 export function LeaderboardView() {
-  const [period, setPeriod] = useState<LeaderboardPeriod>("weekly");
+  const [period, setPeriod] = useState<LeaderboardPeriod>("all");
   const { data: entries = [], isLoading } = useLeaderboard(period);
   const { user, isViewer } = useAuth();
   const { toast } = useToast();
@@ -399,7 +399,7 @@ export function LeaderboardView() {
 
       {/* Period tabs */}
       <div className="flex bg-slate-800 rounded-lg p-0.5">
-        {(["weekly", "all"] as LeaderboardPeriod[]).map((p) => (
+        {(["all", "weekly"] as LeaderboardPeriod[]).map((p) => (
           <button key={p} onClick={() => setPeriod(p)} className={`flex-1 py-1.5 rounded-md text-xs font-medium transition ${period === p ? "bg-slate-700 text-white" : "text-slate-400 hover:text-slate-200"}`}>
             {p === "all" ? "All Time" : "Since Reset"}
           </button>
