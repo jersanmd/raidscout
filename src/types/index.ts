@@ -1,4 +1,4 @@
-export type SpawnType = "fixed_hours" | "fixed_schedule" | "one_time" | "activity_recurring" | "activity_one_time";
+export type SpawnType = "fixed_hours" | "fixed_schedule" | "one_time";
 
 export interface ScheduleSlot {
   /** 0=Sunday, 1=Monday, ..., 6=Saturday (JavaScript convention) */
@@ -31,6 +31,7 @@ export interface Boss {
   tags?: string[];
   is_custom?: boolean;
   points?: number;
+  image_url?: string | null;
 }
 
 export interface DeathRecord {
@@ -198,7 +199,7 @@ export interface ActivityTemplate {
   id: string;
   game_id: string;
   name: string;
-  schedule_type: "recurring" | "one_time";
+  schedule_type: "fixed_hours" | "fixed_schedule" | "one_time";
   schedule?: ScheduleSlot[] | null;
   duration_minutes?: number | null;
   points_per_participant: number;
@@ -215,7 +216,7 @@ export interface Activity {
   server_id: string;
   template_id?: string | null;
   name: string;
-  schedule_type: "recurring" | "one_time";
+  schedule_type: "fixed_hours" | "fixed_schedule" | "one_time";
   schedule?: ScheduleSlot[] | null;
   duration_minutes?: number | null;
   points_per_participant: number;
@@ -223,6 +224,7 @@ export interface Activity {
   is_enabled: boolean;
   is_custom: boolean;
   created_at: string;
+  image_url?: string | null;
 }
 
 export interface ActivityInstance {

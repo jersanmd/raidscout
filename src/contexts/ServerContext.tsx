@@ -74,25 +74,37 @@ export function ServerProvider({ children }: { children: ReactNode }) {
   const refreshServers = useCallback(async () => {
     if (!user) return;
     try {
-      const { data } = await supabase.from("bosses").select("id, server_id");
-      if (!data || data.length === 0) {
+      // Get all server IDs the user is a member of
+      const { data: roleData } = await supabase
+        .from("server_members")
+        .select("server_id, role")
+        .eq("user_id", user.id);
+
+      // Also get servers where user is owner (via servers table)
+      const { data: ownedData } = await supabase
+        .from("servers")
+        .select("id")
+        .eq("owner_id", user.id);
+
+      const allIds = new Set<string>();
+      (roleData || []).forEach(r => allIds.add(r.server_id));
+      (ownedData || []).forEach(s => allIds.add(s.id));
+
+      if (allIds.size === 0) {
         setServers([]);
         setCurrentServerWrapped(null);
         return;
       }
 
-      const uniqueIds = [...new Set((data as any[]).map(b => b.server_id))];
+      const uniqueIds = [...allIds];
 
-      // Fetch servers and user's roles in parallel
-      const [srvRes, roleRes] = await Promise.all([
-        supabase.from("servers").select("id, name, owner_id, invite_code, created_at, discord_webhook_url, timezone, notification_prefix, deleted_at").in("id", uniqueIds),
-        supabase.from("server_members").select("server_id, role").eq("user_id", user.id).in("server_id", uniqueIds),
-      ]);
+      // Fetch servers with all fields
+      const { data: srvData } = await supabase
+        .from("servers")
+        .select("id, name, owner_id, invite_code, created_at, discord_webhook_url, timezone, notification_prefix, deleted_at")
+        .in("id", uniqueIds);
 
-      const srvData = srvRes.data as any[] | null;
-      const roleData = roleRes.data as any[] | null;
-
-      // Build role map: server_id → role
+      // Build role map
       const roleMap = new Map<string, "owner" | "moderator">();
       if (roleData) {
         for (const r of roleData) {

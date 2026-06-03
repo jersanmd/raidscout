@@ -681,7 +681,8 @@ export function WeeklyScheduleView() {
           </h3>
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
             {activities.map(a => {
-              const slots = a.schedule || [];
+              const slots = Array.isArray(a.schedule) ? a.schedule : [];
+              if (slots.length === 0) return null;
               return slots.map((slot, i) => {
                 const dayName = DAY_NAMES_SHORT[slot.day];
                 return (

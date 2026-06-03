@@ -3,8 +3,10 @@ import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { useBossSpawns } from "@/hooks/useBossSpawns";
 import { useDeathRecords } from "@/hooks/useDeathRecords";
+import { useActivities } from "@/hooks/useActivities";
 import { useAuth } from "@/contexts/AuthContext";
 import { useServer } from "@/contexts/ServerContext";
+import { useHasPermission } from "@/contexts/ServerContext";
 import {
   insertDeathRecord,
   addAttendance,
@@ -25,11 +27,13 @@ import {
   uploadRallyImage,
   addRallyImageToDeath,
 } from "@/lib/supabase";
+import { createCustomBoss, finishActivity } from "@/lib/supabase";
 import { BossCard } from "@/components/BossCard";
 import { DeathRecordModal } from "@/components/DeathRecordModal";
 import { FilterBar } from "@/components/FilterBar";
 import { UpcomingStrip } from "@/components/UpcomingStrip";
 import { UpcomingActivitiesStrip } from "@/components/UpcomingActivitiesStrip";
+import { AddBossForm } from "@/components/AddBossForm";
 import { SavingOverlay } from "@/components/SavingOverlay";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { emitSpawnAlert } from "@/hooks/useSpawnAlerts";
@@ -44,6 +48,8 @@ export function BossListView() {
   const navigate = useNavigate();
   const { user, userRole, isViewer, viewerCanEdit: ctxViewerCanEdit, viewerCanMarkDied: ctxViewerCanMarkDied, viewerDiscordWebhookUrl: ctxDiscordWebhookUrl } = useAuth();
   const { currentServer } = useServer();
+  const hasAddPermission = useHasPermission("can_manage_boss_guilds");
+  const canAddBoss = currentServer?.role === "owner" || hasAddPermission;
   const queryClient = useQueryClient();
 
   const [searchText, setSearchText] = useState("");
@@ -55,6 +61,7 @@ export function BossListView() {
   // Multi-select state
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [multiMode, setMultiMode] = useState(false);
+  const [showAddBoss, setShowAddBoss] = useState(false);
 
   // Track which boss just got killed for exit animation
   const [justKilledId, setJustKilledId] = useState<string | null>(null);
@@ -185,6 +192,7 @@ export function BossListView() {
 
   const { spawns, isLoading } = useBossSpawns(searchText, filterType, refreshKey);
   const { data: deathRecords = [] } = useDeathRecords();
+  const { activities = [], isLoading: activitiesLoading } = useActivities();
 
   const bulkBoss = useMemo(() => {
     if (selectedIds.size === 0) return null;
@@ -362,6 +370,19 @@ export function BossListView() {
     [user, isViewer, queryClient, spawns, ownerGuildName, guilds]
   );
 
+  const handleFinishActivity = useCallback(
+    async (activityId: string) => {
+      try {
+        await finishActivity(activityId);
+        await queryClient.invalidateQueries({ queryKey: ["activities"] });
+        setToast({ type: "success", message: "Activity finished!" });
+      } catch (err: any) {
+        setToast({ type: "error", message: err?.message ?? "Failed to finish activity" });
+      }
+    },
+    [queryClient]
+  );
+
   const handleSetSpawnDate = useCallback(
     async (bossId: string, spawnDate: Date) => {
       setSavingMessage("Updating spawn time...");
@@ -488,7 +509,7 @@ export function BossListView() {
     return groups;
   }, [filteredSpawns]);
 
-  if (isLoading) {
+  if (isLoading || activitiesLoading) {
     return (
       <div className="flex items-center justify-center py-32">
         <div className="w-8 h-8 border-2 border-[#27272a] border-t-cyan-400 rounded-full animate-spin" />
@@ -507,13 +528,15 @@ export function BossListView() {
           <div className="w-8 h-8 rounded-lg bg-[#18181b] border border-[#27272a] flex items-center justify-center">
             <Skull className="w-4 h-4 text-[#a1a1aa]" />
           </div>
-          <span className="text-[#fafafa] font-bold text-sm">{spawns.length} Bosses</span>
+          <span className="text-[#fafafa] font-bold text-sm">
+            {spawns.length} Boss{spawns.length !== 1 ? "es" : ""}{activities.length > 0 ? ` · ${activities.length} Activit${activities.length !== 1 ? "ies" : "y"}` : ""}
+          </span>
         </div>
         <span className="w-px h-6 bg-[#27272a]" />
         <div className="flex gap-4 text-xs">
           <span className="flex items-center gap-1.5 text-[#a1a1aa]">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 " />
-            {spawns.filter((s) => s.status === "alive").length} Alive
+            {spawns.filter((s) => s.status === "alive" && !s.activity).length} Alive
           </span>
           <span className="flex items-center gap-1.5 text-[#a1a1aa]">
             <span className="w-1.5 h-1.5 rounded-full bg-amber-400 " />
@@ -679,14 +702,15 @@ export function BossListView() {
               {/* Day header with color-coded dot */}
               {(() => {
                 const firstStatus = group.spawns[0]?.status;
-                const dotColor = firstStatus === "alive" ? "bg-emerald-400 " : firstStatus === "countdown" ? "bg-amber-400 " : "bg-cyan-400 ";
+                const isActivityGroup = group.label === "Activities";
+                const dotColor = isActivityGroup ? "bg-blue-400 " : firstStatus === "alive" ? "bg-emerald-400 " : firstStatus === "countdown" ? "bg-amber-400 " : "bg-cyan-400 ";
                 const textColor = firstStatus === "alive" ? "text-[#a1a1aa]" : firstStatus === "countdown" ? "text-[#a1a1aa]" : "text-[#a1a1aa]";
                 return (
                   <h3 className={`text-xs font-bold uppercase tracking-[0.15em] mb-4 flex items-center gap-2 ${textColor}`}>
                     <span className={`w-2 h-2 rounded-full ${dotColor}`} />
                     {group.label}
                     <span className="text-[#3f3f46] font-mono font-normal normal-case tracking-normal text-[11px] ml-2">
-                      {group.spawns.length} boss{group.spawns.length !== 1 ? "es" : ""}
+                      {group.spawns.length} {isActivityGroup ? "activit" + (group.spawns.length !== 1 ? "ies" : "y") : "boss" + (group.spawns.length !== 1 ? "es" : "")}
                     </span>
                   </h3>
                 );
@@ -729,6 +753,92 @@ export function BossListView() {
               </div>
             </section>
           ))}
+          {/* Activities section — rendered separately */}
+          {activities.length > 0 && (
+            <section>
+              <h3 className="text-xs font-bold uppercase tracking-[0.15em] mb-4 flex items-center gap-2 text-[#a1a1aa]">
+                <span className="w-2 h-2 rounded-full bg-blue-400" />
+                Activities
+                <span className="text-[#3f3f46] font-mono font-normal normal-case tracking-normal text-[11px] ml-2">
+                  {activities.length} activit{activities.length !== 1 ? "ies" : "y"}
+                </span>
+              </h3>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                {activities.map((a) => {
+                  // Calculate next occurrence for scheduled activities
+                  let nextSpawn: Date | null = null;
+                  let status: SpawnStatus = "alive";
+                  const now = new Date();
+                  if (a.schedule_type === "fixed_schedule" && Array.isArray(a.schedule) && a.schedule.length > 0) {
+                    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                    const candidates: Date[] = [];
+                    for (const slot of a.schedule) {
+                      const [h, m] = slot.time.split(":").map(Number);
+                      const candidate = new Date(today);
+                      candidate.setDate(today.getDate() + ((slot.day + 7 - today.getDay()) % 7));
+                      candidate.setHours(h, m, 0, 0);
+                      if (candidate.getTime() <= now.getTime()) {
+                        candidate.setDate(candidate.getDate() + 7);
+                      }
+                      candidates.push(candidate);
+                    }
+                    candidates.sort((x, y) => x.getTime() - y.getTime());
+                    nextSpawn = candidates[0];
+                    status = "countdown";
+                  } else if (a.schedule_type === "one_time" && typeof a.schedule === "string" && a.schedule) {
+                    // One-time: parse "HH:MM" start time
+                    const [h, m] = a.schedule.split(":").map(Number);
+                    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                    const startTime = new Date(today);
+                    startTime.setHours(h, m, 0, 0);
+                    // If already past today, move to tomorrow
+                    if (startTime.getTime() <= now.getTime()) {
+                      startTime.setDate(startTime.getDate() + 1);
+                    }
+                    nextSpawn = startTime;
+                    status = "countdown";
+                  }
+                  const activitySpawn: BossWithSpawn = {
+                    boss: {
+                      id: a.id,
+                      name: a.name,
+                      spawn_type: a.schedule_type as any,
+                      respawn_hours: null,
+                      schedule: a.schedule ?? null,
+                      server_id: a.server_id,
+                      created_at: a.created_at,
+                      points: a.points_per_participant,
+                      category: a.category,
+                      tags: a.tags as any,
+                      is_recurring: a.schedule_type !== "one_time",
+                      is_enabled: a.is_enabled,
+                      is_custom: a.is_custom,
+                      image_url: a.image_url,
+                    },
+                    nextSpawn,
+                    status,
+                    deathRecord: null,
+                    remainingMs: nextSpawn ? nextSpawn.getTime() - Date.now() : Number.POSITIVE_INFINITY,
+                  };
+                  return (
+                    <BossCard
+                      key={a.id}
+                      spawn={activitySpawn}
+                      activity={a}
+                      onRecordDeath={handleRecordDeath}
+                      onFinishActivity={handleFinishActivity}
+                      multiMode={false}
+                      selected={false}
+                      viewerCanEdit={viewerCanEdit}
+                      viewerCanMarkDied={viewerCanMarkDied}
+                      justKilled={false}
+                      hasGuilds={false}
+                    />
+                  );
+                })}
+              </div>
+            </section>
+          )}
         </div>
       )}
 

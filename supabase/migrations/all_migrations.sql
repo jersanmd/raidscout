@@ -89,6 +89,7 @@ CREATE TABLE IF NOT EXISTS discord_configs (
 
 ALTER TABLE discord_configs ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can manage discord_configs" ON discord_configs;
 CREATE POLICY "Users can manage discord_configs" ON discord_configs
   FOR ALL
   USING (auth.uid() IS NOT NULL)
@@ -141,13 +142,26 @@ CREATE POLICY "Server owners can manage memberships" ON server_members
 -- ── user_roles ──────────────────────────────────────────────
 ALTER TABLE user_roles ENABLE ROW LEVEL SECURITY;
 
+CREATE POLICY "Users can read own role" ON user_roles
+  FOR SELECT USING (user_id = auth.uid());
+
 CREATE POLICY "Admins can read roles" ON user_roles
   FOR SELECT USING (
     EXISTS (SELECT 1 FROM user_roles WHERE user_id = auth.uid() AND role = 'admin')
   );
 
 CREATE POLICY "Admins can manage roles" ON user_roles
-  FOR ALL USING (
+  FOR INSERT WITH CHECK (
+    EXISTS (SELECT 1 FROM user_roles WHERE user_id = auth.uid() AND role = 'admin')
+  );
+
+CREATE POLICY "Admins can update roles" ON user_roles
+  FOR UPDATE USING (
+    EXISTS (SELECT 1 FROM user_roles WHERE user_id = auth.uid() AND role = 'admin')
+  );
+
+CREATE POLICY "Admins can delete roles" ON user_roles
+  FOR DELETE USING (
     EXISTS (SELECT 1 FROM user_roles WHERE user_id = auth.uid() AND role = 'admin')
   );
 
@@ -542,6 +556,7 @@ CREATE POLICY "Server moderators can manage overrides" ON boss_spawn_overrides
 
 create table if not exists leaderboard_snapshots (
   id uuid primary key default gen_random_uuid(),
+  server_id uuid references public.servers(id),
   finalized_at timestamptz not null default now(),
   period_start timestamptz,
   period text not null check (period in ('all_time', 'weekly', 'monthly')),
@@ -552,6 +567,7 @@ create table if not exists leaderboard_snapshots (
 -- Indexes
 create index if not exists leaderboard_snapshots_period_idx on leaderboard_snapshots(period);
 create index if not exists leaderboard_snapshots_finalized_idx on leaderboard_snapshots(finalized_at desc);
+create index if not exists idx_leaderboard_snapshots_server on leaderboard_snapshots(server_id);
 
 -- RLS: readable by all authenticated users
 alter table leaderboard_snapshots enable row level security;
@@ -1642,3 +1658,563 @@ ALTER TABLE public.servers ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
 
 CREATE INDEX IF NOT EXISTS idx_servers_deleted_at ON public.servers(deleted_at) WHERE deleted_at IS NOT NULL;
 
+
+
+-- 032_bundle_guild_into_create_server.sql
+-- 1. Bundles guild creation into the server creation RPC to bypass RLS issues
+-- 2. Adds RLS policy so authenticated users can check server names
+
+-- Allow any authenticated user to read servers (needed for duplicate name check + refreshServers)
+DROP POLICY IF EXISTS "Authenticated users can read server names" ON public.servers;
+CREATE POLICY "Authenticated users can read server names" ON public.servers
+  FOR SELECT USING (auth.role() = 'authenticated');
+
+-- Updated RPC: creates server + server_members + guild + seeds all in one SECURITY DEFINER transaction
+
+CREATE OR REPLACE FUNCTION public.create_server_with_bosses(
+  p_name TEXT,
+  p_game_id UUID,
+  p_seed BOOLEAN DEFAULT true,
+  p_guild_name TEXT DEFAULT NULL
+) RETURNS UUID
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  v_server_id UUID;
+  v_user_id UUID;
+  v_guild_id UUID;
+BEGIN
+  v_user_id := auth.uid();
+
+  -- Create the server
+  INSERT INTO public.servers (name, owner_id, game_id)
+  VALUES (p_name, v_user_id, p_game_id)
+  RETURNING id INTO v_server_id;
+
+  -- Set the creator as owner in server_members
+  INSERT INTO public.server_members (server_id, user_id, role)
+  VALUES (v_server_id, v_user_id, 'owner');
+
+  -- Create default guild if name provided
+  IF p_guild_name IS NOT NULL AND p_guild_name != '' THEN
+    INSERT INTO public.guilds (name, server_id)
+    VALUES (p_guild_name, v_server_id);
+  END IF;
+
+  -- Seed bosses from templates if requested
+  IF p_seed THEN
+    INSERT INTO public.bosses (server_id, template_id, name, spawn_type, respawn_hours, schedule)
+    SELECT v_server_id, bt.id, bt.name, bt.spawn_type, bt.respawn_hours, bt.schedule
+    FROM public.boss_templates bt
+    WHERE bt.game_id = p_game_id;
+
+    -- Seed activities from templates if requested
+    INSERT INTO public.activities (server_id, template_id, name, schedule_type, schedule, duration_minutes, points_per_participant, party_size)
+    SELECT v_server_id, at.id, at.name, at.schedule_type, at.schedule, at.duration_minutes, at.points_per_participant, at.party_size
+    FROM public.activity_templates at
+    WHERE at.game_id = p_game_id;
+  END IF;
+
+  RETURN v_server_id;
+END;
+$$;
+
+
+-- 033_relax_rls_for_staging.sql
+-- For staging/dev: relax RLS so authenticated users can read/write all core tables
+
+-- Servers: allow authenticated users full access
+DROP POLICY IF EXISTS "Server members can read their server" ON public.servers;
+CREATE POLICY "Authenticated users can read servers" ON public.servers
+  FOR SELECT USING (auth.role() = 'authenticated');
+
+DROP POLICY IF EXISTS "Server owners can update their server" ON public.servers;
+CREATE POLICY "Authenticated users can update servers" ON public.servers
+  FOR UPDATE USING (auth.role() = 'authenticated');
+
+-- Server members: allow all
+DROP POLICY IF EXISTS "Server members can read memberships" ON public.server_members;
+CREATE POLICY "Authenticated users can read memberships" ON public.server_members
+  FOR SELECT USING (auth.role() = 'authenticated');
+
+DROP POLICY IF EXISTS "Server owners can manage memberships" ON public.server_members;
+CREATE POLICY "Authenticated users can manage memberships" ON public.server_members
+  FOR ALL USING (auth.role() = 'authenticated');
+
+-- Guilds: allow authenticated users
+DROP POLICY IF EXISTS "Server members can read guilds" ON public.guilds;
+CREATE POLICY "Authenticated users can read guilds" ON public.guilds
+  FOR SELECT USING (auth.role() = 'authenticated');
+
+DROP POLICY IF EXISTS "Server moderators can manage guilds" ON public.guilds;
+CREATE POLICY "Authenticated users can manage guilds" ON public.guilds
+  FOR ALL USING (auth.role() = 'authenticated');
+
+-- Bosses: allow authenticated users
+DROP POLICY IF EXISTS "Authenticated users can read bosses" ON public.bosses;
+DROP POLICY IF EXISTS "Server members can read bosses" ON public.bosses;
+CREATE POLICY "Authenticated users can read bosses" ON public.bosses
+  FOR SELECT USING (auth.role() = 'authenticated');
+
+DROP POLICY IF EXISTS "Server moderators can manage bosses" ON public.bosses;
+DROP POLICY IF EXISTS "Authenticated users can manage bosses" ON public.bosses;
+CREATE POLICY "Authenticated users can manage bosses" ON public.bosses
+  FOR ALL USING (auth.role() = 'authenticated');
+
+-- Death records: allow authenticated
+DROP POLICY IF EXISTS "Authenticated users can read death records" ON public.death_records;
+DROP POLICY IF EXISTS "Server members can read death records" ON public.death_records;
+CREATE POLICY "Authenticated users can read death records" ON public.death_records
+  FOR SELECT USING (auth.role() = 'authenticated');
+
+-- Members: allow authenticated
+DROP POLICY IF EXISTS "Authenticated users can read members" ON public.members;
+DROP POLICY IF EXISTS "Server members can read members" ON public.members;
+CREATE POLICY "Authenticated users can read members" ON public.members
+  FOR SELECT USING (auth.role() = 'authenticated');
+
+-- Activities: allow authenticated (if table exists)
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'activities') THEN
+    DROP POLICY IF EXISTS "Authenticated users can read activities" ON public.activities;
+    CREATE POLICY "Authenticated users can read activities" ON public.activities FOR SELECT USING (auth.role() = 'authenticated');
+  END IF;
+END;
+$$;
+
+-- User roles: allow authenticated users to read their own role
+DROP POLICY IF EXISTS "Admins can read roles" ON public.user_roles;
+CREATE POLICY "Authenticated users can read roles" ON public.user_roles
+  FOR SELECT USING (auth.role() = 'authenticated');
+
+-- Boss guilds: allow authenticated
+DROP POLICY IF EXISTS "Server members can read boss guilds" ON public.boss_guilds;
+DROP POLICY IF EXISTS "Server moderators can manage boss guilds" ON public.boss_guilds;
+CREATE POLICY "Authenticated users can read boss guilds" ON public.boss_guilds
+  FOR SELECT USING (auth.role() = 'authenticated');
+CREATE POLICY "Authenticated users can manage boss guilds" ON public.boss_guilds
+  FOR ALL USING (auth.role() = 'authenticated');
+
+-- Boss spawn overrides: allow authenticated
+DROP POLICY IF EXISTS "Server members can read overrides" ON public.boss_spawn_overrides;
+DROP POLICY IF EXISTS "Server moderators can manage overrides" ON public.boss_spawn_overrides;
+CREATE POLICY "Authenticated users can read overrides" ON public.boss_spawn_overrides
+  FOR SELECT USING (auth.role() = 'authenticated');
+CREATE POLICY "Authenticated users can manage overrides" ON public.boss_spawn_overrides
+  FOR ALL USING (auth.role() = 'authenticated');
+
+-- Point adjustments: allow authenticated
+DROP POLICY IF EXISTS "Server members can read adjustments" ON public.point_adjustments;
+DROP POLICY IF EXISTS "Server moderators can manage adjustments" ON public.point_adjustments;
+CREATE POLICY "Authenticated users can read adjustments" ON public.point_adjustments
+  FOR SELECT USING (auth.role() = 'authenticated');
+
+-- get_latest_deaths RPC (missing in staging)
+CREATE OR REPLACE FUNCTION public.get_latest_deaths(p_server_id UUID)
+RETURNS TABLE(boss_id UUID, death_time TIMESTAMPTZ, owner_guild_id UUID)
+LANGUAGE sql
+SECURITY DEFINER
+AS $$
+  SELECT DISTINCT ON (boss_id) boss_id, death_time, owner_guild_id
+  FROM public.death_records
+  WHERE server_id = p_server_id
+  ORDER BY boss_id, death_time DESC;
+$$;
+
+-- leaderboard_snapshots: add server_id column
+ALTER TABLE public.leaderboard_snapshots ADD COLUMN IF NOT EXISTS server_id UUID REFERENCES public.servers(id);
+CREATE INDEX IF NOT EXISTS idx_leaderboard_snapshots_server ON public.leaderboard_snapshots(server_id);
+
+-- ===== 034_get_public_stats.sql =====
+-- Public stats for landing page (no auth required)
+
+CREATE OR REPLACE FUNCTION public.get_public_stats()
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  result JSONB;
+BEGIN
+  SELECT jsonb_build_object(
+    'guilds', (SELECT COUNT(DISTINCT server_id) FROM public.guilds),
+    'kills', (SELECT COUNT(*) FROM public.death_records),
+    'players', (SELECT COUNT(*) FROM public.members),
+    'servers', (SELECT COUNT(*) FROM public.servers WHERE deleted_at IS NULL)
+  ) INTO result;
+  RETURN result;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.get_public_stats() TO anon, authenticated;
+
+
+-- ===== 035_server_boss_activity_mgmt.sql =====
+
+-- 035_server_boss_activity_mgmt.sql
+-- Server owner/moderator boss & activity management
+-- Adds: image_url columns, unique constraint, RLS policies, seed RPCs, server creation fallback
+
+-- ── Schema extensions ──────────────────────────────────────
+ALTER TABLE public.bosses ADD COLUMN IF NOT EXISTS image_url TEXT;
+ALTER TABLE public.activities ADD COLUMN IF NOT EXISTS image_url TEXT;
+
+-- Safe unique constraint: deduplicate first, then add index
+DELETE FROM public.bosses WHERE id IN (
+  SELECT id FROM (
+    SELECT id, ROW_NUMBER() OVER (PARTITION BY name, server_id ORDER BY created_at) as rn
+    FROM public.bosses WHERE server_id IS NOT NULL
+  ) sub WHERE rn > 1
+);
+CREATE UNIQUE INDEX IF NOT EXISTS bosses_name_server_unique ON public.bosses(name, server_id);
+
+-- ── RLS: Activities INSERT/UPDATE/DELETE (server-scoped) ────
+DROP POLICY IF EXISTS "Server moderators can manage activities" ON public.activities;
+DROP POLICY IF EXISTS "Authenticated users can manage activities" ON public.activities;
+CREATE POLICY "Server moderators can manage activities" ON public.activities
+  FOR ALL USING (
+    EXISTS (SELECT 1 FROM public.server_members WHERE server_id = activities.server_id AND user_id = auth.uid() AND role IN ('owner','moderator'))
+  );
+
+-- ── RLS: Bosses INSERT/UPDATE/DELETE (server-scoped) ────────
+DROP POLICY IF EXISTS "Authenticated users can manage bosses" ON public.bosses;
+CREATE POLICY "Server moderators can manage bosses" ON public.bosses
+  FOR ALL USING (
+    EXISTS (SELECT 1 FROM public.server_members WHERE server_id = bosses.server_id AND user_id = auth.uid() AND role IN ('owner','moderator'))
+  );
+
+-- ── Seed Bosses RPC (idempotent) ────────────────────────────
+CREATE OR REPLACE FUNCTION public.seed_bosses_for_server(p_server_id UUID)
+RETURNS INTEGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  v_count INTEGER;
+BEGIN
+  INSERT INTO public.bosses (server_id, name, spawn_type, respawn_hours, schedule, is_enabled, is_custom, boss_points, points)
+  VALUES
+    (p_server_id, 'Venatus', 'fixed_hours', 10, NULL, true, false, 1, 1),
+    (p_server_id, 'Viorent', 'fixed_hours', 10, NULL, true, false, 1, 1),
+    (p_server_id, 'Ego', 'fixed_hours', 21, NULL, true, false, 1, 1),
+    (p_server_id, 'Lady Dalia', 'fixed_hours', 18, NULL, true, false, 1, 1),
+    (p_server_id, 'Livera', 'fixed_hours', 24, NULL, true, false, 1, 1),
+    (p_server_id, 'Araneo', 'fixed_hours', 24, NULL, true, false, 1, 1),
+    (p_server_id, 'Undomiel', 'fixed_hours', 24, NULL, true, false, 1, 1),
+    (p_server_id, 'General Aquleus', 'fixed_hours', 29, NULL, true, false, 1, 1),
+    (p_server_id, 'Amentis', 'fixed_hours', 29, NULL, true, false, 1, 1),
+    (p_server_id, 'Baron', 'fixed_hours', 32, NULL, true, false, 1, 1),
+    (p_server_id, 'Gareth', 'fixed_hours', 32, NULL, true, false, 1, 1),
+    (p_server_id, 'Catena', 'fixed_hours', 35, NULL, true, false, 1, 1),
+    (p_server_id, 'Larba', 'fixed_hours', 35, NULL, true, false, 1, 1),
+    (p_server_id, 'Shuliar', 'fixed_hours', 35, NULL, true, false, 1, 1),
+    (p_server_id, 'Titore', 'fixed_hours', 37, NULL, true, false, 1, 1),
+    (p_server_id, 'Duplican', 'fixed_hours', 48, NULL, true, false, 1, 1),
+    (p_server_id, 'Metus', 'fixed_hours', 48, NULL, true, false, 1, 1),
+    (p_server_id, 'Wannitas', 'fixed_hours', 48, NULL, true, false, 1, 1),
+    (p_server_id, 'Asta', 'fixed_hours', 62, NULL, true, false, 1, 1),
+    (p_server_id, 'Ordo', 'fixed_hours', 62, NULL, true, false, 1, 1),
+    (p_server_id, 'Secreta', 'fixed_hours', 62, NULL, true, false, 1, 1),
+    (p_server_id, 'Supore', 'fixed_hours', 62, NULL, true, false, 1, 1),
+    (p_server_id, 'Auraq', 'fixed_schedule', NULL, '[{"day":5,"time":"22:00"},{"day":3,"time":"21:00"}]'::jsonb, true, false, 1, 1),
+    (p_server_id, 'Benji', 'fixed_schedule', NULL, '[{"day":0,"time":"21:00"}]'::jsonb, true, false, 1, 1),
+    (p_server_id, 'Chaiflock', 'fixed_schedule', NULL, '[{"day":0,"time":"15:00"}]'::jsonb, true, false, 1, 1),
+    (p_server_id, 'Clemantis', 'fixed_schedule', NULL, '[{"day":1,"time":"11:30"},{"day":4,"time":"19:00"}]'::jsonb, true, false, 1, 1),
+    (p_server_id, 'Icaruthia', 'fixed_schedule', NULL, '[{"day":2,"time":"21:00"},{"day":5,"time":"21:00"}]'::jsonb, true, false, 1, 1),
+    (p_server_id, 'Libitina', 'fixed_schedule', NULL, '[{"day":1,"time":"21:00"},{"day":6,"time":"21:00"}]'::jsonb, true, false, 1, 1),
+    (p_server_id, 'Lucus', 'fixed_schedule', NULL, '[{"day":6,"time":"22:00"}]'::jsonb, true, false, 1, 1),
+    (p_server_id, 'Milavy', 'fixed_schedule', NULL, '[{"day":6,"time":"15:00"}]'::jsonb, true, false, 1, 1),
+    (p_server_id, 'Motti', 'fixed_schedule', NULL, '[{"day":3,"time":"19:00"},{"day":6,"time":"19:00"}]'::jsonb, true, false, 1, 1),
+    (p_server_id, 'Neutro', 'fixed_schedule', NULL, '[{"day":2,"time":"19:00"},{"day":4,"time":"11:30"}]'::jsonb, true, false, 1, 1),
+    (p_server_id, 'Nevaeh', 'fixed_schedule', NULL, '[{"day":0,"time":"22:00"}]'::jsonb, true, false, 1, 1),
+    (p_server_id, 'Rakajeth', 'fixed_schedule', NULL, '[{"day":2,"time":"22:00"},{"day":0,"time":"19:00"}]'::jsonb, true, false, 1, 1),
+    (p_server_id, 'Ringor', 'fixed_schedule', NULL, '[{"day":6,"time":"17:00"}]'::jsonb, true, false, 1, 1),
+    (p_server_id, 'Roderick', 'fixed_schedule', NULL, '[{"day":5,"time":"19:00"}]'::jsonb, true, false, 1, 1),
+    (p_server_id, 'Saphirus', 'fixed_schedule', NULL, '[{"day":0,"time":"17:00"},{"day":2,"time":"11:30"}]'::jsonb, true, false, 1, 1),
+    (p_server_id, 'Thymele', 'fixed_schedule', NULL, '[{"day":1,"time":"19:00"},{"day":3,"time":"11:30"}]'::jsonb, true, false, 1, 1),
+    (p_server_id, 'Tumier', 'fixed_schedule', NULL, '[{"day":0,"time":"19:00"}]'::jsonb, true, false, 1, 1)
+  ON CONFLICT (name, server_id) DO NOTHING;
+  GET DIAGNOSTICS v_count = ROW_COUNT;
+  RETURN v_count;
+END;
+$$;
+
+-- ── Seed Activities RPC (idempotent, empty for now) ──────────
+CREATE OR REPLACE FUNCTION public.seed_activities_for_server(p_server_id UUID)
+RETURNS INTEGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  RETURN 0;
+END;
+$$;
+
+-- ── Update create_server_with_bosses fallback ───────────────
+CREATE OR REPLACE FUNCTION public.create_server_with_bosses(
+  p_name TEXT,
+  p_game_id UUID,
+  p_seed BOOLEAN DEFAULT true,
+  p_guild_name TEXT DEFAULT NULL
+) RETURNS UUID
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  v_server_id UUID;
+  v_user_id UUID;
+  v_count INTEGER;
+BEGIN
+  v_user_id := auth.uid();
+
+  INSERT INTO public.servers (name, owner_id, game_id)
+  VALUES (p_name, v_user_id, p_game_id)
+  RETURNING id INTO v_server_id;
+
+  INSERT INTO public.server_members (server_id, user_id, role)
+  VALUES (v_server_id, v_user_id, 'owner');
+
+  IF p_guild_name IS NOT NULL AND p_guild_name != '' THEN
+    INSERT INTO public.guilds (name, server_id)
+    VALUES (p_guild_name, v_server_id);
+  END IF;
+
+  IF p_seed THEN
+    -- Try templates first
+    INSERT INTO public.bosses (server_id, template_id, name, spawn_type, respawn_hours, schedule, is_enabled, is_custom, boss_points, points)
+    SELECT v_server_id, bt.id, bt.name, bt.spawn_type, bt.respawn_hours, bt.schedule, true, false, COALESCE(bt.points, 1), COALESCE(bt.points, 1)
+    FROM public.boss_templates bt
+    WHERE bt.game_id = p_game_id OR p_game_id IS NULL;
+    GET DIAGNOSTICS v_count = ROW_COUNT;
+
+    -- Fallback to hardcoded defaults if templates yielded 0
+    IF v_count = 0 THEN
+      PERFORM public.seed_bosses_for_server(v_server_id);
+    END IF;
+
+    INSERT INTO public.activities (server_id, template_id, name, schedule_type, schedule, duration_minutes, points_per_participant, party_size, is_enabled, is_custom)
+    SELECT v_server_id, at.id, at.name, at.schedule_type, at.schedule, at.duration_minutes, at.points_per_participant, at.party_size, true, false
+    FROM public.activity_templates at
+    WHERE at.game_id = p_game_id OR p_game_id IS NULL;
+  END IF;
+
+  RETURN v_server_id;
+END;
+$$;
+
+
+-- Seed from game templates (user selects game)
+CREATE OR REPLACE FUNCTION public.seed_from_game(p_server_id UUID, p_game_id UUID)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  v_boss_count INTEGER;
+  v_act_count INTEGER;
+BEGIN
+  INSERT INTO public.bosses (server_id, template_id, name, spawn_type, respawn_hours, schedule, is_enabled, is_custom, boss_points, points)
+  SELECT p_server_id, bt.id, bt.name, bt.spawn_type, bt.respawn_hours, bt.schedule, true, false, COALESCE(bt.points, 1), COALESCE(bt.points, 1)
+  FROM public.boss_templates bt
+  WHERE bt.game_id = p_game_id
+  ON CONFLICT (name, server_id) DO NOTHING;
+  GET DIAGNOSTICS v_boss_count = ROW_COUNT;
+
+  INSERT INTO public.activities (server_id, template_id, name, schedule_type, schedule, duration_minutes, points_per_participant, party_size, is_enabled, is_custom)
+  SELECT p_server_id, at.id, at.name, at.schedule_type, at.schedule, at.duration_minutes, at.points_per_participant, at.party_size, true, false
+  FROM public.activity_templates at
+  WHERE at.game_id = p_game_id;
+  GET DIAGNOSTICS v_act_count = ROW_COUNT;
+
+  RETURN jsonb_build_object('b', v_boss_count, 'a', v_act_count);
+END;
+$$;
+
+-- Fix: Add party_leaders to death_records
+ALTER TABLE public.death_records ADD COLUMN IF NOT EXISTS party_leaders JSONB DEFAULT '{}'::jsonb;
+
+-- ===== 036_missing_tables_rpcs.sql =====
+-- Tables and RPCs created ad-hoc on staging
+
+CREATE TABLE IF NOT EXISTS public.point_rules (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  server_id UUID NOT NULL REFERENCES public.servers(id) ON DELETE CASCADE,
+  guild_id UUID NOT NULL REFERENCES public.guilds(id) ON DELETE CASCADE,
+  rule_type TEXT NOT NULL DEFAULT 'time_multiplier',
+  config JSONB NOT NULL DEFAULT '{}',
+  enabled BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+ALTER TABLE public.point_rules ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Authenticated users can read point rules" ON public.point_rules FOR SELECT USING (auth.role() = 'authenticated');
+
+CREATE TABLE IF NOT EXISTS public.boss_assists (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  boss_id UUID NOT NULL REFERENCES public.bosses(id) ON DELETE CASCADE,
+  server_id UUID NOT NULL REFERENCES public.servers(id) ON DELETE CASCADE,
+  guild_id UUID REFERENCES public.guilds(id) ON DELETE SET NULL,
+  member_name TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+ALTER TABLE public.boss_assists ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Authenticated users can read boss assists" ON public.boss_assists FOR SELECT USING (auth.role() = 'authenticated');
+
+CREATE OR REPLACE FUNCTION public.get_server_members(p_server_id UUID)
+RETURNS TABLE(user_id UUID, email TEXT, role TEXT)
+LANGUAGE sql SECURITY DEFINER AS $$
+  SELECT sm.user_id, u.email::TEXT, sm.role
+  FROM public.server_members sm
+  LEFT JOIN auth.users u ON u.id = sm.user_id
+  WHERE sm.server_id = p_server_id;
+$$;
+
+CREATE OR REPLACE FUNCTION public.get_server_viewer_key(p_server_id UUID)
+RETURNS TEXT
+LANGUAGE sql SECURITY DEFINER AS $$
+  SELECT viewer_key FROM public.servers WHERE id = p_server_id;
+$$;
+
+
+-- Cascade delete server
+CREATE OR REPLACE FUNCTION public.delete_server_cascade(p_server_id UUID)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  -- Verify ownership
+  IF NOT EXISTS (SELECT 1 FROM public.server_members WHERE server_id = p_server_id AND user_id = auth.uid() AND role = 'owner') THEN
+    RAISE EXCEPTION 'Only the server owner can delete the server';
+  END IF;
+
+  DELETE FROM public.activity_attendance WHERE activity_instance_id IN (SELECT id FROM public.activity_instances WHERE activity_id IN (SELECT id FROM public.activities WHERE server_id = p_server_id));
+  DELETE FROM public.activity_parties WHERE activity_instance_id IN (SELECT id FROM public.activity_instances WHERE activity_id IN (SELECT id FROM public.activities WHERE server_id = p_server_id));
+  DELETE FROM public.activity_instances WHERE activity_id IN (SELECT id FROM public.activities WHERE server_id = p_server_id);
+  DELETE FROM public.activities WHERE server_id = p_server_id;
+  DELETE FROM public.attendance_records WHERE death_record_id IN (SELECT id FROM public.death_records WHERE server_id = p_server_id);
+  DELETE FROM public.spawn_notifications WHERE server_id = p_server_id;
+  DELETE FROM public.death_records WHERE server_id = p_server_id;
+  DELETE FROM public.boss_spawn_overrides WHERE server_id = p_server_id;
+  DELETE FROM public.boss_guilds WHERE boss_id IN (SELECT id FROM public.bosses WHERE server_id = p_server_id);
+  DELETE FROM public.bosses WHERE server_id = p_server_id;
+  DELETE FROM public.point_adjustments WHERE server_id = p_server_id;
+  DELETE FROM public.point_rules WHERE server_id = p_server_id;
+  DELETE FROM public.boss_assists WHERE server_id = p_server_id;
+  DELETE FROM public.members WHERE server_id = p_server_id;
+  DELETE FROM public.guilds WHERE server_id = p_server_id;
+  DELETE FROM public.discord_configs WHERE raidscout_server_id = p_server_id;
+  DELETE FROM public.server_members WHERE server_id = p_server_id;
+  DELETE FROM public.servers WHERE id = p_server_id;
+END;
+$$;
+
+-- SECURITY DEFINER RPCs for custom boss/activity creation (bypasses RLS)
+CREATE OR REPLACE FUNCTION public.create_custom_boss(
+  p_server_id UUID, p_name TEXT, p_spawn_type TEXT,
+  p_respawn_hours INTEGER, p_schedule JSONB,
+  p_is_recurring BOOLEAN, p_boss_points INTEGER,
+  p_category TEXT, p_tags TEXT[]
+) RETURNS UUID
+LANGUAGE plpgsql SECURITY DEFINER
+AS $$
+DECLARE v_id UUID; v_pts INTEGER;
+BEGIN
+  v_pts := COALESCE(p_boss_points, 1);
+  INSERT INTO public.bosses (server_id, template_id, name, spawn_type, respawn_hours, schedule, is_recurring, is_enabled, is_custom, boss_points, points, category, tags)
+  VALUES (p_server_id, NULL, p_name, p_spawn_type, p_respawn_hours, p_schedule, p_is_recurring, true, true, v_pts, v_pts, p_category, p_tags)
+  ON CONFLICT (name, server_id) DO NOTHING
+  RETURNING id INTO v_id;
+  RETURN v_id;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.create_custom_activity(
+  p_server_id UUID, p_name TEXT, p_schedule_type TEXT,
+  p_schedule JSONB, p_points_per_participant INTEGER,
+  p_party_size INTEGER, p_category TEXT, p_tags TEXT[]
+) RETURNS UUID
+LANGUAGE plpgsql SECURITY DEFINER
+AS $$
+DECLARE v_id UUID;
+BEGIN
+  INSERT INTO public.activities (server_id, template_id, name, schedule_type, schedule, points_per_participant, party_size, is_enabled, is_custom, category, tags)
+  VALUES (p_server_id, NULL, p_name, p_schedule_type, p_schedule, p_points_per_participant, p_party_size, true, true, p_category, p_tags)
+  RETURNING id INTO v_id;
+  RETURN v_id;
+END;
+$$;
+
+-- Cascade delete server
+CREATE OR REPLACE FUNCTION public.delete_server_cascade(p_server_id UUID)
+RETURNS VOID
+LANGUAGE plpgsql SECURITY DEFINER
+AS $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM public.server_members WHERE server_id = p_server_id AND user_id = auth.uid() AND role = 'owner') THEN
+    RAISE EXCEPTION 'Only the server owner can delete the server';
+  END IF;
+  DELETE FROM public.activity_attendance WHERE activity_instance_id IN (SELECT id FROM public.activity_instances WHERE activity_id IN (SELECT id FROM public.activities WHERE server_id = p_server_id));
+  DELETE FROM public.activity_parties WHERE activity_instance_id IN (SELECT id FROM public.activity_instances WHERE activity_id IN (SELECT id FROM public.activities WHERE server_id = p_server_id));
+  DELETE FROM public.activity_instances WHERE activity_id IN (SELECT id FROM public.activities WHERE server_id = p_server_id);
+  DELETE FROM public.activities WHERE server_id = p_server_id;
+  DELETE FROM public.attendance_records WHERE death_record_id IN (SELECT id FROM public.death_records WHERE server_id = p_server_id);
+  DELETE FROM public.spawn_notifications WHERE server_id = p_server_id;
+  DELETE FROM public.death_records WHERE server_id = p_server_id;
+  DELETE FROM public.boss_spawn_overrides WHERE server_id = p_server_id;
+  DELETE FROM public.boss_guilds WHERE boss_id IN (SELECT id FROM public.bosses WHERE server_id = p_server_id);
+  DELETE FROM public.boss_assists WHERE server_id = p_server_id;
+  DELETE FROM public.point_adjustments WHERE server_id = p_server_id;
+  DELETE FROM public.point_rules WHERE server_id = p_server_id;
+  DELETE FROM public.members WHERE server_id = p_server_id;
+  DELETE FROM public.guilds WHERE server_id = p_server_id;
+  DELETE FROM public.bosses WHERE server_id = p_server_id;
+  DELETE FROM public.discord_configs WHERE raidscout_server_id = p_server_id;
+  DELETE FROM public.server_members WHERE server_id = p_server_id;
+  DELETE FROM public.servers WHERE id = p_server_id;
+END;
+$$;
+
+-- Fixed RPCs with DEFAULT values for nullable params
+CREATE OR REPLACE FUNCTION public.create_custom_boss(
+  p_server_id UUID, p_name TEXT, p_spawn_type TEXT,
+  p_respawn_hours INTEGER DEFAULT NULL,
+  p_schedule JSONB DEFAULT NULL,
+  p_is_recurring BOOLEAN DEFAULT true,
+  p_boss_points INTEGER DEFAULT 1,
+  p_category TEXT DEFAULT NULL,
+  p_tags TEXT[] DEFAULT '{}'
+) RETURNS UUID
+LANGUAGE plpgsql SECURITY DEFINER
+AS $$
+DECLARE v_id UUID; v_pts INTEGER;
+BEGIN
+  v_pts := COALESCE(p_boss_points, 1);
+  INSERT INTO public.bosses (server_id, template_id, name, spawn_type, respawn_hours, schedule, is_recurring, is_enabled, is_custom, boss_points, points, category, tags)
+  VALUES (p_server_id, NULL, p_name, p_spawn_type, p_respawn_hours, p_schedule, p_is_recurring, true, true, v_pts, v_pts, p_category, p_tags)
+  ON CONFLICT (name, server_id) DO NOTHING
+  RETURNING id INTO v_id;
+  RETURN v_id;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.create_custom_activity(
+  p_server_id UUID, p_name TEXT, p_schedule_type TEXT,
+  p_schedule JSONB DEFAULT NULL,
+  p_points_per_participant INTEGER DEFAULT 1,
+  p_party_size INTEGER DEFAULT NULL,
+  p_category TEXT DEFAULT NULL,
+  p_tags TEXT[] DEFAULT '{}'
+) RETURNS UUID
+LANGUAGE plpgsql SECURITY DEFINER
+AS $$
+DECLARE v_id UUID;
+BEGIN
+  INSERT INTO public.activities (server_id, template_id, name, schedule_type, schedule, points_per_participant, party_size, is_enabled, is_custom, category, tags)
+  VALUES (p_server_id, NULL, p_name, p_schedule_type, p_schedule, p_points_per_participant, p_party_size, true, true, p_category, p_tags)
+  RETURNING id INTO v_id;
+  RETURN v_id;
+END;
+$$;

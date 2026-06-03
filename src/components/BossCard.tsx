@@ -4,11 +4,11 @@ import { useServer, useHasPermission } from "@/contexts/ServerContext";
 import { CountdownTimer } from "./CountdownTimer";
 import { DeathRecordModal } from "./DeathRecordModal";
 import { BossImage } from "./BossImage";
-import { Repeat, Timer, Skull, CheckSquare, Square, Shield, Pencil, X } from "lucide-react";
+import { Repeat, Timer, Skull, CheckSquare, Square, Shield, Pencil, X, Calendar, Users, Star, CheckCircle } from "lucide-react";
 import { useUserTimezone, formatInTimezone } from "@/hooks/useUserTimezone";
 import { useTimer } from "@/hooks/useTimer";
 import { guildColor } from "@/lib/constants";
-import type { BossWithSpawn } from "@/types";
+import type { BossWithSpawn, Activity } from "@/types";
 
 interface BossCardProps {
   spawn: BossWithSpawn;
@@ -38,9 +38,13 @@ interface BossCardProps {
   /** Whether this boss has any guild assignments at all */
   hasGuilds?: boolean;
   justKilled?: boolean;
+  /** Render as an activity card instead of a boss card */
+  activity?: Activity;
+  /** Called when user clicks "Finish" on an activity */
+  onFinishActivity?: (activityId: string) => void;
 }
 
-export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, onCriticalSpawn, onSpawned, compact = false, multiMode = false, selected = false, onToggleSelect, ownerGuildName, ownerGuildId, rotationGuilds, rotationCurrentIndex, rotationMode, onSetRotation, viewerCanEdit, viewerCanMarkDied, hasGuilds, justKilled }: BossCardProps) {
+export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, onCriticalSpawn, onSpawned, compact = false, multiMode = false, selected = false, onToggleSelect, ownerGuildName, ownerGuildId, rotationGuilds, rotationCurrentIndex, rotationMode, onSetRotation, viewerCanEdit, viewerCanMarkDied, hasGuilds, justKilled, activity, onFinishActivity }: BossCardProps) {
   const { isViewer } = useAuth();
   const { currentServer } = useServer();
   const { timezone: tz } = useUserTimezone();
@@ -60,12 +64,13 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
   const canRecordDeath = useHasPermission("can_record_death");
   const canRotateGuilds = useHasPermission("can_rotate_guilds");
 
+  const isActivity = !!activity;
   const displayOwner = optimisticOwner ?? ownerGuildName;
   const { boss, status, nextSpawn } = spawn;
-  const canEdit = (viewerCanEdit || (!isViewer && canSetSpawn)) && currentServer && !!onSetSpawnDate && (
+  const canEdit = !isActivity && (viewerCanEdit || (!isViewer && canSetSpawn)) && currentServer && !!onSetSpawnDate && (
     boss.spawn_type === "fixed_hours"
   );
-  const canMarkDied = viewerCanMarkDied || (!isViewer && canRecordDeath);
+  const canMarkDied = !isActivity && (viewerCanMarkDied || (!isViewer && canRecordDeath));
 
   const statusConfigMap = {
     unknown: {
@@ -120,18 +125,17 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
   return (
     <>
       <div
-        onClick={() => multiMode && onToggleSelect?.(boss.id)}
+        onClick={() => multiMode && !isActivity && onToggleSelect?.(boss.id)}
         className={`relative rounded-xl border ${config.border} ${config.accentBorder} border-l-2 ${config.bg} p-4 transition-all duration-300 ${config.glow} backdrop-blur-sm ${
-          justKilled ? "animate-[fadeOut_0.4s_ease-out] scale-95 opacity-0" : ""
+          justKilled && !isActivity ? "animate-[fadeOut_0.4s_ease-out] scale-95 opacity-0" : ""
         } ${
-          multiMode ? "cursor-pointer" : ""
+          multiMode && !isActivity ? "cursor-pointer" : ""
         } hover:border-[#52525b] hover:-translate-y-0.5 ${
-          selected ? "ring-1 ring-[#52525b] border-[#52525b]" : ""
+          selected && !isActivity ? "ring-1 ring-[#52525b] border-[#52525b]" : ""
         }`}
       >
         
-
-        {multiMode && (
+        {multiMode && !isActivity && (
           <div className="absolute top-3 right-3 z-10">
             {selected ? (
               <CheckSquare className="w-5 h-5 text-[#a1a1aa] " />
@@ -141,20 +145,36 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
           </div>
         )}
         <div className="flex gap-4 relative z-[1]">
-          {/* Boss image */}
-          <BossImage bossName={boss.name} size="lg" />
+          {/* Boss image / Activity icon */}
+          {isActivity ? (
+            <div className="w-14 h-14 rounded-xl bg-[#09090b] border border-[#27272a] flex items-center justify-center shrink-0">
+              <Calendar className="w-6 h-6 text-[#a1a1aa]" />
+            </div>
+          ) : (
+            <BossImage bossName={boss.name} size="lg" />
+          )}
 
           {/* Right side: all info */}
           <div className="flex-1 min-w-0 space-y-1.5">
             {/* Row 1: name + type icon + guild badge + status badge */}
             <div className="flex items-center gap-2">
-              <h3 className="font-bold text-[#fafafa] truncate text-sm tracking-wide">{boss.name}</h3>
-              {boss.spawn_type === "fixed_schedule" ? (
+              <h3 className="font-bold text-[#fafafa] truncate text-sm tracking-wide">
+                {isActivity ? activity.name : boss.name}
+              </h3>
+              {isActivity ? (
+                activity.schedule_type === "fixed_hours" ? (
+                  <span title="Fixed hours"><Timer className="w-3.5 h-3.5 text-[#a1a1aa] shrink-0" /></span>
+                ) : activity.schedule_type === "fixed_schedule" ? (
+                  <span title="Fixed schedule"><Calendar className="w-3.5 h-3.5 text-[#a1a1aa] shrink-0" /></span>
+                ) : (
+                  <span title="One time"><Calendar className="w-3.5 h-3.5 text-[#a1a1aa] shrink-0" /></span>
+                )
+              ) : boss.spawn_type === "fixed_schedule" ? (
                 <span title="Fixed schedule"><Repeat className="w-3.5 h-3.5 text-[#a1a1aa] shrink-0" /></span>
               ) : (
                 <span title="Fixed hours"><Timer className="w-3.5 h-3.5 text-[#a1a1aa] shrink-0" /></span>
               )}
-              {displayOwner && (() => { const c = guildColor(displayOwner); return (
+              {displayOwner && !isActivity && (() => { const c = guildColor(displayOwner); return (
                 <span className={`flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded border shrink-0 ${c.bg} ${c.text} ${c.border}`}>
                   <Shield className="w-3 h-3" />
                   {displayOwner}
@@ -162,55 +182,127 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
               ); })()}
               <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full border shrink-0 tracking-wider ${config.badge}`}>
                 <span className={`inline-block w-1.5 h-1.5 rounded-full mr-1 ${config.dot}`} />
-                {config.badgeText}
+                {isActivity ? "Activity" : config.badgeText}
               </span>
+              {isActivity && activity.category && (
+                <span className="text-[10px] text-[#52525b] font-mono truncate max-w-[120px]">{activity.category}</span>
+              )}
             </div>
 
-            {/* Row 2: Countdown timer + spawn datetime */}
-            {isCompleted ? (
-              <div className="flex items-center gap-1.5 text-xs">
-                <span className="text-[#71717a] font-medium">Completed</span>
-                <span className="text-[#3f3f46]">—</span>
-                <span className="text-[#a1a1aa] font-mono">Killed {formatDateTime(new Date(spawn.deathRecord!.death_time))}</span>
-              </div>
-            ) : nextSpawn ? (
+            {/* Row 2: Activity schedule info / Boss countdown */}
+            {isActivity ? (
               <div className="space-y-1">
-                {!compact && (
-                  <div className="flex items-baseline gap-2">
-                    <CountdownTimer target={nextSpawn} bossName={boss.name} onUrgent={onUrgentSpawn} onCritical={onCriticalSpawn} onSpawned={onSpawned} />
+                {nextSpawn && status === "countdown" ? (
+                  <div className="space-y-1">
+                    {!compact && (
+                      <div className="flex items-baseline gap-2">
+                        <CountdownTimer target={nextSpawn} bossName={activity.name} onUrgent={onUrgentSpawn} onCritical={onCriticalSpawn} onSpawned={onSpawned} />
+                      </div>
+                    )}
+                    <div className="flex items-center gap-1.5 text-[11px]">
+                      <span className="text-[#71717a] font-mono uppercase tracking-wider">NEXT</span>
+                      <span className="text-[#a1a1aa] font-mono">{formatDateTime(nextSpawn)}</span>
+                    </div>
                   </div>
-                )}
-                <div className="flex items-center gap-1.5 text-[11px]">
-                  <span className="text-[#71717a] font-mono uppercase tracking-wider">
-                    {status === "alive" ? "SPAWN" : "SPAWNING"}
+                ) : null}
+                {Array.isArray(activity.schedule) && activity.schedule.length > 0 ? (
+                  <div className="flex items-center gap-1.5 text-[11px]">
+                    <span className="text-[#71717a] font-mono uppercase tracking-wider">SCHEDULE</span>
+                    <span className="text-[#a1a1aa] font-mono">
+                      {activity.schedule
+                        .map((s) => `${["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][s.day]} ${s.time}`)
+                        .join("  ·  ")}
+                    </span>
+                  </div>
+                ) : typeof activity.schedule === "string" && activity.schedule ? (
+                  <div className="flex items-center gap-1.5 text-[11px]">
+                    <span className="text-[#71717a] font-mono uppercase tracking-wider">TIME</span>
+                    <span className="text-[#a1a1aa] font-mono">{activity.schedule}</span>
+                  </div>
+                ) : !nextSpawn ? (
+                  activity.schedule_type === "fixed_hours" ? (
+                    <div className="text-[11px] text-[#a1a1aa] font-mono">Fixed Hours</div>
+                  ) : activity.schedule_type === "fixed_schedule" ? (
+                    <div className="text-[11px] text-[#a1a1aa] font-mono">Fixed Schedule</div>
+                  ) : (
+                    <div className="text-[11px] text-[#a1a1aa] font-mono">One Time</div>
+                  )
+                ) : null}
+                {/* Party size + points */}
+                <div className="flex items-center gap-2 text-[10px] text-[#52525b] font-mono">
+                  {activity.party_size && (
+                    <span className="flex items-center gap-1">
+                      <Users className="w-3 h-3" />
+                      {activity.party_size}
+                    </span>
+                  )}
+                  <span className="flex items-center gap-1">
+                    <Star className="w-3 h-3" />
+                    {activity.points_per_participant}pt
                   </span>
-                  <span className="text-[#a1a1aa] font-mono">{formatDateTime(nextSpawn)}</span>
                 </div>
               </div>
             ) : (
-              <div className="flex items-center gap-1.5 text-[11px]">
-                <span className="text-[#71717a] font-mono">Set spawn time to start timer</span>
-              </div>
-            )}
+              <>
+                {isCompleted ? (
+                  <div className="flex items-center gap-1.5 text-xs">
+                    <span className="text-[#71717a] font-medium">Completed</span>
+                    <span className="text-[#3f3f46]">—</span>
+                    <span className="text-[#a1a1aa] font-mono">Killed {formatDateTime(new Date(spawn.deathRecord!.death_time))}</span>
+                  </div>
+                ) : nextSpawn ? (
+                  <div className="space-y-1">
+                    {!compact && (
+                      <div className="flex items-baseline gap-2">
+                        <CountdownTimer target={nextSpawn} bossName={boss.name} onUrgent={onUrgentSpawn} onCritical={onCriticalSpawn} onSpawned={onSpawned} />
+                      </div>
+                    )}
+                    <div className="flex items-center gap-1.5 text-[11px]">
+                      <span className="text-[#71717a] font-mono uppercase tracking-wider">
+                        {status === "alive" ? "SPAWN" : "SPAWNING"}
+                      </span>
+                      <span className="text-[#a1a1aa] font-mono">{formatDateTime(nextSpawn)}</span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-1.5 text-[11px]">
+                    <span className="text-[#71717a] font-mono">Set spawn time to start timer</span>
+                  </div>
+                )}
 
-            {/* Row 3: Respawn / schedule info */}
-            {(boss.respawn_hours || boss.schedule) && (
-            <div className="flex items-center gap-2 text-[10px] text-[#52525b] font-mono">
-              {boss.respawn_hours && <span>+{boss.respawn_hours}h respawn</span>}
-              {boss.schedule && (
-                <span>
-                  {boss.schedule
-                    .map((s) => `${["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][s.day]} ${s.time}`)
-                    .join("  ·  ")}
-                </span>
-              )}
-            </div>
+                {/* Row 3: Respawn / schedule info */}
+                {(boss.respawn_hours || boss.schedule) && (
+                <div className="flex items-center gap-2 text-[10px] text-[#52525b] font-mono">
+                  {boss.respawn_hours && <span>+{boss.respawn_hours}h respawn</span>}
+                  {boss.schedule && (
+                    <span>
+                      {boss.schedule
+                        .map((s) => `${["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][s.day]} ${s.time}`)
+                        .join("  ·  ")}
+                    </span>
+                  )}
+                </div>
+                )}
+              </>
             )}
           </div>
         </div>
 
-        {/* Bottom action buttons */}
-        {!compact && !multiMode && (canEdit || canMarkDied) && (
+        {/* Bottom action buttons — activities */}
+        {!compact && !multiMode && isActivity && onFinishActivity && (
+          <div className="flex items-center justify-end gap-1.5 mt-3 pt-3 border-t border-white/[0.05] relative z-[1]">
+            <button
+              onClick={() => onFinishActivity(activity.id)}
+              className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#18181b] border border-[#27272a] text-[#fafafa] text-[11px] font-medium hover:bg-[#27272a] active:scale-95 transition-all duration-200 whitespace-nowrap"
+            >
+              <CheckCircle className="w-3 h-3" />
+              Finish
+            </button>
+          </div>
+        )}
+
+        {/* Bottom action buttons — bosses only */}
+        {!compact && !multiMode && !isActivity && (canEdit || canMarkDied) && (
           <div className="flex items-center justify-end gap-1.5 mt-3 pt-3 border-t border-white/[0.05] relative z-[1]">
             {canEdit && (
               <button
@@ -238,8 +330,8 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
           </div>
         )}
 
-        {/* No guild assigned notice */}
-        {!compact && !multiMode && !isViewer && !hasGuilds && canRotateGuilds && (
+        {/* No guild assigned notice — bosses only */}
+        {!compact && !multiMode && !isViewer && !isActivity && !hasGuilds && canRotateGuilds && (
           <div className="mt-2 pt-2 border-t border-white/[0.05] relative z-[1]">
             <span className="text-[10px] text-[#a1a1aa]/60 flex items-center gap-1">
               <Shield className="w-3 h-3" />
@@ -248,8 +340,8 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
           </div>
         )}
 
-        {/* Rotation guild row */}
-        {!compact && !multiMode && !isViewer && rotationGuilds && rotationGuilds.length > 1 && canRotateGuilds && (
+        {/* Rotation guild row — bosses only */}
+        {!compact && !multiMode && !isViewer && !isActivity && rotationGuilds && rotationGuilds.length > 1 && canRotateGuilds && (
           <div className="mt-2 pt-2 border-t border-white/[0.05] relative z-[1]">
             <span className="text-[10px] text-[#71717a] font-mono uppercase tracking-wider">
               Rotation {rotationMode ? `· ${rotationMode}` : ""}
@@ -277,7 +369,7 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
         )}
       </div>
 
-      {showModal && (
+      {showModal && !isActivity && (
         <DeathRecordModal
           boss={boss}
           ownerGuildId={ownerGuildId}
@@ -289,7 +381,7 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
         />
       )}
 
-      {showEditSpawnModal && (
+      {showEditSpawnModal && !isActivity && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowEditSpawnModal(false)} />
           <div className="relative bg-[#11161e] border border-[#27272a] rounded-xl p-6 w-full max-w-sm shadow-2xl shadow-black/40 backdrop-blur-xl">

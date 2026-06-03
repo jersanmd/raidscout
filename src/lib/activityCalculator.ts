@@ -2,29 +2,39 @@ import type { Activity, ActivityInstance, ActivityInfo, ScheduleSlot } from "@/t
 
 /**
  * Calculate the next activity instance start time.
- * Recurring: calculated on-the-fly from schedule (same logic as fixed_schedule bosses).
- * One-time: fixed start_time.
+ * fixed_schedule: find next slot from weekly schedule array.
+ * fixed_hours: recurring at a fixed time each day.
+ * one_time: runs once at a specific time, then auto-disables.
  */
 export function calculateActivityInfo(
   activity: Activity,
   lastInstance: ActivityInstance | null,
   now: Date = new Date()
 ): ActivityInfo {
-  if (activity.schedule_type === "one_time") {
-    // One-time: use the schedule's first slot as the fixed start
-    const startTime = activity.schedule?.[0]
-      ? buildSlotDate(now, activity.schedule[0].day, activity.schedule[0].time)
-      : new Date(now);
+  // Already completed one-time activity
+  if (activity.schedule_type === "one_time" && lastInstance?.end_time) {
+    return {
+      activity,
+      activityInstance: { id: "", activity_id: activity.id, start_time: now.toISOString(), created_at: "" },
+      startTime: now,
+      status: "completed",
+    };
+  }
+
+  // one_time or fixed_hours: schedule is a "HH:MM" string
+  if (activity.schedule_type === "one_time" || activity.schedule_type === "fixed_hours") {
+    const timeStr = typeof activity.schedule === "string" ? activity.schedule : null;
+    const startTime = buildTimeDate(now, timeStr);
     return {
       activity,
       activityInstance: { id: "", activity_id: activity.id, start_time: startTime.toISOString(), created_at: "" },
       startTime,
-      status: startTime > now ? "countdown" : lastInstance?.end_time ? "completed" : "active",
+      status: activity.schedule_type === "one_time" ? (startTime > now ? "countdown" : "active") : "active",
     };
   }
 
-  // Recurring: find next schedule slot
-  const schedule = activity.schedule;
+  // fixed_schedule: find next slot from weekly schedule array
+  const schedule = Array.isArray(activity.schedule) ? activity.schedule : null;
   if (!schedule || schedule.length === 0) {
     return {
       activity,
@@ -43,12 +53,16 @@ export function calculateActivityInfo(
   };
 }
 
-/** Build a Date for a specific day-of-week and "HH:MM" time, in the same week as `ref`. */
-function buildSlotDate(ref: Date, day: number, time: string): Date {
-  const d = new Date(ref);
-  d.setDate(d.getDate() + ((day - d.getDay() + 7) % 7));
-  const [h, m] = time.split(":").map(Number);
+/** Build a Date from a "HH:MM" time string, using today (or tomorrow if already past). */
+function buildTimeDate(now: Date, timeStr: string | null): Date {
+  if (!timeStr) return now;
+  const [h, m] = timeStr.split(":").map(Number);
+  const d = new Date(now);
   d.setHours(h, m, 0, 0);
+  // If already past today, move to tomorrow
+  if (d.getTime() <= now.getTime()) {
+    d.setDate(d.getDate() + 1);
+  }
   return d;
 }
 

@@ -435,12 +435,12 @@ export function AdminGamesTab() {
                                 <Calendar className="w-4 h-4 text-[#52525b]" />
                               )}
                               <span className="text-[#fafafa]">{at.name}</span>
-                              <span className="text-xs px-1.5 py-0.5 rounded bg-[#27272a] text-[#a1a1aa]">{at.schedule_type === "recurring" ? "Fixed Schedule" : at.schedule_type === "one_time" ? "Fixed Hours" : at.schedule_type}</span>
+                              <span className="text-xs px-1.5 py-0.5 rounded bg-[#27272a] text-[#a1a1aa]">{at.schedule_type === "fixed_schedule" ? "Fixed Schedule" : at.schedule_type === "fixed_hours" ? "Fixed Hours" : "One Time"}</span>
                               <span className="text-xs text-[#71717a]">{at.points_per_participant}pt/p</span>
                               {at.party_size != null && <span className="text-xs text-[#71717a]">{at.party_size}p</span>}
                             </div>
                             <div className="flex items-center gap-1">
-                              <button onClick={() => setEditingActivity(isEditing ? null : { id: at.id, name: at.name, schedule_type: at.schedule_type === "recurring" ? "fixed_schedule" : "fixed_hours", schedule: at.schedule, duration_minutes: at.duration_minutes, points_per_participant: at.points_per_participant, party_size: at.party_size, category: at.category, tags: at.tags, image_url: at.image_url })} className="p-1 text-[#52525b] hover:text-[#d4d4d8]"><Pencil className="w-3 h-3" /></button>
+                              <button onClick={() => setEditingActivity(isEditing ? null : { id: at.id, name: at.name, schedule_type: at.schedule_type, schedule: at.schedule, duration_minutes: at.duration_minutes, points_per_participant: at.points_per_participant, party_size: at.party_size, category: at.category, tags: at.tags, image_url: at.image_url })} className="p-1 text-[#52525b] hover:text-[#d4d4d8]"><Pencil className="w-3 h-3" /></button>
                               <button onClick={() => setDeleteConfirm({ type: "activity", id: at.id, name: at.name, gameName: game.name })} className="p-1 text-[#52525b] hover:text-[#f87171]"><Trash2 className="w-3 h-3" /></button>
                             </div>
                           </div>

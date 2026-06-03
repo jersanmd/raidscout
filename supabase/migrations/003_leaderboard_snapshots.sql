@@ -3,6 +3,7 @@
 
 create table if not exists leaderboard_snapshots (
   id uuid primary key default gen_random_uuid(),
+  server_id uuid references public.servers(id),
   finalized_at timestamptz not null default now(),
   period_start timestamptz,
   period text not null check (period in ('all_time', 'weekly', 'monthly')),
@@ -13,6 +14,7 @@ create table if not exists leaderboard_snapshots (
 -- Indexes
 create index if not exists leaderboard_snapshots_period_idx on leaderboard_snapshots(period);
 create index if not exists leaderboard_snapshots_finalized_idx on leaderboard_snapshots(finalized_at desc);
+create index if not exists idx_leaderboard_snapshots_server on leaderboard_snapshots(server_id);
 
 -- RLS: readable by all authenticated users
 alter table leaderboard_snapshots enable row level security;

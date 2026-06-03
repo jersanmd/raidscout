@@ -1,20 +1,22 @@
 import { useState } from "react";
 import { Loader2, Plus, Save, X, Image } from "lucide-react";
 import { localSlotToUtc, type ScheduleSlot } from "@/lib/scheduleTimezone";
-import { createBossTemplate, uploadBossImage } from "@/lib/supabase";
+import { createBossTemplate, uploadBossImage, createCustomBoss } from "@/lib/supabase";
 
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const BOSS_CATEGORIES = ["World Boss", "Dungeon Boss", "Raid Boss", "Field Boss", "Event Boss"];
 const BOSS_TAGS = ["world", "field", "dungeon", "raid", "pvp", "weekly", "daily", "elite", "mini", "guild", "solo", "party"];
 
 interface Props {
-  gameId: string;
-  gameSlug: string;
+  gameId?: string;
+  gameSlug?: string;
+  serverId?: string;
   onCreated: () => void;
   onCancel: () => void;
 }
 
-export function AddBossForm({ gameId, gameSlug, onCreated, onCancel }: Props) {
+export function AddBossForm({ gameId, gameSlug, serverId, onCreated, onCancel }: Props) {
+  const isServerMode = !!serverId;
   const [name, setName] = useState("");
   const [spawnType, setSpawnType] = useState("fixed_hours");
   const [respawnHours, setRespawnHours] = useState("");
@@ -32,6 +34,18 @@ export function AddBossForm({ gameId, gameSlug, onCreated, onCancel }: Props) {
     if (!name.trim()) return;
     setSaving(true);
     try {
+      if (isServerMode && serverId) {
+        const schedule = spawnType === "fixed_schedule" && scheduleSlots.length > 0
+          ? scheduleSlots.map(s => localSlotToUtc(s.day, s.time)) : null;
+        await createCustomBoss(serverId, {
+          name: name.trim(), spawn_type: spawnType,
+          respawn_hours: respawnHours ? Number(respawnHours) : null,
+          schedule, is_recurring: true,
+          boss_points: isNaN(Number(points)) ? 1 : Number(points),
+          category: category === "__custom__" ? customCategory || null : category || null,
+          tags,
+        });
+      } else {
       let imageUrl: string | undefined;
       if (imageFile) {
         try { imageUrl = await uploadBossImage(gameSlug, name.trim(), imageFile); }
@@ -51,6 +65,7 @@ export function AddBossForm({ gameId, gameSlug, onCreated, onCancel }: Props) {
         tags,
         image_url: imageUrl,
       });
+      }
       onCreated();
     } finally {
       setSaving(false);
@@ -60,17 +75,17 @@ export function AddBossForm({ gameId, gameSlug, onCreated, onCancel }: Props) {
   return (
     <form onSubmit={handleSubmit} className="bg-[#18181b] border border-[#27272a] rounded-lg p-3 mb-2 space-y-2">
       <div className="flex items-center justify-between">
-        <span className="text-xs font-medium text-[#fafafa]">New Boss Template</span>
+        {isServerMode ? <span className="text-xs font-medium text-[#fafafa]">New Custom Boss</span> : <span className="text-xs font-medium text-[#fafafa]">New Boss Template</span>}
         <button type="button" onClick={onCancel} className="text-[#71717a] hover:text-[#fafafa]"><X className="w-3 h-3" /></button>
       </div>
       <div className="grid grid-cols-2 gap-2">
         <div>
           <label className="block text-xs text-[#71717a] mb-0.5">Name *</label>
-          <input value={name} onChange={e => setName(e.target.value)} required className="w-full px-2.5 py-2 bg-[#18181b] border border-[#27272a] rounded text-sm text-[#fafafa] focus:outline-none focus:ring-1 focus:ring-[#52525b]" />
+          <input value={name} onChange={e => setName(e.target.value)} required className="w-full px-2.5 py-2 bg-[#09090b] border border-[#3f3f46] rounded text-sm text-[#fafafa] focus:outline-none focus:ring-1 focus:ring-[#52525b]" />
         </div>
         <div>
           <label className="block text-xs text-[#71717a] mb-0.5">Spawn Type</label>
-          <select value={spawnType} onChange={e => { setSpawnType(e.target.value); setScheduleSlots([]); }} className="w-full px-2.5 py-2 bg-[#18181b] border border-[#27272a] rounded text-sm text-[#fafafa] focus:outline-none focus:ring-1 focus:ring-[#52525b]">
+          <select value={spawnType} onChange={e => { setSpawnType(e.target.value); setScheduleSlots([]); }} className="w-full px-2.5 py-2 bg-[#09090b] border border-[#3f3f46] rounded text-sm text-[#fafafa] focus:outline-none focus:ring-1 focus:ring-[#52525b]">
             <option value="fixed_hours">Fixed Hours</option>
             <option value="fixed_schedule">Fixed Schedule</option>
           </select>
@@ -87,7 +102,7 @@ export function AddBossForm({ gameId, gameSlug, onCreated, onCancel }: Props) {
                     const m = respawnHours ? Math.round((Number(respawnHours) % 1) * 60) : 0;
                     setRespawnHours(String(h + m / 60));
                   }}
-                  className="w-20 px-2.5 py-2 bg-[#18181b] border border-[#27272a] rounded text-sm text-[#fafafa] focus:outline-none focus:ring-1 focus:ring-[#52525b]">
+                  className="w-20 px-2.5 py-2 bg-[#09090b] border border-[#3f3f46] rounded text-sm text-[#fafafa] focus:outline-none focus:ring-1 focus:ring-[#52525b]">
                   <option value="">h</option>
                   {Array.from({ length: 200 }, (_, i) => i).map(h => <option key={h} value={h}>{h}h</option>)}
                 </select>
@@ -98,7 +113,7 @@ export function AddBossForm({ gameId, gameSlug, onCreated, onCancel }: Props) {
                     const h = respawnHours ? Math.floor(Number(respawnHours)) : 0;
                     setRespawnHours(String(h + m / 60));
                   }}
-                  className="w-16 px-2.5 py-2 bg-[#18181b] border border-[#27272a] rounded text-sm text-[#fafafa] focus:outline-none focus:ring-1 focus:ring-[#52525b]">
+                  className="w-16 px-2.5 py-2 bg-[#09090b] border border-[#3f3f46] rounded text-sm text-[#fafafa] focus:outline-none focus:ring-1 focus:ring-[#52525b]">
                   {[0, 15, 30, 45].map(m => <option key={m} value={m}>{m}m</option>)}
                 </select>
               </div>
@@ -118,37 +133,37 @@ export function AddBossForm({ gameId, gameSlug, onCreated, onCancel }: Props) {
                     const updated = [...scheduleSlots];
                     updated[i] = { ...updated[i], day: Number(e.target.value) };
                     setScheduleSlots(updated);
-                  }} className="w-16 px-2.5 py-2 bg-[#18181b] border border-[#27272a] rounded text-sm text-[#fafafa] focus:outline-none focus:ring-1 focus:ring-[#52525b]">
+                  }} className="w-16 px-2.5 py-2 bg-[#09090b] border border-[#3f3f46] rounded text-sm text-[#fafafa] focus:outline-none focus:ring-1 focus:ring-[#52525b]">
                     {DAYS.map((d, idx) => <option key={idx} value={idx}>{d}</option>)}
                   </select>
                   <input type="time" value={slot.time} onChange={e => {
                     const updated = [...scheduleSlots];
                     updated[i] = { ...updated[i], time: e.target.value };
                     setScheduleSlots(updated);
-                  }} className="w-28 px-2.5 py-2 bg-[#18181b] border border-[#27272a] rounded text-sm text-[#fafafa] focus:outline-none focus:ring-1 focus:ring-[#52525b]" />
+                  }} className="w-28 px-2.5 py-2 bg-[#09090b] border border-[#3f3f46] rounded text-sm text-[#fafafa] focus:outline-none focus:ring-1 focus:ring-[#52525b]" />
                   <button onClick={() => setScheduleSlots(scheduleSlots.filter((_, j) => j !== i))} className="text-[#71717a] hover:text-[#f87171] transition"><X className="w-3 h-3" /></button>
                 </div>
               ))}
-              <button type="button" onClick={() => setScheduleSlots([...scheduleSlots, { day: 0, time: "21:00" }])} className="flex items-center gap-1 text-xs text-[#a1a1aa] hover:text-[#d4d4d8] transition">
-                <Plus className="w-3 h-3" /> Add spawn time
+              <button type="button" onClick={() => setScheduleSlots([...scheduleSlots, { day: 0, time: "21:00" }])} className="flex items-center gap-1 text-xs text-[#a1a1aa] hover:text-[#fafafa] hover:bg-[#27272a] px-3 py-2 rounded transition">
+                <Plus className="w-4 h-4" /> Add spawn time
               </button>
             </div>
           </div>
         )}
         <div>
           <label className="block text-xs text-[#71717a] mb-0.5">Category</label>
-          <select value={category} onChange={e => setCategory(e.target.value)} className="w-full px-2.5 py-2 bg-[#18181b] border border-[#27272a] rounded text-sm text-[#fafafa] focus:outline-none focus:ring-1 focus:ring-[#52525b]">
+          <select value={category} onChange={e => setCategory(e.target.value)} className="w-full px-2.5 py-2 bg-[#09090b] border border-[#3f3f46] rounded text-sm text-[#fafafa] focus:outline-none focus:ring-1 focus:ring-[#52525b]">
             <option value="">None</option>
             {BOSS_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
             <option value="__custom__">Other...</option>
           </select>
           {category === "__custom__" && (
-            <input value={customCategory} onChange={e => setCustomCategory(e.target.value)} placeholder="Type custom category..." className="mt-1 w-full px-2.5 py-2 bg-[#18181b] border border-[#27272a] rounded text-sm text-[#fafafa] placeholder-[#52525b] focus:outline-none focus:ring-1 focus:ring-[#52525b]" />
+            <input value={customCategory} onChange={e => setCustomCategory(e.target.value)} placeholder="Type custom category..." className="mt-1 w-full px-2.5 py-2 bg-[#09090b] border border-[#3f3f46] rounded text-sm text-[#fafafa] placeholder-[#52525b] focus:outline-none focus:ring-1 focus:ring-[#52525b]" />
           )}
         </div>
         <div>
           <label className="block text-xs text-[#71717a] mb-0.5">Points</label>
-          <input value={points} onChange={e => setPoints(e.target.value === "" ? 0 : Number(e.target.value))} type="number" className="w-full px-2.5 py-2 bg-[#18181b] border border-[#27272a] rounded text-sm text-[#fafafa] focus:outline-none focus:ring-1 focus:ring-[#52525b]" />
+          <input value={points} onChange={e => setPoints(e.target.value === "" ? 0 : Number(e.target.value))} type="number" className="w-full px-2.5 py-2 bg-[#09090b] border border-[#3f3f46] rounded text-sm text-[#fafafa] focus:outline-none focus:ring-1 focus:ring-[#52525b]" />
         </div>
         <div className="col-span-2">
           <label className="block text-xs text-[#71717a] mb-1">Tags</label>
@@ -187,7 +202,7 @@ export function AddBossForm({ gameId, gameSlug, onCreated, onCancel }: Props) {
           )}
         </div>
       </div>
-      <button type="submit" disabled={saving} className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded bg-[#fafafa] hover:bg-[#e4e4e7] text-[#fafafa] transition disabled:opacity-50 disabled:cursor-not-allowed">
+      <button type="submit" disabled={saving} className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded bg-[#fafafa] hover:bg-[#e4e4e7] text-[#09090b] transition disabled:opacity-50 disabled:cursor-not-allowed">
         {saving ? <><Loader2 className="w-3 h-3 animate-spin" /> Saving...</> : <><Save className="w-3 h-3" /> Add</>}
       </button>
     </form>

@@ -58,6 +58,14 @@ function LiveBossTimer() {
   // Fetch timer for current boss
   const fetchBoss = useCallback(async (name: string) => {
     try {
+      // First check if the demo server even exists (graceful on staging / new deploys)
+      const { data: serverCheck, error: serverErr } = await supabase
+        .from("servers")
+        .select("id")
+        .eq("id", YVONNE6_ID)
+        .maybeSingle();
+      if (serverErr || !serverCheck) return;
+
       const { data: bosses } = await supabase
         .from("bosses")
         .select("id,name,respawn_hours")
@@ -114,26 +122,23 @@ function LiveBossTimer() {
   const status = timeStr === "ALIVE";
 
   return (
-    <div className="flex items-center gap-6">
-      {/* Boss name + status indicator */}
-      <div className="flex items-center gap-2.5">
-        <div className="relative flex h-2.5 w-2.5">
-          <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${status ? 'bg-sky-400' : 'bg-red-400'}`} />
-          <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${status ? 'bg-sky-400' : 'bg-red-400'}`} />
-        </div>
+    <div className="flex items-center gap-5">
+      {/* Boss name + status */}
+      <div className="flex items-center gap-2">
+        <span className={`w-1.5 h-1.5 rounded-full ${status ? 'bg-[#a1a1aa]' : 'bg-emerald-400'}`} />
         <div className="text-left">
-          <span className="text-xs text-slate-400 font-medium">{bossName}</span>
-          <span className={`ml-2 text-[10px] font-semibold uppercase tracking-wider ${status ? 'text-sky-400' : 'text-red-400'}`}>
+          <span className="text-xs text-[#d4d4d8] font-medium">{bossName}</span>
+          <span className={`ml-2 text-[10px] font-medium uppercase tracking-wider ${status ? 'text-[#a1a1aa]' : 'text-emerald-400'}`}>
             {status ? 'Alive' : 'Tracking'}
           </span>
         </div>
       </div>
       {/* Divider */}
-      <div className="w-px h-8 bg-slate-700/50" />
+      <span className="text-[#3f3f46]">|</span>
       {/* Countdown */}
       <div className="text-left">
-        <span className="text-[10px] uppercase tracking-wider text-slate-500 block mb-0.5">{status ? 'Since' : 'Respawns in'}</span>
-        <span className={`font-mono text-2xl font-bold tabular-nums tracking-tight ${status ? 'text-sky-300' : 'text-red-300'}`}>
+        <span className="text-[10px] uppercase tracking-wider text-[#71717a] block mb-0.5">{status ? 'Since' : 'Respawns in'}</span>
+        <span className="font-mono text-xl font-bold tabular-nums tracking-tight text-[#fafafa]">
           {timeStr}
         </span>
       </div>
@@ -243,101 +248,55 @@ export function LandingPage() {
 
       {/* ── Hero ── */}
       <section className="relative px-6 pt-32 pb-24 text-center overflow-hidden">
-        {/* ── Background Layers ── */}
-        <div className="absolute inset-0 bg-[#040816]" />
-        <div className="absolute inset-0 bg-gradient-to-b from-sky-950/30 via-transparent to-[#040816]" />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_70%_50%_at_50%_0%,rgba(56,189,248,0.06),transparent_60%)]" />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_40%_40%_at_80%_100%,rgba(139,92,246,0.04),transparent_60%)]" />
-
-        {/* Tactical grid */}
-        <div className="absolute inset-0 opacity-[0.018]"
-          style={{
-            backgroundImage: `
-              linear-gradient(rgba(56,189,248,0.4) 1px, transparent 1px),
-              linear-gradient(90deg, rgba(56,189,248,0.4) 1px, transparent 1px)
-            `,
-            backgroundSize: '80px 80px',
-            backgroundPosition: 'center center',
-          }}
-        />
-
-        {/* Radar texture */}
-        <div className="absolute inset-0 opacity-[0.03]"
-          style={{
-            backgroundImage: 'radial-gradient(circle, rgb(148 163 184) 0.5px, transparent 0.5px)',
-            backgroundSize: '20px 20px',
-          }}
-        />
-
-        {/* Scanning line */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute left-0 right-0 h-px bg-gradient-to-r from-transparent via-sky-400/25 to-transparent animate-scan-line" />
-        </div>
-
-        {/* Ambient glow orbs */}
-        <div className="absolute top-0 right-[10%] w-[600px] h-[600px] rounded-full bg-sky-500/[0.025] blur-[140px]" />
-        <div className="absolute bottom-0 left-[5%] w-[500px] h-[500px] rounded-full bg-violet-500/[0.02] blur-[120px]" />
+        {/* ── Background ── */}
+        <div className="absolute inset-0 bg-[#09090b]" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_60%_40%_at_50%_0%,rgba(250,250,250,0.02),transparent_70%)]" />
 
         {/* ── Content ── */}
-        <div className="relative z-10 max-w-4xl mx-auto space-y-12">
+        <div className="relative z-10 max-w-4xl mx-auto space-y-10">
           {/* Badge */}
-          <div className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-white/[0.03] border border-white/[0.06] text-sky-300/80 text-[11px] font-semibold tracking-[0.15em] uppercase animate-[fadeInUp_0.6s_ease-out] backdrop-blur-xl">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-sky-400 opacity-75" />
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-sky-400" />
-            </span>
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-[#27272a] text-[#71717a] text-[11px] font-medium tracking-wider uppercase">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#a1a1aa]" />
             Guild Operations Platform
           </div>
 
           {/* Headline */}
-          <h1 className="text-5xl md:text-7xl lg:text-8xl font-black tracking-tighter leading-[0.92] animate-[fadeInUp_0.6s_ease-out] max-w-3xl mx-auto">
-            <span className="text-[#F1F5F9]">Command Your</span>
+          <h1 className="text-5xl md:text-7xl lg:text-8xl font-black tracking-tighter leading-[0.94] max-w-3xl mx-auto">
+            <span className="text-[#fafafa]">Command</span>
             <br />
-            <span className="bg-gradient-to-r from-sky-300 via-sky-400 to-violet-400 bg-[length:200%_auto] animate-gradient bg-clip-text text-transparent">
-              Guild Operations
+            <span className="text-[#a1a1aa]">
+              Your Guild
             </span>
           </h1>
 
           {/* Subheadline */}
-          <p className="text-base md:text-lg text-slate-400/80 max-w-xl mx-auto leading-relaxed animate-[fadeInUp_0.6s_ease-out_0.1s_both]">
+          <p className="text-sm md:text-base text-[#71717a] max-w-lg mx-auto leading-relaxed">
             Real-time boss tracking, multi-guild rotations, attendance monitoring, and Discord coordination. The command center competitive guilds trust.
           </p>
 
-          {/* CTA */}
-          <div className="flex items-center justify-center gap-4 pt-2 animate-[fadeInUp_0.6s_ease-out_0.2s_both]">
+          {/* CTAs */}
+          <div className="flex items-center justify-center gap-3 pt-2">
             <button
               onClick={() => document.getElementById("get-started")?.scrollIntoView({ behavior: "smooth" })}
-              className="group relative px-8 py-4 rounded-xl font-semibold bg-white text-[#040816] hover:bg-sky-50 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 shadow-[0_0_40px_rgba(56,189,248,0.12)] hover:shadow-[0_0_60px_rgba(56,189,248,0.2)] text-base"
+              className="px-6 py-3 rounded-lg font-medium text-sm border border-[#fafafa]/20 text-[#fafafa] hover:border-[#fafafa]/40 hover:bg-[#fafafa]/5 transition-all duration-200"
             >
-              <span className="relative z-10 flex items-center gap-2">
-                Deploy Dashboard
-                <span className="inline-block group-hover:translate-x-0.5 transition-transform">→</span>
-              </span>
+              Deploy Dashboard →
             </button>
             <button
               onClick={() => document.getElementById("features")?.scrollIntoView({ behavior: "smooth" })}
-              className="px-8 py-4 rounded-xl font-semibold border border-white/[0.08] text-slate-400 hover:text-[#fafafa] hover:border-white/[0.15] hover:bg-white/[0.03] transition-all duration-200 text-base backdrop-blur-sm"
+              className="px-6 py-3 rounded-lg font-medium text-sm text-[#71717a] hover:text-[#a1a1aa] transition-colors duration-200"
             >
               View Capabilities
             </button>
           </div>
 
-          {/* Live Tracker — glassmorphism command card */}
-          <div className="animate-[fadeInUp_0.6s_ease-out_0.35s_both] pt-2">
-            <div className="relative inline-flex flex-col gap-4 px-8 py-5 rounded-2xl bg-white/[0.02] border border-white/[0.06] backdrop-blur-xl overflow-hidden">
-              {/* Card scanning line */}
-              <div className="absolute inset-0 overflow-hidden pointer-events-none rounded-2xl">
-                <div className="absolute left-0 right-0 h-px bg-gradient-to-r from-transparent via-sky-400/15 to-transparent animate-scan-line" style={{ animationDuration: '6s' }} />
-              </div>
-              {/* Card header */}
+          {/* Live Tracker */}
+          <div className="pt-2">
+            <div className="relative inline-flex flex-col gap-3 px-6 py-4 rounded-xl border border-[#27272a] bg-[#09090b]">
               <div className="flex items-center gap-2">
-                <Radio className="w-3.5 h-3.5 text-sky-400" />
-                <span className="text-[10px] font-semibold tracking-[0.15em] uppercase text-slate-500">Live Operations — Yvonne 6</span>
-                <span className="ml-auto flex items-center gap-1.5 text-[10px] text-sky-400/70">
-                  <span className="relative flex h-1.5 w-1.5">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-sky-400 opacity-75" />
-                    <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-sky-400" />
-                  </span>
+                <span className="text-[10px] font-medium tracking-wider uppercase text-[#52525b]">Live Operations — Yvonne 6</span>
+                <span className="ml-auto flex items-center gap-1.5 text-[10px] text-[#71717a]">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#a1a1aa]" />
                   RECEIVING
                 </span>
               </div>
@@ -346,51 +305,45 @@ export function LandingPage() {
           </div>
 
           {/* Stats + Trust */}
-          <div className="animate-[fadeInUp_0.6s_ease-out_0.5s_both] space-y-6 pt-2">
-            {/* Stats cards — glassmorphism */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-3xl mx-auto">
+          <div className="space-y-6 pt-2">
+            {/* Stats — pure typography, no boxes */}
+            <div className="flex items-center justify-center gap-8 md:gap-12 max-w-3xl mx-auto">
               {[
-                { value: <AnimatedCounter value={liveStats.guilds} />, label: "Active Guilds", icon: Activity, color: "text-sky-400" },
-                { value: <AnimatedCounter value={liveStats.kills} />, label: "Kills Recorded", icon: Crosshair, color: "text-violet-400" },
-                { value: <AnimatedCounter value={liveStats.players} />, label: "Trackings", icon: Radio, color: "text-blue-400" },
-                { value: <AnimatedCounter value={liveStats.servers} />, label: "Servers Online", icon: Wifi, color: "text-sky-400" },
+                { value: <AnimatedCounter value={liveStats.guilds} />, label: "Active Guilds" },
+                { value: <AnimatedCounter value={liveStats.kills} />, label: "Kills Recorded" },
+                { value: <AnimatedCounter value={liveStats.players} />, label: "Trackings" },
+                { value: <AnimatedCounter value={liveStats.servers} />, label: "Servers Online" },
               ].map((s) => (
-                <div key={s.label} className="group relative flex items-center gap-3 px-4 py-3.5 rounded-xl bg-white/[0.02] border border-white/[0.05] backdrop-blur-sm hover:bg-white/[0.04] hover:border-white/[0.1] hover:-translate-y-0.5 transition-all duration-300">
-                  <div className={`p-1.5 rounded-lg bg-white/[0.03] ${s.color}`}>
-                    <s.icon className="w-4 h-4" />
-                  </div>
-                  <div className="text-left">
-                    <div className="text-lg font-bold text-[#F8FAFC] tracking-tight tabular-nums">{s.value}</div>
-                    <div className="text-[10px] text-slate-500 font-medium">{s.label}</div>
-                  </div>
+                <div key={s.label} className="text-center">
+                  <div className="text-2xl md:text-3xl font-bold text-[#fafafa] tabular-nums tracking-tight">{s.value}</div>
+                  <div className="text-[10px] text-[#71717a] uppercase tracking-wider mt-1">{s.label}</div>
                 </div>
               ))}
             </div>
-            {/* Trust bar — minimal */}
-            <div className="flex items-center justify-center gap-6 text-[10px] text-slate-600">
-              <span className="flex items-center gap-1.5"><Shield className="w-3 h-3 opacity-40" />SOC 2 Compliant</span>
-              <span className="w-px h-3 bg-white/[0.06]" />
-              <span className="flex items-center gap-1.5"><Activity className="w-3 h-3 opacity-40" />99.9% Uptime</span>
-              <span className="w-px h-3 bg-white/[0.06]" />
-              <span className="flex items-center gap-1.5"><Lock className="w-3 h-3 opacity-40 hidden sm:block" />End-to-end Encrypted</span>
+            {/* Trust bar */}
+            <div className="flex items-center justify-center gap-5 text-[10px] text-[#52525b]">
+              <span className="flex items-center gap-1.5"><Shield className="w-3 h-3" />SOC 2 Compliant</span>
+              <span className="w-px h-3 bg-[#27272a]" />
+              <span className="flex items-center gap-1.5"><Activity className="w-3 h-3" />99.9% Uptime</span>
+              <span className="w-px h-3 bg-[#27272a]" />
+              <span className="flex items-center gap-1.5"><Lock className="w-3 h-3 hidden sm:block" />End-to-end Encrypted</span>
             </div>
           </div>
         </div>
       </section>
 
       {/* ── Features Grid ── */}
-      <section id="features" className="relative bg-gradient-to-b from-[#040816] via-[#060b14] to-[#0b1018] px-6 py-24">
+      <section id="features" className="relative bg-[#09090b] px-6 py-24">
         <div className="max-w-5xl mx-auto">
           {/* Section Header */}
           <div className="text-center mb-16">
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/[0.03] border border-white/[0.06] text-sky-300/80 text-xs font-medium mb-6 backdrop-blur-sm">
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-[#27272a] text-[#71717a] text-xs font-medium mb-6">
               <Sparkles className="w-3.5 h-3.5" /> PLATFORM CAPABILITIES
             </div>
-            <h2 className="text-3xl md:text-4xl font-bold text-[#F8FAFC] mb-4">
+            <h2 className="text-3xl md:text-4xl font-bold text-[#fafafa] mb-4">
               Everything Your Guild Needs
-              <div className="mx-auto mt-4 w-12 h-0.5 bg-sky-400/60 rounded-full" />
             </h2>
-            <p className="text-[#fafafa]/70 text-lg">One platform to track, rotate, scan, and dominate.</p>
+            <p className="text-[#71717a] text-lg">One platform to track, rotate, scan, and dominate.</p>
           </div>
 
           {/* Bento Grid */}
@@ -398,26 +351,26 @@ export function LandingPage() {
             {/* Row 1: Featured cards */}
             <div className="grid sm:grid-cols-2 gap-4">
               {/* Live Countdown Timers (2×) */}
-              <div className="group relative p-6 rounded-2xl bg-[#0d1421] border border-white/[0.04] hover:border-white/[0.10] hover:shadow-[0_0_30px_rgba(56,189,248,0.04)] hover:-translate-y-1 transition-all duration-300 overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-br from-sky-500/[0.02] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+              <div className="group relative p-6 rounded-2xl bg-[#18181b] border border-white/[0.04] hover:border-white/[0.10]  hover:-translate-y-1 transition-all duration-300 overflow-hidden">
+                <div className="absolute inset-0 opacity-0" />
                 <div className="relative z-10">
                   <div className="flex items-center gap-3 mb-4">
-                    <div className="p-2.5 rounded-xl bg-sky-400/10 text-sky-400 group-hover:scale-110 transition-transform duration-200">
+                    <div className="p-2.5 rounded-xl bg-[#18181b] border border-[#27272a] text-[#a1a1aa] group-hover:scale-110 transition-transform duration-200">
                       <Timer className="w-5 h-5" />
                     </div>
                     <div>
-                      <h3 className="font-semibold text-sm text-[#F8FAFC] group-hover:text-[#F8FAFC] transition-colors">Live Countdown Timers</h3>
-                      <p className="text-xs text-slate-500">39+ bosses tracked in real time</p>
+                      <h3 className="font-semibold text-sm text-[#fafafa] group-hover:text-[#fafafa] transition-colors">Live Countdown Timers</h3>
+                      <p className="text-xs text-[#71717a]">39+ bosses tracked in real time</p>
                     </div>
                   </div>
                   {/* Mini countdown mock */}
                   <div className="space-y-2 mb-4">
                     {[{ name: "Venatus", time: "00:42:17", alive: true }, { name: "Viorent", time: "03:12:05", alive: false }, { name: "Lady Dalia", time: "07:58:33", alive: false }].map(b => (
                       <div key={b.name} className="flex items-center justify-between px-3 py-2 rounded-lg bg-white/[0.02] border border-white/[0.03]">
-                        <span className="text-xs text-slate-400 font-mono">{b.name}</span>
+                        <span className="text-xs text-[#a1a1aa] font-mono">{b.name}</span>
                         <div className="flex items-center gap-2">
-                          <span className="text-xs font-mono tabular-nums text-slate-300">{b.time}</span>
-                          <span className={`w-1.5 h-1.5 rounded-full ${b.alive ? 'bg-sky-400 shadow-[0_0_6px_rgba(56,189,248,0.4)]' : 'bg-slate-600'}`} />
+                          <span className="text-xs font-mono tabular-nums text-[#d4d4d8]">{b.time}</span>
+                          <span className={`w-1.5 h-1.5 rounded-full ${b.alive ? 'bg-[#a1a1aa] ' : 'bg-[#3f3f46]'}`} />
                         </div>
                       </div>
                     ))}
@@ -427,34 +380,34 @@ export function LandingPage() {
               </div>
 
               {/* AI Rally Scanning (2×) */}
-              <div className="group relative p-6 rounded-2xl bg-[#0d1421] border border-white/[0.04] hover:border-white/[0.10] hover:shadow-[0_0_30px_rgba(139,92,246,0.04)] hover:-translate-y-1 transition-all duration-300 overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-br from-violet-500/[0.02] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+              <div className="group relative p-6 rounded-2xl bg-[#18181b] border border-white/[0.04] hover:border-white/[0.10]  hover:-translate-y-1 transition-all duration-300 overflow-hidden">
+                <div className="absolute inset-0 opacity-0" />
                 <div className="relative z-10">
                   <div className="flex items-center gap-3 mb-4">
-                    <div className="p-2.5 rounded-xl bg-violet-400/10 text-violet-400 group-hover:scale-110 transition-transform duration-200">
+                    <div className="p-2.5 rounded-xl bg-[#18181b] border border-[#27272a] text-[#a1a1aa] group-hover:scale-110 transition-transform duration-200">
                       <Sparkles className="w-5 h-5" />
                     </div>
                     <div>
-                      <h3 className="font-semibold text-sm text-[#F8FAFC] group-hover:text-[#F8FAFC] transition-colors">AI Rally Scanning</h3>
-                      <p className="text-xs text-slate-500">Auto-detect players from screenshots</p>
+                      <h3 className="font-semibold text-sm text-[#fafafa] group-hover:text-[#fafafa] transition-colors">AI Rally Scanning</h3>
+                      <p className="text-xs text-[#71717a]">Auto-detect players from screenshots</p>
                     </div>
                   </div>
                   {/* Mini upload mock */}
                   <div className="mb-4 p-4 rounded-xl border-2 border-dashed border-white/[0.06] bg-white/[0.01] text-center">
                     <div className="flex items-center justify-center gap-2 mb-3">
                       {[1, 2, 3].map(i => (
-                        <div key={i} className="w-10 h-10 rounded-lg bg-white/[0.03] border border-white/[0.05] flex items-center justify-center text-slate-600"><Image className="w-4 h-4" /></div>
+                        <div key={i} className="w-10 h-10 rounded-lg bg-white/[0.03] border border-white/[0.05] flex items-center justify-center text-[#52525b]"><Image className="w-4 h-4" /></div>
                       ))}
                     </div>
-                    <p className="text-[10px] text-slate-500">Drop rally screenshots here</p>
+                    <p className="text-[10px] text-[#71717a]">Drop rally screenshots here</p>
                   </div>
                   <div className="flex items-center gap-2 flex-wrap">
                     {["DonAlas", "xSupladoo", "Livera"].map(n => (
-                      <span key={n} className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-400/10 text-emerald-400 border border-emerald-400/20 flex items-center gap-1">
+                      <span key={n} className="text-[10px] px-2 py-0.5 rounded-full bg-[#18181b] border border-[#27272a] text-[#a1a1aa] border border-emerald-400/20 flex items-center gap-1">
                         <CheckCircle className="w-2.5 h-2.5" />{n}
                       </span>
                     ))}
-                    <span className="text-[10px] text-slate-500">+3 detected</span>
+                    <span className="text-[10px] text-[#71717a]">+3 detected</span>
                   </div>
                   <p className="text-xs text-[#fafafa]/80 leading-relaxed mt-4">Upload a rally screenshot and AI auto-detects player names. No manual typing.</p>
                 </div>
@@ -464,68 +417,68 @@ export function LandingPage() {
             {/* Row 2 & 3: Standard cards */}
             <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {/* Multi-Guild Rotation */}
-              <div className="group p-5 rounded-xl bg-[#0b1018] border border-white/[0.04] hover:border-white/[0.10] hover:bg-white/[0.01] hover:-translate-y-1 transition-all duration-300">
-                <div className="p-2.5 rounded-xl bg-blue-400/10 text-blue-400 w-fit mb-4 group-hover:scale-110 transition-transform duration-200">
+              <div className="group p-5 rounded-xl bg-[#18181b] border border-white/[0.04] hover:border-white/[0.10] hover:bg-white/[0.01] hover:-translate-y-1 transition-all duration-300">
+                <div className="p-2.5 rounded-xl bg-[#18181b] border border-[#27272a] text-[#a1a1aa] w-fit mb-4 group-hover:scale-110 transition-transform duration-200">
                   <Shield className="w-5 h-5" />
                 </div>
-                <h3 className="font-semibold text-sm text-[#F8FAFC] group-hover:text-[#F8FAFC] transition-colors mb-2">Multi-Guild Rotation</h3>
+                <h3 className="font-semibold text-sm text-[#fafafa] group-hover:text-[#fafafa] transition-colors mb-2">Multi-Guild Rotation</h3>
                 <p className="text-xs text-[#fafafa]/80 leading-relaxed">Assign bosses to guilds. Per-kill or daily rotation. Weighted turns.</p>
               </div>
 
               {/* Leaderboard & Points */}
-              <div className="group p-5 rounded-xl bg-[#0b1018] border border-white/[0.04] hover:border-white/[0.10] hover:bg-white/[0.01] hover:-translate-y-1 transition-all duration-300">
-                <div className="p-2.5 rounded-xl bg-purple-400/10 text-purple-400 w-fit mb-4 group-hover:scale-110 transition-transform duration-200">
+              <div className="group p-5 rounded-xl bg-[#18181b] border border-white/[0.04] hover:border-white/[0.10] hover:bg-white/[0.01] hover:-translate-y-1 transition-all duration-300">
+                <div className="p-2.5 rounded-xl bg-[#18181b] border border-[#27272a] text-[#a1a1aa] w-fit mb-4 group-hover:scale-110 transition-transform duration-200">
                   <BarChart3 className="w-5 h-5" />
                 </div>
-                <h3 className="font-semibold text-sm text-[#F8FAFC] group-hover:text-[#F8FAFC] transition-colors mb-2">Leaderboard & Points</h3>
+                <h3 className="font-semibold text-sm text-[#fafafa] group-hover:text-[#fafafa] transition-colors mb-2">Leaderboard & Points</h3>
                 <p className="text-xs text-[#fafafa]/80 leading-relaxed">Configurable points per boss. Weekly, monthly, and all-time rankings.</p>
               </div>
 
               {/* Discord Alerts */}
-              <div className="group p-5 rounded-xl bg-[#0b1018] border border-white/[0.04] hover:border-white/[0.10] hover:bg-white/[0.01] hover:-translate-y-1 transition-all duration-300">
-                <div className="p-2.5 rounded-xl bg-emerald-400/10 text-emerald-400 w-fit mb-4 group-hover:scale-110 transition-transform duration-200">
+              <div className="group p-5 rounded-xl bg-[#18181b] border border-white/[0.04] hover:border-white/[0.10] hover:bg-white/[0.01] hover:-translate-y-1 transition-all duration-300">
+                <div className="p-2.5 rounded-xl bg-[#18181b] border border-[#27272a] text-[#a1a1aa] w-fit mb-4 group-hover:scale-110 transition-transform duration-200">
                   <MessageSquare className="w-5 h-5" />
                 </div>
-                <h3 className="font-semibold text-sm text-[#F8FAFC] group-hover:text-[#F8FAFC] transition-colors mb-2">Discord Alerts</h3>
+                <h3 className="font-semibold text-sm text-[#fafafa] group-hover:text-[#fafafa] transition-colors mb-2">Discord Alerts</h3>
                 <p className="text-xs text-[#fafafa]/80 leading-relaxed">Auto-post boss kills, 5-min spawn warnings, and spawn confirmations.</p>
               </div>
 
               {/* Weekly Schedule */}
-              <div className="group p-5 rounded-xl bg-[#0b1018] border border-white/[0.04] hover:border-white/[0.10] hover:bg-white/[0.01] hover:-translate-y-1 transition-all duration-300">
-                <div className="p-2.5 rounded-xl bg-cyan-400/10 text-cyan-400 w-fit mb-4 group-hover:scale-110 transition-transform duration-200">
+              <div className="group p-5 rounded-xl bg-[#18181b] border border-white/[0.04] hover:border-white/[0.10] hover:bg-white/[0.01] hover:-translate-y-1 transition-all duration-300">
+                <div className="p-2.5 rounded-xl bg-[#18181b] border border-[#27272a] text-[#a1a1aa] w-fit mb-4 group-hover:scale-110 transition-transform duration-200">
                   <Calendar className="w-5 h-5" />
                 </div>
-                <h3 className="font-semibold text-sm text-[#F8FAFC] group-hover:text-[#F8FAFC] transition-colors mb-2">Weekly Schedule</h3>
+                <h3 className="font-semibold text-sm text-[#fafafa] group-hover:text-[#fafafa] transition-colors mb-2">Weekly Schedule</h3>
                 <p className="text-xs text-[#fafafa]/80 leading-relaxed">Full week grid. See which guild owns which boss on every day.</p>
               </div>
 
               {/* Death History */}
-              <div className="group p-5 rounded-xl bg-[#0b1018] border border-white/[0.04] hover:border-white/[0.10] hover:bg-white/[0.01] hover:-translate-y-1 transition-all duration-300">
-                <div className="p-2.5 rounded-xl bg-red-400/10 text-red-400 w-fit mb-4 group-hover:scale-110 transition-transform duration-200">
+              <div className="group p-5 rounded-xl bg-[#18181b] border border-white/[0.04] hover:border-white/[0.10] hover:bg-white/[0.01] hover:-translate-y-1 transition-all duration-300">
+                <div className="p-2.5 rounded-xl bg-[#18181b] border border-[#27272a] text-[#a1a1aa] w-fit mb-4 group-hover:scale-110 transition-transform duration-200">
                   <Skull className="w-5 h-5" />
                 </div>
-                <h3 className="font-semibold text-sm text-[#F8FAFC] group-hover:text-[#F8FAFC] transition-colors mb-2">Death History</h3>
+                <h3 className="font-semibold text-sm text-[#fafafa] group-hover:text-[#fafafa] transition-colors mb-2">Death History</h3>
                 <p className="text-xs text-[#fafafa]/80 leading-relaxed">Complete kill log with guild badges. Attendance tracking per kill.</p>
               </div>
 
               {/* Discord Bot Commands */}
-              <div className="group p-5 rounded-xl bg-[#0b1018] border border-white/[0.04] hover:border-white/[0.10] hover:bg-white/[0.01] hover:-translate-y-1 transition-all duration-300">
-                <div className="p-2.5 rounded-xl bg-indigo-400/10 text-indigo-400 w-fit mb-4 group-hover:scale-110 transition-transform duration-200">
+              <div className="group p-5 rounded-xl bg-[#18181b] border border-white/[0.04] hover:border-white/[0.10] hover:bg-white/[0.01] hover:-translate-y-1 transition-all duration-300">
+                <div className="p-2.5 rounded-xl bg-[#18181b] border border-[#27272a] text-[#a1a1aa] w-fit mb-4 group-hover:scale-110 transition-transform duration-200">
                   <Bot className="w-5 h-5" />
                 </div>
-                <h3 className="font-semibold text-sm text-[#F8FAFC] group-hover:text-[#F8FAFC] transition-colors mb-2">Discord Bot Commands</h3>
+                <h3 className="font-semibold text-sm text-[#fafafa] group-hover:text-[#fafafa] transition-colors mb-2">Discord Bot Commands</h3>
                 <p className="text-xs text-[#fafafa]/80 leading-relaxed">Track multiple servers from one Discord. Export to Excel.</p>
               </div>
 
               {/* Viewer Mode (spans 2 cols on lg) */}
-              <div className="group p-5 rounded-xl bg-[#0b1018] border border-white/[0.04] hover:border-white/[0.10] hover:bg-white/[0.01] hover:-translate-y-1 transition-all duration-300 lg:col-span-2">
+              <div className="group p-5 rounded-xl bg-[#18181b] border border-white/[0.04] hover:border-white/[0.10] hover:bg-white/[0.01] hover:-translate-y-1 transition-all duration-300 lg:col-span-2">
                 <div className="flex items-center gap-3">
-                  <div className="p-2.5 rounded-xl bg-amber-400/10 text-amber-400 shrink-0 group-hover:scale-110 transition-transform duration-200">
+                  <div className="p-2.5 rounded-xl bg-[#18181b] border border-[#27272a] text-[#a1a1aa] shrink-0 group-hover:scale-110 transition-transform duration-200">
                     <Eye className="w-5 h-5" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-sm text-[#F8FAFC] group-hover:text-[#F8FAFC] transition-colors mb-1">Viewer Mode</h3>
-                    <p className="text-xs text-[#fafafa]/80 leading-relaxed">Share a link so your members can watch timers — no account or login required.</p>
+                    <h3 className="font-semibold text-sm text-[#fafafa] group-hover:text-[#fafafa] transition-colors mb-1">Viewer Mode</h3>
+                    <p className="text-xs text-[#fafafa]/80 leading-relaxed">Share a link so your members can watch timers. No account or login required.</p>
                   </div>
                 </div>
               </div>
@@ -535,39 +488,39 @@ export function LandingPage() {
       </section>
 
       {/* ── Discord Bot Commands ── */}
-      <section className="relative bg-[#0b1018] px-6 py-24">
+      <section className="relative bg-[#09090b] px-6 py-24">
         <div className="max-w-4xl mx-auto">
           {/* Header */}
           <div className="text-center mb-14">
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/[0.03] border border-white/[0.06] text-indigo-300/80 text-xs font-medium mb-6 backdrop-blur-sm">
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/[0.03] border border-white/[0.06] text-[#a1a1aa] text-xs font-medium mb-6 backdrop-blur-sm">
               <Bot className="w-3.5 h-3.5" /> DISCORD BOT
             </div>
-            <h2 className="text-3xl md:text-4xl font-bold text-[#F8FAFC] mb-4">
+            <h2 className="text-3xl md:text-4xl font-bold text-[#fafafa] mb-4">
               Control RaidScout from Discord
-              <div className="mx-auto mt-4 w-12 h-0.5 bg-indigo-400/60 rounded-full" />
+              <div className="mx-auto mt-4 w-12 h-0.5 bg-[#52525b] rounded-full" />
             </h2>
             <p className="text-[#fafafa]/60 text-sm max-w-xl mx-auto">
-              Invite the bot, set alerts with <code className="bg-white/[0.05] px-1.5 py-0.5 rounded text-indigo-300 font-mono text-xs">!notifhere</code>, restrict commands with <code className="bg-white/[0.05] px-1.5 py-0.5 rounded text-indigo-300 font-mono text-xs">!cmdhere</code>, and auto-create spawn threads with <code className="bg-white/[0.05] px-1.5 py-0.5 rounded text-indigo-300 font-mono text-xs">!threadhere</code>.
+              Invite the bot, set alerts with <code className="bg-white/[0.05] px-1.5 py-0.5 rounded text-[#a1a1aa] font-mono text-xs">!notifhere</code>, restrict commands with <code className="bg-white/[0.05] px-1.5 py-0.5 rounded text-[#a1a1aa] font-mono text-xs">!cmdhere</code>, and auto-create spawn threads with <code className="bg-white/[0.05] px-1.5 py-0.5 rounded text-[#a1a1aa] font-mono text-xs">!threadhere</code>.
             </p>
           </div>
 
           {/* Terminal Window */}
           <div className="rounded-2xl overflow-hidden border border-white/[0.06] shadow-2xl shadow-black/40">
             {/* Window Chrome */}
-            <div className="flex items-center gap-2 px-4 py-3 bg-[#0d1117] border-b border-white/[0.05]">
+            <div className="flex items-center gap-2 px-4 py-3 bg-[#18181b] border-b border-white/[0.05]">
               <div className="flex items-center gap-1.5">
-                <div className="w-3 h-3 rounded-full bg-red-500/80" />
-                <div className="w-3 h-3 rounded-full bg-amber-500/80" />
-                <div className="w-3 h-3 rounded-full bg-emerald-500/80" />
+                <div className="w-3 h-3 rounded-full bg-[#52525b]" />
+                <div className="w-3 h-3 rounded-full bg-[#52525b]" />
+                <div className="w-3 h-3 rounded-full bg-[#52525b]" />
               </div>
               <div className="flex-1 text-center">
-                <span className="text-[11px] text-slate-500 font-mono tracking-wider">raidscout — terminal</span>
+                <span className="text-[11px] text-[#71717a] font-mono tracking-wider">raidscout — terminal</span>
               </div>
-              <Terminal className="w-3.5 h-3.5 text-slate-600" />
+              <Terminal className="w-3.5 h-3.5 text-[#52525b]" />
             </div>
 
             {/* Command Lines */}
-            <div className="bg-[#0a0e14] divide-y divide-white/[0.03]">
+            <div className="bg-[#18181b] divide-y divide-white/[0.03]">
               <CommandLine
                 cmd="!nextspawn"
                 desc="List all boss spawns in the next 24 hours"
@@ -648,7 +601,7 @@ export function LandingPage() {
 
       {/* ── Screenshot Showcase ── */}
       {/* ── Terminal Mockup ── */}
-      <section className="relative bg-[#0b1018] px-4 py-24 flex items-center justify-center">
+      <section className="relative bg-[#09090b] px-4 py-24 flex items-center justify-center">
         {/* Backdrop Radial Laser Ambient Illumination Effect */}
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(147,51,234,0.08),rgba(6,182,212,0.03),transparent_70%)] pointer-events-none animate-pulse" style={{ animationDuration: '4s' }} />
 
@@ -657,7 +610,7 @@ export function LandingPage() {
             <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/[0.03] border border-white/[0.06] text-violet-300/80 text-xs font-medium mb-6 backdrop-blur-sm">
               <Eye className="w-3.5 h-3.5" /> SEE IT IN ACTION
             </div>
-            <h2 className="text-3xl md:text-4xl font-bold text-[#F8FAFC] mb-4">
+            <h2 className="text-3xl md:text-4xl font-bold text-[#fafafa] mb-4">
               Kill Tracking at Warp Speed
               <div className="mx-auto mt-4 w-12 h-0.5 bg-violet-400/60 rounded-full" />
             </h2>
@@ -665,14 +618,14 @@ export function LandingPage() {
           </div>
 
           {/* Perspective Mockup Canvas */}
-          <div className="relative w-full transform transition-all duration-700 hover:scale-105 hover:-translate-y-4 shadow-[25px_35px_60px_-15px_rgba(0,0,0,0.8)] rounded-xl border border-white/5 bg-[#2b2d31]/90 backdrop-blur-md overflow-hidden animate-float-mockup">
+          <div className="relative w-full transform transition-all duration-700 hover:scale-105 hover:-translate-y-4 shadow-[25px_35px_60px_-15px_rgba(0,0,0,0.8)] rounded-xl border border-white/5 bg-[#18181b] backdrop-blur-md overflow-hidden animate-float-mockup">
             {/* Top Terminal Window Title Bar */}
-            <div className="bg-[#1e1f22] px-4 py-3 flex items-center justify-between border-b border-white/[0.03]">
+            <div className="bg-[#09090b] px-4 py-3 flex items-center justify-between border-b border-white/[0.03]">
               <div className="flex items-center space-x-2">
                 <span className="text-purple-400 font-black text-base font-mono">#</span>
                 <span className="text-neutral-300 font-semibold text-xs tracking-wide">raidscout-terminal</span>
-                <span className="bg-[#23a55a]/10 text-[#23a55a] text-[9px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-widest border border-[#23a55a]/20 flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#23a55a] animate-ping" /> Live Feed
+                <span className="bg-[#18181b] text-[#a1a1aa] text-[9px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-widest border border-[#27272a] flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#a1a1aa] animate-ping" /> Live Feed
                 </span>
               </div>
               <div className="flex space-x-2">
@@ -686,14 +639,14 @@ export function LandingPage() {
             <div className="p-6 grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
               {/* LEFT BAR: Quick Status */}
               <div className="md:col-span-4 space-y-3 text-xs">
-                <div className="p-3 rounded-lg bg-[#313338] border border-white/[0.03]">
+                <div className="p-3 rounded-lg bg-[#18181b] border border-white/[0.03]">
                   <span className="text-neutral-400 block font-bold tracking-wider text-[10px] uppercase mb-1">Command Input</span>
                   <div className="flex items-center space-x-0.5 relative">
                     <CopyCodeBadge code=";killed Icaruthia" />
                     <span className="w-1.5 h-4 bg-cyan-400 animate-pulse" />
                   </div>
                 </div>
-                <div className="p-3 rounded-lg bg-[#313338] border border-white/[0.03]">
+                <div className="p-3 rounded-lg bg-[#18181b] border border-white/[0.03]">
                   <span className="text-purple-300 block font-bold tracking-wider text-[10px] uppercase mb-1">Automation Dispatch</span>
                   <p className="text-neutral-300 leading-relaxed">Instantly syncs rotation matrix updates back to web dashboards.</p>
                 </div>
@@ -708,12 +661,12 @@ export function LandingPage() {
                   <div className="w-full">
                     <div className="flex items-baseline space-x-1.5 mb-1.5">
                       <span className="font-bold text-[#fafafa] text-sm">RaidScout Bot</span>
-                      <span className="bg-[#5865f2] text-[#fafafa] text-[9px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider">APP</span>
+                      <span className="bg-[#18181b] text-[#fafafa] text-[9px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider">APP</span>
                       <span className="text-[10px] text-neutral-400 font-mono ml-2">Synced just now</span>
                     </div>
 
                     {/* Embed Panel */}
-                    <div className="border-l-4 border-red-500 bg-[#313338] rounded-r-xl p-5 shadow-2xl relative overflow-hidden border-y border-white/[0.02] border-r-white/[0.02]">
+                    <div className="border-l-4 border-[#27272a] bg-[#18181b] rounded-r-xl p-5 shadow-2xl relative overflow-hidden border-y border-white/[0.02] border-r-white/[0.02]">
                       {/* Scanner Line */}
                       <div className="absolute inset-x-0 h-[2px] bg-gradient-to-r from-transparent via-red-500/50 to-transparent pointer-events-none z-20 animate-scan-line" />
                       {/* Grid Pattern */}
@@ -725,15 +678,15 @@ export function LandingPage() {
                       </div>
 
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 relative z-10">
-                        <div className="bg-[#2b2d31]/80 p-2.5 rounded-lg border border-white/[0.03]">
+                        <div className="bg-[#18181b] p-2.5 rounded-lg border border-white/[0.03]">
                           <span className="text-neutral-400 block font-bold text-[10px] tracking-wider uppercase mb-1">Death Time</span>
                           <span className="font-mono text-[11px] text-neutral-200 block font-semibold">June 2, 2026 9:09 PM</span>
                         </div>
-                        <div className="bg-[#2b2d31]/80 p-2.5 rounded-lg border border-white/[0.03]">
+                        <div className="bg-[#18181b] p-2.5 rounded-lg border border-white/[0.03]">
                           <span className="text-neutral-400 block font-bold text-[10px] tracking-wider uppercase mb-1">Recorded By</span>
                           <span className="font-mono text-[11px] text-gray-300 block font-semibold">._.r0cky</span>
                         </div>
-                        <div className="bg-[#2b2d31]/80 p-2.5 rounded-lg border border-white/[0.03] border-b-cyan-500/20">
+                        <div className="bg-[#18181b] p-2.5 rounded-lg border border-white/[0.03] border-b-[#3f3f46]">
                           <span className="text-neutral-400 block font-bold text-[10px] tracking-wider uppercase mb-1">Next Spawn</span>
                           <span className="font-mono text-[11px] text-cyan-400 block font-bold tracking-tight">June 5, 2026 9:00 PM</span>
                         </div>
@@ -752,29 +705,27 @@ export function LandingPage() {
         </div>
       </section>
       {/* ── Auth Section ── */}
-      <section id="get-started" className="relative bg-gradient-to-b from-[#0b1018] to-[#040816] px-6 py-24">
+      <section id="get-started" className="relative bg-[#09090b] px-6 py-24">
         <div className="max-w-md mx-auto">
           <div className="text-center mb-10">
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/[0.03] border border-white/[0.06] text-sky-300/80 text-xs font-medium mb-6 backdrop-blur-sm">
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-[#27272a] text-[#71717a] text-xs font-medium mb-6">
               <LogIn className="w-3.5 h-3.5" /> GET STARTED
             </div>
-            <h2 className="text-3xl md:text-4xl font-bold text-[#F8FAFC] mb-4">
+            <h2 className="text-3xl md:text-4xl font-bold text-[#fafafa] mb-4">
               Ready to start?
-              <div className="mx-auto mt-4 w-12 h-0.5 bg-sky-400/60 rounded-full" />
+              <div className="mx-auto mt-4 w-12 h-0.5 bg-[#a1a1aa]/60 rounded-full" />
             </h2>
             <p className="text-[#fafafa]/50 text-sm">Create an account or view as guest.</p>
           </div>
 
           {/* Auth Card */}
-          <div className="relative rounded-2xl bg-[#111214] border border-white/[0.06] p-6 shadow-2xl shadow-black/40 backdrop-blur-sm overflow-hidden">
-            {/* Ambient glow */}
-            <div className="absolute -inset-1 bg-gradient-to-r from-sky-500/5 via-violet-500/5 to-sky-500/5 rounded-2xl blur opacity-50" />
+          <div className="relative rounded-2xl bg-[#18181b] border border-[#27272a] p-6 shadow-2xl shadow-black/40 overflow-hidden">
             <div className="relative z-10">
               {/* Top Toggle */}
               <div className="flex bg-white/[0.03] rounded-xl p-1 mb-6">
                 {[{ mode: false, label: "Account", icon: <LogIn className="w-3.5 h-3.5" /> }, { mode: true, label: "View as Guest", icon: <Eye className="w-3.5 h-3.5" /> }].map(t => (
                   <button key={t.label} type="button" onClick={() => { setViewerMode(t.mode); setError(null); }}
-                    className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-xs font-medium transition-all duration-200 ${viewerMode === t.mode ? "bg-white/[0.06] text-[#F8FAFC] shadow-sm" : "text-[#fafafa]/40 hover:text-[#fafafa]/70"}`}>
+                    className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-xs font-medium transition-all duration-200 ${viewerMode === t.mode ? "bg-white/[0.06] text-[#fafafa] shadow-sm" : "text-[#fafafa]/40 hover:text-[#fafafa]/70"}`}>
                     {t.icon}{t.label}
                   </button>
                 ))}
@@ -787,13 +738,13 @@ export function LandingPage() {
                     <div className="relative">
                       <Key className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#fafafa]/30" />
                       <input type="text" value={viewerKey} onChange={e => setViewerKey(e.target.value)} required placeholder="Paste your viewer key..."
-                        className="w-full pl-10 pr-4 py-3 bg-white/[0.03] border border-white/[0.08] rounded-xl text-[#F8FAFC] placeholder-white/20 text-sm font-mono outline-none focus:border-sky-500/50 focus:ring-1 focus:ring-sky-500/20 transition-all duration-200" />
+                        className="w-full pl-10 pr-4 py-3 bg-white/[0.03] border border-white/[0.08] rounded-xl text-[#fafafa] placeholder-white/20 text-sm font-mono outline-none focus:border-sky-500/50 focus:ring-1 focus:ring-sky-500/20 transition-all duration-200" />
                     </div>
                   </div>
                   <p className="text-xs text-[#fafafa]/30">Get this from your server owner. No account needed.</p>
                   {error && <div className="flex items-start gap-2 text-red-400 text-sm bg-red-400/10 border border-red-400/20 rounded-xl px-3 py-2"><AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" /><span>{error}</span></div>}
                   <button type="submit" disabled={loading || !viewerKey.trim()}
-                    className="w-full relative group flex items-center justify-center gap-2 py-3 rounded-xl font-semibold bg-[#F8FAFC] text-[#040816] hover:bg-white disabled:opacity-40 transition-all duration-200 shadow-lg shadow-white/5 hover:shadow-white/10 text-sm">
+                    className="w-full relative group flex items-center justify-center gap-2 py-3 rounded-xl font-semibold bg-[#F8FAFC] text-[#040816] hover:bg-white disabled:opacity-40 transition-all duration-200  text-sm">
                     {loading ? <span className="w-4 h-4 border-2 border-[#040816]/30 border-t-[#040816] rounded-full animate-spin" /> : <><Eye className="w-4 h-4" /> View Server <span className="inline-block group-hover:translate-x-0.5 transition-transform">→</span></>}
                   </button>
                 </form>
@@ -802,22 +753,22 @@ export function LandingPage() {
                   {/* Sign In / Sign Up tabs */}
                   <div className="flex bg-white/[0.03] rounded-xl p-1 mb-2">
                     <button type="button" onClick={() => { setIsSignUp(false); setError(null); setSuccess(null); setResetSent(false); setAcceptedTerms(false); }}
-                      className={`flex-1 py-2 rounded-lg text-xs font-medium transition-all duration-200 ${!isSignUp ? "bg-white/[0.06] text-[#F8FAFC] shadow-sm" : "text-[#fafafa]/40 hover:text-[#fafafa]/70"}`}>Sign In</button>
+                      className={`flex-1 py-2 rounded-lg text-xs font-medium transition-all duration-200 ${!isSignUp ? "bg-white/[0.06] text-[#fafafa] shadow-sm" : "text-[#fafafa]/40 hover:text-[#fafafa]/70"}`}>Sign In</button>
                     <button type="button" onClick={() => { setIsSignUp(true); setError(null); setSuccess(null); setResetSent(false); setAcceptedTerms(false); }}
-                      className={`flex-1 py-2 rounded-lg text-xs font-medium transition-all duration-200 ${isSignUp ? "bg-white/[0.06] text-[#F8FAFC] shadow-sm" : "text-[#fafafa]/40 hover:text-[#fafafa]/70"}`}>Sign Up</button>
+                      className={`flex-1 py-2 rounded-lg text-xs font-medium transition-all duration-200 ${isSignUp ? "bg-white/[0.06] text-[#fafafa] shadow-sm" : "text-[#fafafa]/40 hover:text-[#fafafa]/70"}`}>Sign Up</button>
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-[#fafafa]/60 mb-2 ml-1">Email</label>
                     <div className="relative">
                       <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#fafafa]/30" />
                       <input type="email" value={email} onChange={e => setEmail(e.target.value)} required placeholder="you@example.com"
-                        className="w-full pl-10 pr-4 py-3 bg-white/[0.03] border border-white/[0.08] rounded-xl text-[#F8FAFC] placeholder-white/20 text-sm outline-none focus:border-sky-500/50 focus:ring-1 focus:ring-sky-500/20 transition-all duration-200" />
+                        className="w-full pl-10 pr-4 py-3 bg-white/[0.03] border border-white/[0.08] rounded-xl text-[#fafafa] placeholder-white/20 text-sm outline-none focus:border-sky-500/50 focus:ring-1 focus:ring-sky-500/20 transition-all duration-200" />
                     </div>
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-[#fafafa]/60 mb-2 ml-1">Password</label>
                     <input type="password" value={password} onChange={e => setPassword(e.target.value)} required minLength={6} placeholder="••••••••"
-                      className="w-full px-4 py-3 bg-white/[0.03] border border-white/[0.08] rounded-xl text-[#F8FAFC] placeholder-white/20 text-sm outline-none focus:border-sky-500/50 focus:ring-1 focus:ring-sky-500/20 transition-all duration-200" />
+                      className="w-full px-4 py-3 bg-white/[0.03] border border-white/[0.08] rounded-xl text-[#fafafa] placeholder-white/20 text-sm outline-none focus:border-sky-500/50 focus:ring-1 focus:ring-sky-500/20 transition-all duration-200" />
                   </div>
                   {!isSignUp && (
                     <div className="flex justify-end">
@@ -837,7 +788,7 @@ export function LandingPage() {
                   {success && <div className="flex items-start gap-2 text-emerald-400 text-sm bg-emerald-400/10 border border-emerald-400/20 rounded-xl px-3 py-2"><CheckCircle className="w-4 h-4 shrink-0 mt-0.5" /><span>{success}</span></div>}
                   {error && !resetSent && !success && <div className="flex items-start gap-2 text-red-400 text-sm bg-red-400/10 border border-red-400/20 rounded-xl px-3 py-2"><AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" /><span>{error}</span></div>}
                   <button type="submit" disabled={loading || (isSignUp && !acceptedTerms)}
-                    className="w-full relative group flex items-center justify-center gap-2 py-3 rounded-xl font-semibold bg-[#F8FAFC] text-[#040816] hover:bg-white disabled:opacity-40 transition-all duration-200 shadow-lg shadow-white/5 hover:shadow-white/10 text-sm">
+                    className="w-full relative group flex items-center justify-center gap-2 py-3 rounded-xl font-semibold bg-[#F8FAFC] text-[#040816] hover:bg-white disabled:opacity-40 transition-all duration-200  text-sm">
                     {loading ? <span className="w-4 h-4 border-2 border-[#040816]/30 border-t-[#040816] rounded-full animate-spin" /> : <>{isSignUp ? <UserPlus className="w-4 h-4" /> : <LogIn className="w-4 h-4" />}{isSignUp ? "Create Account" : "Sign In"} <span className="inline-block group-hover:translate-x-0.5 transition-transform">→</span></>}
                   </button>
                 </form>
@@ -848,15 +799,15 @@ export function LandingPage() {
       </section>
 
       {/* ── FAQ Section ── */}
-      <section className="relative bg-[#0b1018] px-6 py-24">
+      <section className="relative bg-[#09090b] px-6 py-24">
         <div className="max-w-3xl mx-auto">
           <div className="text-center mb-14">
             <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/[0.03] border border-white/[0.06] text-sky-300/80 text-xs font-medium mb-6 backdrop-blur-sm">
               <MessageSquare className="w-3.5 h-3.5" /> FAQ
             </div>
-            <h2 className="text-3xl md:text-4xl font-bold text-[#F8FAFC] mb-4">
+            <h2 className="text-3xl md:text-4xl font-bold text-[#fafafa] mb-4">
               Frequently Asked Questions
-              <div className="mx-auto mt-4 w-12 h-0.5 bg-sky-400/60 rounded-full" />
+              <div className="mx-auto mt-4 w-12 h-0.5 bg-[#a1a1aa]/60 rounded-full" />
             </h2>
             <p className="text-[#fafafa]/50 text-sm">Everything you need to know.</p>
           </div>
@@ -865,10 +816,10 @@ export function LandingPage() {
       </section>
 
       {/* ── Footer ── */}
-      <footer className="border-t border-white/[0.04] bg-[#060a10] py-20 px-6">
+      <footer className="border-t border-white/[0.04] bg-[#09090b] py-20 px-6">
         <div className="max-w-6xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-10 mb-16">
           <div>
-            <h4 className="text-sm font-semibold text-[#F8FAFC] mb-5">Product</h4>
+            <h4 className="text-sm font-semibold text-[#fafafa] mb-5">Product</h4>
             <div className="space-y-3 text-sm text-[#fafafa]/40">
               <a href="#" className="block hover:text-[#fafafa] transition-colors">Boss Timer</a>
               <a href="#" className="block hover:text-[#fafafa] transition-colors">Weekly Schedule</a>
@@ -877,7 +828,7 @@ export function LandingPage() {
             </div>
           </div>
           <div>
-            <h4 className="text-sm font-semibold text-[#F8FAFC] mb-5">Resources</h4>
+            <h4 className="text-sm font-semibold text-[#fafafa] mb-5">Resources</h4>
             <div className="space-y-3 text-sm text-[#fafafa]/40">
               <a href="https://discord.gg/738AmkeQtU" target="_blank" rel="noopener noreferrer" className="block hover:text-[#fafafa] transition-colors">Discord Bot Setup</a>
               <a href="#" className="block hover:text-[#fafafa] transition-colors">Documentation</a>
@@ -885,14 +836,14 @@ export function LandingPage() {
             </div>
           </div>
           <div>
-            <h4 className="text-sm font-semibold text-[#F8FAFC] mb-5">Company</h4>
+            <h4 className="text-sm font-semibold text-[#fafafa] mb-5">Company</h4>
             <div className="space-y-3 text-sm text-[#fafafa]/40">
               <Link to="/terms" className="block hover:text-[#fafafa] transition-colors">Terms of Service</Link>
               <Link to="/privacy" className="block hover:text-[#fafafa] transition-colors">Privacy Policy</Link>
             </div>
           </div>
           <div>
-            <h4 className="text-sm font-semibold text-[#F8FAFC] mb-5">Community</h4>
+            <h4 className="text-sm font-semibold text-[#fafafa] mb-5">Community</h4>
             <div className="space-y-3 text-sm text-[#fafafa]/40">
               <a href="https://discord.gg/738AmkeQtU" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 hover:text-sky-400 transition-colors">
                 <svg className="w-4 h-4 text-[#5865f2]" viewBox="0 0 24 24" fill="currentColor"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z"/></svg>Discord
@@ -1005,13 +956,13 @@ function CommandLine({ cmd, desc, detail, last }: { cmd: string; desc: string; d
       {/* Command */}
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-indigo-300 text-sm font-semibold">{cmd.split(' ')[0]}</span>
+          <span className="text-[#a1a1aa] text-sm font-semibold">{cmd.split(' ')[0]}</span>
           {cmd.split(' ').slice(1).map((arg, i) => (
-            <span key={i} className={arg.startsWith('!') ? 'text-indigo-300 text-sm font-semibold' : 'text-amber-300/80 text-sm'}>{arg}</span>
+            <span key={i} className={arg.startsWith('!') ? 'text-[#a1a1aa] text-sm font-semibold' : 'text-amber-300/80 text-sm'}>{arg}</span>
           ))}
           {/* Copy button */}
           <button className="ml-auto opacity-0 group-hover:opacity-100 transition p-1 rounded hover:bg-white/[0.05]" onClick={e => { e.stopPropagation(); copyCmd(); }}>
-            {copied ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3 text-slate-500" />}
+            {copied ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3 text-[#71717a]" />}
           </button>
         </div>
         <p className="text-[#fafafa]/80 text-xs mt-0.5">{desc}</p>
@@ -1089,7 +1040,7 @@ function ScreenshotShowcase() {
     <section className="max-w-6xl mx-auto px-6 pb-24 overflow-hidden">
       <div className="text-center mb-12">
         <h2 className="text-3xl font-bold">See It in Action</h2>
-        <p className="text-slate-400 mt-2">Everything you need to dominate boss rotations.</p>
+        <p className="text-[#a1a1aa] mt-2">Everything you need to dominate boss rotations.</p>
       </div>
 
       {/* Laptop mockup */}
@@ -1101,9 +1052,9 @@ function ScreenshotShowcase() {
             </div>
           </div>
           <div className="relative mx-auto bg-slate-700 rounded-b-lg rounded-t-sm w-[105%] -mt-[2px] h-4">
-            <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-32 h-1.5 bg-slate-600 rounded-b-sm" />
+            <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-32 h-1.5 bg-[#3f3f46] rounded-b-sm" />
           </div>
-          <p className="text-center mt-3 text-sm text-slate-400">Live Countdown Timers</p>
+          <p className="text-center mt-3 text-sm text-[#a1a1aa]">Live Countdown Timers</p>
         </div>
       </div>
 
@@ -1151,7 +1102,7 @@ function ScreenshotShowcase() {
           <button
             key={i}
             onClick={() => setActive(i)}
-            className={`w-2 h-2 rounded-full transition-all duration-300 ${i === active ? "bg-sky-400 w-6" : "bg-slate-700 hover:bg-slate-500"}`}
+            className={`w-2 h-2 rounded-full transition-all duration-300 ${i === active ? "bg-[#a1a1aa] w-6" : "bg-[#3f3f46] hover:bg-[#52525b]"}`}
           />
         ))}
       </div>
@@ -1207,7 +1158,7 @@ function FAQ() {
             onClick={() => setOpenIndex(openIndex === i ? null : i)}
             className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-white/[0.02] transition-colors"
           >
-            <span className="text-sm font-medium text-[#F8FAFC] pr-4">{faq.q}</span>
+            <span className="text-sm font-medium text-[#fafafa] pr-4">{faq.q}</span>
             <ChevronDown
               className={`w-4 h-4 text-[#fafafa]/40 shrink-0 transition-transform duration-300 ${openIndex === i ? "rotate-180" : ""}`}
             />

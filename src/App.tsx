@@ -41,7 +41,7 @@ function AppContent() {
 
   if (!isSupabaseConfigured()) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-950">
+      <div className="min-h-screen flex items-center justify-center bg-[#09090b]">
         <div className="text-center space-y-4">
           <div className="w-12 h-12 mx-auto rounded-xl bg-red-900/30 flex items-center justify-center">
             <span className="text-2xl">⚠️</span>
@@ -58,7 +58,7 @@ function AppContent() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-950">
+      <div className="min-h-screen flex items-center justify-center bg-[#09090b]">
         <div className="w-8 h-8 border-2 border-slate-600 border-t-red-500 rounded-full animate-spin" />
       </div>
     );
@@ -116,15 +116,15 @@ function AppRoutes() {
       <Route
         element={
           !ready ? (
-            <div className="min-h-screen flex items-center justify-center bg-slate-950">
+            <div className="min-h-screen flex items-center justify-center bg-[#09090b]">
               <div className="w-8 h-8 border-2 border-slate-600 border-t-red-500 rounded-full animate-spin" />
             </div>
           ) : !hasServer && isAdmin ? (
             <Navigate to="/admin" replace />
           ) : !hasServer ? (
-            <div className="min-h-screen bg-slate-950">
+            <div className="min-h-screen bg-[#09090b]">
               <div className="max-w-[90rem] mx-auto px-4 h-14 flex items-center">
-                <span className="font-bold text-white">RaidScout</span>
+                <span className="font-bold text-[#fafafa]">RaidScout</span>
               </div>
               <NoServerView />
             </div>

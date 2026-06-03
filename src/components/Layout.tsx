@@ -67,7 +67,7 @@ export function Layout() {
   // Set page title based on route
   useEffect(() => {
     const titles: Record<string, string> = {
-      "/": "Bosses — RaidScout",
+      "/": "Bosses / Activities — RaidScout",
       "/schedule": "Weekly Schedule — RaidScout",
       "/leaderboard": "Leaderboard — RaidScout",
       "/history": "Kill History — RaidScout",
@@ -135,7 +135,7 @@ export function Layout() {
                 }
               >
                 <List className="w-4 h-4" />
-                <span className="hidden sm:inline">Bosses</span>
+                <span className="hidden sm:inline">Bosses / Activities</span>
               </NavLink>
               <NavLink
                 to="/schedule"

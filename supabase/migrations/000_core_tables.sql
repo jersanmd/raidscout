@@ -85,6 +85,7 @@ CREATE TABLE IF NOT EXISTS discord_configs (
 
 ALTER TABLE discord_configs ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can manage discord_configs" ON discord_configs;
 CREATE POLICY "Users can manage discord_configs" ON discord_configs
   FOR ALL
   USING (auth.uid() IS NOT NULL)
@@ -137,13 +138,26 @@ CREATE POLICY "Server owners can manage memberships" ON server_members
 -- ── user_roles ──────────────────────────────────────────────
 ALTER TABLE user_roles ENABLE ROW LEVEL SECURITY;
 
+CREATE POLICY "Users can read own role" ON user_roles
+  FOR SELECT USING (user_id = auth.uid());
+
 CREATE POLICY "Admins can read roles" ON user_roles
   FOR SELECT USING (
     EXISTS (SELECT 1 FROM user_roles WHERE user_id = auth.uid() AND role = 'admin')
   );
 
 CREATE POLICY "Admins can manage roles" ON user_roles
-  FOR ALL USING (
+  FOR INSERT WITH CHECK (
+    EXISTS (SELECT 1 FROM user_roles WHERE user_id = auth.uid() AND role = 'admin')
+  );
+
+CREATE POLICY "Admins can update roles" ON user_roles
+  FOR UPDATE USING (
+    EXISTS (SELECT 1 FROM user_roles WHERE user_id = auth.uid() AND role = 'admin')
+  );
+
+CREATE POLICY "Admins can delete roles" ON user_roles
+  FOR DELETE USING (
     EXISTS (SELECT 1 FROM user_roles WHERE user_id = auth.uid() AND role = 'admin')
   );
 

@@ -5,7 +5,8 @@ import { useServer } from "@/contexts/ServerContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { deleteServer, transferServerOwnership, removeServerModerator, addServerModerator, supabase, fetchServerMembers, type ServerMember, fetchGuilds, createGuild, updateGuildName, deleteGuild, fetchBossGuilds, setBossGuilds, fetchAllBossGuildsForServer, upsertBossGuildPoints, batchSetGuildSalary, fetchBosses, setBossPoints, setBossSalary, notifyDiscord, fetchModeratorPermissions, updateModeratorPermissions, updateThreadConfig, fetchPointRules, createPointRule, updatePointRule, deletePointRule, fetchBossAssists, toggleBossAssist, type ModeratorPermissions, DEFAULT_MODERATOR_PERMISSIONS } from "@/lib/supabase";
 import type { Guild, BossGuild, Boss, PointRule, BossAssist } from "@/types";
-import { Loader2, Trash2, Crown, ArrowLeft, Server, Check, Key, Copy, RefreshCw, Plus, LogIn, Users, Bell, Link, Settings, AlertTriangle, X, Shield, Pencil, Swords, ChevronUp, ChevronDown, CheckSquare, Square, Eye, EyeOff, UserPlus, Minus, Trophy, Send, Save, MessageCircle, Zap } from "lucide-react";
+import { Loader2, Trash2, Crown, ArrowLeft, Server, Check, Key, Copy, RefreshCw, Plus, LogIn, Users, Bell, Link, Settings, AlertTriangle, X, Shield, Pencil, Swords, ChevronUp, ChevronDown, CheckSquare, Square, Eye, EyeOff, UserPlus, Minus, Trophy, Send, Save, MessageCircle, Zap, Calendar } from "lucide-react";
+import { ServerBossesActivitiesTab } from "@/components/ServerBossesActivitiesTab";
 import { CreateServerModal } from "@/components/CreateServerModal";
 import { useToast } from "@/contexts/ToastContext";
 
@@ -184,7 +185,7 @@ export function ServerSettingsView() {
   const [savingPerms, setSavingPerms] = useState<string | null>(null); // user_id being saved
   const [searchParams] = useSearchParams();
   const tabParam = searchParams.get("tab");
-  const initialTab = (tabParam === "general" || tabParam === "members" || tabParam === "integrations" || tabParam === "danger" || tabParam === "boss-points")
+  const initialTab = (tabParam === "general" || tabParam === "members" || tabParam === "integrations" || tabParam === "danger" || tabParam === "boss-points" || tabParam === "bosses-activities")
     ? tabParam
     : "general";
   const [tab, setTab] = useState<string>(initialTab);
@@ -985,9 +986,9 @@ export function ServerSettingsView() {
           </div>
           {showCreateModal && <CreateServerModal onClose={() => setShowCreateModal(false)} />}
           <nav className="bg-[#18181b] border border-[#27272a] rounded-xl p-1 space-y-0.5">
-            {(["general","guilds","boss-guilds","boss-points","members","integrations",...(isOwner?["danger"]:[])] as string[]).map((key) => {
-              const icons: Record<string,React.ComponentType<{className?:string}>> = {general:Settings,guilds:Shield,"boss-guilds":Swords,"boss-points":Trophy,members:Users,integrations:Bell,danger:AlertTriangle};
-              const labels: Record<string,string> = {general:"General",guilds:"Guilds","boss-guilds":"Boss Guilds","boss-points":"Boss Points",members:"Members",integrations:"Integrations",danger:"Danger"};
+            {(["general","guilds","boss-guilds","boss-points","members","integrations","bosses-activities",...(isOwner?["danger"]:[])] as string[]).map((key) => {
+              const icons: Record<string,React.ComponentType<{className?:string}>> = {general:Settings,guilds:Shield,"boss-guilds":Swords,"boss-points":Trophy,members:Users,"bosses-activities":Calendar,integrations:Bell,danger:AlertTriangle};
+              const labels: Record<string,string> = {general:"General",guilds:"Guilds","boss-guilds":"Boss Guilds","boss-points":"Boss Points",members:"Members","bosses-activities":"Bosses/Activities",integrations:"Integrations",danger:"Danger"};
               const Icon = icons[key];
               return <button key={key} onClick={() => setTab(key)}
                 className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition ${tab===key?"bg-[#27272a] text-[#fafafa]":"text-[#a1a1aa] hover:text-[#fafafa] hover:bg-[#27272a]/50"}`}>
@@ -2339,6 +2340,11 @@ export function ServerSettingsView() {
             </div>
           </section>
         </div>
+      )}
+
+      {/* Bosses/Activities Tab */}
+      {tab === "bosses-activities" && (
+        <ServerBossesActivitiesTab />
       )}
 
       {/* Danger Tab */}

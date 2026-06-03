@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import type { Boss, DeathRecord, Member, AttendanceRecord, LeaderboardEntry, PointRule, BossAssist } from "@/types";
+import type { Boss, DeathRecord, Member, AttendanceRecord, LeaderboardEntry, PointRule, BossAssist, Activity } from "@/types";
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
@@ -33,29 +33,21 @@ export function getCurrentViewerKey(): string | null { return _currentViewerKey;
 
 // ── Server Management ──────────────────────────────────────
 
-export async function createServer(name: string, gameId: string | null, seed: boolean = true, guildName?: string): Promise<{ id: string; name: string; guild_id?: string }> {
+export async function createServer(name: string, gameId: string | null, seed: boolean = true, guildName?: string): Promise<{ id: string; name: string }> {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Not authenticated");
 
-  // Use RPC function that creates server + optionally seeds bosses/activities + creates guild in one transaction
+  // RPC handles everything: creates server + server_members + guild + seeds in one transaction
   const { data, error } = await supabase
-    .rpc("create_server_with_bosses", { p_name: name.trim(), p_game_id: gameId, p_seed: seed });
+    .rpc("create_server_with_bosses", {
+      p_name: name.trim(),
+      p_game_id: gameId,
+      p_seed: seed,
+      p_guild_name: guildName?.trim() || null,
+    });
 
   if (error) throw error;
-
-  // If a guild name was provided, create it
-  let guildId: string | undefined;
-  if (guildName?.trim() && data) {
-    const serverId = typeof data === 'string' ? data : (data as any).id || data;
-    const { data: g, error: gErr } = await supabase
-      .from("guilds")
-      .insert({ name: guildName.trim(), server_id: serverId })
-      .select("id")
-      .single();
-    if (!gErr && g) guildId = g.id;
-  }
-
-  return { id: typeof data === 'string' ? data : (data as any).id || data, name: name.trim(), guild_id: guildId };
+  return { id: data as string, name: name.trim() };
 }
 
 export async function fetchGames(): Promise<any[]> {
@@ -514,6 +506,109 @@ export async function advanceBossRotation(bossId: string): Promise<number> {
     .rpc("advance_boss_rotation", { p_boss_id: bossId });
   if (error) throw error;
   return data as number;
+}
+
+
+// ── Custom Boss & Activity CRUD (server owners/moderators) ──
+
+export async function fetchAllBossesForServer(serverId: string): Promise<Boss[]> {
+  const { data, error } = await supabase
+    .from("bosses")
+    .select("*")
+    .eq("server_id", serverId)
+    .order("name");
+  if (error) throw error;
+  return (data || []) as Boss[];
+}
+
+export async function fetchAllActivitiesForServer(serverId: string): Promise<Activity[]> {
+  const { data, error } = await supabase
+    .from("activities")
+    .select("*")
+    .eq("server_id", serverId)
+    .order("name");
+  if (error) throw error;
+  return (data || []) as Activity[];
+}
+
+export async function createCustomBoss(
+  serverId: string,
+  data: {
+    name: string; spawn_type: string; respawn_hours?: number | null;
+    schedule?: any; is_recurring?: boolean; boss_points?: number;
+    category?: string | null; tags?: string[];
+  }
+): Promise<Boss> {
+  const { data: id, error } = await supabase.rpc("create_custom_boss", {
+    p_server_id: serverId, p_name: data.name, p_spawn_type: data.spawn_type,
+    p_respawn_hours: data.respawn_hours ?? null, p_schedule: data.schedule ?? null,
+    p_is_recurring: data.is_recurring ?? true,
+    p_boss_points: data.boss_points ?? 1,
+    p_category: data.category ?? null, p_tags: data.tags ?? [],
+  });
+  if (error) throw error;
+  return { id: id as string } as Boss;
+}
+
+export async function createCustomActivity(
+  serverId: string,
+  data: {
+    name: string; schedule_type: string; schedule?: any;
+    points_per_participant?: number;
+    party_size?: number | null; category?: string | null; tags?: string[];
+  }
+): Promise<Activity> {
+  const { data: id, error } = await supabase.rpc("create_custom_activity", {
+    p_server_id: serverId, p_name: data.name, p_schedule_type: data.schedule_type,
+    p_schedule: data.schedule ?? null,
+    p_points_per_participant: data.points_per_participant ?? 1,
+    p_party_size: data.party_size ?? null,
+    p_category: data.category ?? null, p_tags: data.tags ?? [],
+  });
+  if (error) throw error;
+  return { id: id as string } as Activity;
+}
+
+export async function updateCustomBoss(id: string, updates: Record<string, any>): Promise<void> {
+  if (updates.boss_points !== undefined) updates.points = updates.boss_points;
+  const { error } = await supabase.from("bosses").update(updates).eq("id", id);
+  if (error) throw error;
+}
+
+export async function updateCustomActivity(id: string, updates: Record<string, any>): Promise<void> {
+  const { error } = await supabase.from("activities").update(updates).eq("id", id);
+  if (error) throw error;
+}
+
+export async function toggleBossEnabled(id: string, enabled: boolean): Promise<void> {
+  const { error } = await supabase.from("bosses").update({ is_enabled: enabled }).eq("id", id);
+  if (error) throw error;
+}
+
+export async function toggleActivityEnabled(id: string, enabled: boolean): Promise<void> {
+  const { error } = await supabase.from("activities").update({ is_enabled: enabled }).eq("id", id);
+  if (error) throw error;
+}
+
+/** Mark an activity as finished. One-time activities get disabled; others log an instance. */
+export async function finishActivity(activityId: string): Promise<void> {
+  const { data: activity } = await supabase.from("activities").select("schedule_type").eq("id", activityId).single();
+  if (!activity) throw new Error("Activity not found");
+
+  if (activity.schedule_type === "one_time") {
+    // Auto-disable one-time activities
+    const { error } = await supabase.from("activities").update({ is_enabled: false }).eq("id", activityId);
+    if (error) throw error;
+  }
+
+  // Record the activity instance with end_time
+  const now = new Date().toISOString();
+  const { error } = await supabase.from("activity_instances").insert({
+    activity_id: activityId,
+    start_time: now,
+    end_time: now,
+  });
+  if (error) throw error;
 }
 
 // ── Death Records ───────────────────────────────────────────
