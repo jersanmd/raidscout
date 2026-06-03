@@ -5,13 +5,14 @@ import { useLeaderboard, type LeaderboardPeriod } from "@/hooks/useAttendance";
 import { useLeaderboardSnapshots, getLastFinalized, getLeaderboardResetAt } from "@/hooks/useLeaderboardSnapshots";
 import { guildColor } from "@/lib/constants";
 import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/contexts/ToastContext";
 import { useServerId, useServer, useHasPermission } from "@/contexts/ServerContext";
 import { useServerTimezone } from "@/hooks/useServerTimezone";
-import { fetchMemberKills, type MemberBossKill, isSupabaseConfigured, fetchGuilds, adjustMemberPoints, fetchPointAdjustments, fetchPointRules, supabase } from "@/lib/supabase";
+import { fetchMemberKills, type MemberBossKill, isSupabaseConfigured, fetchGuilds, adjustMemberPoints, fetchPointAdjustments, fetchPointRules, resetGuildPoints, supabase } from "@/lib/supabase";
 import { useAttendance } from "@/hooks/useAttendance";
 import { useMembers } from "@/hooks/useMembers";
 import type { Guild, LeaderboardSnapshot, PointAdjustment } from "@/types";
-import { Trophy, Medal, Crown, Users, Loader2, X, Skull, CheckCheck, History, ChevronRight, ChevronLeft, ChevronUp, ChevronDown, Search, Shield, Plus, Minus, Edit3, Share2 } from "lucide-react";
+import { Trophy, Medal, Crown, Users, Loader2, X, Skull, CheckCheck, History, ChevronRight, ChevronLeft, Search, Shield, Edit3, RotateCcw } from "lucide-react";
 import { TableRowSkeleton } from "@/components/Skeletons";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 
@@ -37,6 +38,7 @@ export function LeaderboardView() {
   const [period, setPeriod] = useState<LeaderboardPeriod>("weekly");
   const { data: entries = [], isLoading } = useLeaderboard(period);
   const { user, isViewer } = useAuth();
+  const { toast } = useToast();
   const serverId = useServerId();
   const queryClient = useQueryClient();
   const configured = isSupabaseConfigured();
@@ -56,10 +58,11 @@ export function LeaderboardView() {
     useLeaderboardSnapshots();
   const lastFinalized = getLastFinalized();
   const [finalizing, setFinalizing] = useState(false);
-  const [showSnapshots, setShowSnapshots] = useState(false);
+  const [showSnapshots, setShowSnapshots] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [guildFilter, setGuildFilter] = useState<string>("all");
-  const [showFinalizeConfirm, setShowFinalizeConfirm] = useState(false);
+  const [showFinalizeConfirm, setShowFinalizeConfirm] = useState<string | null>(null);
+  const [showResetConfirm, setShowResetConfirm] = useState<string | null>(null);
+  const [resetLoading, setResetLoading] = useState(false);
   const [copiedShare, setCopiedShare] = useState(false);
   const [showShareMenu, setShowShareMenu] = useState(false);
   const [snapshotGuildFilter, setSnapshotGuildFilter] = useState<string>("all");
@@ -72,7 +75,8 @@ export function LeaderboardView() {
   const [exportGuildFilter, setExportGuildFilter] = useState<string>("all");
   const [exportGuildOnly, setExportGuildOnly] = useState(false); // only export bosses owned by selected guild
   const [exportLoading, setExportLoading] = useState(false);
-  const [showExport, setShowExport] = useState(false);
+  const [showExport, setShowExport] = useState<string | null>(null);
+  const [carouselPage, setCarouselPage] = useState(0);
 
   // Point adjustment modal state
   const { currentServer } = useServer();
@@ -86,7 +90,7 @@ export function LeaderboardView() {
   const [adjustLoading, setAdjustLoading] = useState(false);
   const [adjustError, setAdjustError] = useState<string | null>(null);
   const [adjustHistory, setAdjustHistory] = useState<PointAdjustment[]>([]);
-  const [showAdjustHistory, setShowAdjustHistory] = useState(false);
+  const [showAdjustHistory, setShowAdjustHistory] = useState<string | null>(null);
 
   // Fetch guilds and members for filtering
   const { data: members = [] } = useMembers();
@@ -98,19 +102,15 @@ export function LeaderboardView() {
 
   // Build member-guild lookup
   const memberGuildMap = new Map(members.map(m => [m.id, m.guild_id]));
+  const memberGuildNameMap = new Map(members.map(m => { const g = guilds.find(g => g.id === m.guild_id); return [m.id, g?.name ?? null] as const; }));
 
-  // Filter by search + guild
-  const filteredEntries = (() => {
-    let result = entries;
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      result = result.filter(e => e.name.toLowerCase().includes(q));
-    }
-    if (guildFilter !== "all") {
-      result = result.filter(e => memberGuildMap.get(e.id) === guildFilter);
-    }
-    return result;
-  })();
+  const filteredEntries = (() => { let result = entries; if (searchQuery.trim()) { const q = searchQuery.toLowerCase(); result = result.filter(e => e.name.toLowerCase().includes(q)); } return result; })();
+
+  const guildGroups = (() => { const groups = new Map<string | null, typeof entries>(); for (const e of filteredEntries) { const gn = memberGuildNameMap.get(e.id) ?? null; if (!groups.has(gn)) groups.set(gn, []); groups.get(gn)!.push(e); } return [...groups.entries()].sort(([a],[b]) => a === null ? 1 : b === null ? -1 : a.localeCompare(b)); })();
+
+  useEffect(() => { if (!serverId) return; const s = localStorage.getItem(`raidscout-carousel-${serverId}`); if (s) setCarouselPage(parseInt(s, 10)); }, [serverId]);
+  useEffect(() => { if (serverId) localStorage.setItem(`raidscout-carousel-${serverId}`, String(carouselPage)); }, [carouselPage, serverId]);
+  useEffect(() => { setCarouselPage(p => p >= guildGroups.length && guildGroups.length > 0 ? guildGroups.length - 1 : p); }, [guildGroups.length]);
 
   // Auto-open member from URL param (linked from History page)
   const [searchParams, setSearchParams] = useSearchParams();
@@ -124,34 +124,12 @@ export function LeaderboardView() {
         setKillsLoading(true);
         // Calculate period start, accounting for last finalized snapshot reset
         (async () => {
-          const now = new Date();
-          let periodStart: string;
-          if (period === "weekly") {
-            const day = now.getDay();
-            const monday = new Date(now);
-            monday.setDate(now.getDate() - ((day + 6) % 7));
-            monday.setHours(0, 0, 0, 0);
-            periodStart = monday.toISOString();
-          } else if (period === "monthly") {
-            periodStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-          } else {
-            periodStart = "1970-01-01T00:00:00Z";
-          }
-          let since = periodStart;
+          let since = "1970-01-01T00:00:00Z";
           try {
-            const { data: snaps } = await supabase
-              .from("leaderboard_snapshots")
-              .select("finalized_at")
-              .eq("period", period)
-              .eq("server_id", serverId)
-              .order("finalized_at", { ascending: false })
-              .limit(1);
-            if (snaps && snaps.length > 0) {
-              const reset = (snaps[0] as any).finalized_at;
-              if (reset > periodStart) since = reset;
-            }
-          } catch { /* fall back to periodStart */ }
-          fetchMemberKills(entry.id, since, serverId)
+            const { data: snaps } = await supabase.from("leaderboard_snapshots").select("finalized_at").eq("period", period).eq("server_id", serverId).order("finalized_at", { ascending: false }).limit(1);
+            if (snaps && snaps.length > 0) since = (snaps[0] as any).finalized_at;
+          } catch {}
+          fetchMemberKills(entry.id, since, serverId, serverTimezone)
             .then(setMemberKills)
             .catch(() => setMemberKills([]))
             .finally(() => setKillsLoading(false));
@@ -523,7 +501,7 @@ export function LeaderboardView() {
             <h2 className="text-xl font-bold text-white">Leaderboard</h2>
             <p className="text-sm text-slate-400">
               {entries.length} member{entries.length !== 1 ? "s" : ""}
-              {period === "all" ? "" : period === "weekly" ? " · This Week" : " · This Month"}
+              {period === "all" ? "" : " · Since Reset"}
               {" · "}Points per boss set in Settings
             </p>
           </div>
@@ -693,17 +671,9 @@ export function LeaderboardView() {
 
       {/* Period tabs */}
       <div className="flex bg-slate-800 rounded-lg p-0.5">
-        {(["weekly", "monthly", "all"] as LeaderboardPeriod[]).map((p) => (
-          <button
-            key={p}
-            onClick={() => setPeriod(p)}
-            className={`flex-1 py-1.5 rounded-md text-xs font-medium transition ${
-              period === p
-                ? "bg-slate-700 text-white"
-                : "text-slate-400 hover:text-slate-200"
-            }`}
-          >
-            {p === "all" ? "All Time" : p === "weekly" ? "This Week" : "This Month"}
+        {(["weekly", "all"] as LeaderboardPeriod[]).map((p) => (
+          <button key={p} onClick={() => setPeriod(p)} className={`flex-1 py-1.5 rounded-md text-xs font-medium transition ${period === p ? "bg-slate-700 text-white" : "text-slate-400 hover:text-slate-200"}`}>
+            {p === "all" ? "All Time" : "Since Reset"}
           </button>
         ))}
       </div>
