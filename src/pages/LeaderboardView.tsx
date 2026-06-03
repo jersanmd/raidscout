@@ -246,14 +246,20 @@ export function LeaderboardView() {
       const memberMap = new Map(guildMembers.map((m: any) => [m.id, m.name]));
       const memberIds = guildMembers.map((m: any) => m.id);
 
-      // Fetch death records owned by this guild in date range
+      // Fetch ALL death records where this guild's members participated (not just owned by guild)
+      const { data: attForDeaths } = await supabase
+        .from("attendance_records")
+        .select("death_record_id")
+        .in("member_id", memberIds)
+        .gte("created_at", startISO)
+        .lte("created_at", new Date(endISO).toISOString());
+      const participatedDeathIds = [...new Set((attForDeaths || []).map((a: any) => a.death_record_id))];
+      if (!participatedDeathIds.length) { alert("No boss kills for " + guildName + " members in this date range."); setExportLoading(false); return; }
+
       const { data: deaths, error: deathsErr } = await supabase
         .from("death_records")
-        .select("id,boss_id,death_time,party_leaders")
-        .eq("server_id", serverId)
-        .eq("owner_guild_id", guild.id)
-        .gte("death_time", startISO)
-        .lte("death_time", endISO)
+        .select("id,boss_id,death_time,party_leaders,owner_guild_id")
+        .in("id", participatedDeathIds)
         .order("death_time", { ascending: true });
       if (deathsErr) throw new Error(`Death records: ${deathsErr.message}`);
       if (!deaths?.length) { alert("No death records in this date range for " + guildName + "."); setExportLoading(false); return; }
