@@ -1004,6 +1004,7 @@ export async function fetchBossGuilds(serverId?: string | null): Promise<BossGui
     .from("boss_guilds")
     .select("*, bosses!inner(server_id)")
     .eq("bosses.server_id", sid)
+    .neq("sort_order", -1) // exclude points-only sentinel rows
     .order("sort_order", { ascending: true })
     .order("day_of_week", { ascending: true });
   if (error) throw error;
@@ -1037,37 +1038,53 @@ export async function setBossGuilds(
   assignments: { guild_id: string; sort_order?: number; day_of_week?: number }[],
   mode: "rotation" | "schedule" | "daily" = "rotation"
 ): Promise<void> {
-  // Preserve existing points/salary for this boss before deleting
+  // Preserve points/salary from ALL existing rows (including points-only sentinel rows)
   const { data: existing } = await supabase
     .from("boss_guilds")
-    .select("guild_id, points, has_salary")
+    .select("guild_id, points, has_salary, sort_order, mode, day_of_week")
     .eq("boss_id", bossId);
   const preserved = new Map((existing || []).map((r: any) => [r.guild_id, { points: r.points, has_salary: r.has_salary }]));
+  // Track points-only rows (sort_order = -1) to re-insert them separately
+  const pointsOnlyRows = (existing || []).filter((r: any) => r.sort_order === -1 && !assignments.some(a => a.guild_id === r.guild_id));
 
-  // Delete existing assignments for this boss, then insert new ones
+  // Delete existing rotation/schedule/daily rows for this boss (keep sentinel rows handled via re-insert)
   const { error: delErr } = await supabase
     .from("boss_guilds")
     .delete()
     .eq("boss_id", bossId);
   if (delErr) throw delErr;
 
-  if (assignments.length === 0) return;
+  // Insert new rotation assignments
+  if (assignments.length > 0) {
+    const rows = assignments.map((a) => {
+      const prev = preserved.get(a.guild_id);
+      return {
+        boss_id: bossId,
+        guild_id: a.guild_id,
+        sort_order: a.sort_order ?? null,
+        day_of_week: a.day_of_week ?? null,
+        mode,
+        points: prev?.points ?? null,
+        has_salary: prev?.has_salary ?? false,
+      };
+    });
+    const { error } = await supabase.from("boss_guilds").insert(rows);
+    if (error) throw error;
+  }
 
-  const rows = assignments.map((a) => {
-    const prev = preserved.get(a.guild_id);
-    return {
+  // Re-insert points-only rows that were not in the assignment list
+  for (const row of pointsOnlyRows) {
+    const { error } = await supabase.from("boss_guilds").insert({
       boss_id: bossId,
-      guild_id: a.guild_id,
-      sort_order: a.sort_order ?? null,
-      day_of_week: a.day_of_week ?? null,
-      mode,
-      points: prev?.points ?? null,
-      has_salary: prev?.has_salary ?? false,
-    };
-  });
-
-  const { error } = await supabase.from("boss_guilds").insert(rows);
-  if (error) throw error;
+      guild_id: row.guild_id,
+      sort_order: -1,
+      day_of_week: null,
+      mode: "rotation",
+      points: row.points,
+      has_salary: row.has_salary,
+    });
+    if (error) console.warn("Failed to re-insert points-only row:", error);
+  }
 }
 
 /** Upsert per-guild points and/or salary for a boss-guild pair.
@@ -1163,7 +1180,7 @@ export async function fetchLeaderboard(serverId?: string | null): Promise<Leader
 }
 
 export async function fetchLeaderboardByPeriod(
-  since: string,
+  since: string | null,
   serverId?: string | null
 ): Promise<LeaderboardEntry[]> {
   const sid = serverId ?? getCurrentServerId();
@@ -1180,6 +1197,38 @@ export async function fetchLeaderboardByPeriod(
     points: row.total_points,
     last_attended: row.last_attended,
   }));
+}
+
+/** Reset all points for a guild: deletes attendance records and point adjustments
+ *  for all members of the guild. Leaderboard snapshots (Finalize History) are NOT affected. */
+export async function resetGuildPoints(
+  guildId: string,
+  serverId: string
+): Promise<{ deletedAttendance: number; deletedAdjustments: number }> {
+  const { data: members, error: memErr } = await supabase
+    .from("members")
+    .select("id")
+    .eq("guild_id", guildId)
+    .eq("server_id", serverId);
+  if (memErr) throw memErr;
+  const memberIds = (members || []).map((m: any) => m.id);
+  if (memberIds.length === 0) return { deletedAttendance: 0, deletedAdjustments: 0 };
+
+  const { count: attCount, error: attErr } = await supabase
+    .from("attendance_records")
+    .delete({ count: "exact" })
+    .in("member_id", memberIds)
+    .eq("server_id", serverId);
+  if (attErr) throw attErr;
+
+  const { count: adjCount, error: adjErr } = await supabase
+    .from("point_adjustments")
+    .delete({ count: "exact" })
+    .in("member_id", memberIds)
+    .eq("server_id", serverId);
+  if (adjErr) throw adjErr;
+
+  return { deletedAttendance: attCount ?? 0, deletedAdjustments: adjCount ?? 0 };
 }
 
 // ── Point Adjustments ───────────────────────────────────────
@@ -1328,10 +1377,17 @@ export interface MemberBossKill {
   points?: number;
 }
 
-/** Get all bosses a specific member participated in killing */
-export async function fetchMemberKills(memberId: string, since?: string, serverId?: string | null): Promise<MemberBossKill[]> {
+/** Get all bosses a specific member participated in killing, with proper per-guild point calculation */
+export async function fetchMemberKills(
+  memberId: string,
+  since?: string,
+  serverId?: string | null,
+  serverTimezone?: string,
+): Promise<MemberBossKill[]> {
   const sid = serverId ?? getCurrentServerId();
   if (!sid) return [];
+
+  // 1. Fetch attendance records with boss & death info
   let query = supabase
     .from("attendance_records")
     .select("death_record_id, death_records!inner(death_time, boss_id, bosses!inner(name, boss_points))")
@@ -1344,15 +1400,91 @@ export async function fetchMemberKills(memberId: string, since?: string, serverI
   if (sid) query = query.eq("server_id", sid);
 
   const { data, error } = await query;
-
   if (error) throw error;
+  if (!data?.length) return [];
 
-  return (data as any[]).map((row: any) => ({
-    boss_name: row.death_records.bosses.name,
-    killed_at: row.death_records.death_time,
-    death_record_id: row.death_record_id,
-    points: row.death_records.bosses.boss_points ?? 1,
-  }));
+  // 2. Get member's guild
+  const { data: memberData } = await supabase
+    .from("members")
+    .select("guild_id")
+    .eq("id", memberId)
+    .maybeSingle();
+  const guildId = (memberData as any)?.guild_id as string | null;
+
+  // 3. Get unique boss IDs for per-guild override lookup
+  const bossIds = [...new Set((data as any[]).map((r: any) => r.death_records.boss_id))];
+
+  // 4. Fetch per-guild point overrides
+  let bgPointsMap = new Map<string, number>();
+  if (guildId && bossIds.length > 0) {
+    const { data: bgData } = await supabase
+      .from("boss_guilds")
+      .select("boss_id, points")
+      .eq("guild_id", guildId)
+      .in("boss_id", bossIds);
+    for (const bg of (bgData || [])) {
+      if ((bg as any).points != null) {
+        bgPointsMap.set((bg as any).boss_id, (bg as any).points);
+      }
+    }
+  }
+
+  // 5. Fetch time-based multipliers
+  let guildMultipliers: { start_hour: number; end_hour: number; multiplier: number }[] = [];
+  if (guildId) {
+    const { data: rules } = await supabase
+      .from("point_rules")
+      .select("config")
+      .eq("server_id", sid)
+      .eq("guild_id", guildId)
+      .eq("rule_type", "time_multiplier")
+      .eq("enabled", true);
+    for (const rule of (rules || [])) {
+      const cfg = (rule as any).config as any;
+      if (cfg) {
+        guildMultipliers.push({
+          start_hour: cfg.start_hour,
+          end_hour: cfg.end_hour,
+          multiplier: cfg.multiplier,
+        });
+      }
+    }
+  }
+
+  // Helper: get multiplier for a death time
+  const getMultiplier = (deathTime: string): number => {
+    if (!guildMultipliers.length) return 1;
+    const tz = serverTimezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const hour = parseInt(
+      new Date(deathTime).toLocaleString("en-US", { timeZone: tz, hour: "2-digit", hour12: false }),
+      10,
+    );
+    let mult = 1;
+    for (const r of guildMultipliers) {
+      const match = r.start_hour <= r.end_hour
+        ? hour >= r.start_hour && hour < r.end_hour
+        : hour >= r.start_hour || hour < r.end_hour;
+      if (match) mult = Math.max(mult, r.multiplier);
+    }
+    return mult;
+  };
+
+  // 6. Map with correct point calculation
+  return (data as any[]).map((row: any) => {
+    const bossId = row.death_records.boss_id;
+    const bossPoints = row.death_records.bosses.boss_points ?? 0;
+    // Per-guild override takes priority
+    const basePts = guildId && bgPointsMap.has(bossId)
+      ? bgPointsMap.get(bossId)!
+      : bossPoints;
+    const mult = guildId ? getMultiplier(row.death_records.death_time) : 1;
+    return {
+      boss_name: row.death_records.bosses.name,
+      killed_at: row.death_records.death_time,
+      death_record_id: row.death_record_id,
+      points: basePts * mult,
+    };
+  });
 }
 
 // ── Analytics ───────────────────────────────────────────────
@@ -1557,7 +1689,7 @@ export async function fetchHistoryFromSupabase(serverId?: string | null, since?:
 // ── Leaderboard Snapshots ───────────────────────────────────
 
 export async function saveLeaderboardSnapshot(
-  period: "all_time" | "weekly" | "monthly",
+  period: string,
   rankings: { rank: number; memberId: string; memberName: string; points: number }[],
   periodStart: string,
   serverId: string
@@ -1630,7 +1762,7 @@ export async function notifyDiscord(
 ): Promise<{ ok: boolean; skipped?: boolean }> {
   // Skip bot notifications on localhost — the bot server handles its own notifications
   if (typeof window !== "undefined" && window.location.hostname === "localhost") {
-    return { ok: false, skipped: true };
+    return { ok: true };
   }
   try {
     const res = await fetch(`${BOT_NOTIFY_URL}/notify`, {

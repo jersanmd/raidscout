@@ -1,7 +1,7 @@
 {
     "name": "lordnine-boss-timer",
     "private": true,
-    "version": "0.13.23",
+    "version": "0.13.25",
     "type": "module",
     "scripts": {
         "dev": "vite",

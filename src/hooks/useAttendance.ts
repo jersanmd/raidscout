@@ -91,29 +91,14 @@ export function useLeaderboard(period: LeaderboardPeriod = "all") {
     queryFn: async () => {
       if (!configured) return [];
 
-      // Get reset date: use the latest finalized snapshot's date for this period
-      let effectiveReset: string | null = null;
-      if (period !== "all") {
-        try {
-          const { data: snaps } = await supabase
-            .from("leaderboard_snapshots")
-            .select("finalized_at")
-            .eq("period", period)
-            .eq("server_id", serverId)
-            .order("finalized_at", { ascending: false })
-            .limit(1);
-          if (snaps && snaps.length > 0) {
-            effectiveReset = (snaps[0] as any).finalized_at;
-          }
-        } catch { /* fall back to period start */ }
-      }
-
       if (period === "all") {
         return await fetchLeaderboard(serverId);
       }
-      const periodStart = getPeriodStart(period);
-      const since = effectiveReset && effectiveReset > periodStart ? effectiveReset : periodStart;
-      return await fetchLeaderboardByPeriod(since, serverId);
+
+      // "Since Reset": pass null → RPC applies per-guild resets from app_settings.
+      // Each guild uses its own reset date (leaderboard_reset_at:GuildName).
+      // If never finalized, shows all-time for that guild.
+      return await fetchLeaderboardByPeriod(null, serverId);
     },
     staleTime: 30_000,
     refetchOnMount: true,
