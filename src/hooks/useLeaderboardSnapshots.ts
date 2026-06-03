@@ -66,18 +66,19 @@ export function useLeaderboardSnapshots() {
 
   const finalizeResults = useCallback(
     async (
-      period: "all_time" | "weekly" | "monthly",
+      period: string,
       rankings: { rank: number; memberId: string; memberName: string; points: number }[],
       periodStart: string
     ) => {
       const now = new Date().toISOString();
+      // Use guild-specific reset key for per-guild finalization
+      const resetKey = period.startsWith("weekly:") ? `leaderboard_reset_at:${period.replace("weekly:", "")}` : "leaderboard_reset_at";
 
       if (configured && user && serverId) {
         try {
           await saveSnapshotSupabase(period, rankings, periodStart, serverId);
-          // Persist reset date to DB so all devices see the same leaderboard
           await supabase.from("app_settings").upsert(
-            { key: "leaderboard_reset_at", value: now, server_id: serverId },
+            { key: resetKey, value: now, server_id: serverId },
             { onConflict: "key, server_id" }
           );
         } catch (err) {
@@ -85,8 +86,7 @@ export function useLeaderboardSnapshots() {
         }
       }
 
-      // Reset leaderboard: only attendance after this date counts
-      setLeaderboardResetAt(serverId, now);
+      setLeaderboardResetAt(serverId, now, resetKey);
       setLastFinalized(now, period);
 
       queryClient.invalidateQueries({ queryKey: ["leaderboard_snapshots", serverId] });

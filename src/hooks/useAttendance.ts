@@ -91,29 +91,28 @@ export function useLeaderboard(period: LeaderboardPeriod = "all") {
     queryFn: async () => {
       if (!configured) return [];
 
-      // Get reset date: use the latest finalized snapshot's date for this period
-      let effectiveReset: string | null = null;
-      if (period !== "all") {
-        try {
-          const { data: snaps } = await supabase
-            .from("leaderboard_snapshots")
-            .select("finalized_at")
-            .eq("period", period)
-            .eq("server_id", serverId)
-            .order("finalized_at", { ascending: false })
-            .limit(1);
-          if (snaps && snaps.length > 0) {
-            effectiveReset = (snaps[0] as any).finalized_at;
-          }
-        } catch { /* fall back to period start */ }
-      }
-
       if (period === "all") {
         return await fetchLeaderboard(serverId);
       }
-      const periodStart = getPeriodStart(period);
-      const since = effectiveReset && effectiveReset > periodStart ? effectiveReset : periodStart;
-      return await fetchLeaderboardByPeriod(since, serverId);
+
+      // For "Since Reset": check global snapshots first.
+      // If found, use snapshot date. If not, pass null → RPC applies per-guild resets.
+      let effectiveReset: string | null = null;
+      try {
+        const { data: snaps } = await supabase
+          .from("leaderboard_snapshots")
+          .select("finalized_at")
+          .eq("period", period)
+          .eq("server_id", serverId)
+          .order("finalized_at", { ascending: false })
+          .limit(1);
+        if (snaps && snaps.length > 0) {
+          effectiveReset = (snaps[0] as any).finalized_at;
+        }
+      } catch { /* fall back */ }
+
+      // null = apply guild resets; date = use as global filter
+      return await fetchLeaderboardByPeriod(effectiveReset, serverId);
     },
     staleTime: 30_000,
     refetchOnMount: true,

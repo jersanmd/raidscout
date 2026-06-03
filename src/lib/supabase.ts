@@ -911,7 +911,7 @@ export async function fetchLeaderboard(serverId?: string | null): Promise<Leader
 }
 
 export async function fetchLeaderboardByPeriod(
-  since: string,
+  since: string | null,
   serverId?: string | null
 ): Promise<LeaderboardEntry[]> {
   const sid = serverId ?? getCurrentServerId();
@@ -928,6 +928,38 @@ export async function fetchLeaderboardByPeriod(
     points: row.total_points,
     last_attended: row.last_attended,
   }));
+}
+
+/** Reset all points for a guild: deletes attendance records and point adjustments
+ *  for all members of the guild. Leaderboard snapshots (Finalize History) are NOT affected. */
+export async function resetGuildPoints(
+  guildId: string,
+  serverId: string
+): Promise<{ deletedAttendance: number; deletedAdjustments: number }> {
+  const { data: members, error: memErr } = await supabase
+    .from("members")
+    .select("id")
+    .eq("guild_id", guildId)
+    .eq("server_id", serverId);
+  if (memErr) throw memErr;
+  const memberIds = (members || []).map((m: any) => m.id);
+  if (memberIds.length === 0) return { deletedAttendance: 0, deletedAdjustments: 0 };
+
+  const { count: attCount, error: attErr } = await supabase
+    .from("attendance_records")
+    .delete({ count: "exact" })
+    .in("member_id", memberIds)
+    .eq("server_id", serverId);
+  if (attErr) throw attErr;
+
+  const { count: adjCount, error: adjErr } = await supabase
+    .from("point_adjustments")
+    .delete({ count: "exact" })
+    .in("member_id", memberIds)
+    .eq("server_id", serverId);
+  if (adjErr) throw adjErr;
+
+  return { deletedAttendance: attCount ?? 0, deletedAdjustments: adjCount ?? 0 };
 }
 
 // ── Point Adjustments ───────────────────────────────────────
@@ -1301,7 +1333,7 @@ export async function fetchHistoryFromSupabase(serverId?: string | null, since?:
 // ── Leaderboard Snapshots ───────────────────────────────────
 
 export async function saveLeaderboardSnapshot(
-  period: "all_time" | "weekly" | "monthly",
+  period: string,
   rankings: { rank: number; memberId: string; memberName: string; points: number }[],
   periodStart: string,
   serverId: string
