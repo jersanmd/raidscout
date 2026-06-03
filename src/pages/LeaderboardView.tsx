@@ -814,14 +814,24 @@ export function LeaderboardView() {
       )}
 
       {/* Kill history modal */}
-      {selectedMember && (
+      {selectedMember && (() => {
+        const killTotal = memberKills.reduce((sum, k) => sum + (k.points ?? 0), 0);
+        const leaderboardEntry = entries.find(e => e.id === selectedMember.id);
+        return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/60" onClick={() => setSelectedMember(null)} />
           <div className="relative bg-slate-900 border border-slate-700 rounded-xl w-full max-w-xs shadow-2xl max-h-[80vh] flex flex-col">
-            <div className="flex items-center justify-between p-4 border-b border-slate-800 shrink-0">
+            <div className="flex items-center justify-between p-3 border-b border-slate-800 shrink-0">
               <div>
                 <h3 className="text-sm font-bold text-white">{selectedMember.name}</h3>
-                <p className="text-[10px] text-slate-500">Boss kill history</p>
+                <p className="text-[10px] text-slate-500">
+                  {memberKills.length} kill{memberKills.length !== 1 ? "s" : ""}
+                  {" · "}
+                  <span className="text-amber-400 font-medium">{killTotal}pt</span> in history
+                  {leaderboardEntry && leaderboardEntry.points !== killTotal && (
+                    <span className="text-slate-600"> · <span className="text-white font-medium">{leaderboardEntry.points}pt</span> on board</span>
+                  )}
+                </p>
               </div>
               <button onClick={() => setSelectedMember(null)} className="text-slate-400 hover:text-white transition p-1">
                 <X className="w-4 h-4" />
@@ -863,7 +873,8 @@ export function LeaderboardView() {
             </div>
           </div>
         </div>
-      )}
+        );
+      })()}
       {/* Participant modal (when clicking a boss in kill history) */}
       {participantDeathId && (
         <ParticipantModalInline
