@@ -54,7 +54,7 @@ serve(async (req: Request) => {
       "Return ONLY a JSON array of strings, like: [\"DonAlas\",\"xSupladoo\"]\n" +
       "Rules:\n" +
       "- Include ALL visible player names, no matter how styled or colored\n" +
-      "- Preserve exact casing, special characters (ツ, ッ, etc.), and numbers\n" +
+      "- Preserve exact casing, all Unicode characters (Chinese 中文, Korean 한국어, Japanese 日本語, Cyrillic, Arabic, emoji, etc.), and numbers\n" +
       "- Ignore UI labels like 'Members', 'Online', 'Points', timestamps, level numbers, row numbers\n" +
       "- Do NOT include any explanation, just the JSON array\n" +
       "- If no names are visible, return empty array: []";
