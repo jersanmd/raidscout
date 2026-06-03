@@ -752,6 +752,7 @@ export async function fetchBossGuilds(serverId?: string | null): Promise<BossGui
     .from("boss_guilds")
     .select("*, bosses!inner(server_id)")
     .eq("bosses.server_id", sid)
+    .neq("sort_order", -1) // exclude points-only sentinel rows
     .order("sort_order", { ascending: true })
     .order("day_of_week", { ascending: true });
   if (error) throw error;
@@ -785,37 +786,53 @@ export async function setBossGuilds(
   assignments: { guild_id: string; sort_order?: number; day_of_week?: number }[],
   mode: "rotation" | "schedule" | "daily" = "rotation"
 ): Promise<void> {
-  // Preserve existing points/salary for this boss before deleting
+  // Preserve points/salary from ALL existing rows (including points-only sentinel rows)
   const { data: existing } = await supabase
     .from("boss_guilds")
-    .select("guild_id, points, has_salary")
+    .select("guild_id, points, has_salary, sort_order, mode, day_of_week")
     .eq("boss_id", bossId);
   const preserved = new Map((existing || []).map((r: any) => [r.guild_id, { points: r.points, has_salary: r.has_salary }]));
+  // Track points-only rows (sort_order = -1) to re-insert them separately
+  const pointsOnlyRows = (existing || []).filter((r: any) => r.sort_order === -1 && !assignments.some(a => a.guild_id === r.guild_id));
 
-  // Delete existing assignments for this boss, then insert new ones
+  // Delete existing rotation/schedule/daily rows for this boss (keep sentinel rows handled via re-insert)
   const { error: delErr } = await supabase
     .from("boss_guilds")
     .delete()
     .eq("boss_id", bossId);
   if (delErr) throw delErr;
 
-  if (assignments.length === 0) return;
+  // Insert new rotation assignments
+  if (assignments.length > 0) {
+    const rows = assignments.map((a) => {
+      const prev = preserved.get(a.guild_id);
+      return {
+        boss_id: bossId,
+        guild_id: a.guild_id,
+        sort_order: a.sort_order ?? null,
+        day_of_week: a.day_of_week ?? null,
+        mode,
+        points: prev?.points ?? null,
+        has_salary: prev?.has_salary ?? false,
+      };
+    });
+    const { error } = await supabase.from("boss_guilds").insert(rows);
+    if (error) throw error;
+  }
 
-  const rows = assignments.map((a) => {
-    const prev = preserved.get(a.guild_id);
-    return {
+  // Re-insert points-only rows that were not in the assignment list
+  for (const row of pointsOnlyRows) {
+    const { error } = await supabase.from("boss_guilds").insert({
       boss_id: bossId,
-      guild_id: a.guild_id,
-      sort_order: a.sort_order ?? null,
-      day_of_week: a.day_of_week ?? null,
-      mode,
-      points: prev?.points ?? null,
-      has_salary: prev?.has_salary ?? false,
-    };
-  });
-
-  const { error } = await supabase.from("boss_guilds").insert(rows);
-  if (error) throw error;
+      guild_id: row.guild_id,
+      sort_order: -1,
+      day_of_week: null,
+      mode: "rotation",
+      points: row.points,
+      has_salary: row.has_salary,
+    });
+    if (error) console.warn("Failed to re-insert points-only row:", error);
+  }
 }
 
 /** Upsert per-guild points and/or salary for a boss-guild pair.
