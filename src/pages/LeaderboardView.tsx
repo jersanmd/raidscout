@@ -538,21 +538,37 @@ export function LeaderboardView() {
       )}
 
       {/* Previous Results modal */}
-      {showSnapshots !== null && snapshots.length > 0 && (
+      {showSnapshots !== null && snapshots.length > 0 && (() => {
+        const guildSnaps = showSnapshots === "__all__"
+          ? snapshots
+          : snapshots.filter(s => (s as any).period?.startsWith("weekly:") && (s as any).period.includes(showSnapshots));
+        if (guildSnaps.length === 0) {
+          return (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+              <div className="absolute inset-0 bg-black/60" onClick={() => setShowSnapshots(null)} />
+              <div className="relative bg-slate-900 border border-slate-700 rounded-xl w-full max-w-xs shadow-2xl p-6 text-center">
+                <History className="w-8 h-8 text-slate-600 mx-auto mb-2" />
+                <p className="text-sm text-slate-400">No finalized history for {showSnapshots} yet.</p>
+                <button onClick={() => setShowSnapshots(null)} className="mt-3 text-xs text-amber-400 hover:text-amber-300 transition">Close</button>
+              </div>
+            </div>
+          );
+        }
+        return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/60" onClick={() => setShowSnapshots(null)} />
           <div className="relative bg-slate-900 border border-slate-700 rounded-xl w-full max-w-md shadow-2xl max-h-[80vh] flex flex-col">
             <div className="flex items-center justify-between p-3 border-b border-slate-800 shrink-0">
               <h3 className="text-white font-bold text-xs flex items-center gap-2">
                 <History className="w-3.5 h-3.5 text-amber-400" />
-                Previous Results ({snapshots.length})
+                {showSnapshots === "__all__" ? "All" : showSnapshots} History ({guildSnaps.length})
               </h3>
               <button onClick={() => setShowSnapshots(null)} className="text-slate-400 hover:text-white p-1">
                 <X className="w-4 h-4" />
               </button>
             </div>
             <div className="overflow-y-auto p-2 space-y-1.5 flex-1">
-              {snapshots.map((snap) => {
+              {guildSnaps.map((snap, idx) => {
                 const finalized = new Date(snap.finalized_at);
                 const periodStart = new Date((snap as any).period_start || finalized);
                 if (!(snap as any).period_start) {
@@ -565,13 +581,16 @@ export function LeaderboardView() {
                     ? "All time"
                     : d.toLocaleDateString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
 
-                const periodLabel =
-                  snap.period === "all_time" ? "All Time" : snap.period === "weekly" ? `Previous #${snapshots.length - snapshots.indexOf(snap)}` : "Monthly";
+                const periodLabel = snap.period === "all_time"
+                  ? "All Time"
+                  : snap.period.startsWith("weekly:")
+                    ? `Previous #${guildSnaps.length - idx}`
+                    : "Monthly";
 
                 return (
                   <button
                     key={snap.id}
-                    onClick={() => { setShowSnapshots(false); setSnapshotGuildFilter("all"); loadSnapshot(snap.id); }}
+                    onClick={() => { setShowSnapshots(null); setSnapshotGuildFilter("all"); loadSnapshot(snap.id); }}
                     className="w-full flex items-start gap-2 px-2.5 py-2 rounded-lg bg-slate-800/50 border border-slate-700/50 hover:border-slate-600 transition text-left"
                   >
                     <History className="w-3.5 h-3.5 text-amber-500 shrink-0 mt-0.5" />
@@ -598,7 +617,8 @@ export function LeaderboardView() {
             </div>
           </div>
         </div>
-      )}
+        );
+      })()}
 
       {/* Viewing snapshot modal */}
       {viewingSnapshot && (
