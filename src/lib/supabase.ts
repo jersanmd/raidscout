@@ -911,18 +911,14 @@ export async function fetchLeaderboard(serverId?: string | null): Promise<Leader
 }
 
 export async function fetchLeaderboardByPeriod(
-  since: string | null,
-  serverId?: string | null,
-  _guildResets?: Record<string, string>,
+  since: string,
+  serverId?: string | null
 ): Promise<LeaderboardEntry[]> {
   const sid = serverId ?? getCurrentServerId();
   if (!sid) return [];
 
   const { data, error } = await supabase
-    .rpc("get_leaderboard", {
-      p_server_id: sid,
-      p_since: since,
-    });
+    .rpc("get_leaderboard", { p_server_id: sid, p_since: since });
 
   if (error) throw error;
 
@@ -964,44 +960,6 @@ export async function fetchPointAdjustments(
     });
   if (error) throw error;
   return (data ?? []) as import("@/types").PointAdjustment[];
-}
-
-/** Reset all points for a guild: deletes attendance records and point adjustments
- *  for all members of the guild. Leaderboard snapshots (Finalize History) are NOT affected. */
-export async function resetGuildPoints(
-  guildId: string,
-  serverId: string
-): Promise<{ deletedAttendance: number; deletedAdjustments: number }> {
-  // 1. Get member IDs for this guild
-  const { data: members, error: memErr } = await supabase
-    .from("members")
-    .select("id")
-    .eq("guild_id", guildId)
-    .eq("server_id", serverId);
-  if (memErr) throw memErr;
-  const memberIds = (members || []).map((m: any) => m.id);
-  if (memberIds.length === 0) return { deletedAttendance: 0, deletedAdjustments: 0 };
-
-  // 2. Delete attendance records for these members
-  const { count: attCount, error: attErr } = await supabase
-    .from("attendance_records")
-    .delete({ count: "exact" })
-    .in("member_id", memberIds)
-    .eq("server_id", serverId);
-  if (attErr) throw attErr;
-
-  // 3. Delete point adjustments for these members
-  const { count: adjCount, error: adjErr } = await supabase
-    .from("point_adjustments")
-    .delete({ count: "exact" })
-    .in("member_id", memberIds)
-    .eq("server_id", serverId);
-  if (adjErr) throw adjErr;
-
-  return {
-    deletedAttendance: attCount ?? 0,
-    deletedAdjustments: adjCount ?? 0,
-  };
 }
 
 // ── Attendance ──────────────────────────────────────────────
@@ -1118,17 +1076,10 @@ export interface MemberBossKill {
   points?: number;
 }
 
-/** Get all bosses a specific member participated in killing, with proper per-guild point calculation */
-export async function fetchMemberKills(
-  memberId: string,
-  since?: string,
-  serverId?: string | null,
-  serverTimezone?: string,
-): Promise<MemberBossKill[]> {
+/** Get all bosses a specific member participated in killing */
+export async function fetchMemberKills(memberId: string, since?: string, serverId?: string | null): Promise<MemberBossKill[]> {
   const sid = serverId ?? getCurrentServerId();
   if (!sid) return [];
-
-  // 1. Fetch attendance records with boss & death info
   let query = supabase
     .from("attendance_records")
     .select("death_record_id, death_records!inner(death_time, boss_id, bosses!inner(name, boss_points))")
@@ -1141,91 +1092,15 @@ export async function fetchMemberKills(
   if (sid) query = query.eq("server_id", sid);
 
   const { data, error } = await query;
+
   if (error) throw error;
-  if (!data?.length) return [];
 
-  // 2. Get member's guild
-  const { data: memberData } = await supabase
-    .from("members")
-    .select("guild_id")
-    .eq("id", memberId)
-    .maybeSingle();
-  const guildId = (memberData as any)?.guild_id as string | null;
-
-  // 3. Get unique boss IDs for per-guild override lookup
-  const bossIds = [...new Set((data as any[]).map((r: any) => r.death_records.boss_id))];
-
-  // 4. Fetch per-guild point overrides
-  let bgPointsMap = new Map<string, number>();
-  if (guildId && bossIds.length > 0) {
-    const { data: bgData } = await supabase
-      .from("boss_guilds")
-      .select("boss_id, points")
-      .eq("guild_id", guildId)
-      .in("boss_id", bossIds);
-    for (const bg of (bgData || [])) {
-      if ((bg as any).points != null) {
-        bgPointsMap.set((bg as any).boss_id, (bg as any).points);
-      }
-    }
-  }
-
-  // 5. Fetch time-based multipliers
-  let guildMultipliers: { start_hour: number; end_hour: number; multiplier: number }[] = [];
-  if (guildId) {
-    const { data: rules } = await supabase
-      .from("point_rules")
-      .select("config")
-      .eq("server_id", sid)
-      .eq("guild_id", guildId)
-      .eq("rule_type", "time_multiplier")
-      .eq("enabled", true);
-    for (const rule of (rules || [])) {
-      const cfg = (rule as any).config as any;
-      if (cfg) {
-        guildMultipliers.push({
-          start_hour: cfg.start_hour,
-          end_hour: cfg.end_hour,
-          multiplier: cfg.multiplier,
-        });
-      }
-    }
-  }
-
-  // Helper: get multiplier for a death time
-  const getMultiplier = (deathTime: string): number => {
-    if (!guildMultipliers.length) return 1;
-    const tz = serverTimezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
-    const hour = parseInt(
-      new Date(deathTime).toLocaleString("en-US", { timeZone: tz, hour: "2-digit", hour12: false }),
-      10,
-    );
-    let mult = 1;
-    for (const r of guildMultipliers) {
-      const match = r.start_hour <= r.end_hour
-        ? hour >= r.start_hour && hour < r.end_hour
-        : hour >= r.start_hour || hour < r.end_hour;
-      if (match) mult = Math.max(mult, r.multiplier);
-    }
-    return mult;
-  };
-
-  // 6. Map with correct point calculation
-  return (data as any[]).map((row: any) => {
-    const bossId = row.death_records.boss_id;
-    const bossPoints = row.death_records.bosses.boss_points ?? 0;
-    // Per-guild override takes priority
-    const basePts = guildId && bgPointsMap.has(bossId)
-      ? bgPointsMap.get(bossId)!
-      : bossPoints;
-    const mult = guildId ? getMultiplier(row.death_records.death_time) : 1;
-    return {
-      boss_name: row.death_records.bosses.name,
-      killed_at: row.death_records.death_time,
-      death_record_id: row.death_record_id,
-      points: basePts * mult,
-    };
-  });
+  return (data as any[]).map((row: any) => ({
+    boss_name: row.death_records.bosses.name,
+    killed_at: row.death_records.death_time,
+    death_record_id: row.death_record_id,
+    points: row.death_records.bosses.boss_points ?? 1,
+  }));
 }
 
 // ── Analytics ───────────────────────────────────────────────
@@ -1426,7 +1301,7 @@ export async function fetchHistoryFromSupabase(serverId?: string | null, since?:
 // ── Leaderboard Snapshots ───────────────────────────────────
 
 export async function saveLeaderboardSnapshot(
-  period: string,
+  period: "all_time" | "weekly" | "monthly",
   rankings: { rank: number; memberId: string; memberName: string; points: number }[],
   periodStart: string,
   serverId: string
