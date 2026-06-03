@@ -73,6 +73,7 @@ export function LeaderboardView() {
   const [exportStartDate, setExportStartDate] = useState(weekAgoStr);
   const [exportEndDate, setExportEndDate] = useState(todayStr);
   const [exportLoading, setExportLoading] = useState(false);
+  const [exportRankingsOnly, setExportRankingsOnly] = useState(false);
 
   // Point adjustment modal state
   const { currentServer } = useServer();
@@ -257,6 +258,17 @@ export function LeaderboardView() {
       // Sort members alphabetically
       const sortedMembers = memberIds.sort((a, b) => (memberMap.get(a) || "").localeCompare(memberMap.get(b) || ""));
 
+      // Compute player totals
+      const memberTotals = new Map<string, number>();
+      for (const mid of memberIds) memberTotals.set(mid, 0);
+      for (const [deathId, memberSet] of deathAttendees) {
+        const boss = bossMap.get(deaths.find((d: any) => d.id === deathId)?.boss_id);
+        for (const mid of memberSet) {
+          memberTotals.set(mid, (memberTotals.get(mid) || 0) + ((boss as any)?.boss_points || 0));
+        }
+      }
+      const sortedRanking = [...memberTotals.entries()].sort((a, b) => b[1] - a[1]);
+
       // Build Excel-compatible HTML table
       let html = `<html><head><meta charset="utf-8"><style>
         table { border-collapse: collapse; font-family: -apple-system, sans-serif; font-size: 11px; }
@@ -267,31 +279,86 @@ export function LeaderboardView() {
         .odd { background: #0F172A; color: #E2E8F0; }
         .pts-yes { font-weight: bold; color: #FBBF24; }
         .pts-no { color: #475569; }
+        .rnk { text-align: center; color: #94A3B8; }
+        .nm { color: #E2E8F0; text-align: left; }
+        .num { text-align: center; color: #FBBF24; font-weight: bold; }
 </style></head><body><table>`;
 
-      // Header row
-      html += `<tr><th class="hdr">#</th><th class="hdr">Date</th><th class="hdr">Time</th><th class="hdr boss" style="text-align:left">Boss</th><th class="hdr">Party Leader</th>`;
-      sortedMembers.forEach((mid, i) => {
-        html += `<th class="hdr" style="background:${["#7C3AED","#059669","#D97706","#0891B2","#DB2777","#4F46E5"][i % 6]}">${memberMap.get(mid) || "?"}</th>`;
-      });
-      html += `</tr>`;
-
-      // Data rows
       const dateFmt = new Intl.DateTimeFormat("en-US", { timeZone: serverTimezone, month: "short", day: "numeric", year: "numeric" });
       const timeFmt = new Intl.DateTimeFormat("en-US", { timeZone: serverTimezone, hour: "2-digit", minute: "2-digit" });
-      deaths.forEach((death: any, ri) => {
-        const attendees = deathAttendees.get(death.id);
-        if (!attendees || attendees.size === 0) return;
-        const boss = bossMap.get(death.boss_id);
-        const cls = ri % 2 === 0 ? "even" : "odd";
-        const pl = (death.party_leaders || {}) as Record<string, string>;
-        const leaderName = pl[guild.id] ? (memberMap.get(pl[guild.id]) || "") : "";
-        html += `<tr><td class="${cls}">${attendees.size}</td><td class="${cls}">${dateFmt.format(new Date(death.death_time))}</td><td class="${cls}">${timeFmt.format(new Date(death.death_time))}</td><td class="boss ${cls}">${boss?.name || "?"}</td><td class="${cls}">${leaderName}</td>`;
-        sortedMembers.forEach(mid => {
-          html += `<td class="${cls} ${attendees.has(mid) ? 'pts-yes' : 'pts-no'}">${attendees.has(mid) ? (boss?.boss_points || 0) : 0}</td>`;
+
+      if (exportRankingsOnly) {
+        // ── Rankings only ──
+        html += `<tr><th class="hdr">#</th><th class="hdr" style="text-align:left">Player</th><th class="hdr">Total Pts</th></tr>`;
+        sortedRanking.forEach(([mid, pts], i) => {
+          const cls = i % 2 === 0 ? "even" : "odd";
+          const medal = i === 0 ? "\u{1F947}" : i === 1 ? "\u{1F948}" : i === 2 ? "\u{1F949}" : `${i + 1}`;
+          html += `<tr><td class="rnk ${cls}">${medal}</td><td class="nm ${cls}">${memberMap.get(mid) || "?"}</td><td class="num ${cls}">${pts}</td></tr>`;
         });
-        html += `</tr>`;
-      });
+      } else {
+        // ── Data + Rankings ──
+        const playerColors = ["#7C3AED","#059669","#D97706","#0891B2","#DB2777","#4F46E5"];
+        // Header row 0: player names + ranking header
+        html += `<tr><th class="hdr">#</th><th class="hdr">Date</th><th class="hdr">Time</th><th class="hdr boss" style="text-align:left">Boss</th><th class="hdr">Party Leader</th>`;
+        sortedMembers.forEach((mid, i) => {
+          html += `<th class="hdr" style="background:${playerColors[i % 6]}">${memberMap.get(mid) || "?"}</th>`;
+        });
+        html += `<th class="hdr" style="background:#1E293B;min-width:16px"></th><th class="hdr" colspan="3" style="background:#7C3AED">\u{1F3C6} Ranking</th></tr>`;
+
+        // Header row 1: player totals + ranking sub-header
+        html += `<tr><th class="hdr">#</th><th class="hdr">Date</th><th class="hdr">Time</th><th class="hdr">Boss</th><th class="hdr">Party Leader</th>`;
+        sortedMembers.forEach((mid, i) => {
+          html += `<th class="hdr" style="background:${playerColors[i % 6]};font-size:14px">${memberTotals.get(mid) || 0}</th>`;
+        });
+        html += `<th class="hdr" style="background:#1E293B"></th><th class="hdr" style="background:#1E293B;color:#94A3B8">#</th><th class="hdr" style="background:#1E293B;color:#94A3B8;text-align:left">Player</th><th class="hdr" style="background:#1E293B;color:#94A3B8">Pts</th></tr>`;
+
+        // Data rows + ranking side by side
+        const dataRows: any[][] = [];
+        deaths.forEach((death: any) => {
+          const attendees = deathAttendees.get(death.id);
+          if (!attendees || attendees.size === 0) return;
+          const boss = bossMap.get(death.boss_id);
+          const pl = (death.party_leaders || {}) as Record<string, string>;
+          const leaderName = pl[guild.id] ? (memberMap.get(pl[guild.id]) || "") : "";
+          const row: any[] = [
+            attendees.size,
+            dateFmt.format(new Date(death.death_time)),
+            timeFmt.format(new Date(death.death_time)),
+            boss?.name || "?",
+            leaderName,
+          ];
+          sortedMembers.forEach(mid => {
+            row.push(attendees.has(mid) ? (boss?.boss_points || 0) : 0);
+          });
+          dataRows.push(row);
+        });
+
+        const maxR = Math.max(dataRows.length, sortedRanking.length);
+        for (let ri = 0; ri < maxR; ri++) {
+          const cls = ri % 2 === 0 ? "even" : "odd";
+          html += `<tr>`;
+          if (ri < dataRows.length) {
+            const row = dataRows[ri];
+            html += `<td class="${cls}">${row[0]}</td><td class="${cls}">${row[1]}</td><td class="${cls}">${row[2]}</td><td class="boss ${cls}">${row[3]}</td><td class="${cls}">${row[4] || ""}</td>`;
+            for (let c = 5; c < row.length; c++) {
+              html += `<td class="${cls} ${row[c] > 0 ? 'pts-yes' : 'pts-no'}">${row[c]}</td>`;
+            }
+          } else {
+            html += `<td class="${cls}"></td><td class="${cls}"></td><td class="${cls}"></td><td class="${cls}"></td><td class="${cls}"></td>`;
+            for (let c = 0; c < sortedMembers.length; c++) html += `<td class="${cls}"></td>`;
+          }
+          html += `<td class="${cls}"></td>`;
+          if (ri < sortedRanking.length) {
+            const [mid, pts] = sortedRanking[ri];
+            const name = memberMap.get(mid) || "?";
+            const medal = ri === 0 ? "\u{1F947}" : ri === 1 ? "\u{1F948}" : ri === 2 ? "\u{1F949}" : `${ri + 1}`;
+            html += `<td class="rnk ${cls}">${medal}</td><td class="nm ${cls}">${name}</td><td class="num ${cls}">${pts}</td>`;
+          } else {
+            html += `<td class="${cls}"></td><td class="${cls}"></td><td class="${cls}"></td>`;
+          }
+          html += `</tr>`;
+        }
+      }
 
       html += `</table></body></html>`;
 
@@ -409,12 +476,16 @@ export function LeaderboardView() {
                     <label className="text-[10px] text-slate-500">End</label>
                     <input type="date" value={exportEndDate} onChange={(e) => setExportEndDate(e.target.value)} className="px-2 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-white text-xs outline-none focus:ring-2 focus:ring-amber-500 transition" />
                   </div>
+                  <label className="flex items-center gap-1.5 cursor-pointer pb-1.5">
+                    <input type="checkbox" checked={exportRankingsOnly} onChange={(e) => setExportRankingsOnly(e.target.checked)} className="w-3 h-3 rounded border-slate-600 bg-slate-800 text-amber-600 focus:ring-amber-500/50 cursor-pointer" />
+                    <span className="text-[10px] text-slate-400 whitespace-nowrap">Rankings only</span>
+                  </label>
                   <button onClick={() => handleExportAttendance()} disabled={exportLoading || !exportStartDate || !exportEndDate} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-amber-600 text-white hover:bg-amber-500 transition disabled:opacity-50 flex items-center gap-1.5">
                     {exportLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
                     Export Excel
                   </button>
                 </div>
-                <p className="text-[10px] text-slate-600">Exports a pivot table: rows = bosses, columns = players, cells = points. Opens in Excel / Google Sheets.</p>
+                <p className="text-[10px] text-slate-600">{exportRankingsOnly ? "Exports a simple ranking list: rank, player, total points." : "Exports a pivot table + ranking side by side. Rows = bosses, columns = players."}</p>
               </div>
             </div>
             <div className="relative">
