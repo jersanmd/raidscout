@@ -929,36 +929,44 @@ export function LeaderboardView() {
       )}
 
       {/* Point adjustment history modal */}
-      {showAdjustHistory && (
+      {showAdjustHistory && (() => {
+        const filteredAdjustments = showAdjustHistory === "__all__"
+          ? adjustHistory
+          : adjustHistory.filter(adj => {
+              const gid = memberGuildMap.get(adj.member_id);
+              const gname = guilds.find(g => g.id === gid)?.name;
+              return gname === showAdjustHistory;
+            });
+        return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/60" onClick={() => setShowAdjustHistory(false)} />
+          <div className="absolute inset-0 bg-black/60" onClick={() => setShowAdjustHistory(null)} />
           <div className="relative bg-slate-900 border border-slate-700 rounded-xl w-full max-w-md shadow-2xl max-h-[80vh] flex flex-col">
-            <div className="flex items-center justify-between p-4 border-b border-slate-800 shrink-0">
-              <h3 className="text-white font-bold text-sm flex items-center gap-2">
-                <Edit3 className="w-4 h-4 text-purple-400" />
-                Point Adjustments History
+            <div className="flex items-center justify-between p-3 border-b border-slate-800 shrink-0">
+              <h3 className="text-white font-bold text-xs flex items-center gap-2">
+                <Edit3 className="w-3.5 h-3.5 text-purple-400" />
+                {showAdjustHistory === "__all__" ? "All" : showAdjustHistory} Point History ({filteredAdjustments.length})
               </h3>
-              <button onClick={() => setShowAdjustHistory(false)} className="text-slate-400 hover:text-white p-1">
-                <X className="w-5 h-5" />
+              <button onClick={() => setShowAdjustHistory(null)} className="text-slate-400 hover:text-white p-1">
+                <X className="w-4 h-4" />
               </button>
             </div>
-            <div className="overflow-y-auto p-4 space-y-2 flex-1">
-              {adjustHistory.length === 0 ? (
-                <p className="text-sm text-slate-500 text-center py-8">No adjustments yet.</p>
+            <div className="overflow-y-auto p-2 space-y-1 flex-1">
+              {filteredAdjustments.length === 0 ? (
+                <p className="text-xs text-slate-500 text-center py-8">No adjustments for this guild yet.</p>
               ) : (
-                adjustHistory.map((adj) => (
-                  <div key={adj.id} className="flex items-start gap-3 px-3 py-2 rounded-lg bg-slate-800/50 border border-slate-700/50">
-                    <div className={`mt-0.5 w-7 h-7 rounded-full flex items-center justify-center shrink-0 text-xs font-bold ${
+                filteredAdjustments.map((adj) => (
+                  <div key={adj.id} className="flex items-start gap-2 px-2.5 py-2 rounded-lg bg-slate-800/50 border border-slate-700/50">
+                    <div className={`mt-0.5 w-6 h-6 rounded-full flex items-center justify-center shrink-0 text-[10px] font-bold ${
                       adj.points > 0 ? "bg-emerald-900/30 text-emerald-400" : "bg-red-900/30 text-red-400"
                     }`}>
                       {adj.points > 0 ? `+${adj.points}` : adj.points}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm text-white font-medium">{adj.member_name}</span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[11px] text-white font-medium">{adj.member_name}</span>
                       </div>
                       {adj.reason && (
-                        <p className="text-xs text-slate-400 mt-0.5">{adj.reason}</p>
+                        <p className="text-[10px] text-slate-400 mt-0.5">{adj.reason}</p>
                       )}
                       <p className="text-[10px] text-slate-600 mt-0.5">
                         by {adj.adjusted_by_name} · {new Date(adj.created_at).toLocaleString()}
@@ -970,7 +978,8 @@ export function LeaderboardView() {
             </div>
           </div>
         </div>
-      )}
+        );
+      })()}
 
       <ConfirmDialog
         open={!!showFinalizeConfirm}
