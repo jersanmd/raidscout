@@ -342,7 +342,7 @@ export function LeaderboardView() {
             salaryYes,
           ];
           sortedMembers.forEach(mid => {
-            row.push(attendees.has(mid) ? (boss?.boss_points || 0) : 0);
+            row.push(attendees.has(mid) ? (boss?.boss_points || 0) : "");
           });
           dataRows.push(row);
         });
@@ -355,7 +355,7 @@ export function LeaderboardView() {
             const row = dataRows[ri];
             html += `<td class="${cls}">${row[0]}</td><td class="${cls}">${row[1]}</td><td class="${cls}">${row[2]}</td><td class="boss ${cls}">${row[3]}</td><td class="${cls}">${row[4] || ""}</td><td class="num ${cls}" style="color:${row[5] === 'YES' ? '#34D399' : '#64748B'}">${row[5]}</td>`;
             for (let c = 6; c < row.length; c++) {
-              html += `<td class="${cls} ${row[c] > 0 ? 'pts-yes' : 'pts-no'}">${row[c]}</td>`;
+              html += `<td class="${cls} ${row[c] > 0 ? 'pts-yes' : 'pts-no'}">${row[c] || ""}</td>`;
             }
           } else {
             html += `<td class="${cls}"></td><td class="${cls}"></td><td class="${cls}"></td><td class="${cls}"></td><td class="${cls}"></td><td class="${cls}"></td>`;
