@@ -433,18 +433,6 @@ export function LeaderboardView() {
                 </button>
               )}
             </div>
-            {guilds.length > 0 && (
-              <select
-                value={guildFilter}
-                onChange={(e) => setGuildFilter(e.target.value)}
-                className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-300 outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition"
-              >
-                <option value="all">All Guilds</option>
-                {guilds.map(g => (
-                  <option key={g.id} value={g.id}>{g.name}</option>
-                ))}
-              </select>
-            )}
           </div>
 
           {guildGroups.length === 0 ? (
