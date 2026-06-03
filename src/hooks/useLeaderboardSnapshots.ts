@@ -31,16 +31,16 @@ function setLastFinalized(date: string, period: string): void {
 
 /** Get the date after which attendance records count toward the current leaderboard.
  *  Falls back to server created_at (week 0) when no reset has been stored yet. */
-export function getLeaderboardResetAt(serverId: string | null, fallbackCreatedAt?: string | null): string | null {
+export function getLeaderboardResetAt(serverId: string | null, fallbackCreatedAt?: string | null, key?: string): string | null {
   if (!serverId) return null;
-  const stored = localStorage.getItem(`${LOCAL_RESET_AT_PREFIX}-${serverId}`);
+  const stored = localStorage.getItem(`${LOCAL_RESET_AT_PREFIX}-${serverId}${key ? `:${key}` : ""}`);
   return stored ?? fallbackCreatedAt ?? null;
 }
 
 /** Set the reset date — attendance after this date counts toward the new period */
-export function setLeaderboardResetAt(serverId: string | null, date: string): void {
+export function setLeaderboardResetAt(serverId: string | null, date: string, key?: string): void {
   if (!serverId) return;
-  localStorage.setItem(`${LOCAL_RESET_AT_PREFIX}-${serverId}`, date);
+  localStorage.setItem(`${LOCAL_RESET_AT_PREFIX}-${serverId}${key ? `:${key}` : ""}`, date);
 }
 
 // ── Hook ────────────────────────────────────────────────────

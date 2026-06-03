@@ -19,6 +19,7 @@ export function ConfirmDialog({
   title,
   message,
   confirmLabel = "Confirm",
+  confirmText,
   variant = "danger",
   loading = false,
   onConfirm,
