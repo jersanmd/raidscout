@@ -268,16 +268,51 @@ export function LeaderboardView() {
         .in("id", bossIds);
       const bossMap = new Map((bosses || []).map((b: any) => [b.id, b]));
 
-      // Fetch per-guild salary flags for this guild's bosses
+      // Fetch per-guild point overrides + salary flags for this guild's bosses
       const { data: bgData } = await supabase
         .from("boss_guilds")
-        .select("boss_id,has_salary")
+        .select("boss_id,points,has_salary")
         .eq("guild_id", guild.id)
         .in("boss_id", bossIds);
+      const bgPointsMap = new Map<string, number>();
       const salaryMap = new Map<string, boolean>();
       for (const bg of (bgData || [])) {
+        if (bg.points != null) bgPointsMap.set(bg.boss_id, bg.points);
         if (bg.has_salary) salaryMap.set(bg.boss_id, true);
       }
+
+      // Fetch time-based multipliers for this guild
+      let guildMultipliers: { start_hour: number; end_hour: number; multiplier: number }[] = [];
+      const { data: rules } = await supabase
+        .from("point_rules")
+        .select("config")
+        .eq("server_id", serverId)
+        .eq("guild_id", guild.id)
+        .eq("rule_type", "time_multiplier")
+        .eq("enabled", true);
+      for (const rule of (rules || [])) {
+        const cfg = (rule as any).config as any;
+        if (cfg) guildMultipliers.push({ start_hour: cfg.start_hour, end_hour: cfg.end_hour, multiplier: cfg.multiplier });
+      }
+
+      const getMultiplier = (deathTime: string): number => {
+        if (!guildMultipliers.length) return 1;
+        const tz = serverTimezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
+        const hour = parseInt(new Date(deathTime).toLocaleString("en-US", { timeZone: tz, hour: "2-digit", hour12: false }), 10);
+        let mult = 1;
+        for (const r of guildMultipliers) {
+          const match = r.start_hour <= r.end_hour
+            ? hour >= r.start_hour && hour < r.end_hour
+            : hour >= r.start_hour || hour < r.end_hour;
+          if (match) mult = Math.max(mult, r.multiplier);
+        }
+        return mult;
+      };
+
+      // Helper: get effective points for a boss (per-guild override > default)
+      const getBossPoints = (bossId: string): number => {
+        return bgPointsMap.get(bossId) ?? (bossMap.get(bossId) as any)?.boss_points ?? 0;
+      };
 
       // Fetch attendance records for these deaths, filtered to guild members
       const { data: attRecords } = await supabase
@@ -296,13 +331,15 @@ export function LeaderboardView() {
       // Sort members alphabetically
       const sortedMembers = memberIds.sort((a, b) => (memberMap.get(a) || "").localeCompare(memberMap.get(b) || ""));
 
-      // Compute player totals
+      // Compute player totals with per-guild overrides + time multipliers
       const memberTotals = new Map<string, number>();
       for (const mid of memberIds) memberTotals.set(mid, 0);
       for (const [deathId, memberSet] of deathAttendees) {
-        const boss = bossMap.get(deaths.find((d: any) => d.id === deathId)?.boss_id);
+        const death = deaths.find((d: any) => d.id === deathId);
+        const basePts = getBossPoints(death?.boss_id);
+        const mult = getMultiplier(death?.death_time);
         for (const mid of memberSet) {
-          memberTotals.set(mid, (memberTotals.get(mid) || 0) + ((boss as any)?.boss_points || 0));
+          memberTotals.set(mid, (memberTotals.get(mid) || 0) + basePts * mult);
         }
       }
       const sortedRanking = [...memberTotals.entries()].sort((a, b) => b[1] - a[1]);
@@ -368,7 +405,8 @@ export function LeaderboardView() {
             salaryYes,
           ];
           sortedMembers.forEach(mid => {
-            row.push(attendees.has(mid) ? (boss?.boss_points || 0) : "");
+            const effectivePts = getBossPoints(death.boss_id) * getMultiplier(death.death_time);
+            row.push(attendees.has(mid) ? effectivePts : "");
           });
           dataRows.push(row);
         });
