@@ -255,139 +255,128 @@ export function LeaderboardView() {
             )}
           </div>
 
-          {filteredEntries.length === 0 ? (
+          {guildGroups.length === 0 ? (
             <div className="text-center py-16">
               <Users className="w-12 h-12 text-slate-700 mx-auto mb-3" />
               <p className="text-slate-500 text-lg">No members found</p>
               <p className="text-slate-600 text-sm mt-1">
-                {searchQuery || guildFilter !== "all" ? "Try adjusting your search or filter." : "Record a boss death with attendees to start the leaderboard."}
+                {searchQuery ? "Try adjusting your search." : "Record a boss death with attendees to start the leaderboard."}
               </p>
             </div>
           ) : (
-          <div className="space-y-2">
-          {filteredEntries.map((entry, index) => {
-            const rank = index + 1;
-            const style = rankColors[rank];
-
-            const handleClick = async () => {
-              setSelectedMember({ id: entry.id, name: entry.name });
-              setKillsLoading(true);
-              try {
-                // Calculate period start, accounting for last finalized snapshot reset
-                const now = new Date();
-                let periodStart: string;
-                if (period === "weekly") {
-                  const day = now.getDay();
-                  const monday = new Date(now);
-                  monday.setDate(now.getDate() - ((day + 6) % 7));
-                  monday.setHours(0, 0, 0, 0);
-                  periodStart = monday.toISOString();
-                } else if (period === "monthly") {
-                  periodStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-                } else {
-                  periodStart = "1970-01-01T00:00:00Z";
-                }
-
-                // Use same reset logic as the leaderboard query
-                let since = periodStart;
-                const { data: snaps } = await supabase
-                  .from("leaderboard_snapshots")
-                  .select("finalized_at")
-                  .eq("period", period)
-                  .eq("server_id", serverId)
-                  .order("finalized_at", { ascending: false })
-                  .limit(1);
-                if (snaps && snaps.length > 0) {
-                  const reset = (snaps[0] as any).finalized_at;
-                  if (reset > periodStart) since = reset;
-                }
-
-                if (configured) {
-                  setMemberKills(await fetchMemberKills(entry.id, since, serverId));
-                }
-              } catch {
-                setMemberKills([]);
-              } finally {
-                setKillsLoading(false);
-              }
-            };
-
-            return (
-              <div
-                key={entry.id}
-                onClick={handleClick}
-                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleClick(); } }}
-                role="button"
-                tabIndex={0}
-                className={`w-full flex items-center gap-4 px-4 py-3 rounded-xl border transition cursor-pointer hover:border-slate-500 ${
-                  style?.bg ?? "bg-slate-900/50 border-slate-800/50"
-                }`}
-              >
-                {/* Rank */}
-                <div className="flex items-center justify-center w-9 h-9 shrink-0">
-                  {style ? (
-                    style.icon
-                  ) : (
-                    <span className="text-sm font-bold text-slate-500">#{rank}</span>
-                  )}
-                </div>
-
-                {/* Name */}
-                <div className="flex-1 min-w-0 text-left">
-                  <div className="flex items-center gap-2">
-                    <span className={`font-semibold ${style?.text ?? "text-white"}`}>
-                      {entry.name}
-                    </span>
-                    {(() => {
-                      const gid = memberGuildMap.get(entry.id);
-                      if (!gid) return null;
-                      const guild = guilds.find(g => g.id === gid);
-                      if (!guild) return null;
-                      const c = guildColor(guild.name);
-                      return (
-                        <span className={`text-[10px] px-1.5 py-0.5 rounded border shrink-0 ${c.bg} ${c.text} ${c.border}`}>
-                          <Shield className="w-2.5 h-2.5 inline mr-0.5" />{guild.name}
-                        </span>
-                      );
-                    })()}
-                  </div>
-                  {entry.last_attended && (
-                    <p className="text-xs text-slate-600 mt-0.5">
-                      Last: {formatDate(entry.last_attended)}
-                    </p>
-                  )}
-                </div>
-
-                {/* Points */}
-                <div className="flex items-center gap-1.5 shrink-0">
-                  <Trophy className="w-3.5 h-3.5 text-amber-500" />
-                  <span className="text-lg font-bold text-white tabular-nums">
-                    {entry.points}
-                  </span>
-                  <span className="text-xs text-slate-500">
-                    pt{entry.points !== 1 ? "s" : ""}
-                  </span>
-                  {canAdjustPoints && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setAdjustMember({ id: entry.id, name: entry.name, points: entry.points });
-                        setAdjustValue(0);
-                        setAdjustReason("");
-                        setAdjustError(null);
-                      }}
-                      className="p-0.5 rounded text-slate-600 hover:text-amber-400 hover:bg-amber-900/20 transition"
-                      title="Adjust points"
-                    >
-                      <Edit3 className="w-3 h-3" />
-                    </button>
-                  )}
+            <>
+            <div className="relative">
+              {guildGroups.length > 1 && (<>
+                <button onClick={() => setCarouselPage(p => p === 0 ? guildGroups.length - 1 : p - 1)} className="absolute left-0 top-0 bottom-0 z-10 px-1 flex items-center bg-slate-900/40 hover:bg-slate-900/60 transition -ml-1 rounded-l-xl">
+                  <ChevronLeft className="w-5 h-5 text-slate-300" />
+                </button>
+                <button onClick={() => setCarouselPage(p => p >= guildGroups.length - 1 ? 0 : p + 1)} className="absolute right-0 top-0 bottom-0 z-10 px-1 flex items-center bg-slate-900/40 hover:bg-slate-900/60 transition -mr-1 rounded-r-xl">
+                  <ChevronRight className="w-5 h-5 text-slate-300" />
+                </button>
+              </>)}
+              <div className="overflow-hidden px-8">
+                <div className="flex transition-transform duration-300 ease-out" style={{ transform: `translateX(-${carouselPage * 100}%)` }}>
+                  {guildGroups.map(([guildName, guildEntries]) => {
+                    const gColor = guildName ? guildColor(guildName) : { bg: "bg-slate-800", text: "text-slate-300", border: "border-slate-700" };
+                    const guildSnapCount = guildName ? snapshots.filter(s => (s as any).period?.startsWith("weekly:") && (s as any).period.includes(guildName)).length : 0;
+                    return (
+                      <div key={guildName ?? "__unguilded__"} className="w-full flex-shrink-0 px-2">
+                        <div className={`rounded-xl border ${gColor.border} ${gColor.bg} overflow-hidden`}>
+                          {/* Guild header */}
+                          <div className={`px-3 py-2 border-b ${gColor.border} flex items-center gap-2 flex-wrap`}>
+                            <Shield className="w-4 h-4 shrink-0" />
+                            <span className={`text-sm font-semibold ${gColor.text} truncate`}>{guildName ?? "Unguilded"}</span>
+                            <span className="text-[10px] text-slate-500">{guildEntries.length}</span>
+                            {guildName && (
+                              <button onClick={(e) => { e.stopPropagation(); setShowSnapshots(guildName); }} className="text-[10px] px-2 py-0.5 rounded bg-slate-800 border border-slate-700 text-slate-400 hover:text-amber-400 transition flex items-center gap-1" title={`${guildName} history (${guildSnapCount} results)`}>
+                                <History className="w-3 h-3" />History{guildSnapCount > 0 ? ` (${guildSnapCount})` : ""}
+                              </button>
+                            )}
+                            {isStaff && guildName && (
+                              <button onClick={async (e) => { e.stopPropagation(); setShowAdjustHistory(guildName); if (serverId) { try { setAdjustHistory(await fetchPointAdjustments(serverId)); } catch { setAdjustHistory([]); } } }} className="text-[10px] px-2 py-0.5 rounded bg-slate-800 border border-slate-700 text-purple-400 hover:text-purple-300 transition" title={`${guildName} point history`}>
+                                Points
+                              </button>
+                            )}
+                            {isStaff && guildName && (
+                              <button onClick={(e) => { e.stopPropagation(); setShowFinalizeConfirm(guildName); }} className="ml-auto text-[10px] px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/30 text-amber-400 hover:bg-amber-500/20 transition" title={`Finalize ${guildName} rankings`}>
+                                Finalize
+                              </button>
+                            )}
+                            {isStaff && guildName && (
+                              <button onClick={(e) => { e.stopPropagation(); setShowResetConfirm(guildName); }} className="text-[10px] px-2 py-0.5 rounded bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 transition flex items-center gap-1" title={`Reset all ${guildName} points`}>
+                                <RotateCcw className="w-3 h-3" />Reset
+                              </button>
+                            )}
+                          </div>
+                          {/* Member rows */}
+                          <div className="divide-y divide-slate-800/50">
+                            {guildEntries.map((entry, i) => {
+                              const rank = i + 1;
+                              const style = rankColors[rank];
+                              return (
+                                <div
+                                  key={entry.id}
+                                  onClick={async () => {
+                                    setSelectedMember({ id: entry.id, name: entry.name });
+                                    setKillsLoading(true);
+                                    try {
+                                      let since = "1970-01-01T00:00:00Z";
+                                      if (period !== "all") {
+                                        const { data: snaps } = await supabase
+                                          .from("leaderboard_snapshots")
+                                          .select("finalized_at")
+                                          .eq("period", period)
+                                          .eq("server_id", serverId)
+                                          .order("finalized_at", { ascending: false })
+                                          .limit(1);
+                                        if (snaps && snaps.length > 0) {
+                                          since = (snaps[0] as any).finalized_at;
+                                        } else if (guildName) {
+                                          const { data: settings } = await supabase
+                                            .from("app_settings")
+                                            .select("value")
+                                            .eq("server_id", serverId)
+                                            .eq("key", `leaderboard_reset_at:${guildName}`)
+                                            .maybeSingle();
+                                          if (settings) since = (settings as any).value;
+                                        }
+                                      }
+                                      if (configured) setMemberKills(await fetchMemberKills(entry.id, since, serverId, serverTimezone));
+                                    } catch { setMemberKills([]); }
+                                    finally { setKillsLoading(false); }
+                                  }}
+                                  className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-white/5 transition"
+                                >
+                                  <div className="flex items-center justify-center w-6 h-6 shrink-0">
+                                    {style ? <span className="scale-75">{style.icon}</span> : <span className="text-xs font-bold text-slate-500">{rank}</span>}
+                                  </div>
+                                  <span className="text-sm text-slate-200 flex-1 truncate">{entry.name}</span>
+                                  <span className="text-xs font-mono text-slate-400">{entry.points}pt</span>
+                                  {canAdjustPoints && (
+                                    <button onClick={(e) => { e.stopPropagation(); setAdjustMember({ id: entry.id, name: entry.name, points: entry.points }); setAdjustValue(0); setAdjustReason(""); setAdjustError(null); }} className="p-0.5 rounded text-slate-600 hover:text-amber-400 transition" title="Adjust points">
+                                      <Edit3 className="w-3 h-3" />
+                                    </button>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
-            );
-          })}
-        </div>
-        )}
+            </div>
+            {guildGroups.length > 1 && (
+              <div className="flex justify-center gap-1.5 mt-3">
+                {guildGroups.map((_, i) => (
+                  <button key={i} onClick={() => setCarouselPage(i)} className={`w-2 h-2 rounded-full transition ${i === carouselPage ? "bg-amber-400" : "bg-slate-600 hover:bg-slate-500"}`} />
+                ))}
+              </div>
+            )}
+            </>
+          )}
         </>
       )}
 
