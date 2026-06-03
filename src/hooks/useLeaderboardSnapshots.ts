@@ -31,16 +31,16 @@ function setLastFinalized(date: string, period: string): void {
 
 /** Get the date after which attendance records count toward the current leaderboard.
  *  Falls back to server created_at (week 0) when no reset has been stored yet. */
-export function getLeaderboardResetAt(serverId: string | null, fallbackCreatedAt?: string | null): string | null {
+export function getLeaderboardResetAt(serverId: string | null, fallbackCreatedAt?: string | null, key?: string): string | null {
   if (!serverId) return null;
-  const stored = localStorage.getItem(`${LOCAL_RESET_AT_PREFIX}-${serverId}`);
+  const stored = localStorage.getItem(`${LOCAL_RESET_AT_PREFIX}-${serverId}${key ? `:${key}` : ""}`);
   return stored ?? fallbackCreatedAt ?? null;
 }
 
 /** Set the reset date — attendance after this date counts toward the new period */
-export function setLeaderboardResetAt(serverId: string | null, date: string): void {
+export function setLeaderboardResetAt(serverId: string | null, date: string, key?: string): void {
   if (!serverId) return;
-  localStorage.setItem(`${LOCAL_RESET_AT_PREFIX}-${serverId}`, date);
+  localStorage.setItem(`${LOCAL_RESET_AT_PREFIX}-${serverId}${key ? `:${key}` : ""}`, date);
 }
 
 // ── Hook ────────────────────────────────────────────────────
@@ -66,18 +66,19 @@ export function useLeaderboardSnapshots() {
 
   const finalizeResults = useCallback(
     async (
-      period: "all_time" | "weekly" | "monthly",
+      period: string,
       rankings: { rank: number; memberId: string; memberName: string; points: number }[],
       periodStart: string
     ) => {
       const now = new Date().toISOString();
+      // Use guild-specific reset key for per-guild finalization
+      const resetKey = period.startsWith("weekly:") ? `leaderboard_reset_at:${period.replace("weekly:", "")}` : "leaderboard_reset_at";
 
       if (configured && user && serverId) {
         try {
-          await saveSnapshotSupabase(period, rankings, periodStart, serverId);
-          // Persist reset date to DB so all devices see the same leaderboard
+          await saveSnapshotSupabase(period as any, rankings, periodStart, serverId);
           await supabase.from("app_settings").upsert(
-            { key: "leaderboard_reset_at", value: now, server_id: serverId },
+            { key: resetKey, value: now, server_id: serverId },
             { onConflict: "key, server_id" }
           );
         } catch (err) {
@@ -85,8 +86,7 @@ export function useLeaderboardSnapshots() {
         }
       }
 
-      // Reset leaderboard: only attendance after this date counts
-      setLeaderboardResetAt(serverId, now);
+      setLeaderboardResetAt(serverId, now, resetKey);
       setLastFinalized(now, period);
 
       queryClient.invalidateQueries({ queryKey: ["leaderboard_snapshots", serverId] });
