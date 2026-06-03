@@ -85,28 +85,6 @@ export function LeaderboardView() {
   const touchStartX = useRef(0);
   const touchDeltaX = useRef(0);
   const isSwiping = useRef(false);
-
-  const handleSwipeStart = useCallback((clientX: number) => {
-    touchStartX.current = clientX;
-    isSwiping.current = true;
-  }, []);
-
-  const handleSwipeMove = useCallback((clientX: number) => {
-    if (!isSwiping.current) return;
-    touchDeltaX.current = clientX - touchStartX.current;
-  }, []);
-
-  const handleSwipeEnd = useCallback(() => {
-    if (!isSwiping.current) return;
-    isSwiping.current = false;
-    const threshold = 50;
-    if (touchDeltaX.current > threshold) {
-      setCarouselPage(p => p === 0 ? guildGroups.length - 1 : p - 1);
-    } else if (touchDeltaX.current < -threshold) {
-      setCarouselPage(p => p >= guildGroups.length - 1 ? 0 : p + 1);
-    }
-    touchDeltaX.current = 0;
-  }, [guildGroups.length]);
   const [adjustMember, setAdjustMember] = useState<{ id: string; name: string; points: number } | null>(null);
   const [adjustValue, setAdjustValue] = useState(0);
   const [adjustReason, setAdjustReason] = useState("");
@@ -130,6 +108,29 @@ export function LeaderboardView() {
   const filteredEntries = (() => { let r = entries; if (searchQuery.trim()) { const q = searchQuery.toLowerCase(); r = r.filter(e => e.name.toLowerCase().includes(q)); } return r; })();
 
   const guildGroups = (() => { const g = new Map<string | null, typeof entries>(); for (const e of filteredEntries) { const n = memberGuildNameMap.get(e.id) ?? null; if (!g.has(n)) g.set(n, []); g.get(n)!.push(e); } return [...g.entries()].sort(([a],[b]) => a === null ? 1 : b === null ? -1 : a.localeCompare(b)); })();
+
+  // Swipe handlers (must be after guildGroups)
+  const handleSwipeStart = useCallback((clientX: number) => {
+    touchStartX.current = clientX;
+    isSwiping.current = true;
+  }, []);
+
+  const handleSwipeMove = useCallback((clientX: number) => {
+    if (!isSwiping.current) return;
+    touchDeltaX.current = clientX - touchStartX.current;
+  }, []);
+
+  const handleSwipeEnd = useCallback(() => {
+    if (!isSwiping.current) return;
+    isSwiping.current = false;
+    const threshold = 50;
+    if (touchDeltaX.current > threshold) {
+      setCarouselPage(p => p === 0 ? guildGroups.length - 1 : p - 1);
+    } else if (touchDeltaX.current < -threshold) {
+      setCarouselPage(p => p >= guildGroups.length - 1 ? 0 : p + 1);
+    }
+    touchDeltaX.current = 0;
+  }, [guildGroups.length]);
 
   useEffect(() => { if (!serverId) return; const s = localStorage.getItem(`raidscout-carousel-${serverId}`); if (s) setCarouselPage(parseInt(s, 10)); }, [serverId]);
   useEffect(() => { if (serverId) localStorage.setItem(`raidscout-carousel-${serverId}`, String(carouselPage)); }, [carouselPage, serverId]);
