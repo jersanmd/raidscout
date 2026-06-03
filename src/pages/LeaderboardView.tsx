@@ -491,14 +491,14 @@ export function LeaderboardView() {
             </div>
             <div className="relative">
               {guildGroups.length > 1 && (<>
-                <button onClick={() => setCarouselPage(p => p === 0 ? guildGroups.length - 1 : p - 1)} className="absolute left-0 top-0 bottom-0 z-10 px-1 flex items-center bg-slate-900/40 hover:bg-slate-900/60 transition -ml-1 rounded-l-xl">
-                  <ChevronLeft className="w-5 h-5 text-slate-300" />
+                <button onClick={() => setCarouselPage(p => p === 0 ? guildGroups.length - 1 : p - 1)} className="absolute left-0 top-0 bottom-0 z-10 px-2 flex items-center bg-slate-900/40 hover:bg-slate-900/60 transition -ml-2 rounded-l-xl">
+                  <ChevronLeft className="w-6 h-6 text-slate-300" />
                 </button>
-                <button onClick={() => setCarouselPage(p => p >= guildGroups.length - 1 ? 0 : p + 1)} className="absolute right-0 top-0 bottom-0 z-10 px-1 flex items-center bg-slate-900/40 hover:bg-slate-900/60 transition -mr-1 rounded-r-xl">
-                  <ChevronRight className="w-5 h-5 text-slate-300" />
+                <button onClick={() => setCarouselPage(p => p >= guildGroups.length - 1 ? 0 : p + 1)} className="absolute right-0 top-0 bottom-0 z-10 px-2 flex items-center bg-slate-900/40 hover:bg-slate-900/60 transition -mr-2 rounded-r-xl">
+                  <ChevronRight className="w-6 h-6 text-slate-300" />
                 </button>
               </>)}
-              <div className="overflow-hidden px-8">
+              <div className="overflow-hidden px-10">
                 <div className="flex transition-transform duration-300 ease-out" style={{ transform: `translateX(-${carouselPage * 100}%)` }}>
                   {guildGroups.map(([guildName, guildEntries]) => {
                     const gColor = guildName ? guildColor(guildName) : { bg: "bg-slate-800", text: "text-slate-300", border: "border-slate-700" };
@@ -508,32 +508,32 @@ export function LeaderboardView() {
                         <div className={`rounded-xl border ${gColor.border} ${gColor.bg} overflow-hidden`}>
                           {/* Guild header */}
                           <div className={`px-3 py-2 border-b ${gColor.border} flex items-center gap-2 flex-wrap`}>
-                            <Shield className="w-4 h-4 shrink-0" />
-                            <span className={`text-sm font-semibold ${gColor.text} truncate`}>{guildName ?? "Unguilded"}</span>
-                            <span className="text-[10px] text-slate-500">{guildEntries.length}</span>
+                            <Shield className="w-5 h-5 shrink-0" />
+                            <span className={`text-base font-semibold ${gColor.text} truncate`}>{guildName ?? "Unguilded"}</span>
+                            <span className="text-xs text-slate-500">{guildEntries.length}</span>
                             {guildName && (
-                              <button onClick={(e) => { e.stopPropagation(); setShowSnapshots(guildName); }} className="text-[10px] px-2 py-0.5 rounded bg-slate-800 border border-slate-700 text-slate-400 hover:text-amber-400 transition flex items-center gap-1" title={`${guildName} history (${guildSnapCount} results)`}>
-                                <History className="w-3 h-3" />History{guildSnapCount > 0 ? ` (${guildSnapCount})` : ""}
+                              <button onClick={(e) => { e.stopPropagation(); setShowSnapshots(guildName); }} className="text-xs px-2.5 py-1 rounded bg-slate-800 border border-slate-700 text-slate-400 hover:text-amber-400 transition flex items-center gap-1" title={`${guildName} history (${guildSnapCount} results)`}>
+                                <History className="w-3.5 h-3.5" />History{guildSnapCount > 0 ? ` (${guildSnapCount})` : ""}
                               </button>
                             )}
                             {isStaff && guildName && (
-                              <button onClick={async (e) => { e.stopPropagation(); setShowAdjustHistory(guildName); if (serverId) { try { setAdjustHistory(await fetchPointAdjustments(serverId)); } catch { setAdjustHistory([]); } } }} className="text-[10px] px-2 py-0.5 rounded bg-slate-800 border border-slate-700 text-purple-400 hover:text-purple-300 transition" title={`${guildName} point history`}>
+                              <button onClick={async (e) => { e.stopPropagation(); setShowAdjustHistory(guildName); if (serverId) { try { setAdjustHistory(await fetchPointAdjustments(serverId)); } catch { setAdjustHistory([]); } } }} className="text-xs px-2.5 py-1 rounded bg-slate-800 border border-slate-700 text-purple-400 hover:text-purple-300 transition" title={`${guildName} point history`}>
                                 Points
                               </button>
                             )}
                             {canExportAttendance && guildName && (
-                              <button onClick={(e) => { e.stopPropagation(); setShowExport(showExport === guildName ? null : guildName); }} className={`text-[10px] px-2 py-0.5 rounded border transition flex items-center gap-1 ${showExport === guildName ? "bg-amber-500/20 border-amber-500/40 text-amber-400" : "bg-slate-800 border-slate-700 text-slate-400 hover:text-amber-400"}`} title={`Export ${guildName} attendance`}>
-                                <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Export
+                              <button onClick={(e) => { e.stopPropagation(); setShowExport(showExport === guildName ? null : guildName); }} className={`text-xs px-2.5 py-1 rounded border transition flex items-center gap-1 ${showExport === guildName ? "bg-amber-500/20 border-amber-500/40 text-amber-400" : "bg-slate-800 border-slate-700 text-slate-400 hover:text-amber-400"}`} title={`Export ${guildName} attendance`}>
+                                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Export
                               </button>
                             )}
                             {isStaff && guildName && (
-                              <button onClick={(e) => { e.stopPropagation(); setShowFinalizeConfirm(guildName); }} className="ml-auto text-[10px] px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/30 text-amber-400 hover:bg-amber-500/20 transition" title={`Finalize ${guildName} rankings`}>
+                              <button onClick={(e) => { e.stopPropagation(); setShowFinalizeConfirm(guildName); }} className="ml-auto text-xs px-2.5 py-1 rounded bg-amber-500/10 border border-amber-500/30 text-amber-400 hover:bg-amber-500/20 transition" title={`Finalize ${guildName} rankings`}>
                                 Finalize
                               </button>
                             )}
                             {isStaff && guildName && (
-                              <button onClick={(e) => { e.stopPropagation(); setShowResetConfirm(guildName); }} className="text-[10px] px-2 py-0.5 rounded bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 transition flex items-center gap-1" title={`Reset all ${guildName} points`}>
-                                <RotateCcw className="w-3 h-3" />Reset
+                              <button onClick={(e) => { e.stopPropagation(); setShowResetConfirm(guildName); }} className="text-xs px-2.5 py-1 rounded bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 transition flex items-center gap-1" title={`Reset all ${guildName} points`}>
+                                <RotateCcw className="w-3.5 h-3.5" />Reset
                               </button>
                             )}
                           </div>
@@ -600,7 +600,7 @@ export function LeaderboardView() {
             {guildGroups.length > 1 && (
               <div className="flex justify-center gap-1.5 mt-3">
                 {guildGroups.map((_, i) => (
-                  <button key={i} onClick={() => setCarouselPage(i)} className={`w-2 h-2 rounded-full transition ${i === carouselPage ? "bg-amber-400" : "bg-slate-600 hover:bg-slate-500"}`} />
+                  <button key={i} onClick={() => setCarouselPage(i)} className={`w-2.5 h-2.5 rounded-full transition ${i === carouselPage ? "bg-amber-400" : "bg-slate-600 hover:bg-slate-500"}`} />
                 ))}
               </div>
             )}
