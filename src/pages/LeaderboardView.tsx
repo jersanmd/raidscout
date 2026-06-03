@@ -60,6 +60,7 @@ export function LeaderboardView() {
   const [finalizing, setFinalizing] = useState(false);
   const [showSnapshots, setShowSnapshots] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [guildFilter, setGuildFilter] = useState<string>("all");
   const [showFinalizeConfirm, setShowFinalizeConfirm] = useState<string | null>(null);
   const [showResetConfirm, setShowResetConfirm] = useState<string | null>(null);
   const [resetLoading, setResetLoading] = useState(false);
