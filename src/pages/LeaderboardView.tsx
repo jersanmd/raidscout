@@ -67,11 +67,11 @@ export function LeaderboardView() {
   const [snapshotGuildFilter, setSnapshotGuildFilter] = useState<string>("all");
 
   // Attendance export state
-  const todayStr = new Date().toISOString().slice(0, 10);
-  const weekAgoStr = new Date(Date.now() - 6 * 86400000).toISOString().slice(0, 10);
+  const todayLocal = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; })();
+  const weekAgoLocal = (() => { const d = new Date(Date.now() - 6 * 86400000); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; })();
   const [showExport, setShowExport] = useState<string | null>(null);
-  const [exportStartDate, setExportStartDate] = useState(weekAgoStr);
-  const [exportEndDate, setExportEndDate] = useState(todayStr);
+  const [exportStartDate, setExportStartDate] = useState(weekAgoLocal);
+  const [exportEndDate, setExportEndDate] = useState(todayLocal);
   const [exportLoading, setExportLoading] = useState(false);
   const [exportRankingsOnly, setExportRankingsOnly] = useState(false);
 
@@ -206,8 +206,9 @@ export function LeaderboardView() {
       const guild = guilds.find(g => g.name === guildName);
       if (!guild) { alert("Guild not found."); setExportLoading(false); return; }
 
-      const startISO = new Date(exportStartDate).toISOString();
-      const endISO = new Date(exportEndDate + "T23:59:59").toISOString();
+      // Interpret dates as local calendar days, then convert to UTC for DB comparison
+      const startISO = new Date(exportStartDate + "T00:00:00").toISOString();
+      const endISO = new Date(exportEndDate + "T23:59:59.999").toISOString();
 
       // Fetch members of this guild
       const { data: guildMembers } = await supabase
