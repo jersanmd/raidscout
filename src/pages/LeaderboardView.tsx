@@ -5,13 +5,14 @@ import { useLeaderboard, type LeaderboardPeriod } from "@/hooks/useAttendance";
 import { useLeaderboardSnapshots, getLastFinalized, getLeaderboardResetAt } from "@/hooks/useLeaderboardSnapshots";
 import { guildColor } from "@/lib/constants";
 import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/contexts/ToastContext";
 import { useServerId, useServer, useHasPermission } from "@/contexts/ServerContext";
 import { useServerTimezone } from "@/hooks/useServerTimezone";
-import { fetchMemberKills, type MemberBossKill, isSupabaseConfigured, fetchGuilds, adjustMemberPoints, fetchPointAdjustments, fetchPointRules, supabase } from "@/lib/supabase";
+import { fetchMemberKills, type MemberBossKill, isSupabaseConfigured, fetchGuilds, adjustMemberPoints, fetchPointAdjustments, fetchPointRules, resetGuildPoints, supabase } from "@/lib/supabase";
 import { useAttendance } from "@/hooks/useAttendance";
 import { useMembers } from "@/hooks/useMembers";
 import type { Guild, LeaderboardSnapshot, PointAdjustment } from "@/types";
-import { Trophy, Medal, Crown, Users, Loader2, X, Skull, CheckCheck, History, ChevronRight, ChevronLeft, ChevronUp, ChevronDown, Search, Shield, Plus, Minus, Edit3, Share2 } from "lucide-react";
+import { Trophy, Medal, Crown, Users, Loader2, X, Skull, CheckCheck, History, ChevronRight, ChevronLeft, ChevronUp, ChevronDown, Search, Shield, Plus, Minus, Edit3, Share2, RotateCcw } from "lucide-react";
 import { TableRowSkeleton } from "@/components/Skeletons";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 
@@ -37,6 +38,7 @@ export function LeaderboardView() {
   const [period, setPeriod] = useState<LeaderboardPeriod>("weekly");
   const { data: entries = [], isLoading } = useLeaderboard(period);
   const { user, isViewer } = useAuth();
+  const { toast } = useToast();
   const serverId = useServerId();
   const queryClient = useQueryClient();
   const configured = isSupabaseConfigured();
@@ -56,10 +58,12 @@ export function LeaderboardView() {
     useLeaderboardSnapshots();
   const lastFinalized = getLastFinalized();
   const [finalizing, setFinalizing] = useState(false);
-  const [showSnapshots, setShowSnapshots] = useState(false);
+  const [showSnapshots, setShowSnapshots] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [guildFilter, setGuildFilter] = useState<string>("all");
-  const [showFinalizeConfirm, setShowFinalizeConfirm] = useState(false);
+  const [showFinalizeConfirm, setShowFinalizeConfirm] = useState<string | null>(null);
+  const [showResetConfirm, setShowResetConfirm] = useState<string | null>(null);
+  const [resetLoading, setResetLoading] = useState(false);
   const [copiedShare, setCopiedShare] = useState(false);
   const [showShareMenu, setShowShareMenu] = useState(false);
   const [snapshotGuildFilter, setSnapshotGuildFilter] = useState<string>("all");
@@ -72,7 +76,8 @@ export function LeaderboardView() {
   const [exportGuildFilter, setExportGuildFilter] = useState<string>("all");
   const [exportGuildOnly, setExportGuildOnly] = useState(false); // only export bosses owned by selected guild
   const [exportLoading, setExportLoading] = useState(false);
-  const [showExport, setShowExport] = useState(false);
+  const [showExport, setShowExport] = useState<string | null>(null);
+  const [carouselPage, setCarouselPage] = useState(0);
 
   // Point adjustment modal state
   const { currentServer } = useServer();
@@ -86,7 +91,7 @@ export function LeaderboardView() {
   const [adjustLoading, setAdjustLoading] = useState(false);
   const [adjustError, setAdjustError] = useState<string | null>(null);
   const [adjustHistory, setAdjustHistory] = useState<PointAdjustment[]>([]);
-  const [showAdjustHistory, setShowAdjustHistory] = useState(false);
+  const [showAdjustHistory, setShowAdjustHistory] = useState<string | null>(null);
 
   // Fetch guilds and members for filtering
   const { data: members = [] } = useMembers();
@@ -98,19 +103,53 @@ export function LeaderboardView() {
 
   // Build member-guild lookup
   const memberGuildMap = new Map(members.map(m => [m.id, m.guild_id]));
+  const memberGuildNameMap = new Map(
+    members.map(m => {
+      const g = guilds.find(g => g.id === m.guild_id);
+      return [m.id, g?.name ?? null] as const;
+    })
+  );
 
-  // Filter by search + guild
+  // Filter by search only
   const filteredEntries = (() => {
     let result = entries;
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       result = result.filter(e => e.name.toLowerCase().includes(q));
     }
-    if (guildFilter !== "all") {
-      result = result.filter(e => memberGuildMap.get(e.id) === guildFilter);
-    }
     return result;
   })();
+
+  // Group entries by guild for per-guild columns
+  const guildGroups = (() => {
+    const groups = new Map<string | null, typeof entries>();
+    for (const e of filteredEntries) {
+      const guildName = memberGuildNameMap.get(e.id) ?? null;
+      if (!groups.has(guildName)) groups.set(guildName, []);
+      groups.get(guildName)!.push(e);
+    }
+    const sorted = [...groups.entries()].sort(([a], [b]) => {
+      if (a === null) return 1;
+      if (b === null) return -1;
+      return a.localeCompare(b);
+    });
+    return sorted;
+  })();
+
+  // Restore and save carousel position per server
+  useEffect(() => {
+    if (!serverId) return;
+    const saved = localStorage.getItem(`raidscout-carousel-${serverId}`);
+    if (saved) setCarouselPage(parseInt(saved, 10));
+  }, [serverId]);
+
+  useEffect(() => {
+    if (serverId) localStorage.setItem(`raidscout-carousel-${serverId}`, String(carouselPage));
+  }, [carouselPage, serverId]);
+
+  useEffect(() => {
+    setCarouselPage(prev => prev >= guildGroups.length && guildGroups.length > 0 ? guildGroups.length - 1 : prev);
+  }, [guildGroups.length]);
 
   // Auto-open member from URL param (linked from History page)
   const [searchParams, setSearchParams] = useSearchParams();
@@ -122,22 +161,8 @@ export function LeaderboardView() {
       if (entry) {
         setSelectedMember({ id: entry.id, name: entry.name });
         setKillsLoading(true);
-        // Calculate period start, accounting for last finalized snapshot reset
         (async () => {
-          const now = new Date();
-          let periodStart: string;
-          if (period === "weekly") {
-            const day = now.getDay();
-            const monday = new Date(now);
-            monday.setDate(now.getDate() - ((day + 6) % 7));
-            monday.setHours(0, 0, 0, 0);
-            periodStart = monday.toISOString();
-          } else if (period === "monthly") {
-            periodStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-          } else {
-            periodStart = "1970-01-01T00:00:00Z";
-          }
-          let since = periodStart;
+          let since = "1970-01-01T00:00:00Z";
           try {
             const { data: snaps } = await supabase
               .from("leaderboard_snapshots")
@@ -146,12 +171,9 @@ export function LeaderboardView() {
               .eq("server_id", serverId)
               .order("finalized_at", { ascending: false })
               .limit(1);
-            if (snaps && snaps.length > 0) {
-              const reset = (snaps[0] as any).finalized_at;
-              if (reset > periodStart) since = reset;
-            }
-          } catch { /* fall back to periodStart */ }
-          fetchMemberKills(entry.id, since, serverId)
+            if (snaps && snaps.length > 0) since = (snaps[0] as any).finalized_at;
+          } catch { /* fall back */ }
+          fetchMemberKills(entry.id, since, serverId, serverTimezone)
             .then(setMemberKills)
             .catch(() => setMemberKills([]))
             .finally(() => setKillsLoading(false));
@@ -523,7 +545,7 @@ export function LeaderboardView() {
             <h2 className="text-xl font-bold text-white">Leaderboard</h2>
             <p className="text-sm text-slate-400">
               {entries.length} member{entries.length !== 1 ? "s" : ""}
-              {period === "all" ? "" : period === "weekly" ? " · This Week" : " · This Month"}
+              {period === "all" ? "" : " · Since Reset"}
               {" · "}Points per boss set in Settings
             </p>
           </div>
@@ -534,7 +556,7 @@ export function LeaderboardView() {
             {isStaff && (
               <button
                 onClick={async () => {
-                  setShowAdjustHistory(true);
+                  setShowAdjustHistory("__all__");
                   if (serverId) {
                     try {
                       setAdjustHistory(await fetchPointAdjustments(serverId));
@@ -613,7 +635,7 @@ export function LeaderboardView() {
             </div>
             {!isViewer && (
             <button
-              onClick={() => setShowFinalizeConfirm(true)}
+              onClick={() => setShowFinalizeConfirm("__global__")}
               disabled={finalizing}
               className="flex items-center gap-1.5 text-xs text-amber-400 hover:text-amber-300 transition disabled:opacity-50"
             >
@@ -637,7 +659,7 @@ export function LeaderboardView() {
       )}
       {snapshots.length > 0 && (
         <button
-          onClick={() => setShowSnapshots(true)}
+          onClick={() => setShowSnapshots("__all__")}
           className="flex items-center gap-1.5 text-xs text-amber-400 hover:text-amber-300 transition"
         >
           <History className="w-3.5 h-3.5" />
@@ -648,14 +670,14 @@ export function LeaderboardView() {
       {/* Attendance Export toggle — hidden from viewers */}
       {canExportAttendance && (<>
       <button
-        onClick={() => setShowExport(!showExport)}
+        onClick={() => setShowExport(showExport ? null : "__global__")
         className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-300 transition"
       >
         {showExport ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
         Export Attendance
       </button>
 
-      {showExport && (
+      {!!showExport && (
       <div className="bg-slate-900 border border-slate-800 rounded-xl p-3 space-y-2 mt-2">
         <div className="flex flex-wrap gap-2 items-end">
           <div className="flex flex-col gap-0.5">
@@ -886,16 +908,16 @@ export function LeaderboardView() {
       )}
 
       {/* Previous Results modal */}
-      {showSnapshots && snapshots.length > 0 && (
+      {showSnapshots !== null && snapshots.length > 0 && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/60" onClick={() => setShowSnapshots(false)} />
+          <div className="absolute inset-0 bg-black/60" onClick={() => setShowSnapshots(null)} />
           <div className="relative bg-slate-900 border border-slate-700 rounded-xl w-full max-w-md shadow-2xl max-h-[80vh] flex flex-col">
             <div className="flex items-center justify-between p-4 border-b border-slate-800 shrink-0">
               <h3 className="text-white font-bold text-sm flex items-center gap-2">
                 <History className="w-4 h-4 text-amber-400" />
                 Previous Results ({snapshots.length})
               </h3>
-              <button onClick={() => setShowSnapshots(false)} className="text-slate-400 hover:text-white p-1">
+              <button onClick={() => setShowSnapshots(null)} className="text-slate-400 hover:text-white p-1">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -919,7 +941,7 @@ export function LeaderboardView() {
                 return (
                   <button
                     key={snap.id}
-                    onClick={() => { setShowSnapshots(false); setSnapshotGuildFilter("all"); loadSnapshot(snap.id); }}
+                    onClick={() => { setShowSnapshots(null); setSnapshotGuildFilter("all"); loadSnapshot(snap.id); }}
                     className="w-full flex items-start gap-3 px-4 py-3 rounded-lg bg-slate-800/50 border border-slate-700/50 hover:border-slate-600 transition text-left"
                   >
                     <History className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
@@ -973,7 +995,7 @@ export function LeaderboardView() {
                 <div className="flex items-center justify-between p-4 border-b border-slate-800 shrink-0">
                   <div className="flex items-center gap-2">
                     <button
-                      onClick={() => { clearViewing(); setShowSnapshots(true); }}
+                      onClick={() => { clearViewing(); setShowSnapshots("__all__"); }}
                       className="text-slate-400 hover:text-white p-1 transition"
                       title="Back to list"
                     >
@@ -1257,16 +1279,16 @@ export function LeaderboardView() {
       )}
 
       {/* Point adjustment history modal */}
-      {showAdjustHistory && (
+      {!!showAdjustHistory && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/60" onClick={() => setShowAdjustHistory(false)} />
+          <div className="absolute inset-0 bg-black/60" onClick={() => setShowAdjustHistory(null)} />
           <div className="relative bg-slate-900 border border-slate-700 rounded-xl w-full max-w-md shadow-2xl max-h-[80vh] flex flex-col">
             <div className="flex items-center justify-between p-4 border-b border-slate-800 shrink-0">
               <h3 className="text-white font-bold text-sm flex items-center gap-2">
                 <Edit3 className="w-4 h-4 text-purple-400" />
                 Point Adjustments History
               </h3>
-              <button onClick={() => setShowAdjustHistory(false)} className="text-slate-400 hover:text-white p-1">
+              <button onClick={() => setShowAdjustHistory(null)} className="text-slate-400 hover:text-white p-1">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -1301,38 +1323,54 @@ export function LeaderboardView() {
       )}
 
       <ConfirmDialog
-        open={showFinalizeConfirm}
-        title="Finalize Leaderboard"
-        message={`This will save the current rankings as a snapshot and reset the ${period === "all" ? "all-time" : period === "weekly" ? "weekly" : "monthly"} leaderboard. This cannot be undone.`}
+        open={!!showFinalizeConfirm
+        title={`Finalize ${showFinalizeConfirm ?? ""}`}
+        message="Save current rankings for this guild as a snapshot and reset their points. This cannot be undone."
         confirmLabel="Finalize"
         variant="warning"
         loading={finalizing}
         onConfirm={async () => {
           setFinalizing(true);
-          setShowFinalizeConfirm(false);
-          const rankings = entries.map((e, i) => ({
-            rank: i + 1,
-            memberId: e.id,
-            memberName: e.name,
-            points: e.points,
-          }));
-          const resetAt = getLeaderboardResetAt(serverId, currentServer?.created_at);
-          const now = new Date();
-          let periodStart: string;
-          if (resetAt) {
-            periodStart = resetAt;
-          } else {
-            // First finalization (week 0): capture from server creation onward
-            periodStart = currentServer?.created_at ?? new Date(0).toISOString();
+          const guildName = showFinalizeConfirm!;
+          setShowFinalizeConfirm(null);
+          try {
+            const guildEntries = guildGroups.find(([n]) => n === guildName)?.[1] ?? [];
+            const rankings = guildEntries.map((e, i) => ({
+              rank: i + 1, memberId: e.id, memberName: e.name, points: e.points,
+            }));
+            await finalizeResults(`weekly:${guildName}`, rankings, new Date().toISOString());
+            toast("success", `${guildName} finalized successfully`);
+          } catch {
+            toast("error", `Failed to finalize ${guildName}`);
+          } finally {
+            setFinalizing(false);
           }
-          await finalizeResults(
-            period === "all" ? "all_time" : period === "weekly" ? "weekly" : "monthly",
-            rankings,
-            periodStart
-          );
-          setFinalizing(false);
         }}
-        onCancel={() => setShowFinalizeConfirm(false)}
+        onCancel={() => setShowFinalizeConfirm(null)}
+      />
+
+      <ConfirmDialog
+        open={!!showResetConfirm}
+        title={`Reset ${showResetConfirm ?? ""} Points`}
+        message="This will permanently delete ALL attendance records and point adjustments for this guild. Their all-time scores will be gone forever. Finalize History (snapshots) will be preserved."
+        confirmLabel="Reset All Points"
+        confirmText={showResetConfirm ?? ""}
+        variant="danger"
+        loading={resetLoading}
+        onConfirm={async () => {
+          setResetLoading(true);
+          const guildName = showResetConfirm!;
+          setShowResetConfirm(null);
+          try {
+            const guildId = guilds.find(g => g.name === guildName)?.id;
+            if (guildId && serverId) {
+              await resetGuildPoints(guildId, serverId);
+              queryClient.invalidateQueries({ queryKey: ["leaderboard"] });
+            }
+          } catch { /* error handled silently */ }
+          finally { setResetLoading(false); }
+        }}
+        onCancel={() => setShowResetConfirm(null)}
       />
     </div>
   );
