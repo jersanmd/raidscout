@@ -588,7 +588,7 @@ export function LeaderboardView() {
             </div>
             {!isViewer && (
             <button
-              onClick={() => setShowFinalizeConfirm(true)}
+              onClick={() => setShowFinalizeConfirm("__global__")}
               disabled={finalizing}
               className="flex items-center gap-1.5 text-xs text-amber-400 hover:text-amber-300 transition disabled:opacity-50"
             >
@@ -623,7 +623,7 @@ export function LeaderboardView() {
       {/* Attendance Export toggle — hidden from viewers */}
       {canExportAttendance && (<>
       <button
-        onClick={() => setShowExport(!showExport)}
+        onClick={() => setShowExport(showExport ? null : "__global__")}
         className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-300 transition"
       >
         {showExport ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
@@ -1268,38 +1268,50 @@ export function LeaderboardView() {
       )}
 
       <ConfirmDialog
-        open={showFinalizeConfirm}
-        title="Finalize Leaderboard"
-        message={`This will save the current rankings as a snapshot and reset the ${period === "all" ? "all-time" : period === "weekly" ? "weekly" : "monthly"} leaderboard. This cannot be undone.`}
+        open={!!showFinalizeConfirm}
+        title={`Finalize ${showFinalizeConfirm === "__global__" ? "Leaderboard" : showFinalizeConfirm ?? ""}`}
+        message={showFinalizeConfirm === "__global__" ? `Save rankings as a snapshot and reset the ${period === "all" ? "all-time" : "weekly"} leaderboard.` : "Save current rankings for this guild as a snapshot and reset their points."}
         confirmLabel="Finalize"
         variant="warning"
         loading={finalizing}
         onConfirm={async () => {
           setFinalizing(true);
-          setShowFinalizeConfirm(false);
-          const rankings = entries.map((e, i) => ({
-            rank: i + 1,
-            memberId: e.id,
-            memberName: e.name,
-            points: e.points,
-          }));
-          const resetAt = getLeaderboardResetAt(serverId, currentServer?.created_at);
-          const now = new Date();
-          let periodStart: string;
-          if (resetAt) {
-            periodStart = resetAt;
-          } else {
-            // First finalization (week 0): capture from server creation onward
-            periodStart = currentServer?.created_at ?? new Date(0).toISOString();
-          }
-          await finalizeResults(
-            period === "all" ? "all_time" : period === "weekly" ? "weekly" : "monthly",
-            rankings,
-            periodStart
-          );
-          setFinalizing(false);
+          const guildName = showFinalizeConfirm!;
+          setShowFinalizeConfirm(null);
+          try {
+            let rankings;
+            if (guildName === "__global__") {
+              rankings = entries.map((e, i) => ({ rank: i + 1, memberId: e.id, memberName: e.name, points: e.points }));
+              await finalizeResults(period === "all" ? "all_time" : "weekly", rankings, new Date().toISOString());
+            } else {
+              const guildEntries = guildGroups.find(([n]) => n === guildName)?.[1] ?? [];
+              rankings = guildEntries.map((e, i) => ({ rank: i + 1, memberId: e.id, memberName: e.name, points: e.points }));
+              await finalizeResults(`weekly:${guildName}`, rankings, new Date().toISOString());
+            }
+            toast("success", `${guildName === "__global__" ? "Leaderboard" : guildName} finalized`);
+          } catch { toast("error", "Failed to finalize"); }
+          finally { setFinalizing(false); }
         }}
-        onCancel={() => setShowFinalizeConfirm(false)}
+        onCancel={() => setShowFinalizeConfirm(null)}
+      />
+
+      <ConfirmDialog
+        open={!!showResetConfirm}
+        title={`Reset ${showResetConfirm ?? ""} Points`}
+        message="Permanently delete ALL attendance and point adjustments for this guild. All-time scores gone. Finalize History preserved."
+        confirmLabel="Reset All Points"
+        confirmText={showResetConfirm ?? ""}
+        variant="danger"
+        loading={resetLoading}
+        onConfirm={async () => {
+          setResetLoading(true);
+          const guildName = showResetConfirm!;
+          setShowResetConfirm(null);
+          try { const gid = guilds.find(g => g.name === guildName)?.id; if (gid && serverId) { await resetGuildPoints(gid, serverId); queryClient.invalidateQueries({ queryKey: ["leaderboard"] }); } }
+          catch {}
+          finally { setResetLoading(false); }
+        }}
+        onCancel={() => setShowResetConfirm(null)}
       />
     </div>
   );
