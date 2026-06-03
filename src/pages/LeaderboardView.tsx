@@ -242,6 +242,17 @@ export function LeaderboardView() {
         .in("id", bossIds);
       const bossMap = new Map((bosses || []).map((b: any) => [b.id, b]));
 
+      // Fetch per-guild salary flags for this guild's bosses
+      const { data: bgData } = await supabase
+        .from("boss_guilds")
+        .select("boss_id,has_salary")
+        .eq("guild_id", guild.id)
+        .in("boss_id", bossIds);
+      const salaryMap = new Map<string, boolean>();
+      for (const bg of (bgData || [])) {
+        if (bg.has_salary) salaryMap.set(bg.boss_id, true);
+      }
+
       // Fetch attendance records for these deaths, filtered to guild members
       const { data: attRecords } = await supabase
         .from("attendance_records")
@@ -300,14 +311,14 @@ export function LeaderboardView() {
         // ── Data + Rankings ──
         const playerColors = ["#7C3AED","#059669","#D97706","#0891B2","#DB2777","#4F46E5"];
         // Header row 0: player names + ranking header
-        html += `<tr><th class="hdr">#</th><th class="hdr">Date</th><th class="hdr">Time</th><th class="hdr boss" style="text-align:left">Boss</th><th class="hdr">Party Leader</th>`;
+        html += `<tr><th class="hdr">#</th><th class="hdr">Date</th><th class="hdr">Time</th><th class="hdr boss" style="text-align:left">Boss</th><th class="hdr">Party Leader</th><th class="hdr">Salary</th>`;
         sortedMembers.forEach((mid, i) => {
           html += `<th class="hdr" style="background:${playerColors[i % 6]}">${memberMap.get(mid) || "?"}</th>`;
         });
         html += `<th class="hdr" style="background:#1E293B;min-width:16px"></th><th class="hdr" colspan="3" style="background:#7C3AED">\u{1F3C6} Ranking</th></tr>`;
 
         // Header row 1: player totals + ranking sub-header
-        html += `<tr><th class="hdr">#</th><th class="hdr">Date</th><th class="hdr">Time</th><th class="hdr">Boss</th><th class="hdr">Party Leader</th>`;
+        html += `<tr><th class="hdr">#</th><th class="hdr">Date</th><th class="hdr">Time</th><th class="hdr">Boss</th><th class="hdr">Party Leader</th><th class="hdr">Salary</th>`;
         sortedMembers.forEach((mid, i) => {
           html += `<th class="hdr" style="background:${playerColors[i % 6]};font-size:14px">${memberTotals.get(mid) || 0}</th>`;
         });
@@ -321,12 +332,14 @@ export function LeaderboardView() {
           const boss = bossMap.get(death.boss_id);
           const pl = (death.party_leaders || {}) as Record<string, string>;
           const leaderName = pl[guild.id] ? (memberMap.get(pl[guild.id]) || "") : "";
+          const salaryYes = salaryMap.get(death.boss_id) === true ? "YES" : "NO";
           const row: any[] = [
             attendees.size,
             dateFmt.format(new Date(death.death_time)),
             timeFmt.format(new Date(death.death_time)),
             boss?.name || "?",
             leaderName,
+            salaryYes,
           ];
           sortedMembers.forEach(mid => {
             row.push(attendees.has(mid) ? (boss?.boss_points || 0) : 0);
@@ -340,12 +353,12 @@ export function LeaderboardView() {
           html += `<tr>`;
           if (ri < dataRows.length) {
             const row = dataRows[ri];
-            html += `<td class="${cls}">${row[0]}</td><td class="${cls}">${row[1]}</td><td class="${cls}">${row[2]}</td><td class="boss ${cls}">${row[3]}</td><td class="${cls}">${row[4] || ""}</td>`;
-            for (let c = 5; c < row.length; c++) {
+            html += `<td class="${cls}">${row[0]}</td><td class="${cls}">${row[1]}</td><td class="${cls}">${row[2]}</td><td class="boss ${cls}">${row[3]}</td><td class="${cls}">${row[4] || ""}</td><td class="num ${cls}" style="color:${row[5] === 'YES' ? '#34D399' : '#64748B'}">${row[5]}</td>`;
+            for (let c = 6; c < row.length; c++) {
               html += `<td class="${cls} ${row[c] > 0 ? 'pts-yes' : 'pts-no'}">${row[c]}</td>`;
             }
           } else {
-            html += `<td class="${cls}"></td><td class="${cls}"></td><td class="${cls}"></td><td class="${cls}"></td><td class="${cls}"></td>`;
+            html += `<td class="${cls}"></td><td class="${cls}"></td><td class="${cls}"></td><td class="${cls}"></td><td class="${cls}"></td><td class="${cls}"></td>`;
             for (let c = 0; c < sortedMembers.length; c++) html += `<td class="${cls}"></td>`;
           }
           html += `<td class="${cls}"></td>`;
