@@ -18,19 +18,19 @@ import { ConfirmDialog } from "@/components/ConfirmDialog";
 
 const rankColors: Record<number, { icon: React.ReactNode; text: string; bg: string }> = {
   1: {
-    icon: <Crown className="w-5 h-5 text-yellow-400" />,
-    text: "text-yellow-400",
-    bg: "bg-yellow-900/20 border-yellow-800",
+    icon: <Crown className="w-5 h-5 text-[#fafafa]" />,
+    text: "text-[#fafafa]",
+    bg: "bg-[#18181b] border-[#27272a]",
   },
   2: {
-    icon: <Medal className="w-5 h-5 text-slate-300" />,
-    text: "text-slate-300",
-    bg: "bg-slate-800 border-slate-700",
+    icon: <Medal className="w-5 h-5 text-[#d4d4d8]" />,
+    text: "text-[#d4d4d8]",
+    bg: "bg-[#18181b] border-[#27272a]",
   },
   3: {
-    icon: <Medal className="w-5 h-5 text-amber-600" />,
-    text: "text-amber-500",
-    bg: "bg-amber-900/20 border-amber-800",
+    icon: <Medal className="w-5 h-5 text-[#a1a1aa]" />,
+    text: "text-[#a1a1aa]",
+    bg: "bg-[#18181b] border-amber-800",
   },
 };
 
@@ -200,7 +200,7 @@ export function LeaderboardView() {
   if (isLoading) {
     return (
       <div className="max-w-2xl mx-auto px-4 py-6">
-        <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+        <div className="bg-[#09090b] border border-[#27272a] rounded-xl overflow-hidden">
           <table className="w-full text-sm">
             <tbody>
               {Array.from({ length: 8 }).map((_, i) => (
@@ -466,12 +466,12 @@ export function LeaderboardView() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-yellow-400">
-            <Trophy className="w-5 h-5 text-white" />
+          <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-[#fafafa] to-[#a1a1aa]">
+            <Trophy className="w-5 h-5 text-[#fafafa]" />
           </div>
           <div>
-            <h2 className="text-xl font-bold text-white">Leaderboard</h2>
-            <p className="text-sm text-slate-400">
+            <h2 className="text-xl font-bold text-[#fafafa]">Leaderboard</h2>
+            <p className="text-sm text-[#a1a1aa]">
               {entries.length} member{entries.length !== 1 ? "s" : ""}
               {period === "all" ? "" : " · Since Reset"}
               {" · "}Points per boss set in Settings
@@ -481,9 +481,9 @@ export function LeaderboardView() {
       </div>
 
       {/* Period tabs */}
-      <div className="flex bg-slate-800 rounded-lg p-0.5">
+      <div className="flex bg-[#18181b] rounded-lg p-0.5">
         {(["weekly", "all"] as LeaderboardPeriod[]).map((p) => (
-          <button key={p} onClick={() => setPeriod(p)} className={`flex-1 py-1.5 rounded-md text-xs font-medium transition ${period === p ? "bg-slate-700 text-white" : "text-slate-400 hover:text-slate-200"}`}>
+          <button key={p} onClick={() => setPeriod(p)} className={`flex-1 py-1.5 rounded-md text-xs font-medium transition ${period === p ? "bg-[#27272a] text-[#fafafa]" : "text-[#a1a1aa] hover:text-[#fafafa]"}`}>
             {p === "all" ? "All Time" : "Since Reset"}
           </button>
         ))}
@@ -492,8 +492,8 @@ export function LeaderboardView() {
       {entries.length === 0 ? (
         <div className="text-center py-16">
           <Users className="w-12 h-12 text-slate-700 mx-auto mb-3" />
-          <p className="text-slate-500 text-lg">No members yet</p>
-          <p className="text-slate-600 text-sm mt-1">
+          <p className="text-[#71717a] text-lg">No members yet</p>
+          <p className="text-[#52525b] text-sm mt-1">
             Record a boss death with attendees to start the leaderboard.
           </p>
         </div>
@@ -502,16 +502,16 @@ export function LeaderboardView() {
           {/* Search + Guild filter — always visible */}
           <div className="flex gap-2">
             <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#71717a]" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search member..."
-                className="w-full pl-9 pr-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition"
+                className="w-full pl-9 pr-3 py-2 bg-[#18181b] border border-[#27272a] rounded-lg text-[#fafafa] placeholder-[#71717a] text-sm focus:outline-none focus:ring-2 focus:ring-[#fafafa]/30/50 focus:border-[#27272a] transition"
               />
               {searchQuery && (
-                <button onClick={() => setSearchQuery("")} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white">
+                <button onClick={() => setSearchQuery("")} className="absolute right-2 top-1/2 -translate-y-1/2 text-[#a1a1aa] hover:text-[#fafafa]">
                   <X className="w-3.5 h-3.5" />
                 </button>
               )}
@@ -521,8 +521,8 @@ export function LeaderboardView() {
           {guildGroups.length === 0 ? (
             <div className="text-center py-16">
               <Users className="w-12 h-12 text-slate-700 mx-auto mb-3" />
-              <p className="text-slate-500 text-lg">No members found</p>
-              <p className="text-slate-600 text-sm mt-1">
+              <p className="text-[#71717a] text-lg">No members found</p>
+              <p className="text-[#52525b] text-sm mt-1">
                 {searchQuery ? "Try adjusting your search." : "Record a boss death with attendees to start the leaderboard."}
               </p>
             </div>
@@ -530,43 +530,43 @@ export function LeaderboardView() {
             <>
             {/* Per-guild Export Attendance panel */}
             <div className={`transition-all duration-300 ease-out overflow-hidden ${showExport ? "max-h-48 opacity-100 mb-3" : "max-h-0 opacity-0"}`}>
-              <div className="bg-slate-900 border border-slate-700 rounded-xl p-3 space-y-2">
+              <div className="bg-[#09090b] border border-[#27272a] rounded-xl p-3 space-y-2">
                 <div className="flex items-center justify-between">
-                  <p className="text-xs font-medium text-slate-300">
+                  <p className="text-xs font-medium text-[#d4d4d8]">
                     Export <span className="text-amber-400">{showExport}</span> Attendance
                   </p>
-                  <button onClick={() => setShowExport(null)} className="text-slate-500 hover:text-white">
+                  <button onClick={() => setShowExport(null)} className="text-[#71717a] hover:text-[#fafafa]">
                     <X className="w-3.5 h-3.5" />
                   </button>
                 </div>
                 <div className="flex flex-wrap gap-2 items-end">
                   <div className="flex flex-col gap-0.5">
-                    <label className="text-[10px] text-slate-500">Start</label>
-                    <input type="date" value={exportStartDate} onChange={(e) => setExportStartDate(e.target.value)} className="px-2 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-white text-xs outline-none focus:ring-2 focus:ring-amber-500 transition" />
+                    <label className="text-[10px] text-[#71717a]">Start</label>
+                    <input type="date" value={exportStartDate} onChange={(e) => setExportStartDate(e.target.value)} className="px-2 py-1.5 bg-[#18181b] border border-[#27272a] rounded-lg text-[#fafafa] text-xs outline-none focus:ring-2 focus:ring-[#fafafa]/30/50 transition" />
                   </div>
                   <div className="flex flex-col gap-0.5">
-                    <label className="text-[10px] text-slate-500">End</label>
-                    <input type="date" value={exportEndDate} onChange={(e) => setExportEndDate(e.target.value)} className="px-2 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-white text-xs outline-none focus:ring-2 focus:ring-amber-500 transition" />
+                    <label className="text-[10px] text-[#71717a]">End</label>
+                    <input type="date" value={exportEndDate} onChange={(e) => setExportEndDate(e.target.value)} className="px-2 py-1.5 bg-[#18181b] border border-[#27272a] rounded-lg text-[#fafafa] text-xs outline-none focus:ring-2 focus:ring-[#fafafa]/30/50 transition" />
                   </div>
                   <label className="flex items-center gap-1.5 cursor-pointer pb-1.5">
-                    <input type="checkbox" checked={exportRankingsOnly} onChange={(e) => setExportRankingsOnly(e.target.checked)} className="w-3 h-3 rounded border-slate-600 bg-slate-800 text-amber-600 focus:ring-amber-500/50 cursor-pointer" />
-                    <span className="text-[10px] text-slate-400 whitespace-nowrap">Rankings only</span>
+                    <input type="checkbox" checked={exportRankingsOnly} onChange={(e) => setExportRankingsOnly(e.target.checked)} className="w-3 h-3 rounded border-slate-600 bg-[#18181b] text-[#a1a1aa] focus:ring-[#fafafa]/30/50/50 cursor-pointer" />
+                    <span className="text-[10px] text-[#a1a1aa] whitespace-nowrap">Rankings only</span>
                   </label>
-                  <button onClick={() => handleExportAttendance()} disabled={exportLoading || !exportStartDate || !exportEndDate} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-amber-600 text-white hover:bg-amber-500 transition disabled:opacity-50 flex items-center gap-1.5">
+                  <button onClick={() => handleExportAttendance()} disabled={exportLoading || !exportStartDate || !exportEndDate} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-amber-500 text-[#fafafa] hover:bg-amber-500 transition disabled:opacity-50 flex items-center gap-1.5">
                     {exportLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
                     Export Excel
                   </button>
                 </div>
-                <p className="text-[10px] text-slate-600">{exportRankingsOnly ? "Exports a simple ranking list: rank, player, total points." : "Exports a pivot table + ranking side by side. Rows = bosses, columns = players."}</p>
+                <p className="text-[10px] text-[#52525b]">{exportRankingsOnly ? "Exports a simple ranking list: rank, player, total points." : "Exports a pivot table + ranking side by side. Rows = bosses, columns = players."}</p>
               </div>
             </div>
             <div className="relative">
               {guildGroups.length > 1 && (<>
-                <button onClick={() => setCarouselPage(p => p === 0 ? guildGroups.length - 1 : p - 1)} className="absolute left-0 top-0 bottom-0 z-10 px-2 flex items-center bg-slate-900/40 hover:bg-slate-900/60 transition -ml-2 rounded-l-xl">
-                  <ChevronLeft className="w-6 h-6 text-slate-300" />
+                <button onClick={() => setCarouselPage(p => p === 0 ? guildGroups.length - 1 : p - 1)} className="absolute left-0 top-0 bottom-0 z-10 px-2 flex items-center bg-[#09090b]/40 hover:bg-[#09090b]/60 transition -ml-2 rounded-l-xl">
+                  <ChevronLeft className="w-6 h-6 text-[#d4d4d8]" />
                 </button>
-                <button onClick={() => setCarouselPage(p => p >= guildGroups.length - 1 ? 0 : p + 1)} className="absolute right-0 top-0 bottom-0 z-10 px-2 flex items-center bg-slate-900/40 hover:bg-slate-900/60 transition -mr-2 rounded-r-xl">
-                  <ChevronRight className="w-6 h-6 text-slate-300" />
+                <button onClick={() => setCarouselPage(p => p >= guildGroups.length - 1 ? 0 : p + 1)} className="absolute right-0 top-0 bottom-0 z-10 px-2 flex items-center bg-[#09090b]/40 hover:bg-[#09090b]/60 transition -mr-2 rounded-r-xl">
+                  <ChevronRight className="w-6 h-6 text-[#d4d4d8]" />
                 </button>
               </>)}
               <div className="overflow-hidden px-10"
@@ -580,7 +580,7 @@ export function LeaderboardView() {
               >
                 <div className="flex transition-transform duration-300 ease-out" style={{ transform: `translateX(-${carouselPage * 100}%)` }}>
                   {guildGroups.map(([guildName, guildEntries]) => {
-                    const gColor = guildName ? guildColor(guildName) : { bg: "bg-slate-800", text: "text-slate-300", border: "border-slate-700" };
+                    const gColor = guildName ? guildColor(guildName) : { bg: "bg-[#18181b]", text: "text-[#d4d4d8]", border: "border-[#27272a]" };
                     const guildSnapCount = guildName ? snapshots.filter(s => (s as any).period?.startsWith("weekly:") && (s as any).period.includes(guildName)).length : 0;
                     return (
                       <div key={guildName ?? "__unguilded__"} className="w-full flex-shrink-0 px-2">
@@ -589,19 +589,19 @@ export function LeaderboardView() {
                           <div className={`px-3 py-2 border-b ${gColor.border} flex items-center gap-2 flex-wrap`}>
                             <Shield className="w-5 h-5 shrink-0" />
                             <span className={`text-base font-semibold ${gColor.text} truncate`}>{guildName ?? "Unguilded"}</span>
-                            <span className="text-xs text-slate-500">{guildEntries.length}</span>
+                            <span className="text-xs text-[#71717a]">{guildEntries.length}</span>
                             {guildName && (
-                              <button onClick={(e) => { e.stopPropagation(); setShowSnapshots(guildName); }} className="text-xs px-2.5 py-1 rounded bg-slate-800 border border-slate-700 text-slate-400 hover:text-amber-400 transition flex items-center gap-1" title={`${guildName} history (${guildSnapCount} results)`}>
+                              <button onClick={(e) => { e.stopPropagation(); setShowSnapshots(guildName); }} className="text-xs px-2.5 py-1 rounded bg-[#18181b] border border-[#27272a] text-[#a1a1aa] hover:text-amber-400 transition flex items-center gap-1" title={`${guildName} history (${guildSnapCount} results)`}>
                                 <History className="w-3.5 h-3.5" />History{guildSnapCount > 0 ? ` (${guildSnapCount})` : ""}
                               </button>
                             )}
                             {isStaff && guildName && (
-                              <button onClick={async (e) => { e.stopPropagation(); setShowAdjustHistory(guildName); if (serverId) { try { setAdjustHistory(await fetchPointAdjustments(serverId)); } catch { setAdjustHistory([]); } } }} className="text-xs px-2.5 py-1 rounded bg-slate-800 border border-slate-700 text-purple-400 hover:text-purple-300 transition" title={`${guildName} point history`}>
+                              <button onClick={async (e) => { e.stopPropagation(); setShowAdjustHistory(guildName); if (serverId) { try { setAdjustHistory(await fetchPointAdjustments(serverId)); } catch { setAdjustHistory([]); } } }} className="text-xs px-2.5 py-1 rounded bg-[#18181b] border border-[#27272a] text-purple-400 hover:text-purple-300 transition" title={`${guildName} point history`}>
                                 Points
                               </button>
                             )}
                             {canExportAttendance && guildName && (
-                              <button onClick={(e) => { e.stopPropagation(); setShowExport(showExport === guildName ? null : guildName); }} className={`text-xs px-2.5 py-1 rounded border transition flex items-center gap-1 ${showExport === guildName ? "bg-amber-500/20 border-amber-500/40 text-amber-400" : "bg-slate-800 border-slate-700 text-slate-400 hover:text-amber-400"}`} title={`Export ${guildName} attendance`}>
+                              <button onClick={(e) => { e.stopPropagation(); setShowExport(showExport === guildName ? null : guildName); }} className={`text-xs px-2.5 py-1 rounded border transition flex items-center gap-1 ${showExport === guildName ? "bg-amber-500/20 border-amber-500/40 text-amber-400" : "bg-[#18181b] border-[#27272a] text-[#a1a1aa] hover:text-amber-400"}`} title={`Export ${guildName} attendance`}>
                                 <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Export
                               </button>
                             )}
@@ -617,7 +617,7 @@ export function LeaderboardView() {
                             )}
                           </div>
                           {/* Member rows */}
-                          <div className="divide-y divide-slate-800/50">
+                          <div className="divide-y divide-[#27272a]/50">
                             {guildEntries.map((entry, i) => {
                               const rank = i + 1;
                               const style = rankColors[rank];
@@ -646,12 +646,12 @@ export function LeaderboardView() {
                                   className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-white/5 transition"
                                 >
                                   <div className="flex items-center justify-center w-6 h-6 shrink-0">
-                                    {style ? <span className="scale-75">{style.icon}</span> : <span className="text-xs font-bold text-slate-500">{rank}</span>}
+                                    {style ? <span className="scale-75">{style.icon}</span> : <span className="text-xs font-bold text-[#71717a]">{rank}</span>}
                                   </div>
-                                  <span className="text-sm text-slate-200 flex-1 truncate">{entry.name}</span>
-                                  <span className="text-xs font-mono text-slate-400">{entry.points}pt</span>
+                                  <span className="text-sm text-[#fafafa] flex-1 truncate">{entry.name}</span>
+                                  <span className="text-xs font-mono text-[#a1a1aa]">{entry.points}pt</span>
                                   {canAdjustPoints && (
-                                    <button onClick={(e) => { e.stopPropagation(); setAdjustMember({ id: entry.id, name: entry.name, points: entry.points }); setAdjustValue(0); setAdjustReason(""); setAdjustError(null); }} className="p-0.5 rounded text-slate-600 hover:text-amber-400 transition" title="Adjust points">
+                                    <button onClick={(e) => { e.stopPropagation(); setAdjustMember({ id: entry.id, name: entry.name, points: entry.points }); setAdjustValue(0); setAdjustReason(""); setAdjustError(null); }} className="p-0.5 rounded text-[#52525b] hover:text-amber-400 transition" title="Adjust points">
                                       <Edit3 className="w-3 h-3" />
                                     </button>
                                   )}
@@ -687,9 +687,9 @@ export function LeaderboardView() {
           return (
             <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
               <div className="absolute inset-0 bg-black/60" onClick={() => setShowSnapshots(null)} />
-              <div className="relative bg-slate-900 border border-slate-700 rounded-xl w-full max-w-xs shadow-2xl p-6 text-center">
-                <History className="w-8 h-8 text-slate-600 mx-auto mb-2" />
-                <p className="text-sm text-slate-400">No finalized history for {showSnapshots} yet.</p>
+              <div className="relative bg-[#09090b] border border-[#27272a] rounded-xl w-full max-w-xs shadow-2xl p-6 text-center">
+                <History className="w-8 h-8 text-[#52525b] mx-auto mb-2" />
+                <p className="text-sm text-[#a1a1aa]">No finalized history for {showSnapshots} yet.</p>
                 <button onClick={() => setShowSnapshots(null)} className="mt-3 text-xs text-amber-400 hover:text-amber-300 transition">Close</button>
               </div>
             </div>
@@ -698,13 +698,13 @@ export function LeaderboardView() {
         return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/60" onClick={() => setShowSnapshots(null)} />
-          <div className="relative bg-slate-900 border border-slate-700 rounded-xl w-full max-w-md shadow-2xl max-h-[80vh] flex flex-col">
-            <div className="flex items-center justify-between p-3 border-b border-slate-800 shrink-0">
-              <h3 className="text-white font-bold text-xs flex items-center gap-2">
+          <div className="relative bg-[#09090b] border border-[#27272a] rounded-xl w-full max-w-md shadow-2xl max-h-[80vh] flex flex-col">
+            <div className="flex items-center justify-between p-3 border-b border-[#27272a] shrink-0">
+              <h3 className="text-[#fafafa] font-bold text-xs flex items-center gap-2">
                 <History className="w-3.5 h-3.5 text-amber-400" />
                 {showSnapshots === "__all__" ? "All" : showSnapshots} History ({guildSnaps.length})
               </h3>
-              <button onClick={() => setShowSnapshots(null)} className="text-slate-400 hover:text-white p-1">
+              <button onClick={() => setShowSnapshots(null)} className="text-[#a1a1aa] hover:text-[#fafafa] p-1">
                 <X className="w-4 h-4" />
               </button>
             </div>
@@ -732,17 +732,17 @@ export function LeaderboardView() {
                   <button
                     key={snap.id}
                     onClick={() => { setShowSnapshots(null); setSnapshotGuildFilter("all"); loadSnapshot(snap.id); }}
-                    className="w-full flex items-start gap-2 px-2.5 py-2 rounded-lg bg-slate-800/50 border border-slate-700/50 hover:border-slate-600 transition text-left"
+                    className="w-full flex items-start gap-2 px-2.5 py-2 rounded-lg bg-[#18181b]/50 border border-[#27272a]/50 hover:border-[#52525b] transition text-left"
                   >
-                    <History className="w-3.5 h-3.5 text-amber-500 shrink-0 mt-0.5" />
+                    <History className="w-3.5 h-3.5 text-[#a1a1aa] shrink-0 mt-0.5" />
                     <div className="flex-1 min-w-0 space-y-0.5">
                       <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="text-[10px] font-medium text-slate-500 bg-slate-700/50 px-1.5 py-0.5 rounded">
+                        <span className="text-[10px] font-medium text-[#71717a] bg-[#27272a]/50 px-1.5 py-0.5 rounded">
                           {periodLabel}
                         </span>
-                        <span className="text-[10px] text-slate-500">{snap.ranking_count} ranked</span>
+                        <span className="text-[10px] text-[#71717a]">{snap.ranking_count} ranked</span>
                       </div>
-                      <p className="text-[11px] text-slate-300">
+                      <p className="text-[11px] text-[#d4d4d8]">
                         {fmt(periodStart)} → {fmt(finalized)}
                       </p>
                       {snap.top_name && (
@@ -751,7 +751,7 @@ export function LeaderboardView() {
                         </p>
                       )}
                     </div>
-                    <ChevronRight className="w-3.5 h-3.5 text-slate-600 mt-0.5" />
+                    <ChevronRight className="w-3.5 h-3.5 text-[#52525b] mt-0.5" />
                   </button>
                 );
               })}
@@ -782,26 +782,26 @@ export function LeaderboardView() {
           return (
             <div className="fixed inset-0 z-50 flex items-center justify-center p-4" key="snap-modal">
               <div className="absolute inset-0 bg-black/60" onClick={clearViewing} />
-              <div className="relative bg-slate-900 border border-slate-700 rounded-xl w-full max-w-md shadow-2xl max-h-[80vh] flex flex-col">
-                <div className="flex items-center justify-between p-3 border-b border-slate-800 shrink-0">
+              <div className="relative bg-[#09090b] border border-[#27272a] rounded-xl w-full max-w-md shadow-2xl max-h-[80vh] flex flex-col">
+                <div className="flex items-center justify-between p-3 border-b border-[#27272a] shrink-0">
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => { clearViewing(); setShowSnapshots("__all__"); }}
-                      className="text-slate-400 hover:text-white p-1 transition"
+                      className="text-[#a1a1aa] hover:text-[#fafafa] p-1 transition"
                       title="Back to list"
                     >
                       <ChevronLeft className="w-4 h-4" />
                     </button>
                     <div>
-                      <h3 className="text-white font-bold text-xs">Finalized Results</h3>
-                      <p className="text-[10px] text-slate-500">
+                      <h3 className="text-[#fafafa] font-bold text-xs">Finalized Results</h3>
+                      <p className="text-[10px] text-[#71717a]">
                         {fmt(periodStart)} → {fmt(finalized)}
                         {" · "}
                         {viewingSnapshot.period === "all_time" ? "" : "Previous"}
                       </p>
                     </div>
                   </div>
-                  <button onClick={clearViewing} className="text-slate-400 hover:text-white p-1">
+                  <button onClick={clearViewing} className="text-[#a1a1aa] hover:text-[#fafafa] p-1">
                     <X className="w-4 h-4" />
                   </button>
                 </div>
@@ -812,7 +812,7 @@ export function LeaderboardView() {
                       <select
                         value={snapshotGuildFilter}
                         onChange={(e) => setSnapshotGuildFilter(e.target.value)}
-                        className="w-full px-2 py-1 bg-slate-800 border border-slate-700 rounded-lg text-white text-[11px] focus:outline-none focus:ring-2 focus:ring-purple-500 transition"
+                        className="w-full px-2 py-1 bg-[#18181b] border border-[#27272a] rounded-lg text-[#fafafa] text-[11px] focus:outline-none focus:ring-2 focus:ring-purple-500 transition"
                       >
                         <option value="all">All Guilds</option>
                         {guilds.map(g => (
@@ -826,7 +826,7 @@ export function LeaderboardView() {
                       ? viewingSnapshot.rankings
                       : viewingSnapshot.rankings.filter(r => memberGuildMap.get(r.memberId) === snapshotGuildFilter);
                     if (filtered.length === 0) {
-                      return <p className="text-slate-500 text-xs text-center py-4">No rankings for this guild.</p>;
+                      return <p className="text-[#71717a] text-xs text-center py-4">No rankings for this guild.</p>;
                     }
                     return filtered.map((r) => {
                       const style = rankColors[r.rank];
@@ -834,16 +834,16 @@ export function LeaderboardView() {
                         <div
                           key={r.memberId}
                           className={`flex items-center gap-2 px-2.5 py-1 rounded-lg border ${
-                            style?.bg ?? "bg-slate-900/50 border-slate-800/50"
+                            style?.bg ?? "bg-[#09090b]/50 border-[#27272a]/50"
                           }`}
                         >
                           <div className="flex items-center justify-center w-5 h-5 shrink-0">
-                            {style ? <span className="scale-75">{style.icon}</span> : <span className="text-[10px] font-bold text-slate-500">#{r.rank}</span>}
+                            {style ? <span className="scale-75">{style.icon}</span> : <span className="text-[10px] font-bold text-[#71717a]">#{r.rank}</span>}
                           </div>
-                          <span className={`flex-1 text-xs font-semibold ${style?.text ?? "text-white"}`}>{r.memberName}</span>
+                          <span className={`flex-1 text-xs font-semibold ${style?.text ?? "text-[#fafafa]"}`}>{r.memberName}</span>
                           <div className="flex items-center gap-0.5 shrink-0">
-                            <Trophy className="w-2.5 h-2.5 text-amber-500" />
-                            <span className="text-[10px] font-bold text-white tabular-nums">{r.points}</span>
+                            <Trophy className="w-2.5 h-2.5 text-[#a1a1aa]" />
+                            <span className="text-[10px] font-bold text-[#fafafa] tabular-nums">{r.points}</span>
                           </div>
                         </div>
                       );
@@ -851,7 +851,7 @@ export function LeaderboardView() {
                   })()}
                 </div>
                 {viewingSnapshot.rankings.length > 0 && (
-                  <div className="p-2 border-t border-slate-800 shrink-0 flex items-center gap-1.5 flex-wrap">
+                  <div className="p-2 border-t border-[#27272a] shrink-0 flex items-center gap-1.5 flex-wrap">
                     <button
                       onClick={() => {
                         const text = buildSnapshotShareText(viewingSnapshot);
@@ -859,7 +859,7 @@ export function LeaderboardView() {
                         setCopiedShare(true);
                         setTimeout(() => setCopiedShare(false), 2000);
                       }}
-                      className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium bg-slate-800 text-slate-300 hover:bg-slate-700 transition"
+                      className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium bg-[#18181b] text-[#d4d4d8] hover:bg-[#27272a] transition"
                     >
                       {copiedShare ? <CheckCheck className="w-3 h-3 text-emerald-400" /> : <CheckCheck className="w-3 h-3" />}
                       {copiedShare ? "Copied!" : "Copy"}
@@ -881,7 +881,7 @@ export function LeaderboardView() {
                         const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`;
                         window.open(url, "_blank", "width=600,height=400");
                       }}
-                      className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium bg-slate-800 text-slate-300 hover:bg-slate-700 transition"
+                      className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium bg-[#18181b] text-[#d4d4d8] hover:bg-[#27272a] transition"
                     >
                       <svg className="w-3 h-3" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
                       X
@@ -901,20 +901,20 @@ export function LeaderboardView() {
         return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/60" onClick={() => setSelectedMember(null)} />
-          <div className="relative bg-slate-900 border border-slate-700 rounded-xl w-full max-w-xs shadow-2xl max-h-[80vh] flex flex-col">
-            <div className="flex items-center justify-between p-3 border-b border-slate-800 shrink-0">
+          <div className="relative bg-[#09090b] border border-[#27272a] rounded-xl w-full max-w-xs shadow-2xl max-h-[80vh] flex flex-col">
+            <div className="flex items-center justify-between p-3 border-b border-[#27272a] shrink-0">
               <div>
-                <h3 className="text-sm font-bold text-white">{selectedMember.name}</h3>
-                <p className="text-[10px] text-slate-500">
+                <h3 className="text-sm font-bold text-[#fafafa]">{selectedMember.name}</h3>
+                <p className="text-[10px] text-[#71717a]">
                   {memberKills.length} kill{memberKills.length !== 1 ? "s" : ""}
                   {" · "}
                   <span className="text-amber-400 font-medium">{killTotal}pt</span> in history
                   {leaderboardEntry && leaderboardEntry.points !== killTotal && (
-                    <span className="text-slate-600"> · <span className="text-white font-medium">{leaderboardEntry.points}pt</span> on board</span>
+                    <span className="text-[#52525b]"> · <span className="text-[#fafafa] font-medium">{leaderboardEntry.points}pt</span> on board</span>
                   )}
                 </p>
               </div>
-              <button onClick={() => setSelectedMember(null)} className="text-slate-400 hover:text-white transition p-1">
+              <button onClick={() => setSelectedMember(null)} className="text-[#a1a1aa] hover:text-[#fafafa] transition p-1">
                 <X className="w-4 h-4" />
               </button>
             </div>
@@ -922,10 +922,10 @@ export function LeaderboardView() {
             <div className="p-4 overflow-y-auto flex-1">
               {killsLoading ? (
                 <div className="flex items-center justify-center py-8">
-                  <Loader2 className="w-5 h-5 text-slate-500 animate-spin" />
+                  <Loader2 className="w-5 h-5 text-[#71717a] animate-spin" />
                 </div>
               ) : memberKills.length === 0 ? (
-                <p className="text-sm text-slate-500 text-center py-4">
+                <p className="text-sm text-[#71717a] text-center py-4">
                   No boss kills recorded yet.
                 </p>
               ) : (
@@ -934,12 +934,12 @@ export function LeaderboardView() {
                     <button
                       key={i}
                       onClick={() => { setParticipantDeathId(kill.death_record_id); setParticipantBossName(kill.boss_name); setParticipantDeathTime(kill.killed_at); }}
-                      className="w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-800/50 hover:bg-slate-700/50 transition text-left"
+                      className="w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-[#18181b]/50 hover:bg-[#27272a]/50 transition text-left"
                     >
                       <Skull className="w-3.5 h-3.5 text-red-400 shrink-0" />
-                      <span className="text-sm text-slate-200">{kill.boss_name}</span>
+                      <span className="text-sm text-[#fafafa]">{kill.boss_name}</span>
                       <span className="text-[10px] text-amber-400 font-medium ml-auto mr-2">+{kill.points ?? 1}</span>
-                      <span className="text-[10px] text-slate-600">
+                      <span className="text-[10px] text-[#52525b]">
                         {new Date(kill.killed_at).toLocaleDateString(undefined, {
                           month: "short",
                           day: "numeric",
@@ -970,13 +970,13 @@ export function LeaderboardView() {
       {adjustMember && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/60" onClick={() => setAdjustMember(null)} />
-          <div className="relative bg-slate-900 border border-slate-700 rounded-xl w-full max-w-sm shadow-2xl">
-            <div className="flex items-center justify-between p-4 border-b border-slate-800">
+          <div className="relative bg-[#09090b] border border-[#27272a] rounded-xl w-full max-w-sm shadow-2xl">
+            <div className="flex items-center justify-between p-4 border-b border-[#27272a]">
               <div>
-                <h3 className="text-sm font-bold text-white">Adjust Points</h3>
-                <p className="text-xs text-slate-400">{adjustMember.name} · Current: {adjustMember.points} pt{adjustMember.points !== 1 ? "s" : ""}</p>
+                <h3 className="text-sm font-bold text-[#fafafa]">Adjust Points</h3>
+                <p className="text-xs text-[#a1a1aa]">{adjustMember.name} · Current: {adjustMember.points} pt{adjustMember.points !== 1 ? "s" : ""}</p>
               </div>
-              <button onClick={() => setAdjustMember(null)} className="text-slate-400 hover:text-white transition p-1">
+              <button onClick={() => setAdjustMember(null)} className="text-[#a1a1aa] hover:text-[#fafafa] transition p-1">
                 <X className="w-4 h-4" />
               </button>
             </div>
@@ -990,7 +990,7 @@ export function LeaderboardView() {
                     className={`flex-1 py-1.5 rounded-md text-xs font-medium transition ${
                       adjustValue === v
                         ? (v > 0 ? "bg-emerald-900/40 border border-emerald-700 text-emerald-400" : "bg-red-900/40 border border-red-700 text-red-400")
-                        : "bg-slate-800 text-slate-400 hover:text-white border border-slate-700"
+                        : "bg-[#18181b] text-[#a1a1aa] hover:text-[#fafafa] border border-[#27272a]"
                     }`}
                   >
                     {v > 0 ? `+${v}` : v}
@@ -1000,36 +1000,36 @@ export function LeaderboardView() {
 
               {/* Custom value */}
               <div>
-                <label className="text-xs text-slate-400 block mb-1">Custom value</label>
+                <label className="text-xs text-[#a1a1aa] block mb-1">Custom value</label>
                 <input
                   type="number"
                   value={adjustValue}
                   onChange={(e) => setAdjustValue(parseInt(e.target.value) || 0)}
-                  className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                  className="w-full bg-[#18181b] border border-[#27272a] rounded-lg px-3 py-2 text-[#fafafa] text-sm outline-none focus:ring-2 focus:ring-[#fafafa]/30/50 focus:border-[#27272a]"
                   placeholder="e.g. -2 or 5"
                 />
               </div>
 
               {/* Reason */}
               <div>
-                <label className="text-xs text-slate-400 block mb-1">Reason (optional)</label>
+                <label className="text-xs text-[#a1a1aa] block mb-1">Reason (optional)</label>
                 <input
                   type="text"
                   value={adjustReason}
                   onChange={(e) => setAdjustReason(e.target.value)}
-                  className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                  className="w-full bg-[#18181b] border border-[#27272a] rounded-lg px-3 py-2 text-[#fafafa] text-sm outline-none focus:ring-2 focus:ring-[#fafafa]/30/50 focus:border-[#27272a]"
                   placeholder="e.g. Not following instructions"
                 />
               </div>
 
               {adjustError && (
-                <p className="text-xs text-red-400 bg-red-900/20 rounded-lg px-3 py-2">{adjustError}</p>
+                <p className="text-xs text-red-400 bg-[#18181b] rounded-lg px-3 py-2">{adjustError}</p>
               )}
 
               {/* New total preview */}
-              <div className="flex items-center justify-between bg-slate-800 rounded-lg px-3 py-2">
-                <span className="text-xs text-slate-400">New total</span>
-                <span className={`text-sm font-bold tabular-nums ${adjustMember.points + adjustValue > adjustMember.points ? "text-emerald-400" : adjustMember.points + adjustValue < adjustMember.points ? "text-red-400" : "text-white"}`}>
+              <div className="flex items-center justify-between bg-[#18181b] rounded-lg px-3 py-2">
+                <span className="text-xs text-[#a1a1aa]">New total</span>
+                <span className={`text-sm font-bold tabular-nums ${adjustMember.points + adjustValue > adjustMember.points ? "text-emerald-400" : adjustMember.points + adjustValue < adjustMember.points ? "text-red-400" : "text-[#fafafa]"}`}>
                   {adjustMember.points + adjustValue} pt{(adjustMember.points + adjustValue) !== 1 ? "s" : ""}
                 </span>
               </div>
@@ -1037,7 +1037,7 @@ export function LeaderboardView() {
               <div className="flex gap-2">
                 <button
                   onClick={() => setAdjustMember(null)}
-                  className="flex-1 py-2 rounded-lg font-medium bg-slate-800 text-slate-300 hover:bg-slate-700 transition text-sm"
+                  className="flex-1 py-2 rounded-lg font-medium bg-[#18181b] text-[#d4d4d8] hover:bg-[#27272a] transition text-sm"
                 >
                   Cancel
                 </button>
@@ -1060,10 +1060,10 @@ export function LeaderboardView() {
                   disabled={adjustValue === 0 || adjustLoading}
                   className={`flex-1 py-2 rounded-lg font-medium text-sm transition disabled:opacity-40 ${
                     adjustValue > 0
-                      ? "bg-emerald-900/30 border border-emerald-800 text-emerald-400 hover:bg-emerald-900/50"
+                      ? "bg-emerald-500/10 border border-emerald-800 text-emerald-400 hover:bg-emerald-900/50"
                       : adjustValue < 0
                         ? "bg-red-900/30 border border-red-800 text-red-400 hover:bg-red-900/50"
-                        : "bg-slate-800 text-slate-500"
+                        : "bg-[#18181b] text-[#71717a]"
                   }`}
                 >
                   {adjustLoading ? (
@@ -1092,35 +1092,35 @@ export function LeaderboardView() {
         return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/60" onClick={() => setShowAdjustHistory(null)} />
-          <div className="relative bg-slate-900 border border-slate-700 rounded-xl w-full max-w-md shadow-2xl max-h-[80vh] flex flex-col">
-            <div className="flex items-center justify-between p-3 border-b border-slate-800 shrink-0">
-              <h3 className="text-white font-bold text-xs flex items-center gap-2">
+          <div className="relative bg-[#09090b] border border-[#27272a] rounded-xl w-full max-w-md shadow-2xl max-h-[80vh] flex flex-col">
+            <div className="flex items-center justify-between p-3 border-b border-[#27272a] shrink-0">
+              <h3 className="text-[#fafafa] font-bold text-xs flex items-center gap-2">
                 <Edit3 className="w-3.5 h-3.5 text-purple-400" />
                 {showAdjustHistory === "__all__" ? "All" : showAdjustHistory} Point History ({filteredAdjustments.length})
               </h3>
-              <button onClick={() => setShowAdjustHistory(null)} className="text-slate-400 hover:text-white p-1">
+              <button onClick={() => setShowAdjustHistory(null)} className="text-[#a1a1aa] hover:text-[#fafafa] p-1">
                 <X className="w-4 h-4" />
               </button>
             </div>
             <div className="overflow-y-auto p-2 space-y-1 flex-1">
               {filteredAdjustments.length === 0 ? (
-                <p className="text-xs text-slate-500 text-center py-8">No adjustments for this guild yet.</p>
+                <p className="text-xs text-[#71717a] text-center py-8">No adjustments for this guild yet.</p>
               ) : (
                 filteredAdjustments.map((adj) => (
-                  <div key={adj.id} className="flex items-start gap-2 px-2.5 py-2 rounded-lg bg-slate-800/50 border border-slate-700/50">
+                  <div key={adj.id} className="flex items-start gap-2 px-2.5 py-2 rounded-lg bg-[#18181b]/50 border border-[#27272a]/50">
                     <div className={`mt-0.5 w-6 h-6 rounded-full flex items-center justify-center shrink-0 text-[10px] font-bold ${
-                      adj.points > 0 ? "bg-emerald-900/30 text-emerald-400" : "bg-red-900/30 text-red-400"
+                      adj.points > 0 ? "bg-emerald-500/10 text-emerald-400" : "bg-red-900/30 text-red-400"
                     }`}>
                       {adj.points > 0 ? `+${adj.points}` : adj.points}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5">
-                        <span className="text-[11px] text-white font-medium">{adj.member_name}</span>
+                        <span className="text-[11px] text-[#fafafa] font-medium">{adj.member_name}</span>
                       </div>
                       {adj.reason && (
-                        <p className="text-[10px] text-slate-400 mt-0.5">{adj.reason}</p>
+                        <p className="text-[10px] text-[#a1a1aa] mt-0.5">{adj.reason}</p>
                       )}
-                      <p className="text-[10px] text-slate-600 mt-0.5">
+                      <p className="text-[10px] text-[#52525b] mt-0.5">
                         by {adj.adjusted_by_name} · {new Date(adj.created_at).toLocaleString()}
                       </p>
                     </div>
@@ -1201,33 +1201,33 @@ function ParticipantModalInline({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/60" onClick={onClose} />
-      <div className="relative bg-slate-900 border border-slate-700 rounded-xl w-full max-w-xs shadow-2xl max-h-[80vh] flex flex-col">
-        <div className="flex items-center justify-between p-4 border-b border-slate-800 shrink-0">
+      <div className="relative bg-[#09090b] border border-[#27272a] rounded-xl w-full max-w-xs shadow-2xl max-h-[80vh] flex flex-col">
+        <div className="flex items-center justify-between p-4 border-b border-[#27272a] shrink-0">
           <div>
-            <h3 className="text-sm font-bold text-white">{bossName}</h3>
-            <p className="text-[10px] text-slate-500">{new Date(deathTime).toLocaleString()}</p>
+            <h3 className="text-sm font-bold text-[#fafafa]">{bossName}</h3>
+            <p className="text-[10px] text-[#71717a]">{new Date(deathTime).toLocaleString()}</p>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-white transition p-1">
+          <button onClick={onClose} className="text-[#a1a1aa] hover:text-[#fafafa] transition p-1">
             <X className="w-4 h-4" />
           </button>
         </div>
         <div className="p-4 overflow-y-auto flex-1">
           {isLoading ? (
             <div className="flex items-center justify-center py-8">
-              <Loader2 className="w-5 h-5 text-slate-500 animate-spin" />
+              <Loader2 className="w-5 h-5 text-[#71717a] animate-spin" />
             </div>
           ) : attendance.length === 0 ? (
-            <p className="text-sm text-slate-500 text-center py-4">No participants recorded.</p>
+            <p className="text-sm text-[#71717a] text-center py-4">No participants recorded.</p>
           ) : (
             <div>
-              <p className="text-[11px] font-medium text-slate-400 uppercase tracking-wider mb-2">
+              <p className="text-[11px] font-medium text-[#a1a1aa] uppercase tracking-wider mb-2">
                 Participants ({attendance.length})
               </p>
               <div className="space-y-1">
                 {attendance.map((a) => (
-                  <div key={a.id} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-800/50">
-                    <Users className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                    <span className="text-sm text-slate-200">{memberMap.get(a.member_id) ?? "Unknown"}</span>
+                  <div key={a.id} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[#18181b]/50">
+                    <Users className="w-3.5 h-3.5 text-[#a1a1aa] shrink-0" />
+                    <span className="text-sm text-[#fafafa]">{memberMap.get(a.member_id) ?? "Unknown"}</span>
                   </div>
                 ))}
               </div>
