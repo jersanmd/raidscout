@@ -34,6 +34,11 @@ export function AddActivityForm({ gameId, gameSlug, serverId, onCreated, onCance
     if (!name.trim()) return;
     setSaving(true);
     try {
+      let imageUrl: string | undefined;
+      if (imageFile) {
+        try { imageUrl = await uploadActivityImage(gameSlug || "custom", name.trim(), imageFile); }
+        catch (err) { console.error("Activity image upload failed:", err); }
+      }
       if (isServerMode && serverId) {
         const sched = scheduleType === "fixed_schedule" && scheduleSlots.length > 0
           ? scheduleSlots.map(s => localSlotToUtc(s.day, s.time))
@@ -47,13 +52,9 @@ export function AddActivityForm({ gameId, gameSlug, serverId, onCreated, onCance
           points_per_participant: isNaN(Number(pointsPerParticipant)) ? 1 : Number(pointsPerParticipant),
           party_size: partySize ? Number(partySize) : null,
           category: category || null, tags,
+          image_url: imageUrl || null,
         });
       } else {
-      let imageUrl: string | undefined;
-      if (imageFile) {
-        try { imageUrl = await uploadActivityImage(gameSlug, name.trim(), imageFile); }
-        catch { /* ignore */ }
-      }
       await createActivityTemplate({
         game_id: gameId,
         name: name.trim(),

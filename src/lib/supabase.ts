@@ -537,6 +537,7 @@ export async function createCustomBoss(
     name: string; spawn_type: string; respawn_hours?: number | null;
     schedule?: any; is_recurring?: boolean; boss_points?: number;
     category?: string | null; tags?: string[];
+    image_url?: string | null;
   }
 ): Promise<Boss> {
   const { data: id, error } = await supabase.rpc("create_custom_boss", {
@@ -545,6 +546,7 @@ export async function createCustomBoss(
     p_is_recurring: data.is_recurring ?? true,
     p_boss_points: data.boss_points ?? 1,
     p_category: data.category ?? null, p_tags: data.tags ?? [],
+    p_image_url: data.image_url ?? null,
   });
   if (error) throw error;
   return { id: id as string } as Boss;
@@ -556,6 +558,7 @@ export async function createCustomActivity(
     name: string; schedule_type: string; schedule?: any;
     points_per_participant?: number;
     party_size?: number | null; category?: string | null; tags?: string[];
+    image_url?: string | null;
   }
 ): Promise<Activity> {
   const { data: id, error } = await supabase.rpc("create_custom_activity", {
@@ -564,6 +567,7 @@ export async function createCustomActivity(
     p_points_per_participant: data.points_per_participant ?? 1,
     p_party_size: data.party_size ?? null,
     p_category: data.category ?? null, p_tags: data.tags ?? [],
+    p_image_url: data.image_url ?? null,
   });
   if (error) throw error;
   return { id: id as string } as Activity;

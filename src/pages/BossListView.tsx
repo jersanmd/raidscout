@@ -383,6 +383,19 @@ export function BossListView() {
     [queryClient]
   );
 
+  const handleEditActivityTime = useCallback(
+    async (activityId: string, timeStr: string) => {
+      try {
+        await supabase.from("activities").update({ schedule: timeStr }).eq("id", activityId);
+        await queryClient.invalidateQueries({ queryKey: ["activities"] });
+        setToast({ type: "success", message: "Activity time updated!" });
+      } catch (err: any) {
+        setToast({ type: "error", message: err?.message ?? "Failed to update time" });
+      }
+    },
+    [queryClient]
+  );
+
   const handleSetSpawnDate = useCallback(
     async (bossId: string, spawnDate: Date) => {
       setSavingMessage("Updating spawn time...");
@@ -827,6 +840,7 @@ export function BossListView() {
                       activity={a}
                       onRecordDeath={handleRecordDeath}
                       onFinishActivity={handleFinishActivity}
+                      onEditActivityTime={handleEditActivityTime}
                       multiMode={false}
                       selected={false}
                       viewerCanEdit={viewerCanEdit}

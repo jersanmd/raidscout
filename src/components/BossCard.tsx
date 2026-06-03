@@ -42,15 +42,19 @@ interface BossCardProps {
   activity?: Activity;
   /** Called when user clicks "Finish" on an activity */
   onFinishActivity?: (activityId: string) => void;
+  /** Called when user edits an activity's time */
+  onEditActivityTime?: (activityId: string, timeStr: string) => void;
 }
 
-export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, onCriticalSpawn, onSpawned, compact = false, multiMode = false, selected = false, onToggleSelect, ownerGuildName, ownerGuildId, rotationGuilds, rotationCurrentIndex, rotationMode, onSetRotation, viewerCanEdit, viewerCanMarkDied, hasGuilds, justKilled, activity, onFinishActivity }: BossCardProps) {
+export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, onCriticalSpawn, onSpawned, compact = false, multiMode = false, selected = false, onToggleSelect, ownerGuildName, ownerGuildId, rotationGuilds, rotationCurrentIndex, rotationMode, onSetRotation, viewerCanEdit, viewerCanMarkDied, hasGuilds, justKilled, activity, onFinishActivity, onEditActivityTime }: BossCardProps) {
   const { isViewer } = useAuth();
   const { currentServer } = useServer();
   const { timezone: tz } = useUserTimezone();
   const [showModal, setShowModal] = useState(false);
   const [showEditSpawnModal, setShowEditSpawnModal] = useState(false);
   const [editSpawnDate, setEditSpawnDate] = useState("");
+  const [showEditTimeModal, setShowEditTimeModal] = useState(false);
+  const [editTimeValue, setEditTimeValue] = useState("");
   const [optimisticOwner, setOptimisticOwner] = useState<string | null>(null);
 
   // Clear optimistic override once the parent prop catches up
@@ -145,11 +149,19 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
           </div>
         )}
         <div className="flex gap-4 relative z-[1]">
-          {/* Boss image / Activity icon */}
+          {/* Boss image / Activity image or icon */}
           {isActivity ? (
-            <div className="w-14 h-14 rounded-xl bg-[#09090b] border border-[#27272a] flex items-center justify-center shrink-0">
-              <Calendar className="w-6 h-6 text-[#a1a1aa]" />
+            activity.image_url ? (
+              <img
+                src={activity.image_url}
+                alt={activity.name}
+                className="w-14 h-14 rounded-xl object-cover border border-[#27272a] shrink-0"
+              />
+            ) : (
+              <div className="w-14 h-14 rounded-xl bg-[#09090b] border border-[#27272a] flex items-center justify-center shrink-0">
+                <Calendar className="w-6 h-6 text-[#a1a1aa]" />
             </div>
+            )
           ) : (
             <BossImage bossName={boss.name} size="lg" />
           )}
@@ -289,8 +301,22 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
         </div>
 
         {/* Bottom action buttons — activities */}
-        {!compact && !multiMode && isActivity && onFinishActivity && (
+        {!compact && !multiMode && isActivity && (onFinishActivity || onEditActivityTime) && (
           <div className="flex items-center justify-end gap-1.5 mt-3 pt-3 border-t border-white/[0.05] relative z-[1]">
+            {onEditActivityTime && (
+              <button
+                onClick={() => {
+                  const currentTime = typeof activity.schedule === "string" ? activity.schedule : "00:00";
+                  setEditTimeValue(currentTime);
+                  setShowEditTimeModal(true);
+                }}
+                className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#27272a] border border-[#27272a] text-[#a1a1aa] text-[11px] font-semibold hover:bg-[#3f3f46] active:scale-95 transition-all duration-200 whitespace-nowrap"
+              >
+                <Pencil className="w-3 h-3" />
+                Edit Time
+              </button>
+            )}
+            {onFinishActivity && (
             <button
               onClick={() => onFinishActivity(activity.id)}
               className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#18181b] border border-[#27272a] text-[#fafafa] text-[11px] font-medium hover:bg-[#27272a] active:scale-95 transition-all duration-200 whitespace-nowrap"
@@ -298,6 +324,7 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
               <CheckCircle className="w-3 h-3" />
               Finish
             </button>
+            )}
           </div>
         )}
 
@@ -420,6 +447,50 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
                     onSetSpawnDate(boss.id, localDate);
                   }
                   setShowEditSpawnModal(false);
+                }}
+                className="px-4 py-2 rounded-lg text-sm font-semibold bg-[#27272a] border border-[#27272a] text-[#a1a1aa] hover:bg-[#3f3f46] transition"
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Activity Time modal */}
+      {showEditTimeModal && isActivity && onEditActivityTime && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowEditTimeModal(false)} />
+          <div className="relative bg-[#11161e] border border-[#27272a] rounded-xl p-6 w-full max-w-sm shadow-2xl shadow-black/40 backdrop-blur-xl">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-[#fafafa]">Edit Time</h3>
+              <button onClick={() => setShowEditTimeModal(false)} className="p-1 rounded-md text-[#71717a] hover:text-[#fafafa] hover:bg-[#27272a] transition">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <p className="text-sm text-[#a1a1aa] mb-3">
+              Set a new start time for <span className="text-[#fafafa] font-medium">{activity.name}</span>
+            </p>
+            <input
+              type="time"
+              value={editTimeValue}
+              onChange={(e) => setEditTimeValue(e.target.value)}
+              className="w-full bg-[#18181b] border border-[#27272a] rounded-xl px-3 py-2.5 text-sm text-[#fafafa] outline-none focus:border-[#52525b] focus:ring-1 focus:ring-[#27272a] transition-all duration-200 mb-4 [color-scheme:dark] [&::-webkit-calendar-picker-indicator]:invert"
+              autoFocus
+            />
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setShowEditTimeModal(false)}
+                className="px-4 py-2 rounded-lg text-sm text-[#a1a1aa] hover:text-[#fafafa] hover:bg-[#27272a] transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  if (editTimeValue) {
+                    onEditActivityTime(activity.id, editTimeValue);
+                  }
+                  setShowEditTimeModal(false);
                 }}
                 className="px-4 py-2 rounded-lg text-sm font-semibold bg-[#27272a] border border-[#27272a] text-[#a1a1aa] hover:bg-[#3f3f46] transition"
               >

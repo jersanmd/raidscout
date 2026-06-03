@@ -34,6 +34,11 @@ export function AddBossForm({ gameId, gameSlug, serverId, onCreated, onCancel }:
     if (!name.trim()) return;
     setSaving(true);
     try {
+      let imageUrl: string | undefined;
+      if (imageFile) {
+        try { imageUrl = await uploadBossImage(gameSlug || "custom", name.trim(), imageFile); }
+        catch (err) { console.error("Boss image upload failed:", err); }
+      }
       if (isServerMode && serverId) {
         const schedule = spawnType === "fixed_schedule" && scheduleSlots.length > 0
           ? scheduleSlots.map(s => localSlotToUtc(s.day, s.time)) : null;
@@ -44,13 +49,9 @@ export function AddBossForm({ gameId, gameSlug, serverId, onCreated, onCancel }:
           boss_points: isNaN(Number(points)) ? 1 : Number(points),
           category: category === "__custom__" ? customCategory || null : category || null,
           tags,
+          image_url: imageUrl || null,
         });
       } else {
-      let imageUrl: string | undefined;
-      if (imageFile) {
-        try { imageUrl = await uploadBossImage(gameSlug, name.trim(), imageFile); }
-        catch { /* ignore */ }
-      }
       await createBossTemplate({
         game_id: gameId,
         name: name.trim(),

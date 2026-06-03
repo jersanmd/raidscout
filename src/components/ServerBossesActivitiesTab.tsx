@@ -16,8 +16,9 @@ import { EditActivityForm } from "@/components/EditActivityForm";
 import {
   Loader2, Plus, Skull, Calendar, RefreshCw,
   Pencil, ToggleLeft, ToggleRight, AlertTriangle,
-  Gamepad2, X,
+  Gamepad2, X, Trash2,
 } from "lucide-react";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import type { Boss, Activity } from "@/types";
 
 export function ServerBossesActivitiesTab() {
@@ -36,6 +37,7 @@ export function ServerBossesActivitiesTab() {
   const [showSeedPicker, setShowSeedPicker] = useState(false);
   const [selectedGameId, setSelectedGameId] = useState("");
   const [seedResult, setSeedResult] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ type: "boss" | "activity"; id: string; name: string } | null>(null);
 
   const { data: games = [] } = useQuery({
     queryKey: ["games"],
@@ -65,6 +67,17 @@ export function ServerBossesActivitiesTab() {
     await toggleActivityEnabled(id, enabled);
     queryClient.invalidateQueries({ queryKey: ["activities-all", serverId] });
     queryClient.invalidateQueries({ queryKey: ["activities"] });
+  };
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    const table = deleteTarget.type === "boss" ? "bosses" : "activities";
+    const queryKey = deleteTarget.type === "boss" ? "bosses-all" : "activities-all";
+    await supabase.from(table).delete().eq("id", deleteTarget.id);
+    queryClient.invalidateQueries({ queryKey: [queryKey, serverId] });
+    queryClient.refetchQueries({ queryKey: [queryKey, serverId] });
+    queryClient.invalidateQueries({ queryKey: [deleteTarget.type === "boss" ? "bosses" : "activities"] });
+    setDeleteTarget(null);
   };
 
   const handleSeed = async () => {
@@ -182,6 +195,13 @@ export function ServerBossesActivitiesTab() {
           <div className="space-y-1">
             {bosses.map((boss: Boss) => (
               <div key={boss.id} className="flex items-center gap-3 px-3 py-2 rounded-lg bg-[#18181b] border border-[#27272a]">
+                {boss.image_url ? (
+                  <img src={boss.image_url} alt={boss.name} className="w-8 h-8 rounded-lg object-cover border border-[#27272a] shrink-0" />
+                ) : (
+                  <div className="w-8 h-8 rounded-lg bg-[#09090b] border border-[#27272a] flex items-center justify-center shrink-0">
+                    <Skull className="w-4 h-4 text-[#52525b]" />
+                  </div>
+                )}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-medium text-[#fafafa] truncate">{boss.name}</span>
@@ -218,6 +238,13 @@ export function ServerBossesActivitiesTab() {
                         <Pencil className="w-3.5 h-3.5 text-[#a1a1aa]" />
                       </button>
                     )}
+                    <button
+                      onClick={() => setDeleteTarget({ type: "boss", id: boss.id, name: boss.name })}
+                      className="p-1 rounded hover:bg-[#27272a] transition"
+                      title="Delete"
+                    >
+                      <Trash2 className="w-3.5 h-3.5 text-[#71717a] hover:text-[#f87171]" />
+                    </button>
                   </div>
                 )}
               </div>
@@ -295,6 +322,13 @@ export function ServerBossesActivitiesTab() {
           <div className="space-y-1">
             {activities.map((activity: Activity) => (
               <div key={activity.id} className="flex items-center gap-3 px-3 py-2 rounded-lg bg-[#18181b] border border-[#27272a]">
+                {activity.image_url ? (
+                  <img src={activity.image_url} alt={activity.name} className="w-8 h-8 rounded-lg object-cover border border-[#27272a] shrink-0" />
+                ) : (
+                  <div className="w-8 h-8 rounded-lg bg-[#09090b] border border-[#27272a] flex items-center justify-center shrink-0">
+                    <Calendar className="w-4 h-4 text-[#52525b]" />
+                  </div>
+                )}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-medium text-[#fafafa] truncate">{activity.name}</span>
@@ -332,6 +366,13 @@ export function ServerBossesActivitiesTab() {
                         <Pencil className="w-3.5 h-3.5 text-[#a1a1aa]" />
                       </button>
                     )}
+                    <button
+                      onClick={() => setDeleteTarget({ type: "activity", id: activity.id, name: activity.name })}
+                      className="p-1 rounded hover:bg-[#27272a] transition"
+                      title="Delete"
+                    >
+                      <Trash2 className="w-3.5 h-3.5 text-[#71717a] hover:text-[#f87171]" />
+                    </button>
                   </div>
                 )}
               </div>
@@ -370,6 +411,19 @@ export function ServerBossesActivitiesTab() {
           </div>
         )}
       </section>
+
+      {/* Delete confirmation dialog */}
+      {deleteTarget && (
+        <ConfirmDialog
+          open={!!deleteTarget}
+          title={`Delete ${deleteTarget.type === "boss" ? "Boss" : "Activity"}`}
+          message={`Are you sure you want to delete "${deleteTarget.name}"? This action cannot be undone.`}
+          confirmLabel="Delete"
+          variant="danger"
+          onConfirm={handleDelete}
+          onCancel={() => setDeleteTarget(null)}
+        />
+      )}
     </div>
   );
 }
