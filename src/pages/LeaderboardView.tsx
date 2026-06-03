@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLeaderboard, type LeaderboardPeriod } from "@/hooks/useAttendance";
@@ -82,6 +82,31 @@ export function LeaderboardView() {
   const canExportAttendance = useHasPermission("can_export_attendance");
   const isStaff = !isViewer && (currentServer?.role === "owner" || currentServer?.role === "moderator");
   const [carouselPage, setCarouselPage] = useState(0);
+  const touchStartX = useRef(0);
+  const touchDeltaX = useRef(0);
+  const isSwiping = useRef(false);
+
+  const handleSwipeStart = useCallback((clientX: number) => {
+    touchStartX.current = clientX;
+    isSwiping.current = true;
+  }, []);
+
+  const handleSwipeMove = useCallback((clientX: number) => {
+    if (!isSwiping.current) return;
+    touchDeltaX.current = clientX - touchStartX.current;
+  }, []);
+
+  const handleSwipeEnd = useCallback(() => {
+    if (!isSwiping.current) return;
+    isSwiping.current = false;
+    const threshold = 50;
+    if (touchDeltaX.current > threshold) {
+      setCarouselPage(p => p === 0 ? guildGroups.length - 1 : p - 1);
+    } else if (touchDeltaX.current < -threshold) {
+      setCarouselPage(p => p >= guildGroups.length - 1 ? 0 : p + 1);
+    }
+    touchDeltaX.current = 0;
+  }, [guildGroups.length]);
   const [adjustMember, setAdjustMember] = useState<{ id: string; name: string; points: number } | null>(null);
   const [adjustValue, setAdjustValue] = useState(0);
   const [adjustReason, setAdjustReason] = useState("");
@@ -499,7 +524,15 @@ export function LeaderboardView() {
                   <ChevronRight className="w-6 h-6 text-slate-300" />
                 </button>
               </>)}
-              <div className="overflow-hidden px-10">
+              <div className="overflow-hidden px-10"
+                onTouchStart={e => handleSwipeStart(e.touches[0].clientX)}
+                onTouchMove={e => handleSwipeMove(e.touches[0].clientX)}
+                onTouchEnd={handleSwipeEnd}
+                onMouseDown={e => { e.preventDefault(); handleSwipeStart(e.clientX); }}
+                onMouseMove={e => handleSwipeMove(e.clientX)}
+                onMouseUp={handleSwipeEnd}
+                onMouseLeave={handleSwipeEnd}
+              >
                 <div className="flex transition-transform duration-300 ease-out" style={{ transform: `translateX(-${carouselPage * 100}%)` }}>
                   {guildGroups.map(([guildName, guildEntries]) => {
                     const gColor = guildName ? guildColor(guildName) : { bg: "bg-slate-800", text: "text-slate-300", border: "border-slate-700" };
