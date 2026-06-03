@@ -95,10 +95,8 @@ export function useLeaderboard(period: LeaderboardPeriod = "all") {
         return await fetchLeaderboard(serverId);
       }
 
-      // "Since Reset": always pass null → RPC applies per-guild resets from app_settings.
-      // Each guild has its own reset date (leaderboard_reset_at:GuildName).
-      // If a guild has never been finalized, all-time points are shown for that guild.
-      return await fetchLeaderboardByPeriod(null, serverId);
+      // Both tabs show all-time points
+      return await fetchLeaderboard(serverId);
     },
     staleTime: 30_000,
     refetchOnMount: true,
