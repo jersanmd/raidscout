@@ -1374,7 +1374,7 @@ export async function notifyDiscord(
 ): Promise<{ ok: boolean; skipped?: boolean }> {
   // Skip bot notifications on localhost — the bot server handles its own notifications
   if (typeof window !== "undefined" && window.location.hostname === "localhost") {
-    return { ok: false, skipped: true };
+    return { ok: true };
   }
   try {
     const res = await fetch(`${BOT_NOTIFY_URL}/notify`, {
