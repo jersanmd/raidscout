@@ -66,10 +66,19 @@ export function LeaderboardView() {
   const [copiedShare, setCopiedShare] = useState(false);
   const [snapshotGuildFilter, setSnapshotGuildFilter] = useState<string>("all");
 
+  // Attendance export state
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const weekAgoStr = new Date(Date.now() - 6 * 86400000).toISOString().slice(0, 10);
+  const [showExport, setShowExport] = useState<string | null>(null);
+  const [exportStartDate, setExportStartDate] = useState(weekAgoStr);
+  const [exportEndDate, setExportEndDate] = useState(todayStr);
+  const [exportLoading, setExportLoading] = useState(false);
+
   // Point adjustment modal state
   const { currentServer } = useServer();
   const serverTimezone = useServerTimezone();
   const canAdjustPoints = useHasPermission("can_adjust_points");
+  const canExportAttendance = useHasPermission("can_export_attendance");
   const isStaff = !isViewer && (currentServer?.role === "owner" || currentServer?.role === "moderator");
   const [carouselPage, setCarouselPage] = useState(0);
   const [adjustMember, setAdjustMember] = useState<{ id: string; name: string; points: number } | null>(null);
@@ -186,6 +195,121 @@ export function LeaderboardView() {
     return `🏆 ${currentServer?.name} — ${periodLabel} Results\n\n${lines.join("\n")}\n\n📊 raidscout.com`;
   };
 
+  // ── Attendance Export ─────────────────────────────────────
+
+  const handleExportAttendance = async () => {
+    if (!exportStartDate || !exportEndDate || !serverId || !showExport) return;
+    const guildName = showExport;
+    setExportLoading(true);
+    try {
+      const guild = guilds.find(g => g.name === guildName);
+      if (!guild) { alert("Guild not found."); setExportLoading(false); return; }
+
+      const startISO = new Date(exportStartDate).toISOString();
+      const endISO = new Date(exportEndDate + "T23:59:59").toISOString();
+
+      // Fetch members of this guild
+      const { data: guildMembers } = await supabase
+        .from("members")
+        .select("id,name")
+        .eq("guild_id", guild.id)
+        .eq("server_id", serverId);
+      if (!guildMembers?.length) { alert("No members in this guild."); setExportLoading(false); return; }
+      const memberMap = new Map(guildMembers.map((m: any) => [m.id, m.name]));
+      const memberIds = guildMembers.map((m: any) => m.id);
+
+      // Fetch death records owned by this guild in date range
+      const { data: deaths, error: deathsErr } = await supabase
+        .from("death_records")
+        .select("id,boss_id,death_time,party_leaders")
+        .eq("server_id", serverId)
+        .eq("owner_guild_id", guild.id)
+        .gte("death_time", startISO)
+        .lte("death_time", endISO)
+        .order("death_time", { ascending: true });
+      if (deathsErr) throw new Error(`Death records: ${deathsErr.message}`);
+      if (!deaths?.length) { alert("No death records in this date range for " + guildName + "."); setExportLoading(false); return; }
+
+      const deathIds = deaths.map((d: any) => d.id);
+      const bossIds = [...new Set(deaths.map((d: any) => d.boss_id))];
+
+      // Fetch bosses
+      const { data: bosses } = await supabase
+        .from("bosses")
+        .select("id,name,boss_points")
+        .in("id", bossIds);
+      const bossMap = new Map((bosses || []).map((b: any) => [b.id, b]));
+
+      // Fetch attendance records for these deaths, filtered to guild members
+      const { data: attRecords } = await supabase
+        .from("attendance_records")
+        .select("death_record_id,member_id")
+        .in("death_record_id", deathIds)
+        .in("member_id", memberIds);
+
+      // Build per-death attendance
+      const deathAttendees = new Map<string, Set<string>>();
+      for (const att of (attRecords || [])) {
+        if (!deathAttendees.has(att.death_record_id)) deathAttendees.set(att.death_record_id, new Set());
+        deathAttendees.get(att.death_record_id)!.add(att.member_id);
+      }
+
+      // Sort members alphabetically
+      const sortedMembers = memberIds.sort((a, b) => (memberMap.get(a) || "").localeCompare(memberMap.get(b) || ""));
+
+      // Build Excel-compatible HTML table
+      let html = `<html><head><meta charset="utf-8"><style>
+        table { border-collapse: collapse; font-family: -apple-system, sans-serif; font-size: 11px; }
+        th, td { padding: 6px 10px; border: 1px solid #334155; text-align: center; }
+        .hdr { background: #1E293B; color: #fff; font-weight: bold; }
+        .boss { font-weight: bold; color: #F87171; text-align: left; }
+        .even { background: #1E293B; color: #E2E8F0; }
+        .odd { background: #0F172A; color: #E2E8F0; }
+        .pts-yes { font-weight: bold; color: #FBBF24; }
+        .pts-no { color: #475569; }
+</style></head><body><table>`;
+
+      // Header row
+      html += `<tr><th class="hdr">#</th><th class="hdr">Date</th><th class="hdr">Time</th><th class="hdr boss" style="text-align:left">Boss</th><th class="hdr">Party Leader</th>`;
+      sortedMembers.forEach((mid, i) => {
+        html += `<th class="hdr" style="background:${["#7C3AED","#059669","#D97706","#0891B2","#DB2777","#4F46E5"][i % 6]}">${memberMap.get(mid) || "?"}</th>`;
+      });
+      html += `</tr>`;
+
+      // Data rows
+      const dateFmt = new Intl.DateTimeFormat("en-US", { timeZone: serverTimezone, month: "short", day: "numeric", year: "numeric" });
+      const timeFmt = new Intl.DateTimeFormat("en-US", { timeZone: serverTimezone, hour: "2-digit", minute: "2-digit" });
+      deaths.forEach((death: any, ri) => {
+        const attendees = deathAttendees.get(death.id);
+        if (!attendees || attendees.size === 0) return;
+        const boss = bossMap.get(death.boss_id);
+        const cls = ri % 2 === 0 ? "even" : "odd";
+        const pl = (death.party_leaders || {}) as Record<string, string>;
+        const leaderName = pl[guild.id] ? (memberMap.get(pl[guild.id]) || "") : "";
+        html += `<tr><td class="${cls}">${attendees.size}</td><td class="${cls}">${dateFmt.format(new Date(death.death_time))}</td><td class="${cls}">${timeFmt.format(new Date(death.death_time))}</td><td class="boss ${cls}">${boss?.name || "?"}</td><td class="${cls}">${leaderName}</td>`;
+        sortedMembers.forEach(mid => {
+          html += `<td class="${cls} ${attendees.has(mid) ? 'pts-yes' : 'pts-no'}">${attendees.has(mid) ? (boss?.boss_points || 0) : 0}</td>`;
+        });
+        html += `</tr>`;
+      });
+
+      html += `</table></body></html>`;
+
+      const blob = new Blob([html], { type: "application/vnd.ms-excel;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${guildName}-attendance-${exportStartDate}_to_${exportEndDate}.xls`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Export failed:", err);
+      alert("Export failed. Check console for details.");
+    } finally {
+      setExportLoading(false);
+    }
+  };
+
   return (
     <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
       {/* Header */}
@@ -297,6 +421,11 @@ export function LeaderboardView() {
                                 Points
                               </button>
                             )}
+                            {canExportAttendance && guildName && (
+                              <button onClick={(e) => { e.stopPropagation(); setShowExport(showExport === guildName ? null : guildName); }} className={`text-[10px] px-2 py-0.5 rounded border transition flex items-center gap-1 ${showExport === guildName ? "bg-amber-500/20 border-amber-500/40 text-amber-400" : "bg-slate-800 border-slate-700 text-slate-400 hover:text-amber-400"}`} title={`Export ${guildName} attendance`}>
+                                <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Export
+                              </button>
+                            )}
                             {isStaff && guildName && (
                               <button onClick={(e) => { e.stopPropagation(); setShowFinalizeConfirm(guildName); }} className="ml-auto text-[10px] px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/30 text-amber-400 hover:bg-amber-500/20 transition" title={`Finalize ${guildName} rankings`}>
                                 Finalize
@@ -373,6 +502,35 @@ export function LeaderboardView() {
                 {guildGroups.map((_, i) => (
                   <button key={i} onClick={() => setCarouselPage(i)} className={`w-2 h-2 rounded-full transition ${i === carouselPage ? "bg-amber-400" : "bg-slate-600 hover:bg-slate-500"}`} />
                 ))}
+              </div>
+            )}
+
+            {/* Per-guild Export Attendance panel */}
+            {showExport && (
+              <div className="mt-3 bg-slate-900 border border-slate-700 rounded-xl p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-medium text-slate-300">
+                    Export <span className="text-amber-400">{showExport}</span> Attendance
+                  </p>
+                  <button onClick={() => setShowExport(null)} className="text-slate-500 hover:text-white">
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+                <div className="flex flex-wrap gap-2 items-end">
+                  <div className="flex flex-col gap-0.5">
+                    <label className="text-[10px] text-slate-500">Start</label>
+                    <input type="date" value={exportStartDate} onChange={(e) => setExportStartDate(e.target.value)} className="px-2 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-white text-xs outline-none focus:ring-2 focus:ring-amber-500 transition" />
+                  </div>
+                  <div className="flex flex-col gap-0.5">
+                    <label className="text-[10px] text-slate-500">End</label>
+                    <input type="date" value={exportEndDate} onChange={(e) => setExportEndDate(e.target.value)} className="px-2 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-white text-xs outline-none focus:ring-2 focus:ring-amber-500 transition" />
+                  </div>
+                  <button onClick={() => handleExportAttendance()} disabled={exportLoading || !exportStartDate || !exportEndDate} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-amber-600 text-white hover:bg-amber-500 transition disabled:opacity-50 flex items-center gap-1.5">
+                    {exportLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
+                    Export Excel
+                  </button>
+                </div>
+                <p className="text-[10px] text-slate-600">Exports a pivot table: rows = bosses, columns = players, cells = points. Opens in Excel / Google Sheets.</p>
               </div>
             )}
             </>
