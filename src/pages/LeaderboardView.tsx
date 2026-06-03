@@ -538,25 +538,15 @@ export function LeaderboardView() {
                                     setKillsLoading(true);
                                     try {
                                       let since = "1970-01-01T00:00:00Z";
-                                      if (period !== "all") {
-                                        const { data: snaps } = await supabase
-                                          .from("leaderboard_snapshots")
-                                          .select("finalized_at")
-                                          .eq("period", period)
+                                      if (period !== "all" && guildName) {
+                                        // Per-guild reset: use guild-specific reset date from app_settings
+                                        const { data: settings } = await supabase
+                                          .from("app_settings")
+                                          .select("value")
                                           .eq("server_id", serverId)
-                                          .order("finalized_at", { ascending: false })
-                                          .limit(1);
-                                        if (snaps && snaps.length > 0) {
-                                          since = (snaps[0] as any).finalized_at;
-                                        } else if (guildName) {
-                                          const { data: settings } = await supabase
-                                            .from("app_settings")
-                                            .select("value")
-                                            .eq("server_id", serverId)
-                                            .eq("key", `leaderboard_reset_at:${guildName}`)
-                                            .maybeSingle();
-                                          if (settings) since = (settings as any).value;
-                                        }
+                                          .eq("key", `leaderboard_reset_at:${guildName}`)
+                                          .maybeSingle();
+                                        if (settings) since = (settings as any).value;
                                       }
                                       if (configured) setMemberKills(await fetchMemberKills(entry.id, since, serverId, serverTimezone));
                                     } catch { setMemberKills([]); }
