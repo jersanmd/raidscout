@@ -20,6 +20,7 @@ interface AuthState {
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   signUp: (email: string, password: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
+  changePassword: (newPassword: string) => Promise<{ error: string | null }>;
 }
 
 const VIEWER_KEY_STORAGE = "raidscout-viewer-key";
@@ -186,6 +187,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const changePassword = async (newPassword: string) => {
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    return { error: error?.message ?? null };
+  };
+
   const viewerSignIn = async (key: string) => {
     const { data, error } = await supabase
       .rpc("get_server_by_viewer_key", { v_key: key.trim() });
@@ -214,7 +220,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ session, user, userRole, roleLoading, loading, isViewer, viewerServerId, viewerServerName, viewerKey, viewerCanEdit, viewerCanMarkDied, viewerDiscordWebhookUrl, viewerTimezone, viewerSignIn, signIn, signUp, signOut }}>
+    <AuthContext.Provider value={{ session, user, userRole, roleLoading, loading, isViewer, viewerServerId, viewerServerName, viewerKey, viewerCanEdit, viewerCanMarkDied, viewerDiscordWebhookUrl, viewerTimezone, viewerSignIn, signIn, signUp, signOut, changePassword }}>
       {children}
     </AuthContext.Provider>
   );

@@ -287,6 +287,33 @@ export function LeaderboardView() {
         if (bg.has_salary) salaryMap.set(bg.boss_id, true);
       }
 
+      // Fetch boss assists — bosses where this guild assists another guild
+      const { data: assistData } = await supabase
+        .from("boss_assists")
+        .select("boss_id,owner_guild_id,assistant_guild_id")
+        .eq("assistant_guild_id", guild.id)
+        .eq("server_id", serverId);
+      // Build set of "boss_id|owner_guild_id" combos this guild assists on
+      const assistCombos = new Set((assistData || []).map((a: any) => `${a.boss_id}|${a.owner_guild_id}`));
+      // Fetch boss names for assist summary (all assisted bosses)
+      const assistBossIds = [...new Set((assistData || []).map((a: any) => a.boss_id))];
+      let assistBossMap = new Map<string, string>();
+      if (assistBossIds.length > 0) {
+        const { data: assistBosses } = await supabase
+          .from("bosses")
+          .select("id,name")
+          .in("id", assistBossIds)
+          .eq("server_id", serverId);
+        assistBossMap = new Map((assistBosses || []).map((b: any) => [b.id, b.name]));
+      }
+
+      // Fetch all guilds for name lookup in assist column
+      const { data: allGuilds } = await supabase
+        .from("guilds")
+        .select("id,name")
+        .eq("server_id", serverId);
+      const guildNameMap = new Map((allGuilds || []).map((g: any) => [g.id, g.name]));
+
       // Fetch time-based multipliers for this guild
       let guildMultipliers: { start_hour: number; end_hour: number; multiplier: number }[] = [];
       const { data: rules } = await supabase
@@ -363,7 +390,34 @@ export function LeaderboardView() {
         .rnk { text-align: center; color: #94A3B8; }
         .nm { color: #E2E8F0; text-align: left; }
         .num { text-align: center; color: #FBBF24; font-weight: bold; }
-</style></head><body><table>`;
+        .assist-own { color: #34D399; font-size: 10px; }
+        .assist-yes { color: #60A5FA; font-size: 10px; }
+        .assist-attended { color: #9CA3AF; font-size: 10px; }
+        .summary { background: #1E293B; padding: 8px 12px; margin-bottom: 12px; border-radius: 6px; font-size: 11px; color: #94A3B8; }
+        .summary span { color: #60A5FA; font-weight: bold; }
+</style></head><body>`;
+
+      // ── Assisted Bosses Summary ──
+      if (assistData && assistData.length > 0) {
+        // Group assists by owner guild
+        const assistByOwner = new Map<string, { guildName: string; bosses: Set<string> }>();
+        for (const a of assistData) {
+          const ownerName = guildNameMap.get(a.owner_guild_id) || a.owner_guild_id.substring(0, 8);
+          if (!assistByOwner.has(a.owner_guild_id)) {
+            assistByOwner.set(a.owner_guild_id, { guildName: ownerName, bosses: new Set() });
+          }
+          const bossName = assistBossMap.get(a.boss_id) || bossMap.get(a.boss_id)?.name || a.boss_id.substring(0, 8);
+          assistByOwner.get(a.owner_guild_id)!.bosses.add(bossName);
+        }
+        html += `<div class="summary"><strong>${guildName}</strong> assists: `;
+        const parts: string[] = [];
+        for (const [ownerId, info] of assistByOwner) {
+          parts.push(`<span>${info.guildName}</span> → [${[...info.bosses].sort().join(", ")}]`);
+        }
+        html += parts.join(" &nbsp;|&nbsp; ") + `</div>`;
+      }
+
+      html += `<table>`;
 
       const dateFmt = new Intl.DateTimeFormat("en-US", { timeZone: serverTimezone, month: "short", day: "numeric", year: "numeric" });
       const timeFmt = new Intl.DateTimeFormat("en-US", { timeZone: serverTimezone, hour: "2-digit", minute: "2-digit" });
@@ -380,14 +434,14 @@ export function LeaderboardView() {
         // ── Data + Rankings ──
         const playerColors = ["#7C3AED","#059669","#D97706","#0891B2","#DB2777","#4F46E5"];
         // Header row 0: player names + ranking header
-        html += `<tr><th class="hdr">#</th><th class="hdr">Date</th><th class="hdr">Time</th><th class="hdr boss" style="text-align:left">Boss</th><th class="hdr">Party Leader</th><th class="hdr">Salary</th>`;
+        html += `<tr><th class="hdr">#</th><th class="hdr">Date</th><th class="hdr">Time</th><th class="hdr boss" style="text-align:left">Boss</th><th class="hdr">Party Leader</th><th class="hdr">Salary</th><th class="hdr">Assist</th>`;
         sortedMembers.forEach((mid, i) => {
           html += `<th class="hdr" style="background:${playerColors[i % 6]}">${memberMap.get(mid) || "?"}</th>`;
         });
         html += `<th class="hdr" style="background:#1E293B;min-width:16px"></th><th class="hdr" colspan="3" style="background:#7C3AED">\u{1F3C6} Ranking</th></tr>`;
 
         // Header row 1: player totals + ranking sub-header
-        html += `<tr><th class="hdr">#</th><th class="hdr">Date</th><th class="hdr">Time</th><th class="hdr">Boss</th><th class="hdr">Party Leader</th><th class="hdr">Salary</th>`;
+        html += `<tr><th class="hdr">#</th><th class="hdr">Date</th><th class="hdr">Time</th><th class="hdr">Boss</th><th class="hdr">Party Leader</th><th class="hdr">Salary</th><th class="hdr">Assist</th>`;
         sortedMembers.forEach((mid, i) => {
           html += `<th class="hdr" style="background:${playerColors[i % 6]};font-size:14px">${memberTotals.get(mid) || 0}</th>`;
         });
@@ -402,6 +456,17 @@ export function LeaderboardView() {
           const pl = (death.party_leaders || {}) as Record<string, string>;
           const leaderName = pl[guild.id] ? (memberMap.get(pl[guild.id]) || "") : "";
           const salaryYes = salaryMap.get(death.boss_id) === true ? "YES" : "NO";
+          // Determine assist status
+          const isAssist = death.owner_guild_id && death.owner_guild_id !== guild.id;
+          const assistKey = `${death.boss_id}|${death.owner_guild_id}`;
+          const isConfiguredAssist = assistCombos.has(assistKey);
+          const ownerGuildName = isAssist ? (guildNameMap.get(death.owner_guild_id) || "?") : "";
+          const assistLabel = isAssist
+            ? (isConfiguredAssist ? `Assist (${ownerGuildName})` : `Attended (${ownerGuildName})`)
+            : "Own";
+          const assistStyle = isAssist
+            ? (isConfiguredAssist ? "color:#60A5FA" : "color:#9CA3AF")
+            : "color:#34D399";
           const row: any[] = [
             attendees.size,
             dateFmt.format(new Date(death.death_time)),
@@ -409,6 +474,7 @@ export function LeaderboardView() {
             boss?.name || "?",
             leaderName,
             salaryYes,
+            assistLabel,
           ];
           sortedMembers.forEach(mid => {
             const effectivePts = getBossPoints(death.boss_id) * getMultiplier(death.death_time);
@@ -423,12 +489,16 @@ export function LeaderboardView() {
           html += `<tr>`;
           if (ri < dataRows.length) {
             const row = dataRows[ri];
+            const assistText = row[6] || "";
+            const isAssist = assistText.startsWith("Assist");
+            const isAttended = assistText.startsWith("Attended");
             html += `<td class="${cls}">${row[0]}</td><td class="${cls}">${row[1]}</td><td class="${cls}">${row[2]}</td><td class="boss ${cls}">${row[3]}</td><td class="${cls}">${row[4] || ""}</td><td class="num ${cls}" style="color:${row[5] === 'YES' ? '#34D399' : '#64748B'}">${row[5]}</td>`;
-            for (let c = 6; c < row.length; c++) {
+            html += `<td class="${cls}" style="font-size:10px;${isAssist ? 'color:#60A5FA' : isAttended ? 'color:#9CA3AF' : 'color:#34D399'}">${assistText}</td>`;
+            for (let c = 7; c < row.length; c++) {
               html += `<td class="${cls} ${row[c] > 0 ? 'pts-yes' : 'pts-no'}">${row[c] || ""}</td>`;
             }
           } else {
-            html += `<td class="${cls}"></td><td class="${cls}"></td><td class="${cls}"></td><td class="${cls}"></td><td class="${cls}"></td><td class="${cls}"></td>`;
+            html += `<td class="${cls}"></td><td class="${cls}"></td><td class="${cls}"></td><td class="${cls}"></td><td class="${cls}"></td><td class="${cls}"></td><td class="${cls}"></td>`;
             for (let c = 0; c < sortedMembers.length; c++) html += `<td class="${cls}"></td>`;
           }
           html += `<td class="${cls}"></td>`;

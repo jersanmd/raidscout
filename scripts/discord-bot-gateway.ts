@@ -366,7 +366,7 @@ async function handleGuildJoin(guild: any) {
           },
           {
             name: "3️⃣ Try a command",
-            value: "`!list` — See all bosses\n`!nextspawn` — Upcoming spawns in 24h\n`!nextspawn <boss>` — Check a specific boss\n`!nextspawn <guild>` — Spawns for a guild\n`!killed <boss>` — Record a kill (only on alive bosses)\n`!forcespawn <boss>` — Force a boss to spawn\n`!forcespawnall` — Spawn all fixed-timer bosses\n`!commands` — Full command list",
+            value: "`!list` — See all bosses\n`!nextspawn` — Upcoming spawns in 24h\n`!nextspawn <boss>` — Check a specific boss\n`!nextspawn <guild>` — Spawns for a guild\n`!killed <boss>` — Record a kill (only on alive bosses)\n`!forcespawn <boss>` — Force a boss to spawn\n`!forcespawnall` — Spawn all fixed-timer bosses\n`!forcespawnall --all` — Spawn all fixed-timer bosses across ALL servers\n`!commands` — Full command list",
           },
           {
             name: "💡 Multiple RaidScout servers?",
@@ -577,15 +577,23 @@ async function handleMessage(msg: any) {
     if (!bossName) return reply("Usage: `!forcespawn Boss Name`");
 
     const bosses = await supabaseQuery(
-      `bosses?server_id=eq.${serverId}&name=ilike.${encodeURIComponent("%" + bossName + "%")}`
+      `bosses?server_id=eq.${serverId}&name=ilike.${encodeURIComponent("%" + bossName + "%")}&select=id,name,respawn_hours`
     );
     if (!bosses?.length) return reply(`Boss **${bossName}** not found.`);
     const boss = bosses[0];
 
+    // Delete existing override, then insert with calculated death_time
+    // Formula: death_time = now - respawn_hours  →  boss spawns at "now"
+    const now = new Date();
+    const deathTime = new Date(now.getTime() - (boss.respawn_hours || 24) * 3600000).toISOString();
+    await fetch(`${SUPABASE_URL}/rest/v1/boss_spawn_overrides?boss_id=eq.${boss.id}&server_id=eq.${serverId}`, {
+      method: "DELETE",
+      headers: { apikey: SUPABASE_KEY!, Authorization: `Bearer ${SUPABASE_KEY!}` },
+    }).catch(() => {});
     await fetch(`${SUPABASE_URL}/rest/v1/boss_spawn_overrides`, {
       method: "POST",
       headers: { apikey: SUPABASE_KEY!, Authorization: `Bearer ${SUPABASE_KEY!}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ server_id: serverId, boss_id: boss.id, override_spawn_time: new Date().toISOString() }),
+      body: JSON.stringify({ server_id: serverId, boss_id: boss.id, death_time: deathTime }),
     }).catch(() => {});
 
     return reply(`✅ **${boss.name}** has been force-spawned. Use \`;killed ${boss.name}\` to record the kill.`);
@@ -593,27 +601,78 @@ async function handleMessage(msg: any) {
 
   // ── forcespawnall ────────────────────────────────────
   if (cmd === "forcespawnall" || cmd === "spawnall") {
+    const allFlag = args[1] === "--all";
+
+    if (allFlag) {
+      // Run forcespawnall across ALL servers
+      const allServers = await supabaseQuery(`servers?deleted_at=is.null&select=id,name`);
+      if (!allServers?.length) return reply("No servers found.");
+
+      let totalCount = 0;
+      const results: string[] = [];
+      const now = Date.now();
+
+      for (const srv of allServers) {
+        const bosses = await supabaseQuery(
+          `bosses?server_id=eq.${srv.id}&spawn_type=eq.fixed_hours&select=id,respawn_hours`
+        );
+        if (!bosses?.length) continue;
+
+        let count = 0;
+        for (const b of bosses) {
+          try {
+            const deathTime = new Date(now - (b.respawn_hours || 24) * 3600000).toISOString();
+            // Delete existing override first
+            await fetch(`${SUPABASE_URL}/rest/v1/boss_spawn_overrides?boss_id=eq.${b.id}&server_id=eq.${srv.id}`, {
+              method: "DELETE",
+              headers: { apikey: SUPABASE_KEY!, Authorization: `Bearer ${SUPABASE_KEY!}` },
+            });
+            await fetch(`${SUPABASE_URL}/rest/v1/boss_spawn_overrides`, {
+              method: "POST",
+              headers: { apikey: SUPABASE_KEY!, Authorization: `Bearer ${SUPABASE_KEY!}`, "Content-Type": "application/json" },
+              body: JSON.stringify({ server_id: srv.id, boss_id: b.id, death_time: deathTime }),
+            });
+            count++;
+          } catch { /* skip */ }
+        }
+        if (count > 0) {
+          totalCount += count;
+          results.push(`**${srv.name}**: ${count} bosses`);
+        }
+      }
+
+      if (results.length === 0) return reply("No fixed-timer bosses found across any server.");
+      return reply(`✅ **forcespawnall --all** complete!\n${results.join("\n")}\n\n**Total: ${totalCount}** bosses force-spawned across **${results.length}** servers.`);
+    }
+
+    // Original single-server forcespawnall
     if (!serverId) return reply("⚠️ Not linked to RaidScout.");
 
     const bosses = await supabaseQuery(
-      `bosses?server_id=eq.${serverId}&spawn_type=eq.fixed_hours`
+      `bosses?server_id=eq.${serverId}&spawn_type=eq.fixed_hours&select=id,respawn_hours`
     );
     if (!bosses?.length) return reply("No fixed-timer bosses found.");
 
-    const now = new Date().toISOString();
+    const now = Date.now();
     let count = 0;
     for (const b of bosses) {
       try {
+        const deathTime = new Date(now - (b.respawn_hours || 24) * 3600000).toISOString();
+        // Delete existing override first
+        await fetch(`${SUPABASE_URL}/rest/v1/boss_spawn_overrides?boss_id=eq.${b.id}&server_id=eq.${serverId}`, {
+          method: "DELETE",
+          headers: { apikey: SUPABASE_KEY!, Authorization: `Bearer ${SUPABASE_KEY!}` },
+        });
         await fetch(`${SUPABASE_URL}/rest/v1/boss_spawn_overrides`, {
           method: "POST",
           headers: { apikey: SUPABASE_KEY!, Authorization: `Bearer ${SUPABASE_KEY!}`, "Content-Type": "application/json" },
-          body: JSON.stringify({ server_id: serverId, boss_id: b.id, override_spawn_time: now }),
+          body: JSON.stringify({ server_id: serverId, boss_id: b.id, death_time: deathTime }),
         });
         count++;
       } catch { /* skip */ }
     }
 
-    return reply(`✅ **${count}** fixed-timer bosses force-spawned. Use \`;killed <boss>\` to record kills. Schedule bosses follow their normal windows.`);
+    return reply(`✅ **${count}** fixed-timer bosses force-spawned. Use \`;killed <boss>\` to record kills.`);
   }
 
   // ── commands ─────────────────────────────────────────
@@ -654,7 +713,7 @@ async function handleMessage(msg: any) {
         { name: `${p}cmdhere${aliasNote("cmdhere")}`, value: "Restrict bot commands to this channel only", inline: false },
         { name: `${p}threadhere${aliasNote("threadhere")}`, value: "Set this channel for auto-created spawn threads", inline: false },
         { name: `${p}forcespawn <boss>`, value: `Force a boss to spawn (e.g. \`${p}forcespawn Venatus\`)`, inline: false },
-        { name: `${p}forcespawnall`, value: "Force-spawn ALL fixed-timer bosses (use after maintenance)", inline: false },
+        { name: `${p}forcespawnall`, value: "Force-spawn ALL fixed-timer bosses (use after maintenance)\n`${p}forcespawnall --all` — run across all servers", inline: false },
       ],
     );
   }
@@ -665,11 +724,14 @@ async function handleMessage(msg: any) {
 
     const filter = args[1];
     const tz = await resolveServerTimezone(serverId);
-    const [bosses, deaths, guilds] = await Promise.all([
+    const [bosses, deaths, guilds, overrides] = await Promise.all([
       supabaseQuery(`bosses?server_id=eq.${serverId}&order=name`),
       supabaseQuery(`death_records?server_id=eq.${serverId}&order=death_time.desc&limit=200`),
       supabaseQuery(`guilds?server_id=eq.${serverId}`),
+      supabaseQuery(`boss_spawn_overrides?server_id=eq.${serverId}&select=boss_id,death_time`),
     ]);
+    // Build override map for quick lookup
+    const overrideMap = new Map((overrides || []).map((o: any) => [o.boss_id, o.death_time]));
 
     // Check if filter matches a guild name (case-insensitive exact match)
     const filterGuild = filter ? guilds.find((g: any) => g.name.toLowerCase() === filter.toLowerCase()) : null;
@@ -700,8 +762,15 @@ async function handleMessage(msg: any) {
 
       let spawn: Date;
       if (boss.spawn_type === "fixed_hours") {
-        spawn = lastDeath ? addHours(new Date(lastDeath.death_time), boss.respawn_hours ?? 0) : now;
-        if (spawn <= now && now <= addHours(spawn, 24)) spawn = now;
+        // Use spawn override death_time if available (same as web app)
+        const overrideDeathTime = overrideMap.get(boss.id);
+        const effectiveDeathTime = overrideDeathTime ?? lastDeath?.death_time ?? null;
+        if (effectiveDeathTime) {
+          spawn = addHours(new Date(effectiveDeathTime), boss.respawn_hours ?? 0);
+          if (spawn <= now) spawn = now; // boss is alive
+        } else {
+          spawn = now; // no death data → unknown, show as alive
+        }
       } else if (boss.spawn_type === "fixed_schedule" && boss.schedule) {
         // Use UTC for template-based bosses, server TZ for custom bosses
         const schedTz = getScheduleTz(boss, tz);
@@ -826,6 +895,11 @@ async function handleMessage(msg: any) {
     const recentDeaths = await supabaseQuery(
       `death_records?server_id=eq.${serverId}&boss_id=eq.${boss.id}&order=death_time.desc&limit=1`
     );
+    // Also check spawn overrides
+    const overrides = await supabaseQuery(
+      `boss_spawn_overrides?server_id=eq.${serverId}&boss_id=eq.${boss.id}&select=death_time&limit=1`
+    );
+    const overrideDeathTime = overrides?.[0]?.death_time ?? null;
 
     // ── Alive check: only allow killing alive bosses ──
     let isAlive = false;
@@ -834,8 +908,10 @@ async function handleMessage(msg: any) {
 
     if (boss.spawn_type === "fixed_hours") {
       const lastDeathForAlive = recentDeaths?.[0];
-      if (lastDeathForAlive) {
-        const spawnTime = new Date(new Date(lastDeathForAlive.death_time).getTime() + (boss.respawn_hours ?? 0) * 3600000);
+      // Use override death_time if available (same as spawn calculator)
+      const effectiveDeathTime = overrideDeathTime ?? lastDeathForAlive?.death_time ?? null;
+      if (effectiveDeathTime) {
+        const spawnTime = new Date(new Date(effectiveDeathTime).getTime() + (boss.respawn_hours ?? 0) * 3600000);
         isAlive = spawnTime <= aliveNow;
       } else {
         isAlive = true; // No death records → initial spawn
