@@ -432,7 +432,8 @@ async function handleMessage(msg: any) {
             const endVal = endRows?.[0]?.value || globalEnd?.[0]?.value;
             if (endVal) {
               const endDate = new Date(endVal);
-              msg += `\n📅 Expected to be back ${endDate.toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", timeZoneName: "short" })}.`;
+              const tz = await resolveServerTimezone(serverId);
+              msg += `\n📅 Expected to be back ${endDate.toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", timeZone: tz, timeZoneName: "short" })}.`;
             }
           } catch { /* ignore end time fetch failure */ }
           await fetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
