@@ -953,7 +953,7 @@ export function ServerSettingsView() {
 
       <div className="flex gap-6 items-start">
         {/* Sidebar */}
-        <div className="w-[260px] shrink-0 space-y-4 sticky top-6">
+        <div className="w-[260px] shrink-0 space-y-4 sticky top-6 mt-6">
           <div className="space-y-2">
             <button onClick={() => setShowCreateModal(true)} className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium bg-[#18181b] border border-[#27272a] text-[#fafafa] hover:bg-[#27272a] transition">
               <Plus className="w-3.5 h-3.5" /> Create New

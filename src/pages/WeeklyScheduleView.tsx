@@ -535,18 +535,6 @@ export function WeeklyScheduleView() {
 
       </> )}
 
-      {/* Legend */}
-      <div className="flex items-center gap-5 mt-6 text-[11px] text-[#71717a] bg-[#18181b] border border-[#27272a] rounded-lg px-4 py-2 w-fit">
-        <div className="flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full bg-emerald-500" />
-          Scheduled spawn
-        </div>
-        <div className="flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full bg-[#a1a1aa]" />
-          Killed (click for details)
-        </div>
-      </div>
-
       {/* Participant Modal */}
       {selectedDeath && (
         <ParticipantModal

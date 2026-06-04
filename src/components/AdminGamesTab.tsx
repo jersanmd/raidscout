@@ -13,6 +13,7 @@ import { AddBossForm } from "@/components/AddBossForm";
 import { AddActivityForm } from "@/components/AddActivityForm";
 import { EditBossForm } from "@/components/EditBossForm";
 import { EditActivityForm } from "@/components/EditActivityForm";
+import { BossImage } from "@/components/BossImage";
 import {
   Loader2, Plus, Trash2, Pencil, ChevronDown, ChevronUp,
   Gamepad2, Skull, Calendar, Save, X, Image,
@@ -372,7 +373,7 @@ export function AdminGamesTab() {
                               {bt.image_url ? (
                                 <img src={bt.image_url} alt={bt.name} className="w-5 h-5 rounded object-cover border border-[#27272a]" />
                               ) : (
-                                <Skull className="w-4 h-4 text-[#52525b]" />
+                                <BossImage bossName={bt.name} size="sm" />
                               )}
                               <span className="text-[#fafafa]">{bt.name}</span>
                               <span className="text-xs px-1.5 py-0.5 rounded bg-[#27272a] text-[#a1a1aa]">{bt.spawn_type}</span>

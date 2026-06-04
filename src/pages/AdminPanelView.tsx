@@ -469,8 +469,26 @@ export function AdminPanelView() {
                     </div>
                   </div>
                   <div className="space-y-2">
-                    {regularServers.map(renderServer)}
-                      </div>
+                    {(() => {
+                      const byGame = new Map<string, any[]>();
+                      for (const s of regularServers) {
+                        const key = (s as any).game_name || "Custom";
+                        if (!byGame.has(key)) byGame.set(key, []);
+                        byGame.get(key)!.push(s);
+                      }
+                      const sorted = [...byGame.entries()].sort(([a], [b]) => a === "Custom" ? 1 : b === "Custom" ? -1 : a.localeCompare(b));
+                      return sorted.map(([game, svrs]) => (
+                        <div key={game}>
+                          <h5 className="text-[10px] font-semibold text-[#71717a] uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                            <Gamepad2 className="w-3 h-3" /> {game} ({svrs.length})
+                          </h5>
+                          <div className="space-y-1.5 ml-2">
+                            {svrs.map(renderServer)}
+                          </div>
+                        </div>
+                      ));
+                    })()}
+                  </div>
                   {testServers.length > 0 && (
                     <div>
                       <h4 className="text-xs font-semibold text-[#a1a1aa] uppercase tracking-wider mb-2 flex items-center gap-1.5">
