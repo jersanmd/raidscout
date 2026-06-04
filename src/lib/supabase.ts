@@ -1758,6 +1758,23 @@ export async function fetchLeaderboardSnapshots(serverId?: string | null): Promi
   { id: string; finalized_at: string; period_start?: string; period: string; ranking_count: number; top_name?: string; top_points?: number }[]
 > {
   const sid = serverId ?? getCurrentServerId();
+  if (!sid) return [];
+
+  // Use edge function to bypass PostgREST anon filtering bug
+  try {
+    const resp = await fetch(`${supabaseUrl}/functions/v1/get-snapshots`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${supabaseKey}`,
+        "apikey": supabaseKey,
+      },
+      body: JSON.stringify({ server_id: sid }),
+    });
+    if (resp.ok) return await resp.json();
+  } catch { /* fall through */ }
+
+  // Fallback: direct query
   let query = supabase
     .from("leaderboard_snapshots")
     .select("id, finalized_at, period_start, period, rankings")
@@ -1789,6 +1806,21 @@ export async function fetchSnapshotById(id: string, serverId: string): Promise<{
   period: string;
   rankings: { rank: number; memberId: string; memberName: string; points: number }[];
 }> {
+  // Use edge function to bypass PostgREST anon filtering bug
+  try {
+    const resp = await fetch(`${supabaseUrl}/functions/v1/get-snapshots`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${supabaseKey}`,
+        "apikey": supabaseKey,
+      },
+      body: JSON.stringify({ server_id: serverId, snapshot_id: id }),
+    });
+    if (resp.ok) return await resp.json();
+  } catch { /* fall through */ }
+
+  // Fallback: direct query
   const { data, error } = await supabase
     .from("leaderboard_snapshots")
     .select("*")
