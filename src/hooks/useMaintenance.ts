@@ -7,9 +7,14 @@ export function useMaintenance() {
 
   useEffect(() => {
     supabase.from("app_settings").select("value")
-      .eq("key", "maintenance_mode").maybeSingle()
+      .eq("key", "maintenance_mode")
       .then(
-        ({ data }) => { setIsMaintenance((data as any)?.value === "true"); setLoading(false); },
+        ({ data, error }) => {
+          if (!error && data?.length > 0) {
+            setIsMaintenance((data[0] as any)?.value === "true");
+          }
+          setLoading(false);
+        },
         () => setLoading(false)
       );
   }, []);
