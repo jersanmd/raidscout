@@ -26,10 +26,14 @@ serve(async (req: Request) => {
     const { data: members } = await supabase.from("members").select("id, name, guild_id").eq("server_id", server_id);
     if (!members?.length) return new Response(JSON.stringify([]), { status: 200, headers: { "Content-Type": "application/json", ...CORS_HEADERS } });
 
-    // Get guild resets
-    const { data: settings } = await supabase.from("app_settings").select("key, value").eq("server_id", server_id).like("key", "leaderboard_reset_at:%");
+    // Get guild resets — fetch ALL app_settings and filter in JS (avoids PostgREST like issues)
+    const { data: allSettings } = await supabase.from("app_settings").select("key, value").eq("server_id", server_id);
     const guildResets = new Map<string, number>();
-    for (const s of settings || []) guildResets.set(s.key.replace("leaderboard_reset_at:", ""), new Date(s.value).getTime());
+    for (const s of allSettings || []) {
+      if (s.key.startsWith("leaderboard_reset_at:")) {
+        guildResets.set(s.key.replace("leaderboard_reset_at:", ""), new Date(s.value).getTime());
+      }
+    }
 
     // Build guild id→name map
     const { data: guilds } = await supabase.from("guilds").select("id, name").eq("server_id", server_id);
