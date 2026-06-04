@@ -1000,15 +1000,28 @@ import type { BossGuild } from "@/types";
 export async function fetchBossGuilds(serverId?: string | null): Promise<BossGuild[]> {
   const sid = serverId ?? getCurrentServerId();
   if (!sid) return [];
-  const { data, error } = await supabase
-    .from("boss_guilds")
-    .select("*, bosses!inner(server_id)")
-    .eq("bosses.server_id", sid)
-    .neq("sort_order", -1) // exclude points-only sentinel rows
-    .order("sort_order", { ascending: true })
-    .order("day_of_week", { ascending: true });
-  if (error) throw error;
-  return data as BossGuild[];
+  
+  // Use edge function to bypass PostgREST anon filtering bug on boss_guilds table
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+  
+  const response = await fetch(`${supabaseUrl}/functions/v1/get-boss-guilds`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${supabaseKey}`,
+      "apikey": supabaseKey,
+    },
+    body: JSON.stringify({ server_id: sid }),
+  });
+  
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({ error: "Unknown error" }));
+    throw new Error(err.error || `Failed to fetch boss guilds (${response.status})`);
+  }
+  
+  const data = await response.json();
+  return (data || []) as BossGuild[];
 }
 
 /** Fetch all boss_guilds rows for a server (for the Boss Points matrix).
