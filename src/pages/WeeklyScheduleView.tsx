@@ -25,6 +25,7 @@ import {
 } from "@/lib/supabase";
 import { Loader2, Users, X, Calendar } from "lucide-react";
 import { SavingOverlay } from "@/components/SavingOverlay";
+import { useUserTimezone } from "@/hooks/useUserTimezone";
 import { getOwnerGuildName as getOwnerGuildNameLib } from "@/lib/rotation";
 import { useActivities } from "@/hooks/useActivities";
 import type { WeekDaySpawns, SpawnInfo, Boss, BossGuild, Guild } from "@/types";
