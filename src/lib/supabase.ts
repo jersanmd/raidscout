@@ -1400,7 +1400,25 @@ export async function fetchMemberKills(
   const sid = serverId ?? getCurrentServerId();
   if (!sid) return [];
 
-  // 1. Fetch attendance records with boss & death info
+  // 1. Fetch attendance records via edge function (bypasses PostgREST anon bug)
+  let data: any[] | null = null;
+  try {
+    const resp = await fetch(`${supabaseUrl}/functions/v1/get-member-kills`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${supabaseKey}`,
+        "apikey": supabaseKey,
+      },
+      body: JSON.stringify({ member_id: memberId, server_id: sid, since }),
+    });
+    if (resp.ok) {
+      const kills = await resp.json();
+      if (kills?.length) return kills; // Edge function returns fully-mapped kills
+    }
+  } catch { /* fall through */ }
+
+  // 2. Fallback: direct query (works for authenticated users)
   let query = supabase
     .from("attendance_records")
     .select("death_record_id, death_records!inner(death_time, boss_id, bosses!inner(name, boss_points))")
@@ -1412,9 +1430,10 @@ export async function fetchMemberKills(
   }
   if (sid) query = query.eq("server_id", sid);
 
-  const { data, error } = await query;
+  const { data: rawData, error } = await query;
   if (error) throw error;
-  if (!data?.length) return [];
+  if (!rawData?.length) return [];
+  data = rawData;
 
   // 2. Get member's guild
   const { data: memberData } = await supabase
