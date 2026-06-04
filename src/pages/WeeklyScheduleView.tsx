@@ -405,7 +405,7 @@ export function WeeklyScheduleView() {
                       />
                       <span className="text-[#fafafa] text-sm">{s.boss.name}</span>
                       {isDeathEvent && (
-                        <span className="text-[10px] text-[#71717a] inline-flex items-center gap-1">Killed <Users className="w-3 h-3" /></span>
+                        <span className="text-[10px] text-red-400 inline-flex items-center gap-1">Killed <Users className="w-3 h-3" /></span>
                       )}
                     </div>
                     <div className="text-right">
@@ -521,7 +521,7 @@ export function WeeklyScheduleView() {
                       </div>
                     </div>
                     {isDeathEvent && (
-                      <span className="text-[10px] text-[#71717a] font-medium flex items-center gap-1">
+                      <span className="text-[10px] text-red-400 font-medium flex items-center gap-1">
                         Killed <Users className="w-3 h-3" />
                       </span>
                     )}

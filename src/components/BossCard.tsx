@@ -286,13 +286,22 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
                 {(boss.respawn_hours || boss.schedule) && (
                 <div className="flex items-center gap-2 text-[10px] text-[#52525b] font-mono">
                   {boss.respawn_hours && <span>+{boss.respawn_hours}h respawn</span>}
-                  {boss.schedule && (
+                  {boss.schedule && (() => {
+                    const tzName = currentServer?.timezone || "UTC";
+                    const days = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+                    return (
                     <span>
                       {boss.schedule
-                        .map((s) => `${["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][s.day]} ${s.time}`)
+                        .map((s) => {
+                          const [h, m] = s.time.split(":").map(Number);
+                          const local = new Date(Date.UTC(2026, 0, 1, h, m))
+                            .toLocaleTimeString("en-US", { timeZone: tzName, hour: "2-digit", minute: "2-digit", hour12: true });
+                          return `${days[s.day]} ${local}`;
+                        })
                         .join("  ·  ")}
                     </span>
-                  )}
+                    );
+                  })()}
                 </div>
                 )}
               </>
