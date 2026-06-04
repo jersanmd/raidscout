@@ -21,8 +21,9 @@ export function AdminPanelView() {
   const [auditCustomUntil, setAuditCustomUntil] = useState("");
   const navigate = useNavigate();
   const [maintenance, setMaintenance] = useState(false);
-  const [maintEndDate, setMaintEndDate] = useState("");
-  const [maintEndTime, setMaintEndTime] = useState("");
+  const now = new Date();
+  const [maintEndDate, setMaintEndDate] = useState(`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`);
+  const [maintEndTime, setMaintEndTime] = useState(`${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`);
 
   // Redirect non-admin users
   useEffect(() => {
