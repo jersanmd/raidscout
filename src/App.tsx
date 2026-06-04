@@ -77,7 +77,11 @@ function AppContent() {
   }
 
   // Maintenance mode gate — admins bypass, everyone else sees maintenance screen
-  if (!maintLoading && isMaintenance && !isAdmin) {
+  // Block during loading to prevent flash of normal app
+  if (maintLoading) {
+    return <PageLoader />;
+  }
+  if (isMaintenance && !isAdmin) {
     return <MaintenancePage />;
   }
 

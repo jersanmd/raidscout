@@ -27,11 +27,22 @@ export function MaintenancePage() {
     setError("");
     setLoading(true);
     try {
-      const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
-      if (signInError) { setError(signInError.message); }
-      else { window.location.href = "/"; }
-    } catch { setError("Login failed."); }
-    finally { setLoading(false); }
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+      if (signInError) {
+        setError(signInError.message);
+        setLoading(false);
+        return;
+      }
+      // Check if user is admin — only admins can bypass maintenance
+      const { data: roleData } = await supabase.from("user_roles").select("role").eq("user_id", data.user.id).maybeSingle();
+      if ((roleData as any)?.role !== "admin") {
+        setError("Only administrators can access the site during maintenance.");
+        await supabase.auth.signOut();
+        setLoading(false);
+        return;
+      }
+      window.location.href = "/";
+    } catch { setError("Login failed."); setLoading(false); }
   };
 
   return (
