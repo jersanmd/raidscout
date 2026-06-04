@@ -1289,6 +1289,23 @@ export async function fetchPointAdjustments(
 // ── Attendance ──────────────────────────────────────────────
 
 export async function fetchAttendanceForDeath(deathRecordId: string): Promise<AttendanceRecord[]> {
+  const sid = getCurrentServerId();
+  
+  // Try edge function first (bypasses RLS for viewers)
+  try {
+    const resp = await fetch(`${supabaseUrl}/functions/v1/get-attendance`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${supabaseKey}`,
+        "apikey": supabaseKey,
+      },
+      body: JSON.stringify({ death_record_ids: [deathRecordId], server_id: sid }),
+    });
+    if (resp.ok) return await resp.json();
+  } catch { /* fall through */ }
+
+  // Fallback: direct query (works for authenticated users)
   const { data, error } = await supabase
     .from("attendance_records")
     .select("*")
@@ -1548,32 +1565,50 @@ export async function fetchAnalytics(since: string, serverId?: string | null): P
   const sid = serverId ?? getCurrentServerId();
   if (!sid) return { total_kills: 0, total_attendance: 0, active_members: 0, kills_by_week: [], top_bosses: [], top_hunters: [], kills_by_day: [], total_activities: 0, activity_participation: 0, activity_completion_rate: 0 };
 
-  // Get death records since date
-  const { data: deaths, error: dErr } = await supabase
-    .from("death_records")
-    .select("id, death_time, boss_id")
-    .eq("server_id", sid)
-    .gte("death_time", since)
-    .order("death_time", { ascending: false });
-  if (dErr) throw dErr;
+  // Get death records since date (paginated — PostgREST defaults to 1,000)
+  const deaths: any[] = [];
+  const PAGE_SIZE = 1000;
+  let page = 0;
+  while (true) {
+    const { data: pageData, error: dErr } = await supabase
+      .from("death_records")
+      .select("id, death_time, boss_id")
+      .eq("server_id", sid)
+      .gte("death_time", since)
+      .order("death_time", { ascending: false })
+      .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
+    if (dErr) throw dErr;
+    if (!pageData?.length) break;
+    deaths.push(...pageData);
+    if (pageData.length < PAGE_SIZE) break;
+    page++;
+  }
   if (!deaths?.length) return { total_kills: 0, total_attendance: 0, active_members: 0, kills_by_week: [], top_bosses: [], top_hunters: [], kills_by_day: [], total_activities: 0, activity_participation: 0, activity_completion_rate: 0 };
 
   const deathIds = deaths.map(d => d.id);
 
   // Get attendance for these deaths — use edge function to bypass PostgREST anon filtering bug
+  // Batch death IDs in groups of 500 to stay under PostgREST limits
   let att: any[] = [];
-  try {
-    const resp = await fetch(`${supabaseUrl}/functions/v1/get-attendance`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${supabaseKey}`,
-        "apikey": supabaseKey,
-      },
-      body: JSON.stringify({ death_record_ids: deathIds }),
-    });
-    if (resp.ok) att = await resp.json();
-  } catch { /* fallback to direct query */ }
+  const ATT_BATCH = 500;
+  for (let i = 0; i < deathIds.length; i += ATT_BATCH) {
+    const batch = deathIds.slice(i, i + ATT_BATCH);
+    try {
+      const resp = await fetch(`${supabaseUrl}/functions/v1/get-attendance`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${supabaseKey}`,
+          "apikey": supabaseKey,
+        },
+        body: JSON.stringify({ death_record_ids: batch }),
+      });
+      if (resp.ok) {
+        const batchData = await resp.json();
+        if (batchData?.length) att.push(...batchData);
+      }
+    } catch { /* continue to next batch */ }
+  }
   
   // Fallback: direct query (works for authenticated users)
   if (!att.length) {

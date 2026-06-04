@@ -29,14 +29,25 @@ serve(async (req: Request) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const { data, error } = await supabase
-      .from("attendance_records")
-      .select("*")
-      .in("death_record_id", death_record_ids);
+    // Paginate — PostgREST defaults to 1,000 rows max
+    const allData: any[] = [];
+    const PAGE_SIZE = 1000;
+    let page = 0;
+    while (true) {
+      const { data, error } = await supabase
+        .from("attendance_records")
+        .select("*")
+        .in("death_record_id", death_record_ids)
+        .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
 
-    if (error) throw error;
+      if (error) throw error;
+      if (!data?.length) break;
+      allData.push(...data);
+      if (data.length < PAGE_SIZE) break;
+      page++;
+    }
 
-    return new Response(JSON.stringify(data || []), {
+    return new Response(JSON.stringify(allData), {
       status: 200,
       headers: { "Content-Type": "application/json", ...CORS_HEADERS },
     });
