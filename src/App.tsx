@@ -11,6 +11,8 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { ToastProvider } from "@/contexts/ToastContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { NoServerView } from "@/components/NoServerView";
+import { useMaintenance } from "@/hooks/useMaintenance";
+import { MaintenancePage } from "@/pages/MaintenancePage";
 
 // ── Route-level code splitting ──────────────────────────────
 const BossListView = lazy(() => import("@/pages/BossListView").then(m => ({ default: m.BossListView })));
@@ -92,9 +94,15 @@ function AppContent() {
 function AppRoutes() {
   const { servers, currentServer, loading: serverLoading } = useServer();
   const { userRole } = useAuth();
+  const { isMaintenance, loading: maintLoading } = useMaintenance();
   const isAdmin = userRole === "admin";
   const hasServer = servers.length > 0;
   const ready = !serverLoading;
+
+  // Maintenance mode gate — admins bypass
+  if (!maintLoading && isMaintenance && !isAdmin) {
+    return <MaintenancePage />;
+  }
 
   // Dynamically set the page title to the current server name
   useEffect(() => {

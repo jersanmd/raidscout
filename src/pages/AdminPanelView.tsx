@@ -20,6 +20,9 @@ export function AdminPanelView() {
   const [auditCustomSince, setAuditCustomSince] = useState("");
   const [auditCustomUntil, setAuditCustomUntil] = useState("");
   const navigate = useNavigate();
+  const [maintenance, setMaintenance] = useState(false);
+  const [maintEndDate, setMaintEndDate] = useState("");
+  const [maintEndTime, setMaintEndTime] = useState("");
 
   // Redirect non-admin users
   useEffect(() => {
@@ -27,6 +30,12 @@ export function AdminPanelView() {
       navigate("/", { replace: true });
     }
   }, [userRole, navigate]);
+
+  useEffect(() => {
+    supabase.from("app_settings").select("value")
+      .eq("key", "maintenance_mode").maybeSingle()
+      .then(({ data }) => setMaintenance((data as any)?.value === "true"));
+  }, []);
 
   // Always call hooks at the top level
   const { data: servers = [], isLoading: srvLoading } = useQuery({
@@ -900,6 +909,42 @@ export function AdminPanelView() {
               </div>
             </>
           )}
+          <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3 mt-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h4 className="text-sm font-semibold text-white">Maintenance Mode</h4>
+                <p className="text-xs text-slate-500">Block all non-admin users. Set an end time so users know when to return.</p>
+              </div>
+              <button
+                onClick={async () => {
+                  if (!maintenance) {
+                    if (!maintEndDate || !maintEndTime) return;
+                    const endISO = new Date(`${maintEndDate}T${maintEndTime}:00`).toISOString();
+                    await supabase.from("app_settings").upsert({ key: "maintenance_end", value: endISO }, { onConflict: "key" });
+                    await supabase.from("app_settings").upsert({ key: "maintenance_mode", value: "true" }, { onConflict: "key" });
+                  } else {
+                    await supabase.from("app_settings").upsert({ key: "maintenance_mode", value: "false" }, { onConflict: "key" });
+                  }
+                  setMaintenance(!maintenance);
+                }}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${
+                  maintenance
+                    ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/20"
+                    : "bg-amber-500/10 text-amber-400 border border-amber-500/30 hover:bg-amber-500/20"
+                }`}
+              >
+                {maintenance ? "Turn OFF" : "Turn ON"}
+              </button>
+            </div>
+            {!maintenance && (
+              <div className="flex gap-2">
+                <input type="date" value={maintEndDate} onChange={e => setMaintEndDate(e.target.value)}
+                  className="px-2 py-1.5 bg-slate-800 border border-slate-700 rounded text-xs text-white" />
+                <input type="time" value={maintEndTime} onChange={e => setMaintEndTime(e.target.value)}
+                  className="px-2 py-1.5 bg-slate-800 border border-slate-700 rounded text-xs text-white" />
+              </div>
+            )}
+          </div>
         </div>
       )}
 
