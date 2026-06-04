@@ -819,18 +819,9 @@ export function LandingPage() {
       <footer className="border-t border-white/[0.04] bg-[#09090b] py-20 px-6">
         <div className="max-w-6xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-10 mb-16">
           <div>
-            <h4 className="text-sm font-semibold text-[#fafafa] mb-5">Product</h4>
-            <div className="space-y-3 text-sm text-[#fafafa]/40">
-              <a href="#" className="block hover:text-[#fafafa] transition-colors">Boss Timer</a>
-              <a href="#" className="block hover:text-[#fafafa] transition-colors">Weekly Schedule</a>
-              <a href="#" className="block hover:text-[#fafafa] transition-colors">Leaderboard</a>
-              <a href="#" className="block hover:text-[#fafafa] transition-colors">Viewer Mode</a>
-            </div>
-          </div>
-          <div>
             <h4 className="text-sm font-semibold text-[#fafafa] mb-5">Resources</h4>
             <div className="space-y-3 text-sm text-[#fafafa]/40">
-              <a href="https://discord.gg/738AmkeQtU" target="_blank" rel="noopener noreferrer" className="block hover:text-[#fafafa] transition-colors">Discord Bot Setup</a>
+              <a href="https://discord.gg/738AmkeQtU" target="_blank" rel="noopener noreferrer" className="block hover:text-[#fafafa] transition-colors">RaidScout Support</a>
               <a href="#" className="block hover:text-[#fafafa] transition-colors">Documentation</a>
               <a href="#" className="block hover:text-[#fafafa] transition-colors">API</a>
             </div>

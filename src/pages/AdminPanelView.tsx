@@ -1108,7 +1108,7 @@ export function AdminPanelView() {
         <div className="max-w-7xl mx-auto px-4 py-5 space-y-3">
           <div className="flex items-center gap-2 text-xs text-[#71717a]">
             <img src="/logo.png" alt="" className="w-4 h-4 rounded opacity-40" />
-            <span>RaidScout — Track LordNine boss respawn timers, schedule hunts, and monitor member performance across your guild. </span>
+            <span>RaidScout — Track boss respawn timers across any game, schedule hunts, and monitor member performance across your guild. </span>
           </div>
           <div className="flex items-center gap-4 text-xs text-[#52525b] flex-wrap">
             <a href="https://discord.gg/738AmkeQtU" target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 hover:text-[#a1a1aa] transition" title="Join our Discord community">
