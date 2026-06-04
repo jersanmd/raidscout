@@ -79,7 +79,8 @@ function AppContent() {
   if (maintLoading) {
     return <PageLoader />;
   }
-  if (isMaintenance && !isAdmin) {
+  const isPreview = new URLSearchParams(window.location.search).get("preview") === "true";
+  if (isMaintenance && !isAdmin && !isPreview) {
     return <MaintenancePage />;
   }
 
