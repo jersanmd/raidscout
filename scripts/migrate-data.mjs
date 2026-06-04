@@ -77,8 +77,7 @@ async function migrate() {
 
   // Ordered by FK dependency — only remaining tables
   const tables = [
-    { name: "boss_guilds", transform: (r) => r, dedupKey: (r) => `${r.boss_id}|${r.guild_id}|${r.day_of_week ?? -1}` },
-    { name: "discord_configs", transform: (r) => r, dedupKey: (r) => r.discord_guild_id },
+    { name: "moderator_permissions", transform: (r) => r },
   ];
 
   for (const { name, transform, dedupKey } of tables) {
