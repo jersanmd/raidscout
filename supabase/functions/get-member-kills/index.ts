@@ -17,7 +17,7 @@ serve(async (req: Request) => {
   }
 
   try {
-    const { member_id, server_id, since } = await req.json();
+    const { member_id, server_id, since, timezone } = await req.json();
     if (!member_id || !server_id) {
       return new Response(
         JSON.stringify({ error: "Missing member_id or server_id" }),
@@ -72,15 +72,63 @@ serve(async (req: Request) => {
       }
     }
 
-    // Map to frontend format
-    const kills = (data as any[]).map((r: any) => ({
-      death_record_id: r.death_record_id,
-      boss_name: r.death_records?.bosses?.name ?? "Unknown",
-      killed_at: r.death_records?.death_time,
-      points: bgPointsMap[r.death_records?.boss_id]
-        ?? r.death_records?.bosses?.boss_points
-        ?? 1,
-    }));
+    // Fetch time-based multipliers
+    let guildMultipliers: { start_hour: number; end_hour: number; multiplier: number }[] = [];
+    if (guildId) {
+      const { data: rules } = await supabase
+        .from("point_rules")
+        .select("config")
+        .eq("server_id", server_id)
+        .eq("guild_id", guildId)
+        .eq("rule_type", "time_multiplier")
+        .eq("enabled", true);
+      for (const rule of (rules || [])) {
+        const cfg = (rule as any).config as any;
+        if (cfg) {
+          guildMultipliers.push({
+            start_hour: cfg.start_hour,
+            end_hour: cfg.end_hour,
+            multiplier: cfg.multiplier,
+          });
+        }
+      }
+    }
+
+    // Helper: get multiplier for a death time
+    const getMultiplier = (deathTime: string): number => {
+      if (!guildMultipliers.length) return 1;
+      const tz = timezone || "UTC";
+      // Parse hour from death time in server timezone
+      const dt = new Date(deathTime);
+      const hour = parseInt(
+        dt.toLocaleString("en-US", { timeZone: tz, hour: "2-digit", hour12: false }),
+        10,
+      );
+      let mult = 1;
+      for (const r of guildMultipliers) {
+        const match = r.start_hour <= r.end_hour
+          ? hour >= r.start_hour && hour < r.end_hour
+          : hour >= r.start_hour || hour < r.end_hour;
+        if (match) mult = Math.max(mult, r.multiplier);
+      }
+      return mult;
+    };
+
+    // Map to frontend format with all modifiers
+    const kills = (data as any[]).map((r: any) => {
+      const bossId = r.death_records?.boss_id;
+      const bossPoints = r.death_records?.bosses?.boss_points ?? 1;
+      const basePts = guildId && bgPointsMap[bossId] != null
+        ? bgPointsMap[bossId]
+        : bossPoints;
+      const mult = guildId ? getMultiplier(r.death_records?.death_time) : 1;
+      return {
+        death_record_id: r.death_record_id,
+        boss_name: r.death_records?.bosses?.name ?? "Unknown",
+        killed_at: r.death_records?.death_time,
+        points: basePts * mult,
+      };
+    });
 
     return new Response(JSON.stringify(kills), {
       status: 200,

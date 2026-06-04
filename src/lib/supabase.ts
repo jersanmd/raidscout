@@ -1410,7 +1410,7 @@ export async function fetchMemberKills(
         "Authorization": `Bearer ${supabaseKey}`,
         "apikey": supabaseKey,
       },
-      body: JSON.stringify({ member_id: memberId, server_id: sid, since }),
+      body: JSON.stringify({ member_id: memberId, server_id: sid, since, timezone: serverTimezone }),
     });
     if (resp.ok) {
       const kills = await resp.json();
