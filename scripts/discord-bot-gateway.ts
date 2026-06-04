@@ -179,7 +179,7 @@ function computeOwnerGuild(
 
   // 3. Rotation mode
   const rotationEntries = bgs
-    .filter((bg: any) => bg.sort_order !== null && bg.mode !== "daily")
+    .filter((bg: any) => bg.sort_order !== null && bg.sort_order > 0 && bg.mode !== "daily")
     .sort((a: any, b: any) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
   if (rotationEntries.length > 0) {
     const counter = boss.rotation_counter ?? 1;
