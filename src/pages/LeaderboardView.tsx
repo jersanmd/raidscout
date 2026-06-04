@@ -30,7 +30,7 @@ const rankColors: Record<number, { icon: React.ReactNode; text: string; bg: stri
   3: {
     icon: <Medal className="w-5 h-5 text-[#a1a1aa]" />,
     text: "text-[#a1a1aa]",
-    bg: "bg-[#18181b] border-amber-800",
+    bg: "bg-[#18181b] border-[#27272a]",
   },
 };
 
@@ -491,7 +491,7 @@ export function LeaderboardView() {
 
       {entries.length === 0 ? (
         <div className="text-center py-16">
-          <Users className="w-12 h-12 text-slate-700 mx-auto mb-3" />
+          <Users className="w-12 h-12 text-[#71717a] mx-auto mb-3" />
           <p className="text-[#71717a] text-lg">No members yet</p>
           <p className="text-[#52525b] text-sm mt-1">
             Record a boss death with attendees to start the leaderboard.
@@ -520,7 +520,7 @@ export function LeaderboardView() {
 
           {guildGroups.length === 0 ? (
             <div className="text-center py-16">
-              <Users className="w-12 h-12 text-slate-700 mx-auto mb-3" />
+              <Users className="w-12 h-12 text-[#71717a] mx-auto mb-3" />
               <p className="text-[#71717a] text-lg">No members found</p>
               <p className="text-[#52525b] text-sm mt-1">
                 {searchQuery ? "Try adjusting your search." : "Record a boss death with attendees to start the leaderboard."}
@@ -549,7 +549,7 @@ export function LeaderboardView() {
                     <input type="date" value={exportEndDate} onChange={(e) => setExportEndDate(e.target.value)} className="px-2 py-1.5 bg-[#18181b] border border-[#27272a] rounded-lg text-[#fafafa] text-xs outline-none focus:ring-2 focus:ring-[#fafafa]/30/50 transition" />
                   </div>
                   <label className="flex items-center gap-1.5 cursor-pointer pb-1.5">
-                    <input type="checkbox" checked={exportRankingsOnly} onChange={(e) => setExportRankingsOnly(e.target.checked)} className="w-3 h-3 rounded border-slate-600 bg-[#18181b] text-[#a1a1aa] focus:ring-[#fafafa]/30/50/50 cursor-pointer" />
+                    <input type="checkbox" checked={exportRankingsOnly} onChange={(e) => setExportRankingsOnly(e.target.checked)} className="w-3 h-3 rounded border-[#52525b] bg-[#18181b] text-[#a1a1aa] focus:ring-[#fafafa]/30 cursor-pointer" />
                     <span className="text-[10px] text-[#a1a1aa] whitespace-nowrap">Rankings only</span>
                   </label>
                   <button onClick={() => handleExportAttendance()} disabled={exportLoading || !exportStartDate || !exportEndDate} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-amber-500 text-[#fafafa] hover:bg-amber-500 transition disabled:opacity-50 flex items-center gap-1.5">
@@ -669,7 +669,7 @@ export function LeaderboardView() {
             {guildGroups.length > 1 && (
               <div className="flex justify-center gap-1.5 mt-3">
                 {guildGroups.map((_, i) => (
-                  <button key={i} onClick={() => setCarouselPage(i)} className={`w-2.5 h-2.5 rounded-full transition ${i === carouselPage ? "bg-amber-400" : "bg-slate-600 hover:bg-slate-500"}`} />
+                  <button key={i} onClick={() => setCarouselPage(i)} className={`w-2.5 h-2.5 rounded-full transition ${i === carouselPage ? "bg-amber-400" : "bg-[#52525b] hover:bg-[#71717a]"}`} />
                 ))}
               </div>
             )}
