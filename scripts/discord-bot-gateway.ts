@@ -412,28 +412,39 @@ async function handleMessage(msg: any) {
   }
   const cmd = aliases[rawCmd] || rawCmd;
 
-  // Check maintenance mode — skip all commands if maintenance is on
-  try {
-    const maintRows = await supabaseQuerySafe(`app_settings?key=eq.maintenance_mode&select=value`);
-    if (maintRows?.[0]?.value === "true") {
-      if (cmd && cmd !== "help" && cmd !== "commands") {
-        let msg = "🔧 RaidScout is currently under maintenance. Please try again later.";
-        try {
-          const endRows = await supabaseQuerySafe(`app_settings?key=eq.maintenance_end&select=value`);
-          if (endRows?.[0]?.value) {
-            const endDate = new Date(endRows[0].value);
-            msg += `\n📅 Expected to be back ${endDate.toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", timeZoneName: "short" })}.`;
-          }
-        } catch { /* ignore end time fetch failure */ }
-        await fetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
-          method: "POST",
-          headers: { Authorization: `Bot ${TOKEN}`, "Content-Type": "application/json" },
-          body: JSON.stringify({ content: msg }),
-        });
+  // Resolve server ID for this guild+prefix combo (needed for maintenance check & commands)
+  const serverId = await resolveServerId(guildId, matchedPrefix || prefixes[0] || "");
+
+  // Check maintenance mode — skip all commands if maintenance is on for this server
+  if (serverId) {
+    try {
+      // Check server-specific maintenance first, then global
+      const maintRows = await supabaseQuerySafe(`app_settings?key=eq.maintenance_mode&server_id=eq.${serverId}&select=value`);
+      const globalMaint = await supabaseQuerySafe(`app_settings?key=eq.maintenance_mode&server_id=is.null&select=value`);
+      const isMaint = maintRows?.[0]?.value === "true" || globalMaint?.[0]?.value === "true";
+      if (isMaint) {
+        if (cmd && cmd !== "help" && cmd !== "commands") {
+          let msg = "🔧 RaidScout is currently under maintenance for this server. Please try again later.";
+          try {
+            // Check server-specific end time first, then global
+            const endRows = await supabaseQuerySafe(`app_settings?key=eq.maintenance_end&server_id=eq.${serverId}&select=value`);
+            const globalEnd = await supabaseQuerySafe(`app_settings?key=eq.maintenance_end&server_id=is.null&select=value`);
+            const endVal = endRows?.[0]?.value || globalEnd?.[0]?.value;
+            if (endVal) {
+              const endDate = new Date(endVal);
+              msg += `\n📅 Expected to be back ${endDate.toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", timeZoneName: "short" })}.`;
+            }
+          } catch { /* ignore end time fetch failure */ }
+          await fetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
+            method: "POST",
+            headers: { Authorization: `Bot ${TOKEN}`, "Content-Type": "application/json" },
+            body: JSON.stringify({ content: msg }),
+          });
+        }
+        return;
       }
-      return;
-    }
-  } catch { /* proceed if check fails */ }
+    } catch { /* proceed if check fails */ }
+  }
 
   // Valid commands that should trigger ✅ reaction
   const validCmds = new Set(["list","nextspawn","spawn","killed","kill","forcespawn","forcespawnall","spawnall","commands","help","notifhere","cmdhere","threadhere"]);
@@ -478,7 +489,6 @@ async function handleMessage(msg: any) {
 
   // ── list ─────────────────────────────────────────────
   if (cmd === "list") {
-    const serverId = await resolveServerId(guildId, matchedPrefix);
     if (!serverId) return reply("⚠️ This Discord server is not linked to RaidScout. An admin needs to go to **Server Settings → Integrations** on the RaidScout web app and link this Discord server.");
     const bosses = await supabaseQuery(`bosses?server_id=eq.${serverId}&order=name`);
     if (!bosses?.length) return reply("No bosses found.");
@@ -509,7 +519,6 @@ async function handleMessage(msg: any) {
 
   // ── notifhere ────────────────────────────────────────
   if (cmd === "notifhere") {
-    const serverId = await resolveServerId(guildId, matchedPrefix);
     if (!serverId) return reply("⚠️ This Discord server is not linked to RaidScout. An admin needs to go to **Server Settings → Integrations** on the RaidScout web app and link this Discord server.");
     // Persist to DB so it survives bot restarts
     const existing = await supabaseQuerySafe(
@@ -527,7 +536,6 @@ async function handleMessage(msg: any) {
 
   // ── cmdhere ──────────────────────────────────────────
   if (cmd === "cmdhere") {
-    const serverId = await resolveServerId(guildId, matchedPrefix);
     if (!serverId) return reply("⚠️ This Discord server is not linked to RaidScout.");
     const existing = await supabaseQuerySafe(`discord_configs?discord_guild_id=eq.${guildId}&command_prefix=eq.${encodeURIComponent(matchedPrefix)}&select=id`);
     if (existing?.length) {
@@ -543,7 +551,6 @@ async function handleMessage(msg: any) {
 
   // ── threadhere ───────────────────────────────────────
   if (cmd === "threadhere") {
-    const serverId = await resolveServerId(guildId, matchedPrefix);
     if (!serverId) return reply("⚠️ This Discord server is not linked to RaidScout.");
     const existing = await supabaseQuerySafe(`discord_configs?discord_guild_id=eq.${guildId}&command_prefix=eq.${encodeURIComponent(matchedPrefix)}&select=id`);
     if (existing?.length) {
@@ -558,7 +565,6 @@ async function handleMessage(msg: any) {
 
   // ── forcespawn <boss> ───────────────────────────────
   if (cmd === "forcespawn") {
-    const serverId = await resolveServerId(guildId, matchedPrefix);
     if (!serverId) return reply("⚠️ Not linked to RaidScout.");
 
     const bossName = args.slice(1).join(" ");
@@ -581,7 +587,6 @@ async function handleMessage(msg: any) {
 
   // ── forcespawnall ────────────────────────────────────
   if (cmd === "forcespawnall" || cmd === "spawnall") {
-    const serverId = await resolveServerId(guildId, matchedPrefix);
     if (!serverId) return reply("⚠️ Not linked to RaidScout.");
 
     const bosses = await supabaseQuery(
@@ -650,7 +655,6 @@ async function handleMessage(msg: any) {
 
   // ── nextspawn [boss|guild] ───────────────────────────
   if (cmd === "nextspawn" || cmd === "spawn") {
-    const serverId = await resolveServerId(guildId, matchedPrefix);
     if (!serverId) return reply("⚠️ This Discord server is not linked to RaidScout. An admin needs to go to **Server Settings → Integrations** on the RaidScout web app and link this Discord server.");
 
     const filter = args[1];
@@ -777,7 +781,6 @@ async function handleMessage(msg: any) {
 
   // ── killed <boss> [HH:MM] [yesterday|today] ──────────
   if (cmd === "killed" || cmd === "kill") {
-    const serverId = await resolveServerId(guildId, matchedPrefix);
     if (!serverId) return reply("⚠️ This Discord server is not linked to RaidScout. An admin needs to go to **Server Settings → Integrations** on the RaidScout web app and link this Discord server.");
 
     // Parse: !kill Boss Name [HH:MM] [yesterday|today]
@@ -1356,10 +1359,6 @@ let cronStarted = false;
 
 async function runSpawnCron() {
   try {
-    // Skip spawn cron if maintenance mode is on
-    const maintRows = await supabaseQuerySafe(`app_settings?key=eq.maintenance_mode&select=value`);
-    if (maintRows?.[0]?.value === "true") return;
-
     lastSpawnCronTick = Date.now();
     // Get all unique servers linked via discord_configs
     const configs = await supabaseQuerySafe("discord_configs?select=raidscout_server_id&order=created_at");
@@ -1367,6 +1366,20 @@ async function runSpawnCron() {
     lastSpawnCronServers = serverIds.length;
     let bossCount = 0;
     if (serverIds.length === 0) return;
+
+    // Pre-fetch maintenance status for all linked servers (batch query)
+    const maintRows = await supabaseQuerySafe(`app_settings?key=eq.maintenance_mode&select=server_id,value`);
+    const maintenanceServers = new Set<string>();
+    let globalMaintenance = false;
+    for (const row of (maintRows || [])) {
+      if (row.value === "true") {
+        if (row.server_id) {
+          maintenanceServers.add(row.server_id);
+        } else {
+          globalMaintenance = true;
+        }
+      }
+    }
 
     const now = Date.now();
     const nowUnix = Math.floor(now / 1000);
@@ -1430,6 +1443,12 @@ async function runSpawnCron() {
       try {
         const sv = serverStatusMap[serverId];
         if (sv?.deleted_at) continue;
+
+        // Skip spawn cron for servers in maintenance mode
+        if (globalMaintenance || maintenanceServers.has(serverId)) {
+          console.log(`[cron]   ${sv?.name || serverId.slice(0, 8)}: skipped (maintenance)`);
+          continue;
+        }
 
         const bosses = bossesByServer.get(serverId) || [];
         if (!bosses.length) continue;
