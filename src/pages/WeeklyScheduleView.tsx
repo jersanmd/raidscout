@@ -30,6 +30,7 @@ import { useActivities } from "@/hooks/useActivities";
 import type { WeekDaySpawns, SpawnInfo, Boss, BossGuild, Guild } from "@/types";
 
 export function WeeklyScheduleView() {
+  const { timezone: userTz } = useUserTimezone();
   const { data: bosses = [], isLoading: bossesLoading, refetch: refetchBosses } = useBosses();
   const { data: deathRecords = [], isLoading: recordsLoading, refetch: refetchDeaths } = useDeathRecords();
   const { activities = [], activityInstances = [] } = useActivities();
@@ -349,7 +350,7 @@ export function WeeklyScheduleView() {
               <div>
                 <span className={`font-semibold ${day.isToday ? "text-[#fafafa]" : "text-[#a1a1aa]"}`}>{day.dayName}</span>
                 <span className="text-[#71717a] text-sm ml-2">
-                  {day.date.toLocaleDateString(undefined, {
+                  {day.date.toLocaleDateString("en-US", { timeZone: userTz,
                     month: "short",
                     day: "numeric",
                   })}
@@ -410,7 +411,7 @@ export function WeeklyScheduleView() {
                     </div>
                     <div className="text-right">
                       <span className="text-[#a1a1aa] text-sm">
-                        {s.nextSpawn?.toLocaleTimeString(undefined, {
+                        {s.nextSpawn?.toLocaleTimeString("en-US", { timeZone: userTz,
                           hour: "2-digit",
                           minute: "2-digit",
                         })}
@@ -454,7 +455,7 @@ export function WeeklyScheduleView() {
             >
               <div className={`font-semibold text-sm ${day.isToday ? "text-[#fafafa]" : "text-[#a1a1aa]"}`}>{day.dayName}</div>
               <div className="text-[#71717a] text-xs">
-                {day.date.toLocaleDateString(undefined, {
+                {day.date.toLocaleDateString("en-US", { timeZone: userTz,
                   month: "short",
                   day: "numeric",
                 })}
@@ -502,7 +503,7 @@ export function WeeklyScheduleView() {
                       </span>
                       <div className="text-right shrink-0 ml-1">
                         <div className="text-[#a1a1aa]">
-                          {s.nextSpawn?.toLocaleTimeString(undefined, {
+                          {s.nextSpawn?.toLocaleTimeString("en-US", { timeZone: userTz,
                             hour: "2-digit",
                             minute: "2-digit",
                           })}
