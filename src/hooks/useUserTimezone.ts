@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from "react";
 
 const STORAGE_KEY = "raidscout-user-timezone";
+const CHANGE_EVENT = "raidscout-tz-change";
 
 /** Detect the user's browser timezone */
 export function detectTimezone(): string {
@@ -24,10 +25,24 @@ export function getUserTimezone(): string {
 export function useUserTimezone() {
   const [timezone, setTimezoneState] = useState(() => getUserTimezone());
 
+  // Listen for changes from other instances (same tab + cross tab)
+  useEffect(() => {
+    const handler = () => setTimezoneState(getUserTimezone());
+    window.addEventListener(CHANGE_EVENT, handler);
+    window.addEventListener("storage", (e) => {
+      if (e.key === STORAGE_KEY) handler();
+    });
+    return () => {
+      window.removeEventListener(CHANGE_EVENT, handler);
+      window.removeEventListener("storage", handler as any);
+    };
+  }, []);
+
   const setTimezone = useCallback((tz: string) => {
     setTimezoneState(tz);
     try {
       localStorage.setItem(STORAGE_KEY, tz);
+      window.dispatchEvent(new Event(CHANGE_EVENT));
     } catch { /* ignore */ }
   }, []);
 
