@@ -1199,16 +1199,27 @@ export async function fetchLeaderboardByPeriod(
   const sid = serverId ?? getCurrentServerId();
   if (!sid) return [];
 
+  // Primary: edge function (same logic as history modal, uses b.points not b.boss_points)
+  try {
+    const resp = await fetch(`${supabaseUrl}/functions/v1/get-leaderboard`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${supabaseKey}`,
+        "apikey": supabaseKey,
+      },
+      body: JSON.stringify({ server_id: sid }),
+    });
+    if (resp.ok) return await resp.json();
+  } catch { /* fallback to RPC */ }
+
+  // Fallback: direct RPC
   const { data, error } = await supabase
     .rpc("get_leaderboard", { p_server_id: sid, p_since: since });
 
   if (error) throw error;
-
   return ((data as any[]) ?? []).map((row: any) => ({
-    id: row.member_id,
-    name: row.member_name,
-    points: row.total_points,
-    last_attended: row.last_attended,
+    id: row.member_id, name: row.member_name, points: row.total_points,
   }));
 }
 

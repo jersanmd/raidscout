@@ -1,5 +1,5 @@
-// ── Leaderboard Edge Function v2 ──────────────────────────
-// Computes per-member kill points using same logic as history modal.
+// ── Leaderboard Edge Function v3 ──────────────────────────
+// Same point logic as history modal. Queries attendance by server_id.
 // @ts-nocheck
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -39,9 +39,22 @@ serve(async (req: Request) => {
     const { data: guilds } = await supabase.from("guilds").select("id, name").eq("server_id", server_id);
     const guildIdToName = new Map((guilds || []).map(g => [g.id, g.name]));
 
-    // Get attendance
-    const memberIds = members.map(m => m.id);
-    const { data: att } = await supabase.from("attendance_records").select("member_id, death_record_id, created_at").in("member_id", memberIds).limit(50000);
+    // Get attendance — paginate to bypass 1000-row PostgREST limit
+    let allAtt: any[] = [];
+    let offset = 0;
+    const pageSize = 1000;
+    while (true) {
+      const { data: page, error: attErr } = await supabase.from("attendance_records")
+        .select("member_id, death_record_id, created_at")
+        .eq("server_id", server_id)
+        .order("created_at", { ascending: false })
+        .range(offset, offset + pageSize - 1);
+      if (attErr || !page?.length) break;
+      allAtt = allAtt.concat(page);
+      if (page.length < pageSize) break;
+      offset += pageSize;
+    }
+    const att = allAtt;
 
     // Get deaths
     const deathIds = [...new Set((att || []).map(a => a.death_record_id))];
@@ -49,7 +62,7 @@ serve(async (req: Request) => {
 
     // Get bosses
     const bossIds = [...new Set((deaths || []).map(d => d.boss_id))];
-    const { data: bosses } = await supabase.from("bosses").select("id, name, boss_points").in("id", bossIds.length ? bossIds : ["none"]);
+    const { data: bosses } = await supabase.from("bosses").select("id, name, points").in("id", bossIds.length ? bossIds : ["none"]);
 
     // Get boss_guilds point overrides (deduplicated)
     const { data: bgRows } = await supabase.from("boss_guilds").select("boss_id, guild_id, points").not("points", "is", null);
@@ -99,7 +112,7 @@ serve(async (req: Request) => {
         seen.add(a.death_record_id);
 
         const boss = bossMap.get(death.boss_id);
-        const basePts = bgPoints.get(`${death.boss_id}:${m.guild_id}`) ?? boss?.boss_points ?? 1;
+        const basePts = bgPoints.get(`${death.boss_id}:${m.guild_id}`) ?? boss?.points ?? 1;
 
         let mult = 1;
         const gm = multipliers.get(m.guild_id);
@@ -115,7 +128,7 @@ serve(async (req: Request) => {
     }
 
     const entries = [...scores.entries()].sort((a, b) => b[1].points - a[1].points).map(([id, s]) => ({ id, name: s.name, points: s.points }));
-    return new Response(JSON.stringify({ entries, _attCount: (att||[]).length }), { status: 200, headers: { "Content-Type": "application/json", ...CORS_HEADERS } });
+    return new Response(JSON.stringify(entries), { status: 200, headers: { "Content-Type": "application/json", ...CORS_HEADERS } });
   } catch (err) {
     return new Response(JSON.stringify({ error: err.message }), { status: 500, headers: { "Content-Type": "application/json", ...CORS_HEADERS } });
   }
