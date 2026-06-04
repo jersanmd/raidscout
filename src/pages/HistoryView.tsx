@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { type HistoryEntry } from "@/lib/history";
-import { fetchHistoryFromSupabase, deleteDeathRecord, isSupabaseConfigured, editDeathTime } from "@/lib/supabase";
+import { fetchHistoryFromSupabase, deleteDeathRecord, isSupabaseConfigured, editDeathTime, fetchGuilds } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { useServerId } from "@/contexts/ServerContext";
 import { useQueryClient } from "@tanstack/react-query";
@@ -8,6 +8,7 @@ import { ParticipantModal } from "@/components/ParticipantModal";
 import { Clock, Trash2, Skull, Repeat, Timer, Users, Loader2, Pencil, X, Search } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { guildColor } from "@/lib/constants";
+import type { Guild } from "@/types";
 
 const daysAgo = (n: number) => new Date(Date.now() - n * 86400000).toISOString().split("T")[0];
 
@@ -61,6 +62,12 @@ export function HistoryView() {
   const [editDate, setEditDate] = useState("");
   const [editSaving, setEditSaving] = useState(false);
   const [editToast, setEditToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
+
+  // Guilds for owner guild ID lookup
+  const [guilds, setGuilds] = useState<Guild[]>([]);
+  useEffect(() => {
+    fetchGuilds().then(setGuilds).catch(() => setGuilds([]));
+  }, []);
 
   const handleEditDeathTime = async () => {
     if (!editEntry?.deathRecordId || !editDate) return;
@@ -369,6 +376,11 @@ export function HistoryView() {
           onClose={() => setSelectedEntry(null)}
           navigate={navigate}
           readOnly={isViewer}
+          ownerGuildId={(() => {
+            const name = selectedEntry.ownerGuildName;
+            if (!name) return null;
+            return guilds.find(g => g.name === name)?.id ?? null;
+          })()}
         />
       )}
 
