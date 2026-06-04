@@ -10,6 +10,8 @@ import { ViewerRoute } from "@/components/ViewerRoute";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { ToastProvider } from "@/contexts/ToastContext";
 import { NoServerView } from "@/components/NoServerView";
+import { useMaintenance } from "@/hooks/useMaintenance";
+import { MaintenancePage } from "@/pages/MaintenancePage";
 
 // ── Route-level code splitting ──────────────────────────────
 const BossListView = lazy(() => import("@/pages/BossListView").then(m => ({ default: m.BossListView })));
@@ -37,7 +39,9 @@ import { isSupabaseConfigured } from "@/lib/supabase";
 const queryClient = new QueryClient();
 
 function AppContent() {
-  const { user, loading, isViewer } = useAuth();
+  const { user, loading, isViewer, userRole } = useAuth();
+  const { isMaintenance, loading: maintLoading } = useMaintenance();
+  const isAdmin = userRole === "admin";
 
   if (!isSupabaseConfigured()) {
     return (
@@ -68,6 +72,15 @@ function AppContent() {
   const isRecovery = window.location.hash.includes("type=recovery");
   if (isRecovery) {
     return <ResetPasswordForm />;
+  }
+
+  // Maintenance mode gate — admins bypass, everyone else sees maintenance screen
+  // Block during loading to prevent flash of normal app
+  if (maintLoading) {
+    return <PageLoader />;
+  }
+  if (isMaintenance && !isAdmin) {
+    return <MaintenancePage />;
   }
 
   return (

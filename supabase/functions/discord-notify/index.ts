@@ -52,6 +52,18 @@ serve(async (req: Request) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const headers = { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` };
+
+    // Check maintenance mode — skip notifications if maintenance is on
+    const maintRes = await fetch(
+      `${supabaseUrl}/rest/v1/app_settings?key=eq.maintenance_mode&select=value`,
+      { headers }
+    );
+    const maintRows = await maintRes.json();
+    if (maintRows?.[0]?.value === "true") {
+      return new Response(JSON.stringify({ skipped: true, reason: "maintenance" }), {
+        status: 200, headers: { "Content-Type": "application/json", ...CORS_HEADERS },
+      });
+    }
     
     // Fetch server name + prefix
     const sRes = await fetch(
