@@ -8,6 +8,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
 import { useServerId, useServer, useHasPermission } from "@/contexts/ServerContext";
 import { useServerTimezone } from "@/hooks/useServerTimezone";
+import { useUserTimezone } from "@/hooks/useUserTimezone";
 import { fetchMemberKills, type MemberBossKill, isSupabaseConfigured, fetchGuilds, adjustMemberPoints, fetchPointAdjustments, fetchPointRules, resetGuildPoints, supabase } from "@/lib/supabase";
 import { useAttendance } from "@/hooks/useAttendance";
 import { useMembers } from "@/hooks/useMembers";
@@ -78,6 +79,7 @@ export function LeaderboardView() {
   // Point adjustment modal state
   const { currentServer } = useServer();
   const serverTimezone = useServerTimezone();
+  const { timezone: userTz } = useUserTimezone();
   const canAdjustPoints = useHasPermission("can_adjust_points");
   const canExportAttendance = useHasPermission("can_export_attendance");
   const isStaff = !isViewer && (currentServer?.role === "owner" || currentServer?.role === "moderator");
@@ -1010,7 +1012,7 @@ export function LeaderboardView() {
                       <span className="text-sm text-[#fafafa]">{kill.boss_name}</span>
                       <span className="text-[10px] text-amber-400 font-medium ml-auto mr-2">+{kill.points ?? 1}</span>
                       <span className="text-[10px] text-[#52525b]">
-                        {new Date(kill.killed_at).toLocaleDateString(undefined, {
+                        {new Date(kill.killed_at).toLocaleString("en-US", { timeZone: userTz,
                           month: "short",
                           day: "numeric",
                           hour: "2-digit",
