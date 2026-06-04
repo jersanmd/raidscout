@@ -1,8 +1,16 @@
+FROM node:22-alpine AS builder
+WORKDIR /app
+COPY . .
+RUN npm ci
+RUN npm run build:bot
+
 FROM node:22-alpine
 WORKDIR /app
-COPY package*.json ./
-RUN npm install
-COPY . .
+COPY --from=builder /app/dist/bot.js dist/bot.js
+COPY --from=builder /app/package.json /app/package-lock.json ./
+RUN npm ci --omit=dev
+EXPOSE 3003
+CMD ["node", "dist/bot.js"]
 RUN npx esbuild scripts/discord-bot-gateway.ts --bundle --platform=node --target=node22 --outfile=dist/bot.js --external:ws
 EXPOSE 8080
 CMD ["node", "dist/bot.js"]
