@@ -106,7 +106,7 @@ serve(async (req: Request) => {
         }
         points += basePts * mult;
       }
-      if (points > 0 || seen.size > 0) scores.set(m.id, { name: m.name, points: points + (adjMap.get(m.id) || 0) });
+      if (true) scores.set(m.id, { name: m.name, points: points + (adjMap.get(m.id) || 0) });
     }
 
     const entries = [...scores.entries()].sort((a, b) => b[1].points - a[1].points).map(([id, s]) => ({ id, name: s.name, points: s.points }));
