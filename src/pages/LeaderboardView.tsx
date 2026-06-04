@@ -199,7 +199,7 @@ export function LeaderboardView() {
 
   if (isLoading) {
     return (
-      <div className="max-w-2xl mx-auto px-4 py-6">
+      <div className="max-w-7xl mx-auto px-4 py-6">
         <div className="bg-[#09090b] border border-[#27272a] rounded-xl overflow-hidden">
           <table className="w-full text-sm">
             <tbody>
@@ -462,12 +462,12 @@ export function LeaderboardView() {
   };
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-4 space-y-4">
+    <div className="max-w-7xl mx-auto px-4 py-6 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-[#fafafa] to-[#a1a1aa]">
-            <Trophy className="w-5 h-5 text-[#fafafa]" />
+          <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-[#18181b] border border-[#27272a]">
+            <Trophy className="w-5 h-5 text-amber-400" />
           </div>
           <div>
             <h2 className="text-xl font-bold text-[#fafafa]">Leaderboard</h2>
