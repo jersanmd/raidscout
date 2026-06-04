@@ -1220,6 +1220,7 @@ export async function fetchLeaderboardByPeriod(
   if (error) throw error;
   return ((data as any[]) ?? []).map((row: any) => ({
     id: row.member_id, name: row.member_name, points: row.total_points,
+    last_attended: row.last_attended,
   }));
 }
 
