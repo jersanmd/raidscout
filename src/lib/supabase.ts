@@ -1199,6 +1199,21 @@ export async function fetchLeaderboardByPeriod(
   const sid = serverId ?? getCurrentServerId();
   if (!sid) return [];
 
+  // Use edge function to bypass PostgREST function cache bug
+  try {
+    const resp = await fetch(`${supabaseUrl}/functions/v1/get-leaderboard`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${supabaseKey}`,
+        "apikey": supabaseKey,
+      },
+      body: JSON.stringify({ server_id: sid, since }),
+    });
+    if (resp.ok) return await resp.json();
+  } catch { /* fallback to RPC */ }
+
+  // Fallback: direct RPC call
   const { data, error } = await supabase
     .rpc("get_leaderboard", { p_server_id: sid, p_since: since });
 
