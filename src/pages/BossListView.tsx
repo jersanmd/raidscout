@@ -803,7 +803,7 @@ export function BossListView() {
                     status = "countdown";
                   } else if (a.schedule_type === "one_time" && typeof a.schedule === "string" && a.schedule) {
                     // One-time: parse "HH:MM" start time
-                    const [h, m] = a.schedule.split(":").map(Number);
+                    const [h, m] = (a.schedule as string).split(":").map(Number);
                     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
                     const startTime = new Date(today);
                     startTime.setHours(h, m, 0, 0);
