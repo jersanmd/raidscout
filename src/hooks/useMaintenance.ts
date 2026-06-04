@@ -8,8 +8,10 @@ export function useMaintenance() {
   useEffect(() => {
     supabase.from("app_settings").select("value")
       .eq("key", "maintenance_mode").maybeSingle()
-      .then(({ data }) => setIsMaintenance((data as any)?.value === "true"), () => {})
-      .finally(() => setLoading(false));
+      .then(
+        ({ data }) => { setIsMaintenance((data as any)?.value === "true"); setLoading(false); },
+        () => setLoading(false)
+      );
   }, []);
 
   return { isMaintenance, loading };
