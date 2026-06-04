@@ -210,9 +210,7 @@ export async function deleteServer(serverId: string): Promise<void> {
 
 export async function restoreServer(serverId: string): Promise<void> {
   const { error } = await supabase
-    .from("servers")
-    .update({ deleted_at: null })
-    .eq("id", serverId);
+    .rpc("restore_server", { p_server_id: serverId });
   if (error) throw error;
 }
 

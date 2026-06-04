@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { fetchAllServers, fetchAllUsers, fetchAuditLog, fetchServerStats, fetchDatabaseStats, fetchPlanUsage, fetchCronStatus, restoreServer, supabase } from "@/lib/supabase";
 import { useServer } from "@/contexts/ServerContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { Loader2, Shield, Server, Users, Eye, ChevronDown, ChevronUp, ClipboardList, HardDrive, BarChart3, Crosshair, Skull, Activity, Radio, Clock, Trash2, RefreshCw, LogOut, Gamepad2, Globe, ExternalLink } from "lucide-react";
+import { Loader2, Shield, Server, Users, Eye, ChevronDown, ChevronUp, ClipboardList, HardDrive, BarChart3, Crosshair, Skull, Activity, Radio, Clock, Trash2, RefreshCw, LogOut, Gamepad2, Globe, ExternalLink, Search, AlertTriangle } from "lucide-react";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { AdminGamesTab } from "@/components/AdminGamesTab";
 import { useUserTimezone } from "@/hooks/useUserTimezone";
@@ -28,6 +28,12 @@ export function AdminPanelView() {
   const [auditCustomSince, setAuditCustomSince] = useState("");
   const [auditCustomUntil, setAuditCustomUntil] = useState("");
   const [serverFilter, setServerFilter] = useState<"all" | "bot">("all");
+  const [serverSearch, setServerSearch] = useState("");
+  const [userSearch, setUserSearch] = useState("");
+  const [deletedSearch, setDeletedSearch] = useState("");
+  const [restoreConfirm, setRestoreConfirm] = useState<{ id: string; name: string } | null>(null);
+  const [restoreInput, setRestoreInput] = useState("");
+  const [restoring, setRestoring] = useState(false);
   const navigate = useNavigate();
   const [maintenance, setMaintenance] = useState(false);
   const now = new Date();
@@ -324,6 +330,10 @@ export function AdminPanelView() {
             (() => {
               const testServers = servers.filter((s: any) => s.name.toLowerCase().includes('test'));
               let regularServers = servers.filter((s: any) => !s.name.toLowerCase().includes('test'));
+              // Apply search filter
+              if (serverSearch) {
+                regularServers = regularServers.filter((s: any) => s.name.toLowerCase().includes(serverSearch.toLowerCase()));
+              }
               // Apply bot alerts filter — only show servers with known webhook status ON
               if (serverFilter === "bot") {
                 regularServers = regularServers.filter((s: any) => {
@@ -457,6 +467,16 @@ export function AdminPanelView() {
                       Servers ({regularServers.length})
                     </h4>
                     <div className="flex items-center gap-1.5">
+                      <div className="relative">
+                        <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-[#52525b]" />
+                        <input
+                          type="text"
+                          placeholder="Search servers…"
+                          value={serverSearch}
+                          onChange={e => setServerSearch(e.target.value)}
+                          className="w-36 pl-7 pr-2 py-1 text-[10px] bg-[#18181b] border border-[#27272a] rounded text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#52525b]"
+                        />
+                      </div>
                       <span className="text-[10px] text-[#71717a]">Filter:</span>
                       <button onClick={() => setServerFilter("all")}
                         className={`px-2 py-0.5 rounded text-[10px] font-medium transition ${serverFilter === "all" ? "bg-[#27272a] text-[#fafafa]" : "text-[#a1a1aa] hover:text-[#fafafa]"}`}>
@@ -507,12 +527,35 @@ export function AdminPanelView() {
       )}
 
       {/* Server Owners Tab */}
-      {tab === "users" && (
+      {tab === "users" && (() => {
+        const filteredUsers = users.filter((u: any) =>
+          !userSearch ||
+          (u.email || "").toLowerCase().includes(userSearch.toLowerCase()) ||
+          (u.user_id || "").toLowerCase().includes(userSearch.toLowerCase())
+        );
+        return (
         <div>
+          <div className="flex items-center justify-between mb-3">
+            <h4 className="text-xs font-semibold text-[#a1a1aa] uppercase tracking-wider">
+              Users ({filteredUsers.length}{userSearch ? ` / ${users.length}` : ""})
+            </h4>
+            <div className="relative">
+              <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-[#52525b]" />
+              <input
+                type="text"
+                placeholder="Search by email or ID…"
+                value={userSearch}
+                onChange={e => setUserSearch(e.target.value)}
+                className="w-48 pl-7 pr-2 py-1.5 text-xs bg-[#18181b] border border-[#27272a] rounded text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#52525b]"
+              />
+            </div>
+          </div>
           {usrLoading ? (
             <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 text-[#71717a] animate-spin" /></div>
           ) : users.length === 0 ? (
             <p className="text-[#71717a] text-sm text-center py-12">No users registered.</p>
+          ) : filteredUsers.length === 0 ? (
+            <p className="text-[#71717a] text-sm text-center py-12">No users match "{userSearch}".</p>
           ) : (
             <div className="border border-[#27272a] rounded-xl overflow-hidden">
               {/* Table Header — hidden on mobile */}
@@ -524,7 +567,7 @@ export function AdminPanelView() {
                 <div className="col-span-1"></div>
               </div>
               {/* User Rows */}
-              {users.map((u: any) => {
+              {filteredUsers.map((u: any) => {
                 const isExpanded = expandedUser === u.user_id;
                 const servers = userServers[u.user_id] ?? [];
                 return (
@@ -597,7 +640,8 @@ export function AdminPanelView() {
             </div>
           )}
         </div>
-      )}
+        );
+      })()}
 
       {/* Audit Log Tab */}
       {tab === "audit" && (() => {
@@ -882,9 +926,9 @@ export function AdminPanelView() {
             <>
               {/* Status cards */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <div className={`bg-[#18181b] border rounded-xl p-4 text-center ${cronStatus.active ? 'border-[#27272a]' : 'border-[#27272a]'}`}>
-                  <div className={`w-3 h-3 rounded-full mx-auto mb-2 ${cronStatus.active ? 'bg-[#a1a1aa]' : 'bg-[#71717a]'}`} />
-                  <p className={`text-lg font-bold ${cronStatus.active ? 'text-[#a1a1aa]' : 'text-[#f87171]'}`}>
+                <div className={`bg-[#18181b] border rounded-xl p-4 text-center ${cronStatus.active ? 'border-green-500/30' : 'border-[#27272a]'}`}>
+                  <div className={`w-3 h-3 rounded-full mx-auto mb-2 ${cronStatus.active ? 'bg-green-500' : 'bg-[#71717a]'}`} />
+                  <p className={`text-lg font-bold ${cronStatus.active ? 'text-green-400' : 'text-[#f87171]'}`}>
                     {cronStatus.active ? 'ACTIVE' : 'INACTIVE'}
                   </p>
                   <p className="text-[10px] text-[#71717a] mt-1">Cron Status</p>
@@ -936,38 +980,95 @@ export function AdminPanelView() {
       )}
 
       {/* Deleted Servers Tab */}
-      {tab === "deleted" && (
+      {tab === "deleted" && (() => {
+        const filteredDeleted = deletedServers.filter((s: any) =>
+          !deletedSearch || s.name.toLowerCase().includes(deletedSearch.toLowerCase())
+        );
+        return (
         <div className="space-y-2">
+          <div className="flex items-center justify-between mb-1">
+            <h4 className="text-xs font-semibold text-[#a1a1aa] uppercase tracking-wider">
+              Deleted ({filteredDeleted.length}{deletedSearch ? ` / ${deletedServers.length}` : ""})
+            </h4>
+            <div className="relative">
+              <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-[#52525b]" />
+              <input
+                type="text"
+                placeholder="Search deleted…"
+                value={deletedSearch}
+                onChange={e => setDeletedSearch(e.target.value)}
+                className="w-40 pl-7 pr-2 py-1 text-[10px] bg-[#18181b] border border-[#27272a] rounded text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#52525b]"
+              />
+            </div>
+          </div>
           {deletedLoading ? (
             <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 text-[#71717a] animate-spin" /></div>
           ) : deletedServers.length === 0 ? (
             <p className="text-[#71717a] text-sm text-center py-12">No deleted servers.</p>
+          ) : filteredDeleted.length === 0 ? (
+            <p className="text-[#71717a] text-sm text-center py-12">No deleted servers match "{deletedSearch}".</p>
           ) : (
-            deletedServers.map((s: any) => (
-              <div key={s.id} className="bg-[#18181b] border border-[#27272a] rounded-lg px-4 py-3 flex items-center justify-between">
+            filteredDeleted.map((s: any) => (
+              <div key={s.id} className="bg-[#18181b] border border-[#27272a] rounded-lg px-4 py-3">
+                <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-[#fafafa] font-medium">{s.name}</p>
                   <p className="text-xs text-[#71717a]">Deleted {new Date(s.deleted_at).toLocaleDateString()}</p>
                 </div>
                 <button
-                  onClick={async () => {
-                    try {
-                      await restoreServer(s.id);
-                      refetchDeleted();
-                    } catch (err: any) {
-                      console.error("Restore failed:", err);
-                    }
-                  }}
+                  onClick={() => { setRestoreConfirm({ id: s.id, name: s.name }); setRestoreInput(""); }}
                   className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium bg-[#fafafa] text-[#09090b] hover:bg-[#e4e4e7] transition"
                 >
                   <RefreshCw className="w-3 h-3" />
                   Restore
                 </button>
+                </div>
+                {restoreConfirm?.id === s.id && (
+                  <div className="mt-3 pt-3 border-t border-[#27272a] space-y-2">
+                    <div className="flex items-center gap-2 text-amber-400">
+                      <AlertTriangle className="w-4 h-4" />
+                      <span className="text-xs font-medium">Type <code className="px-1 py-0.5 bg-[#27272a] rounded text-[#fafafa] text-[11px]">{s.name}</code> to confirm restore</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        placeholder={`Type "${s.name}" to confirm`}
+                        value={restoreInput}
+                        onChange={e => setRestoreInput(e.target.value)}
+                        onKeyDown={async e => {
+                          if (e.key === "Enter" && restoreInput === s.name && !restoring) {
+                            setRestoring(true);
+                            try { await restoreServer(s.id); refetchDeleted(); setRestoreConfirm(null); }
+                            catch (err: any) { console.error("Restore failed:", err); }
+                            finally { setRestoring(false); }
+                          }
+                        }}
+                        className="flex-1 px-2.5 py-1.5 text-xs bg-[#18181b] border border-[#27272a] rounded text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#52525b]"
+                        autoFocus
+                      />
+                      <button
+                        onClick={async () => {
+                          if (restoreInput !== s.name || restoring) return;
+                          setRestoring(true);
+                          try { await restoreServer(s.id); refetchDeleted(); setRestoreConfirm(null); }
+                          catch (err: any) { console.error("Restore failed:", err); }
+                          finally { setRestoring(false); }
+                        }}
+                        disabled={restoreInput !== s.name || restoring}
+                        className="px-3 py-1.5 rounded text-xs font-medium bg-amber-500 text-black hover:bg-amber-400 disabled:opacity-40 disabled:cursor-not-allowed transition"
+                      >
+                        {restoring ? <Loader2 className="w-3 h-3 animate-spin" /> : "Confirm Restore"}
+                      </button>
+                      <button onClick={() => setRestoreConfirm(null)} className="px-2 py-1.5 rounded text-xs text-[#a1a1aa] hover:text-[#fafafa] transition">Cancel</button>
+                    </div>
+                  </div>
+                )}
               </div>
             ))
           )}
         </div>
-      )}
+        );
+      })()}
 
       {/* Infra Tab */}
       {tab === "infra" && (

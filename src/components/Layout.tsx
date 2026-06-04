@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { NavLink, Outlet, useNavigate, useLocation, Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -51,6 +51,8 @@ export function Layout() {
   const [showCreate, setShowCreate] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const menuBtnRef = useRef<HTMLButtonElement>(null);
+  const [menuPos, setMenuPos] = useState<{ top: number; right: number } | null>(null);
   const [spawnToast, setSpawnToast] = useState<string | null>(null);
   const navigate = useNavigate();
   const location = useLocation();
@@ -237,14 +239,24 @@ export function Layout() {
 
             {/* User menu dropdown */}
             <div className="relative">
-              <button onClick={() => setShowUserMenu(!showUserMenu)} className="flex items-center gap-1 text-[#fafafa]/50 hover:text-[#d4d4d8] text-sm transition p-1.5 rounded-md hover:bg-[#18181b]" title="Menu">
+              <button
+                ref={menuBtnRef}
+                onClick={() => {
+                  if (!showUserMenu && menuBtnRef.current) {
+                    const rect = menuBtnRef.current.getBoundingClientRect();
+                    setMenuPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right });
+                  }
+                  setShowUserMenu(!showUserMenu);
+                }}
+                className="flex items-center gap-1 text-[#fafafa]/50 hover:text-[#d4d4d8] text-sm transition p-1.5 rounded-md hover:bg-[#18181b]" title="Menu"
+              >
                 <span className="text-xs hidden md:block">{user?.email?.split("@")[0]}</span>
                 <ChevronDown className={`w-3 h-3 transition ${showUserMenu ? "rotate-180" : ""}`} />
               </button>
               {showUserMenu && createPortal(
                 <>
                   <div className="fixed inset-0 z-[9998] bg-black/30 sm:bg-transparent" onClick={() => setShowUserMenu(false)} />
-                  <div className="fixed inset-x-4 top-[30%] sm:inset-x-auto sm:right-4 sm:top-12 sm:translate-y-0 max-w-sm mx-auto sm:mx-0 w-full sm:w-56 bg-[#18181b] border border-[#27272a] rounded-xl shadow-2xl z-[9999] overflow-hidden backdrop-blur-xl">
+                  <div className="fixed inset-x-4 top-[30%] sm:inset-x-auto sm:translate-y-0 max-w-sm mx-auto sm:mx-0 w-full sm:w-56 bg-[#18181b] border border-[#27272a] rounded-xl shadow-2xl z-[9999] overflow-hidden backdrop-blur-xl" style={menuPos ? { top: menuPos.top, right: menuPos.right } : {}}>
                     <div className="px-4 py-3 border-b border-[#27272a]">
                       <div className="text-sm font-semibold text-[#fafafa]">{user?.email?.split("@")[0]}</div>
                       <div className="text-xs text-[#71717a]">{user?.email}</div>
