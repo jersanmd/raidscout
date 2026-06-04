@@ -249,8 +249,10 @@ export function WeeklyScheduleView() {
           for (const slot of boss.schedule) {
             if (slot.day === dayOfWeek) {
               const [h, m] = slot.time.split(":").map(Number);
-              const spawnDate = new Date(date);
-              spawnDate.setHours(h, m, 0, 0);
+              // Template bosses store schedule in UTC; custom bosses in server timezone
+              const spawnDate = boss.template_id
+                ? new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate(), h, m))
+                : new Date(date.getFullYear(), date.getMonth(), date.getDate(), h, m);
 
               // Skip if boss was already killed on this day (death event takes priority)
               if (addedBossIds.has(boss.id)) continue;
