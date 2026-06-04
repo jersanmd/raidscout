@@ -1,0 +1,10 @@
+﻿node.exe : Initialising login role...
+At C:\Program Files\nodejs\npx.ps1:28 char:12
++   $input | & $NODE_EXE $NPX_CLI_JS $args
++            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Initialising login role...:String 
+   ) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+no SQL provided via stdin
+Try rerunning the command with --debug to troubleshoot the error.

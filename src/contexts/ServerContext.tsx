@@ -74,6 +74,41 @@ export function ServerProvider({ children }: { children: ReactNode }) {
   const refreshServers = useCallback(async () => {
     if (!user) return;
     try {
+      // For admins, fetch ALL servers instead of just their memberships
+      if (userRole === "admin") {
+        const { data: allServers } = await supabase
+          .from("servers")
+          .select("id, name, owner_id, invite_code, created_at, discord_webhook_url, timezone, notification_prefix, deleted_at")
+          .is("deleted_at", null)
+          .order("name");
+
+        const list: Server[] = [];
+        if (allServers) {
+          for (const s of allServers) {
+            list.push({
+              id: s.id, name: s.name, owner_id: s.owner_id,
+              invite_code: s.invite_code || s.id.substring(0, 8),
+              created_at: s.created_at,
+              discord_webhook_url: s.discord_webhook_url,
+              timezone: s.timezone || 'Asia/Manila',
+              notification_prefix: s.notification_prefix || '@everyone',
+              role: "owner" as "owner" | "moderator",
+            });
+          }
+        }
+        setServers(list);
+        if (list.length > 0) {
+          const persistedId = localStorage.getItem("lordnine-current-server-id");
+          const match = persistedId ? list.find(s => s.id === persistedId) : null;
+          if (!currentRef.current || !list.find(s => s.id === currentRef.current?.id)) {
+            setCurrentServerWrapped(match ?? list[0]);
+          }
+        } else {
+          setCurrentServerWrapped(null);
+        }
+        return;
+      }
+
       // Get all server IDs the user is a member of
       const { data: roleData } = await supabase
         .from("server_members")

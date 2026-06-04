@@ -59,7 +59,9 @@ export function Layout() {
 
   // Auto-redirect admin to admin panel if they land on data pages without a server
   useEffect(() => {
-    if (isAdmin && !hasServer && location.pathname !== "/admin") {
+    // Don't redirect if there's a persisted server in localStorage (just navigated from admin)
+    const hasPersistedServer = !!localStorage.getItem("lordnine-current-server-id");
+    if (isAdmin && !hasServer && !hasPersistedServer && location.pathname !== "/admin") {
       navigate("/admin", { replace: true });
     }
   }, [isAdmin, hasServer, location.pathname, navigate]);
