@@ -268,7 +268,7 @@ export function Layout() {
                           <Shield className="w-4 h-4" /> Admin Panel
                         </NavLink>
                       )}
-                      {hasServer && (
+                      {hasServer && !isViewer && (
                         <NavLink to="/server-settings" onClick={() => setShowUserMenu(false)} className="flex items-center gap-2 px-4 py-2 text-sm text-[#a1a1aa] hover:bg-[#18181b] transition">
                           <Settings className="w-4 h-4" /> Server Settings
                         </NavLink>

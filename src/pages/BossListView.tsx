@@ -54,6 +54,7 @@ export function BossListView() {
 
   const [searchText, setSearchText] = useState("");
   const [filterType, setFilterType] = useState("all");
+  const [filterGuild, setFilterGuild] = useState("all");
   const [isMuted, setIsMuted] = useState(() => localStorage.getItem("raidscout-alert-muted") === "true");
   const [filterWindow, setFilterWindow] = useState<number | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -200,17 +201,28 @@ export function BossListView() {
     return firstSpawn?.boss ?? null;
   }, [selectedIds, spawns]);
 
-  // Apply window filter client-side — always keep alive & unknown bosses visible
+  // Compute owner guild name for a boss
+  const ownerGuildName = useCallback((bossId: string): string | undefined => {
+    return getOwnerGuildName(bossId, bossGuilds, guilds, deathRecords, spawns);
+  }, [bossGuilds, guilds, deathRecords, spawns]);
+
+  // Apply window + guild filter client-side — always keep alive & unknown bosses visible
   const filteredSpawns = useMemo(() => {
-    if (filterWindow === null) return spawns;
-    const cutoff = Date.now() + filterWindow * 3600_000;
-    return spawns.filter(
-      (s) =>
-        s.status === "alive" ||
-        s.status === "unknown" ||
-        (s.status === "countdown" && s.nextSpawn && s.nextSpawn.getTime() <= cutoff)
-    );
-  }, [spawns, filterWindow]);
+    let result = spawns;
+    if (filterWindow !== null) {
+      const cutoff = Date.now() + filterWindow * 3600_000;
+      result = result.filter(
+        (s) =>
+          s.status === "alive" ||
+          s.status === "unknown" ||
+          (s.status === "countdown" && s.nextSpawn && s.nextSpawn.getTime() <= cutoff)
+      );
+    }
+    if (filterGuild !== "all") {
+      result = result.filter((s) => ownerGuildName(s.boss.id) === filterGuild);
+    }
+    return result;
+  }, [spawns, filterWindow, filterGuild, ownerGuildName]);
 
   // Bosses spawning in the next 24 hours (for announce feature)
   const spawnsIn24h = useMemo(() => {
@@ -230,11 +242,6 @@ export function BossListView() {
         return aTime - bTime;
       });
   }, [spawns]);
-
-  // Compute owner guild name for a boss
-  const ownerGuildName = useCallback((bossId: string): string | undefined => {
-    return getOwnerGuildName(bossId, bossGuilds, guilds, deathRecords, spawns);
-  }, [bossGuilds, guilds, deathRecords, spawns]);
 
   // Compute rotation info for a boss (guild names + current index)
   const bossRotationInfo = useCallback((bossId: string): { guilds: { name: string; color: { bg: string; text: string; border: string } }[]; currentIndex: number; mode: string } | null => {
@@ -665,6 +672,9 @@ export function BossListView() {
         onFilterTypeChange={setFilterType}
         filterWindow={filterWindow}
         onFilterWindowChange={setFilterWindow}
+        filterGuild={filterGuild}
+        onFilterGuildChange={setFilterGuild}
+        guilds={guilds}
         extra={isViewer ? undefined : (
           <button
             onClick={() => { if (multiMode) clearSelection(); setMultiMode(!multiMode); }}

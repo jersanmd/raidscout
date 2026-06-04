@@ -1,5 +1,6 @@
-import { Search, Filter, Clock, Calendar, Activity, Hourglass } from "lucide-react";
+import { Search, Filter, Clock, Calendar, Activity, Hourglass, Shield } from "lucide-react";
 import { FILTER_WINDOWS } from "@/lib/constants";
+import type { Guild } from "@/types";
 
 interface FilterBarProps {
   searchText: string;
@@ -8,6 +9,9 @@ interface FilterBarProps {
   onFilterTypeChange: (type: string) => void;
   filterWindow: number | null;
   onFilterWindowChange: (hours: number | null) => void;
+  filterGuild?: string;
+  onFilterGuildChange?: (guild: string) => void;
+  guilds?: Guild[];
   extra?: React.ReactNode;
 }
 
@@ -18,6 +22,9 @@ export function FilterBar({
   onFilterTypeChange,
   filterWindow,
   onFilterWindowChange,
+  filterGuild,
+  onFilterGuildChange,
+  guilds,
   extra,
 }: FilterBarProps) {
   return (
@@ -103,6 +110,23 @@ export function FilterBar({
             <Clock className="w-3 h-3" />{h}h
           </button>
         ))}
+        {/* Guild filter */}
+        {guilds && guilds.length > 0 && onFilterGuildChange && (
+          <>
+            <span className="w-px h-5 bg-[#27272a]" />
+            <Shield className="w-3.5 h-3.5 text-[#71717a] shrink-0" />
+            <select
+              value={filterGuild ?? "all"}
+              onChange={(e) => onFilterGuildChange(e.target.value)}
+              className="bg-[#18181b] border border-[#27272a] rounded-lg px-2.5 py-1.5 text-xs text-[#d4d4d8] outline-none focus:border-[#52525b] cursor-pointer"
+            >
+              <option value="all">All Guilds</option>
+              {guilds.map((g) => (
+                <option key={g.id} value={g.name}>{g.name}</option>
+              ))}
+            </select>
+          </>
+        )}
         {extra && <span className="ml-auto">{extra}</span>}
       </div>
     </div>
