@@ -1531,12 +1531,30 @@ export async function fetchAnalytics(since: string, serverId?: string | null): P
 
   const deathIds = deaths.map(d => d.id);
 
-  // Get attendance for these deaths
-  const { data: att, error: aErr } = await supabase
-    .from("attendance_records")
-    .select("death_record_id, member_id")
-    .in("death_record_id", deathIds);
-  if (aErr) throw aErr;
+  // Get attendance for these deaths — use edge function to bypass PostgREST anon filtering bug
+  let att: any[] = [];
+  try {
+    const resp = await fetch(`${supabaseUrl}/functions/v1/get-attendance`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${supabaseKey}`,
+        "apikey": supabaseKey,
+      },
+      body: JSON.stringify({ death_record_ids: deathIds }),
+    });
+    if (resp.ok) att = await resp.json();
+  } catch { /* fallback to direct query */ }
+  
+  // Fallback: direct query (works for authenticated users)
+  if (!att.length) {
+    const { data: directAtt, error: aErr } = await supabase
+      .from("attendance_records")
+      .select("death_record_id, member_id")
+      .in("death_record_id", deathIds);
+    if (aErr) throw aErr;
+    att = directAtt || [];
+  }
 
   // Get bosses for names
   const bossIds = [...new Set(deaths.map(d => d.boss_id))];
