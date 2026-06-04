@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { Loader2, Plus, Save, X, Image } from "lucide-react";
-import { localSlotToUtc, type ScheduleSlot } from "@/lib/scheduleTimezone";
+import { localSlotToUtc, utcSlotToLocal, type ScheduleSlot } from "@/lib/scheduleTimezone";
 import { updateBossTemplate, uploadBossImage, updateCustomBoss } from "@/lib/supabase";
+import { useUserTimezone } from "@/hooks/useUserTimezone";
 
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const BOSS_CATEGORIES = ["World Boss", "Dungeon Boss", "Raid Boss", "Field Boss", "Event Boss"];
@@ -29,13 +30,20 @@ interface Props {
 
 export function EditBossForm({ boss, gameSlug, serverId, onSaved, onCancel }: Props) {
   const isServerMode = !!serverId;
+  const { timezone: userTz } = useUserTimezone();
   const [name, setName] = useState(boss.name);
   const [spawnType, setSpawnType] = useState(boss.spawn_type);
   const [respawnHours, setRespawnHours] = useState<number | null>(boss.respawn_hours ?? null);
   const [points, setPoints] = useState(boss.points);
   const [category, setCategory] = useState(boss.category || "");
   const [tags, setTags] = useState<string[]>(boss.tags ?? []);
-  const [schedule, setSchedule] = useState<any>(boss.schedule ?? null);
+  // Convert stored UTC schedule → local for display in the form
+  const [schedule, setSchedule] = useState<any>(() => {
+    if (boss.schedule && Array.isArray(boss.schedule)) {
+      return boss.schedule.map((s: ScheduleSlot) => utcSlotToLocal(s.day, s.time, userTz));
+    }
+    return boss.schedule ?? null;
+  });
   const [imageUrl, setImageUrl] = useState<string | null>(boss.image_url ?? null);
   const [saving, setSaving] = useState(false);
 
@@ -44,7 +52,7 @@ export function EditBossForm({ boss, gameSlug, serverId, onSaved, onCancel }: Pr
     try {
       let processedSchedule = schedule;
       if (spawnType === "fixed_schedule" && Array.isArray(schedule) && schedule.length > 0) {
-        processedSchedule = schedule.map((s: ScheduleSlot) => localSlotToUtc(s.day, s.time));
+        processedSchedule = schedule.map((s: ScheduleSlot) => localSlotToUtc(s.day, s.time, userTz));
       }
 
       const payload: Record<string, any> = {

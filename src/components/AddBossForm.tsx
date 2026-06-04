@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Loader2, Plus, Save, X, Image } from "lucide-react";
 import { localSlotToUtc, type ScheduleSlot } from "@/lib/scheduleTimezone";
 import { createBossTemplate, uploadBossImage, createCustomBoss } from "@/lib/supabase";
+import { useUserTimezone } from "@/hooks/useUserTimezone";
 
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const BOSS_CATEGORIES = ["World Boss", "Dungeon Boss", "Raid Boss", "Field Boss", "Event Boss"];
@@ -17,6 +18,7 @@ interface Props {
 
 export function AddBossForm({ gameId, gameSlug, serverId, onCreated, onCancel }: Props) {
   const isServerMode = !!serverId;
+  const { timezone: userTz } = useUserTimezone();
   const [name, setName] = useState("");
   const [spawnType, setSpawnType] = useState("fixed_hours");
   const [respawnHours, setRespawnHours] = useState("");
@@ -41,7 +43,7 @@ export function AddBossForm({ gameId, gameSlug, serverId, onCreated, onCancel }:
       }
       if (isServerMode && serverId) {
         const schedule = spawnType === "fixed_schedule" && scheduleSlots.length > 0
-          ? scheduleSlots.map(s => localSlotToUtc(s.day, s.time)) : null;
+          ? scheduleSlots.map(s => localSlotToUtc(s.day, s.time, userTz)) : null;
         await createCustomBoss(serverId, {
           name: name.trim(), spawn_type: spawnType,
           respawn_hours: respawnHours ? Number(respawnHours) : null,
@@ -58,7 +60,7 @@ export function AddBossForm({ gameId, gameSlug, serverId, onCreated, onCancel }:
         spawn_type: spawnType,
         respawn_hours: respawnHours ? Number(respawnHours) : null,
         schedule: spawnType === "fixed_schedule" && scheduleSlots.length > 0
-          ? scheduleSlots.map(s => localSlotToUtc(s.day, s.time))
+          ? scheduleSlots.map(s => localSlotToUtc(s.day, s.time, userTz))
           : null,
         is_recurring: true,
         points: isNaN(Number(points)) ? 1 : Number(points),
