@@ -1199,7 +1199,7 @@ export async function fetchLeaderboardByPeriod(
   const sid = serverId ?? getCurrentServerId();
   if (!sid) return [];
 
-  // Use edge function to bypass PostgREST function cache bug
+  // Use edge function which computes points the same way as the history modal
   try {
     const resp = await fetch(`${supabaseUrl}/functions/v1/get-leaderboard`, {
       method: "POST",
@@ -1213,7 +1213,7 @@ export async function fetchLeaderboardByPeriod(
     if (resp.ok) return await resp.json();
   } catch { /* fallback to RPC */ }
 
-  // Fallback: direct RPC call
+  // Fallback: direct RPC
   const { data, error } = await supabase
     .rpc("get_leaderboard", { p_server_id: sid, p_since: since });
 
