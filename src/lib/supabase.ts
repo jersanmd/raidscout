@@ -1199,29 +1199,17 @@ export async function fetchLeaderboardByPeriod(
   const sid = serverId ?? getCurrentServerId();
   if (!sid) return [];
 
-  // Use edge function to compute leaderboard (same logic as history modal)
-  const resp = await fetch(`${supabaseUrl}/functions/v1/get-leaderboard`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${supabaseKey}`,
-      "apikey": supabaseKey,
-    },
-    body: JSON.stringify({ server_id: sid, since }),
-  });
+  const { data, error } = await supabase
+    .rpc("get_leaderboard", { p_server_id: sid, p_since: since });
 
-  if (!resp.ok) {
-    // Fallback to RPC
-    const { data, error } = await supabase
-      .rpc("get_leaderboard", { p_server_id: sid, p_since: since });
-    if (error) throw error;
-    return ((data as any[]) ?? []).map((row: any) => ({
-      id: row.member_id, name: row.member_name,
-      points: row.total_points,
-    }));
-  }
+  if (error) throw error;
 
-  return await resp.json();
+  return ((data as any[]) ?? []).map((row: any) => ({
+    id: row.member_id,
+    name: row.member_name,
+    points: row.total_points,
+    last_attended: row.last_attended,
+  }));
 }
 
 /** Reset all points for a guild: deletes attendance records and point adjustments

@@ -26,12 +26,12 @@ serve(async (req: Request) => {
     const { data: members } = await supabase.from("members").select("id, name, guild_id").eq("server_id", server_id);
     if (!members?.length) return new Response(JSON.stringify([]), { status: 200, headers: { "Content-Type": "application/json", ...CORS_HEADERS } });
 
-    // Get guild resets — fetch ALL app_settings and filter in JS (avoids PostgREST like issues)
+    // Get guild resets — fetch ALL app_settings and filter in JS
     const { data: allSettings } = await supabase.from("app_settings").select("key, value").eq("server_id", server_id);
-    const guildResets = new Map<string, number>();
+    const guildResets = new Map<string, string>();
     for (const s of allSettings || []) {
       if (s.key.startsWith("leaderboard_reset_at:")) {
-        guildResets.set(s.key.replace("leaderboard_reset_at:", ""), new Date(s.value).getTime());
+        guildResets.set(s.key.replace("leaderboard_reset_at:", ""), s.value);
       }
     }
 
@@ -41,7 +41,7 @@ serve(async (req: Request) => {
 
     // Get attendance
     const memberIds = members.map(m => m.id);
-    const { data: att } = await supabase.from("attendance_records").select("member_id, death_record_id, created_at").in("member_id", memberIds);
+    const { data: att } = await supabase.from("attendance_records").select("member_id, death_record_id, created_at").in("member_id", memberIds).limit(50000);
 
     // Get deaths
     const deathIds = [...new Set((att || []).map(a => a.death_record_id))];
@@ -76,11 +76,11 @@ serve(async (req: Request) => {
     const deathMap = new Map((deaths || []).map(d => [d.id, d]));
     const bossMap = new Map((bosses || []).map(b => [b.id, b]));
 
-    // Compute per-member scores
+    // Compute per-member scores (same dedup logic as fetchMemberKills)
     const scores = new Map<string, { name: string; points: number }>();
     for (const m of members) {
       const guildName = guildIdToName.get(m.guild_id) || "";
-      const resetMs = since ? 0 : (guildResets.get(guildName) || 0);
+      const hasReset = guildResets.has(guildName);
       let points = 0;
       const seen = new Set<string>();
 
@@ -88,8 +88,13 @@ serve(async (req: Request) => {
         if (a.member_id !== m.id) continue;
         const death = deathMap.get(a.death_record_id);
         if (!death) continue;
+        // Explicit since filter
         if (since && new Date(death.death_time) < new Date(since)) continue;
-        if (!since && resetMs > 0 && new Date(a.created_at).getTime() < resetMs) continue;
+        // Per-guild reset filter: only if guild HAS a reset date
+        if (!since && hasReset) {
+          if (a.created_at && a.created_at < guildResets.get(guildName)!) continue;
+        }
+        // Dedup
         if (seen.has(a.death_record_id)) continue;
         seen.add(a.death_record_id);
 
@@ -110,7 +115,7 @@ serve(async (req: Request) => {
     }
 
     const entries = [...scores.entries()].sort((a, b) => b[1].points - a[1].points).map(([id, s]) => ({ id, name: s.name, points: s.points }));
-    return new Response(JSON.stringify(entries), { status: 200, headers: { "Content-Type": "application/json", ...CORS_HEADERS } });
+    return new Response(JSON.stringify({ entries, _attCount: (att||[]).length }), { status: 200, headers: { "Content-Type": "application/json", ...CORS_HEADERS } });
   } catch (err) {
     return new Response(JSON.stringify({ error: err.message }), { status: 500, headers: { "Content-Type": "application/json", ...CORS_HEADERS } });
   }
