@@ -417,10 +417,18 @@ async function handleMessage(msg: any) {
     const maintRows = await supabaseQuerySafe(`app_settings?key=eq.maintenance_mode&select=value`);
     if (maintRows?.[0]?.value === "true") {
       if (cmd && cmd !== "help" && cmd !== "commands") {
+        let msg = "🔧 RaidScout is currently under maintenance. Please try again later.";
+        try {
+          const endRows = await supabaseQuerySafe(`app_settings?key=eq.maintenance_end&select=value`);
+          if (endRows?.[0]?.value) {
+            const endDate = new Date(endRows[0].value);
+            msg += `\n📅 Expected to be back ${endDate.toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", timeZoneName: "short" })}.`;
+          }
+        } catch { /* ignore end time fetch failure */ }
         await fetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
           method: "POST",
           headers: { Authorization: `Bot ${TOKEN}`, "Content-Type": "application/json" },
-          body: JSON.stringify({ content: "🔧 RaidScout is currently under maintenance. Please try again later." }),
+          body: JSON.stringify({ content: msg }),
         });
       }
       return;
