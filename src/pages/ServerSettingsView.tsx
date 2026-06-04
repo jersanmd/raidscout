@@ -5,7 +5,7 @@ import { useServer } from "@/contexts/ServerContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { deleteServer, transferServerOwnership, removeServerModerator, addServerModerator, supabase, fetchServerMembers, type ServerMember, fetchGuilds, createGuild, updateGuildName, deleteGuild, fetchBossGuilds, setBossGuilds, fetchAllBossGuildsForServer, upsertBossGuildPoints, batchSetGuildSalary, fetchBosses, setBossPoints, setBossSalary, notifyDiscord, fetchModeratorPermissions, updateModeratorPermissions, updateThreadConfig, fetchPointRules, createPointRule, updatePointRule, deletePointRule, fetchBossAssists, toggleBossAssist, type ModeratorPermissions, DEFAULT_MODERATOR_PERMISSIONS } from "@/lib/supabase";
 import type { Guild, BossGuild, Boss, PointRule, BossAssist } from "@/types";
-import { Loader2, Trash2, Crown, ArrowLeft, Server, Check, Key, Copy, RefreshCw, Plus, LogIn, Users, Bell, Link, Settings, AlertTriangle, X, Shield, Pencil, Swords, ChevronUp, ChevronDown, CheckSquare, Square, Eye, EyeOff, UserPlus, Minus, Trophy, Send, Save, MessageCircle, Zap, Calendar } from "lucide-react";
+import { Loader2, Trash2, Crown, ArrowLeft, Server, Check, Key, Copy, RefreshCw, Plus, LogIn, Users, Bell, Link, Settings, AlertTriangle, X, Shield, Pencil, Swords, ChevronUp, ChevronDown, CheckSquare, Square, Eye, EyeOff, UserPlus, Minus, Trophy, Send, Save, MessageCircle, Zap, Calendar, Search } from "lucide-react";
 import { ServerBossesActivitiesTab } from "@/components/ServerBossesActivitiesTab";
 import { CreateServerModal } from "@/components/CreateServerModal";
 import { useToast } from "@/contexts/ToastContext";
@@ -284,6 +284,7 @@ export function ServerSettingsView() {
   const [bulkRotationAdded, setBulkRotationAdded] = useState<string[]>([]);
   const [bulkDailyAdded, setBulkDailyAdded] = useState<string[]>([]);
   const [bulkScheduleDays, setBulkScheduleDays] = useState<Record<number, string | null>>({});
+  const [bossSearch, setBossSearch] = useState("");
 
   const toggleBossSelect = (bossId: string) => {
     setSelectedBossIds(prev => {
@@ -1262,9 +1263,23 @@ export function ServerSettingsView() {
               <Trophy className="w-3 h-3" />
               The <span className="text-[#fafafa] font-mono">- 1 +</span> controls set <strong>boss points</strong> — each attendee earns this many points per kill on the leaderboard.
             </p>
-            <div className="flex items-center gap-3 text-xs text-[#71717a]">
-              <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-[#a1a1aa]" /> Fixed Hours</span>
-              <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-[#a1a1aa]" /> Fixed Schedule</span>
+            <div className="flex items-center gap-3 text-xs flex-wrap">
+              <div className="flex items-center gap-3 text-[#71717a]">
+                <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400" /> Fixed Hours</span>
+                <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-violet-400" /> Fixed Schedule</span>
+                <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-amber-400" /> One-time</span>
+              </div>
+              <div className="flex-1" />
+              <div className="relative">
+                <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-[#52525b]" />
+                <input
+                  type="text"
+                  placeholder="Search bosses..."
+                  value={bossSearch}
+                  onChange={(e) => setBossSearch(e.target.value)}
+                  className="w-40 bg-[#18181b] border border-[#27272a] rounded pl-7 pr-2 py-1 text-xs text-[#fafafa] placeholder-[#52525b] outline-none focus:border-[#52525b] transition"
+                />
+              </div>
             </div>
 
             {bossGuildsLoading ? (
@@ -1273,9 +1288,14 @@ export function ServerSettingsView() {
               <p className="text-xs text-[#71717a] text-center py-4">No bosses in this server.</p>
             ) : guilds.length === 0 ? (
               <p className="text-xs text-[#a1a1aa] text-center py-4">Create guilds first (in the Guilds tab) before assigning them to bosses.</p>
-            ) : (
+            ) : (() => {
+              const filtered = sortedBosses.filter(boss => !bossSearch || boss.name.toLowerCase().includes(bossSearch.toLowerCase()));
+              if (filtered.length === 0) {
+                return <p className="text-xs text-[#71717a] text-center py-4">{bossSearch ? "No bosses match your search." : "No bosses in this server."}</p>;
+              }
+              return (
               <div className={`space-y-2 max-h-[60vh] overflow-y-auto ${bossMultiMode && selectedBossIds.size > 0 ? "pb-32" : ""}`}>
-                {sortedBosses.map((boss) => {
+                {filtered.map((boss) => {
                   const mode = getBossMode(boss.id);
                   const bossAssignments = getBossGuildsForBoss(boss.id);
                   const isExpanded = expandedBoss === boss.id;
@@ -1294,7 +1314,11 @@ export function ServerSettingsView() {
                         {bossMultiMode && (
                           isSelected ? <CheckSquare className="w-4 h-4 text-[#a1a1aa] shrink-0" /> : <Square className="w-4 h-4 text-[#52525b] shrink-0" />
                         )}
-                        <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${boss.spawn_type === "fixed_schedule" ? "bg-[#a1a1aa]" : "bg-[#a1a1aa]"}`} title={boss.spawn_type === "fixed_schedule" ? "Fixed Schedule" : "Fixed Hours"} />
+                        <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                          boss.spawn_type === "fixed_schedule" ? "bg-violet-400" :
+                          boss.spawn_type === "one_time" ? "bg-amber-400" :
+                          "bg-emerald-400"
+                        }`} title={boss.spawn_type === "fixed_schedule" ? "Fixed Schedule" : boss.spawn_type === "one_time" ? "One-time" : "Fixed Hours"} />
                         <span className="text-xs text-[#fafafa] font-medium flex-1 truncate">{boss.name}</span>
                         <span className={`text-xs px-1.5 py-0.5 rounded ${
                           mode === "rotation" ? "text-[#a1a1aa] bg-[#18181b]" :
@@ -1489,7 +1513,8 @@ export function ServerSettingsView() {
                   );
                 })}
               </div>
-            )}
+              );
+            })()}
           </section>
 
           {/* Floating multi-select action bar */}
@@ -2588,6 +2613,8 @@ function BossPointsMatrix({
     }
   };
 
+  const [search, setSearch] = useState("");
+
   if (guilds.length === 0) {
     return (
       <div className="text-center py-16">
@@ -2600,6 +2627,25 @@ function BossPointsMatrix({
 
   return (
     <div className="bg-[#09090b] border border-[#27272a] rounded-xl p-4 overflow-x-auto">
+      {/* Search + Legend */}
+      <div className="flex items-center gap-3 mb-3 flex-wrap">
+        <div className="flex items-center gap-3 text-[10px] text-[#71717a]">
+          <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400" /> Fixed Hours</span>
+          <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-violet-400" /> Fixed Schedule</span>
+          <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-amber-400" /> One-time</span>
+        </div>
+        <div className="flex-1" />
+        <div className="relative">
+          <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-[#52525b]" />
+          <input
+            type="text"
+            placeholder="Search bosses..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-40 bg-[#18181b] border border-[#27272a] rounded pl-7 pr-2 py-1 text-xs text-[#fafafa] placeholder-[#52525b] outline-none focus:border-[#52525b] transition"
+          />
+        </div>
+      </div>
       <table className="w-full text-xs">
         <thead>
           <tr>
@@ -2634,11 +2680,15 @@ function BossPointsMatrix({
           </tr>
         </thead>
         <tbody>
-          {sortedBosses.map(boss => (
+          {sortedBosses.filter(boss => !search || boss.name.toLowerCase().includes(search.toLowerCase())).map(boss => (
             <tr key={boss.id} className="group border-b border-[#27272a]/50 hover:bg-[#18181b]/20 transition">
               <td className="sticky left-0 bg-[#09090b] group-hover:bg-[#18181b]/20 px-3 py-2 text-[#fafafa] font-medium border-r border-[#27272a]/30 z-10 transition">
                 <div className="flex items-center gap-2">
-                  <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${boss.spawn_type === "fixed_schedule" ? "bg-[#a1a1aa]" : "bg-[#a1a1aa]"}`} />
+                  <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                    boss.spawn_type === "fixed_schedule" ? "bg-violet-400" :
+                    boss.spawn_type === "one_time" ? "bg-amber-400" :
+                    "bg-emerald-400"
+                  }`} />
                   {boss.name}
                 </div>
               </td>

@@ -133,7 +133,7 @@ function AppRoutes() {
             <div className="min-h-screen flex items-center justify-center bg-[#09090b]">
               <div className="w-8 h-8 border-2 border-slate-600 border-t-red-500 rounded-full animate-spin" />
             </div>
-          ) : !hasServer && isAdmin ? (
+          ) : !hasServer && isAdmin && !localStorage.getItem("lordnine-current-server-id") ? (
             <Navigate to="/admin" replace />
           ) : !hasServer ? (
             <div className="min-h-screen bg-[#09090b]">

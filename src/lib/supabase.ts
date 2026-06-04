@@ -1472,7 +1472,7 @@ export async function fetchMemberKills(
   // 6. Map with correct point calculation
   return (data as any[]).map((row: any) => {
     const bossId = row.death_records.boss_id;
-    const bossPoints = row.death_records.bosses.boss_points ?? 0;
+    const bossPoints = row.death_records.bosses.boss_points ?? 1;
     // Per-guild override takes priority
     const basePts = guildId && bgPointsMap.has(bossId)
       ? bgPointsMap.get(bossId)!

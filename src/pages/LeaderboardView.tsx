@@ -344,7 +344,7 @@ export function LeaderboardView() {
 
       // Helper: get effective points for a boss (per-guild override > default)
       const getBossPoints = (bossId: string): number => {
-        return bgPointsMap.get(bossId) ?? (bossMap.get(bossId) as any)?.boss_points ?? 0;
+        return bgPointsMap.get(bossId) ?? (bossMap.get(bossId) as any)?.boss_points ?? 1;
       };
 
       // Fetch attendance records for these deaths, filtered to guild members
