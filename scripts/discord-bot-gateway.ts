@@ -136,7 +136,7 @@ function safeMod(v: number, n: number) { return ((v % n) + n) % n; }
 function computeOwnerGuild(
   boss: any, bossGuilds: any[], guilds: any[], lastDeath: any, spawn: Date, tz: string
 ): string | undefined {
-  const bgs = bossGuilds.filter((bg: any) => bg.boss_id === boss.id);
+  const bgs = bossGuilds.filter((bg: any) => bg.boss_id === boss.id && bg.sort_order !== -1);
   if (bgs.length === 0) return undefined;
 
   // 1. Schedule mode
