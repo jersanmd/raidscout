@@ -392,8 +392,8 @@ export function ServerBossesActivitiesTab() {
                       duration_minutes: act.duration_minutes ?? null,
                       points_per_participant: act.points_per_participant,
                       party_size: act.party_size ?? null,
-                      category: act.category ?? null,
-                      tags: act.tags ?? [],
+                      category: (act as any).category ?? null,
+                      tags: (act as any).tags ?? [],
                       image_url: null,
                     }}
                     gameSlug=""

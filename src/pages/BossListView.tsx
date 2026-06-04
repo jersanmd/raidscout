@@ -40,7 +40,7 @@ import { emitSpawnAlert } from "@/hooks/useSpawnAlerts";
 import { guildColor } from "@/lib/constants";
 import { getOwnerGuildName, getRotationInfo } from "@/lib/rotation";
 import { Skull, Loader2, X, CheckCircle, AlertTriangle, CheckSquare, Megaphone, Volume2, VolumeX, Eye, Copy, Settings, Search } from "lucide-react";
-import type { BossWithSpawn, BossGuild, Guild, DeathRecord } from "@/types";
+import type { BossWithSpawn, BossGuild, Guild, DeathRecord, SpawnStatus } from "@/types";
 
 const sentAlerts = new Set<string>();
 
@@ -551,7 +551,7 @@ export function BossListView() {
         <div className="flex gap-4 text-xs">
           <span className="flex items-center gap-1.5 text-[#a1a1aa]">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 " />
-            {spawns.filter((s) => s.status === "alive" && !s.activity).length} Alive
+            {spawns.filter((s) => s.status === "alive" && !(s as any).activity).length} Alive
           </span>
           <span className="flex items-center gap-1.5 text-[#a1a1aa]">
             <span className="w-1.5 h-1.5 rounded-full bg-amber-400 " />
@@ -787,7 +787,8 @@ export function BossListView() {
                   if (a.schedule_type === "fixed_schedule" && Array.isArray(a.schedule) && a.schedule.length > 0) {
                     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
                     const candidates: Date[] = [];
-                    for (const slot of a.schedule) {
+                    const schedule = a.schedule as { day: number; time: string }[];
+                    for (const slot of schedule) {
                       const [h, m] = slot.time.split(":").map(Number);
                       const candidate = new Date(today);
                       candidate.setDate(today.getDate() + ((slot.day + 7 - today.getDay()) % 7));
@@ -823,8 +824,8 @@ export function BossListView() {
                       server_id: a.server_id,
                       created_at: a.created_at,
                       points: a.points_per_participant,
-                      category: a.category,
-                      tags: a.tags as any,
+                      category: (a as any).category,
+                      tags: (a as any).tags,
                       is_recurring: a.schedule_type !== "one_time",
                       is_enabled: a.is_enabled,
                       is_custom: a.is_custom,
