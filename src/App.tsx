@@ -105,7 +105,7 @@ function AppRoutes() {
   const { servers, currentServer, loading: serverLoading } = useServer();
   const { userRole, roleLoading } = useAuth();
   const isAdmin = userRole === "admin";
-  const hasServer = servers.length > 0;
+  const hasServer = servers.length > 0 && !!currentServer;
   const ready = !serverLoading && !roleLoading;
 
   // Dynamically set the page title to the current server name

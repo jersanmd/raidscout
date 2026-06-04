@@ -43,15 +43,19 @@ export function UpcomingStrip({ ownerGuildName }: { ownerGuildName: (bossId: str
 
       {/* 3-column strip — threat-level colors */}
       <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-white/[0.04]">
-        {upcoming.map((s, i) => (
-          <UpcomingSlot
-            key={s.boss.id}
-            spawn={s}
-            threatLevel={i === 0 ? "critical" : i === 1 ? "warning" : "normal"}
-            formatTime={formatTime}
-            guildName={ownerGuildName(s.boss.id)}
-          />
-        ))}
+        {upcoming.map((s) => {
+          const mins = s.remainingMs / 60_000;
+          const threat = mins <= 5 ? "critical" : mins <= 60 ? "warning" : "normal";
+          return (
+            <UpcomingSlot
+              key={s.boss.id}
+              spawn={s}
+              threatLevel={threat}
+              formatTime={formatTime}
+              guildName={ownerGuildName(s.boss.id)}
+            />
+          );
+        })}
         {Array.from({ length: Math.max(0, 3 - upcoming.length) }).map((_, i) => (
           <div key={`empty-${i}`} className="flex items-center justify-center p-6 text-[#3f3f46] text-sm font-mono">
             —
