@@ -55,7 +55,7 @@ export function AddBossForm({ gameId, gameSlug, serverId, onCreated, onCancel }:
         });
       } else {
       await createBossTemplate({
-        game_id: gameId,
+        game_id: gameId!,
         name: name.trim(),
         spawn_type: spawnType,
         respawn_hours: respawnHours ? Number(respawnHours) : null,

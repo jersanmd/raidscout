@@ -10,6 +10,7 @@ const ACTIVITY_TAGS = ["pvp", "pve", "guild", "solo", "party", "weekly", "daily"
 interface Props {
   gameId: string;
   gameSlug: string;
+  serverId?: string;
   onCreated: () => void;
   onCancel: () => void;
 }

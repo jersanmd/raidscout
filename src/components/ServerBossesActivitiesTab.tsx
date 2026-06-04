@@ -259,7 +259,7 @@ export function ServerBossesActivitiesTab() {
                     boss={{
                       id: boss.id,
                       name: boss.name,
-                      spawn_type: boss.spawn_type,
+                      spawn_type: boss.spawn_type as string,
                       respawn_hours: boss.respawn_hours ?? null,
                       schedule: boss.schedule ?? null,
                       is_recurring: boss.is_recurring ?? true,
@@ -267,7 +267,7 @@ export function ServerBossesActivitiesTab() {
                       category: boss.category ?? null,
                       tags: boss.tags ?? [],
                       image_url: boss.image_url ?? null,
-                    }}
+                    } as any}
                     gameSlug=""
                     serverId={serverId}
                     onSaved={() => {

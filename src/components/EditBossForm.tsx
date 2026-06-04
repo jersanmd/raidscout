@@ -24,6 +24,7 @@ interface BossData {
 interface Props {
   boss: BossData;
   gameSlug: string;
+  serverId?: string;
   onSaved: () => void;
   onCancel: () => void;
 }

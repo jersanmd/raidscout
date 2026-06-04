@@ -165,7 +165,7 @@ export function BossGuildsTab({ bosses, guilds, bossGuilds, onBossGuildsChange, 
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-xs text-[#a1a1aa]">Bulk set mode:</span>
             {(["rotation", "daily", "schedule", "none"] as const).map(m => (
-              <button key={m} onClick={() => { setBulkMode(m); }}
+              <button key={m} onClick={() => { setBulkMode(m === "none" ? null : m); }}
                 disabled={bulkProcessing}
                 className={`px-2 py-1 rounded text-xs font-medium transition capitalize ${
                   bulkMode === m ? "bg-[#27272a] text-[#fafafa]" : "bg-[#27272a] text-[#d4d4d8] hover:bg-[#3f3f46]"

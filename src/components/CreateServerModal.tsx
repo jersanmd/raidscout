@@ -14,8 +14,7 @@ export function CreateServerModal({ onClose }: { onClose: () => void }) {
   // Fetch first available game on mount
   useEffect(() => {
     supabase.from("games").select("id,name").order("created_at").limit(1).single()
-      .then(({ data }) => { if (data) setGameId(data.id); })
-      .catch(() => {});
+      .then(({ data }) => { if (data) setGameId(data.id); }, () => {});
   }, []);
 
   const handleCreate = async () => {

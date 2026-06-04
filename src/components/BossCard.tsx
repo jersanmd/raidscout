@@ -196,8 +196,8 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
                 <span className={`inline-block w-1.5 h-1.5 rounded-full mr-1 ${config.dot}`} />
                 {isActivity ? "Activity" : config.badgeText}
               </span>
-              {isActivity && activity.category && (
-                <span className="text-[10px] text-[#52525b] font-mono truncate max-w-[120px]">{activity.category}</span>
+              {isActivity && (activity as any).category && (
+                <span className="text-[10px] text-[#52525b] font-mono truncate max-w-[120px]">{(activity as any).category}</span>
               )}
             </div>
 

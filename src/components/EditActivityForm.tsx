@@ -23,6 +23,7 @@ interface ActivityData {
 interface Props {
   activity: ActivityData;
   gameSlug: string;
+  serverId?: string;
   onSaved: () => void;
   onCancel: () => void;
 }
