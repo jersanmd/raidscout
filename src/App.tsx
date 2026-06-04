@@ -41,7 +41,9 @@ import { isSupabaseConfigured } from "@/lib/supabase";
 const queryClient = new QueryClient();
 
 function AppContent() {
-  const { user, loading, isViewer } = useAuth();
+  const { user, loading, isViewer, userRole } = useAuth();
+  const { isMaintenance, loading: maintLoading } = useMaintenance();
+  const isAdmin = userRole === "admin";
 
   if (!isSupabaseConfigured()) {
     return (
@@ -74,6 +76,11 @@ function AppContent() {
     return <ResetPasswordForm />;
   }
 
+  // Maintenance mode gate — admins bypass, everyone else sees maintenance screen
+  if (!maintLoading && isMaintenance && !isAdmin) {
+    return <MaintenancePage />;
+  }
+
   return (
     <ServerProvider>
       <Routes>
@@ -94,15 +101,9 @@ function AppContent() {
 function AppRoutes() {
   const { servers, currentServer, loading: serverLoading } = useServer();
   const { userRole } = useAuth();
-  const { isMaintenance, loading: maintLoading } = useMaintenance();
   const isAdmin = userRole === "admin";
   const hasServer = servers.length > 0;
   const ready = !serverLoading;
-
-  // Maintenance mode gate — admins bypass
-  if (!maintLoading && isMaintenance && !isAdmin) {
-    return <MaintenancePage />;
-  }
 
   // Dynamically set the page title to the current server name
   useEffect(() => {
