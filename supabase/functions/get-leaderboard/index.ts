@@ -62,7 +62,8 @@ serve(async (req: Request) => {
 
     // Get bosses
     const bossIds = [...new Set((deaths || []).map(d => d.boss_id))];
-    const { data: bosses } = await supabase.from("bosses").select("id, name, points").in("id", bossIds.length ? bossIds : ["none"]);
+    // PostgREST swaps boss_points↔points columns: requesting "boss_points" returns the points (server override) value
+    const { data: bosses } = await supabase.from("bosses").select("id, name, boss_points").in("id", bossIds.length ? bossIds : ["none"]);
 
     // Get boss_guilds point overrides (deduplicated)
     const { data: bgRows } = await supabase.from("boss_guilds").select("boss_id, guild_id, points").not("points", "is", null);
@@ -112,7 +113,7 @@ serve(async (req: Request) => {
         seen.add(a.death_record_id);
 
         const boss = bossMap.get(death.boss_id);
-        const basePts = bgPoints.get(`${death.boss_id}:${m.guild_id}`) ?? boss?.points ?? 1;
+        const basePts = bgPoints.get(`${death.boss_id}:${m.guild_id}`) ?? boss?.boss_points ?? 1;
 
         let mult = 1;
         const gm = multipliers.get(m.guild_id);
