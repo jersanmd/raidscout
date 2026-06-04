@@ -1208,7 +1208,7 @@ export async function fetchLeaderboardByPeriod(
         "Authorization": `Bearer ${supabaseKey}`,
         "apikey": supabaseKey,
       },
-      body: JSON.stringify({ server_id: sid }),
+      body: JSON.stringify({ server_id: sid, since }),
     });
     if (resp.ok) return await resp.json();
   } catch { /* fallback to RPC */ }
