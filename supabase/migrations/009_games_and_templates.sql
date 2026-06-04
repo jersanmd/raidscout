@@ -50,7 +50,7 @@ ALTER TABLE public.activity_templates ENABLE ROW LEVEL SECURITY;
 INSERT INTO public.games (id, name, slug, supported_spawn_types)
 VALUES ('00000000-0000-0000-0000-000000000001', 'LordNine: Infinite Class', 'lordnine', '["fixed_hours","fixed_schedule"]'::jsonb);
 
--- Seed: 39 boss templates for LordNine
+-- Seed: 39 boss templates for LordNine (schedules in UTC — converted from GMT+8 by subtracting 8h)
 INSERT INTO public.boss_templates (game_id, name, spawn_type, respawn_hours, schedule, is_recurring, points) VALUES
 ('00000000-0000-0000-0000-000000000001', 'Venatus', 'fixed_hours', 10, NULL, true, 1),
 ('00000000-0000-0000-0000-000000000001', 'Viorent', 'fixed_hours', 12, NULL, true, 1),
@@ -74,20 +74,21 @@ INSERT INTO public.boss_templates (game_id, name, spawn_type, respawn_hours, sch
 ('00000000-0000-0000-0000-000000000001', 'Ringor', 'fixed_hours', 48, NULL, true, 1),
 ('00000000-0000-0000-0000-000000000001', 'Roderick', 'fixed_hours', 62, NULL, true, 1),
 ('00000000-0000-0000-0000-000000000001', 'Gareth', 'fixed_hours', 24, NULL, true, 1),
-('00000000-0000-0000-0000-000000000001', 'Auraq', 'fixed_schedule', NULL, '[{"day":5,"time":"22:00"},{"day":3,"time":"21:00"}]'::jsonb, true, 1),
-('00000000-0000-0000-0000-000000000001', 'Benji', 'fixed_schedule', NULL, '[{"day":0,"time":"21:00"}]'::jsonb, true, 1),
-('00000000-0000-0000-0000-000000000001', 'Chaiflock', 'fixed_schedule', NULL, '[{"day":0,"time":"15:00"}]'::jsonb, true, 1),
-('00000000-0000-0000-0000-000000000001', 'Clemantis', 'fixed_schedule', NULL, '[{"day":1,"time":"11:30"},{"day":4,"time":"19:00"}]'::jsonb, true, 1),
-('00000000-0000-0000-0000-000000000001', 'Icaruthia', 'fixed_schedule', NULL, '[{"day":2,"time":"21:00"},{"day":5,"time":"21:00"}]'::jsonb, true, 1),
-('00000000-0000-0000-0000-000000000001', 'Libitina', 'fixed_schedule', NULL, '[{"day":1,"time":"21:00"},{"day":6,"time":"21:00"}]'::jsonb, true, 1),
-('00000000-0000-0000-0000-000000000001', 'Lucus', 'fixed_schedule', NULL, '[{"day":6,"time":"22:00"}]'::jsonb, true, 1),
-('00000000-0000-0000-0000-000000000001', 'Motti', 'fixed_schedule', NULL, '[{"day":2,"time":"22:00"}]'::jsonb, true, 1),
-('00000000-0000-0000-0000-000000000001', 'Nevaeh', 'fixed_schedule', NULL, '[{"day":3,"time":"22:00"}]'::jsonb, true, 1),
-('00000000-0000-0000-0000-000000000001', 'Ordo', 'fixed_schedule', NULL, '[{"day":4,"time":"22:00"},{"day":5,"time":"17:00"}]'::jsonb, true, 1),
-('00000000-0000-0000-0000-000000000001', 'Rakajeth', 'fixed_schedule', NULL, '[{"day":6,"time":"20:00"},{"day":1,"time":"15:00"}]'::jsonb, true, 1),
-('00000000-0000-0000-0000-000000000001', 'Secreta', 'fixed_schedule', NULL, '[{"day":2,"time":"20:00"},{"day":4,"time":"18:00"}]'::jsonb, true, 1),
-('00000000-0000-0000-0000-000000000001', 'Supore', 'fixed_schedule', NULL, '[{"day":0,"time":"19:00"},{"day":3,"time":"14:00"}]'::jsonb, true, 1),
-('00000000-0000-0000-0000-000000000001', 'Titore', 'fixed_schedule', NULL, '[{"day":0,"time":"18:00"}]'::jsonb, true, 1),
-('00000000-0000-0000-0000-000000000001', 'Larba', 'fixed_schedule', NULL, '[{"day":2,"time":"18:00"}]'::jsonb, true, 1),
-('00000000-0000-0000-0000-000000000001', 'Catena', 'fixed_schedule', NULL, '[{"day":3,"time":"15:00"},{"day":6,"time":"19:00"}]'::jsonb, true, 1),
-('00000000-0000-0000-0000-000000000001', 'Tumier', 'fixed_schedule', NULL, '[{"day":5,"time":"15:00"}]'::jsonb, true, 1);
+-- ── 17 schedule bosses: GMT+8 → UTC (−8h) ──
+('00000000-0000-0000-0000-000000000001', 'Auraq', 'fixed_schedule', NULL, '[{"day":5,"time":"14:00"},{"day":3,"time":"13:00"}]'::jsonb, true, 1),
+('00000000-0000-0000-0000-000000000001', 'Benji', 'fixed_schedule', NULL, '[{"day":0,"time":"13:00"}]'::jsonb, true, 1),
+('00000000-0000-0000-0000-000000000001', 'Chaiflock', 'fixed_schedule', NULL, '[{"day":0,"time":"07:00"}]'::jsonb, true, 1),
+('00000000-0000-0000-0000-000000000001', 'Clemantis', 'fixed_schedule', NULL, '[{"day":1,"time":"03:30"},{"day":4,"time":"11:00"}]'::jsonb, true, 1),
+('00000000-0000-0000-0000-000000000001', 'Icaruthia', 'fixed_schedule', NULL, '[{"day":2,"time":"13:00"},{"day":5,"time":"13:00"}]'::jsonb, true, 1),
+('00000000-0000-0000-0000-000000000001', 'Libitina', 'fixed_schedule', NULL, '[{"day":1,"time":"13:00"},{"day":6,"time":"13:00"}]'::jsonb, true, 1),
+('00000000-0000-0000-0000-000000000001', 'Lucus', 'fixed_schedule', NULL, '[{"day":6,"time":"14:00"}]'::jsonb, true, 1),
+('00000000-0000-0000-0000-000000000001', 'Motti', 'fixed_schedule', NULL, '[{"day":2,"time":"14:00"}]'::jsonb, true, 1),
+('00000000-0000-0000-0000-000000000001', 'Nevaeh', 'fixed_schedule', NULL, '[{"day":3,"time":"14:00"}]'::jsonb, true, 1),
+('00000000-0000-0000-0000-000000000001', 'Ordo', 'fixed_schedule', NULL, '[{"day":4,"time":"14:00"},{"day":5,"time":"09:00"}]'::jsonb, true, 1),
+('00000000-0000-0000-0000-000000000001', 'Rakajeth', 'fixed_schedule', NULL, '[{"day":6,"time":"12:00"},{"day":1,"time":"07:00"}]'::jsonb, true, 1),
+('00000000-0000-0000-0000-000000000001', 'Secreta', 'fixed_schedule', NULL, '[{"day":2,"time":"12:00"},{"day":4,"time":"10:00"}]'::jsonb, true, 1),
+('00000000-0000-0000-0000-000000000001', 'Supore', 'fixed_schedule', NULL, '[{"day":0,"time":"11:00"},{"day":3,"time":"06:00"}]'::jsonb, true, 1),
+('00000000-0000-0000-0000-000000000001', 'Titore', 'fixed_schedule', NULL, '[{"day":0,"time":"10:00"}]'::jsonb, true, 1),
+('00000000-0000-0000-0000-000000000001', 'Larba', 'fixed_schedule', NULL, '[{"day":2,"time":"10:00"}]'::jsonb, true, 1),
+('00000000-0000-0000-0000-000000000001', 'Catena', 'fixed_schedule', NULL, '[{"day":3,"time":"07:00"},{"day":6,"time":"11:00"}]'::jsonb, true, 1),
+('00000000-0000-0000-0000-000000000001', 'Tumier', 'fixed_schedule', NULL, '[{"day":5,"time":"07:00"}]'::jsonb, true, 1);

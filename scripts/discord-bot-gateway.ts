@@ -190,6 +190,11 @@ function computeOwnerGuild(
   return undefined;
 }
 
+/** Template-based bosses store schedules in UTC; custom bosses use the server timezone */
+function getScheduleTz(boss: any, serverTz: string): string {
+  return boss.template_id ? "UTC" : serverTz;
+}
+
 /** Convert a schedule slot (day, "HH:MM") in the given timezone to a UTC Date */
 function scheduleSlotToUTC(tz: string, refDate: Date, day: number, time: string): Date {
   // Get current date string in the target timezone for this refDate
@@ -698,14 +703,16 @@ async function handleMessage(msg: any) {
         spawn = lastDeath ? addHours(new Date(lastDeath.death_time), boss.respawn_hours ?? 0) : now;
         if (spawn <= now && now <= addHours(spawn, 24)) spawn = now;
       } else if (boss.spawn_type === "fixed_schedule" && boss.schedule) {
-        // Find most recent past schedule slot (in server timezone → UTC)
+        // Use UTC for template-based bosses, server TZ for custom bosses
+        const schedTz = getScheduleTz(boss, tz);
+        // Find most recent past schedule slot
         let recentSlot: { day: number; time: string } | null = null;
         let recentTime: Date | null = null;
         for (let d = 0; d <= 7; d++) {
           const check = new Date(now);
           check.setDate(check.getDate() - d);
           for (const slot of boss.schedule) {
-            const c = scheduleSlotToUTC(tz, check, slot.day, slot.time);
+            const c = scheduleSlotToUTC(schedTz, check, slot.day, slot.time);
             if (c <= now && (!recentTime || c > recentTime)) {
               recentTime = c;
               recentSlot = slot;
@@ -715,10 +722,10 @@ async function handleMessage(msg: any) {
 
         if (!recentSlot || !recentTime) {
           // No past slot found — find next future slot
-          spawn = findNextScheduleSlot(boss.schedule, now, tz);
+          spawn = findNextScheduleSlot(boss.schedule, now, schedTz);
         } else {
           // Find next schedule slot after this one (for alive-window calculation)
-          const nextSlotTime = findNextScheduleSlot(boss.schedule, new Date(recentTime.getTime() + 60_000), tz);
+          const nextSlotTime = findNextScheduleSlot(boss.schedule, new Date(recentTime.getTime() + 60_000), schedTz);
           // Alive until 1 hour before next slot, capped at 4 hours from current slot
           const aliveUntil = new Date(Math.min(
             nextSlotTime.getTime() - 3600_000,
@@ -732,7 +739,7 @@ async function handleMessage(msg: any) {
             spawn = now;
           } else {
             // Boss is dead or window closed — find next future schedule
-            spawn = findNextScheduleSlot(boss.schedule, now, tz);
+            spawn = findNextScheduleSlot(boss.schedule, now, schedTz);
           }
         }
       } else continue;
@@ -834,17 +841,18 @@ async function handleMessage(msg: any) {
         isAlive = true; // No death records → initial spawn
       }
     } else if (boss.spawn_type === "fixed_schedule" && boss.schedule) {
+      const schedTz = getScheduleTz(boss, tz);
       let recentSlot: Date | null = null;
       for (let d = 0; d <= 7; d++) {
         const check = new Date(aliveNow);
         check.setDate(check.getDate() - d);
         for (const slot of boss.schedule) {
-          const c = scheduleSlotToUTC(tz, check, slot.day, slot.time);
+          const c = scheduleSlotToUTC(schedTz, check, slot.day, slot.time);
           if (c <= aliveNow && (!recentSlot || c > recentSlot)) recentSlot = c;
         }
       }
       if (recentSlot) {
-        const nextSlot = findNextScheduleSlot(boss.schedule, new Date(recentSlot.getTime() + 60_000), tz);
+        const nextSlot = findNextScheduleSlot(boss.schedule, new Date(recentSlot.getTime() + 60_000), schedTz);
         const aliveUntil = new Date(Math.min(
           nextSlot.getTime() - 3600_000,
           recentSlot.getTime() + 4 * 3600_000,
@@ -954,7 +962,8 @@ async function handleMessage(msg: any) {
     if (boss.spawn_type === "fixed_hours") {
       nextSpawnUnix = Math.floor((deathTime.getTime() + (boss.respawn_hours ?? 0) * 3600_000) / 1000);
     } else if (boss.spawn_type === "fixed_schedule" && boss.schedule) {
-      const nextSlot = findNextScheduleSlot(boss.schedule, deathTime, tz);
+      const schedTz2 = getScheduleTz(boss, tz);
+      const nextSlot = findNextScheduleSlot(boss.schedule, deathTime, schedTz2);
       nextSpawnUnix = Math.floor(nextSlot.getTime() / 1000);
     }
     const nextSpawnField = nextSpawnUnix > 0 ? { name: "Next Spawn", value: `<t:${nextSpawnUnix}:f>`, inline: true } : null;
@@ -1478,7 +1487,8 @@ async function runSpawnCron() {
               : new Date(); // no death record → assume alive now
           } else if (boss.spawn_type === "fixed_schedule" && boss.schedule) {
             const baseTime = lastDeath ? new Date(lastDeath.death_time) : new Date();
-            spawnTime = findNextScheduleSlot(boss.schedule, baseTime, tz);
+            const schedTz = getScheduleTz(boss, tz);
+            spawnTime = findNextScheduleSlot(boss.schedule, baseTime, schedTz);
           } else {
             continue;
           }
