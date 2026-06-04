@@ -412,6 +412,21 @@ async function handleMessage(msg: any) {
   }
   const cmd = aliases[rawCmd] || rawCmd;
 
+  // Check maintenance mode — skip all commands if maintenance is on
+  try {
+    const maintRows = await supabaseQuerySafe(`app_settings?key=eq.maintenance_mode&select=value`);
+    if (maintRows?.[0]?.value === "true") {
+      if (cmd && cmd !== "help" && cmd !== "commands") {
+        await fetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
+          method: "POST",
+          headers: { Authorization: `Bot ${TOKEN}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ content: "🔧 RaidScout is currently under maintenance. Please try again later." }),
+        });
+      }
+      return;
+    }
+  } catch { /* proceed if check fails */ }
+
   // Valid commands that should trigger ✅ reaction
   const validCmds = new Set(["list","nextspawn","spawn","killed","kill","forcespawn","forcespawnall","spawnall","commands","help","notifhere","cmdhere","threadhere"]);
   if (validCmds.has(cmd)) {
@@ -1333,6 +1348,10 @@ let cronStarted = false;
 
 async function runSpawnCron() {
   try {
+    // Skip spawn cron if maintenance mode is on
+    const maintRows = await supabaseQuerySafe(`app_settings?key=eq.maintenance_mode&select=value`);
+    if (maintRows?.[0]?.value === "true") return;
+
     lastSpawnCronTick = Date.now();
     // Get all unique servers linked via discord_configs
     const configs = await supabaseQuerySafe("discord_configs?select=raidscout_server_id&order=created_at");
