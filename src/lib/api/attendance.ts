@@ -1,4 +1,4 @@
-import { supabase, supabaseUrl, supabaseKey, getCurrentServerId } from "./client";
+import { supabase, supabaseUrl, supabaseKey, getCurrentServerId, getCurrentViewerKey } from "./client";
 import type { AttendanceRecord } from "@/types";
 
 // ── Attendance ──────────────────────────────────────────────
