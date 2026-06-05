@@ -1330,7 +1330,7 @@ export function ServerSettingsView() {
                 return <p className="text-xs text-[#71717a] text-center py-4">{bossSearch ? "No bosses match your search." : "No bosses in this server."}</p>;
               }
               return (
-              <div className={`space-y-2 max-h-[60vh] overflow-y-auto ${bossMultiMode && selectedBossIds.size > 0 ? "pb-32" : ""}`}>
+              <div className={`space-y-2 ${bossMultiMode && selectedBossIds.size > 0 ? "pb-32" : ""}`}>
                 {filtered.map((boss) => {
                   const mode = getBossMode(boss.id);
                   const bossAssignments = getBossGuildsForBoss(boss.id);
