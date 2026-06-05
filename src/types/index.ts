@@ -77,6 +77,26 @@ export interface BossGuild {
   has_salary?: boolean;
 }
 
+export interface ActivityGuild {
+  id: string;
+  activity_id: string;
+  guild_id: string;
+  sort_order: number | null;
+  day_of_week: number | null;
+  mode: "rotation" | "schedule" | "daily" | "all";
+  points?: number | null;
+  has_salary?: boolean;
+}
+
+export interface ActivityAssist {
+  id: string;
+  activity_id: string;
+  owner_guild_id: string;
+  assistant_guild_id: string;
+  server_id: string;
+  created_at: string;
+}
+
 export interface AttendanceRecord {
   id: string;
   death_record_id: string;

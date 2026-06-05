@@ -1,0 +1,2 @@
+ALTER TABLE activity_guilds ADD COLUMN IF NOT EXISTS points INTEGER;
+ALTER TABLE activity_guilds ADD COLUMN IF NOT EXISTS has_salary BOOLEAN DEFAULT false;

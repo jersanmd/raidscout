@@ -35,6 +35,25 @@ const rankColors: Record<number, { icon: React.ReactNode; text: string; bg: stri
   },
 };
 
+/** Convert a YYYY-MM-DD date range to UTC ISO strings, interpreting dates in the given timezone */
+function getUtcDayRange(startDateStr: string, endDateStr: string, timezone: string): { start: string; end: string } {
+  const toUtc = (dateStr: string, isEnd: boolean): string => {
+    const [y, m, d] = dateStr.split("-").map(Number);
+    // Use noon UTC on that date to determine the timezone offset (handles DST)
+    const utcNoon = Date.UTC(y, m - 1, d, 12, 0, 0);
+    const tzTime = new Date(utcNoon).toLocaleTimeString("en-US", {
+      timeZone: timezone, hour: "2-digit", minute: "2-digit", hour12: false,
+    });
+    const [tzH, tzM] = tzTime.split(":").map(Number);
+    // Offset in ms: positive = target timezone is ahead of UTC
+    const offsetMs = ((tzH - 12) * 60 + tzM) * 60000;
+    // Midnight in target timezone = midnight UTC - offset
+    const startMs = Date.UTC(y, m - 1, d) - offsetMs;
+    return new Date(isEnd ? startMs + 86400000 - 1 : startMs).toISOString();
+  };
+  return { start: toUtc(startDateStr, false), end: toUtc(endDateStr, true) };
+}
+
 export function LeaderboardView() {
   const [period, setPeriod] = useState<LeaderboardPeriod>("weekly");
   const { data: entries = [], isLoading } = useLeaderboard(period);
@@ -68,18 +87,18 @@ export function LeaderboardView() {
   const [snapshotGuildFilter, setSnapshotGuildFilter] = useState<string>("all");
 
   // Attendance export state
-  const todayLocal = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; })();
-  const weekAgoLocal = (() => { const d = new Date(Date.now() - 6 * 86400000); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; })();
+  const { currentServer } = useServer();
+  const serverTimezone = useServerTimezone();
+  const todayInServerTz = (() => { const d = new Date(); return d.toLocaleDateString("en-CA", { timeZone: serverTimezone }); })();
+  const weekAgoInServerTz = (() => { const d = new Date(Date.now() - 6 * 86400000); return d.toLocaleDateString("en-CA", { timeZone: serverTimezone }); })();
   const [showExport, setShowExport] = useState<string | null>(null);
-  const [exportStartDate, setExportStartDate] = useState(weekAgoLocal);
-  const [exportEndDate, setExportEndDate] = useState(todayLocal);
+  const [exportStartDate, setExportStartDate] = useState(weekAgoInServerTz);
+  const [exportEndDate, setExportEndDate] = useState(todayInServerTz);
   const [exportLoading, setExportLoading] = useState(false);
   const [exportRankingsOnly, setExportRankingsOnly] = useState(false);
 
   // Point adjustment modal state
-  const { currentServer } = useServer();
-  const serverTimezone = useServerTimezone();
-  const { timezone: userTz } = useUserTimezone();
+  const { timezone: userTz } = useUserTimezone(currentServer?.timezone);
   const canAdjustPoints = useHasPermission("can_adjust_points");
   const canExportAttendance = useHasPermission("can_export_attendance");
   const isStaff = !isViewer && (currentServer?.role === "owner" || currentServer?.role === "moderator");
@@ -234,9 +253,8 @@ export function LeaderboardView() {
       const guild = guilds.find(g => g.name === guildName);
       if (!guild) { alert("Guild not found."); setExportLoading(false); return; }
 
-      // Interpret dates as local calendar days, then convert to UTC for DB comparison
-      const startISO = new Date(exportStartDate + "T00:00:00").toISOString();
-      const endISO = new Date(exportEndDate + "T23:59:59.999").toISOString();
+      // Interpret dates as server-timezone calendar days, then convert to UTC for DB comparison
+      const { start: startISO, end: endISO } = getUtcDayRange(exportStartDate, exportEndDate, serverTimezone);
 
       // Fetch members of this guild
       const { data: guildMembers } = await supabase
@@ -249,19 +267,32 @@ export function LeaderboardView() {
       const memberIds = guildMembers.map((m: any) => m.id);
 
       // Fetch ALL death records where this guild's members participated (not just owned by guild)
+      // Step 1: find which deaths guild members attended
       const { data: attForDeaths } = await supabase
         .from("attendance_records")
         .select("death_record_id")
-        .in("member_id", memberIds)
-        .gte("created_at", startISO)
-        .lte("created_at", new Date(endISO).toISOString());
-      const participatedDeathIds = [...new Set((attForDeaths || []).map((a: any) => a.death_record_id))];
-      if (!participatedDeathIds.length) { alert("No boss kills for " + guildName + " members in this date range."); setExportLoading(false); return; }
+        .in("member_id", memberIds);
+      const allParticipatedDeathIds = [...new Set((attForDeaths || []).map((a: any) => a.death_record_id))];
+      
+      // Step 2: also include deaths owned by this guild
+      const { data: ownedDeaths } = await supabase
+        .from("death_records")
+        .select("id")
+        .eq("owner_guild_id", guild.id)
+        .gte("death_time", startISO)
+        .lte("death_time", endISO);
+      const ownedDeathIds = (ownedDeaths || []).map((d: any) => d.id);
+      
+      // Step 3: combine and filter by date range
+      const candidateDeathIds = [...new Set([...allParticipatedDeathIds, ...ownedDeathIds])];
+      if (!candidateDeathIds.length) { alert("No boss kills for " + guildName + " members in this date range."); setExportLoading(false); return; }
 
       const { data: deaths, error: deathsErr } = await supabase
         .from("death_records")
         .select("id,boss_id,death_time,party_leaders,owner_guild_id")
-        .in("id", participatedDeathIds)
+        .in("id", candidateDeathIds)
+        .gte("death_time", startISO)
+        .lte("death_time", endISO)
         .order("death_time", { ascending: true });
       if (deathsErr) throw new Error(`Death records: ${deathsErr.message}`);
       if (!deaths?.length) { alert("No death records in this date range for " + guildName + "."); setExportLoading(false); return; }

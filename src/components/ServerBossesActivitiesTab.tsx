@@ -21,7 +21,7 @@ import {
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import type { Boss, Activity } from "@/types";
 
-export function ServerBossesActivitiesTab() {
+export function ServerBossesActivitiesTab({ mode = "all" }: { mode?: "all" | "bosses" | "activities" }) {
   const { currentServer } = useServer();
   const { userRole } = useAuth();
   const hasPerm = useHasPermission("can_manage_boss_guilds");
@@ -112,6 +112,7 @@ export function ServerBossesActivitiesTab() {
   return (
     <div className="space-y-6">
       {/* ── Bosses Section ── */}
+      {mode !== "activities" && (
       <section className="bg-[#09090b] border border-[#27272a] rounded-xl p-4">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
@@ -283,8 +284,10 @@ export function ServerBossesActivitiesTab() {
           </div>
         )}
       </section>
+      )}
 
       {/* ── Activities Section ── */}
+      {mode !== "bosses" && (
       <section className="bg-[#09090b] border border-[#27272a] rounded-xl p-4">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
@@ -310,6 +313,7 @@ export function ServerBossesActivitiesTab() {
               onCreated={() => {
                 setShowAddActivity(false);
                 queryClient.invalidateQueries({ queryKey: ["activities-all", serverId] });
+                queryClient.refetchQueries({ queryKey: ["activities-all", serverId] });
                 queryClient.invalidateQueries({ queryKey: ["activities"] });
               }}
               onCancel={() => setShowAddActivity(false)}
@@ -411,6 +415,7 @@ export function ServerBossesActivitiesTab() {
           </div>
         )}
       </section>
+      )}
 
       {/* Delete confirmation dialog */}
       {deleteTarget && (

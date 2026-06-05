@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { fetchAllServers, fetchAllUsers, fetchAuditLog, fetchServerStats, fetchDatabaseStats, fetchPlanUsage, fetchCronStatus, restoreServer, supabase } from "@/lib/supabase";
@@ -13,9 +13,9 @@ import { version } from "../../package.json";
 
 export function AdminPanelView() {
   const [tab, setTab] = useState<"servers" | "users" | "audit" | "games" | "infra" | "database" | "plan" | "cron" | "deleted">("infra");
-  const { setCurrentServer } = useServer();
+  const { setCurrentServer, currentServer } = useServer();
   const { userRole, user, signOut } = useAuth();
-  const { timezone, setTimezone } = useUserTimezone();
+  const { timezone, setTimezone } = useUserTimezone(currentServer?.timezone);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [expandedUser, setExpandedUser] = useState<string | null>(null);
@@ -35,6 +35,7 @@ export function AdminPanelView() {
   const [restoreInput, setRestoreInput] = useState("");
   const [restoring, setRestoring] = useState(false);
   const navigate = useNavigate();
+  const logScrollRef = useRef<HTMLDivElement>(null);
   const [maintenance, setMaintenance] = useState(false);
   const now = new Date();
   const [maintEndDate, setMaintEndDate] = useState(`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`);
@@ -114,6 +115,13 @@ export function AdminPanelView() {
     refetchInterval: 5_000,
     enabled: userRole === "admin" && tab === "infra",
   });
+
+  // Auto-scroll terminal to top (latest logs first) when new logs arrive
+  useEffect(() => {
+    if (logScrollRef.current) {
+      logScrollRef.current.scrollTop = 0;
+    }
+  }, [botLogs]);
 
   const { data: deletedServers = [], isLoading: deletedLoading, refetch: refetchDeleted } = useQuery({
     queryKey: ["admin", "deleted"],
@@ -444,7 +452,7 @@ export function AdminPanelView() {
                             onClick={(e) => {
                               e.stopPropagation();
                               setCurrentServer({ id: s.id, name: s.name, owner_id: s.owner_id, invite_code: s.id?.substring(0, 8) ?? "", created_at: s.created_at, role: "owner" });
-                              navigate("/");
+                              queueMicrotask(() => navigate("/"));
                             }}
                             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-[#3f3f46] text-[#d4d4d8] hover:bg-[#18181b] hover:border-[#52525b] transition"
                           >
@@ -1073,6 +1081,39 @@ export function AdminPanelView() {
       {/* Infra Tab */}
       {tab === "infra" && (
         <div className="space-y-4">
+          <div className="bg-[#0a0a0a] border border-[#1a1a1a] rounded-xl overflow-hidden shadow-inner">
+            {/* Terminal header */}
+            <div className="flex items-center gap-1.5 px-3 py-2 bg-[#0d0d0d] border-b border-[#1a1a1a]">
+              <span className="w-2.5 h-2.5 rounded-full bg-[#ff5f57]"></span>
+              <span className="w-2.5 h-2.5 rounded-full bg-[#febc2e]"></span>
+              <span className="w-2.5 h-2.5 rounded-full bg-[#28c840]"></span>
+              <span className="text-[10px] text-[#52525b] ml-2 font-mono">bot-logs — raidscout-bot</span>
+              <div className="flex-1" />
+              <button onClick={() => refetchLogs()} className="p-0.5 rounded text-[#52525b] hover:text-[#a1a1aa] transition" title="Refresh">
+                <RefreshCw className="w-3 h-3" />
+              </button>
+            </div>
+            {/* Terminal body */}
+            <div ref={logScrollRef} className="h-96 overflow-y-auto font-mono text-[11px] leading-relaxed p-2">
+              {logsLoading ? (
+                <div className="flex justify-center py-6"><Loader2 className="w-4 h-4 text-[#52525b] animate-spin" /></div>
+              ) : !botLogs?.logs?.length ? (
+                <p className="text-[#3a3a3a] px-2 py-6 text-center select-none">No logs yet — waiting for bot events...</p>
+              ) : (
+                botLogs.logs.map((l: any, i: number) => (
+                  <div key={i} className="flex gap-1.5 py-[1px] hover:bg-[#0d0d0d]">
+                    <span className="text-[#404040] shrink-0 w-[60px] sm:w-[85px] select-none">{l.ts ? new Date(l.ts).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", second: "2-digit", timeZone: timezone }) : "--:--:--"}</span>
+                    <span className={`shrink-0 w-10 text-right select-none ${
+                      l.level === "error" ? "text-[#ff5f57]" : l.level === "warn" ? "text-[#febc2e]" : "text-[#52525b]"
+                    }`}>{l.level}</span>
+                    <span className={`truncate ${
+                      l.level === "error" ? "text-[#ff5f57]" : l.level === "warn" ? "text-[#febc2e]" : "text-[#a1a1aa]"
+                    }`}>{l.msg}</span>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
           <div className="flex items-center justify-between">
             <h4 className="text-sm font-semibold text-[#fafafa]">Bot Status</h4>
             <button onClick={() => refetchBot()} className="p-1 rounded text-[#a1a1aa] hover:text-[#fafafa] transition" title="Refresh">
@@ -1141,41 +1182,6 @@ export function AdminPanelView() {
                 </div>
               </div>
               <p className="text-[10px] text-[#52525b]">Auto-refreshes every 15s.</p>
-              <div className="bg-[#18181b] border border-[#27272a] rounded-xl overflow-hidden">
-                <div className="flex items-center justify-between px-3 sm:px-4 py-2 border-b border-[#27272a]">
-                  <h5 className="text-xs font-semibold text-[#d4d4d8]">Recent Logs</h5>
-                  <button onClick={() => refetchLogs()} className="p-1 rounded text-[#a1a1aa] hover:text-[#fafafa] transition" title="Refresh logs">
-                    <RefreshCw className="w-3 h-3" />
-                  </button>
-                </div>
-                <div className="max-h-64 overflow-y-auto font-mono text-[10px] leading-relaxed">
-                  {logsLoading ? (
-                    <div className="flex justify-center py-6"><Loader2 className="w-4 h-4 text-[#71717a] animate-spin" /></div>
-                  ) : !botLogs?.logs?.length ? (
-                    <p className="text-[#52525b] px-4 py-6 text-center">No logs yet.</p>
-                  ) : (
-                    botLogs.logs.map((l: any, i: number) => (
-                      <div key={i} className={`px-2 sm:px-4 py-0.5 border-b border-[#27272a]/50 flex gap-1 sm:gap-2 ${
-                        l.level === "error" ? "bg-[#18181b]" : l.level === "warn" ? "bg-[#18181b]" : ""
-                      }`}>
-                        <span className="text-[#52525b] shrink-0 w-[55px] sm:w-[85px] text-[9px] sm:text-[10px]">{l.ts?.slice(11, 19)}</span>
-                        <span className={`shrink-0 w-5 sm:w-8 text-right text-[9px] sm:text-[10px] ${
-                          l.level === "error" ? "text-[#f87171]" : l.level === "warn" ? "text-[#a1a1aa]" : "text-[#71717a]"
-                        }`}>{l.level}</span>
-                        <span className={`truncate text-[9px] sm:text-[10px] ${
-                          l.level === "error" ? "text-[#fca5a5]" : l.level === "warn" ? "text-[#d4d4d8]" : "text-[#a1a1aa]"
-                        }`}>{l.msg}</span>
-                      </div>
-                    ))
-                  )}
-                </div>
-                {botLogs?.logs?.length > 0 && (
-                  <div className="px-4 py-1.5 border-t border-[#27272a] text-[10px] text-[#52525b]">
-                    Showing {botLogs.logs.length} of {botLogs.total} buffered logs
-                  </div>
-                )}
-              </div>
-
               {/* Maintenance Mode */}
               <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-3 sm:p-4 space-y-3">
                 <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:justify-between">

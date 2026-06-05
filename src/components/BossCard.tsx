@@ -49,7 +49,7 @@ interface BossCardProps {
 export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, onCriticalSpawn, onSpawned, compact = false, multiMode = false, selected = false, onToggleSelect, ownerGuildName, ownerGuildId, rotationGuilds, rotationCurrentIndex, rotationMode, onSetRotation, viewerCanEdit, viewerCanMarkDied, hasGuilds, justKilled, activity, onFinishActivity, onEditActivityTime }: BossCardProps) {
   const { isViewer } = useAuth();
   const { currentServer } = useServer();
-  const { timezone: tz } = useUserTimezone();
+  const { timezone: tz } = useUserTimezone(currentServer?.timezone);
   const [showModal, setShowModal] = useState(false);
   const [showEditSpawnModal, setShowEditSpawnModal] = useState(false);
   const [editSpawnDate, setEditSpawnDate] = useState("");

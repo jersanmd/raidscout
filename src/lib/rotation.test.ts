@@ -97,9 +97,9 @@ describe("getOwnerGuildName — rotation (per-kill)", () => {
   it("returns first guild when rotation_counter is 1", () => {
     const boss = makeBoss({ id: "b1", rotation_counter: 1 });
     const bg = [
-      makeBossGuild("b1", "g1", 0, "rotation"),
-      makeBossGuild("b1", "g2", 1, "rotation"),
-      makeBossGuild("b1", "g3", 2, "rotation"),
+      makeBossGuild("b1", "g1", 1, "rotation"),
+      makeBossGuild("b1", "g2", 2, "rotation"),
+      makeBossGuild("b1", "g3", 3, "rotation"),
     ];
     const result = getOwnerGuildName("b1", bg, guilds, [], [makeSpawn(boss)]);
     expect(result).toBe("Alpha");
@@ -108,9 +108,9 @@ describe("getOwnerGuildName — rotation (per-kill)", () => {
   it("returns second guild when rotation_counter is 2", () => {
     const boss = makeBoss({ id: "b1", rotation_counter: 2 });
     const bg = [
-      makeBossGuild("b1", "g1", 0, "rotation"),
-      makeBossGuild("b1", "g2", 1, "rotation"),
-      makeBossGuild("b1", "g3", 2, "rotation"),
+      makeBossGuild("b1", "g1", 1, "rotation"),
+      makeBossGuild("b1", "g2", 2, "rotation"),
+      makeBossGuild("b1", "g3", 3, "rotation"),
     ];
     const result = getOwnerGuildName("b1", bg, guilds, [], [makeSpawn(boss)]);
     expect(result).toBe("Beta");
@@ -119,8 +119,8 @@ describe("getOwnerGuildName — rotation (per-kill)", () => {
   it("wraps counter > length", () => {
     const boss = makeBoss({ id: "b1", rotation_counter: 5 });
     const bg = [
-      makeBossGuild("b1", "g1", 0, "rotation"),
-      makeBossGuild("b1", "g2", 1, "rotation"),
+      makeBossGuild("b1", "g1", 1, "rotation"),
+      makeBossGuild("b1", "g2", 2, "rotation"),
     ];
     const result = getOwnerGuildName("b1", bg, guilds, [], [makeSpawn(boss)]);
     expect(result).toBe("Alpha"); // 5 mod 2 = 1 → idx 1 → Beta? No: safeMod(5-1, 2) = safeMod(4,2) = 0 → Alpha
@@ -129,8 +129,8 @@ describe("getOwnerGuildName — rotation (per-kill)", () => {
   it("handles counter = 0 gracefully (wraps to last)", () => {
     const boss = makeBoss({ id: "b1", rotation_counter: 0 });
     const bg = [
-      makeBossGuild("b1", "g1", 0, "rotation"),
-      makeBossGuild("b1", "g2", 1, "rotation"),
+      makeBossGuild("b1", "g1", 1, "rotation"),
+      makeBossGuild("b1", "g2", 2, "rotation"),
     ];
     const result = getOwnerGuildName("b1", bg, guilds, [], [makeSpawn(boss)]);
     expect(result).toBe("Beta"); // safeMod(-1, 2) = 1 → Beta
@@ -166,8 +166,8 @@ describe("getOwnerGuildName — daily", () => {
       makeBossGuild("b1", "g1", 0, "daily"),
       makeBossGuild("b1", "g2", 1, "daily"),
     ];
-    // Killed at 2am, respawns at 12pm same day
-    const death = makeDeath("b1", new Date(2026, 4, 23, 2, 0, 0), "g1");
+    // Killed at 2am UTC, respawns at 12pm UTC same day
+    const death = makeDeath("b1", new Date(Date.UTC(2026, 4, 23, 2, 0, 0)), "g1");
     const result = getOwnerGuildName("b1", bg, guilds, [death], [makeSpawn(boss)]);
     expect(result).toBe("Alpha"); // Same day → same guild
   });
@@ -178,8 +178,8 @@ describe("getOwnerGuildName — daily", () => {
       makeBossGuild("b1", "g1", 0, "daily"),
       makeBossGuild("b1", "g2", 1, "daily"),
     ];
-    // Killed at 8pm May 23, respawns at 6am May 24 (next day)
-    const death = makeDeath("b1", new Date(2026, 4, 23, 20, 0, 0), "g1");
+    // Killed at 8pm UTC May 23, respawns at 6am UTC May 24 (next day)
+    const death = makeDeath("b1", new Date(Date.UTC(2026, 4, 23, 20, 0, 0)), "g1");
     const result = getOwnerGuildName("b1", bg, guilds, [death], [makeSpawn(boss)]);
     expect(result).toBe("Beta"); // Next day → next guild
   });
@@ -194,7 +194,7 @@ describe("getOwnerGuildName — daily", () => {
     // Last guild was g2 → should wrap to g1
     // Actually we need to simulate that g2 was the last killer
     // Let me just set a death with g1 as killer on a different day
-    const death = makeDeath("b1", new Date(2026, 4, 22, 12, 0, 0), "g2");
+    const death = makeDeath("b1", new Date(Date.UTC(2026, 4, 22, 12, 0, 0)), "g2");
     const result = getOwnerGuildName("b1", bg, guilds, [death], [makeSpawn(boss)]);
     expect(result).toBe("Alpha"); // g2 → advance to g1
   });
@@ -210,14 +210,14 @@ describe("getOwnerGuildName — schedule", () => {
   it("returns guild matching current day of week", () => {
     const boss = makeBoss({ id: "b1", spawn_type: "fixed_schedule", respawn_hours: null });
     const bg = [
-      makeBossGuild("b1", "g1", 0, "schedule", 5), // Saturday
+      makeBossGuild("b1", "g1", 0, "schedule", 5), // Friday
       makeBossGuild("b1", "g2", 1, "schedule", 0), // Sunday
     ];
-    // May 23, 2026 is a Friday (day 5)
-    const spawnDate = new Date(2026, 4, 23, 12, 0, 0); // Friday
+    // Use dayOfWeek override to avoid timezone dependency
     const result = getOwnerGuildName(
       "b1", bg, guilds, [],
-      [{ boss, nextSpawn: spawnDate, status: "countdown", deathRecord: null }],
+      [{ boss, nextSpawn: new Date(), status: "countdown", deathRecord: null }],
+      5, // Friday
     );
     expect(result).toBe("Alpha"); // Friday → Alpha
   });
@@ -247,9 +247,9 @@ describe("getRotationInfo — per-kill", () => {
   it("returns current index 0 for counter=1 with 3 guilds", () => {
     const boss = makeBoss({ id: "b1", rotation_counter: 1 });
     const bg = [
-      makeBossGuild("b1", "g1", 0, "rotation"),
-      makeBossGuild("b1", "g2", 1, "rotation"),
-      makeBossGuild("b1", "g3", 2, "rotation"),
+      makeBossGuild("b1", "g1", 1, "rotation"),
+      makeBossGuild("b1", "g2", 2, "rotation"),
+      makeBossGuild("b1", "g3", 3, "rotation"),
     ];
     const result = getRotationInfo("b1", bg, guilds, [], [makeSpawn(boss)]);
     expect(result).not.toBeNull();
@@ -261,8 +261,8 @@ describe("getRotationInfo — per-kill", () => {
   it("returns current index 1 for counter=2", () => {
     const boss = makeBoss({ id: "b1", rotation_counter: 2 });
     const bg = [
-      makeBossGuild("b1", "g1", 0, "rotation"),
-      makeBossGuild("b1", "g2", 1, "rotation"),
+      makeBossGuild("b1", "g1", 1, "rotation"),
+      makeBossGuild("b1", "g2", 2, "rotation"),
     ];
     const result = getRotationInfo("b1", bg, guilds, [], [makeSpawn(boss)]);
     expect(result!.currentIndex).toBe(1);
@@ -292,7 +292,7 @@ describe("getRotationInfo — daily", () => {
       makeBossGuild("b1", "g1", 0, "daily"),
       makeBossGuild("b1", "g2", 1, "daily"),
     ];
-    const death = makeDeath("b1", new Date(2026, 4, 23, 2, 0, 0), "g1");
+    const death = makeDeath("b1", new Date(Date.UTC(2026, 4, 23, 2, 0, 0)), "g1");
     const result = getRotationInfo("b1", bg, guilds, [death], [makeSpawn(boss)]);
     expect(result!.currentIndex).toBe(0); // Same day → stays on g1
   });
@@ -303,7 +303,7 @@ describe("getRotationInfo — daily", () => {
       makeBossGuild("b1", "g1", 0, "daily"),
       makeBossGuild("b1", "g2", 1, "daily"),
     ];
-    const death = makeDeath("b1", new Date(2026, 4, 23, 20, 0, 0), "g1");
+    const death = makeDeath("b1", new Date(Date.UTC(2026, 4, 23, 20, 0, 0)), "g1");
     const result = getRotationInfo("b1", bg, guilds, [death], [makeSpawn(boss)]);
     expect(result!.currentIndex).toBe(1); // Next day → advance to g2
   });
@@ -328,7 +328,7 @@ describe("getOwnerGuildName — edge cases", () => {
 
   it("handles boss with no rotation_counter (defaults to 1)", () => {
     const boss = makeBoss({ id: "b1", rotation_counter: undefined });
-    const bg = [makeBossGuild("b1", "g1", 0, "rotation")];
+    const bg = [makeBossGuild("b1", "g1", 1, "rotation")];
     const result = getOwnerGuildName("b1", bg, [makeGuild("g1", "Alpha")], [], [makeSpawn(boss)]);
     expect(result).toBe("Alpha");
   });
@@ -339,8 +339,8 @@ describe("getOwnerGuildName — edge cases", () => {
       makeBossGuild("b1", "g1", 0, "daily"),
       makeBossGuild("b1", "g2", 1, "daily"),
     ];
-    // Death from yesterday (different day) but no owner_guild_id
-    const death = makeDeath("b1", new Date(2026, 4, 22, 20, 0, 0), undefined as any);
+    // Death from yesterday (different UTC day) but no owner_guild_id
+    const death = makeDeath("b1", new Date(Date.UTC(2026, 4, 22, 20, 0, 0)), undefined as any);
     const result = getOwnerGuildName("b1", bg, [makeGuild("g1", "Alpha"), makeGuild("g2", "Beta")], [death], [makeSpawn(boss)]);
     expect(result).toBe("Beta"); // Advances from first guild idx=1
   });

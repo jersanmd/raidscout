@@ -3,10 +3,12 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { useServer } from "@/contexts/ServerContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { deleteServer, transferServerOwnership, removeServerModerator, addServerModerator, supabase, fetchServerMembers, type ServerMember, fetchGuilds, createGuild, updateGuildName, deleteGuild, fetchBossGuilds, setBossGuilds, fetchAllBossGuildsForServer, upsertBossGuildPoints, batchSetGuildSalary, fetchBosses, setBossPoints, setBossSalary, notifyDiscord, fetchModeratorPermissions, updateModeratorPermissions, updateThreadConfig, fetchPointRules, createPointRule, updatePointRule, deletePointRule, fetchBossAssists, toggleBossAssist, type ModeratorPermissions, DEFAULT_MODERATOR_PERMISSIONS } from "@/lib/supabase";
-import type { Guild, BossGuild, Boss, PointRule, BossAssist } from "@/types";
-import { Loader2, Trash2, Crown, ArrowLeft, Server, Check, Key, Copy, RefreshCw, Plus, LogIn, Users, Bell, Link, Settings, AlertTriangle, X, Shield, Pencil, Swords, ChevronUp, ChevronDown, CheckSquare, Square, Eye, EyeOff, UserPlus, Minus, Trophy, Send, Save, MessageCircle, Zap, Calendar, Search } from "lucide-react";
+import { deleteServer, transferServerOwnership, removeServerModerator, addServerModerator, supabase, fetchServerMembers, type ServerMember, fetchGuilds, createGuild, updateGuildName, deleteGuild, fetchBossGuilds, setBossGuilds, fetchAllBossGuildsForServer, upsertBossGuildPoints, batchSetGuildSalary, fetchBosses, setBossPoints, setBossSalary, notifyDiscord, fetchModeratorPermissions, updateModeratorPermissions, updateThreadConfig, fetchPointRules, createPointRule, updatePointRule, deletePointRule, fetchBossAssists, toggleBossAssist, fetchAllActivitiesForServer, fetchAllActivityGuildsForServer, upsertActivityGuildPoints, fetchActivityAssists, toggleActivityAssist, type ModeratorPermissions, DEFAULT_MODERATOR_PERMISSIONS } from "@/lib/supabase";
+import type { Guild, BossGuild, Boss, PointRule, BossAssist, Activity, ActivityGuild, ActivityAssist } from "@/types";
+import { Loader2, Trash2, Crown, ArrowLeft, Server, Check, Key, Copy, RefreshCw, Plus, LogIn, Users, Bell, Link, Settings, AlertTriangle, X, Shield, Pencil, Swords, ChevronUp, ChevronDown, CheckSquare, Square, Eye, EyeOff, UserPlus, Minus, Trophy, Send, Save, MessageCircle, Zap, Calendar, Search, Skull } from "lucide-react";
 import { ServerBossesActivitiesTab } from "@/components/ServerBossesActivitiesTab";
+import { ActivityGuildsTab } from "@/components/server/ActivityGuildsTab";
+import { ActivityPointsMatrix } from "@/components/server/ActivityPointsMatrix";
 import { CreateServerModal } from "@/components/CreateServerModal";
 import { useToast } from "@/contexts/ToastContext";
 
@@ -97,6 +99,20 @@ export function ServerSettingsView() {
         .then(setGuilds)
         .catch(() => setGuilds([]))
         .finally(() => setGuildsLoading(false));
+      // Fetch activities + activity guild points
+      setActivitiesLoading(true);
+      Promise.all([
+        fetchAllActivitiesForServer(currentServer.id),
+        fetchAllActivityGuildsForServer(currentServer.id),
+      ]).then(([a, ag]) => {
+        setActivities(a);
+        setAllActivityGuilds(ag);
+      }).catch(() => { setActivities([]); setAllActivityGuilds([]); })
+        .finally(() => setActivitiesLoading(false));
+      // Fetch activity assists
+      fetchActivityAssists(currentServer.id)
+        .then(setActivityAssists)
+        .catch(() => setActivityAssists([]));
       // Fetch bosses + guild assignments + boss points matrix
       setBossGuildsLoading(true);
       Promise.all([
@@ -160,6 +176,10 @@ export function ServerSettingsView() {
   const [pendingTimezone, setPendingTimezone] = useState<string | null>(null);
   const [members, setMembers] = useState<ServerMember[]>([]);
   const [membersLoading, setMembersLoading] = useState(false);
+  const [activities, setActivities] = useState<Activity[]>([]);
+  const [activitiesLoading, setActivitiesLoading] = useState(false);
+  const [allActivityGuilds, setAllActivityGuilds] = useState<ActivityGuild[]>([]);
+  const [activityAssists, setActivityAssists] = useState<ActivityAssist[]>([]);
   const [webhookUrl, setWebhookUrl] = useState(currentServer?.discord_webhook_url ?? "");
   const [savingWebhook, setSavingWebhook] = useState(false);
   const [notifPrefix, setNotifPrefix] = useState(currentServer?.notification_prefix ?? "@everyone");
@@ -186,7 +206,7 @@ export function ServerSettingsView() {
   const [savingPerms, setSavingPerms] = useState<string | null>(null); // user_id being saved
   const [searchParams] = useSearchParams();
   const tabParam = searchParams.get("tab");
-  const initialTab = (tabParam === "general" || tabParam === "members" || tabParam === "integrations" || tabParam === "danger" || tabParam === "boss-points" || tabParam === "bosses-activities" || tabParam === "account")
+  const initialTab = (tabParam === "general" || tabParam === "members" || tabParam === "integrations" || tabParam === "danger" || tabParam === "boss-points" || tabParam === "bosses" || tabParam === "activities" || tabParam === "activity-points" || tabParam === "activity-guilds" || tabParam === "boss-guilds" || tabParam === "guilds" || tabParam === "account")
     ? tabParam
     : "general";
   const [tab, setTab] = useState<string>(initialTab);
@@ -522,8 +542,13 @@ export function ServerSettingsView() {
     }
     setExpandedModPerms(userId);
     if (!modPermsData[userId] && currentServer) {
-      const all = await fetchModeratorPermissions(currentServer.id).catch(() => ({} as Record<string, ModeratorPermissions>));
-      setModPermsData(prev => ({ ...prev, [userId]: all[userId] ?? { ...DEFAULT_MODERATOR_PERMISSIONS } }));
+      try {
+        const all = await fetchModeratorPermissions(currentServer.id);
+        setModPermsData(prev => ({ ...prev, [userId]: all[userId] ?? { ...DEFAULT_MODERATOR_PERMISSIONS } }));
+      } catch (err: any) {
+        toast("error", err?.message ?? "Failed to load permissions");
+        setModPermsData(prev => ({ ...prev, [userId]: { ...DEFAULT_MODERATOR_PERMISSIONS } }));
+      }
     }
   };
 
@@ -954,8 +979,8 @@ export function ServerSettingsView() {
 
       {/* Mobile tab bar */}
       <div className="sm:hidden flex flex-wrap items-center gap-1 pb-1 mt-2">
-        {(["general","guilds","boss-guilds","boss-points","members","integrations","bosses-activities","account",...(isOwner?["danger"]:[])] as string[]).map((key) => {
-          const labels: Record<string,string> = {general:"General",guilds:"Guilds","boss-guilds":"Boss Guilds","boss-points":"Points",members:"Members","bosses-activities":"Bosses",integrations:"Integrations",account:"Account",danger:"Danger"};
+        {(["general","guilds","bosses","boss-points","boss-guilds","activities","activity-points","activity-guilds","members","integrations","account",...(isOwner?["danger"]:[])] as string[]).map((key) => {
+          const labels: Record<string,string> = {general:"General",guilds:"Guilds",bosses:"Bosses","boss-points":"Boss Points","boss-guilds":"Boss Guild Assignments",activities:"Activities","activity-points":"Activity Points","activity-guilds":"Activity Guild Assignments",members:"Moderators",integrations:"Integrations",account:"Account",danger:"Danger"};
           return <button key={key} onClick={() => setTab(key)}
             className={`shrink-0 px-2.5 py-1 rounded-md text-[11px] font-medium transition whitespace-nowrap ${tab===key?"bg-[#27272a] text-[#fafafa]":"text-[#71717a] hover:text-[#d4d4d8]"}`}>
             {labels[key]}
@@ -981,9 +1006,9 @@ export function ServerSettingsView() {
           </div>
           {showCreateModal && <CreateServerModal onClose={() => setShowCreateModal(false)} />}
           <nav className="bg-[#18181b] border border-[#27272a] rounded-xl p-1 space-y-0.5">
-            {(["general","guilds","boss-guilds","boss-points","members","integrations","bosses-activities","account",...(isOwner?["danger"]:[])] as string[]).map((key) => {
-              const icons: Record<string,React.ComponentType<{className?:string}>> = {general:Settings,guilds:Shield,"boss-guilds":Swords,"boss-points":Trophy,members:Users,"bosses-activities":Calendar,integrations:Bell,account:Key,danger:AlertTriangle};
-              const labels: Record<string,string> = {general:"General",guilds:"Guilds","boss-guilds":"Boss Guilds","boss-points":"Boss Points",members:"Members","bosses-activities":"Bosses/Activities",integrations:"Integrations",account:"Account",danger:"Danger"};
+            {(["general","guilds","bosses","boss-points","boss-guilds","activities","activity-points","activity-guilds","members","integrations","account",...(isOwner?["danger"]:[])] as string[]).map((key) => {
+              const icons: Record<string,React.ComponentType<{className?:string}>> = {general:Settings,guilds:Shield,bosses:Skull,"boss-points":Trophy,"boss-guilds":Swords,activities:Calendar,"activity-points":Trophy,"activity-guilds":Calendar,members:Users,integrations:Bell,account:Key,danger:AlertTriangle};
+              const labels: Record<string,string> = {general:"General",guilds:"Guilds",bosses:"Bosses","boss-points":"Boss Points","boss-guilds":"Boss Guild Assignments",activities:"Activities","activity-points":"Activity Points","activity-guilds":"Activity Guild Assignments",members:"Moderators",integrations:"Integrations",account:"Account",danger:"Danger"};
               const Icon = icons[key];
               return <button key={key} onClick={() => setTab(key)}
                 className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition ${tab===key?"bg-[#27272a] text-[#fafafa]":"text-[#a1a1aa] hover:text-[#fafafa] hover:bg-[#27272a]/50"}`}>
@@ -1737,6 +1762,8 @@ export function ServerSettingsView() {
         </div>
       )}
 
+      {/* Activity Guilds Tab */}
+      {tab === "activity-guilds" && <ActivityGuildsTab />}
 
       {/* Boss Points Tab */}
       {tab === "boss-points" && (
@@ -1934,7 +1961,68 @@ export function ServerSettingsView() {
               }
             }}
           />
+
         </>
+      )}
+
+      {/* Activity Points Tab */}
+      {tab === "activity-points" && (
+        <div className="space-y-4">
+          <section className="bg-[#09090b] border border-[#27272a] rounded-xl p-3 sm:p-4 space-y-3">
+            <h3 className="text-xs font-semibold text-[#a1a1aa] uppercase tracking-wider flex items-center gap-1.5">
+              <Calendar className="w-3 h-3" /> Activities ({activities.length})
+            </h3>
+            {activitiesLoading ? (
+              <div className="flex justify-center py-3"><Loader2 className="w-4 h-4 text-[#71717a] animate-spin" /></div>
+            ) : (
+              <ActivityPointsMatrix
+                activities={activities}
+                guilds={guilds}
+                allActivityGuilds={allActivityGuilds}
+                activityAssists={activityAssists}
+                savingCell={savingCell}
+                onPointsChange={async (activityId, guildId, points) => {
+                  const cellKey = `${activityId}-${guildId}`;
+                  setSavingCell(cellKey);
+                  try {
+                    await upsertActivityGuildPoints(activityId, guildId, points, undefined);
+                    setAllActivityGuilds(prev => {
+                      const existing = prev.find(ag => ag.activity_id === activityId && ag.guild_id === guildId);
+                      if (existing) return prev.map(ag => ag.activity_id === activityId && ag.guild_id === guildId ? { ...ag, points } : ag);
+                      return [...prev, { id: "", activity_id: activityId, guild_id: guildId, sort_order: null, day_of_week: null, mode: "rotation", points } as ActivityGuild];
+                    });
+                  } catch { /* ignore */ }
+                  setSavingCell(null);
+                }}
+                onSalaryChange={async (activityId, guildId, hasSalary) => {
+                  const cellKey = `${activityId}-${guildId}`;
+                  setSavingCell(cellKey);
+                  try {
+                    await upsertActivityGuildPoints(activityId, guildId, undefined, hasSalary);
+                    setAllActivityGuilds(prev => {
+                      const existing = prev.find(ag => ag.activity_id === activityId && ag.guild_id === guildId);
+                      if (existing) return prev.map(ag => ag.activity_id === activityId && ag.guild_id === guildId ? { ...ag, has_salary: hasSalary } : ag);
+                      return [...prev, { id: "", activity_id: activityId, guild_id: guildId, sort_order: null, day_of_week: null, mode: "rotation", has_salary: hasSalary } as ActivityGuild];
+                    });
+                  } catch { /* ignore */ }
+                  setSavingCell(null);
+                }}
+                onAssistToggle={async (activityId, ownerGuildId, assistantGuildId) => {
+                  try {
+                    const added = await toggleActivityAssist(activityId, ownerGuildId, assistantGuildId, currentServer!.id);
+                    if (added) {
+                      setActivityAssists(prev => [...prev, { id: "", activity_id: activityId, owner_guild_id: ownerGuildId, assistant_guild_id: assistantGuildId, server_id: currentServer!.id, created_at: new Date().toISOString() } as ActivityAssist]);
+                    } else {
+                      setActivityAssists(prev => prev.filter(a => !(a.activity_id === activityId && a.owner_guild_id === ownerGuildId && a.assistant_guild_id === assistantGuildId)));
+                    }
+                  } catch (err: any) {
+                    toast("error", err?.message ?? "Failed to toggle assist");
+                  }
+                }}
+              />
+            )}
+          </section>
+        </div>
       )}
 
       {/* Members Tab */}
@@ -2405,10 +2493,11 @@ export function ServerSettingsView() {
         </div>
       )}
 
-      {/* Bosses/Activities Tab */}
-      {tab === "bosses-activities" && (
-        <ServerBossesActivitiesTab />
-      )}
+      {/* Bosses Tab */}
+      {tab === "bosses" && <ServerBossesActivitiesTab mode="bosses" />}
+
+      {/* Activities Tab */}
+      {tab === "activities" && <ServerBossesActivitiesTab mode="activities" />}
 
       {/* Account Tab */}
       {tab === "account" && (

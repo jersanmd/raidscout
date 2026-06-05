@@ -12,18 +12,19 @@ export function detectTimezone(): string {
   }
 }
 
-/** Get the stored or detected timezone */
-export function getUserTimezone(): string {
+/** Get the stored timezone, or fall back to the provided default (browser detection if none) */
+export function getUserTimezone(fallback?: string): string {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) return stored;
   } catch { /* localStorage unavailable */ }
-  return detectTimezone();
+  return fallback || detectTimezone();
 }
 
-/** Save and retrieve the user's preferred timezone */
-export function useUserTimezone() {
-  const [timezone, setTimezoneState] = useState(() => getUserTimezone());
+/** Save and retrieve the user's preferred timezone.
+ *  @param defaultTimezone — fallback when nothing is saved (defaults to browser detection) */
+export function useUserTimezone(defaultTimezone?: string) {
+  const [timezone, setTimezoneState] = useState(() => getUserTimezone(defaultTimezone));
 
   // Listen for changes from other instances (same tab + cross tab)
   useEffect(() => {

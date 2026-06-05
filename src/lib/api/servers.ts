@@ -147,13 +147,25 @@ export const DEFAULT_MODERATOR_PERMISSIONS: ModeratorPermissions = {
 };
 
 export async function fetchModeratorPermissions(serverId: string): Promise<Record<string, ModeratorPermissions>> {
-  const { data, error } = await supabase
-    .from("moderator_permissions")
-    .select("*")
-    .eq("server_id", serverId);
-  if (error) throw error;
+  // Try RPC first (bypasses RLS), fall back to direct query
+  let rows: any[] | null = null;
+  
+  try {
+    const { data, error } = await supabase.rpc("fetch_moderator_permissions", { p_server_id: serverId });
+    if (!error && data) rows = data as any[];
+  } catch { /* RPC not deployed — fall through */ }
+  
+  if (!rows) {
+    const { data, error } = await supabase
+      .from("moderator_permissions")
+      .select("*")
+      .eq("server_id", serverId);
+    if (error) throw error;
+    rows = (data as any[]) ?? [];
+  }
+  
   const result: Record<string, ModeratorPermissions> = {};
-  for (const row of (data as any[]) ?? []) {
+  for (const row of rows) {
     result[row.user_id] = {
       can_access_settings: row.can_access_settings,
       can_manage_guilds: row.can_manage_guilds,
@@ -181,10 +193,52 @@ export async function updateModeratorPermissions(
   userId: string,
   permissions: Partial<ModeratorPermissions>
 ): Promise<void> {
-  const { error } = await supabase
+  // Try RPC first (bypasses RLS), fall back to direct query
+  try {
+    const { error } = await supabase.rpc("upsert_moderator_permissions", {
+      p_server_id: serverId,
+      p_user_id: userId,
+      p_can_access_settings: permissions.can_access_settings ?? false,
+      p_can_manage_guilds: permissions.can_manage_guilds ?? false,
+      p_can_manage_viewer_key: permissions.can_manage_viewer_key ?? false,
+      p_can_change_timezone: permissions.can_change_timezone ?? false,
+      p_can_manage_boss_guilds: permissions.can_manage_boss_guilds ?? false,
+      p_can_manage_moderators: permissions.can_manage_moderators ?? false,
+      p_can_access_integrations: permissions.can_access_integrations ?? false,
+      p_can_edit_participants: permissions.can_edit_participants ?? false,
+      p_can_export_attendance: permissions.can_export_attendance ?? false,
+      p_can_manage_raid_members: permissions.can_manage_raid_members ?? false,
+      p_can_adjust_points: permissions.can_adjust_points ?? false,
+      p_can_record_death: permissions.can_record_death ?? false,
+      p_can_edit_death_records: permissions.can_edit_death_records ?? false,
+      p_can_set_spawn: permissions.can_set_spawn ?? false,
+      p_can_rotate_guilds: permissions.can_rotate_guilds ?? false,
+      p_can_announce_discord: permissions.can_announce_discord ?? false,
+    });
+    if (!error) return; // RPC succeeded
+  } catch { /* RPC not deployed — fall through */ }
+
+  // Fallback: check-then-insert-or-update via direct table access
+  const { data: existing } = await supabase
     .from("moderator_permissions")
-    .upsert({ server_id: serverId, user_id: userId, ...permissions }, { onConflict: "server_id,user_id" });
-  if (error) throw error;
+    .select("server_id")
+    .eq("server_id", serverId)
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (existing) {
+    const { error } = await supabase
+      .from("moderator_permissions")
+      .update(permissions)
+      .eq("server_id", serverId)
+      .eq("user_id", userId);
+    if (error) throw error;
+  } else {
+    const { error } = await supabase
+      .from("moderator_permissions")
+      .insert({ server_id: serverId, user_id: userId, ...permissions });
+    if (error) throw error;
+  }
 }
 
 // ── Viewer Toggles ──────────────────────────────────────────

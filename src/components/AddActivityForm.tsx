@@ -43,9 +43,7 @@ export function AddActivityForm({ gameId, gameSlug, serverId, onCreated, onCance
       if (isServerMode && serverId) {
         const sched = scheduleType === "fixed_schedule" && scheduleSlots.length > 0
           ? scheduleSlots.map(s => localSlotToUtc(s.day, s.time))
-          : (scheduleType === "fixed_hours" || scheduleType === "one_time")
-            ? `${startHours.padStart(2, "0")}:${startMinutes.padStart(2, "0")}`
-            : null;
+          : null;
         await createCustomActivity(serverId, {
           name: name.trim(),
           schedule_type: scheduleType,
@@ -73,6 +71,8 @@ export function AddActivityForm({ gameId, gameSlug, serverId, onCreated, onCance
       });
       }
       onCreated();
+    } catch (err: any) {
+      console.error("Activity creation failed:", err?.message || err?.code || err);
     } finally {
       setSaving(false);
     }

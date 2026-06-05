@@ -203,8 +203,8 @@ export function BossListView() {
 
   // Compute owner guild name for a boss
   const ownerGuildName = useCallback((bossId: string): string | undefined => {
-    return getOwnerGuildName(bossId, bossGuilds, guilds, deathRecords, spawns);
-  }, [bossGuilds, guilds, deathRecords, spawns]);
+    return getOwnerGuildName(bossId, bossGuilds, guilds, deathRecords, spawns, undefined, currentServer?.timezone);
+  }, [bossGuilds, guilds, deathRecords, spawns, currentServer?.timezone]);
 
   // Apply window + guild filter client-side — always keep alive & unknown bosses visible
   const filteredSpawns = useMemo(() => {
@@ -245,8 +245,8 @@ export function BossListView() {
 
   // Compute rotation info for a boss (guild names + current index)
   const bossRotationInfo = useCallback((bossId: string): { guilds: { name: string; color: { bg: string; text: string; border: string } }[]; currentIndex: number; mode: string } | null => {
-    return getRotationInfo(bossId, bossGuilds, guilds, deathRecords, spawns);
-  }, [bossGuilds, guilds, deathRecords, spawns]);
+    return getRotationInfo(bossId, bossGuilds, guilds, deathRecords, spawns, currentServer?.timezone);
+  }, [bossGuilds, guilds, deathRecords, spawns, currentServer?.timezone]);
 
   // Set boss rotation to a specific guild index
   const handleSetRotation = useCallback(async (bossId: string, targetIndex: number) => {

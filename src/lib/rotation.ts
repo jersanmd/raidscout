@@ -24,6 +24,8 @@ export function getOwnerGuildName(
   spawns: SpawnInfo[],
   /** Optional: override day-of-week for schedule mode (0=Sun..6=Sat). Used by weekly grid. */
   dayOfWeek?: number,
+  /** Server timezone for daily rotation day-boundary calculation. Defaults to UTC. */
+  timezone?: string,
 ): string | undefined {
   const bgs = bossGuilds.filter(bg => bg.boss_id === bossId);
   if (bgs.length === 0) return undefined;
@@ -45,7 +47,7 @@ export function getOwnerGuildName(
     .filter(bg => bg.mode === "daily")
     .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
   if (dailyEntries.length > 0) {
-    const name = getDailyOwnerGuild(bossId, dailyEntries, guilds, deathRecords, spawns);
+    const name = getDailyOwnerGuild(bossId, dailyEntries, guilds, deathRecords, spawns, timezone || "UTC");
     if (name) return name;
     return guilds.find(g => g.id === dailyEntries[0].guild_id)?.name;
   }
@@ -76,6 +78,8 @@ export function getRotationInfo(
   guilds: Guild[],
   deathRecords: DeathRecord[],
   spawns: SpawnInfo[],
+  /** Server timezone for daily rotation day-boundary calculation. Defaults to UTC. */
+  timezone?: string,
 ): RotationInfo | null {
   const bgs = bossGuilds.filter(bg => bg.boss_id === bossId);
   if (bgs.length === 0) return null;
@@ -105,7 +109,7 @@ export function getRotationInfo(
     .filter(bg => bg.mode === "daily")
     .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
   if (dailyEntries.length > 1) {
-    const idx = getDailyRotationIndex(bossId, dailyEntries, deathRecords, adjustment, spawns);
+    const idx = getDailyRotationIndex(bossId, dailyEntries, deathRecords, adjustment, spawns, timezone || "UTC");
     return {
       guilds: dailyEntries.map(bg => ({
         name: guilds.find(g => g.id === bg.guild_id)?.name ?? "?",
@@ -133,6 +137,7 @@ function getDailyOwnerGuild(
   guilds: Guild[],
   deathRecords: DeathRecord[],
   spawns: SpawnInfo[],
+  timezone: string,
 ): string | undefined {
   const lastDeath = deathRecords
     .filter(dr => dr.boss_id === bossId && !(dr as any).is_initial_spawn)
@@ -147,8 +152,8 @@ function getDailyOwnerGuild(
   const deathDate = new Date(lastDeath.death_time);
   const spawnDate = new Date(deathDate.getTime() + respawnHours * 3600000);
 
-  // Same-day death + spawn → same guild keeps the boss
-  if (deathDate.toDateString() === spawnDate.toDateString()) {
+  // Same-day death + spawn → same guild keeps the boss (uses server timezone for day boundary)
+  if (deathDate.toLocaleDateString("en-CA", { timeZone: timezone }) === spawnDate.toLocaleDateString("en-CA", { timeZone: timezone })) {
     const lastGuildId = (lastDeath as any).owner_guild_id;
     return lastGuildId
       ? guilds.find(g => g.id === lastGuildId)?.name
@@ -176,6 +181,7 @@ function getDailyRotationIndex(
   deathRecords: DeathRecord[],
   adjustment: number,
   spawns: SpawnInfo[],
+  timezone: string,
 ): number {
   const lastDeath = deathRecords
     .filter(dr => dr.boss_id === bossId && !(dr as any).is_initial_spawn)
@@ -192,7 +198,7 @@ function getDailyRotationIndex(
     const deathDate = new Date(lastDeath.death_time);
     const spawnDate = new Date(deathDate.getTime() + respawnHours * 3600000);
 
-    if (deathDate.toDateString() === spawnDate.toDateString()) {
+    if (deathDate.toLocaleDateString("en-CA", { timeZone: timezone }) === spawnDate.toLocaleDateString("en-CA", { timeZone: timezone })) {
       // Same day — same guild keeps the boss
       idx = lastIdx;
     } else {
@@ -204,4 +210,55 @@ function getDailyRotationIndex(
   }
 
   return safeMod(idx, dailyEntries.length);
+}
+
+// ── Activity Guild Rotation ─────────────────────────────────
+
+import type { ActivityGuild } from "@/types";
+
+/**
+ * Get the guild(s) that own an activity based on rotation mode.
+ * Returns single guild name for rotation/daily/schedule, or string[] for "all" mode.
+ */
+export function getActivityOwnerGuild(
+  activityId: string,
+  activityGuilds: ActivityGuild[],
+  guilds: Guild[],
+  /** Number of completed instances for rotation mode */
+  instanceCount: number = 0,
+  /** Server timezone for daily mode day-boundary */
+  timezone: string = "UTC",
+): string | string[] | undefined {
+  const ags = activityGuilds.filter(ag => ag.activity_id === activityId);
+  if (ags.length === 0) return undefined;
+
+  const mode = ags[0].mode;
+
+  // ── All guilds ──
+  if (mode === "all") {
+    return ags.map(ag => guilds.find(g => g.id === ag.guild_id)?.name).filter(Boolean) as string[];
+  }
+
+  // ── Schedule mode ──
+  if (mode === "schedule") {
+    const now = new Date();
+    const dow = now.toLocaleString("en-US", { timeZone: timezone, weekday: "short" });
+    const dayMap: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+    const dayNum = dayMap[dow];
+    const match = ags.find(ag => ag.day_of_week === dayNum);
+    return match ? guilds.find(g => g.id === match.guild_id)?.name : undefined;
+  }
+
+  // ── Daily mode ──
+  if (mode === "daily") {
+    const entries = ags.sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+    const dayIndex = Math.floor(Date.now() / 86400000);
+    const idx = safeMod(dayIndex, entries.length);
+    return guilds.find(g => g.id === entries[idx].guild_id)?.name;
+  }
+
+  // ── Rotation mode (per finish) ──
+  const entries = ags.sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+  const idx = safeMod(instanceCount, entries.length);
+  return guilds.find(g => g.id === entries[idx].guild_id)?.name;
 }

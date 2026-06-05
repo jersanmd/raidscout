@@ -531,6 +531,7 @@ async function handleMessage(msg: any) {
         }),
       });
     }
+    cmdLog(cmd, "ok", `${bosses.length} bosses`);
   }
 
   // ── notifhere ────────────────────────────────────────
@@ -865,6 +866,7 @@ async function handleMessage(msg: any) {
     }).then(async (res) => {
       // Message stored for reference; underline feature removed
     });
+    cmdLog(cmd, "ok", `${upcoming.length} spawns`);
   }
 
   // ── killed <boss> [HH:MM] [yesterday|today] ──────────

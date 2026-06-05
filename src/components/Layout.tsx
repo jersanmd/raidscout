@@ -47,7 +47,7 @@ function playAlertSound() {
 export function Layout() {
   const { user, signOut, userRole, isViewer, viewerServerName } = useAuth();
   const { servers, currentServer, setCurrentServer } = useServer();
-  const { timezone, setTimezone } = useUserTimezone();
+  const { timezone, setTimezone } = useUserTimezone(currentServer?.timezone);
   const [showCreate, setShowCreate] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);

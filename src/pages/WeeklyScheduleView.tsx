@@ -31,7 +31,7 @@ import { useActivities } from "@/hooks/useActivities";
 import type { WeekDaySpawns, SpawnInfo, Boss, BossGuild, Guild } from "@/types";
 
 export function WeeklyScheduleView() {
-  const { timezone: userTz } = useUserTimezone();
+  const { timezone: userTz } = useUserTimezone(currentServer?.timezone);
   const { data: bosses = [], isLoading: bossesLoading, refetch: refetchBosses } = useBosses();
   const { data: deathRecords = [], isLoading: recordsLoading, refetch: refetchDeaths } = useDeathRecords();
   const { activities = [], activityInstances = [] } = useActivities();
@@ -153,8 +153,8 @@ export function WeeklyScheduleView() {
   })), [bosses]);
 
   const getOwnerGuildName = useCallback((bossId: string, dayOfWeek?: number): string | undefined => {
-    return getOwnerGuildNameLib(bossId, bossGuilds, guilds, deathRecords, spawnMap, dayOfWeek);
-  }, [bossGuilds, guilds, deathRecords, spawnMap]);
+    return getOwnerGuildNameLib(bossId, bossGuilds, guilds, deathRecords, spawnMap, dayOfWeek, currentServer?.timezone);
+  }, [bossGuilds, guilds, deathRecords, spawnMap, currentServer?.timezone]);
 
   const handleRecordDeath = useCallback(
     async (bossId: string, deathTime: Date, rallyImages: File[], attendeeIds: string[]) => {
