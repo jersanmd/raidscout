@@ -293,23 +293,69 @@ export async function upsertBossGuildPoints(
   points?: number | null,
   hasSalary?: boolean
 ): Promise<void> {
+  // Try RPC first (bypasses RLS entirely)
+  try {
+    const { error } = await supabase.rpc("upsert_boss_guild_points", {
+      p_boss_id: bossId,
+      p_guild_id: guildId,
+      p_points: points ?? null,
+      p_has_salary: hasSalary ?? null,
+    });
+    if (!error) return; // RPC succeeded
+    // If RPC failed with anything other than "function not found", throw it
+    if (error.code !== "42883" && !error.message?.includes("Could not find the function")) {
+      throw error;
+    }
+  } catch (err: any) {
+    // If RPC doesn't exist, fall through to direct operations
+    if (err?.code === "42883" || err?.message?.includes("Could not find")) {
+      // fall through
+    } else {
+      throw err;
+    }
+  }
+
+  // Fallback: direct table operations
+  await upsertBossGuildPointsDirect(bossId, guildId, points, hasSalary);
+}
+
+/** Direct INSERT/UPDATE on boss_guilds (goes through RLS) — used when RPC not deployed */
+async function upsertBossGuildPointsDirect(
+  bossId: string,
+  guildId: string,
+  points?: number | null,
+  hasSalary?: boolean
+): Promise<void> {
+  const update: Record<string, any> = {};
+  if (points !== undefined) update.points = points;
+  if (hasSalary !== undefined) update.has_salary = hasSalary;
+  if (Object.keys(update).length === 0) return;
+
   const { data: existing } = await supabase
     .from("boss_guilds")
     .select("id")
     .eq("boss_id", bossId)
-    .eq("guild_id", guildId)
-    .limit(1);
+    .eq("guild_id", guildId);
 
   if (existing && existing.length > 0) {
-    const update: Record<string, any> = {};
-    if (points !== undefined) update.points = points;
-    if (hasSalary !== undefined) update.has_salary = hasSalary;
-    if (Object.keys(update).length === 0) return;
+    // Update all matching rows
     const { error } = await supabase
       .from("boss_guilds")
       .update(update)
-      .eq("id", existing[0].id);
+      .eq("boss_id", bossId)
+      .eq("guild_id", guildId);
     if (error) throw error;
+
+    // Verify the update actually took effect (RLS can silently skip rows)
+    const { data: verify } = await supabase
+      .from("boss_guilds")
+      .select("has_salary, points")
+      .eq("boss_id", bossId)
+      .eq("guild_id", guildId);
+    if (hasSalary !== undefined && verify?.length) {
+      const allMatch = verify.every((r: any) => r.has_salary === hasSalary);
+      if (!allMatch) throw new Error("Salary update was blocked by access policy. Ask your server owner to deploy the RPC migration.");
+    }
   } else {
     const row: Record<string, any> = {
       boss_id: bossId,
@@ -317,11 +363,21 @@ export async function upsertBossGuildPoints(
       sort_order: -1,
       day_of_week: null,
       mode: "rotation",
+      ...update,
     };
-    if (points !== undefined) row.points = points;
-    if (hasSalary !== undefined) row.has_salary = hasSalary;
-    const { error } = await supabase.from("boss_guilds").insert(row);
-    if (error) throw error;
+    const { error: insertErr } = await supabase.from("boss_guilds").insert(row);
+    if (!insertErr) return;
+
+    if (insertErr.code === "23505" || insertErr.message?.includes("duplicate")) {
+      const { error: updateErr } = await supabase
+        .from("boss_guilds")
+        .update(update)
+        .eq("boss_id", bossId)
+        .eq("guild_id", guildId);
+      if (updateErr) throw updateErr;
+    } else {
+      throw insertErr;
+    }
   }
 }
 

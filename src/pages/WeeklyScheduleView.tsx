@@ -31,6 +31,7 @@ import { useActivities } from "@/hooks/useActivities";
 import type { WeekDaySpawns, SpawnInfo, Boss, BossGuild, Guild } from "@/types";
 
 export function WeeklyScheduleView() {
+  const { currentServer } = useServer();
   const { timezone: userTz } = useUserTimezone(currentServer?.timezone);
   const { data: bosses = [], isLoading: bossesLoading, refetch: refetchBosses } = useBosses();
   const { data: deathRecords = [], isLoading: recordsLoading, refetch: refetchDeaths } = useDeathRecords();
@@ -42,7 +43,6 @@ export function WeeklyScheduleView() {
     refetchBosses();
     refetchDeaths();
   }, []);
-  const { currentServer } = useServer();
   const queryClient = useQueryClient();
   const [weekOffset, setWeekOffset] = useState(0);
   const [weekLoading, setWeekLoading] = useState(false);

@@ -102,12 +102,12 @@ export function ServerSettingsView() {
       // Fetch activities + activity guild points
       setActivitiesLoading(true);
       Promise.all([
-        fetchAllActivitiesForServer(currentServer.id),
-        fetchAllActivityGuildsForServer(currentServer.id),
+        fetchAllActivitiesForServer(currentServer.id).catch(err => { console.error("Failed to fetch activities:", err); return [] as Activity[]; }),
+        fetchAllActivityGuildsForServer(currentServer.id).catch(err => { console.error("Failed to fetch activity guilds:", err); return [] as ActivityGuild[]; }),
       ]).then(([a, ag]) => {
         setActivities(a);
         setAllActivityGuilds(ag);
-      }).catch(() => { setActivities([]); setAllActivityGuilds([]); })
+      }).catch(err => { console.error("Failed to process activity data:", err); })
         .finally(() => setActivitiesLoading(false));
       // Fetch activity assists
       fetchActivityAssists(currentServer.id)
@@ -116,9 +116,9 @@ export function ServerSettingsView() {
       // Fetch bosses + guild assignments + boss points matrix
       setBossGuildsLoading(true);
       Promise.all([
-        fetchBosses(currentServer.id),
-        fetchBossGuilds(currentServer.id),
-        fetchAllBossGuildsForServer(currentServer.id),
+        fetchBosses(currentServer.id).catch(err => { console.error("Failed to fetch bosses:", err); return [] as Boss[]; }),
+        fetchBossGuilds(currentServer.id).catch(err => { console.error("Failed to fetch boss guilds:", err); return [] as BossGuild[]; }),
+        fetchAllBossGuildsForServer(currentServer.id).catch(err => { console.error("Failed to fetch all boss guilds:", err); return [] as BossGuild[]; }),
       ]).then(([b, bg, abg]) => {
         setBosses(b);
         setBossGuildsState(bg);
@@ -136,7 +136,7 @@ export function ServerSettingsView() {
         }
         setBossModes(modes);
       })
-        .catch(() => { setBosses([]); setBossGuildsState([]); setAllBossGuilds([]); })
+        .catch(err => { console.error("Failed to process boss data:", err); })
         .finally(() => setBossGuildsLoading(false));
       // Fetch Discord bot configs
       (async () => {
@@ -1400,7 +1400,9 @@ export function ServerSettingsView() {
                                 await setBossPoints(boss.id, val);
                                 queryClient.invalidateQueries({ queryKey: ["bosses"] });
                                 setBosses(prev => prev.map(b => b.id === boss.id ? { ...b, boss_points: val } : b));
-                              } catch { /* ignore */ }
+                              } catch (err: any) {
+                                toast("error", err?.message ?? "Failed to update points");
+                              }
                             }}
                             className={`p-0.5 rounded cursor-pointer transition ${(boss.boss_points ?? 1) <= 0 ? "text-[#3f3f46] cursor-default" : "text-[#71717a] hover:text-[#f87171]"}`}
                             role="button"
@@ -1417,7 +1419,9 @@ export function ServerSettingsView() {
                                 await setBossPoints(boss.id, val);
                                 queryClient.invalidateQueries({ queryKey: ["bosses"] });
                                 setBosses(prev => prev.map(b => b.id === boss.id ? { ...b, boss_points: val } : b));
-                              } catch { /* ignore */ }
+                              } catch (err: any) {
+                                toast("error", err?.message ?? "Failed to update points");
+                              }
                             }}
                             className={`p-0.5 rounded cursor-pointer transition ${(boss.boss_points ?? 1) >= 99 ? "text-[#3f3f46] cursor-default" : "text-[#71717a] hover:text-[#a1a1aa]"}`}
                             role="button"
@@ -1923,7 +1927,9 @@ export function ServerSettingsView() {
                   }
                   return [...prev, { id: "", boss_id: bossId, guild_id: guildId, sort_order: null, day_of_week: null, points } as BossGuild];
                 });
-              } catch { /* ignore */ }
+              } catch (err: any) {
+                toast("error", err?.message ?? "Failed to save points");
+              }
               setSavingCell(null);
             }}
             onSalaryChange={async (bossId, guildId, hasSalary) => {
@@ -1938,15 +1944,19 @@ export function ServerSettingsView() {
                   }
                   return [...prev, { id: "", boss_id: bossId, guild_id: guildId, sort_order: null, day_of_week: null, has_salary: hasSalary } as BossGuild];
                 });
-              } catch { /* ignore */ }
+              } catch (err: any) {
+                toast("error", err?.message ?? "Failed to save salary");
+              }
               setSavingCell(null);
             }}
             onBatchSalaryChange={async (guildId, bossIds, hasSalary) => {
-              await batchSetGuildSalary(guildId, bossIds, hasSalary);
               try {
+                await batchSetGuildSalary(guildId, bossIds, hasSalary);
                 const updated = await fetchAllBossGuildsForServer(currentServer!.id);
                 setAllBossGuilds(updated);
-              } catch { /* refresh failed, but data is saved */ }
+              } catch (err: any) {
+                toast("error", err?.message ?? "Failed to save salary batch");
+              }
             }}
             onAssistToggle={async (bossId, ownerGuildId, assistantGuildId) => {
               try {
@@ -1991,7 +2001,9 @@ export function ServerSettingsView() {
                       if (existing) return prev.map(ag => ag.activity_id === activityId && ag.guild_id === guildId ? { ...ag, points } : ag);
                       return [...prev, { id: "", activity_id: activityId, guild_id: guildId, sort_order: null, day_of_week: null, mode: "rotation", points } as ActivityGuild];
                     });
-                  } catch { /* ignore */ }
+                  } catch (err: any) {
+                    toast("error", err?.message ?? "Failed to save activity points");
+                  }
                   setSavingCell(null);
                 }}
                 onSalaryChange={async (activityId, guildId, hasSalary) => {
@@ -2004,7 +2016,9 @@ export function ServerSettingsView() {
                       if (existing) return prev.map(ag => ag.activity_id === activityId && ag.guild_id === guildId ? { ...ag, has_salary: hasSalary } : ag);
                       return [...prev, { id: "", activity_id: activityId, guild_id: guildId, sort_order: null, day_of_week: null, mode: "rotation", has_salary: hasSalary } as ActivityGuild];
                     });
-                  } catch { /* ignore */ }
+                  } catch (err: any) {
+                    toast("error", err?.message ?? "Failed to save activity salary");
+                  }
                   setSavingCell(null);
                 }}
                 onAssistToggle={async (activityId, ownerGuildId, assistantGuildId) => {
@@ -2694,11 +2708,32 @@ function BossPointsMatrix({
     });
   }, [bosses]);
 
-  // Build lookup: "bossId|guildId" → BossGuild
+  // Build lookup: "bossId|guildId" → BossGuild (merge multiple rows for same key)
   const bgLookup = useMemo(() => {
     const map = new Map<string, BossGuild>();
     for (const bg of allBossGuilds) {
-      map.set(`${bg.boss_id}|${bg.guild_id}`, bg);
+      const key = `${bg.boss_id}|${bg.guild_id}`;
+      const existing = map.get(key);
+      if (!existing) {
+        map.set(key, { ...bg });
+      } else {
+        // Merge: prefer the assignment row's id, OR has_salary/points from any row
+        if (existing.sort_order === -1 && bg.sort_order !== -1) {
+          // bg is the assignment row, existing is salary-only — keep bg's id/sort_order, merge salary/points
+          map.set(key, {
+            ...bg,
+            has_salary: existing.has_salary || bg.has_salary,
+            points: bg.points ?? existing.points,
+          });
+        } else {
+          // Merge salary/points from bg into existing
+          map.set(key, {
+            ...existing,
+            has_salary: existing.has_salary || bg.has_salary,
+            points: existing.points ?? bg.points,
+          });
+        }
+      }
     }
     return map;
   }, [allBossGuilds]);
