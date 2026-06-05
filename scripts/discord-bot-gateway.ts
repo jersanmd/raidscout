@@ -387,6 +387,14 @@ async function handleMessage(msg: any) {
   const guildId: string = msg.guild_id;
   const author: string = msg.author?.username ?? "unknown";
 
+  // ── Log helper ──────────────────────────────────────
+  const cmdLog = (cmd: string, result: "ok" | "fail", detail?: string) => {
+    const guildTag = guildId ? guildId.slice(0, 8) : "DM";
+    console.log(`[cmd] ${author}@${guildTag}:${cmd} — ${result}${detail ? ` (${detail})` : ""}`);
+  };
+
+  // ── Resolve prefix & command ────────────────────────
+
   // Check if bot was @mentioned — use content after mention as command
   let mentionedPrefix = "";
   if (botUserId && content) {
@@ -477,6 +485,7 @@ async function handleMessage(msg: any) {
       },
       body: JSON.stringify({ content: text }),
     });
+    cmdLog(cmd, "ok");
   }
 
   async function replyEmbed(title: string, desc: string, color: number, fields?: any[]) {
@@ -491,13 +500,14 @@ async function handleMessage(msg: any) {
       }),
     });
     if (!res.ok) console.error(`replyEmbed failed: ${res.status}`, await res.text().catch(() => ""));
+    cmdLog(cmd, "ok");
   }
 
   // ── list ─────────────────────────────────────────────
   if (cmd === "list") {
-    if (!serverId) return reply("⚠️ This Discord server is not linked to RaidScout. An admin needs to go to **Server Settings → Integrations** on the RaidScout web app and link this Discord server.");
+    if (!serverId) { cmdLog(cmd, "fail", "not linked"); return reply("⚠️ This Discord server is not linked to RaidScout. An admin needs to go to **Server Settings → Integrations** on the RaidScout web app and link this Discord server."); }
     const bosses = await supabaseQuery(`bosses?server_id=eq.${serverId}&order=name`);
-    if (!bosses?.length) return reply("No bosses found.");
+    if (!bosses?.length) { cmdLog(cmd, "fail", "no bosses"); return reply("No bosses found."); }
     // Split into chunks of 25 (Discord embed field limit)
     const chunkSize = 25;
     const chunks: string[] = [];
@@ -525,7 +535,7 @@ async function handleMessage(msg: any) {
 
   // ── notifhere ────────────────────────────────────────
   if (cmd === "notifhere") {
-    if (!serverId) return reply("⚠️ This Discord server is not linked to RaidScout. An admin needs to go to **Server Settings → Integrations** on the RaidScout web app and link this Discord server.");
+    if (!serverId) { cmdLog(cmd, "fail", "not linked"); return reply("⚠️ This Discord server is not linked to RaidScout. An admin needs to go to **Server Settings → Integrations** on the RaidScout web app and link this Discord server."); }
     // Persist to DB so it survives bot restarts
     const existing = await supabaseQuerySafe(
       `discord_configs?discord_guild_id=eq.${guildId}&command_prefix=eq.${encodeURIComponent(matchedPrefix)}&select=id`
@@ -557,7 +567,7 @@ async function handleMessage(msg: any) {
 
   // ── threadhere ───────────────────────────────────────
   if (cmd === "threadhere") {
-    if (!serverId) return reply("⚠️ This Discord server is not linked to RaidScout.");
+    if (!serverId) { cmdLog(cmd, "fail", "not linked"); return reply("⚠️ This Discord server is not linked to RaidScout."); }
     const existing = await supabaseQuerySafe(`discord_configs?discord_guild_id=eq.${guildId}&command_prefix=eq.${encodeURIComponent(matchedPrefix)}&select=id`);
     if (existing?.length) {
       await fetch(`${SUPABASE_URL}/rest/v1/discord_configs?id=eq.${existing[0].id}`, {
@@ -571,15 +581,15 @@ async function handleMessage(msg: any) {
 
   // ── forcespawn <boss> ───────────────────────────────
   if (cmd === "forcespawn") {
-    if (!serverId) return reply("⚠️ Not linked to RaidScout.");
+    if (!serverId) { cmdLog(cmd, "fail", "not linked"); return reply("⚠️ Not linked to RaidScout."); }
 
     const bossName = args.slice(1).join(" ");
-    if (!bossName) return reply("Usage: `!forcespawn Boss Name`");
+    if (!bossName) { cmdLog(cmd, "fail", "no boss name"); return reply("Usage: `!forcespawn Boss Name`"); }
 
     const bosses = await supabaseQuery(
       `bosses?server_id=eq.${serverId}&name=ilike.${encodeURIComponent("%" + bossName + "%")}&select=id,name,respawn_hours`
     );
-    if (!bosses?.length) return reply(`Boss **${bossName}** not found.`);
+    if (!bosses?.length) { cmdLog(cmd, "fail", `boss "${bossName}" not found`); return reply(`Boss **${bossName}** not found.`); }
     const boss = bosses[0];
 
     // Delete existing override, then insert with calculated death_time
@@ -720,7 +730,7 @@ async function handleMessage(msg: any) {
 
   // ── nextspawn [boss|guild] ───────────────────────────
   if (cmd === "nextspawn" || cmd === "spawn") {
-    if (!serverId) return reply("⚠️ This Discord server is not linked to RaidScout. An admin needs to go to **Server Settings → Integrations** on the RaidScout web app and link this Discord server.");
+    if (!serverId) { cmdLog(cmd, "fail", "not linked"); return reply("⚠️ This Discord server is not linked to RaidScout. An admin needs to go to **Server Settings → Integrations** on the RaidScout web app and link this Discord server."); }
 
     const filter = args[1];
     const tz = await resolveServerTimezone(serverId);
@@ -822,6 +832,7 @@ async function handleMessage(msg: any) {
     }
 
     if (upcoming.length === 0) {
+      if (filter) cmdLog(cmd, "fail", `no spawns for "${filter}"`); else cmdLog(cmd, "fail", "no spawns in 24h");
       return reply(filter ? `No spawn data for **${filter}** in 24h.` : "No bosses spawning in 24h.");
     }
 
@@ -858,7 +869,7 @@ async function handleMessage(msg: any) {
 
   // ── killed <boss> [HH:MM] [yesterday|today] ──────────
   if (cmd === "killed" || cmd === "kill") {
-    if (!serverId) return reply("⚠️ This Discord server is not linked to RaidScout. An admin needs to go to **Server Settings → Integrations** on the RaidScout web app and link this Discord server.");
+    if (!serverId) { cmdLog(cmd, "fail", "not linked"); return reply("⚠️ This Discord server is not linked to RaidScout. An admin needs to go to **Server Settings → Integrations** on the RaidScout web app and link this Discord server."); }
 
     // Parse: !kill Boss Name [HH:MM] [yesterday|today]
     let timeStr: string | undefined;
@@ -883,7 +894,7 @@ async function handleMessage(msg: any) {
 
     bossName = remaining.join(" ");
 
-    if (!bossName) return reply("Usage: `!kill Boss Name [HH:MM] [yesterday|today]`");
+    if (!bossName) { cmdLog(cmd, "fail", "no boss name"); return reply("Usage: `!kill Boss Name [HH:MM] [yesterday|today]`"); }
 
     const bosses = await supabaseQuery(
       `bosses?server_id=eq.${serverId}&name=ilike.${encodeURIComponent("%" + bossName + "%")}`,
@@ -939,6 +950,7 @@ async function handleMessage(msg: any) {
     }
 
     if (!isAlive) {
+      cmdLog(cmd, "fail", `${boss.name} not alive`);
       fetch(`https://discord.com/api/v10/channels/${channelId}/messages/${msg.id}/reactions/${encodeURIComponent("❌")}/@me`, {
         method: "PUT", headers: { Authorization: `Bot ${TOKEN}` },
       }).catch(() => {});
@@ -1171,7 +1183,8 @@ async function createEventThreads(
           });
         }
 
-        console.log(`[thread] Created "${threadName}" in channel ${channelId}`);
+        console.log(`[thread] Created "${threadName}" in channel ${channelId} for ${ownerGuildName}`);
+        cmdLog("thread", "ok", `${bossName}→${ownerGuildName}`);
       } catch (err: any) {
         console.error(`[thread] Error for channel ${channelId}:`, err.message);
       }
@@ -1297,6 +1310,9 @@ async function broadcastNotification(serverId: string, embed: any, skipChannelId
     if (!discordRes.ok) {
       const errText = await discordRes.text().catch(() => "");
       console.error(`Discord send failed (${cfg.notification_channel_id}): ${discordRes.status} ${errText}`);
+    } else {
+      const preview = textContent || (embed?.embeds?.[0]?.title) || "embed";
+      console.log(`[notif] Sent to ${cfg.notification_channel_id}: ${preview}`);
     }
   }
   return { ok: true };
@@ -1379,6 +1395,8 @@ createServer(async (req, res) => {
     req.on("end", async () => {
       try {
         const { server_id, event, boss_name, guild_name, activity_name, parties, recorded_by } = JSON.parse(body);
+
+        console.log(`[notify] web→bot: ${event} ${boss_name || activity_name || ""} ${guild_name ? `(${guild_name})` : ""}`);
 
         // Dedup: skip duplicate notifs within 30s
         if (boss_name && event) {
@@ -1521,10 +1539,6 @@ async function runSpawnCron() {
       guildsByServer.get(g.server_id)!.push(g);
     }
 
-    // Log which servers are being scanned this tick
-    const serverList = serverIds.map(id => serverStatusMap[id]?.name || id.slice(0, 8)).join(", ");
-    console.log(`[cron] tick — ${serverIds.length} server(s): ${serverList}`);
-
     for (const serverId of serverIds) {
       try {
         const sv = serverStatusMap[serverId];
@@ -1532,7 +1546,6 @@ async function runSpawnCron() {
 
         // Skip spawn cron for servers in maintenance mode
         if (globalMaintenance || maintenanceServers.has(serverId)) {
-          console.log(`[cron]   ${sv?.name || serverId.slice(0, 8)}: skipped (maintenance)`);
           continue;
         }
 
@@ -1542,9 +1555,6 @@ async function runSpawnCron() {
         const guilds = guildsByServer.get(serverId) || [];
         const serverGuildIds = new Set(guilds.map((g: any) => g.id));
         const serverBossGuilds = allBossGuilds.filter((bg: any) => serverGuildIds.has(bg.guild_id));
-
-        const svName = sv?.name || serverId.slice(0, 8);
-        console.log(`[cron]   ${svName}: ${bosses.length} bosses, ${guilds.length} guilds`);
 
         const tz = sv?.timezone || "UTC";
 
@@ -1616,7 +1626,6 @@ async function runSpawnCron() {
           }
         }
         lastSpawnCronBosses = bossCount;
-        console.log(`[cron] tick done — ${bossCount} bosses checked across ${serverIds.length} server(s)`);
       } catch (serverErr: any) {
         console.error(`Spawn cron error for server ${serverId}:`, serverErr.message);
         // Continue with next server
