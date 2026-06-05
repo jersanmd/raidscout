@@ -223,7 +223,7 @@ export function AdminPanelView() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 py-6 space-y-6 flex-1">
+      <div className="max-w-7xl mx-auto px-3 sm:px-4 py-4 sm:py-6 space-y-4 sm:space-y-6 flex-1 overflow-x-hidden">
       <div className="flex items-center gap-3">
         <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-[#18181b] border border-[#27272a]">
           <Shield className="w-5 h-5 text-[#fafafa]" />
@@ -235,86 +235,86 @@ export function AdminPanelView() {
       </div>
 
       {/* Tabs */}
-      <div className="flex bg-[#18181b] rounded-lg p-0.5 gap-0.5 overflow-x-auto">
+      <div className="flex flex-wrap bg-[#18181b] rounded-lg p-0.5 gap-0.5">
         <button
           onClick={() => setTab("infra")}
-          className={`flex flex-1 items-center justify-center gap-1 px-2 py-1.5 rounded-md text-xs font-medium transition whitespace-nowrap ${
+          className={`flex items-center justify-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-md text-xs sm:text-sm font-medium transition whitespace-nowrap ${
             tab === "infra" ? "bg-[#27272a] text-[#fafafa]" : "text-[#a1a1aa] hover:text-[#e4e4e7]"
           }`}
         >
-          <Radio className="w-3.5 h-3.5" />
+          <Radio className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           Infra
         </button>
         <button
           onClick={() => setTab("games")}
-          className={`flex flex-1 items-center justify-center gap-1 px-2 py-1.5 rounded-md text-xs font-medium transition whitespace-nowrap ${
+          className={`flex items-center justify-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-md text-xs sm:text-sm font-medium transition whitespace-nowrap ${
             tab === "games" ? "bg-[#27272a] text-[#fafafa]" : "text-[#a1a1aa] hover:text-[#e4e4e7]"
           }`}
         >
-          <Gamepad2 className="w-3.5 h-3.5" />
+          <Gamepad2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           Games
         </button>
         <button
           onClick={() => setTab("servers")}
-          className={`flex flex-1 items-center justify-center gap-1 px-2 py-1.5 rounded-md text-xs font-medium transition whitespace-nowrap ${
+          className={`flex items-center justify-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-md text-xs sm:text-sm font-medium transition whitespace-nowrap ${
             tab === "servers" ? "bg-[#27272a] text-[#fafafa]" : "text-[#a1a1aa] hover:text-[#e4e4e7]"
           }`}
         >
-          <Server className="w-3.5 h-3.5" />
+          <Server className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           Servers ({servers.length})
         </button>
         <button
           onClick={() => setTab("users")}
-          className={`flex flex-1 items-center justify-center gap-1 px-2 py-1.5 rounded-md text-xs font-medium transition whitespace-nowrap ${
+          className={`flex items-center justify-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-md text-xs sm:text-sm font-medium transition whitespace-nowrap ${
             tab === "users" ? "bg-[#27272a] text-[#fafafa]" : "text-[#a1a1aa] hover:text-[#e4e4e7]"
           }`}
         >
-          <Users className="w-3.5 h-3.5" />
+          <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           Owners ({users.length})
         </button>
         <button
           onClick={() => setTab("audit")}
-          className={`flex flex-1 items-center justify-center gap-1 px-2 py-1.5 rounded-md text-xs font-medium transition whitespace-nowrap ${
+          className={`flex items-center justify-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-md text-xs sm:text-sm font-medium transition whitespace-nowrap ${
             tab === "audit" ? "bg-[#27272a] text-[#fafafa]" : "text-[#a1a1aa] hover:text-[#e4e4e7]"
           }`}
         >
-          <ClipboardList className="w-3.5 h-3.5" />
+          <ClipboardList className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           Audit
         </button>
         <button
           onClick={() => setTab("database")}
-          className={`flex flex-1 items-center justify-center gap-1 px-2 py-1.5 rounded-md text-xs font-medium transition whitespace-nowrap ${
+          className={`flex items-center justify-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-md text-xs sm:text-sm font-medium transition whitespace-nowrap ${
             tab === "database" ? "bg-[#27272a] text-[#fafafa]" : "text-[#a1a1aa] hover:text-[#e4e4e7]"
           }`}
         >
-          <HardDrive className="w-3.5 h-3.5" />
+          <HardDrive className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           Database
         </button>
         <button
           onClick={() => setTab("plan")}
-          className={`flex flex-1 items-center justify-center gap-1 px-2 py-1.5 rounded-md text-xs font-medium transition whitespace-nowrap ${
+          className={`flex items-center justify-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-md text-xs sm:text-sm font-medium transition whitespace-nowrap ${
             tab === "plan" ? "bg-[#27272a] text-[#fafafa]" : "text-[#a1a1aa] hover:text-[#e4e4e7]"
           }`}
         >
-          <BarChart3 className="w-3.5 h-3.5" />
+          <BarChart3 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           Usage
         </button>
         <button
           onClick={() => setTab("cron")}
-          className={`flex flex-1 items-center justify-center gap-1 px-2 py-1.5 rounded-md text-xs font-medium transition whitespace-nowrap ${
+          className={`flex items-center justify-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-md text-xs sm:text-sm font-medium transition whitespace-nowrap ${
             tab === "cron" ? "bg-[#27272a] text-[#fafafa]" : "text-[#a1a1aa] hover:text-[#e4e4e7]"
           }`}
         >
-          <Clock className="w-3.5 h-3.5" />
+          <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           Test Cron
         </button>
         <button
           onClick={() => setTab("deleted")}
-          className={`flex flex-1 items-center justify-center gap-1 px-2 py-1.5 rounded-md text-xs font-medium transition whitespace-nowrap ${
+          className={`flex items-center justify-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-md text-xs sm:text-sm font-medium transition whitespace-nowrap ${
             tab === "deleted" ? "bg-[#27272a] text-[#fafafa]" : "text-[#a1a1aa] hover:text-[#e4e4e7]"
           }`}
         >
-          <Trash2 className="w-3.5 h-3.5" />
+          <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           Deleted
         </button>
       </div>
@@ -1085,31 +1085,31 @@ export function AdminPanelView() {
             <p className="text-[#71717a] text-sm text-center py-12">Bot unreachable.</p>
           ) : (
             <>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <div className={`bg-[#18181b] border rounded-xl p-4 text-center ${botStatus.discord_connected ? 'border-emerald-500/30' : 'border-[#27272a]'}`}>
-                  <div className={`w-3 h-3 rounded-full mx-auto mb-2 ${botStatus.discord_connected ? 'bg-emerald-400 animate-pulse' : 'bg-[#71717a]'}`} />
-                  <p className={`text-lg font-bold ${botStatus.discord_connected ? 'text-emerald-300' : 'text-[#f87171]'}`}>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
+                <div className={`bg-[#18181b] border rounded-xl p-3 sm:p-4 text-center ${botStatus.discord_connected ? 'border-emerald-500/30' : 'border-[#27272a]'}`}>
+                  <div className={`w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full mx-auto mb-1.5 sm:mb-2 ${botStatus.discord_connected ? 'bg-emerald-400 animate-pulse' : 'bg-[#71717a]'}`} />
+                  <p className={`text-sm sm:text-lg font-bold ${botStatus.discord_connected ? 'text-emerald-300' : 'text-[#f87171]'}`}>
                     {botStatus.discord_connected ? 'ONLINE' : 'OFFLINE'}
                   </p>
-                  <p className="text-[10px] text-[#71717a] mt-1">Discord Gateway</p>
+                  <p className="text-[9px] sm:text-[10px] text-[#71717a] mt-0.5 sm:mt-1">Discord Gateway</p>
                 </div>
-                <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-4 text-center">
-                  <Clock className="w-4 h-4 text-[#a1a1aa] mx-auto mb-2" />
-                  <p className="text-xs text-[#d4d4d8] font-mono">{botStatus.uptime_display}</p>
-                  <p className="text-[10px] text-[#71717a] mt-1">Uptime</p>
+                <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-3 sm:p-4 text-center">
+                  <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#a1a1aa] mx-auto mb-1.5 sm:mb-2" />
+                  <p className="text-[11px] sm:text-xs text-[#d4d4d8] font-mono truncate">{botStatus.uptime_display}</p>
+                  <p className="text-[9px] sm:text-[10px] text-[#71717a] mt-0.5 sm:mt-1">Uptime</p>
                 </div>
-                <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-4 text-center">
-                  <HardDrive className="w-4 h-4 text-[#a1a1aa] mx-auto mb-2" />
-                  <p className="text-lg font-bold text-[#d4d4d8]">{botStatus.memory_mb} / 512 MB</p>
-                  <p className="text-[10px] text-[#71717a] mt-1">Memory</p>
+                <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-3 sm:p-4 text-center">
+                  <HardDrive className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#a1a1aa] mx-auto mb-1.5 sm:mb-2" />
+                  <p className="text-xs sm:text-lg font-bold text-[#d4d4d8] truncate">{botStatus.memory_mb} / 512 MB</p>
+                  <p className="text-[9px] sm:text-[10px] text-[#71717a] mt-0.5 sm:mt-1">Memory</p>
                 </div>
-                <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-4 text-center">
-                  <Radio className="w-4 h-4 text-[#a1a1aa] mx-auto mb-2" />
-                  <p className="text-xs text-[#d4d4d8] font-mono">{botStatus.region} · 2 vCPU</p>
-                  <p className="text-[10px] text-[#71717a] mt-1">Machine</p>
+                <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-3 sm:p-4 text-center">
+                  <Radio className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#a1a1aa] mx-auto mb-1.5 sm:mb-2" />
+                  <p className="text-[11px] sm:text-xs text-[#d4d4d8] font-mono truncate">{botStatus.region} · 2 vCPU</p>
+                  <p className="text-[9px] sm:text-[10px] text-[#71717a] mt-0.5 sm:mt-1">Machine</p>
                 </div>
               </div>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-3 text-center">
                   <p className="text-xs text-[#d4d4d8] font-mono">{botStatus.node_version}</p>
                   <p className="text-[10px] text-[#71717a] mt-0.5">Node.js</p>
@@ -1123,26 +1123,26 @@ export function AdminPanelView() {
                   <p className="text-[10px] text-[#71717a] mt-0.5">Region</p>
                 </div>
               </div>
-              <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-4">
+              <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-3 sm:p-4">
                 <h5 className="text-xs font-semibold text-[#d4d4d8] mb-3">Spawn Cron</h5>
-                <div className="grid grid-cols-3 gap-4 text-center">
+                <div className="grid grid-cols-3 gap-2 sm:gap-4 text-center">
                   <div>
-                    <p className="text-lg font-bold text-[#d4d4d8] font-mono">{botStatus.spawn_cron?.last_tick_seconds_ago ?? "—"}s</p>
-                    <p className="text-[10px] text-[#71717a]">Last Tick</p>
+                    <p className="text-base sm:text-lg font-bold text-[#d4d4d8] font-mono">{botStatus.spawn_cron?.last_tick_seconds_ago ?? "—"}s</p>
+                    <p className="text-[9px] sm:text-[10px] text-[#71717a]">Last Tick</p>
                   </div>
                   <div>
-                    <p className="text-lg font-bold text-[#d4d4d8]">{botStatus.spawn_cron?.servers_checked}</p>
-                    <p className="text-[10px] text-[#71717a]">Servers</p>
+                    <p className="text-base sm:text-lg font-bold text-[#d4d4d8]">{botStatus.spawn_cron?.servers_checked}</p>
+                    <p className="text-[9px] sm:text-[10px] text-[#71717a]">Servers</p>
                   </div>
                   <div>
-                    <p className="text-lg font-bold text-[#d4d4d8]">{botStatus.spawn_cron?.bosses_checked}</p>
-                    <p className="text-[10px] text-[#71717a]">Bosses</p>
+                    <p className="text-base sm:text-lg font-bold text-[#d4d4d8]">{botStatus.spawn_cron?.bosses_checked}</p>
+                    <p className="text-[9px] sm:text-[10px] text-[#71717a]">Bosses</p>
                   </div>
                 </div>
               </div>
               <p className="text-[10px] text-[#52525b]">Auto-refreshes every 15s.</p>
               <div className="bg-[#18181b] border border-[#27272a] rounded-xl overflow-hidden">
-                <div className="flex items-center justify-between px-4 py-2 border-b border-[#27272a]">
+                <div className="flex items-center justify-between px-3 sm:px-4 py-2 border-b border-[#27272a]">
                   <h5 className="text-xs font-semibold text-[#d4d4d8]">Recent Logs</h5>
                   <button onClick={() => refetchLogs()} className="p-1 rounded text-[#a1a1aa] hover:text-[#fafafa] transition" title="Refresh logs">
                     <RefreshCw className="w-3 h-3" />
@@ -1155,14 +1155,14 @@ export function AdminPanelView() {
                     <p className="text-[#52525b] px-4 py-6 text-center">No logs yet.</p>
                   ) : (
                     botLogs.logs.map((l: any, i: number) => (
-                      <div key={i} className={`px-4 py-0.5 border-b border-[#27272a]/50 flex gap-2 ${
+                      <div key={i} className={`px-2 sm:px-4 py-0.5 border-b border-[#27272a]/50 flex gap-1 sm:gap-2 ${
                         l.level === "error" ? "bg-[#18181b]" : l.level === "warn" ? "bg-[#18181b]" : ""
                       }`}>
-                        <span className="text-[#52525b] shrink-0 w-[85px]">{l.ts?.slice(11, 19)}</span>
-                        <span className={`shrink-0 w-8 text-right ${
+                        <span className="text-[#52525b] shrink-0 w-[55px] sm:w-[85px] text-[9px] sm:text-[10px]">{l.ts?.slice(11, 19)}</span>
+                        <span className={`shrink-0 w-5 sm:w-8 text-right text-[9px] sm:text-[10px] ${
                           l.level === "error" ? "text-[#f87171]" : l.level === "warn" ? "text-[#a1a1aa]" : "text-[#71717a]"
                         }`}>{l.level}</span>
-                        <span className={`truncate ${
+                        <span className={`truncate text-[9px] sm:text-[10px] ${
                           l.level === "error" ? "text-[#fca5a5]" : l.level === "warn" ? "text-[#d4d4d8]" : "text-[#a1a1aa]"
                         }`}>{l.msg}</span>
                       </div>
@@ -1177,11 +1177,11 @@ export function AdminPanelView() {
               </div>
 
               {/* Maintenance Mode */}
-              <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-4 space-y-3">
-                <div className="flex items-center justify-between">
+              <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-3 sm:p-4 space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:justify-between">
                   <div>
                     <h4 className="text-sm font-semibold text-[#fafafa]">Maintenance Mode</h4>
-                    <p className="text-xs text-[#71717a]">Block all non-admin users. Set an end time so users know when to return.</p>
+                    <p className="text-[10px] sm:text-xs text-[#71717a]">Block all non-admin users. Set an end time so users know when to return.</p>
                   </div>
                   <button
                     onClick={async () => {
@@ -1205,11 +1205,11 @@ export function AdminPanelView() {
                   </button>
                 </div>
                 {!maintenance && (
-                  <div className="flex gap-2">
+                  <div className="flex flex-col sm:flex-row gap-2">
                     <input type="date" value={maintEndDate} onChange={e => setMaintEndDate(e.target.value)}
-                      className="px-2 py-1.5 bg-[#09090b] border border-[#27272a] rounded text-xs text-[#fafafa]" />
+                      className="w-full sm:w-auto px-2 py-1.5 bg-[#09090b] border border-[#27272a] rounded text-xs text-[#fafafa]" />
                     <input type="time" value={maintEndTime} onChange={e => setMaintEndTime(e.target.value)}
-                      className="px-2 py-1.5 bg-[#09090b] border border-[#27272a] rounded text-xs text-[#fafafa]" />
+                      className="w-full sm:w-auto px-2 py-1.5 bg-[#09090b] border border-[#27272a] rounded text-xs text-[#fafafa]" />
                   </div>
                 )}
               </div>

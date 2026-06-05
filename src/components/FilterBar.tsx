@@ -42,13 +42,13 @@ export function FilterBar({
       </div>
 
       {/* Filter chips — neon accent active states */}
-      <div className="flex flex-wrap items-center gap-2">
-        <Filter className="w-4 h-4 text-[#71717a] shrink-0" />
+      <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+        <Filter className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#71717a] shrink-0" />
 
         {/* Type filter */}
         <button
           onClick={() => onFilterTypeChange("all")}
-          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 ${
+          className={`px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-[10px] sm:text-xs font-medium transition-all duration-200 ${
             filterType === "all"
               ? "bg-[#27272a] text-[#fafafa] border border-[#3f3f46]"
               : "bg-[#18181b] text-[#71717a] border border-[#27272a] hover:text-[#d4d4d8] hover:border-[#27272a]"
@@ -60,7 +60,7 @@ export function FilterBar({
           onClick={() =>
             onFilterTypeChange(filterType === "fixed_hours" ? "all" : "fixed_hours")
           }
-          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 flex items-center gap-1.5 ${
+          className={`px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-[10px] sm:text-xs font-medium transition-all duration-200 flex items-center gap-1 ${
             filterType === "fixed_hours"
               ? "bg-[#27272a] text-[#a1a1aa] border border-[#3f3f46] "
               : "bg-[#18181b] text-[#71717a] border border-[#27272a] hover:text-[#d4d4d8] hover:border-[#27272a]"
@@ -72,7 +72,7 @@ export function FilterBar({
           onClick={() =>
             onFilterTypeChange(filterType === "fixed_schedule" ? "all" : "fixed_schedule")
           }
-          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 flex items-center gap-1.5 ${
+          className={`px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-[10px] sm:text-xs font-medium transition-all duration-200 flex items-center gap-1 ${
             filterType === "fixed_schedule"
               ? "bg-[#27272a] text-[#a1a1aa] border border-[#3f3f46] "
               : "bg-[#18181b] text-[#71717a] border border-[#27272a] hover:text-[#d4d4d8] hover:border-[#27272a]"
@@ -84,7 +84,7 @@ export function FilterBar({
           onClick={() =>
             onFilterTypeChange(filterType === "activities" ? "all" : "activities")
           }
-          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 flex items-center gap-1.5 ${
+          className={`px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-[10px] sm:text-xs font-medium transition-all duration-200 flex items-center gap-1 ${
             filterType === "activities"
               ? "bg-[#27272a] text-[#a1a1aa] border border-[#3f3f46] "
               : "bg-[#18181b] text-[#71717a] border border-[#27272a] hover:text-[#d4d4d8] hover:border-[#27272a]"
@@ -94,14 +94,15 @@ export function FilterBar({
         </button>
 
         {/* Divider */}
-        <span className="w-px h-5 bg-[#27272a]" />
+        <span className="w-px h-5 bg-[#27272a] hidden sm:block" />
 
         {/* Window filter — red glow for urgency */}
+        <span className="w-px h-5 bg-[#27272a] sm:hidden" />
         {FILTER_WINDOWS.map((h) => (
           <button
             key={h}
             onClick={() => onFilterWindowChange(filterWindow === h ? null : h)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 flex items-center gap-1 ${
+            className={`px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-[10px] sm:text-xs font-medium transition-all duration-200 flex items-center gap-1 ${
               filterWindow === h
                 ? "bg-[#18181b] text-[#a1a1aa] border border-[#3f3f46] "
                 : "bg-[#18181b] text-[#71717a] border border-[#27272a] hover:text-[#d4d4d8] hover:border-[#27272a]"
@@ -114,11 +115,11 @@ export function FilterBar({
         {guilds && guilds.length > 0 && onFilterGuildChange && (
           <>
             <span className="w-px h-5 bg-[#27272a]" />
-            <Shield className="w-3.5 h-3.5 text-[#71717a] shrink-0" />
+            <Shield className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-[#71717a] shrink-0" />
             <select
               value={filterGuild ?? "all"}
               onChange={(e) => onFilterGuildChange(e.target.value)}
-              className="bg-[#18181b] border border-[#27272a] rounded-lg px-2.5 py-1.5 text-xs text-[#d4d4d8] outline-none focus:border-[#52525b] cursor-pointer"
+              className="bg-[#18181b] border border-[#27272a] rounded-lg px-2 py-1 sm:px-2.5 sm:py-1.5 text-[10px] sm:text-xs text-[#d4d4d8] outline-none focus:border-[#52525b] cursor-pointer max-w-[120px] sm:max-w-none"
             >
               <option value="all">All Guilds</option>
               {guilds.map((g) => (

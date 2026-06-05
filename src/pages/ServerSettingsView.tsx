@@ -157,6 +157,7 @@ export function ServerSettingsView() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [inviteCode, setInviteCode] = useState("");
   const [joining, setJoining] = useState(false);
+  const [pendingTimezone, setPendingTimezone] = useState<string | null>(null);
   const [members, setMembers] = useState<ServerMember[]>([]);
   const [membersLoading, setMembersLoading] = useState(false);
   const [webhookUrl, setWebhookUrl] = useState(currentServer?.discord_webhook_url ?? "");
@@ -942,18 +943,29 @@ export function ServerSettingsView() {
   const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-6">
-      <div className="flex items-center gap-3">
+    <div className="max-w-7xl mx-auto px-3 sm:px-4 py-4 sm:py-6 overflow-x-hidden">
+      <div className="flex items-center gap-3 mb-3 sm:mb-0">
         <button onClick={() => navigate("/")} className="text-[#a1a1aa] hover:text-[#fafafa] p-1">
           <ArrowLeft className="w-5 h-5" />
         </button>
-        <h2 className="text-xl font-bold text-[#fafafa]">Server Settings</h2>
+        <h2 className="text-lg sm:text-xl font-bold text-[#fafafa]">Server Settings</h2>
         {isOwner && <span className="text-xs bg-[#18181b] text-[#a1a1aa] px-2 py-0.5 rounded-full">Owner</span>}
       </div>
 
-      <div className="flex gap-6 items-start">
-        {/* Sidebar */}
-        <div className="w-[260px] shrink-0 space-y-4 sticky top-6 mt-6">
+      {/* Mobile tab bar */}
+      <div className="sm:hidden flex flex-wrap items-center gap-1 pb-1 mt-2">
+        {(["general","guilds","boss-guilds","boss-points","members","integrations","bosses-activities","account",...(isOwner?["danger"]:[])] as string[]).map((key) => {
+          const labels: Record<string,string> = {general:"General",guilds:"Guilds","boss-guilds":"Boss Guilds","boss-points":"Points",members:"Members","bosses-activities":"Bosses",integrations:"Integrations",account:"Account",danger:"Danger"};
+          return <button key={key} onClick={() => setTab(key)}
+            className={`shrink-0 px-2.5 py-1 rounded-md text-[11px] font-medium transition whitespace-nowrap ${tab===key?"bg-[#27272a] text-[#fafafa]":"text-[#71717a] hover:text-[#d4d4d8]"}`}>
+            {labels[key]}
+          </button>;
+        })}
+      </div>
+
+      <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 items-start mt-3 sm:mt-6">
+        {/* Sidebar — hidden on mobile */}
+        <div className="hidden sm:block w-[220px] lg:w-[260px] shrink-0 space-y-3 sm:space-y-4 sticky top-6">
           <div className="space-y-2">
             <button onClick={() => setShowCreateModal(true)} className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium bg-[#18181b] border border-[#27272a] text-[#fafafa] hover:bg-[#27272a] transition">
               <Plus className="w-3.5 h-3.5" /> Create New
@@ -998,7 +1010,7 @@ export function ServerSettingsView() {
             </div>
           )}
         </div>
-        <div className="flex-1 min-w-0 space-y-4">
+        <div className="flex-1 min-w-0 space-y-4 w-full sm:w-auto">
 
       {/* General Tab */}
       {tab === "general" && (
@@ -1024,17 +1036,40 @@ export function ServerSettingsView() {
 
           <section className="bg-[#09090b] border border-[#27272a] rounded-xl p-4 space-y-3">
             <h3 className="text-sm font-semibold text-[#fafafa]">Server Timezone</h3>
-            <p className="text-sm text-[#a1a1aa]">All spawn times will display in this timezone.</p>
-            <select
-              value={currentServer.timezone || "Asia/Manila"}
-              onChange={async (e) => {
-                const tz = e.target.value;
-                await supabase.from("servers").update({ timezone: tz }).eq("id", currentServer.id);
-                setCurrentServer({ ...currentServer, timezone: tz });
-                toast("success", "Timezone updated");
-              }}
-              className="w-full bg-[#18181b] border border-[#27272a] rounded-lg px-3 py-2 text-sm text-[#fafafa] outline-none focus:border-[#52525b] transition"
-            >
+            <p className="text-xs text-[#71717a] leading-relaxed">
+              This timezone is used by the <strong className="text-[#a1a1aa]">Discord bot</strong> when processing <code className="text-[11px] bg-[#18181b] px-1 py-0.5 rounded">!kill</code> and <code className="text-[11px] bg-[#18181b] px-1 py-0.5 rounded">!nextspawn</code> commands. Schedule boss times and date boundaries depend on this setting. Changing it may shift all displayed spawn times.
+            </p>
+            {pendingTimezone ? (
+              <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-3 space-y-2">
+                <p className="text-xs text-amber-300 flex items-center gap-1.5">
+                  <AlertTriangle className="w-3.5 h-3.5" />
+                  Change timezone to <strong>{pendingTimezone}</strong>?
+                </p>
+                <p className="text-[10px] text-amber-400/70">The Discord bot relies on this timezone. Boss spawn times and schedule days will shift.</p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={async () => {
+                      const tz = pendingTimezone;
+                      await supabase.from("servers").update({ timezone: tz }).eq("id", currentServer.id);
+                      setCurrentServer({ ...currentServer, timezone: tz });
+                      setPendingTimezone(null);
+                      toast("success", "Timezone updated to " + tz);
+                    }}
+                    className="px-3 py-1.5 rounded text-xs font-medium bg-amber-500 text-black hover:bg-amber-400 transition"
+                  >
+                    Yes, change to {pendingTimezone}
+                  </button>
+                  <button onClick={() => setPendingTimezone(null)} className="px-3 py-1.5 rounded text-xs text-[#a1a1aa] hover:text-[#fafafa] transition">
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <select
+                value={currentServer.timezone || "Asia/Manila"}
+                onChange={(e) => setPendingTimezone(e.target.value)}
+                className="w-full bg-[#18181b] border border-[#27272a] rounded-lg px-3 py-2 text-sm text-[#fafafa] outline-none focus:border-[#52525b] transition"
+              >
               <option value="Asia/Manila">GMT+8 — Asia/Manila</option>
               <option value="Asia/Singapore">GMT+8 — Asia/Singapore</option>
               <option value="Asia/Tokyo">GMT+9 — Asia/Tokyo</option>
@@ -1054,6 +1089,7 @@ export function ServerSettingsView() {
               <option value="America/Denver">GMT-6 — America/Denver</option>
               <option value="America/Los_Angeles">GMT-7 — America/Los Angeles</option>
             </select>
+            )}
           </section>
 
           {isOwner && (
@@ -2303,15 +2339,17 @@ export function ServerSettingsView() {
               <h4 className="text-xs font-semibold text-[#a1a1aa] mb-3 flex items-center gap-1.5">
                 <Plus className="w-3.5 h-3.5" /> Link New Discord Server
               </h4>
-              <div className="flex gap-2">
+              <div className="flex flex-col sm:flex-row gap-2">
+                <div className="flex gap-2 flex-1 min-w-0">
                 <input type="text" value={newDiscordId} onChange={(e) => setNewDiscordId(e.target.value)}
                   placeholder="Discord Server ID" ref={discordIdInputRef}
-                  className="flex-1 bg-[#18181b] border border-[#27272a] rounded-lg px-3 py-2 text-sm text-[#fafafa] placeholder-[#71717a] outline-none focus:border-[#52525b] transition font-mono" />
+                  className="flex-1 bg-[#18181b] border border-[#27272a] rounded-lg px-3 py-2 text-sm text-[#fafafa] placeholder-[#71717a] outline-none focus:border-[#52525b] transition font-mono min-w-0" />
                 <input type="text" value={newDiscordLabel} onChange={(e) => setNewDiscordLabel(e.target.value)}
                   placeholder="Label (optional)"
-                  className="w-36 bg-[#18181b] border border-[#27272a] rounded-lg px-3 py-2 text-sm text-[#fafafa] placeholder-[#71717a] outline-none focus:border-[#52525b] transition" />
+                  className="w-24 sm:w-36 bg-[#18181b] border border-[#27272a] rounded-lg px-2 sm:px-3 py-2 text-sm text-[#fafafa] placeholder-[#71717a] outline-none focus:border-[#52525b] transition" />
+                </div>
                 <button onClick={handleAddDiscordLink} disabled={savingDiscord || !newDiscordId.trim()}
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium bg-[#fafafa] text-[#09090b] hover:bg-[#e4e4e7] transition disabled:opacity-50">
+                  className="flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium bg-[#fafafa] text-[#09090b] hover:bg-[#e4e4e7] transition disabled:opacity-50">
                   {savingDiscord ? <Loader2 className="w-4 h-4 animate-spin" /> : <Link className="w-4 h-4" />}
                   Link
                 </button>
@@ -2626,15 +2664,15 @@ function BossPointsMatrix({
   }
 
   return (
-    <div className="bg-[#09090b] border border-[#27272a] rounded-xl p-4 overflow-x-auto">
+    <div className="bg-[#09090b] border border-[#27272a] rounded-xl p-3 sm:p-4 max-w-full">
       {/* Search + Legend */}
-      <div className="flex items-center gap-3 mb-3 flex-wrap">
-        <div className="flex items-center gap-3 text-[10px] text-[#71717a]">
+      <div className="flex items-center gap-2 sm:gap-3 mb-3 flex-wrap">
+        <div className="flex items-center gap-2 sm:gap-3 text-[9px] sm:text-[10px] text-[#71717a] flex-wrap">
           <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400" /> Fixed Hours</span>
-          <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-violet-400" /> Fixed Schedule</span>
+          <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-violet-400" /> Schedule</span>
           <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-amber-400" /> One-time</span>
         </div>
-        <div className="flex-1" />
+        <div className="flex-1 hidden sm:block" />
         <div className="relative">
           <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-[#52525b]" />
           <input
@@ -2642,19 +2680,20 @@ function BossPointsMatrix({
             placeholder="Search bosses..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-40 bg-[#18181b] border border-[#27272a] rounded pl-7 pr-2 py-1 text-xs text-[#fafafa] placeholder-[#52525b] outline-none focus:border-[#52525b] transition"
+            className="w-32 sm:w-40 bg-[#18181b] border border-[#27272a] rounded pl-7 pr-2 py-1 text-[10px] sm:text-xs text-[#fafafa] placeholder-[#52525b] outline-none focus:border-[#52525b] transition"
           />
         </div>
       </div>
-      <table className="w-full text-xs">
+      <div className="overflow-x-auto -mx-3 sm:mx-0">
+      <table className="w-full text-[10px] sm:text-xs">
         <thead>
           <tr>
-            <th className="sticky left-0 bg-[#09090b] px-3 py-2 text-left text-[#a1a1aa] font-medium border-b border-r border-[#27272a]/50 z-10 min-w-[160px]">
+            <th className="sticky left-0 bg-[#09090b] px-2 sm:px-3 py-1.5 sm:py-2 text-left text-[#a1a1aa] font-medium border-b border-r border-[#27272a]/50 z-10 min-w-[120px] sm:min-w-[160px]">
               Boss
             </th>
             {guilds.map(g => (
-              <th key={g.id} colSpan={3} className="px-3 py-2 text-center text-[#a1a1aa] font-medium border-b border-[#27272a]/50 border-l border-[#27272a]/30">
-                {g.name}
+              <th key={g.id} colSpan={3} className="px-1.5 sm:px-3 py-1.5 sm:py-2 text-center text-[#a1a1aa] font-medium border-b border-[#27272a]/50 border-l border-[#27272a]/30">
+                <span className="text-[10px] sm:text-xs">{g.name}</span>
               </th>
             ))}
           </tr>
@@ -2682,8 +2721,8 @@ function BossPointsMatrix({
         <tbody>
           {sortedBosses.filter(boss => !search || boss.name.toLowerCase().includes(search.toLowerCase())).map(boss => (
             <tr key={boss.id} className="group border-b border-[#27272a]/50 hover:bg-[#18181b]/20 transition">
-              <td className="sticky left-0 bg-[#09090b] group-hover:bg-[#18181b]/20 px-3 py-2 text-[#fafafa] font-medium border-r border-[#27272a]/30 z-10 transition">
-                <div className="flex items-center gap-2">
+              <td className="sticky left-0 bg-[#09090b] group-hover:bg-[#18181b]/20 px-2 sm:px-3 py-1.5 sm:py-2 text-[#fafafa] font-medium border-r border-[#27272a]/30 z-10 transition">
+                <div className="flex items-center gap-1.5 sm:gap-2">
                   <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${
                     boss.spawn_type === "fixed_schedule" ? "bg-violet-400" :
                     boss.spawn_type === "one_time" ? "bg-amber-400" :
@@ -2780,6 +2819,7 @@ function BossPointsMatrix({
           ))}
         </tbody>
       </table>
+      </div>
       <p className="text-[10px] text-[#52525b] mt-2 text-center">
         Points default to server-wide value if not overridden. Salary is per-guild.
       </p>

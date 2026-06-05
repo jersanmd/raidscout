@@ -547,34 +547,25 @@ export function BossListView() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-6 space-y-6">
+    <div className="max-w-7xl mx-auto px-3 sm:px-4 py-4 sm:py-6 space-y-4 sm:space-y-6">
       {/* Saving overlay — blocks all interaction */}
       {savingMessage && <SavingOverlay message={savingMessage} />}
 
       {/* ── Stats Banner — tactical status bar ── */}
-      <div className="flex items-center gap-4 flex-wrap rounded-xl border border-[#27272a] bg-[#18181b] backdrop-blur-sm px-4 py-3">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-[#18181b] border border-[#27272a] flex items-center justify-center">
-            <Skull className="w-4 h-4 text-[#a1a1aa]" />
+      <div className="flex items-center gap-2 sm:gap-4 flex-wrap rounded-xl border border-[#27272a] bg-[#18181b] backdrop-blur-sm px-3 sm:px-4 py-2 sm:py-3">
+        <div className="flex items-center gap-1.5 sm:gap-2">
+          <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-[#18181b] border border-[#27272a] flex items-center justify-center">
+            <Skull className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#a1a1aa]" />
           </div>
-          <span className="text-[#fafafa] font-bold text-sm">
+          <span className="text-[#fafafa] font-bold text-xs sm:text-sm">
             {spawns.length} Boss{spawns.length !== 1 ? "es" : ""}{activities.length > 0 ? ` · ${activities.length} Activit${activities.length !== 1 ? "ies" : "y"}` : ""}
           </span>
         </div>
-        <span className="w-px h-6 bg-[#27272a]" />
-        <div className="flex gap-4 text-xs">
-          <span className="flex items-center gap-1.5 text-[#a1a1aa]">
+        <span className="w-px h-5 sm:h-6 bg-[#27272a]" />
+        <div className="flex gap-2 sm:gap-4 text-[10px] sm:text-xs">
+          <span className="flex items-center gap-1 sm:gap-1.5 text-[#a1a1aa]">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 " />
             {spawns.filter((s) => s.status === "alive" && !(s as any).activity).length} Alive
-          </span>
-          <span className="flex items-center gap-1.5 text-[#a1a1aa]">
-            <span className="w-1.5 h-1.5 rounded-full bg-amber-400 " />
-            {
-              spawns.filter(
-                (s) => s.status === "countdown" && s.remainingMs <= 3600_000
-              ).length
-            }{" "}
-            &lt;1h
           </span>
         </div>
 
@@ -748,7 +739,7 @@ export function BossListView() {
                 );
               })()}
 
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              <div className="grid gap-2 sm:gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {group.spawns.map((s) => {
                   const rot = bossRotationInfo(s.boss.id);
                   return (
@@ -795,7 +786,7 @@ export function BossListView() {
                   {activities.length} activit{activities.length !== 1 ? "ies" : "y"}
                 </span>
               </h3>
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              <div className="grid gap-2 sm:gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {activities.map((a) => {
                   // Calculate next occurrence for scheduled activities
                   let nextSpawn: Date | null = null;

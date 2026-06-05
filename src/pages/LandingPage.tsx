@@ -655,7 +655,7 @@ export function LandingPage() {
               {/* RIGHT BAR: Kill Notification Embed */}
               <div className="md:col-span-8">
                 <div className="flex items-start space-x-3">
-                  <div className="w-9 h-9 rounded-full bg-gradient-to-b from-slate-900 to-slate-950 border border-purple-500/30 flex items-center justify-center font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-cyan-400 shrink-0 shadow-xl text-xs font-mono">
+                  <div className="w-9 h-9 rounded-full bg-gradient-to-b from-slate-900 to-slate-950 border border-purple-500/30 flex items-center justify-center font-bold text-white shrink-0 shadow-xl text-xs font-mono">
                     RSB
                   </div>
                   <div className="w-full">
@@ -679,15 +679,15 @@ export function LandingPage() {
 
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 relative z-10">
                         <div className="bg-[#18181b] p-2.5 rounded-lg border border-white/[0.03]">
-                          <span className="text-neutral-400 block font-bold text-[10px] tracking-wider uppercase mb-1">Death Time</span>
-                          <span className="font-mono text-[11px] text-neutral-200 block font-semibold">June 2, 2026 9:09 PM</span>
+                          <span className="text-[#a1a1aa] block font-bold text-[10px] tracking-wider uppercase mb-1">Death Time</span>
+                          <span className="font-mono text-[11px] text-[#fafafa] block font-semibold">June 2, 2026 9:09 PM</span>
                         </div>
                         <div className="bg-[#18181b] p-2.5 rounded-lg border border-white/[0.03]">
-                          <span className="text-neutral-400 block font-bold text-[10px] tracking-wider uppercase mb-1">Recorded By</span>
-                          <span className="font-mono text-[11px] text-gray-300 block font-semibold">._.r0cky</span>
+                          <span className="text-[#a1a1aa] block font-bold text-[10px] tracking-wider uppercase mb-1">Recorded By</span>
+                          <span className="font-mono text-[11px] text-[#d4d4d8] block font-semibold">._.r0cky</span>
                         </div>
                         <div className="bg-[#18181b] p-2.5 rounded-lg border border-white/[0.03] border-b-[#3f3f46]">
-                          <span className="text-neutral-400 block font-bold text-[10px] tracking-wider uppercase mb-1">Next Spawn</span>
+                          <span className="text-[#a1a1aa] block font-bold text-[10px] tracking-wider uppercase mb-1">Next Spawn</span>
                           <span className="font-mono text-[11px] text-cyan-400 block font-bold tracking-tight">June 5, 2026 9:00 PM</span>
                         </div>
                       </div>

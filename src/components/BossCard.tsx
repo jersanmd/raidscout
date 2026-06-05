@@ -130,7 +130,7 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
     <>
       <div
         onClick={() => multiMode && !isActivity && onToggleSelect?.(boss.id)}
-        className={`relative rounded-xl border ${config.border} ${config.accentBorder} border-l-2 ${config.bg} p-4 transition-all duration-300 ${config.glow} backdrop-blur-sm ${
+        className={`relative rounded-xl border ${config.border} ${config.accentBorder} border-l-2 ${config.bg} p-3 sm:p-4 transition-all duration-300 ${config.glow} backdrop-blur-sm ${
           justKilled && !isActivity ? "animate-[fadeOut_0.4s_ease-out] scale-95 opacity-0" : ""
         } ${
           multiMode && !isActivity ? "cursor-pointer" : ""
@@ -148,18 +148,18 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
             )}
           </div>
         )}
-        <div className="flex gap-4 relative z-[1]">
+        <div className="flex gap-3 sm:gap-4 relative z-[1]">
           {/* Boss image / Activity image or icon */}
           {isActivity ? (
             activity.image_url ? (
               <img
                 src={activity.image_url}
                 alt={activity.name}
-                className="w-14 h-14 rounded-xl object-cover border border-[#27272a] shrink-0"
+                className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl object-cover border border-[#27272a] shrink-0"
               />
             ) : (
-              <div className="w-14 h-14 rounded-xl bg-[#09090b] border border-[#27272a] flex items-center justify-center shrink-0">
-                <Calendar className="w-6 h-6 text-[#a1a1aa]" />
+              <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-[#09090b] border border-[#27272a] flex items-center justify-center shrink-0">
+                <Calendar className="w-5 h-5 sm:w-6 sm:h-6 text-[#a1a1aa]" />
             </div>
             )
           ) : (
@@ -169,8 +169,8 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
           {/* Right side: all info */}
           <div className="flex-1 min-w-0 space-y-1.5">
             {/* Row 1: name + type icon + guild badge + status badge */}
-            <div className="flex items-center gap-2">
-              <h3 className="font-bold text-[#fafafa] truncate text-sm tracking-wide">
+            <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+              <h3 className="font-bold text-[#fafafa] truncate text-xs sm:text-sm tracking-wide">
                 {isActivity ? activity.name : boss.name}
               </h3>
               {isActivity ? (
