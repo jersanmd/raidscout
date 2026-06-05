@@ -59,7 +59,7 @@ export function ActivityGuildsTab() {
         const assignments = existing.map((ag, i) => ({
           guild_id: ag.guild_id,
           sort_order: mode === "rotation" || mode === "daily" ? i : undefined,
-          day_of_week: mode === "schedule" ? ag.day_of_week : undefined,
+          day_of_week: mode === "schedule" ? (ag.day_of_week ?? undefined) : undefined,
         }));
         await setActivityGuilds(activityId, assignments.length > 0 ? assignments : [], mode);
       }
@@ -76,7 +76,7 @@ export function ActivityGuildsTab() {
       const assignments = [...existing.map((ag, i) => ({
         guild_id: ag.guild_id,
         sort_order: mode === "rotation" || mode === "daily" ? i : undefined,
-        day_of_week: mode === "schedule" ? ag.day_of_week : undefined,
+        day_of_week: mode === "schedule" ? (ag.day_of_week ?? undefined) : undefined,
       })), { guild_id: guildId, sort_order: mode === "rotation" || mode === "daily" ? existing.length : undefined }];
       await setActivityGuilds(activityId, assignments, mode);
       queryClient.invalidateQueries({ queryKey: ["activity-guilds", serverId] });
@@ -91,7 +91,7 @@ export function ActivityGuildsTab() {
       const assignments = existing.map((ag, i) => ({
         guild_id: ag.guild_id,
         sort_order: mode === "rotation" || mode === "daily" ? i : undefined,
-        day_of_week: mode === "schedule" ? ag.day_of_week : undefined,
+        day_of_week: mode === "schedule" ? (ag.day_of_week ?? undefined) : undefined,
       }));
       await setActivityGuilds(activityId, assignments, mode);
       queryClient.invalidateQueries({ queryKey: ["activity-guilds", serverId] });

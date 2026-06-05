@@ -216,7 +216,18 @@ export async function updateModeratorPermissions(
       p_can_announce_discord: permissions.can_announce_discord ?? false,
     });
     if (!error) return; // RPC succeeded
-  } catch { /* RPC not deployed — fall through */ }
+    // If error is NOT "function not found", throw it
+    if (error.code !== "42883" && !error.message?.includes("Could not find the function")) {
+      throw error;
+    }
+  } catch (err: any) {
+    // Only fall through if RPC doesn't exist; re-throw all other errors
+    if (err?.code === "42883" || err?.message?.includes("Could not find")) {
+      // fall through to direct operations
+    } else {
+      throw err;
+    }
+  }
 
   // Fallback: check-then-insert-or-update via direct table access
   const { data: existing } = await supabase
@@ -233,6 +244,17 @@ export async function updateModeratorPermissions(
       .eq("server_id", serverId)
       .eq("user_id", userId);
     if (error) throw error;
+
+    // Verify update actually persisted (RLS can silently skip rows)
+    const { data: verify } = await supabase
+      .from("moderator_permissions")
+      .select("can_access_settings")
+      .eq("server_id", serverId)
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (verify && permissions.can_access_settings !== undefined && verify.can_access_settings !== permissions.can_access_settings) {
+      throw new Error("Permission update was blocked by access policy. Apply migration 055 (RPC) to fix.");
+    }
   } else {
     const { error } = await supabase
       .from("moderator_permissions")
