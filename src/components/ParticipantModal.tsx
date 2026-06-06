@@ -8,6 +8,7 @@ import {
 } from "@/hooks/useAttendance";
 import { useMembers } from "@/hooks/useMembers";
 import { useServerId } from "@/contexts/ServerContext";
+import { addActivityAttendance, removeActivityAttendance } from "@/lib/supabase";
 import { extractNamesWithAI } from "@/lib/vision";
 import {
   fetchGuilds,
@@ -108,7 +109,7 @@ export function ParticipantModal({
   ownerGuildId,
   activityInstanceId,
 }: ParticipantModalProps) {
-  const readOnly = readOnlyProp || !!activityInstanceId;
+  const readOnly = readOnlyProp;
 
   // Fetch attendance: activity_attendance when activityInstanceId is set, otherwise death attendance
   const { data: bossAttendance = [], isLoading: bossLoading } = useAttendance(
@@ -135,6 +136,7 @@ export function ParticipantModal({
   const addAttendance = useAddAttendance();
   const removeAttendance = useRemoveAttendance();
   const queryClient = useQueryClient();
+  const serverId = useServerId();
 
   const [memberSearch, setMemberSearch] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -842,22 +844,33 @@ export function ParticipantModal({
                                       ? "Only moderators can update participants"
                                       : undefined
                                   }
-                                  onChange={() => {
+                                  onChange={async () => {
                                     if (readOnly) return;
                                     if (isAttending) {
                                       const att = attendance.find(
                                         (a) => a.member_id === m.id,
                                       );
-                                      if (att)
-                                        removeAttendance.mutate({
-                                          attendanceId: att.id,
-                                          deathRecordId,
-                                        });
+                                      if (att) {
+                                        if (activityInstanceId) {
+                                          await removeActivityAttendance(activityInstanceId, m.id);
+                                          queryClient.invalidateQueries({ queryKey: ["activity_attendance", activityInstanceId] });
+                                        } else {
+                                          removeAttendance.mutate({
+                                            attendanceId: att.id,
+                                            deathRecordId,
+                                          });
+                                        }
+                                      }
                                     } else {
-                                      addAttendance.mutate({
-                                        deathRecordId,
-                                        memberId: m.id,
-                                      });
+                                      if (activityInstanceId) {
+                                        await addActivityAttendance(activityInstanceId, m.id);
+                                        queryClient.invalidateQueries({ queryKey: ["activity_attendance", activityInstanceId] });
+                                      } else {
+                                        addAttendance.mutate({
+                                          deathRecordId,
+                                          memberId: m.id,
+                                        });
+                                      }
                                     }
                                   }}
                                   className="w-4 h-4 rounded border-[#3f3f46] bg-[#27272a] text-emerald-500 focus:ring-[#27272a] cursor-pointer"

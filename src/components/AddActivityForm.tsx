@@ -11,21 +11,23 @@ interface Props {
   gameId: string;
   gameSlug: string;
   serverId?: string;
+  timezone?: string;
   onCreated: () => void;
   onCancel: () => void;
 }
 
-export function AddActivityForm({ gameId, gameSlug, serverId, onCreated, onCancel }: Props) {
+export function AddActivityForm({ gameId, gameSlug, serverId, timezone, onCreated, onCancel }: Props) {
   const isServerMode = !!serverId;
   const [name, setName] = useState("");
   const [scheduleType, setScheduleType] = useState("fixed_hours");
   const [startHours, setStartHours] = useState("0");
   const [startMinutes, setStartMinutes] = useState("0");
-  const todayStr = new Date().toLocaleDateString("en-CA"); // YYYY-MM-DD in user's local timezone
+  const tz = timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const todayStr = new Date().toLocaleDateString("en-CA", { timeZone: tz });
   const [startDate, setStartDate] = useState(todayStr);
   const isToday = startDate === todayStr;
-  const nowHour = new Date().getHours();
-  const nowMin = new Date().getMinutes();
+  const nowHour = parseInt(new Date().toLocaleTimeString("en-GB", { timeZone: tz, hour: "2-digit", hour12: false }));
+  const nowMin = parseInt(new Date().toLocaleTimeString("en-GB", { timeZone: tz, minute: "2-digit", hour12: false }));
   const [recurHours, setRecurHours] = useState("2");
   const [recurMinutes, setRecurMinutes] = useState("0");
   const [pointsPerParticipant, setPointsPerParticipant] = useState(1);
@@ -49,7 +51,7 @@ export function AddActivityForm({ gameId, gameSlug, serverId, onCreated, onCance
       }
       if (isServerMode && serverId) {
         const sched = scheduleType === "fixed_schedule" && scheduleSlots.length > 0
-          ? scheduleSlots.map(s => localSlotToUtc(s.day, s.time))
+          ? scheduleSlots.map(s => localSlotToUtc(s.day, s.time, tz))
           : (scheduleType === "fixed_hours" || scheduleType === "one_time")
             ? { time: `${startHours.padStart(2, "0")}:${startMinutes.padStart(2, "0")}`, start_date: startDate }
             : null;
@@ -69,7 +71,7 @@ export function AddActivityForm({ gameId, gameSlug, serverId, onCreated, onCance
         name: name.trim(),
         schedule_type: scheduleType,
         schedule: scheduleType === "fixed_schedule" && scheduleSlots.length > 0
-          ? scheduleSlots.map(s => localSlotToUtc(s.day, s.time))
+          ? scheduleSlots.map(s => localSlotToUtc(s.day, s.time, tz))
           : (scheduleType === "fixed_hours" || scheduleType === "one_time")
             ? { time: `${startHours.padStart(2, "0")}:${startMinutes.padStart(2, "0")}`, start_date: startDate }
             : undefined,
@@ -136,7 +138,7 @@ export function AddActivityForm({ gameId, gameSlug, serverId, onCreated, onCance
                 <input type="number" min="0" max="168" value={recurHours} onChange={e => setRecurHours(e.target.value)} className="w-16 px-2.5 py-2 bg-[#09090b] border border-[#3f3f46] rounded text-sm text-[#fafafa] focus:outline-none focus:ring-1 focus:ring-[#52525b]" />
                 <span className="text-xs text-[#71717a]">h</span>
                 <select value={recurMinutes} onChange={e => setRecurMinutes(e.target.value)} className="w-16 px-2.5 py-2 bg-[#09090b] border border-[#3f3f46] rounded text-sm text-[#fafafa] focus:outline-none focus:ring-1 focus:ring-[#52525b]">
-                  {Array.from({ length: 60 }, (_, i) => i + 1).map(m => <option key={m} value={m}>{m}m</option>)}
+                  {Array.from({ length: 60 }, (_, i) => i).map(m => <option key={m} value={m}>{m}m</option>)}
                 </select>
               </div>
             </div>

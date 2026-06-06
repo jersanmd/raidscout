@@ -314,6 +314,7 @@ export function ServerBossesActivitiesTab({ mode = "all" }: { mode?: "all" | "bo
               serverId={serverId}
               gameId=""
               gameSlug=""
+              timezone={currentServer?.timezone}
               onCreated={() => {
                 setShowAddActivity(false);
                 queryClient.invalidateQueries({ queryKey: ["activities-all", serverId] });
@@ -403,6 +404,7 @@ export function ServerBossesActivitiesTab({ mode = "all" }: { mode?: "all" | "bo
                     }}
                     gameSlug=""
                     serverId={serverId}
+                    timezone={currentServer?.timezone}
                     onSaved={() => {
                       setEditingActivityId(null);
                       queryClient.invalidateQueries({ queryKey: ["activities-all", serverId] });

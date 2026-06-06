@@ -44,8 +44,8 @@ interface BossCardProps {
   onFinishActivity?: (activityId: string) => void;
   /** Called when user records an activity end with time + attendance (same signature as onRecordDeath) */
   onRecordEnd?: (activityId: string, endTime: Date, rallyImages: File[], attendeeIds: string[]) => void;
-  /** Called when user edits an activity's time */
-  onEditActivityTime?: (activityId: string, timeStr: string) => void;
+  /** Called when user edits an activity's next start date & time */
+  onEditActivityTime?: (activityId: string, dateStr: string, timeStr: string) => void;
   /** Hide schedule/time display even when status is countdown (e.g., fixed_hours after first finish) */
   hideScheduleTime?: boolean;
 }
@@ -58,6 +58,7 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
   const [showEditSpawnModal, setShowEditSpawnModal] = useState(false);
   const [editSpawnDate, setEditSpawnDate] = useState("");
   const [showEditTimeModal, setShowEditTimeModal] = useState(false);
+  const [editDateValue, setEditDateValue] = useState("");
   const [editTimeValue, setEditTimeValue] = useState("");
   const [optimisticOwner, setOptimisticOwner] = useState<string | null>(null);
 
@@ -336,8 +337,12 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
             {onEditActivityTime && (
               <button
                 onClick={() => {
-                  const currentTime = typeof activity.schedule === "string" ? activity.schedule : "00:00";
-                  setEditTimeValue(currentTime);
+                  // Default to the current next start time (in user's timezone)
+                  const defaultDate = nextSpawn ?? new Date();
+                  const dateStr = defaultDate.toLocaleDateString('en-CA', { timeZone: tz });
+                  const timeStr = defaultDate.toLocaleTimeString('en-GB', { timeZone: tz, hour: '2-digit', minute: '2-digit' });
+                  setEditTimeValue(timeStr);
+                  setEditDateValue(dateStr);
                   setShowEditTimeModal(true);
                 }}
                 className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#27272a] border border-[#27272a] text-[#a1a1aa] text-[11px] font-semibold hover:bg-[#3f3f46] active:scale-95 transition-all duration-200 whitespace-nowrap"
@@ -505,15 +510,25 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
               </button>
             </div>
             <p className="text-sm text-[#a1a1aa] mb-3">
-              Set a new start time for <span className="text-[#fafafa] font-medium">{activity.name}</span>
+              Set the next start date &amp; time for <span className="text-[#fafafa] font-medium">{activity.name}</span>
             </p>
-            <input
-              type="time"
-              value={editTimeValue}
-              onChange={(e) => setEditTimeValue(e.target.value)}
-              className="w-full bg-[#18181b] border border-[#27272a] rounded-xl px-3 py-2.5 text-sm text-[#fafafa] outline-none focus:border-[#52525b] focus:ring-1 focus:ring-[#27272a] transition-all duration-200 mb-4 [color-scheme:dark] [&::-webkit-calendar-picker-indicator]:invert"
-              autoFocus
-            />
+            <div className="flex gap-2 mb-4">
+              <input
+                type="date"
+                value={editDateValue}
+                onChange={(e) => setEditDateValue(e.target.value)}
+                min={new Date().toLocaleDateString('en-CA', { timeZone: tz })}
+                className="flex-1 bg-[#18181b] border border-[#27272a] rounded-xl px-3 py-2.5 text-sm text-[#fafafa] outline-none focus:border-[#52525b] focus:ring-1 focus:ring-[#27272a] transition-all duration-200 [color-scheme:dark] [&::-webkit-calendar-picker-indicator]:invert"
+                autoFocus
+              />
+              <input
+                type="time"
+                value={editTimeValue}
+                onChange={(e) => setEditTimeValue(e.target.value)}
+                min={editDateValue === new Date().toLocaleDateString('en-CA', { timeZone: tz }) ? new Date().toLocaleTimeString('en-GB', { timeZone: tz, hour: '2-digit', minute: '2-digit' }) : undefined}
+                className="flex-1 bg-[#18181b] border border-[#27272a] rounded-xl px-3 py-2.5 text-sm text-[#fafafa] outline-none focus:border-[#52525b] focus:ring-1 focus:ring-[#27272a] transition-all duration-200 [color-scheme:dark] [&::-webkit-calendar-picker-indicator]:invert"
+              />
+            </div>
             <div className="flex justify-end gap-2">
               <button
                 onClick={() => setShowEditTimeModal(false)}
@@ -523,12 +538,13 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
               </button>
               <button
                 onClick={() => {
-                  if (editTimeValue) {
-                    onEditActivityTime(activity.id, editTimeValue);
+                  if (editDateValue && editTimeValue) {
+                    onEditActivityTime(activity.id, editDateValue, editTimeValue);
                   }
                   setShowEditTimeModal(false);
                 }}
-                className="px-4 py-2 rounded-lg text-sm font-semibold bg-[#27272a] border border-[#27272a] text-[#a1a1aa] hover:bg-[#3f3f46] transition"
+                disabled={!editDateValue || !editTimeValue}
+                className="px-4 py-2 rounded-lg text-sm font-semibold bg-[#27272a] border border-[#27272a] text-[#a1a1aa] hover:bg-[#3f3f46] transition disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 Save
               </button>

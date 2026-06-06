@@ -24,15 +24,17 @@ interface Props {
   activity: ActivityData;
   gameSlug: string;
   serverId?: string;
+  timezone?: string;
   onSaved: () => void;
   onCancel: () => void;
 }
 
-export function EditActivityForm({ activity, gameSlug, serverId, onSaved, onCancel }: Props) {
+export function EditActivityForm({ activity, gameSlug, serverId, timezone, onSaved, onCancel }: Props) {
   const isServerMode = !!serverId;
   const [name, setName] = useState(activity.name);
   const [scheduleType, setScheduleType] = useState(activity.schedule_type);
   const [schedule, setSchedule] = useState<any>(activity.schedule ?? null);
+  const tz = timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
   
   // Parse time from schedule (handles both old "HH:MM" string and new {time, start_date} object)
   const parsedTime = typeof activity.schedule === "object" && activity.schedule?.time
@@ -42,15 +44,15 @@ export function EditActivityForm({ activity, gameSlug, serverId, onSaved, onCanc
       : "00:00";
   const parsedDate = typeof activity.schedule === "object" && activity.schedule?.start_date
     ? activity.schedule.start_date
-    : new Date().toISOString().split("T")[0];
+    : new Date().toLocaleDateString("en-CA", { timeZone: tz });
   
   const [startHours, setStartHours] = useState(parsedTime.split(":")[0]);
   const [startMinutes, setStartMinutes] = useState(parsedTime.split(":")[1]);
   const [startDate, setStartDate] = useState(parsedDate);
-  const todayStr = new Date().toLocaleDateString("en-CA");
+  const todayStr = new Date().toLocaleDateString("en-CA", { timeZone: tz });
   const isToday = startDate === todayStr;
-  const nowHour = new Date().getHours();
-  const nowMin = new Date().getMinutes();
+  const nowHour = parseInt(new Date().toLocaleTimeString("en-GB", { timeZone: tz, hour: "2-digit", hour12: false }));
+  const nowMin = parseInt(new Date().toLocaleTimeString("en-GB", { timeZone: tz, minute: "2-digit", hour12: false }));
   const [recurHours, setRecurHours] = useState(() => {
     const mins = activity.duration_minutes;
     if (!mins) return "2";
@@ -73,7 +75,7 @@ export function EditActivityForm({ activity, gameSlug, serverId, onSaved, onCanc
     try {
       let processedSchedule: any = null;
       if (scheduleType === "fixed_schedule" && Array.isArray(schedule) && schedule.length > 0) {
-        processedSchedule = schedule.map((s: ScheduleSlot) => localSlotToUtc(s.day, s.time));
+        processedSchedule = schedule.map((s: ScheduleSlot) => localSlotToUtc(s.day, s.time, tz));
       } else if (scheduleType === "fixed_hours" || scheduleType === "one_time") {
         processedSchedule = {
           time: `${String(startHours).padStart(2, "0")}:${String(startMinutes).padStart(2, "0")}`,
@@ -154,7 +156,7 @@ export function EditActivityForm({ activity, gameSlug, serverId, onSaved, onCanc
                 <input type="number" min="0" max="168" value={recurHours} onChange={e => setRecurHours(e.target.value)} className="w-16 px-2.5 py-2 bg-[#09090b] border border-[#3f3f46] rounded text-sm text-[#fafafa] focus:outline-none focus:ring-1 focus:ring-[#52525b]" />
                 <span className="text-xs text-[#71717a]">h</span>
                 <select value={recurMinutes} onChange={e => setRecurMinutes(e.target.value)} className="w-16 px-2.5 py-2 bg-[#09090b] border border-[#3f3f46] rounded text-sm text-[#fafafa] focus:outline-none focus:ring-1 focus:ring-[#52525b]">
-                  {Array.from({ length: 60 }, (_, i) => i + 1).map(m => <option key={m} value={m}>{m}m</option>)}
+                  {Array.from({ length: 60 }, (_, i) => i).map(m => <option key={m} value={m}>{m}m</option>)}
                 </select>
               </div>
             </div>

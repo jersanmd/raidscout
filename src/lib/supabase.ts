@@ -173,6 +173,8 @@ export {
 export {
   setActivityParties,
   markActivityAttendance,
+  addActivityAttendance,
+  removeActivityAttendance,
   finalizeActivity,
 } from "./api/activities";
 

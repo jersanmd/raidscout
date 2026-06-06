@@ -419,10 +419,12 @@ export function BossListView() {
   );
 
   const handleEditActivityTime = useCallback(
-    async (activityId: string, timeStr: string) => {
+    async (activityId: string, dateStr: string, timeStr: string) => {
       try {
-        await supabase.from("activities").update({ schedule: timeStr }).eq("id", activityId);
+        const schedule = { time: timeStr, start_date: dateStr };
+        await supabase.from("activities").update({ schedule }).eq("id", activityId);
         await queryClient.invalidateQueries({ queryKey: ["activities"] });
+        await queryClient.invalidateQueries({ queryKey: ["activity_instances"] });
         setToast({ type: "success", message: "Activity time updated!" });
       } catch (err: any) {
         setToast({ type: "error", message: err?.message ?? "Failed to update time" });
