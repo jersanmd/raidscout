@@ -446,7 +446,7 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
           onSubmit={(dt, imgs, ids) => {
             if (isActivity && onRecordEnd) {
               onRecordEnd(activity!.id, dt, imgs, ids);
-            } else {
+            } else if (onRecordDeath) {
               onRecordDeath(boss.id, dt, imgs, ids);
             }
             setShowModal(false);
