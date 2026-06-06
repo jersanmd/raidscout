@@ -55,36 +55,151 @@ export function MembersView() {
   const [classes, setClasses] = useState<string[]>([]);
   const [newClassName, setNewClassName] = useState("");
 
-  // Static parties
+  // Static parties — drag & drop UI
   const [parties, setParties] = useState<StaticParty[]>([]);
-  const [newPartyName, setNewPartyName] = useState("");
-  const [newPartyGuild, setNewPartyGuild] = useState("");
+  const [partyGuildFilter, setPartyGuildFilter] = useState<string>("");
+  const [partySize, setPartySize] = useState<number>(4);
+  const [allPartyBoxes, setAllPartyBoxes] = useState<Record<string, string[][]>>({});
+  const [unassignedSearch, setUnassignedSearch] = useState("");
+  const [savingParties, setSavingParties] = useState(false);
   const [membersTab, setMembersTab] = useState<"members" | "parties">("members");
 
+  // Current guild key for boxes
+  const currentGuildKey = partyGuildFilter || "__all__";
+
+  // Current party boxes for the active guild filter
+  const partyBoxes: string[][] = allPartyBoxes[currentGuildKey] ?? [];
+
+  // Load saved parties and populate boxes
   const refreshParties = () => {
     if (serverId) fetchStaticParties(serverId).then(setParties).catch(() => {});
   };
 
-  const handleCreateParty = async () => {
-    const name = newPartyName.trim();
-    if (!name) return;
+  // When parties load from server, group by guild
+  useEffect(() => {
+    if (parties.length > 0) {
+      const grouped: Record<string, string[][]> = {};
+      for (const p of parties) {
+        const key = p.guild_id || "__all__";
+        if (!grouped[key]) grouped[key] = [];
+        grouped[key].push(p.member_ids);
+      }
+      setAllPartyBoxes(grouped);
+      setPartySize(parties[0]?.member_ids.length || 4);
+    }
+  }, [parties]);
+
+  // Filtered members for unassigned list
+  const unassignedMembers = useMemo(() => {
+    return members.filter(m => {
+      if (partyGuildFilter && m.guild_id !== partyGuildFilter) return false;
+      return !partyBoxes.some(box => box.includes(m.id));
+    });
+  }, [members, partyGuildFilter, partyBoxes]);
+
+  // Update boxes for current guild
+  const setPartyBoxes = (boxes: string[][]) => {
+    setAllPartyBoxes(prev => ({ ...prev, [currentGuildKey]: boxes }));
+  };
+
+  // Generate party boxes based on party size
+  const handleApplyPartySize = () => {
+    const filtered = members.filter(m => !partyGuildFilter || m.guild_id === partyGuildFilter);
+    const count = Math.max(1, Math.ceil(filtered.length / Math.max(1, partySize)));
+    setPartyBoxes(Array.from({ length: count }, () => []));
+  };
+
+  // Drag a member into a specific slot (handles inserts & reordering)
+  const handleDropInSlot = (boxIndex: number, slotIndex: number, memberId: string) => {
+    setAllPartyBoxes(prev => {
+      const boxes = [...(prev[currentGuildKey] ?? [])];
+      // Remove member from wherever they currently are
+      const cleaned = boxes.map(box => box.filter(id => id !== memberId));
+      // Insert at the target slot within the target box
+      const target = [...(cleaned[boxIndex] ?? [])];
+      target.splice(slotIndex, 0, memberId);
+      // Truncate to partySize
+      cleaned[boxIndex] = target.slice(0, partySize);
+      return { ...prev, [currentGuildKey]: cleaned };
+    });
+  };
+
+  // Double-click auto-assign: assign to first box with an empty slot
+  const handleAutoAssign = (memberId: string) => {
+    setAllPartyBoxes(prev => {
+      const boxes = [...(prev[currentGuildKey] ?? [])];
+      for (let i = 0; i < boxes.length; i++) {
+        if (boxes[i].length < partySize && !boxes[i].includes(memberId)) {
+          const next = boxes.map(box => box.filter(id => id !== memberId));
+          next[i] = [...next[i], memberId];
+          return { ...prev, [currentGuildKey]: next };
+        }
+      }
+      return prev;
+    });
+  };
+
+  // Remove member from box (back to unassigned)
+  const handleRemoveFromBox = (boxIndex: number, memberId: string) => {
+    setAllPartyBoxes(prev => {
+      const boxes = [...(prev[currentGuildKey] ?? [])];
+      return { ...prev, [currentGuildKey]: boxes.map((box, i) => (i === boxIndex ? box.filter(id => id !== memberId) : box)) };
+    });
+  };
+
+  // Drop member back to unassigned
+  const handleDropUnassigned = (memberId: string) => {
+    setAllPartyBoxes(prev => {
+      const boxes = [...(prev[currentGuildKey] ?? [])];
+      return { ...prev, [currentGuildKey]: boxes.map(box => box.filter(id => id !== memberId)) };
+    });
+  };
+
+  // Save all party boxes for ALL guilds
+  const handleSaveParties = async () => {
+    setSavingParties(true);
     try {
-      await createParty(name, newPartyGuild || null);
-      setNewPartyName("");
-      setNewPartyGuild("");
+      // Delete existing parties
+      for (const p of parties) {
+        await deleteParty(p.id).catch(() => {});
+      }
+      // Create new parties from all guild keys
+      for (const [key, boxes] of Object.entries(allPartyBoxes)) {
+        const guildId = key === "__all__" ? null : key;
+        for (let i = 0; i < boxes.length; i++) {
+          const box = boxes[i];
+          if (box.length === 0) continue;
+          const partyId = await createParty(`Party ${i + 1}`, guildId);
+          for (const memberId of box) {
+            await addMemberToParty(partyId, memberId).catch(() => {});
+          }
+        }
+      }
       refreshParties();
-    } catch {}
+      const totalBoxes = Object.values(allPartyBoxes).reduce((sum, b) => sum + b.filter(bx => bx.length > 0).length, 0);
+      showToast("success", `${totalBoxes} parties saved`);
+    } catch (err) {
+      showToast("error", "Failed to save parties");
+    } finally {
+      setSavingParties(false);
+    }
   };
 
   useEffect(() => {
     fetchGuilds(serverId).then(setGuilds).catch(() => setGuilds([]));
     if (serverId) {
       supabase.rpc("get_member_classes", { p_server_id: serverId })
-        .then(({ data }) => { if (data) setClasses(data as string[]); })
-        .catch(() => setClasses([]));
+        .then(({ data }) => { if (data) setClasses(data as string[]); }, () => setClasses([]));
       fetchStaticParties(serverId).then(setParties).catch(() => setParties([]));
     }
   }, [serverId]);
+
+  // Prefill first guild in add-member form
+  useEffect(() => {
+    if (guilds.length > 0 && !addGuild) {
+      setAddGuild(guilds[0].id);
+    }
+  }, [guilds]);
 
   const handleAddClass = async () => {
     const name = newClassName.trim();
@@ -250,7 +365,7 @@ export function MembersView() {
   return (
     <div className="max-w-7xl mx-auto px-4 py-6 space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-3">
           <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-[#18181b] border border-[#27272a]">
             <Users className="w-5 h-5 text-[#fafafa]" />
@@ -262,6 +377,71 @@ export function MembersView() {
             </p>
           </div>
         </div>
+
+        {/* Add member form — inline in header */}
+        {canManageRaidMembers && (
+        <form
+          onSubmit={(e) => { e.preventDefault(); handleAdd(); }}
+          className="flex flex-wrap items-center gap-1.5"
+        >
+          <input
+            type="text"
+            value={addName}
+            onChange={(e) => setAddName(e.target.value)}
+            placeholder="Member name..."
+            ref={memberInputRef}
+            className="w-44 px-2 py-1.5 bg-[#18181b] border border-[#27272a] rounded-lg text-[#fafafa] placeholder-[#52525b] focus:outline-none focus:ring-2 focus:ring-[#52525b] focus:border-transparent transition text-xs"
+          />
+          <input
+            type="number"
+            value={addCombatPower}
+            onChange={(e) => setAddCombatPower(e.target.value)}
+            placeholder="CP"
+            className="w-20 px-2 py-1.5 bg-[#18181b] border border-[#27272a] rounded-lg text-[#fafafa] placeholder-[#52525b] text-xs focus:outline-none focus:ring-2 focus:ring-[#52525b] focus:border-transparent transition"
+          />
+          {classes.length > 0 && (
+            <select
+              value={addClass}
+              onChange={(e) => setAddClass(e.target.value)}
+              className="px-1.5 py-1.5 bg-[#18181b] border border-[#27272a] rounded-lg text-[10px] text-[#a1a1aa] outline-none focus:ring-2 focus:ring-[#52525b] focus:border-transparent transition max-w-[80px] truncate"
+            >
+              <option value="">—</option>
+              {classes.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+          )}
+          {guilds.length > 0 && (
+            <select
+              value={addGuild}
+              onChange={(e) => setAddGuild(e.target.value)}
+              className="px-1.5 py-1.5 bg-[#18181b] border border-[#27272a] rounded-lg text-[10px] text-[#a1a1aa] outline-none focus:ring-2 focus:ring-[#52525b] focus:border-transparent transition max-w-[100px] truncate"
+            >
+              <option value="">—</option>
+              {guilds.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+            </select>
+          )}
+          <button
+            type="submit"
+            disabled={adding || !addName.trim()}
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-[#fafafa] text-[#09090b] text-xs font-medium hover:bg-[#e4e4e7] disabled:opacity-50 transition"
+          >
+            {adding ? (
+              <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+            ) : (
+              <UserPlus className="w-3 h-3" />
+            )}
+            Add
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowBulkModal(true)}
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-[#18181b] border border-[#27272a] text-[#a1a1aa] text-xs font-medium hover:bg-[#27272a] hover:text-[#fafafa] transition"
+          >
+            <Upload className="w-3 h-3" />
+            Bulk
+          </button>
+        </form>
+        )}
+
         {members.length > 0 && (
           <button
             onClick={() => {
@@ -269,7 +449,7 @@ export function MembersView() {
               navigator.clipboard.writeText(names);
               setToast({ type: "success", message: `${members.length} names copied!` });
             }}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#18181b] border border-[#27272a] text-[#a1a1aa] text-xs font-medium hover:bg-[#27272a] hover:text-[#fafafa] transition"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#18181b] border border-[#27272a] text-[#a1a1aa] text-xs font-medium hover:bg-[#27272a] hover:text-[#fafafa] transition shrink-0"
           >
             <Copy className="w-3.5 h-3.5" />
             Copy All
@@ -279,70 +459,6 @@ export function MembersView() {
 
       {/* Toast notification */}
       {toast && <ToastMessage toast={toast} onDismiss={() => setToast(null)} />}
-
-      {/* Add member */}
-      {canManageRaidMembers && (
-      <>
-      <form
-        onSubmit={(e) => { e.preventDefault(); handleAdd(); }}
-        className="flex flex-col sm:flex-row gap-2"
-      >
-        <input
-          type="text"
-          value={addName}
-          onChange={(e) => setAddName(e.target.value)}
-          placeholder="Member name..."
-          ref={memberInputRef}
-          className="flex-1 min-w-0 px-3 py-2 bg-[#18181b] border border-[#27272a] rounded-lg text-[#fafafa] placeholder-[#71717a] focus:outline-none focus:ring-2 focus:ring-[#52525b] focus:border-transparent transition text-sm"
-        />
-        <input
-          type="number"
-          value={addCombatPower}
-          onChange={(e) => setAddCombatPower(e.target.value)}
-          placeholder="Combat Power"
-          className="w-28 px-2 py-2 bg-[#18181b] border border-[#27272a] rounded-lg text-[#fafafa] placeholder-[#71717a] text-sm focus:outline-none focus:ring-2 focus:ring-[#52525b] focus:border-transparent transition"
-        />
-        {classes.length > 0 && (
-          <select
-            value={addClass}
-            onChange={(e) => setAddClass(e.target.value)}
-            className="px-2 py-2 bg-[#18181b] border border-[#27272a] rounded-lg text-xs text-[#a1a1aa] outline-none focus:ring-2 focus:ring-[#52525b] focus:border-transparent transition max-w-[100px] truncate"
-          >
-            <option value="">No class</option>
-            {classes.map(c => <option key={c} value={c}>{c}</option>)}
-          </select>
-        )}
-        {guilds.length > 0 && (
-          <select
-            value={addGuild}
-            onChange={(e) => setAddGuild(e.target.value)}
-            className="px-2 py-2 bg-[#18181b] border border-[#27272a] rounded-lg text-xs text-[#a1a1aa] outline-none focus:ring-2 focus:ring-[#52525b] focus:border-transparent transition max-w-[100px] truncate"
-          >
-            <option value="">No guild</option>
-            {guilds.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
-          </select>
-        )}
-        <button
-          type="submit"
-          disabled={adding || !addName.trim()}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#fafafa] text-[#09090b] text-sm font-medium hover:bg-[#e4e4e7] disabled:opacity-50 transition"
-        >
-          {adding ? (
-            <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-          ) : (
-            <UserPlus className="w-4 h-4" />
-          )}
-          Add
-        </button>
-        <button
-          type="button"
-          onClick={() => setShowBulkModal(true)}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[#18181b] border border-[#27272a] text-[#d4d4d8] text-sm font-medium hover:bg-[#27272a] transition"
-        >
-          <Upload className="w-4 h-4" />
-          Bulk
-        </button>
-      </form>
 
       {/* Tab bar */}
       <div className="flex items-center gap-1 border-b border-[#27272a] pb-2">
@@ -368,128 +484,219 @@ export function MembersView() {
           <Shield className="w-3.5 h-3.5 inline mr-1" />
           Parties {parties.length > 0 && `(${parties.length})`}
         </button>
-      </div>
 
-      {membersTab === "members" ? (
-      <>
-      {/* Class management */}
-      <div className="flex flex-wrap items-center gap-1.5">
-        <span className="text-[10px] sm:text-xs text-[#71717a] mr-1">Classes:</span>
-        {classes.map(c => (
-          <span key={c} className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] bg-[#27272a] text-[#d4d4d8] border border-[#3f3f46]">
-            {c}
-            <button onClick={() => handleRemoveClass(c)} className="text-[#71717a] hover:text-[#f87171]"><X className="w-3 h-3" /></button>
-          </span>
-        ))}
-        <div className="flex items-center gap-1">
+        {/* Classes — inline in tab bar */}
+        <div className="flex items-center gap-1 ml-auto">
+          <span className="text-[10px] text-[#52525b]">Classes:</span>
+          <span className="text-[9px] text-[#3f3f46] italic hidden sm:inline" title="Assign classes to personalize attendance records & leaderboard filters">personalize members</span>
+          {classes.map(c => (
+            <span key={c} className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] bg-[#18181b] text-[#a1a1aa] border border-[#27272a]">
+              {c}
+              <button onClick={() => handleRemoveClass(c)} className="text-[#52525b] hover:text-[#f87171]"><X className="w-2.5 h-2.5" /></button>
+            </span>
+          ))}
           <input
             type="text"
             value={newClassName}
             onChange={(e) => setNewClassName(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), handleAddClass())}
-            placeholder="Add class..."
-            className="w-24 px-2 py-1 bg-[#18181b] border border-[#27272a] rounded text-xs text-[#fafafa] placeholder-[#52525b] focus:outline-none focus:border-[#52525b]"
+            placeholder="Add class"
+            className="w-24 px-2 py-0.5 bg-[#18181b] border border-[#27272a] rounded text-[10px] text-[#fafafa] placeholder-[#52525b] focus:outline-none focus:border-[#52525b]"
           />
-          <button onClick={handleAddClass} disabled={!newClassName.trim()} className="p-1 text-[#a1a1aa] hover:text-[#fafafa] disabled:opacity-30"><Plus className="w-3 h-3" /></button>
+          <button onClick={handleAddClass} disabled={!newClassName.trim()} className="p-0.5 text-[#52525b] hover:text-[#fafafa] disabled:opacity-30"><Plus className="w-3 h-3" /></button>
         </div>
       </div>
-      </>
-      )}
 
-      {/* Parties Tab */}
+      {/* Parties Tab — Drag & Drop */}
       {membersTab === "parties" && canManageRaidMembers && (
       <div className="space-y-3">
-        {/* Create party */}
-        <div className="flex items-center gap-2">
-          <input
-            type="text"
-            value={newPartyName}
-            onChange={(e) => setNewPartyName(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleCreateParty()}
-            placeholder="New party name..."
-            className="flex-1 px-3 py-2 bg-[#18181b] border border-[#27272a] rounded-lg text-sm text-[#fafafa] placeholder-[#71717a] focus:outline-none focus:border-[#52525b]"
-          />
+        {/* Controls: guild filter + party size */}
+        <div className="flex flex-wrap items-center gap-2">
           {guilds.length > 0 && (
             <select
-              value={newPartyGuild}
-              onChange={(e) => setNewPartyGuild(e.target.value)}
-              className="px-2 py-2 bg-[#18181b] border border-[#27272a] rounded-lg text-xs text-[#a1a1aa] outline-none focus:border-[#52525b] max-w-[120px]"
+              value={partyGuildFilter}
+              onChange={(e) => setPartyGuildFilter(e.target.value)}
+              className="px-2 py-1.5 bg-[#18181b] border border-[#27272a] rounded-lg text-xs text-[#a1a1aa] outline-none focus:border-[#52525b]"
             >
-              <option value="">Server-wide</option>
+              <option value="">All guilds</option>
               {guilds.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
             </select>
           )}
+          <label className="flex items-center gap-1.5 text-xs text-[#a1a1aa]">
+            Party size:
+            <input
+              type="number"
+              value={partySize}
+              onChange={(e) => setPartySize(Math.max(1, Number(e.target.value) || 1))}
+              min={1}
+              className="w-16 px-2 py-1.5 bg-[#18181b] border border-[#27272a] rounded-lg text-[#fafafa] text-xs text-center focus:outline-none focus:border-[#52525b]"
+            />
+          </label>
           <button
-            onClick={handleCreateParty}
-            disabled={!newPartyName.trim()}
-            className="px-4 py-2 rounded-lg text-sm font-medium bg-[#fafafa] text-[#09090b] hover:bg-[#e4e4e7] disabled:opacity-50 transition"
+            onClick={handleApplyPartySize}
+            className="px-3 py-1.5 rounded-lg text-xs font-medium bg-[#fafafa] text-[#09090b] hover:bg-[#e4e4e7] transition"
           >
-            Create
+            Generate Boxes
           </button>
+          {partyBoxes.length > 0 && (
+            <button
+              onClick={handleSaveParties}
+              disabled={savingParties}
+              className="px-3 py-1.5 rounded-lg text-xs font-medium bg-[#22c55e] text-[#09090b] hover:bg-[#16a34a] disabled:opacity-50 transition ml-auto"
+            >
+              {savingParties ? "Saving…" : "Save Parties"}
+            </button>
+          )}
         </div>
 
-        {/* Party list */}
-        {parties.length === 0 ? (
-          <p className="text-sm text-[#71717a] text-center py-8">No parties yet. Create one to quick-select members for attendance.</p>
+        {partyBoxes.length === 0 ? (
+          <p className="text-sm text-[#71717a] text-center py-8">
+            Select a guild, set a party size, then click "Generate Boxes" to start organizing members into parties.
+          </p>
         ) : (
-          <div className="space-y-3">
-            {parties.map(p => (
-              <div key={p.id} className="p-3 rounded-lg bg-[#18181b]/50 border border-[#27272a]/50">
-                <div className="flex items-center justify-between mb-2">
-                  <div>
-                    <span className="text-sm text-[#fafafa] font-medium">{p.name}</span>
-                    {p.guild_name && (
-                      <span className="text-xs text-[#71717a] ml-1.5">({p.guild_name})</span>
-                    )}
-                    <span className="text-xs text-[#52525b] ml-2">{p.member_ids.length} members</span>
-                  </div>
-                  <button
-                    onClick={async () => { await deleteParty(p.id); refreshParties(); }}
-                    className="p-1 text-[#71717a] hover:text-[#f87171] transition"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
+        <div className="flex gap-4">
+          {/* Left: Unassigned members */}
+          <div
+            className="w-64 shrink-0 rounded-lg border border-dashed border-[#3f3f46] bg-[#09090b]/50 p-2 space-y-1 self-start"
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={(e) => {
+              e.preventDefault();
+              const memberId = e.dataTransfer.getData("text/plain");
+              if (memberId) handleDropUnassigned(memberId);
+            }}
+          >
+            <p className="text-[10px] text-[#52525b] uppercase tracking-wider px-2 py-1">
+              Unassigned ({unassignedMembers.length})
+            </p>
+            {/* Search in unassigned */}
+            <div className="px-1">
+              <input
+                type="text"
+                value={unassignedSearch}
+                onChange={(e) => setUnassignedSearch(e.target.value)}
+                placeholder="Search..."
+                className="w-full px-2 py-1 bg-[#09090b] border border-[#27272a] rounded text-[10px] text-[#fafafa] placeholder-[#52525b] focus:outline-none focus:border-[#52525b]"
+              />
+            </div>
+            {unassignedMembers.length === 0 ? (
+              <p className="text-[10px] text-[#3f3f46] text-center py-4">All members placed</p>
+            ) : (
+              unassignedMembers
+                .filter(m => !unassignedSearch || m.name.toLowerCase().includes(unassignedSearch.toLowerCase()))
+                .map(m => {
+                  const g = guilds.find(g => g.id === m.guild_id);
+                  const c = g ? guildColor(g.name) : null;
+                  return (
+                <div
+                  key={m.id}
+                  draggable
+                  onDragStart={(e) => {
+                    e.dataTransfer.setData("text/plain", m.id);
+                    e.dataTransfer.effectAllowed = "move";
+                  }}
+                  onDoubleClick={() => handleAutoAssign(m.id)}
+                  className="flex items-center gap-2 px-2 py-1.5 rounded bg-[#18181b] border border-[#27272a] text-xs text-[#d4d4d8] cursor-grab active:cursor-grabbing hover:border-[#52525b] transition"
+                >
+                  <span className="w-5 h-5 rounded bg-[#09090b] flex items-center justify-center text-[10px] text-[#71717a] font-bold shrink-0">
+                    {m.name.charAt(0)}
+                  </span>
+                  <span className="truncate flex-1">{m.name}</span>
+                  {g && c && (
+                    <span className={`shrink-0 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] border ${c.bg} ${c.text} ${c.border}`}>
+                      <Shield className="w-2.5 h-2.5" />
+                      {g.name}
+                    </span>
+                  )}
                 </div>
+                  );
+                })
+            )}
+          </div>
 
-                {/* Members in this party */}
-                <div className="flex flex-wrap gap-1.5 mb-2">
-                  {p.member_ids.map((mid, i) => {
-                    const member = members.find(m => m.id === mid);
-                    return (
-                      <span key={mid} className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs bg-[#09090b] border border-[#27272a] text-[#d4d4d8]">
-                        {member?.name ?? p.member_names[i] ?? mid.slice(0, 8)}
+          {/* Right: Party boxes */}
+          <div className="flex-1 flex flex-wrap gap-2 items-start content-start">
+            {partyBoxes.map((box, i) => {
+              const boxMembers = box.map(id => members.find(m => m.id === id)).filter(Boolean) as Member[];
+              // Show partySize slots per box — some filled, some empty
+              const slots: (Member | null)[] = Array.from({ length: partySize }, (_, s) => boxMembers[s] ?? null);
+              return (
+                <div key={i} className="w-[200px] shrink-0 rounded-lg border border-[#27272a] bg-[#18181b]/30 p-2 space-y-0.5">
+                  <p className="text-[10px] text-[#52525b] uppercase tracking-wider px-1 flex items-center justify-between">
+                    <span>Party {i + 1} <span className="text-[#3f3f46]">({box.length}/{partySize})</span></span>
+                    {box.length > 0 && (
+                      <button
+                        onClick={() => setAllPartyBoxes(prev => {
+                          const boxes = [...(prev[currentGuildKey] ?? [])];
+                          boxes[i] = [];
+                          return { ...prev, [currentGuildKey]: boxes };
+                        })}
+                        className="text-[#52525b] hover:text-[#f87171] transition"
+                        title="Clear this party"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    )}
+                  </p>
+                  {slots.map((m, s) =>
+                    m ? (() => {
+                      const g = guilds.find(g => g.id === m.guild_id);
+                      const c = g ? guildColor(g.name) : null;
+                      return (
+                      <div
+                        key={m.id}
+                        draggable
+                        onDragStart={(e) => {
+                          e.dataTransfer.setData("text/plain", m.id);
+                          e.dataTransfer.effectAllowed = "move";
+                          e.stopPropagation();
+                        }}
+                        onDragOver={(e) => e.preventDefault()}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          const memberId = e.dataTransfer.getData("text/plain");
+                          if (memberId) handleDropInSlot(i, s, memberId);
+                        }}
+                        className="flex items-center gap-1.5 px-2 py-1 rounded bg-[#09090b] border border-[#27272a] text-xs text-[#d4d4d8] group cursor-grab active:cursor-grabbing"
+                      >
+                        <span className="w-4 h-4 rounded bg-[#18181b] flex items-center justify-center text-[9px] text-[#71717a] font-bold shrink-0">
+                          {m.name.charAt(0)}
+                        </span>
+                        <span className="truncate flex-1">{m.name}</span>
+                        {g && c && (
+                          <span className={`shrink-0 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] border ${c.bg} ${c.text} ${c.border}`}>
+                            <Shield className="w-2.5 h-2.5" />
+                            {g.name}
+                          </span>
+                        )}
                         <button
-                          onClick={async () => { await removeMemberFromParty(mid); refreshParties(); }}
-                          className="text-[#71717a] hover:text-[#f87171]"
+                          onClick={() => handleRemoveFromBox(i, m.id)}
+                          className="opacity-0 group-hover:opacity-100 text-[#52525b] hover:text-[#f87171] transition"
                         >
                           <X className="w-3 h-3" />
                         </button>
-                      </span>
-                    );
-                  })}
+                      </div>
+                      );
+                    })() : (
+                      <div
+                        key={`empty-${s}`}
+                        className="flex items-center justify-center px-2 py-2 rounded border border-dashed border-[#3f3f46] text-[11px] text-[#52525b] cursor-default min-h-[32px]"
+                        onDragOver={(e) => e.preventDefault()}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          const memberId = e.dataTransfer.getData("text/plain");
+                          if (memberId) handleDropInSlot(i, s, memberId);
+                        }}
+                      >
+                        <span className="text-[#27272a]">Drop slot</span>
+                      </div>
+                    )
+                  )}
                 </div>
-
-                {/* Add member dropdown */}
-                <select
-                  value=""
-                  onChange={async (e) => {
-                    if (e.target.value) {
-                      await addMemberToParty(p.id, e.target.value);
-                      refreshParties();
-                    }
-                  }}
-                  className="w-full px-2 py-1.5 bg-[#09090b] border border-[#27272a] rounded text-xs text-[#a1a1aa] outline-none focus:border-[#52525b]"
-                >
-                  <option value="">+ Add member...</option>
-                  {members
-                    .filter(m => !p.member_ids.includes(m.id) && (!p.guild_id || m.guild_id === p.guild_id))
-                    .map(m => (
-                      <option key={m.id} value={m.id}>{m.name}</option>
-                    ))}
-                </select>
-              </div>
-            ))}
+              );
+            })}
           </div>
+        </div>
         )}
       </div>
       )}
@@ -648,7 +855,7 @@ export function MembersView() {
         </div>
           );
         })()
-      )}
+      ))}
 
       {/* Bulk add modal */}
       {showBulkModal && (
