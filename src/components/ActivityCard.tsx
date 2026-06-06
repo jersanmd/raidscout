@@ -42,8 +42,8 @@ export function ActivityCard({ info }: ActivityCardProps) {
               }`} />
               Activity
             </span>
-            {activity.category && (
-              <span className="text-[10px] text-[#52525b] font-mono truncate max-w-[120px]">{activity.category}</span>
+            {(activity as any).category && (
+              <span className="text-[10px] text-[#52525b] font-mono truncate max-w-[120px]">{(activity as any).category}</span>
             )}
           </div>
 

@@ -236,13 +236,13 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
                         .join("  ·  ")}
                     </span>
                   </div>
-                ) : typeof activity.schedule === "object" && activity.schedule?.time ? (
+                ) : typeof activity.schedule === "object" && activity.schedule !== null && !Array.isArray(activity.schedule) && "time" in activity.schedule ? (
                   /* New format: {time: "HH:MM", start_date: "YYYY-MM-DD"} */
                   <div className="flex items-center gap-1.5 text-[11px]">
                     <span className="text-[#71717a] font-mono uppercase tracking-wider">TIME</span>
-                    <span className="text-[#a1a1aa] font-mono">{activity.schedule.time}</span>
-                    {activity.schedule.start_date && (
-                      <span className="text-[#a1a1aa] font-mono">{activity.schedule.start_date}</span>
+                    <span className="text-[#a1a1aa] font-mono">{(activity.schedule as any).time}</span>
+                    {(activity.schedule as any).start_date && (
+                      <span className="text-[#a1a1aa] font-mono">{(activity.schedule as any).start_date}</span>
                     )}
                   </div>
                 ) : typeof activity.schedule === "string" && activity.schedule ? (
