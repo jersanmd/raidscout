@@ -561,79 +561,7 @@ export function LandingPage() {
             </div>
 
             {/* Command Lines */}
-            <div className="bg-[#18181b] divide-y divide-white/[0.03]">
-              <CommandLine
-                cmd="!nextspawn"
-                desc="List all boss spawns in the next 24 hours"
-                detail="Shows spawn time, live countdown, and guild ownership"
-              />
-              <CommandLine
-                cmd="!nextspawn Venatus"
-                desc="Check spawn for a specific boss"
-                detail="Filter by boss name to see just that boss's timer"
-              />
-              <CommandLine
-                cmd="!nextspawn Arcane"
-                desc="List spawns for a specific guild"
-                detail="See all upcoming bosses owned by a guild"
-              />
-              <CommandLine
-                cmd="!killed Venatus"
-                desc="Record a boss kill right now"
-                detail="Same as 'Mark Died' — advances rotation"
-              />
-              <CommandLine
-                cmd="!killed Venatus 14:30"
-                desc="Record a kill at a custom time"
-                detail="Auto: if time passed today → today. Otherwise → yesterday"
-              />
-              <CommandLine
-                cmd="!killed Venatus 14:30 today"
-                desc="Force today's date"
-                detail="Always record on today's date"
-              />
-              <CommandLine
-                cmd="!killed Venatus 14:30 yesterday"
-                desc="Force yesterday's date"
-                detail="Always record on yesterday's date"
-              />
-              <CommandLine
-                cmd="!forcespawn Venatus"
-                desc="Force a boss to spawn immediately"
-                detail="Useful after server maintenance or resets"
-              />
-              <CommandLine
-                cmd="!forcespawnall"
-                desc="Force-spawn ALL fixed-timer bosses"
-                detail="Bulk spawn after maintenance. Schedule bosses unaffected."
-              />
-              <CommandLine
-                cmd="!list"
-                desc="See all boss names"
-                detail="Numbered list with respawn hours and spawn type"
-              />
-              <CommandLine
-                cmd="!commands"
-                desc="Show all available commands"
-                detail="Quick reference for your members"
-              />
-              <CommandLine
-                cmd="!notifhere"
-                desc="Set notification channel"
-                detail="Run in announcements channel for boss kill & spawn alerts"
-              />
-              <CommandLine
-                cmd="!cmdhere"
-                desc="Restrict commands to one channel"
-                detail="Bot only responds in the channel you choose"
-              />
-              <CommandLine
-                cmd="!threadhere"
-                desc="Set auto-spawn thread channel"
-                detail="Creates a thread per boss spawn for organized tracking"
-                last
-              />
-            </div>
+            <AnimatedCommandList />
           </div>
 
           <p className="text-[#fafafa]/30 text-xs text-center mt-5 font-mono">💡 Also on the web: export attendance and analytics to Excel with styled tables.</p>
@@ -1026,9 +954,91 @@ function CopyCodeBadge({ code, className = "" }: { code: string; className?: str
 }
 
 // ── Terminal Command Line ────────────────────────────────────
-function CommandLine({ cmd, desc, detail, last }: { cmd: string; desc: string; detail: string; last?: boolean }) {
+const TERMINAL_COMMANDS = [
+  { cmd: "!nextspawn", desc: "List all boss spawns in the next 24 hours", detail: "Shows spawn time, live countdown, and guild ownership" },
+  { cmd: "!nextspawn Venatus", desc: "Check spawn for a specific boss", detail: "Filter by boss name to see just that boss's timer" },
+  { cmd: "!nextspawn Arcane", desc: "List spawns for a specific guild", detail: "See all upcoming bosses owned by a guild" },
+  { cmd: "!killed Venatus", desc: "Record a boss kill right now", detail: "Same as 'Mark Died' — advances rotation" },
+  { cmd: "!killed Venatus 14:30", desc: "Record a kill at a custom time", detail: "Auto: if time passed today → today. Otherwise → yesterday" },
+  { cmd: "!killed Venatus 14:30 today", desc: "Force today's date", detail: "Always record on today's date" },
+  { cmd: "!killed Venatus 14:30 yesterday", desc: "Force yesterday's date", detail: "Always record on yesterday's date" },
+  { cmd: "!forcespawn Venatus", desc: "Force a boss to spawn immediately", detail: "Useful after server maintenance or resets" },
+  { cmd: "!forcespawnall", desc: "Force-spawn ALL fixed-timer bosses", detail: "Bulk spawn after maintenance. Schedule bosses unaffected." },
+  { cmd: "!list", desc: "See all boss names", detail: "Numbered list with respawn hours and spawn type" },
+  { cmd: "!commands", desc: "Show all available commands", detail: "Quick reference for your members" },
+  { cmd: "!notifhere", desc: "Set notification channel", detail: "Run in announcements channel for boss kill & spawn alerts" },
+  { cmd: "!cmdhere", desc: "Restrict commands to one channel", detail: "Bot only responds in the channel you choose" },
+  { cmd: "!threadhere", desc: "Set auto-spawn thread channel", detail: "Creates a thread per boss spawn for organized tracking" },
+];
+
+function AnimatedCommandList() {
+  const [visibleCount, setVisibleCount] = useState(0);
+  const [typedCmds, setTypedCmds] = useState<string[]>(TERMINAL_COMMANDS.map(() => ""));
+  const [typingIndex, setTypingIndex] = useState(0);
+  const [charIndex, setCharIndex] = useState(0);
+  const [loopKey, setLoopKey] = useState(0);
+
+  // Type current command character by character
+  useEffect(() => {
+    if (typingIndex >= TERMINAL_COMMANDS.length) {
+      // All done — pause then restart
+      const t = setTimeout(() => {
+        setVisibleCount(0);
+        setTypedCmds(TERMINAL_COMMANDS.map(() => ""));
+        setTypingIndex(0);
+        setCharIndex(0);
+        setLoopKey(k => k + 1);
+      }, 4000);
+      return () => clearTimeout(t);
+    }
+    
+    const cmd = TERMINAL_COMMANDS[typingIndex].cmd;
+    if (charIndex < cmd.length) {
+      const delay = 30 + Math.random() * 35;
+      const t = setTimeout(() => {
+        setTypedCmds(prev => {
+          const next = [...prev];
+          next[typingIndex] = cmd.slice(0, charIndex + 1);
+          return next;
+        });
+        setCharIndex(c => c + 1);
+      }, delay);
+      return () => clearTimeout(t);
+    } else {
+      // Command done — show next after pause
+      const t = setTimeout(() => {
+        setVisibleCount(typingIndex + 1);
+        setTypingIndex(i => i + 1);
+        setCharIndex(0);
+      }, 400);
+      return () => clearTimeout(t);
+    }
+  }, [typingIndex, charIndex, loopKey]);
+
+  return (
+    <div className="bg-[#18181b] divide-y divide-white/[0.03]">
+      {TERMINAL_COMMANDS.map((item, i) => (
+        <CommandLine
+          key={`${loopKey}-${i}`}
+          cmd={item.cmd}
+          desc={item.desc}
+          detail={item.detail}
+          last={i === TERMINAL_COMMANDS.length - 1}
+          visible={i < visibleCount || (i === typingIndex)}
+          typedCmd={i === typingIndex ? typedCmds[i] : (i < visibleCount ? item.cmd : "")}
+          isTyping={i === typingIndex}
+        />
+      ))}
+    </div>
+  );
+}
+
+function CommandLine({ cmd, desc, detail, last, visible = true, typedCmd, isTyping }: { cmd: string; desc: string; detail: string; last?: boolean; visible?: boolean; typedCmd?: string; isTyping?: boolean }) {
   const [copied, setCopied] = useState(false);
   const copyCmd = () => { navigator.clipboard.writeText(cmd); setCopied(true); setTimeout(() => setCopied(false), 1500); };
+  const displayCmd = typedCmd ?? (visible ? cmd : "");
+
+  if (!visible && !isTyping) return <div className="h-[3px]" />;
 
   return (
     <div className={`group flex items-start gap-4 px-5 py-3.5 hover:bg-white/[0.02] transition cursor-pointer font-mono ${last ? '' : ''}`} onClick={copyCmd}>
@@ -1037,17 +1047,26 @@ function CommandLine({ cmd, desc, detail, last }: { cmd: string; desc: string; d
       {/* Command */}
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-[#a1a1aa] text-sm font-semibold">{cmd.split(' ')[0]}</span>
-          {cmd.split(' ').slice(1).map((arg, i) => (
-            <span key={i} className={arg.startsWith('!') ? 'text-[#a1a1aa] text-sm font-semibold' : 'text-amber-300/80 text-sm'}>{arg}</span>
-          ))}
+          {displayCmd ? (
+            <>
+              <span className="text-[#a1a1aa] text-sm font-semibold">{displayCmd.split(' ')[0]}</span>
+              {displayCmd.split(' ').slice(1).map((arg, i) => (
+                <span key={i} className={arg.startsWith('!') ? 'text-[#a1a1aa] text-sm font-semibold' : 'text-amber-300/80 text-sm'}>{arg}</span>
+              ))}
+              {isTyping && <span className="w-1.5 h-4 bg-emerald-400/70 animate-pulse" />}
+            </>
+          ) : null}
           {/* Copy button */}
           <button className="ml-auto opacity-0 group-hover:opacity-100 transition p-1 rounded hover:bg-white/[0.05]" onClick={e => { e.stopPropagation(); copyCmd(); }}>
             {copied ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3 text-[#71717a]" />}
           </button>
         </div>
-        <p className="text-[#fafafa]/80 text-xs mt-0.5">{desc}</p>
-        <p className="text-[#fafafa]/30 text-[10px] mt-0.5">{detail}</p>
+        {visible && !isTyping && (
+          <>
+            <p className="text-[#fafafa]/80 text-xs mt-0.5">{desc}</p>
+            <p className="text-[#fafafa]/30 text-[10px] mt-0.5">{detail}</p>
+          </>
+        )}
       </div>
     </div>
   );
