@@ -791,12 +791,7 @@ function AnimatedCommandInput() {
     }
   }, [typed]);
 
-  // Loop: reset after pause
-  useEffect(() => {
-    if (phase !== "done") return;
-    const t = setTimeout(() => { setTyped(""); setPhase("typing"); }, 4000);
-    return () => clearTimeout(t);
-  }, [phase]);
+
 
   return (
     <div className="p-3 rounded-lg bg-[#18181b] border border-white/[0.03]">
@@ -957,15 +952,7 @@ function AnimatedCommandList() {
   useEffect(() => {
     if (!started) return;
     if (typingIndex >= TERMINAL_COMMANDS.length) {
-      // All done — pause then restart
-      const t = setTimeout(() => {
-        setVisibleCount(0);
-        setTypedCmds(TERMINAL_COMMANDS.map(() => ""));
-        setTypingIndex(0);
-        setCharIndex(0);
-        setLoopKey(k => k + 1);
-      }, 4000);
-      return () => clearTimeout(t);
+      return; // Done — no loop, animate once per page load
     }
     
     const cmd = TERMINAL_COMMANDS[typingIndex].cmd;
