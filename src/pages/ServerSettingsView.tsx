@@ -2507,7 +2507,7 @@ export function ServerSettingsView() {
                 </button>
                 <button
                   onClick={handleDelete}
-                  disabled={deleting || deleteConfirmName.trim() !== currentServer.name}
+                  disabled={deleting || deleteConfirmName.trim().replace(/\s+/g, " ").toLowerCase() !== currentServer.name.trim().replace(/\s+/g, " ").toLowerCase()}
                   className="flex-1 py-2 rounded-lg text-sm font-medium bg-red-600 text-[#fafafa] hover:bg-red-500 transition disabled:opacity-50 flex items-center justify-center gap-1.5"
                 >
                   {deleting ? (

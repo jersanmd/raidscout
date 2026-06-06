@@ -27,11 +27,13 @@ export async function updateServerName(serverId: string, name: string): Promise<
 }
 
 export async function deleteServer(serverId: string): Promise<void> {
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("servers")
     .update({ deleted_at: new Date().toISOString() })
-    .eq("id", serverId);
+    .eq("id", serverId)
+    .select("id");
   if (error) throw error;
+  if (!data || data.length === 0) throw new Error("Server not found or you lack permission to delete it.");
 }
 
 export async function restoreServer(serverId: string): Promise<void> {

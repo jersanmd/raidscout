@@ -27,17 +27,46 @@ const CORS_HEADERS = {
 async function sendDiscordMessage(
   webhookUrl: string,
   content: string,
-  embeds: DiscordEmbed[]
+  embeds: DiscordEmbed[],
+  retries = 3
 ) {
-  const response = await fetch(webhookUrl, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ content, embeds }),
-  });
-  if (!response.ok) {
+  for (let attempt = 0; attempt < retries; attempt++) {
+    const response = await fetch(webhookUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content, embeds }),
+    });
+    if (response.ok) return response;
+
+    // Handle rate limiting (429)
+    if (response.status === 429) {
+      const retryAfter = response.headers.get("Retry-After") ||
+                         response.headers.get("X-RateLimit-Reset-After");
+      const waitMs = retryAfter ? parseFloat(retryAfter) * 1000 : (attempt + 1) * 2000;
+      console.warn(`Discord 429 rate limited — retrying in ${waitMs}ms (attempt ${attempt + 1}/${retries})`);
+      await new Promise(r => setTimeout(r, waitMs));
+      continue;
+    }
+
     throw new Error(`Discord webhook failed: ${response.status}`);
   }
-  return response;
+  throw new Error(`Discord webhook failed after ${retries} retries`);
+}
+
+// Stagger parallel sends to avoid bursting all webhooks at once
+async function sendToAllWebhooks(webhooks: string[], content: string, embed: DiscordEmbed | null) {
+  const embeds = embed ? [embed] : [];
+  const results = [];
+  for (let i = 0; i < webhooks.length; i++) {
+    // 200ms stagger between each webhook to spread load
+    if (i > 0) await new Promise(r => setTimeout(r, 200));
+    results.push(
+      sendDiscordMessage(webhooks[i], content, embeds).catch(e =>
+        console.error("Webhook send failed:", e)
+      )
+    );
+  }
+  await Promise.all(results);
 }
 
 serve(async (req: Request) => {
@@ -148,12 +177,8 @@ serve(async (req: Request) => {
       );
     }
 
-    // Send to all webhooks in parallel
-    await Promise.all(webhooks.map(url =>
-      sendDiscordMessage(url, content, embed ? [embed] : []).catch(e =>
-        console.error("Webhook send failed:", e)
-      )
-    ));
+    // Send to all webhooks with rate-limit-aware staggering
+    await sendToAllWebhooks(webhooks, content, embed);
 
     return new Response(
       JSON.stringify({ ok: true }),

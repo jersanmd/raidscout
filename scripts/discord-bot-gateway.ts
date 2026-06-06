@@ -82,6 +82,32 @@ async function supabaseInsert(table: string, record: any): Promise<any> {
   return res.json();
 }
 
+// ── Discord API rate-limit-aware fetch ────────────────────
+
+async function discordFetch(url: string, options: RequestInit = {}, retries = 3): Promise<Response> {
+  for (let attempt = 0; attempt < retries; attempt++) {
+    const res = await fetch(url, options);
+    if (res.ok || res.status === 404) return res;
+
+    if (res.status === 429) {
+      const retryAfter = res.headers.get("Retry-After") ||
+                         res.headers.get("X-RateLimit-Reset-After");
+      const waitMs = retryAfter ? parseFloat(retryAfter) * 1000 : (attempt + 1) * 2000;
+      console.warn(`Discord 429 — waiting ${waitMs}ms (attempt ${attempt + 1}/${retries})`);
+      await new Promise(r => setTimeout(r, waitMs));
+      continue;
+    }
+
+    if (res.status >= 500) {
+      await new Promise(r => setTimeout(r, (attempt + 1) * 1000));
+      continue;
+    }
+
+    return res;
+  }
+  throw new Error(`Discord API failed after ${retries} retries: ${url}`);
+}
+
 async function resolveServerId(guildId: string, prefix: string): Promise<string | null> {
   const rows = await supabaseQuerySafe(
     `discord_configs?discord_guild_id=eq.${guildId}&command_prefix=eq.${encodeURIComponent(prefix)}&select=raidscout_server_id`,
@@ -242,7 +268,7 @@ async function connect() {
   // Get gateway URL (with retry)
   let gatewayUrl: string;
   try {
-    const gwRes = await fetch("https://discord.com/api/v10/gateway/bot", {
+    const gwRes = await discordFetch("https://discord.com/api/v10/gateway/bot", {
       headers: { Authorization: `Bot ${TOKEN}` },
     });
     if (!gwRes.ok) {
@@ -347,7 +373,7 @@ async function handleGuildJoin(guild: any) {
 
   const botInvite = "https://discord.com/api/oauth2/authorize?client_id=1508368991272566975&permissions=2147485696&scope=bot%20applications.commands";
 
-  await fetch(`https://discord.com/api/v10/channels/${targetChannel}/messages`, {
+  await discordFetch(`https://discord.com/api/v10/channels/${targetChannel}/messages`, {
     method: "POST",
     headers: { Authorization: `Bot ${TOKEN}`, "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -475,7 +501,7 @@ async function handleMessage(msg: any) {
               msg += `\n📅 Expected to be back ${endDate.toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", timeZone: tz, timeZoneName: "short" })}.`;
             }
           } catch { /* ignore end time fetch failure */ }
-          await fetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
+          await discordFetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
             method: "POST",
             headers: { Authorization: `Bot ${TOKEN}`, "Content-Type": "application/json" },
             body: JSON.stringify({ content: msg }),
@@ -489,7 +515,7 @@ async function handleMessage(msg: any) {
   // Valid commands that should trigger ✅ reaction
   const validCmds = new Set(["list","nextspawn","spawn","killed","kill","forcespawn","forcespawnall","spawnall","commands","help","notifhere","cmdhere","threadhere"]);
   if (validCmds.has(cmd)) {
-    fetch(`https://discord.com/api/v10/channels/${channelId}/messages/${msg.id}/reactions/${encodeURIComponent("✅")}/@me`, {
+    discordFetch(`https://discord.com/api/v10/channels/${channelId}/messages/${msg.id}/reactions/${encodeURIComponent("✅")}/@me`, {
       method: "PUT",
       headers: { Authorization: `Bot ${TOKEN}` },
     }).catch(() => {});
@@ -503,7 +529,7 @@ async function handleMessage(msg: any) {
   }
 
   async function reply(text: string) {
-    await fetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
+    await discordFetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
       method: "POST",
       headers: {
         Authorization: `Bot ${TOKEN}`,
@@ -515,7 +541,7 @@ async function handleMessage(msg: any) {
   }
 
   async function replyEmbed(title: string, desc: string, color: number, fields?: any[]) {
-    const res = await fetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
+    const res = await discordFetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
       method: "POST",
       headers: {
         Authorization: `Bot ${TOKEN}`,
@@ -544,7 +570,7 @@ async function handleMessage(msg: any) {
     }
     for (let c = 0; c < chunks.length; c++) {
       const isFirst = c === 0;
-      await fetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
+      await discordFetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
         method: "POST",
         headers: { Authorization: `Bot ${TOKEN}`, "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -878,7 +904,7 @@ async function handleMessage(msg: any) {
     });
     const desc = lines.join("\n");
 
-    await fetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
+    await discordFetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
       method: "POST",
       headers: { Authorization: `Bot ${TOKEN}`, "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -979,7 +1005,7 @@ async function handleMessage(msg: any) {
 
     if (!isAlive) {
       await cmdLog(cmd, "fail", `${boss.name} not alive`);
-      fetch(`https://discord.com/api/v10/channels/${channelId}/messages/${msg.id}/reactions/${encodeURIComponent("❌")}/@me`, {
+      discordFetch(`https://discord.com/api/v10/channels/${channelId}/messages/${msg.id}/reactions/${encodeURIComponent("❌")}/@me`, {
         method: "PUT", headers: { Authorization: `Bot ${TOKEN}` },
       }).catch(() => {});
       return reply(`❌ **${boss.name}** is not currently alive. Use \`;forcespawn ${boss.name}\` first.`);
@@ -992,7 +1018,7 @@ async function handleMessage(msg: any) {
       if (new Date() < cooldownEnd) {
         const remaining = Math.ceil((cooldownEnd.getTime() - Date.now()) / 60_000);
         // React ❌ on user's message
-        fetch(`https://discord.com/api/v10/channels/${channelId}/messages/${msg.id}/reactions/${encodeURIComponent("❌")}/@me`, {
+        discordFetch(`https://discord.com/api/v10/channels/${channelId}/messages/${msg.id}/reactions/${encodeURIComponent("❌")}/@me`, {
           method: "PUT", headers: { Authorization: `Bot ${TOKEN}` },
         }).catch(() => {});
         const killedAt = Math.floor(lastKill.getTime() / 1000);
@@ -1163,7 +1189,7 @@ async function createEventThreads(
       // Check channel type (forum vs text)
       let isForum = false;
       try {
-        const chRes = await fetch(`https://discord.com/api/v10/channels/${channelId}`, {
+        const chRes = await discordFetch(`https://discord.com/api/v10/channels/${channelId}`, {
           headers: { Authorization: `Bot ${TOKEN}` },
         });
         if (chRes.ok) {
@@ -1184,7 +1210,7 @@ async function createEventThreads(
           threadBody.type = 11; // GUILD_PUBLIC_THREAD
         }
 
-        const res = await fetch(`https://discord.com/api/v10/channels/${channelId}/threads`, {
+        const res = await discordFetch(`https://discord.com/api/v10/channels/${channelId}/threads`, {
           method: "POST",
           headers: {
             Authorization: `Bot ${TOKEN}`,
@@ -1206,7 +1232,7 @@ async function createEventThreads(
         const thread = await res.json();
         // Send a minimal message into text channel threads
         if (!isForum) {
-          await fetch(`https://discord.com/api/v10/channels/${thread.id}/messages`, {
+          await discordFetch(`https://discord.com/api/v10/channels/${thread.id}/messages`, {
             method: "POST",
             headers: { Authorization: `Bot ${TOKEN}`, "Content-Type": "application/json" },
             body: JSON.stringify({ content: "." }),
@@ -1254,20 +1280,20 @@ async function createEventThreads(
 
           let isForum2 = false;
           try {
-            const chRes2 = await fetch(`https://discord.com/api/v10/channels/${chId}`, { headers: { Authorization: `Bot ${TOKEN}` } });
+            const chRes2 = await discordFetch(`https://discord.com/api/v10/channels/${chId}`, { headers: { Authorization: `Bot ${TOKEN}` } });
             if (chRes2.ok) { const ch2 = await chRes2.json(); isForum2 = ch2.type === 15; }
           } catch {}
 
           try {
             const tb2: any = { name: aThreadName, auto_archive_duration: 10080 };
             if (isForum2) { tb2.message = { content: "." }; } else { tb2.type = 11; }
-            const res2 = await fetch(`https://discord.com/api/v10/channels/${chId}/threads`, {
+            const res2 = await discordFetch(`https://discord.com/api/v10/channels/${chId}/threads`, {
               method: "POST", headers: { Authorization: `Bot ${TOKEN}`, "Content-Type": "application/json" }, body: JSON.stringify(tb2),
             });
             if (res2.ok) {
               const thread2 = await res2.json();
               if (!isForum2) {
-                await fetch(`https://discord.com/api/v10/channels/${thread2.id}/messages`, {
+                await discordFetch(`https://discord.com/api/v10/channels/${thread2.id}/messages`, {
                   method: "POST", headers: { Authorization: `Bot ${TOKEN}`, "Content-Type": "application/json" }, body: JSON.stringify({ content: "." }),
                 });
               }
@@ -1303,7 +1329,7 @@ async function broadcastNotification(serverId: string, embed: any, skipChannelId
     if (!guildRoleCache.has(gId)) {
       guildRoleCache.set(gId, new Map());
       try {
-        const rolesRes = await fetch(`https://discord.com/api/v10/guilds/${gId}/roles`, {
+        const rolesRes = await discordFetch(`https://discord.com/api/v10/guilds/${gId}/roles`, {
           headers: { Authorization: `Bot ${TOKEN}` },
         });
         if (rolesRes.ok) {
@@ -1332,7 +1358,7 @@ async function broadcastNotification(serverId: string, embed: any, skipChannelId
       body.content = prefix || undefined;
       body.embeds = [embed];
     }
-    const discordRes = await fetch(`https://discord.com/api/v10/channels/${cfg.notification_channel_id}/messages`, {
+    const discordRes = await discordFetch(`https://discord.com/api/v10/channels/${cfg.notification_channel_id}/messages`, {
       method: "POST",
       headers: { Authorization: `Bot ${TOKEN}`, "Content-Type": "application/json" },
       body: JSON.stringify(body),
