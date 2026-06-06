@@ -231,7 +231,7 @@ export function AdminPanelView() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-3 sm:px-4 py-4 sm:py-6 space-y-4 sm:space-y-6 flex-1 overflow-x-hidden">
+      <div className="w-full max-w-7xl mx-auto px-3 sm:px-4 py-4 sm:py-6 space-y-4 sm:space-y-6 flex-1 overflow-x-hidden min-w-0">
       <div className="flex items-center gap-3">
         <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-[#18181b] border border-[#27272a]">
           <Shield className="w-5 h-5 text-[#fafafa]" />
@@ -246,7 +246,7 @@ export function AdminPanelView() {
       <div className="flex flex-wrap bg-[#18181b] rounded-lg p-0.5 gap-0.5">
         <button
           onClick={() => setTab("infra")}
-          className={`flex items-center justify-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-md text-xs sm:text-sm font-medium transition whitespace-nowrap ${
+          className={`flex items-center justify-center gap-1.5 px-2 sm:px-3 py-2 rounded-md text-xs sm:text-sm font-medium transition whitespace-nowrap shrink-0 ${
             tab === "infra" ? "bg-[#27272a] text-[#fafafa]" : "text-[#a1a1aa] hover:text-[#e4e4e7]"
           }`}
         >
@@ -255,7 +255,7 @@ export function AdminPanelView() {
         </button>
         <button
           onClick={() => setTab("games")}
-          className={`flex items-center justify-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-md text-xs sm:text-sm font-medium transition whitespace-nowrap ${
+          className={`flex items-center justify-center gap-1.5 px-2 sm:px-3 py-2 rounded-md text-xs sm:text-sm font-medium transition whitespace-nowrap shrink-0 ${
             tab === "games" ? "bg-[#27272a] text-[#fafafa]" : "text-[#a1a1aa] hover:text-[#e4e4e7]"
           }`}
         >
@@ -264,7 +264,7 @@ export function AdminPanelView() {
         </button>
         <button
           onClick={() => setTab("servers")}
-          className={`flex items-center justify-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-md text-xs sm:text-sm font-medium transition whitespace-nowrap ${
+          className={`flex items-center justify-center gap-1.5 px-2 sm:px-3 py-2 rounded-md text-xs sm:text-sm font-medium transition whitespace-nowrap shrink-0 ${
             tab === "servers" ? "bg-[#27272a] text-[#fafafa]" : "text-[#a1a1aa] hover:text-[#e4e4e7]"
           }`}
         >
@@ -273,7 +273,7 @@ export function AdminPanelView() {
         </button>
         <button
           onClick={() => setTab("users")}
-          className={`flex items-center justify-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-md text-xs sm:text-sm font-medium transition whitespace-nowrap ${
+          className={`flex items-center justify-center gap-1.5 px-2 sm:px-3 py-2 rounded-md text-xs sm:text-sm font-medium transition whitespace-nowrap shrink-0 ${
             tab === "users" ? "bg-[#27272a] text-[#fafafa]" : "text-[#a1a1aa] hover:text-[#e4e4e7]"
           }`}
         >
@@ -282,7 +282,7 @@ export function AdminPanelView() {
         </button>
         <button
           onClick={() => setTab("audit")}
-          className={`flex items-center justify-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-md text-xs sm:text-sm font-medium transition whitespace-nowrap ${
+          className={`flex items-center justify-center gap-1.5 px-2 sm:px-3 py-2 rounded-md text-xs sm:text-sm font-medium transition whitespace-nowrap shrink-0 ${
             tab === "audit" ? "bg-[#27272a] text-[#fafafa]" : "text-[#a1a1aa] hover:text-[#e4e4e7]"
           }`}
         >
@@ -291,7 +291,7 @@ export function AdminPanelView() {
         </button>
         <button
           onClick={() => setTab("database")}
-          className={`flex items-center justify-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-md text-xs sm:text-sm font-medium transition whitespace-nowrap ${
+          className={`flex items-center justify-center gap-1.5 px-2 sm:px-3 py-2 rounded-md text-xs sm:text-sm font-medium transition whitespace-nowrap shrink-0 ${
             tab === "database" ? "bg-[#27272a] text-[#fafafa]" : "text-[#a1a1aa] hover:text-[#e4e4e7]"
           }`}
         >
@@ -300,7 +300,7 @@ export function AdminPanelView() {
         </button>
         <button
           onClick={() => setTab("cron")}
-          className={`flex items-center justify-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-md text-xs sm:text-sm font-medium transition whitespace-nowrap ${
+          className={`flex items-center justify-center gap-1.5 px-2 sm:px-3 py-2 rounded-md text-xs sm:text-sm font-medium transition whitespace-nowrap shrink-0 ${
             tab === "cron" ? "bg-[#27272a] text-[#fafafa]" : "text-[#a1a1aa] hover:text-[#e4e4e7]"
           }`}
         >
@@ -309,7 +309,7 @@ export function AdminPanelView() {
         </button>
         <button
           onClick={() => setTab("deleted")}
-          className={`flex items-center justify-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-md text-xs sm:text-sm font-medium transition whitespace-nowrap ${
+          className={`flex items-center justify-center gap-1.5 px-2 sm:px-3 py-2 rounded-md text-xs sm:text-sm font-medium transition whitespace-nowrap shrink-0 ${
             tab === "deleted" ? "bg-[#27272a] text-[#fafafa]" : "text-[#a1a1aa] hover:text-[#e4e4e7]"
           }`}
         >
@@ -1040,7 +1040,7 @@ export function AdminPanelView() {
           {/* Bot Logs Terminal */}
           <div className="bg-[#0a0a0a] border border-[#1a1a1a] rounded-xl overflow-hidden shadow-inner">
             {/* Terminal header */}
-            <div className="flex items-center gap-1.5 px-2 sm:px-3 py-1.5 sm:py-2 bg-[#0d0d0d] border-b border-[#1a1a1a]">
+            <div className="flex items-center gap-1.5 px-2 sm:px-3 py-2 bg-[#0d0d0d] border-b border-[#1a1a1a]">
               <span className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-[#ff5f57] shrink-0"></span>
               <span className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-[#febc2e] shrink-0"></span>
               <span className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-[#28c840] shrink-0"></span>
@@ -1051,19 +1051,19 @@ export function AdminPanelView() {
               </button>
             </div>
             {/* Terminal body */}
-            <div ref={logScrollRef} className="h-72 sm:h-96 overflow-y-auto font-mono text-[10px] sm:text-[11px] leading-relaxed p-1.5 sm:p-2">
+            <div ref={logScrollRef} className="h-[36rem] sm:h-96 overflow-y-auto font-mono text-[10px] sm:text-[11px] leading-relaxed p-1.5 sm:p-2">
               {logsLoading ? (
                 <div className="flex justify-center py-6"><Loader2 className="w-4 h-4 text-[#52525b] animate-spin" /></div>
               ) : !botLogs?.logs?.length ? (
                 <p className="text-[#3a3a3a] px-2 py-6 text-center select-none">No logs yet — waiting for bot events...</p>
               ) : (
                 botLogs.logs.map((l: any, i: number) => (
-                  <div key={i} className="flex gap-1 sm:gap-1.5 py-[1px] hover:bg-[#0d0d0d]">
+                  <div key={i} className="flex gap-1.5 py-[1px] hover:bg-[#0d0d0d]">
                     <span className="text-[#404040] shrink-0 w-[52px] sm:w-[75px] select-none">{l.ts ? new Date(l.ts).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", second: "2-digit", timeZone: timezone }) : "--:--:--"}</span>
                     <span className={`shrink-0 w-8 sm:w-10 text-right select-none text-[10px] sm:text-[11px] ${
                       l.level === "error" ? "text-[#ff5f57]" : l.level === "warn" ? "text-[#febc2e]" : "text-[#52525b]"
                     }`}>{l.level}</span>
-                    <span className={`truncate text-[10px] sm:text-[11px] ${
+                    <span className={`whitespace-normal sm:truncate text-[10px] sm:text-[11px] ${
                       l.level === "error" ? "text-[#ff5f57]" : l.level === "warn" ? "text-[#febc2e]" : "text-[#a1a1aa]"
                     }`}>{l.msg}</span>
                   </div>
@@ -1095,17 +1095,17 @@ export function AdminPanelView() {
                   <p className="text-[9px] sm:text-[10px] text-[#71717a] mt-0.5 sm:mt-1">Discord</p>
                 </div>
                 <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-2 sm:p-4 text-center">
-                  <Clock className="w-3 h-3 sm:w-4 sm:h-4 text-[#a1a1aa] mx-auto mb-1 sm:mb-2" />
+                  <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#a1a1aa] mx-auto mb-1 sm:mb-2" />
                   <p className="text-[10px] sm:text-xs text-[#d4d4d8] font-mono truncate">{botStatus.uptime_display}</p>
                   <p className="text-[9px] sm:text-[10px] text-[#71717a] mt-0.5 sm:mt-1">Uptime</p>
                 </div>
                 <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-2 sm:p-4 text-center">
-                  <HardDrive className="w-3 h-3 sm:w-4 sm:h-4 text-[#a1a1aa] mx-auto mb-1 sm:mb-2" />
+                  <HardDrive className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#a1a1aa] mx-auto mb-1 sm:mb-2" />
                   <p className="text-xs sm:text-lg font-bold text-[#d4d4d8] truncate">{botStatus.memory_mb} / 512 MB</p>
                   <p className="text-[9px] sm:text-[10px] text-[#71717a] mt-0.5 sm:mt-1">Memory</p>
                 </div>
                 <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-2 sm:p-4 text-center">
-                  <Radio className="w-3 h-3 sm:w-4 sm:h-4 text-[#a1a1aa] mx-auto mb-1 sm:mb-2" />
+                  <Radio className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#a1a1aa] mx-auto mb-1 sm:mb-2" />
                   <p className="text-[10px] sm:text-xs text-[#d4d4d8] font-mono truncate">{botStatus.region} · 2 vCPU</p>
                   <p className="text-[9px] sm:text-[10px] text-[#71717a] mt-0.5 sm:mt-1">Machine</p>
                 </div>

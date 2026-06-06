@@ -180,7 +180,7 @@ function TypeWriter({ text, delay = 40, className = "" }: { text: string; delay?
   );
 }
 export function LandingPage() {
-  const { signIn, signUp, viewerSignIn } = useAuth();
+  const { signIn, signUp } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isSignUp, setIsSignUp] = useState(false);
@@ -189,9 +189,6 @@ export function LandingPage() {
   const [loading, setLoading] = useState(false);
   const [resetSent, setResetSent] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
-
-  const [viewerMode, setViewerMode] = useState(false);
-  const [viewerKey, setViewerKey] = useState("");
 
   // Live stats from Supabase
   const [liveStats, setLiveStats] = useState({
@@ -240,16 +237,6 @@ export function LandingPage() {
     const { error: err } = await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo: window.location.origin + "/" });
     if (err) setError(err.message);
     else setResetSent(true);
-    setLoading(false);
-  };
-
-  const handleViewerSignIn = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!viewerKey.trim()) return;
-    setError(null);
-    setLoading(true);
-    const { error: err } = await viewerSignIn(viewerKey.trim());
-    if (err) setError(err);
     setLoading(false);
   };
 
@@ -627,47 +614,20 @@ export function LandingPage() {
       <section id="get-started" className="relative bg-[#09090b] px-6 py-24">
         <div className="max-w-md mx-auto">
           <div className="text-center mb-10">
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-[#27272a] text-[#71717a] text-xs font-medium mb-6">
-              <LogIn className="w-3.5 h-3.5" /> GET STARTED
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-emerald-500/20 text-emerald-400/60 text-xs font-medium mb-6 font-mono">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              <span>{">>"}</span> GET STARTED
             </div>
-            <h2 className="text-3xl md:text-4xl font-bold text-[#fafafa] mb-4">
+            <h2 className="text-3xl md:text-4xl font-bold text-[#fafafa] mb-4 cyber-glow">
               Ready to start?
-              <div className="mx-auto mt-4 w-12 h-0.5 bg-[#a1a1aa]/60 rounded-full" />
+              <div className="mx-auto mt-4 w-12 h-0.5 bg-emerald-400/30 rounded-full" />
             </h2>
-            <p className="text-[#fafafa]/50 text-sm">Create an account or view as guest.</p>
+            <p className="text-emerald-400/50 text-sm font-mono">Create an account or view as guest.</p>
           </div>
 
           {/* Auth Card */}
           <div className="relative rounded-2xl bg-[#18181b] border border-[#27272a] p-6 shadow-2xl shadow-black/40 overflow-hidden">
             <div className="relative z-10">
-              {/* Top Toggle */}
-              <div className="flex bg-white/[0.03] rounded-xl p-1 mb-6">
-                {[{ mode: false, label: "Account", icon: <LogIn className="w-3.5 h-3.5" /> }, { mode: true, label: "View as Guest", icon: <Eye className="w-3.5 h-3.5" /> }].map(t => (
-                  <button key={t.label} type="button" onClick={() => { setViewerMode(t.mode); setError(null); }}
-                    className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-xs font-medium transition-all duration-200 ${viewerMode === t.mode ? "bg-white/[0.06] text-[#fafafa] shadow-sm" : "text-[#fafafa]/40 hover:text-[#fafafa]/70"}`}>
-                    {t.icon}{t.label}
-                  </button>
-                ))}
-              </div>
-
-              {viewerMode ? (
-                <form onSubmit={handleViewerSignIn} className="space-y-4">
-                  <div>
-                    <label className="block text-xs font-medium text-[#fafafa]/60 mb-2 ml-1">Viewer Key</label>
-                    <div className="relative">
-                      <Key className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#fafafa]/30" />
-                      <input type="text" value={viewerKey} onChange={e => setViewerKey(e.target.value)} required placeholder="Paste your viewer key..."
-                        className="w-full pl-10 pr-4 py-3 bg-white/[0.03] border border-white/[0.08] rounded-xl text-[#fafafa] placeholder-white/20 text-sm font-mono outline-none focus:border-sky-500/50 focus:ring-1 focus:ring-sky-500/20 transition-all duration-200" />
-                    </div>
-                  </div>
-                  <p className="text-xs text-[#fafafa]/30">Get this from your server owner. No account needed.</p>
-                  {error && <div className="flex items-start gap-2 text-red-400 text-sm bg-red-400/10 border border-red-400/20 rounded-xl px-3 py-2"><AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" /><span>{error}</span></div>}
-                  <button type="submit" disabled={loading || !viewerKey.trim()}
-                    className="w-full relative group flex items-center justify-center gap-2 py-3 rounded-xl font-semibold bg-[#F8FAFC] text-[#040816] hover:bg-white disabled:opacity-40 transition-all duration-200  text-sm">
-                    {loading ? <span className="w-4 h-4 border-2 border-[#040816]/30 border-t-[#040816] rounded-full animate-spin" /> : <><Eye className="w-4 h-4" /> View Server <span className="inline-block group-hover:translate-x-0.5 transition-transform">→</span></>}
-                  </button>
-                </form>
-              ) : (
                 <form onSubmit={handleSubmit} className="space-y-4">
                   {/* Sign In / Sign Up tabs */}
                   <div className="flex bg-white/[0.03] rounded-xl p-1 mb-2">
@@ -677,7 +637,7 @@ export function LandingPage() {
                       className={`flex-1 py-2 rounded-lg text-xs font-medium transition-all duration-200 ${isSignUp ? "bg-white/[0.06] text-[#fafafa] shadow-sm" : "text-[#fafafa]/40 hover:text-[#fafafa]/70"}`}>Sign Up</button>
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-[#fafafa]/60 mb-2 ml-1">Email</label>
+                    <label className="block text-xs font-medium text-emerald-400/50 mb-2 ml-1 font-mono tracking-wider uppercase">{">>"} Email</label>
                     <div className="relative">
                       <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#fafafa]/30" />
                       <input type="email" value={email} onChange={e => setEmail(e.target.value)} required placeholder="you@example.com"
@@ -685,13 +645,13 @@ export function LandingPage() {
                     </div>
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-[#fafafa]/60 mb-2 ml-1">Password</label>
+                    <label className="block text-xs font-medium text-emerald-400/50 mb-2 ml-1 font-mono tracking-wider uppercase">{">>"} Password</label>
                     <input type="password" value={password} onChange={e => setPassword(e.target.value)} required minLength={6} placeholder="••••••••"
                       className="w-full px-4 py-3 bg-white/[0.03] border border-white/[0.08] rounded-xl text-[#fafafa] placeholder-white/20 text-sm outline-none focus:border-sky-500/50 focus:ring-1 focus:ring-sky-500/20 transition-all duration-200" />
                   </div>
                   {!isSignUp && (
                     <div className="flex justify-end">
-                      <button type="button" onClick={handleForgotPassword} disabled={loading} className="text-xs text-[#fafafa]/40 hover:text-sky-400 transition">Forgot password?</button>
+                      <button type="button" onClick={handleForgotPassword} disabled={loading} className="text-xs text-emerald-400/40 hover:text-emerald-400 transition font-mono">Forgot password?</button>
                     </div>
                   )}
                   {isSignUp && (
@@ -711,7 +671,6 @@ export function LandingPage() {
                     {loading ? <span className="w-4 h-4 border-2 border-[#040816]/30 border-t-[#040816] rounded-full animate-spin" /> : <>{isSignUp ? <UserPlus className="w-4 h-4" /> : <LogIn className="w-4 h-4" />}{isSignUp ? "Create Account" : "Sign In"} <span className="inline-block group-hover:translate-x-0.5 transition-transform">→</span></>}
                   </button>
                 </form>
-              )}
             </div>
           </div>
         </div>
@@ -741,8 +700,6 @@ export function LandingPage() {
             <h4 className="text-sm font-semibold text-[#fafafa] mb-5">Resources</h4>
             <div className="space-y-3 text-sm text-[#fafafa]/40">
               <a href="https://discord.gg/738AmkeQtU" target="_blank" rel="noopener noreferrer" className="block hover:text-[#fafafa] transition-colors">RaidScout Support</a>
-              <a href="#" className="block hover:text-[#fafafa] transition-colors">Documentation</a>
-              <a href="#" className="block hover:text-[#fafafa] transition-colors">API</a>
             </div>
           </div>
           <div>
