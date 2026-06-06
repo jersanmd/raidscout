@@ -66,6 +66,7 @@ The rotation counter advances automatically on each kill — no manual tracking 
 Every boss spawn and kill is posted to Discord automatically:
 
 - **Two event types** — ⏰ 5-minute warning before spawn (amber) + 🟢 spawn now (green) + ☠️ kill alert (red)
+- **Rate-limit handling** — Exponential backoff with `Retry-After` header respect, staggered sends to avoid bursting global limits.
 - **Smart dedup** — Each boss sends exactly one 5-min warning and one spawn alert, even with multiple browser tabs
 - **Rich embeds** — Boss name, guild badge, timestamps, and "Powered by RaidScout" branding
 - **@everyone pings** — Configurable notification prefix per server
@@ -97,7 +98,47 @@ and responds to prefix commands:
 - **Green circle** — Alive bosses show 🟢 in the spawn list
 - **@everyone support** — Set a notification prefix like `@everyone` to ping your members on spawns
 
-The bot runs on Railway ($5/mo) and stays online 24/7 via persistent WebSocket connection.
+The bot runs on Fly.io and stays online 24/7 via persistent WebSocket connection.
+
+### 🎯 Activities System
+
+Track repeatable guild activities alongside boss spawns:
+
+- **Fixed Hours** — Recurring activities (e.g., every 2h). Start time stored as UTC, displayed in user's timezone.
+- **Fixed Schedule** — Activities at specific weekday times.
+- **One-Time** — Single events that auto-disable after completion.
+- **Guild assignments** — Assign guilds with rotation, daily, or schedule modes.
+- **Activity points** — Configurable points per participant, contributes to leaderboard rankings.
+- **Attendance tracking** — Mark who participated, view activity attendance history.
+- **Soft-delete** — Three-state system: Active, Disabled, Soft-deleted (hidden).
+
+### 👥 Member Combat Power & Classes
+
+- **Combat Power** — Numeric field per member, inline-editable.
+- **Class system** — Server owners define a class list (e.g., Warrior, Mage, Archer) and assign classes to members via dropdown.
+- **Bulk add** — Paste a list of names to add dozens of members at once with guild assignment.
+
+### ⏱️ Timezone-Aware Boss Management
+
+All boss times are stored as UTC and converted to the viewer's local timezone:
+
+- **Add/Edit Boss** — Start Date + Start Time fields for Fixed Hours bosses, saved as UTC.
+- **Initial countdown** — First spawn uses `utc_start` from the schedule; subsequent spawns use death time + respawn hours.
+- **Weekly Schedule** — All boss spawn times (template and custom) computed in UTC, displayed in user's timezone.
+
+### 🔒 Soft-Delete System
+
+Three-state lifecycle for bosses and activities:
+
+| State | Enabled | Deleted At | Visible |
+|-------|---------|-----------|---------|
+| Active | ✅ | NULL | Main view + Settings |
+| Disabled | ❌ | NULL | Settings (Disabled section) |
+| Deleted | ❌ | timestamp | Hidden everywhere |
+
+- Type-to-confirm deletion dialog prevents accidental removal.
+- All CRUD operations use SECURITY DEFINER RPCs to bypass RLS silent failures.
+- Search bars on all settings tabs (Bosses, Activities, Activity Points, Activity Guild Assignments).
 
 ### 🧠 AI Rally Scanning
 
@@ -117,6 +158,9 @@ Turn boss hunting into a competition:
 - **Configurable scoring** — Set points per boss (e.g., Venatus = 50pts, minor bosses = 10pts).
 - **Point adjustments** — Manually add or deduct points for bonuses or penalties.
 - **Weekly, monthly, all-time rankings** — Auto-calculated from kill data and attendance.
+- **Activity points** — Activity attendance contributes to leaderboard scores alongside boss kills.
+- **Activity attendance** — Activity participation counts toward "Most Active Hunters" in analytics.
+- **Export** — Excel export includes activities alongside bosses with ranking integration.
 - **Finalize & snapshot** — Lock results and save them as historical records.
 - **Share** — Native Share API, Facebook, X/Twitter, or copy as formatted text.
 
@@ -161,8 +205,8 @@ Share a read-only link with your community:
 High-level stats for server admins:
 
 - **Kills by week** — bar chart of hunting activity over time.
-- **Hunter leaderboard** — who's attending the most kills.
-- **Guild breakdown** — kills and points per guild.
+- **Hunter leaderboard** — who's attending the most kills and activities.
+- **Guild breakdown** — kills, points, and activity participation per guild.
 - **Server health** — total members, bosses, guilds, and kill count.
 
 ### 📱 PWA Support
@@ -188,12 +232,12 @@ Every feature is available to every user, on every server, forever.
 | **Backend** | Supabase — Postgres, Auth, Realtime, Edge Functions, Storage | Managed Postgres with built-in auth, real-time subscriptions, and serverless functions |
 | **State** | TanStack React Query 5 · React Context | Automatic caching, background refetching, and optimistic updates |
 | **Routing** | React Router 7 | Code-split, lazy-loaded pages for fast initial load |
-| **Testing** | Vitest 4 · React Testing Library 16 | 143 tests covering spawn logic, rotation math, constants, hooks, and components |
+| **Testing** | Vitest 4 · React Testing Library 16 | 43 unit tests covering spawn logic, rotation math, constants, and hooks |
 | **Icons** | Lucide React | Lightweight, tree-shakeable icon library |
 | **Dates** | date-fns 4 | Timezone-aware date formatting with minimal bundle size |
 | **SEO** | react-helmet-async · JSON-LD structured data · sitemap.xml · OG/Twitter cards | Full social media preview support and search engine indexing |
 | **Analytics** | Vercel Analytics | Privacy-first page view and visitor tracking |
-| **Hosting** | Vercel (SPA) + Railway (Discord bot) | Free-tier hosting with automatic HTTPS and CI/CD |
+| **Hosting** | Vercel (SPA) + Fly.io (Discord bot) | Free-tier hosting with automatic HTTPS and CI/CD |
 
 ---
 
