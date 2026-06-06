@@ -37,8 +37,8 @@ function calculateFixedHoursSpawn(
 
   if (!effectiveDeathTime || boss.respawn_hours === null) {
     // No death record yet — use utc_start from schedule as initial spawn basis
-    const utcStart = (boss.schedule && typeof boss.schedule === "object" && !Array.isArray(boss.schedule) && boss.schedule.utc_start)
-      ? boss.schedule.utc_start
+    const utcStart = (boss.schedule && typeof boss.schedule === "object" && !Array.isArray(boss.schedule) && (boss.schedule as any).utc_start)
+      ? (boss.schedule as any).utc_start
       : null;
     if (utcStart) {
       const startTime = new Date(utcStart);

@@ -41,7 +41,7 @@ import { emitSpawnAlert } from "@/hooks/useSpawnAlerts";
 import { guildColor } from "@/lib/constants";
 import { getOwnerGuildName, getRotationInfo } from "@/lib/rotation";
 import { Skull, Loader2, X, CheckCircle, AlertTriangle, CheckSquare, Megaphone, Volume2, VolumeX, Eye, Copy, Settings, Search } from "lucide-react";
-import type { BossWithSpawn, BossGuild, Guild, DeathRecord, SpawnStatus, ActivityInstance } from "@/types";
+import type { BossWithSpawn, BossGuild, Guild, DeathRecord, SpawnStatus, Activity, ActivityInstance } from "@/types";
 
 const sentAlerts = new Set<string>();
 
