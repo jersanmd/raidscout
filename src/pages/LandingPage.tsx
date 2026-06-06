@@ -312,7 +312,7 @@ export function LandingPage() {
 
           {/* Subheadline */}
           <p className="text-sm md:text-base text-emerald-400/60 max-w-lg mx-auto leading-relaxed font-mono cyber-cursor">
-            <TypeWriter text="Real-time boss tracking, multi-guild rotations, attendance monitoring, and Discord coordination. The command center competitive guilds trust." delay={25} />
+            <TypeWriter text="Real-time boss & activity tracking, multi-guild rotations, attendance monitoring, and Discord coordination. The command center competitive guilds trust." delay={25} />
           </p>
 
           {/* CTAs */}
@@ -977,9 +977,28 @@ function AnimatedCommandList() {
   const [typingIndex, setTypingIndex] = useState(0);
   const [charIndex, setCharIndex] = useState(0);
   const [loopKey, setLoopKey] = useState(0);
+  const [started, setStarted] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const hasStarted = useRef(false);
+
+  // Only start animation when section scrolls into view
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el || hasStarted.current) return;
+    const obs = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) {
+        hasStarted.current = true;
+        setStarted(true);
+        obs.disconnect();
+      }
+    }, { threshold: 0.1, rootMargin: "0px 0px 100px 0px" });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
 
   // Type current command character by character
   useEffect(() => {
+    if (!started) return;
     if (typingIndex >= TERMINAL_COMMANDS.length) {
       // All done — pause then restart
       const t = setTimeout(() => {
@@ -1013,10 +1032,16 @@ function AnimatedCommandList() {
       }, 400);
       return () => clearTimeout(t);
     }
-  }, [typingIndex, charIndex, loopKey]);
+  }, [typingIndex, charIndex, loopKey, started]);
 
   return (
-    <div className="bg-[#18181b] divide-y divide-white/[0.03]">
+    <div ref={containerRef} className="bg-[#18181b] divide-y divide-white/[0.03] min-h-[80px]">
+      {!started && (
+        <div className="flex items-center gap-4 px-5 py-3.5 font-mono">
+          <span className="shrink-0 mt-0.5 text-emerald-400/60 select-none">❯</span>
+          <span className="text-emerald-400/40 text-sm animate-pulse">_</span>
+        </div>
+      )}
       {TERMINAL_COMMANDS.map((item, i) => (
         <CommandLine
           key={`${loopKey}-${i}`}
