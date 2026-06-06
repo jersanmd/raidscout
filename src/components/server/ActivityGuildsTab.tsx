@@ -12,7 +12,7 @@ const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 export function ActivityGuildsTab() {
   const { currentServer } = useServer();
   const { userRole } = useAuth();
-  const hasPerm = useHasPermission("can_manage_boss_guilds");
+  const hasPerm = useHasPermission("can_manage_guilds");
   const canManage = currentServer?.role === "owner" || userRole === "admin" || hasPerm;
   const queryClient = useQueryClient();
   const serverId = currentServer?.id ?? "";

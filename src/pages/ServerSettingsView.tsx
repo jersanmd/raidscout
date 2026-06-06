@@ -19,49 +19,23 @@ export function ServerSettingsView() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  // Permission hierarchy: parent → children
-  const PERMISSION_HIERARCHY: Record<string, string[]> = {
-    can_access_settings: ["can_change_timezone", "can_access_integrations", "can_manage_viewer_key"],
-    can_manage_guilds: ["can_manage_boss_guilds"],
-    can_record_death: ["can_edit_death_records", "can_edit_participants", "can_set_spawn", "can_rotate_guilds"],
-    can_manage_moderators: ["can_manage_raid_members", "can_adjust_points", "can_export_attendance"],
-  };
-
-  // Reverse map: child → parent
-  const PERMISSION_PARENT: Record<string, string> = {};
-  for (const [parent, children] of Object.entries(PERMISSION_HIERARCHY)) {
-    for (const child of children) {
-      PERMISSION_PARENT[child] = parent;
-    }
-  }
-
-  // Permission labels grouped by section with hierarchy (indent)
+  // Permission list — flat, each gates a distinct area
   const PERMISSION_SECTIONS = [
-    { section: "Server Access", items: [
-      { key: "can_access_settings" as const, label: "Access Server Settings", indent: false, parent: true },
-      { key: "can_change_timezone" as const, label: "Change Timezone", indent: true, parent: false },
-      { key: "can_access_integrations" as const, label: "Access Integrations", indent: true, parent: false },
-      { key: "can_manage_viewer_key" as const, label: "Manage Viewer Key", indent: true, parent: false },
+    { section: "Core Access", items: [
+      { key: "can_access_settings" as const, label: "Access Server Settings" },
+      { key: "can_manage_integrations" as const, label: "Manage Integrations & Discord" },
     ]},
-    { section: "Guilds", items: [
-      { key: "can_manage_guilds" as const, label: "Manage Guilds", indent: false, parent: true },
-      { key: "can_manage_boss_guilds" as const, label: "Boss-Guild Assignments", indent: true, parent: false },
+    { section: "Data & Records", items: [
+      { key: "can_record_death" as const, label: "Record & Edit Kills / Activities" },
+      { key: "can_manage_spawns" as const, label: "Manage Spawns & Rotations" },
+      { key: "can_manage_server_content" as const, label: "Manage Server Bosses & Activities" },
     ]},
-    { section: "Boss Actions", items: [
-      { key: "can_record_death" as const, label: "Record Boss Kills", indent: false, parent: true },
-      { key: "can_edit_death_records" as const, label: "Edit/Delete Death Records", indent: true, parent: false },
-      { key: "can_edit_participants" as const, label: "Edit Kill Participants", indent: true, parent: false },
-      { key: "can_set_spawn" as const, label: "Set Spawn Overrides", indent: true, parent: false },
-      { key: "can_rotate_guilds" as const, label: "Rotate Guild Assignments", indent: true, parent: false },
+    { section: "Guilds & Members", items: [
+      { key: "can_manage_guilds" as const, label: "Manage Guilds & Assignments" },
+      { key: "can_manage_members" as const, label: "Manage Members & Moderators" },
     ]},
-    { section: "Members & Points", items: [
-      { key: "can_manage_moderators" as const, label: "Manage Moderators", indent: false, parent: true },
-      { key: "can_manage_raid_members" as const, label: "Manage Raid Members", indent: true, parent: false },
-      { key: "can_adjust_points" as const, label: "Adjust Points", indent: true, parent: false },
-      { key: "can_export_attendance" as const, label: "Export Attendance", indent: true, parent: false },
-    ]},
-    { section: "Discord", items: [
-      { key: "can_announce_discord" as const, label: "Announce 24h Spawns to Discord", indent: false, parent: false },
+    { section: "Economy", items: [
+      { key: "can_manage_points" as const, label: "Manage Points & Attendance" },
     ]},
   ];
 
@@ -555,29 +529,7 @@ export function ServerSettingsView() {
   const handleTogglePermission = (userId: string, perm: keyof ModeratorPermissions) => {
     setModPermsData(prev => {
       const current = prev[userId] ?? { ...DEFAULT_MODERATOR_PERMISSIONS };
-      const newValue = !current[perm];
-      const updated = { ...current, [perm]: newValue };
-
-      // Cascade: if checking a parent, auto-check all children
-      if (newValue && PERMISSION_HIERARCHY[perm]) {
-        for (const child of PERMISSION_HIERARCHY[perm]) {
-          updated[child as keyof ModeratorPermissions] = true;
-        }
-      }
-
-      // Cascade: if unchecking a parent, auto-uncheck all children
-      if (!newValue && PERMISSION_HIERARCHY[perm]) {
-        for (const child of PERMISSION_HIERARCHY[perm]) {
-          updated[child as keyof ModeratorPermissions] = false;
-        }
-      }
-
-      // Cascade: if checking a child, auto-check its parent
-      if (newValue && PERMISSION_PARENT[perm]) {
-        updated[PERMISSION_PARENT[perm] as keyof ModeratorPermissions] = true;
-      }
-
-      return { ...prev, [userId]: updated };
+      return { ...prev, [userId]: { ...current, [perm]: !current[perm] } };
     });
   };
 
@@ -980,7 +932,7 @@ export function ServerSettingsView() {
       {/* Mobile tab bar */}
       <div className="sm:hidden flex flex-wrap items-center gap-1 pb-1 mt-2">
         {(["general","guilds","bosses","boss-points","boss-guilds","activities","activity-points","activity-guilds","members","integrations","account",...(isOwner?["danger"]:[])] as string[]).map((key) => {
-          const labels: Record<string,string> = {general:"General",guilds:"Guilds",bosses:"Bosses","boss-points":"Boss Points","boss-guilds":"Boss Guild Assignments",activities:"Activities","activity-points":"Activity Points","activity-guilds":"Activity Guild Assignments",members:"Moderators",integrations:"Integrations",account:"Account",danger:"Danger"};
+          const labels: Record<string,string> = {general:"General",guilds:"Guilds",bosses:"Bosses","boss-points":"Boss Points","boss-guilds":"Boss Guild Assignments",activities:"Activities","activity-points":"Activity Points","activity-guilds":"Activity Guild Assignments",members:"Moderator/Permissions",integrations:"Integrations",account:"Account",danger:"Danger"};
           return <button key={key} onClick={() => setTab(key)}
             className={`shrink-0 px-2.5 py-1 rounded-md text-[11px] font-medium transition whitespace-nowrap ${tab===key?"bg-[#27272a] text-[#fafafa]":"text-[#71717a] hover:text-[#d4d4d8]"}`}>
             {labels[key]}
@@ -1008,7 +960,7 @@ export function ServerSettingsView() {
           <nav className="bg-[#18181b] border border-[#27272a] rounded-xl p-1 space-y-0.5">
             {(["general","guilds","bosses","boss-points","boss-guilds","activities","activity-points","activity-guilds","members","integrations","account",...(isOwner?["danger"]:[])] as string[]).map((key) => {
               const icons: Record<string,React.ComponentType<{className?:string}>> = {general:Settings,guilds:Shield,bosses:Skull,"boss-points":Trophy,"boss-guilds":Swords,activities:Calendar,"activity-points":Trophy,"activity-guilds":Calendar,members:Users,integrations:Bell,account:Key,danger:AlertTriangle};
-              const labels: Record<string,string> = {general:"General",guilds:"Guilds",bosses:"Bosses","boss-points":"Boss Points","boss-guilds":"Boss Guild Assignments",activities:"Activities","activity-points":"Activity Points","activity-guilds":"Activity Guild Assignments",members:"Moderators",integrations:"Integrations",account:"Account",danger:"Danger"};
+              const labels: Record<string,string> = {general:"General",guilds:"Guilds",bosses:"Bosses","boss-points":"Boss Points","boss-guilds":"Boss Guild Assignments",activities:"Activities","activity-points":"Activity Points","activity-guilds":"Activity Guild Assignments",members:"Moderator/Permissions",integrations:"Integrations",account:"Account",danger:"Danger"};
               const Icon = icons[key];
               return <button key={key} onClick={() => setTab(key)}
                 className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition ${tab===key?"bg-[#27272a] text-[#fafafa]":"text-[#a1a1aa] hover:text-[#fafafa] hover:bg-[#27272a]/50"}`}>
@@ -2092,15 +2044,15 @@ export function ServerSettingsView() {
                           {PERMISSION_SECTIONS.map(section => (
                             <div key={section.section} className="space-y-1.5">
                               <span className="text-[10px] font-semibold text-[#71717a] uppercase tracking-wider">{section.section}</span>
-                              {section.items.map(({ key, label, indent, parent }) => (
-                                <label key={key} className={`flex items-center gap-2 cursor-pointer group ${indent ? "ml-5" : ""}`}>
+                              {section.items.map(({ key, label }) => (
+                                <label key={key} className="flex items-center gap-2 cursor-pointer group">
                                   <input
                                     type="checkbox"
                                     checked={perms[key] === true}
                                     onChange={() => handleTogglePermission(m.user_id, key)}
-                                    className={`rounded border-[#3f3f46] bg-[#18181b] focus:ring-[#52525b]/50 cursor-pointer ${parent ? "w-4 h-4 text-[#a1a1aa]" : "w-3.5 h-3.5 text-[#71717a]"}`}
+                                    className="rounded border-[#3f3f46] bg-[#18181b] focus:ring-[#52525b]/50 cursor-pointer w-3.5 h-3.5 text-[#a1a1aa]"
                                   />
-                                  <span className={`group-hover:text-[#d4d4d8] transition ${parent ? "text-xs text-[#d4d4d8] font-medium" : "text-xs text-[#a1a1aa]"}`}>{label}</span>
+                                  <span className="group-hover:text-[#d4d4d8] transition text-xs text-[#a1a1aa]">{label}</span>
                                 </label>
                               ))}
                             </div>

@@ -13,7 +13,7 @@ import { guildColor } from "@/lib/constants";
 export function MembersView() {
   const { user } = useAuth();
   const serverId = useServerId();
-  const canManageRaidMembers = useHasPermission("can_manage_raid_members");
+  const canManageRaidMembers = useHasPermission("can_manage_members");
   const queryClient = useQueryClient();
   const configured = isSupabaseConfigured();
   const { data: members = [], isLoading } = useMembers();

@@ -99,8 +99,8 @@ export function LeaderboardView() {
 
   // Point adjustment modal state
   const { timezone: userTz } = useUserTimezone(currentServer?.timezone);
-  const canAdjustPoints = useHasPermission("can_adjust_points");
-  const canExportAttendance = useHasPermission("can_export_attendance");
+  const canAdjustPoints = useHasPermission("can_manage_points");
+  const canExportAttendance = useHasPermission("can_manage_points");
   const isStaff = !isViewer && (currentServer?.role === "owner" || currentServer?.role === "moderator");
   const [carouselPage, setCarouselPage] = useState(0);
   const touchStartX = useRef(0);

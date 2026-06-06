@@ -49,7 +49,7 @@ export function BossListView() {
   const navigate = useNavigate();
   const { user, userRole, isViewer, viewerCanEdit: ctxViewerCanEdit, viewerCanMarkDied: ctxViewerCanMarkDied, viewerDiscordWebhookUrl: ctxDiscordWebhookUrl } = useAuth();
   const { currentServer } = useServer();
-  const hasAddPermission = useHasPermission("can_manage_boss_guilds");
+  const hasAddPermission = useHasPermission("can_manage_server_content");
   const canAddBoss = currentServer?.role === "owner" || hasAddPermission;
   const queryClient = useQueryClient();
 

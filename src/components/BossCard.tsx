@@ -68,9 +68,9 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
     }
   }, [ownerGuildName, optimisticOwner]);
 
-  const canSetSpawn = useHasPermission("can_set_spawn");
+  const canSetSpawn = useHasPermission("can_manage_spawns");
   const canRecordDeath = useHasPermission("can_record_death");
-  const canRotateGuilds = useHasPermission("can_rotate_guilds");
+  const canRotateGuilds = useHasPermission("can_manage_spawns");
 
   const isActivity = !!activity;
   const displayOwner = optimisticOwner ?? ownerGuildName;

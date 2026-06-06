@@ -26,7 +26,7 @@ import type { Boss, Activity } from "@/types";
 export function ServerBossesActivitiesTab({ mode = "all" }: { mode?: "all" | "bosses" | "activities" }) {
   const { currentServer } = useServer();
   const { userRole } = useAuth();
-  const hasPerm = useHasPermission("can_manage_boss_guilds");
+  const hasPerm = useHasPermission("can_manage_server_content");
   const canManage = currentServer?.role === "owner" || userRole === "admin" || hasPerm;
   const queryClient = useQueryClient();
   const serverId = currentServer?.id ?? "";
