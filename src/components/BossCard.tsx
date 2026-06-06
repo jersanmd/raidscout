@@ -6,6 +6,7 @@ import { DeathRecordModal } from "./DeathRecordModal";
 import { BossImage } from "./BossImage";
 import { Repeat, Timer, Skull, CheckSquare, Square, Shield, Pencil, X, Calendar, Users, Star, CheckCircle } from "lucide-react";
 import { useUserTimezone, formatInTimezone } from "@/hooks/useUserTimezone";
+import { utcSlotToLocal } from "@/lib/scheduleTimezone";
 import { useTimer } from "@/hooks/useTimer";
 import { guildColor } from "@/lib/constants";
 import type { BossWithSpawn, Activity } from "@/types";
@@ -121,8 +122,8 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
   const isCompleted = boss.is_recurring === false && (spawn as any).deathRecord;
   const displayStatus = isCompleted ? "unknown" as const : effectiveStatus;
   const config = statusConfigMap[displayStatus];
-  const isUrgent = !isActivity && !timer.isPast && timer.totalSeconds > 0 && timer.totalSeconds <= 300;
-  const isWarning = !isActivity && !timer.isPast && timer.totalSeconds > 300 && timer.totalSeconds <= 3600;
+  const isUrgent = !timer.isPast && timer.totalSeconds > 0 && timer.totalSeconds <= 300;
+  const isWarning = !timer.isPast && timer.totalSeconds > 300 && timer.totalSeconds <= 3600;
 
   const formatDateTime = (d: Date) =>
     formatInTimezone(d, tz, {
@@ -233,7 +234,10 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
                     <span className="text-[#71717a] font-mono uppercase tracking-wider">SCHEDULE</span>
                     <span className="text-[#a1a1aa] font-mono">
                       {activity.schedule
-                        .map((s) => `${["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][s.day]} ${s.time}`)
+                        .map((s) => {
+                          const local = utcSlotToLocal(s.day, s.time, tz);
+                          return `${["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][local.day]} ${local.time}`;
+                        })
                         .join("  ·  ")}
                     </span>
                   </div>
@@ -309,7 +313,8 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
                 <div className="flex items-center gap-2 text-[10px] text-[#52525b] font-mono">
                   {boss.respawn_hours && <span>+{boss.respawn_hours}h respawn</span>}
                   {boss.schedule && (() => {
-                    const tzName = currentServer?.timezone || "UTC";
+                    // Fixed-hours bosses have { time, start_date, utc_start } — skip schedule display
+                    if (!Array.isArray(boss.schedule)) return null;
                     const days = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
                     return (
                     <span>
@@ -317,7 +322,7 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
                         .map((s) => {
                           const [h, m] = s.time.split(":").map(Number);
                           const local = new Date(Date.UTC(2026, 0, 1, h, m))
-                            .toLocaleTimeString("en-US", { timeZone: tzName, hour: "2-digit", minute: "2-digit", hour12: true });
+                            .toLocaleTimeString("en-US", { timeZone: tz, hour: "2-digit", minute: "2-digit", hour12: true });
                           return `${days[s.day]} ${local}`;
                         })
                         .join("  ·  ")}
@@ -334,7 +339,7 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
         {/* Bottom action buttons — activities */}
         {!compact && !multiMode && isActivity && (onFinishActivity || onEditActivityTime) && (
           <div className="flex items-center justify-end gap-1.5 mt-3 pt-3 border-t border-white/[0.05] relative z-[1]">
-            {onEditActivityTime && (
+            {onEditActivityTime && displayStatus !== "alive" && (
               <button
                 onClick={() => {
                   // Default to the current next start time (in user's timezone)
@@ -345,7 +350,7 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
                   setEditDateValue(dateStr);
                   setShowEditTimeModal(true);
                 }}
-                className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#27272a] border border-[#27272a] text-[#a1a1aa] text-[11px] font-semibold hover:bg-[#3f3f46] active:scale-95 transition-all duration-200 whitespace-nowrap"
+                className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#18181b] border border-[#27272a] text-[#fafafa] text-[11px] font-medium hover:bg-[#27272a] active:scale-95 transition-all duration-200 whitespace-nowrap"
               >
                 <Pencil className="w-3 h-3" />
                 Edit Time
@@ -374,7 +379,7 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
                   setEditSpawnDate(local);
                   setShowEditSpawnModal(true);
                 }}
-                className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#27272a] border border-[#27272a] text-[#a1a1aa] text-[11px] font-semibold hover:bg-[#3f3f46] active:scale-95 transition-all duration-200 whitespace-nowrap"
+                className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#18181b] border border-[#27272a] text-[#fafafa] text-[11px] font-medium hover:bg-[#27272a] active:scale-95 transition-all duration-200 whitespace-nowrap"
               >
                 <Pencil className="w-3 h-3" />
                 Edit Spawn
@@ -489,7 +494,7 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
                   }
                   setShowEditSpawnModal(false);
                 }}
-                className="px-4 py-2 rounded-lg text-sm font-semibold bg-[#27272a] border border-[#27272a] text-[#a1a1aa] hover:bg-[#3f3f46] transition"
+                className="px-4 py-2 rounded-lg text-sm font-medium bg-[#fafafa] hover:bg-[#e4e4e7] text-[#09090b] transition"
               >
                 Save
               </button>
@@ -518,7 +523,7 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
                 value={editDateValue}
                 onChange={(e) => setEditDateValue(e.target.value)}
                 min={new Date().toLocaleDateString('en-CA', { timeZone: tz })}
-                className="flex-1 bg-[#18181b] border border-[#27272a] rounded-xl px-3 py-2.5 text-sm text-[#fafafa] outline-none focus:border-[#52525b] focus:ring-1 focus:ring-[#27272a] transition-all duration-200 [color-scheme:dark] [&::-webkit-calendar-picker-indicator]:invert"
+                className="flex-1 bg-[#18181b] border border-[#27272a] rounded-xl px-3 py-2.5 text-sm text-[#fafafa] outline-none focus:border-[#52525b] focus:ring-1 focus:ring-[#27272a] transition-all duration-200 [color-scheme:dark] [&::-webkit-calendar-picker-indicator]:!invert [&::-webkit-calendar-picker-indicator]:brightness-0"
                 autoFocus
               />
               <input
@@ -526,7 +531,7 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
                 value={editTimeValue}
                 onChange={(e) => setEditTimeValue(e.target.value)}
                 min={editDateValue === new Date().toLocaleDateString('en-CA', { timeZone: tz }) ? new Date().toLocaleTimeString('en-GB', { timeZone: tz, hour: '2-digit', minute: '2-digit' }) : undefined}
-                className="flex-1 bg-[#18181b] border border-[#27272a] rounded-xl px-3 py-2.5 text-sm text-[#fafafa] outline-none focus:border-[#52525b] focus:ring-1 focus:ring-[#27272a] transition-all duration-200 [color-scheme:dark] [&::-webkit-calendar-picker-indicator]:invert"
+                className="flex-1 bg-[#18181b] border border-[#27272a] rounded-xl px-3 py-2.5 text-sm text-[#fafafa] outline-none focus:border-[#52525b] focus:ring-1 focus:ring-[#27272a] transition-all duration-200 [color-scheme:dark] [&::-webkit-calendar-picker-indicator]:!invert [&::-webkit-calendar-picker-indicator]:brightness-0"
               />
             </div>
             <div className="flex justify-end gap-2">
@@ -544,7 +549,7 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
                   setShowEditTimeModal(false);
                 }}
                 disabled={!editDateValue || !editTimeValue}
-                className="px-4 py-2 rounded-lg text-sm font-semibold bg-[#27272a] border border-[#27272a] text-[#a1a1aa] hover:bg-[#3f3f46] transition disabled:opacity-40 disabled:cursor-not-allowed"
+                className="px-4 py-2 rounded-lg text-sm font-medium bg-[#fafafa] hover:bg-[#e4e4e7] text-[#09090b] transition disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 Save
               </button>

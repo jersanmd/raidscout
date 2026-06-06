@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Loader2, Plus, Save, X, Image } from "lucide-react";
-import { localSlotToUtc, type ScheduleSlot } from "@/lib/scheduleTimezone";
+import { localSlotToUtc, utcSlotToLocal, type ScheduleSlot } from "@/lib/scheduleTimezone";
+import { toUtcTime } from "@/lib/activityCalculator";
 import { updateActivityTemplate, uploadActivityImage, updateCustomActivity } from "@/lib/supabase";
 
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -31,20 +32,30 @@ interface Props {
 
 export function EditActivityForm({ activity, gameSlug, serverId, timezone, onSaved, onCancel }: Props) {
   const isServerMode = !!serverId;
+  const tz = timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
   const [name, setName] = useState(activity.name);
   const [scheduleType, setScheduleType] = useState(activity.schedule_type);
-  const [schedule, setSchedule] = useState<any>(activity.schedule ?? null);
-  const tz = timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const [schedule, setSchedule] = useState<any>(() => {
+    // Convert UTC schedule slots to local for editing
+    if (activity.schedule_type === "fixed_schedule" && Array.isArray(activity.schedule)) {
+      return (activity.schedule as ScheduleSlot[]).map(s => utcSlotToLocal(s.day, s.time, tz));
+    }
+    return activity.schedule ?? null;
+  });
   
-  // Parse time from schedule (handles both old "HH:MM" string and new {time, start_date} object)
+  // Parse time from schedule (handles both old "HH:MM" string and new {time, start_date, utc_start} object)
   const parsedTime = typeof activity.schedule === "object" && activity.schedule?.time
     ? activity.schedule.time
-    : typeof activity.schedule === "string" && activity.schedule.includes(":")
-      ? activity.schedule
-      : "00:00";
+    : typeof activity.schedule === "object" && activity.schedule?.utc_start
+      ? new Date(activity.schedule.utc_start).toLocaleTimeString("en-GB", { timeZone: tz, hour: "2-digit", minute: "2-digit", hour12: false })
+      : typeof activity.schedule === "string" && activity.schedule.includes(":")
+        ? activity.schedule
+        : "00:00";
   const parsedDate = typeof activity.schedule === "object" && activity.schedule?.start_date
     ? activity.schedule.start_date
-    : new Date().toLocaleDateString("en-CA", { timeZone: tz });
+    : typeof activity.schedule === "object" && activity.schedule?.utc_start
+      ? new Date(activity.schedule.utc_start).toLocaleDateString("en-CA", { timeZone: tz })
+      : new Date().toLocaleDateString("en-CA", { timeZone: tz });
   
   const [startHours, setStartHours] = useState(parsedTime.split(":")[0]);
   const [startMinutes, setStartMinutes] = useState(parsedTime.split(":")[1]);
@@ -80,6 +91,7 @@ export function EditActivityForm({ activity, gameSlug, serverId, timezone, onSav
         processedSchedule = {
           time: `${String(startHours).padStart(2, "0")}:${String(startMinutes).padStart(2, "0")}`,
           start_date: startDate,
+          utc_start: toUtcTime(startDate, `${String(startHours).padStart(2, "0")}:${String(startMinutes).padStart(2, "0")}`, tz),
         };
       }
 

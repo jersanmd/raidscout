@@ -139,11 +139,12 @@ export {
   adjustMemberPoints,
   fetchPointAdjustments,
   fetchMemberKills,
+  fetchMemberActivityHistory,
   saveLeaderboardSnapshot,
   fetchLeaderboardSnapshots,
   fetchSnapshotById,
 } from "./api/leaderboard";
-export type { MemberBossKill } from "./api/leaderboard";
+export type { MemberBossKill, MemberActivityAttendance } from "./api/leaderboard";
 
 // Analytics
 export { fetchAnalytics } from "./api/analytics";
@@ -172,8 +173,12 @@ export {
 // Activities
 export {
   setActivityParties,
+  fetchActivityAttendance,
   markActivityAttendance,
   finalizeActivity,
+  fetchActivityInstance,
+  setActivityRallyImages,
+  setActivityPartyLeaders,
 } from "./api/activities";
 
 // Storage

@@ -29,6 +29,18 @@ export async function fetchLeaderboardByPeriod(
   const sid = serverId ?? getCurrentServerId();
   if (!sid) return [];
 
+  // Use RPC first — includes both boss + activity points
+  const { data, error } = await supabase
+    .rpc("get_leaderboard", { p_server_id: sid, p_since: since });
+
+  if (!error && data) {
+    return ((data as any[]) ?? []).map((row: any) => ({
+      id: row.member_id, name: row.member_name, points: row.total_points,
+      last_attended: row.last_attended,
+    }));
+  }
+
+  // Fallback: edge function
   try {
     const resp = await fetch(`${supabaseUrl}/functions/v1/get-leaderboard`, {
       method: "POST",
@@ -40,16 +52,9 @@ export async function fetchLeaderboardByPeriod(
       body: JSON.stringify({ server_id: sid, since }),
     });
     if (resp.ok) return await resp.json();
-  } catch { /* fallback to RPC */ }
+  } catch { /* fall through */ }
 
-  const { data, error } = await supabase
-    .rpc("get_leaderboard", { p_server_id: sid, p_since: since });
-
-  if (error) throw error;
-  return ((data as any[]) ?? []).map((row: any) => ({
-    id: row.member_id, name: row.member_name, points: row.total_points,
-    last_attended: row.last_attended,
-  }));
+  return [];
 }
 
 export async function resetGuildPoints(
@@ -118,6 +123,13 @@ export interface MemberBossKill {
   boss_name: string;
   killed_at: string;
   death_record_id: string;
+  points?: number;
+}
+
+export interface MemberActivityAttendance {
+  activity_name: string;
+  attended_at: string;
+  activity_instance_id: string;
   points?: number;
 }
 
@@ -242,6 +254,33 @@ export async function fetchMemberKills(
       points: basePts * mult,
     };
   });
+}
+
+// ── Member Activity History ─────────────────────────────────
+
+export async function fetchMemberActivityHistory(
+  memberId: string,
+  since?: string,
+  serverId?: string | null,
+): Promise<MemberActivityAttendance[]> {
+  const sid = serverId ?? getCurrentServerId();
+  if (!sid) return [];
+
+  const { data, error } = await supabase
+    .from("activity_attendance")
+    .select("activity_instance_id, activity_instances!inner(end_time, activity_id, activities!inner(name, points_per_participant))")
+    .eq("member_id", memberId)
+    .eq("present", true)
+    .order("created_at", { ascending: false });
+
+  if (error || !data) return [];
+
+  return (data as any[]).map((row: any) => ({
+    activity_name: row.activity_instances.activities.name,
+    attended_at: row.activity_instances.end_time,
+    activity_instance_id: row.activity_instance_id,
+    points: row.activity_instances.activities.points_per_participant ?? 1,
+  }));
 }
 
 // ── Leaderboard Snapshots ───────────────────────────────────

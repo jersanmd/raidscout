@@ -5,7 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useHasPermission } from "@/contexts/ServerContext";
 import { fetchAllActivitiesForServer, fetchGuilds, fetchAllActivityGuildsForServer, setActivityGuilds } from "@/lib/supabase";
 import type { ActivityGuild } from "@/types";
-import { Loader2, Shield, Swords, ChevronUp, ChevronDown, X, Plus, Check } from "lucide-react";
+import { Loader2, Shield, Swords, ChevronUp, ChevronDown, X, Plus, Check, Search } from "lucide-react";
 
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -37,22 +37,31 @@ export function ActivityGuildsTab() {
 
   const [expandedActivity, setExpandedActivity] = useState<string | null>(null);
   const [savingId, setSavingId] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  // Track locally-selected mode so guild UI shows immediately even with no guilds yet
+  const [pendingModes, setPendingModes] = useState<Record<string, "none" | "rotation" | "daily" | "schedule" | "all">>({});
 
   // Build lookup: activityId → ActivityGuild[]
   const getActivityGuilds = (activityId: string) =>
-    activityGuilds.filter(ag => ag.activity_id === activityId && ag.mode !== "all" ? ag.sort_order !== null || ag.day_of_week !== null : true);
+    activityGuilds.filter(ag => ag.activity_id === activityId && (ag.mode !== "all" ? ag.sort_order !== null || ag.day_of_week !== null : true));
 
   const getMode = (activityId: string): "none" | "rotation" | "daily" | "schedule" | "all" => {
+    // Use local pending mode if set, otherwise fall back to DB
+    if (pendingModes[activityId] !== undefined) return pendingModes[activityId];
     const ags = activityGuilds.filter(ag => ag.activity_id === activityId);
     if (ags.length === 0) return "none";
     return ags[0].mode;
   };
 
   const handleSetMode = async (activityId: string, mode: "none" | "rotation" | "daily" | "schedule" | "all") => {
+    // Set local mode immediately so guild UI appears
+    setPendingModes(prev => ({ ...prev, [activityId]: mode }));
     setSavingId(activityId);
     try {
       if (mode === "none") {
         await setActivityGuilds(activityId, [], "rotation");
+        // Clear pending mode when setting to none
+        setPendingModes(prev => { const next = { ...prev }; delete next[activityId]; return next; });
       } else {
         // Keep existing guild assignments if switching modes
         const existing = getActivityGuilds(activityId);
@@ -80,6 +89,7 @@ export function ActivityGuildsTab() {
       })), { guild_id: guildId, sort_order: mode === "rotation" || mode === "daily" ? existing.length : undefined }];
       await setActivityGuilds(activityId, assignments, mode);
       queryClient.invalidateQueries({ queryKey: ["activity-guilds", serverId] });
+      setPendingModes(prev => { const next = { ...prev }; delete next[activityId]; return next; });
     } catch { /* ignore */ }
     setSavingId(null);
   };
@@ -95,6 +105,7 @@ export function ActivityGuildsTab() {
       }));
       await setActivityGuilds(activityId, assignments, mode);
       queryClient.invalidateQueries({ queryKey: ["activity-guilds", serverId] });
+      setPendingModes(prev => { const next = { ...prev }; delete next[activityId]; return next; });
     } catch { /* ignore */ }
     setSavingId(null);
   };
@@ -111,6 +122,7 @@ export function ActivityGuildsTab() {
         day_of_week: ag.day_of_week ?? undefined,
       })), "schedule");
       queryClient.invalidateQueries({ queryKey: ["activity-guilds", serverId] });
+      setPendingModes(prev => { const next = { ...prev }; delete next[activityId]; return next; });
     } catch { /* ignore */ }
     setSavingId(null);
   };
@@ -125,11 +137,17 @@ export function ActivityGuildsTab() {
         await setActivityGuilds(activityId, existing.filter(ag => ag.guild_id !== guildId).map(ag => ({ guild_id: ag.guild_id })), "all");
       }
       queryClient.invalidateQueries({ queryKey: ["activity-guilds", serverId] });
+      setPendingModes(prev => { const next = { ...prev }; delete next[activityId]; return next; });
     } catch { /* ignore */ }
     setSavingId(null);
   };
 
   if (!canManage) return <p className="text-xs text-[#71717a] text-center py-8">Only server owners and moderators can manage activity guild assignments.</p>;
+
+  const enabledActivities = activities.filter(a => a.is_enabled);
+  const filteredActivities = search.trim()
+    ? enabledActivities.filter(a => a.name.toLowerCase().includes(search.toLowerCase()))
+    : enabledActivities;
 
   const loading = activitiesLoading || guildsLoading || agLoading;
 
@@ -145,13 +163,27 @@ export function ActivityGuildsTab() {
 
         {loading ? (
           <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 text-[#71717a] animate-spin" /></div>
-        ) : activities.length === 0 ? (
+        ) : enabledActivities.length === 0 ? (
           <p className="text-xs text-[#71717a] text-center py-4">No activities in this server.</p>
-        ) : guilds.length === 0 ? (
-          <p className="text-xs text-[#a1a1aa] text-center py-4">Create guilds first before assigning them to activities.</p>
         ) : (
-          <div className="space-y-2">
-            {activities.map(activity => {
+          <>
+            <div className="relative mb-3">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#52525b]" />
+              <input
+                type="text"
+                placeholder="Search activities..."
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                className="w-full pl-8 pr-3 py-2 bg-[#18181b] border border-[#27272a] rounded-lg text-xs text-[#fafafa] placeholder-[#52525b] focus:outline-none focus:border-[#52525b]"
+              />
+            </div>
+            {guilds.length === 0 ? (
+              <p className="text-xs text-[#a1a1aa] text-center py-4">Create guilds first before assigning them to activities.</p>
+            ) : filteredActivities.length === 0 ? (
+              <p className="text-xs text-[#a1a1aa] text-center py-4">No matching activities.</p>
+            ) : (
+              <div className="space-y-2">
+                {filteredActivities.map(activity => {
               const mode = getMode(activity.id);
               const isExpanded = expandedActivity === activity.id;
               const isSaving = savingId === activity.id;
@@ -164,12 +196,16 @@ export function ActivityGuildsTab() {
                     onClick={() => setExpandedActivity(isExpanded ? null : activity.id)}
                     className="w-full flex items-center gap-2 px-4 py-3 hover:bg-[#27272a]/30 transition text-left"
                   >
-                    <span className={`w-2 h-2 rounded-full shrink-0 ${
+                    {activity.image_url ? (
+                      <img src={activity.image_url} alt={activity.name} className="w-6 h-6 rounded object-cover border border-[#27272a] shrink-0" />
+                    ) : (
+                      <span className={`w-2 h-2 rounded-full shrink-0 ${
                       activity.schedule_type === "fixed_hours" ? "bg-emerald-400" :
                       activity.schedule_type === "fixed_schedule" ? "bg-violet-400" :
                       activity.schedule_type === "one_time" ? "bg-amber-400" :
                       "bg-[#52525b]"
                     }`} />
+                    )}
                     <span className="text-xs text-[#fafafa] font-medium flex-1 truncate">{activity.name}</span>
                     <span className={`text-xs px-1.5 py-0.5 rounded ${
                       mode === "rotation" ? "text-[#a1a1aa] bg-[#18181b]" :
@@ -226,7 +262,7 @@ export function ActivityGuildsTab() {
                               className="w-full bg-[#18181b] border border-[#27272a] rounded px-2 py-1.5 text-xs text-[#a1a1aa] outline-none focus:border-[#52525b]"
                             >
                               <option value="">+ Add guild...</option>
-                              {guilds.filter(g => !ags.some(ag => ag.guild_id === g.id)).map(g => (
+                              {guilds.map(g => (
                                 <option key={g.id} value={g.id}>{g.name}</option>
                               ))}
                             </select>
@@ -289,6 +325,8 @@ export function ActivityGuildsTab() {
               );
             })}
           </div>
+          )}
+          </>
         )}
       </section>
     </div>

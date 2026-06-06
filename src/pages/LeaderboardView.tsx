@@ -9,11 +9,11 @@ import { useToast } from "@/contexts/ToastContext";
 import { useServerId, useServer, useHasPermission } from "@/contexts/ServerContext";
 import { useServerTimezone } from "@/hooks/useServerTimezone";
 import { useUserTimezone } from "@/hooks/useUserTimezone";
-import { fetchMemberKills, type MemberBossKill, isSupabaseConfigured, fetchGuilds, adjustMemberPoints, fetchPointAdjustments, fetchPointRules, resetGuildPoints, supabase } from "@/lib/supabase";
+import { fetchMemberKills, fetchMemberActivityHistory, type MemberBossKill, type MemberActivityAttendance, isSupabaseConfigured, fetchGuilds, adjustMemberPoints, fetchPointAdjustments, fetchPointRules, resetGuildPoints, supabase } from "@/lib/supabase";
 import { useAttendance } from "@/hooks/useAttendance";
 import { useMembers } from "@/hooks/useMembers";
 import type { Guild, LeaderboardSnapshot, PointAdjustment } from "@/types";
-import { Trophy, Medal, Crown, Users, Loader2, X, Skull, CheckCheck, History, ChevronRight, ChevronLeft, Search, Shield, Plus, Minus, Edit3, RotateCcw } from "lucide-react";
+import { Trophy, Medal, Crown, Users, Loader2, X, Skull, CheckCheck, History, ChevronRight, ChevronLeft, Search, Shield, Plus, Minus, Edit3, RotateCcw, Calendar } from "lucide-react";
 import { TableRowSkeleton } from "@/components/Skeletons";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 
@@ -66,10 +66,12 @@ export function LeaderboardView() {
   // Selected member for kill history modal
   const [selectedMember, setSelectedMember] = useState<{ id: string; name: string } | null>(null);
   const [memberKills, setMemberKills] = useState<MemberBossKill[]>([]);
+  const [memberActivities, setMemberActivities] = useState<MemberActivityAttendance[]>([]);
   const [killsLoading, setKillsLoading] = useState(false);
 
   // Participant modal (when clicking a boss in kill history)
   const [participantDeathId, setParticipantDeathId] = useState<string | null>(null);
+  const [participantActivityInstanceId, setParticipantActivityInstanceId] = useState<string | null>(null);
   const [participantBossName, setParticipantBossName] = useState("");
   const [participantDeathTime, setParticipantDeathTime] = useState("");
 
@@ -171,10 +173,13 @@ export function LeaderboardView() {
         (async () => {
           let since = "1970-01-01T00:00:00Z";
           try { const { data: snaps } = await supabase.from("leaderboard_snapshots").select("finalized_at").eq("period", period).eq("server_id", serverId).order("finalized_at", { ascending: false }).limit(1); if (snaps && snaps.length > 0) since = (snaps[0] as any).finalized_at; } catch {}
-          fetchMemberKills(entry.id, since, serverId, serverTimezone)
-            .then(setMemberKills)
-            .catch(() => setMemberKills([]))
-            .finally(() => setKillsLoading(false));
+          const [kills, activities] = await Promise.all([
+            fetchMemberKills(entry.id, since, serverId, serverTimezone).catch(() => [] as MemberBossKill[]),
+            fetchMemberActivityHistory(entry.id, since, serverId).catch(() => [] as MemberActivityAttendance[]),
+          ]);
+          setMemberKills(kills);
+          setMemberActivities(activities);
+          setKillsLoading(false);
         })();
         // Clear the param so it doesn't re-trigger
         searchParams.delete("member");
@@ -285,20 +290,38 @@ export function LeaderboardView() {
       
       // Step 3: combine and filter by date range
       const candidateDeathIds = [...new Set([...allParticipatedDeathIds, ...ownedDeathIds])];
-      if (!candidateDeathIds.length) { alert("No boss kills for " + guildName + " members in this date range."); setExportLoading(false); return; }
+      if (!candidateDeathIds.length) {
+        // No boss kills — check if there are activities instead
+        const { data: actCheck } = await supabase
+          .from("activity_attendance")
+          .select("activity_instance_id")
+          .in("member_id", memberIds)
+          .eq("present", true)
+          .limit(1);
+        if (!actCheck?.length) {
+          alert("No boss kills or activities for " + guildName + " members in this date range.");
+          setExportLoading(false);
+          return;
+        }
+        // Continue with empty deaths — activities will populate the export
+      }
 
-      const { data: deaths, error: deathsErr } = await supabase
-        .from("death_records")
-        .select("id,boss_id,death_time,party_leaders,owner_guild_id")
-        .in("id", candidateDeathIds)
-        .gte("death_time", startISO)
-        .lte("death_time", endISO)
-        .order("death_time", { ascending: true });
-      if (deathsErr) throw new Error(`Death records: ${deathsErr.message}`);
-      if (!deaths?.length) { alert("No death records in this date range for " + guildName + "."); setExportLoading(false); return; }
-
-      const deathIds = deaths.map((d: any) => d.id);
-      const bossIds = [...new Set(deaths.map((d: any) => d.boss_id))];
+      let deaths: any[] = [];
+      let deathIds: string[] = [];
+      let bossIds: string[] = [];
+      if (candidateDeathIds.length > 0) {
+        const { data: d, error: deathsErr } = await supabase
+          .from("death_records")
+          .select("id,boss_id,death_time,party_leaders,owner_guild_id")
+          .in("id", candidateDeathIds)
+          .gte("death_time", startISO)
+          .lte("death_time", endISO)
+          .order("death_time", { ascending: true });
+        if (deathsErr) throw new Error(`Death records: ${deathsErr.message}`);
+        deaths = d || [];
+        deathIds = deaths.map((d: any) => d.id);
+        bossIds = [...new Set(deaths.map((d: any) => d.boss_id))];
+      }
 
       // Fetch bosses
       const { data: bosses } = await supabase
@@ -408,6 +431,87 @@ export function LeaderboardView() {
           memberTotals.set(mid, (memberTotals.get(mid) || 0) + basePts * mult);
         }
       }
+
+      // ── Activity Attendance ──
+      // Fetch activity instances in date range for this server's activities that guild members attended
+      let activityRows: any[][] = [];
+      {
+        const actDateFmt = new Intl.DateTimeFormat("en-US", { timeZone: serverTimezone, month: "short", day: "numeric", year: "numeric" });
+        const actTimeFmt = new Intl.DateTimeFormat("en-US", { timeZone: serverTimezone, hour: "2-digit", minute: "2-digit" });
+        const { data: actAtt } = await supabase
+          .from("activity_attendance")
+          .select("activity_instance_id,member_id")
+          .in("member_id", memberIds)
+          .eq("present", true);
+
+        if (actAtt && actAtt.length > 0) {
+          const actInstanceIds = [...new Set(actAtt.map((a: any) => a.activity_instance_id))];
+
+          const { data: actInstances } = await supabase
+            .from("activity_instances")
+            .select("id,end_time,activity_id")
+            .in("id", actInstanceIds)
+            .gte("end_time", startISO)
+            .lte("end_time", endISO);
+
+          if (actInstances && actInstances.length > 0) {
+            const filteredIds = new Set(actInstances.map((ai: any) => ai.id));
+            const actInstanceMap = new Map(actInstances.map((ai: any) => [ai.id, ai]));
+
+            const actIds = [...new Set(actInstances.map((ai: any) => ai.activity_id))];
+            const { data: activities } = await supabase
+              .from("activities")
+              .select("id,name,points_per_participant")
+              .in("id", actIds)
+              .eq("server_id", serverId);
+            const activityMap = new Map((activities || []).map((a: any) => [a.id, a]));
+
+            // Build activity attendance sets
+            const activityAttendees = new Map<string, Set<string>>();
+            for (const att of actAtt) {
+              if (!filteredIds.has(att.activity_instance_id)) continue;
+              if (!activityAttendees.has(att.activity_instance_id)) {
+                activityAttendees.set(att.activity_instance_id, new Set());
+              }
+              activityAttendees.get(att.activity_instance_id)!.add(att.member_id);
+            }
+
+            // Add activity points to member totals
+            for (const [aiId, memberSet] of activityAttendees) {
+              const ai = actInstanceMap.get(aiId);
+              const activity = activityMap.get(ai?.activity_id);
+              const pts = activity?.points_per_participant ?? 1;
+              for (const mid of memberSet) {
+                memberTotals.set(mid, (memberTotals.get(mid) || 0) + pts);
+              }
+            }
+
+            // Build activity data rows (sorted by end_time, then by instance id)
+            const sortedInstances = actInstances.sort((a: any, b: any) =>
+              a.end_time.localeCompare(b.end_time) || a.id.localeCompare(b.id));
+
+            for (const ai of sortedInstances) {
+              const attendees = activityAttendees.get(ai.id);
+              if (!attendees || attendees.size === 0) continue;
+              const activity = activityMap.get(ai.activity_id);
+              const pts = activity?.points_per_participant ?? 1;
+              const row: any[] = [
+                attendees.size,
+                actDateFmt.format(new Date(ai.end_time)),
+                actTimeFmt.format(new Date(ai.end_time)),
+                `\u{1F3AF} ${activity?.name || "Activity"}`,  // 🎯 marker for activity
+                "",  // no party leader
+                "—", // no salary
+              ];
+              sortedMembers.forEach(mid => {
+                row.push(attendees.has(mid) ? pts : "");
+              });
+              activityRows.push(row);
+            }
+          }
+        }
+      }
+
       const sortedRanking = [...memberTotals.entries()].sort((a, b) => b[1] - a[1]);
 
       // Build Excel-compatible HTML table
@@ -464,14 +568,14 @@ export function LeaderboardView() {
         // ── Data + Rankings ──
         const playerColors = ["#7C3AED","#059669","#D97706","#0891B2","#DB2777","#4F46E5"];
         // Header row 0: player names + ranking header
-        html += `<tr><th class="hdr">#</th><th class="hdr">Date</th><th class="hdr">Time</th><th class="hdr boss" style="text-align:left">Boss</th><th class="hdr">Party Leader</th><th class="hdr">Salary</th>`;
+        html += `<tr><th class="hdr">#</th><th class="hdr">Date</th><th class="hdr">Time</th><th class="hdr boss" style="text-align:left">Boss / Activity</th><th class="hdr">Party Leader</th><th class="hdr">Salary</th>`;
         sortedMembers.forEach((mid, i) => {
           html += `<th class="hdr" style="background:${playerColors[i % 6]}">${memberMap.get(mid) || "?"}</th>`;
         });
         html += `<th class="hdr" style="background:#1E293B;min-width:16px"></th><th class="hdr" colspan="3" style="background:#7C3AED">\u{1F3C6} Ranking</th></tr>`;
 
         // Header row 1: player totals + ranking sub-header
-        html += `<tr><th class="hdr">#</th><th class="hdr">Date</th><th class="hdr">Time</th><th class="hdr">Boss</th><th class="hdr">Party Leader</th><th class="hdr">Salary</th>`;
+        html += `<tr><th class="hdr">#</th><th class="hdr">Date</th><th class="hdr">Time</th><th class="hdr">Boss / Activity</th><th class="hdr">Party Leader</th><th class="hdr">Salary</th>`;
         sortedMembers.forEach((mid, i) => {
           html += `<th class="hdr" style="background:${playerColors[i % 6]};font-size:14px">${memberTotals.get(mid) || 0}</th>`;
         });
@@ -511,6 +615,11 @@ export function LeaderboardView() {
           });
           dataRows.push(row);
         });
+
+        // Append activity rows after boss rows
+        for (const aRow of activityRows) {
+          dataRows.push(aRow);
+        }
 
         const maxR = Math.max(dataRows.length, sortedRanking.length);
         for (let ri = 0; ri < maxR; ri++) {
@@ -734,8 +843,15 @@ export function LeaderboardView() {
                                           .maybeSingle();
                                         if (settings) since = (settings as any).value;
                                       }
-                                      if (configured) setMemberKills(await fetchMemberKills(entry.id, since, serverId, serverTimezone));
-                                    } catch { setMemberKills([]); }
+                                      if (configured) {
+                                        const [kills, activities] = await Promise.all([
+                                          fetchMemberKills(entry.id, since, serverId, serverTimezone),
+                                          fetchMemberActivityHistory(entry.id, since, serverId),
+                                        ]);
+                                        setMemberKills(kills);
+                                        setMemberActivities(activities);
+                                      }
+                                    } catch { setMemberKills([]); setMemberActivities([]); }
                                     finally { setKillsLoading(false); }
                                   }}
                                   className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-white/5 transition"
@@ -991,7 +1107,15 @@ export function LeaderboardView() {
 
       {/* Kill history modal */}
       {selectedMember && (() => {
+        // Merge boss kills + activity attendance into one sorted history
+        const combined = [
+          ...memberKills.map(k => ({ type: "kill" as const, name: k.boss_name, points: k.points ?? 0, time: k.killed_at, deathRecordId: k.death_record_id, activityInstanceId: null as string | null })),
+          ...memberActivities.map(a => ({ type: "activity" as const, name: a.activity_name, points: a.points ?? 0, time: a.attended_at, deathRecordId: null as string | null, activityInstanceId: a.activity_instance_id })),
+        ].sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
+
         const killTotal = memberKills.reduce((sum, k) => sum + (k.points ?? 0), 0);
+        const activityTotal = memberActivities.reduce((sum, a) => sum + (a.points ?? 0), 0);
+        const combinedTotal = killTotal + activityTotal;
         const leaderboardEntry = entries.find(e => e.id === selectedMember.id);
         return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -1002,9 +1126,10 @@ export function LeaderboardView() {
                 <h3 className="text-sm font-bold text-[#fafafa]">{selectedMember.name}</h3>
                 <p className="text-[10px] text-[#71717a]">
                   {memberKills.length} kill{memberKills.length !== 1 ? "s" : ""}
+                  {memberActivities.length > 0 && <> · {memberActivities.length} activit{memberActivities.length !== 1 ? "ies" : "y"}</>}
                   {" · "}
-                  <span className="text-amber-400 font-medium">{killTotal}pt</span> in history
-                  {leaderboardEntry && leaderboardEntry.points !== killTotal && (
+                  <span className="text-amber-400 font-medium">{combinedTotal}pt</span> in history
+                  {leaderboardEntry && leaderboardEntry.points !== combinedTotal && (
                     <span className="text-[#52525b]"> · <span className="text-[#fafafa] font-medium">{leaderboardEntry.points}pt</span> on board</span>
                   )}
                 </p>
@@ -1019,23 +1144,36 @@ export function LeaderboardView() {
                 <div className="flex items-center justify-center py-8">
                   <Loader2 className="w-5 h-5 text-[#71717a] animate-spin" />
                 </div>
-              ) : memberKills.length === 0 ? (
+              ) : combined.length === 0 ? (
                 <p className="text-sm text-[#71717a] text-center py-4">
-                  No boss kills recorded yet.
+                  No activity recorded yet.
                 </p>
               ) : (
                 <div className="space-y-1">
-                  {memberKills.map((kill, i) => (
+                  {combined.map((item, i) => (
                     <button
                       key={i}
-                      onClick={() => { setParticipantDeathId(kill.death_record_id); setParticipantBossName(kill.boss_name); setParticipantDeathTime(kill.killed_at); }}
+                      onClick={() => {
+                        if (item.type === "kill") {
+                          setParticipantDeathId(item.deathRecordId!);
+                          setParticipantBossName(item.name);
+                          setParticipantDeathTime(item.time);
+                        } else {
+                          setParticipantActivityInstanceId(item.activityInstanceId!);
+                          setParticipantBossName(item.name);
+                        }
+                      }}
                       className="w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-[#18181b]/50 hover:bg-[#27272a]/50 transition text-left"
                     >
-                      <Skull className="w-3.5 h-3.5 text-red-400 shrink-0" />
-                      <span className="text-sm text-[#fafafa]">{kill.boss_name}</span>
-                      <span className="text-[10px] text-amber-400 font-medium ml-auto mr-2">+{kill.points ?? 1}</span>
+                      {item.type === "kill" ? (
+                        <Skull className="w-3.5 h-3.5 text-red-400 shrink-0" />
+                      ) : (
+                        <Calendar className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                      )}
+                      <span className="text-sm text-[#fafafa]">{item.name}</span>
+                      <span className="text-[10px] text-amber-400 font-medium ml-auto mr-2">+{item.points}</span>
                       <span className="text-[10px] text-[#52525b]">
-                        {new Date(kill.killed_at).toLocaleString("en-US", { timeZone: userTz,
+                        {new Date(item.time).toLocaleString("en-US", { timeZone: userTz,
                           month: "short",
                           day: "numeric",
                           hour: "2-digit",
@@ -1051,13 +1189,14 @@ export function LeaderboardView() {
         </div>
         );
       })()}
-      {/* Participant modal (when clicking a boss in kill history) */}
-      {participantDeathId && (
+      {/* Participant modal (when clicking a boss/activity in history) */}
+      {(participantDeathId || participantActivityInstanceId) && (
         <ParticipantModalInline
-          deathRecordId={participantDeathId}
+          deathRecordId={participantDeathId ?? undefined}
+          activityInstanceId={participantActivityInstanceId ?? undefined}
           bossName={participantBossName}
           deathTime={participantDeathTime}
-          onClose={() => { setParticipantDeathId(null); setParticipantBossName(""); setParticipantDeathTime(""); }}
+          onClose={() => { setParticipantDeathId(null); setParticipantActivityInstanceId(null); setParticipantBossName(""); setParticipantDeathTime(""); }}
         />
       )}
 
@@ -1280,18 +1419,34 @@ export function LeaderboardView() {
 
 function ParticipantModalInline({
   deathRecordId,
+  activityInstanceId,
   bossName,
   deathTime,
   onClose,
 }: {
-  deathRecordId: string;
+  deathRecordId?: string;
+  activityInstanceId?: string;
   bossName: string;
   deathTime: string;
   onClose: () => void;
 }) {
-  const { data: attendance = [], isLoading } = useAttendance(deathRecordId);
+  const { data: attendance = [], isLoading } = useAttendance(deathRecordId ?? "");
+  const [activityAttendance, setActivityAttendance] = useState<{ id: string; member_id: string }[]>([]);
+  const [activityLoading, setActivityLoading] = useState(false);
   const { data: members = [] } = useMembers();
   const memberMap = new Map(members.map((m) => [m.id, m.name]));
+
+  useEffect(() => {
+    if (activityInstanceId) {
+      setActivityLoading(true);
+      supabase.rpc("fetch_activity_attendance", { p_activity_instance_id: activityInstanceId })
+        .then(({ data }) => { if (data) setActivityAttendance(data as any[]); })
+        .finally(() => setActivityLoading(false));
+    }
+  }, [activityInstanceId]);
+
+  const isLoading2 = isLoading || activityLoading;
+  const allAttendees = deathRecordId ? attendance : activityAttendance;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -1307,19 +1462,19 @@ function ParticipantModalInline({
           </button>
         </div>
         <div className="p-4 overflow-y-auto flex-1">
-          {isLoading ? (
+          {isLoading2 ? (
             <div className="flex items-center justify-center py-8">
               <Loader2 className="w-5 h-5 text-[#71717a] animate-spin" />
             </div>
-          ) : attendance.length === 0 ? (
+          ) : allAttendees.length === 0 ? (
             <p className="text-sm text-[#71717a] text-center py-4">No participants recorded.</p>
           ) : (
             <div>
               <p className="text-[11px] font-medium text-[#a1a1aa] uppercase tracking-wider mb-2">
-                Participants ({attendance.length})
+                Participants ({allAttendees.length})
               </p>
               <div className="space-y-1">
-                {attendance.map((a) => (
+                {allAttendees.map((a) => (
                   <div key={a.id} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[#18181b]/50">
                     <Users className="w-3.5 h-3.5 text-[#a1a1aa] shrink-0" />
                     <span className="text-sm text-[#fafafa]">{memberMap.get(a.member_id) ?? "Unknown"}</span>

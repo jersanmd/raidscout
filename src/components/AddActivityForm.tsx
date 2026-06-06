@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Loader2, Plus, Save, X, Image } from "lucide-react";
 import { localSlotToUtc, type ScheduleSlot } from "@/lib/scheduleTimezone";
+import { toUtcTime } from "@/lib/activityCalculator";
 import { createActivityTemplate, uploadActivityImage, createCustomActivity } from "@/lib/supabase";
 
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -20,14 +21,17 @@ export function AddActivityForm({ gameId, gameSlug, serverId, timezone, onCreate
   const isServerMode = !!serverId;
   const [name, setName] = useState("");
   const [scheduleType, setScheduleType] = useState("fixed_hours");
-  const [startHours, setStartHours] = useState("0");
-  const [startMinutes, setStartMinutes] = useState("0");
   const tz = timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
   const todayStr = new Date().toLocaleDateString("en-CA", { timeZone: tz });
   const [startDate, setStartDate] = useState(todayStr);
   const isToday = startDate === todayStr;
   const nowHour = parseInt(new Date().toLocaleTimeString("en-GB", { timeZone: tz, hour: "2-digit", hour12: false }));
   const nowMin = parseInt(new Date().toLocaleTimeString("en-GB", { timeZone: tz, minute: "2-digit", hour12: false }));
+  // Default start time: next valid time (current hour+1 if today, 0 otherwise)
+  const defaultHour = isToday ? (nowHour + 1) % 24 : 0;
+  const defaultMin = isToday && defaultHour === nowHour + 1 ? nowMin : 0;
+  const [startHours, setStartHours] = useState(String(defaultHour));
+  const [startMinutes, setStartMinutes] = useState(String(defaultMin));
   const [recurHours, setRecurHours] = useState("2");
   const [recurMinutes, setRecurMinutes] = useState("0");
   const [pointsPerParticipant, setPointsPerParticipant] = useState(1);
@@ -53,7 +57,7 @@ export function AddActivityForm({ gameId, gameSlug, serverId, timezone, onCreate
         const sched = scheduleType === "fixed_schedule" && scheduleSlots.length > 0
           ? scheduleSlots.map(s => localSlotToUtc(s.day, s.time, tz))
           : (scheduleType === "fixed_hours" || scheduleType === "one_time")
-            ? { time: `${startHours.padStart(2, "0")}:${startMinutes.padStart(2, "0")}`, start_date: startDate }
+            ? { time: `${startHours.padStart(2, "0")}:${startMinutes.padStart(2, "0")}`, start_date: startDate, utc_start: toUtcTime(startDate, `${startHours.padStart(2, "0")}:${startMinutes.padStart(2, "0")}`, tz) }
             : null;
         await createCustomActivity(serverId, {
           name: name.trim(),
@@ -73,7 +77,7 @@ export function AddActivityForm({ gameId, gameSlug, serverId, timezone, onCreate
         schedule: scheduleType === "fixed_schedule" && scheduleSlots.length > 0
           ? scheduleSlots.map(s => localSlotToUtc(s.day, s.time, tz))
           : (scheduleType === "fixed_hours" || scheduleType === "one_time")
-            ? { time: `${startHours.padStart(2, "0")}:${startMinutes.padStart(2, "0")}`, start_date: startDate }
+            ? { time: `${startHours.padStart(2, "0")}:${startMinutes.padStart(2, "0")}`, start_date: startDate, utc_start: toUtcTime(startDate, `${startHours.padStart(2, "0")}:${startMinutes.padStart(2, "0")}`, tz) }
             : undefined,
         duration_minutes: scheduleType === "fixed_hours" ? (parseInt(recurHours) || 0) * 60 + (parseInt(recurMinutes) || 0) : null,
         points_per_participant: isNaN(Number(pointsPerParticipant)) ? 1 : Number(pointsPerParticipant),

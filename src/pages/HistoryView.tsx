@@ -6,7 +6,7 @@ import { useServerId } from "@/contexts/ServerContext";
 import { useQueryClient } from "@tanstack/react-query";
 import { ParticipantModal } from "@/components/ParticipantModal";
 import { BossImage } from "@/components/BossImage";
-import { Clock, Trash2, Skull, Repeat, Timer, Users, Loader2, Pencil, X, Search } from "lucide-react";
+import { Clock, Trash2, Skull, Repeat, Timer, Users, Loader2, Pencil, X, Search, Calendar } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { guildColor } from "@/lib/constants";
 import type { Guild } from "@/types";
@@ -294,17 +294,23 @@ export function HistoryView() {
                   return (
                     <div
                       key={entry.id}
-                      onClick={() => entry.deathRecordId && setSelectedEntry(entry)}
+                      onClick={() => (entry.deathRecordId || entry.activityInstanceId) && setSelectedEntry(entry)}
                       className={`flex items-center gap-3 px-4 py-3 rounded-lg bg-[#18181b] border border-[#27272a] transition group ${
-                        entry.deathRecordId
+                        (entry.deathRecordId || entry.activityInstanceId)
                           ? "cursor-pointer hover:border-[#3f3f46] hover:bg-[#18181b]"
                           : ""
                       }`}
-                      title={entry.deathRecordId ? "Click to see participants" : ""}
+                      title={(entry.deathRecordId || entry.activityInstanceId) ? "Click to see participants" : ""}
                     >
-                      {/* Icon — boss image or activity emoji */}
+                      {/* Icon — boss image or activity image */}
                       {entry.type === "activity" ? (
-                        <span className="text-sm text-[#52525b] shrink-0">📋</span>
+                        entry.activityImageUrl ? (
+                          <img src={entry.activityImageUrl} alt={entry.activityName} className="w-8 h-8 rounded-lg object-cover border border-[#27272a] shrink-0" />
+                        ) : (
+                          <div className="w-8 h-8 rounded-lg bg-[#09090b] border border-[#27272a] flex items-center justify-center shrink-0">
+                            <Calendar className="w-4 h-4 text-[#52525b]" />
+                          </div>
+                        )
                       ) : (
                         <BossImage bossName={entry.bossName!} size="sm" />
                       )}
@@ -323,7 +329,7 @@ export function HistoryView() {
                           <span className="text-[10px] font-mono text-[#52525b]">
                             {entry.type === "activity" ? "Activity" : entry.spawnType === "fixed_schedule" ? "Schedule" : `+${diffH}h`}
                           </span>
-                          {entry.deathRecordId && (
+                          {(entry.deathRecordId || entry.activityInstanceId) && (
                             <Users className="w-3 h-3 text-[#52525b]" />
                           )}
                         </div>
@@ -366,20 +372,21 @@ export function HistoryView() {
         </div>
       )}
 
-      {/* Participant modal */}
-      {selectedEntry && selectedEntry.deathRecordId && (
+      {/* Participant modal — works for both boss kills and activity finishes */}
+      {selectedEntry && (selectedEntry.deathRecordId || selectedEntry.activityInstanceId) && (
         <ParticipantModal
-          deathRecordId={selectedEntry.deathRecordId}
-          bossName={selectedEntry.bossName || ""}
-          deathTime={selectedEntry.deathTime || ""}
+          deathRecordId={selectedEntry.deathRecordId || ""}
+          bossName={selectedEntry.activityName || selectedEntry.bossName || ""}
+          deathTime={(selectedEntry.activityInstanceId ? selectedEntry.completionTime : selectedEntry.deathTime) || ""}
+          activityInstanceId={selectedEntry.activityInstanceId}
           onClose={() => setSelectedEntry(null)}
           navigate={navigate}
           readOnly={isViewer}
-          ownerGuildId={(() => {
+          ownerGuildId={!selectedEntry.activityInstanceId ? (() => {
             const name = selectedEntry.ownerGuildName;
             if (!name) return null;
             return guilds.find(g => g.name === name)?.id ?? null;
-          })()}
+          })() : null}
         />
       )}
 

@@ -1,6 +1,24 @@
 import type { Activity, ActivityInstance, ActivityInfo, ScheduleSlot } from "@/types";
 
 /**
+ * Convert a local date+time in a given timezone to a UTC ISO timestamp.
+ * e.g. "2026-06-06", "14:30", "Asia/Manila" → "2026-06-06T06:30:00.000Z"
+ */
+export function toUtcTime(dateStr: string, timeStr: string, timezone: string): string {
+  const [y, mo, d] = dateStr.split("-").map(Number);
+  const [h, m] = timeStr.split(":").map(Number);
+  const approxUtc = Date.UTC(y, mo - 1, d, h, m, 0, 0);
+  const approxDate = new Date(approxUtc);
+  const tzOffsetStr = approxDate.toLocaleString("en-US", { timeZone: timezone, timeZoneName: "shortOffset" });
+  const offsetMatch = tzOffsetStr.match(/GMT([+-]\d+)(?::(\d+))?/);
+  const offsetHours = offsetMatch ? parseInt(offsetMatch[1]) : 0;
+  const offsetMins = offsetMatch && offsetMatch[2] ? parseInt(offsetMatch[2]) : 0;
+  const offsetMs = (offsetHours * 60 + (offsetHours >= 0 ? offsetMins : -offsetMins)) * 60 * 1000;
+  const utcMs = Date.UTC(y, mo - 1, d, h, m, 0, 0) - offsetMs;
+  return new Date(utcMs).toISOString();
+}
+
+/**
  * Calculate the next activity instance start time.
  * fixed_schedule: find next slot from weekly schedule array.
  * fixed_hours: recurring at a fixed time each day.
@@ -15,8 +33,8 @@ export function calculateActivityInfo(
   if (activity.schedule_type === "one_time" && lastInstance?.end_time) {
     return {
       activity,
-      activityInstance: { id: "", activity_id: activity.id, start_time: now.toISOString(), created_at: "" },
-      startTime: now,
+      activityInstance: lastInstance,
+      startTime: new Date(lastInstance.end_time),
       status: "completed",
     };
   }
@@ -24,18 +42,15 @@ export function calculateActivityInfo(
   // one_time or fixed_hours: schedule is a "HH:MM" string or {time, start_date} object
   if (activity.schedule_type === "one_time" || activity.schedule_type === "fixed_hours") {
     const raw = activity.schedule;
-    const schedObj = (typeof raw === "object" && raw !== null && !Array.isArray(raw) && "time" in raw) ? raw as { time: string; start_date?: string } : null;
+    const schedObj = (typeof raw === "object" && raw !== null && !Array.isArray(raw) && "time" in raw) ? raw as { time: string; start_date?: string; timezone?: string; utc_start?: string } : null;
     const timeStr = schedObj ? schedObj.time : (typeof raw === "string" ? raw : null);
     const startDateStr = schedObj?.start_date ?? null;
+    const timezone = schedObj?.timezone ?? null;
+    const utcStart = schedObj?.utc_start ?? null;
     const recurMs = (activity.duration_minutes ?? 0) * 60_000;
 
     let startTime: Date;
-    if (startDateStr) {
-      // Build the initial start time from the configured start_date + time
-      startTime = buildTimeDate(now, timeStr, startDateStr);
-    } else {
-      startTime = buildTimeDate(now, timeStr);
-    }
+    startTime = buildTimeDate(now, timeStr, startDateStr, utcStart, timezone);
 
     // For fixed_hours with start_date: first occurrence = start_date + time (no advance).
     // After first finish, advance by recurrence interval to find next occurrence.
@@ -101,31 +116,45 @@ export function calculateActivityInfo(
   };
 }
 
-/** Build a Date from a "HH:MM" time string and optional start date. */
-function buildTimeDate(now: Date, timeStr: string | null, startDateStr?: string | null): Date {
+/** Build a Date from schedule data — prefers utc_start (ISO), falls back to time+start_date+timezone. */
+function buildTimeDate(now: Date, timeStr: string | null, startDateStr?: string | null, utcStart?: string | null, timezone?: string | null): Date {
+  // New format: UTC ISO string stored directly
+  if (utcStart) return new Date(utcStart);
+  
+  // Old format: time + date + timezone
   if (!timeStr) return now;
   const [h, m] = timeStr.split(":").map(Number);
+  const tz = timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
   
-  // Use the configured start date if available, otherwise use today
-  let d: Date;
+  let y: number, mo: number, day: number;
   if (startDateStr) {
-    const [y, mo, day] = startDateStr.split("-").map(Number);
-    d = new Date(y, mo - 1, day, h, m, 0, 0);
+    [y, mo, day] = startDateStr.split("-").map(Number);
   } else {
-    d = new Date(now);
-    d.setHours(h, m, 0, 0);
-    // If already past today, move to tomorrow
-    if (d.getTime() <= now.getTime()) {
-      d.setDate(d.getDate() + 1);
-    }
+    const todayTz = now.toLocaleDateString("en-CA", { timeZone: tz });
+    [y, mo, day] = todayTz.split("-").map(Number);
   }
-  return d;
+
+  // Compute UTC timestamp for the local time in the target timezone
+  const approxUtc = Date.UTC(y, mo - 1, day, h, m, 0, 0);
+  const approxDate = new Date(approxUtc);
+  const tzOffsetStr = approxDate.toLocaleString("en-US", { timeZone: tz, timeZoneName: "shortOffset" });
+  const offsetMatch = tzOffsetStr.match(/GMT([+-]\d+)(?::(\d+))?/);
+  const offsetHours = offsetMatch ? parseInt(offsetMatch[1]) : 0;
+  const offsetMins = offsetMatch && offsetMatch[2] ? parseInt(offsetMatch[2]) : 0;
+  const offsetMs = (offsetHours * 60 + (offsetHours >= 0 ? offsetMins : -offsetMins)) * 60 * 1000;
+  const utcMs = Date.UTC(y, mo - 1, day, h, m, 0, 0) - offsetMs;
+  const result = new Date(utcMs);
+  
+  if (!startDateStr && result.getTime() <= now.getTime()) {
+    result.setTime(result.getTime() + 24 * 60 * 60 * 1000);
+  }
+  return result;
 }
 
 /** Find next schedule slot after `after` (like spawnCalculator's findNextScheduleSlot). */
 function findNextScheduleSlot(schedule: ScheduleSlot[], after: Date): Date {
-  const currentDay = after.getDay();
-  const currentMinutes = after.getHours() * 60 + after.getMinutes();
+  const currentDay = after.getUTCDay();
+  const currentMinutes = after.getUTCHours() * 60 + after.getUTCMinutes();
 
   const sorted = [...schedule].sort((a, b) => {
     if (a.day !== b.day) return a.day - b.day;
@@ -136,8 +165,8 @@ function findNextScheduleSlot(schedule: ScheduleSlot[], after: Date): Date {
     const sm = timeToMinutes(slot.time);
     if (slot.day > currentDay || (slot.day === currentDay && sm > currentMinutes)) {
       const d = new Date(after);
-      d.setDate(d.getDate() + (slot.day - currentDay));
-      d.setHours(Math.floor(sm / 60), sm % 60, 0, 0);
+      d.setUTCDate(d.getUTCDate() + (slot.day - currentDay));
+      d.setUTCHours(Math.floor(sm / 60), sm % 60, 0, 0);
       return d;
     }
   }
@@ -145,9 +174,9 @@ function findNextScheduleSlot(schedule: ScheduleSlot[], after: Date): Date {
   // Wrap to next week
   const first = sorted[0];
   const d = new Date(after);
-  d.setDate(d.getDate() + (7 - currentDay + first.day));
+  d.setUTCDate(d.getUTCDate() + (7 - currentDay + first.day));
   const sm = timeToMinutes(first.time);
-  d.setHours(Math.floor(sm / 60), sm % 60, 0, 0);
+  d.setUTCHours(Math.floor(sm / 60), sm % 60, 0, 0);
   return d;
 }
 

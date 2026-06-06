@@ -13,7 +13,7 @@ export async function fetchMembers(serverId?: string | null): Promise<Member[]> 
   return data as Member[];
 }
 
-export async function upsertMember(name: string, guildId?: string | null): Promise<Member> {
+export async function upsertMember(name: string, guildId?: string | null, combatPower?: number | null, memberClass?: string | null): Promise<Member> {
   const trimmed = name.trim();
 
   // Prefer direct upsert when user has a valid session
@@ -30,7 +30,7 @@ export async function upsertMember(name: string, guildId?: string | null): Promi
 
     const { data, error } = await supabase
       .from("members")
-      .insert({ name: trimmed, server_id: getCurrentServerId(), guild_id: guildId || null })
+      .insert({ name: trimmed, server_id: getCurrentServerId(), guild_id: guildId || null, combat_power: combatPower ?? null, class: memberClass ?? null })
       .select()
       .single();
 

@@ -1,6 +1,6 @@
 import { useState, useMemo, Fragment } from "react";
 import type { Activity, Guild, ActivityGuild, ActivityAssist } from "@/types";
-import { Loader2, Minus, Plus } from "lucide-react";
+import { Loader2, Minus, Plus, Search } from "lucide-react";
 
 export function ActivityPointsMatrix({
   activities,
@@ -21,6 +21,7 @@ export function ActivityPointsMatrix({
   onSalaryChange: (activityId: string, guildId: string, hasSalary: boolean) => Promise<void>;
   onAssistToggle: (activityId: string, ownerGuildId: string, assistantGuildId: string) => Promise<void>;
 }) {
+  const [search, setSearch] = useState("");
   const bgLookup = useMemo(() => {
     const map = new Map<string, ActivityGuild>();
     for (const ag of allActivityGuilds) {
@@ -28,6 +29,11 @@ export function ActivityPointsMatrix({
     }
     return map;
   }, [allActivityGuilds]);
+
+  const enabledActivities = activities.filter(a => a.is_enabled);
+  const filteredActivities = search.trim()
+    ? enabledActivities.filter(a => a.name.toLowerCase().includes(search.toLowerCase()))
+    : enabledActivities;
 
   if (guilds.length === 0) {
     return (
@@ -37,7 +43,7 @@ export function ActivityPointsMatrix({
     );
   }
 
-  if (activities.length === 0) {
+  if (enabledActivities.length === 0) {
     return (
       <div className="text-center py-8">
         <p className="text-[#52525b] text-xs">No activities in this server.</p>
@@ -47,6 +53,18 @@ export function ActivityPointsMatrix({
 
   return (
     <div className="overflow-x-auto -mx-3 sm:mx-0">
+      <div className="mb-3">
+        <div className="relative">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#52525b]" />
+          <input
+            type="text"
+            placeholder="Search activities..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="w-full pl-8 pr-3 py-2 bg-[#18181b] border border-[#27272a] rounded-lg text-xs text-[#fafafa] placeholder-[#52525b] focus:outline-none focus:border-[#52525b]"
+          />
+        </div>
+      </div>
         <table className="w-full text-[10px] sm:text-xs">
           <thead>
             <tr>
@@ -71,7 +89,7 @@ export function ActivityPointsMatrix({
             </tr>
           </thead>
           <tbody>
-            {activities.map(activity => (
+            {filteredActivities.map(activity => (
               <tr key={activity.id} className="group border-b border-[#27272a]/50 hover:bg-[#18181b]/20 transition">
                 <td className="sticky left-0 bg-[#09090b] group-hover:bg-[#18181b]/20 px-2 sm:px-3 py-1.5 sm:py-2 text-[#fafafa] font-medium border-r border-[#27272a]/30 z-10 transition">
                   {activity.name}

@@ -18,7 +18,7 @@ import { EditActivityForm } from "@/components/EditActivityForm";
 import {
   Loader2, Plus, Skull, Calendar, RefreshCw,
   Pencil, ToggleLeft, ToggleRight, AlertTriangle,
-  Gamepad2, X, Trash2,
+  Gamepad2, X, Trash2, Search,
 } from "lucide-react";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import type { Boss, Activity } from "@/types";
@@ -41,6 +41,8 @@ export function ServerBossesActivitiesTab({ mode = "all" }: { mode?: "all" | "bo
   const [seedResult, setSeedResult] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ type: "boss" | "activity"; id: string; name: string } | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [activitySearch, setActivitySearch] = useState("");
+  const [bossSearch, setBossSearch] = useState("");
   const { toast } = useToast();
 
   const { data: games = [] } = useQuery({
@@ -71,19 +73,29 @@ export function ServerBossesActivitiesTab({ mode = "all" }: { mode?: "all" | "bo
     await toggleActivityEnabled(id, enabled);
     queryClient.invalidateQueries({ queryKey: ["activities-all", serverId] });
     queryClient.invalidateQueries({ queryKey: ["activities"] });
+    queryClient.invalidateQueries({ queryKey: ["activity-guilds", serverId] });
+    queryClient.invalidateQueries({ queryKey: ["activity-points"] });
   };
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
     setDeleting(true);
     try {
-      const table = deleteTarget.type === "boss" ? "bosses" : "activities";
+      if (deleteTarget.type === "boss") {
+        const { error } = await supabase.rpc("soft_delete_boss", { p_boss_id: deleteTarget.id });
+        if (error) throw error;
+      } else if (deleteTarget.type === "activity") {
+        const { data, error } = await supabase.from("activities").update({ deleted_at: new Date().toISOString(), is_enabled: false }).eq("id", deleteTarget.id).select("id");
+        if (error) throw error;
+        if (!data || data.length === 0) throw new Error("No rows updated — you may not have permission.");
+      }
       const queryKey = deleteTarget.type === "boss" ? "bosses-all" : "activities-all";
-      const { error } = await supabase.from(table).delete().eq("id", deleteTarget.id);
-      if (error) throw error;
       queryClient.invalidateQueries({ queryKey: [queryKey, serverId] });
       queryClient.refetchQueries({ queryKey: [queryKey, serverId] });
       queryClient.invalidateQueries({ queryKey: [deleteTarget.type === "boss" ? "bosses" : "activities"] });
+      queryClient.invalidateQueries({ queryKey: ["activity-guilds", serverId] });
+      queryClient.invalidateQueries({ queryKey: ["activity-points"] });
+      toast("success", deleteTarget.type === "activity" ? `"${deleteTarget.name}" disabled` : `"${deleteTarget.name}" deleted`);
       setDeleteTarget(null);
     } catch (err: any) {
       toast("error", err?.message ?? `Failed to delete ${deleteTarget.type}`);
@@ -104,6 +116,8 @@ export function ServerBossesActivitiesTab({ mode = "all" }: { mode?: "all" | "bo
       queryClient.invalidateQueries({ queryKey: ["bosses"] });
       queryClient.invalidateQueries({ queryKey: ["activities-all", serverId] });
       queryClient.invalidateQueries({ queryKey: ["activities"] });
+      queryClient.invalidateQueries({ queryKey: ["activity-guilds", serverId] });
+      queryClient.invalidateQueries({ queryKey: ["activity-points"] });
     } catch (err: any) {
       setSeedResult(err?.message ?? "Seeding failed.");
     } finally {
@@ -205,9 +219,24 @@ export function ServerBossesActivitiesTab({ mode = "all" }: { mode?: "all" | "bo
         {bosses.length === 0 ? (
           <p className="text-sm text-[#71717a] py-4 text-center">No bosses in this server yet.</p>
         ) : (
+          <>
+            <div className="relative mb-3">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#52525b]" />
+              <input
+                type="text"
+                placeholder="Search bosses..."
+                value={bossSearch}
+                onChange={e => setBossSearch(e.target.value)}
+                className="w-full pl-8 pr-3 py-2 bg-[#18181b] border border-[#27272a] rounded-lg text-xs text-[#fafafa] placeholder-[#52525b] focus:outline-none focus:border-[#52525b]"
+              />
+            </div>
           <div className="space-y-1">
-            {bosses.map((boss: Boss) => (
-              <Fragment key={boss.id}>
+            {(() => {
+              const searchFilter = (b: Boss) => !bossSearch.trim() || b.name.toLowerCase().includes(bossSearch.toLowerCase());
+              const active = bosses.filter(b => b.is_enabled && searchFilter(b));
+              const disabled = bosses.filter(b => !b.is_enabled && searchFilter(b));
+              const renderRow = (boss: Boss) => (
+                <Fragment key={boss.id}>
               <div className="flex items-center gap-3 px-3 py-2 rounded-lg bg-[#18181b] border border-[#27272a]">
                 <BossImage bossName={boss.name} size="sm" />
                 <div className="flex-1 min-w-0">
@@ -284,8 +313,24 @@ export function ServerBossesActivitiesTab({ mode = "all" }: { mode?: "all" | "bo
                 </div>
               </div>
               </Fragment>
-            ))}
+              );
+              return (
+                <>
+                  {active.map(renderRow)}
+                  {disabled.length > 0 && (
+                    <>
+                      <div className="flex items-center gap-2 pt-4 pb-1">
+                        <span className="text-[10px] text-[#71717a] uppercase tracking-wider">Disabled</span>
+                        <div className="flex-1 h-px bg-[#27272a]" />
+                      </div>
+                      {disabled.map(renderRow)}
+                    </>
+                  )}
+                </>
+              );
+            })()}
           </div>
+          </>
         )}
       </section>
       )}
@@ -320,6 +365,8 @@ export function ServerBossesActivitiesTab({ mode = "all" }: { mode?: "all" | "bo
                 queryClient.invalidateQueries({ queryKey: ["activities-all", serverId] });
                 queryClient.refetchQueries({ queryKey: ["activities-all", serverId] });
                 queryClient.invalidateQueries({ queryKey: ["activities"] });
+                queryClient.invalidateQueries({ queryKey: ["activity-guilds", serverId] });
+                queryClient.invalidateQueries({ queryKey: ["activity-points"] });
               }}
               onCancel={() => setShowAddActivity(false)}
             />
@@ -328,9 +375,24 @@ export function ServerBossesActivitiesTab({ mode = "all" }: { mode?: "all" | "bo
         {activities.length === 0 ? (
           <p className="text-sm text-[#71717a] py-4 text-center">No activities in this server yet.</p>
         ) : (
+          <>
+            <div className="relative mb-3">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#52525b]" />
+              <input
+                type="text"
+                placeholder="Search activities..."
+                value={activitySearch}
+                onChange={e => setActivitySearch(e.target.value)}
+                className="w-full pl-8 pr-3 py-2 bg-[#18181b] border border-[#27272a] rounded-lg text-xs text-[#fafafa] placeholder-[#52525b] focus:outline-none focus:border-[#52525b]"
+              />
+            </div>
           <div className="space-y-1">
-            {activities.map((activity: Activity) => (
-              <Fragment key={activity.id}>
+            {(() => {
+              const searchFilter = (a: Activity) => !activitySearch.trim() || a.name.toLowerCase().includes(activitySearch.toLowerCase());
+              const active = activities.filter(a => a.is_enabled && searchFilter(a));
+              const disabled = activities.filter(a => !a.is_enabled && searchFilter(a));
+              const renderRow = (activity: Activity) => (
+                <Fragment key={activity.id}>
               <div className="flex items-center gap-3 px-3 py-2 rounded-lg bg-[#18181b] border border-[#27272a]">
                 {activity.image_url ? (
                   <img src={activity.image_url} alt={activity.name} className="w-8 h-8 rounded-lg object-cover border border-[#27272a] shrink-0" />
@@ -351,7 +413,6 @@ export function ServerBossesActivitiesTab({ mode = "all" }: { mode?: "all" | "bo
                   <span className="text-xs text-[#71717a]">
                     {activity.schedule_type} · {activity.points_per_participant}pts
                     {activity.party_size ? ` · Party: ${activity.party_size}` : ""}
-                    {" · "}{activity.is_enabled ? "Enabled" : "Disabled"}
                   </span>
                 </div>
                 {canManage && (
@@ -409,14 +470,32 @@ export function ServerBossesActivitiesTab({ mode = "all" }: { mode?: "all" | "bo
                       setEditingActivityId(null);
                       queryClient.invalidateQueries({ queryKey: ["activities-all", serverId] });
                       queryClient.invalidateQueries({ queryKey: ["activities"] });
+                      queryClient.invalidateQueries({ queryKey: ["activity-guilds", serverId] });
+                      queryClient.invalidateQueries({ queryKey: ["activity-points"] });
                     }}
                     onCancel={() => setEditingActivityId(null)}
                   />
                 </div>
               </div>
               </Fragment>
-            ))}
+              );
+              return (
+                <>
+                  {active.map(renderRow)}
+                  {disabled.length > 0 && (
+                    <>
+                      <div className="flex items-center gap-2 pt-4 pb-1">
+                        <span className="text-[10px] text-[#71717a] uppercase tracking-wider">Disabled</span>
+                        <div className="flex-1 h-px bg-[#27272a]" />
+                      </div>
+                      {disabled.map(renderRow)}
+                    </>
+                  )}
+                </>
+              );
+            })()}
           </div>
+          </>
         )}
       </section>
       )}
@@ -425,9 +504,13 @@ export function ServerBossesActivitiesTab({ mode = "all" }: { mode?: "all" | "bo
       {deleteTarget && (
         <ConfirmDialog
           open={!!deleteTarget}
-          title={`Delete ${deleteTarget.type === "boss" ? "Boss" : "Activity"}`}
-          message={`Are you sure you want to delete "${deleteTarget.name}"? This action cannot be undone.`}
-          confirmLabel="Delete"
+          title={`${deleteTarget.type === "boss" ? "Delete Boss" : "Delete Activity"}`}
+          message={deleteTarget.type === "activity"
+            ? `Deleting "${deleteTarget.name}" will hide it permanently. All history and schedule data will be preserved.`
+            : `Deleting "${deleteTarget.name}" will hide it permanently. All history and schedule data will be preserved.`
+          }
+          confirmLabel={deleteTarget.type === "activity" ? "Delete" : "Delete"}
+          confirmText={deleteTarget.name}
           variant="danger"
           onConfirm={handleDelete}
           onCancel={() => setDeleteTarget(null)}

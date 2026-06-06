@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Loader2, Plus, Save, X, Image } from "lucide-react";
 import { localSlotToUtc, utcSlotToLocal, type ScheduleSlot } from "@/lib/scheduleTimezone";
+import { toUtcTime } from "@/lib/activityCalculator";
 import { updateBossTemplate, uploadBossImage, updateCustomBoss } from "@/lib/supabase";
 import { useUserTimezone } from "@/hooks/useUserTimezone";
 
@@ -32,6 +33,7 @@ interface Props {
 export function EditBossForm({ boss, gameSlug, serverId, onSaved, onCancel }: Props) {
   const isServerMode = !!serverId;
   const { timezone: userTz } = useUserTimezone();
+  const tz = userTz || Intl.DateTimeFormat().resolvedOptions().timeZone;
   const [name, setName] = useState(boss.name);
   const [spawnType, setSpawnType] = useState(boss.spawn_type);
   const [respawnHours, setRespawnHours] = useState<number | null>(boss.respawn_hours ?? null);
@@ -41,10 +43,30 @@ export function EditBossForm({ boss, gameSlug, serverId, onSaved, onCancel }: Pr
   // Convert stored UTC schedule → local for display in the form
   const [schedule, setSchedule] = useState<any>(() => {
     if (boss.schedule && Array.isArray(boss.schedule)) {
-      return boss.schedule.map((s: ScheduleSlot) => utcSlotToLocal(s.day, s.time, userTz));
+      return boss.schedule.map((s: ScheduleSlot) => utcSlotToLocal(s.day, s.time, tz));
     }
     return boss.schedule ?? null;
   });
+
+  // Parse start date/time for fixed_hours (convert UTC → local)
+  const parsedTime = typeof boss.schedule === "object" && boss.schedule?.time
+    ? boss.schedule.time
+    : typeof boss.schedule === "object" && boss.schedule?.utc_start
+      ? new Date(boss.schedule.utc_start).toLocaleTimeString("en-GB", { timeZone: tz, hour: "2-digit", minute: "2-digit", hour12: false })
+      : "00:00";
+  const parsedDate = typeof boss.schedule === "object" && boss.schedule?.start_date
+    ? boss.schedule.start_date
+    : typeof boss.schedule === "object" && boss.schedule?.utc_start
+      ? new Date(boss.schedule.utc_start).toLocaleDateString("en-CA", { timeZone: tz })
+      : new Date().toLocaleDateString("en-CA", { timeZone: tz });
+
+  const [startHours, setStartHours] = useState(parsedTime.split(":")[0]);
+  const [startMinutes, setStartMinutes] = useState(parsedTime.split(":")[1]);
+  const [startDate, setStartDate] = useState(parsedDate);
+  const todayStr = new Date().toLocaleDateString("en-CA", { timeZone: tz });
+  const isToday = startDate === todayStr;
+  const nowHour = parseInt(new Date().toLocaleTimeString("en-GB", { timeZone: tz, hour: "2-digit", hour12: false }));
+  const nowMin = parseInt(new Date().toLocaleTimeString("en-GB", { timeZone: tz, minute: "2-digit", hour12: false }));
   const [imageUrl, setImageUrl] = useState<string | null>(boss.image_url ?? null);
   const [saving, setSaving] = useState(false);
 
@@ -53,7 +75,13 @@ export function EditBossForm({ boss, gameSlug, serverId, onSaved, onCancel }: Pr
     try {
       let processedSchedule = schedule;
       if (spawnType === "fixed_schedule" && Array.isArray(schedule) && schedule.length > 0) {
-        processedSchedule = schedule.map((s: ScheduleSlot) => localSlotToUtc(s.day, s.time, userTz));
+        processedSchedule = schedule.map((s: ScheduleSlot) => localSlotToUtc(s.day, s.time, tz));
+      } else if (spawnType === "fixed_hours") {
+        processedSchedule = {
+          time: `${String(startHours).padStart(2, "0")}:${String(startMinutes).padStart(2, "0")}`,
+          start_date: startDate,
+          utc_start: toUtcTime(startDate, `${String(startHours).padStart(2, "0")}:${String(startMinutes).padStart(2, "0")}`, tz),
+        };
       }
 
       const payload: Record<string, any> = {
@@ -62,7 +90,7 @@ export function EditBossForm({ boss, gameSlug, serverId, onSaved, onCancel }: Pr
         respawn_hours: respawnHours,
         schedule: processedSchedule ?? null,
         is_recurring: true,
-        points: isNaN(Number(points)) ? 1 : Number(points),
+        boss_points: isNaN(Number(points)) ? 1 : Number(points),
         category: category || null,
         tags,
       };
@@ -74,6 +102,8 @@ export function EditBossForm({ boss, gameSlug, serverId, onSaved, onCancel }: Pr
         await updateBossTemplate(boss.id, payload);
       }
       onSaved();
+    } catch (err: any) {
+      console.error("Boss update failed:", err?.message || err?.code || err);
     } finally {
       setSaving(false);
     }
@@ -105,6 +135,26 @@ export function EditBossForm({ boss, gameSlug, serverId, onSaved, onCancel }: Pr
           </select>
         </div>
         {spawnType === "fixed_hours" && (
+          <>
+          <div>
+            <label className="block text-xs text-[#71717a] mb-0.5">Start Date</label>
+            <input type="date" min={todayStr} value={startDate} onChange={e => setStartDate(e.target.value)} className="w-full px-2.5 py-2 bg-[#09090b] border border-[#3f3f46] rounded text-sm text-[#fafafa] focus:outline-none focus:ring-1 focus:ring-[#52525b] [color-scheme:dark]" />
+          </div>
+          <div>
+            <label className="block text-xs text-[#71717a] mb-0.5">Start Time <span className="text-[#52525b] ml-1">(your local time — saved as UTC)</span></label>
+            <div className="flex items-center gap-1">
+              <select value={startHours} onChange={e => setStartHours(e.target.value)} className="w-20 px-2.5 py-2 bg-[#09090b] border border-[#3f3f46] rounded text-sm text-[#fafafa] focus:outline-none focus:ring-1 focus:ring-[#52525b]">
+                {Array.from({ length: 24 }, (_, i) => i)
+                  .filter(h => !isToday || h >= nowHour)
+                  .map(h => <option key={h} value={h}>{String(h).padStart(2,"0")}h</option>)}
+              </select>
+              <select value={startMinutes} onChange={e => setStartMinutes(e.target.value)} className="w-16 px-2.5 py-2 bg-[#09090b] border border-[#3f3f46] rounded text-sm text-[#fafafa] focus:outline-none focus:ring-1 focus:ring-[#52525b]">
+                {Array.from({ length: 60 }, (_, i) => i)
+                  .filter(m => !isToday || Number(startHours) > nowHour || m >= nowMin)
+                  .map(m => <option key={m} value={m}>{String(m).padStart(2,"0")}m</option>)}
+              </select>
+            </div>
+          </div>
           <div className="col-span-2">
             <label className="block text-xs text-[#71717a] mb-1">Respawn Time</label>
             <div className="flex items-center gap-2">
@@ -134,6 +184,7 @@ export function EditBossForm({ boss, gameSlug, serverId, onSaved, onCancel }: Pr
               </span>
             </div>
           </div>
+          </>
         )}
         {spawnType === "fixed_schedule" && (
           <div className="col-span-2">

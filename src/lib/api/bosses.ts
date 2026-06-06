@@ -2,13 +2,14 @@ import { supabase, getCurrentServerId } from "./client";
 import type { Boss, Activity } from "@/types";
 import { supabaseUrl, supabaseKey } from "./client";
 import type { BossGuild } from "@/types";
+import { advanceActivityRotation } from "./activityGuilds";
 
 // ── Bosses ──────────────────────────────────────────────────
 
 export async function fetchBosses(serverId?: string | null): Promise<Boss[]> {
   const sid = serverId ?? getCurrentServerId();
   if (!sid) return [];
-  let query = supabase.from("bosses").select("*").order("name").eq("server_id", sid).eq("is_enabled", true);
+  let query = supabase.from("bosses").select("*").order("name").eq("server_id", sid).eq("is_enabled", true).is("deleted_at", null);
   const { data, error } = await query;
   if (error) throw error;
   return data as Boss[];
@@ -21,10 +22,7 @@ export async function setBossPoints(bossId: string, points: number): Promise<voi
 }
 
 export async function setBossSalary(bossId: string, hasSalary: boolean): Promise<void> {
-  const { error } = await supabase
-    .from("bosses")
-    .update({ has_salary: hasSalary })
-    .eq("id", bossId);
+  const { error } = await supabase.rpc("set_boss_salary", { p_boss_id: bossId, p_has_salary: hasSalary });
   if (error) throw error;
 }
 
@@ -58,6 +56,7 @@ export async function fetchAllBossesForServer(serverId: string): Promise<Boss[]>
     .from("bosses")
     .select("*")
     .eq("server_id", serverId)
+    .is("deleted_at", null)
     .order("name");
   if (error) throw error;
   return (data || []) as Boss[];
@@ -68,6 +67,7 @@ export async function fetchAllActivitiesForServer(serverId: string): Promise<Act
     .from("activities")
     .select("*")
     .eq("server_id", serverId)
+    .is("deleted_at", null)
     .order("name");
   if (error) throw error;
   return (data || []) as Activity[];
@@ -113,33 +113,48 @@ export async function createCustomActivity(
     p_image_url: data.image_url ?? null,
   });
   if (error) throw error;
-  
-  // If RPC doesn't support duration_minutes yet, set it via direct UPDATE
-  if (data.duration_minutes != null) {
-    await supabase.from("activities").update({ duration_minutes: data.duration_minutes }).eq("id", id as string);
-  }
-  
   return { id: id as string } as Activity;
 }
 
 export async function updateCustomBoss(id: string, updates: Record<string, any>): Promise<void> {
-  if (updates.boss_points !== undefined) updates.points = updates.boss_points;
-  const { error } = await supabase.from("bosses").update(updates).eq("id", id);
+  const { error } = await supabase.rpc("update_custom_boss", {
+    p_boss_id: id,
+    p_name: updates.name ?? null,
+    p_spawn_type: updates.spawn_type ?? null,
+    p_respawn_hours: updates.respawn_hours ?? null,
+    p_schedule: updates.schedule ?? null,
+    p_is_recurring: updates.is_recurring ?? true,
+    p_boss_points: updates.boss_points ?? 1,
+    p_category: updates.category ?? null,
+    p_tags: updates.tags ?? [],
+    p_image_url: updates.image_url ?? null,
+  });
   if (error) throw error;
 }
 
 export async function updateCustomActivity(id: string, updates: Record<string, any>): Promise<void> {
-  const { error } = await supabase.from("activities").update(updates).eq("id", id);
+  const { error } = await supabase.rpc("update_custom_activity", {
+    p_activity_id: id,
+    p_name: updates.name ?? null,
+    p_schedule_type: updates.schedule_type ?? null,
+    p_schedule: updates.schedule ?? null,
+    p_duration_minutes: updates.duration_minutes ?? null,
+    p_points_per_participant: updates.points_per_participant ?? 1,
+    p_party_size: updates.party_size ?? null,
+    p_category: updates.category ?? null,
+    p_tags: updates.tags ?? [],
+    p_image_url: updates.image_url ?? null,
+  });
   if (error) throw error;
 }
 
 export async function toggleBossEnabled(id: string, enabled: boolean): Promise<void> {
-  const { error } = await supabase.from("bosses").update({ is_enabled: enabled }).eq("id", id);
+  const { error } = await supabase.rpc("toggle_boss_enabled", { p_boss_id: id, p_enabled: enabled });
   if (error) throw error;
 }
 
 export async function toggleActivityEnabled(id: string, enabled: boolean): Promise<void> {
-  const { error } = await supabase.from("activities").update({ is_enabled: enabled }).eq("id", id);
+  const { error } = await supabase.rpc("toggle_activity_enabled", { p_activity_id: id, p_enabled: enabled });
   if (error) throw error;
 }
 
@@ -159,6 +174,9 @@ export async function finishActivity(activityId: string): Promise<void> {
     end_time: now,
   });
   if (error) throw error;
+
+  // Advance guild rotation
+  try { await advanceActivityRotation(activityId); } catch {}
 }
 
 /** Record an activity end with a custom time and attendance. */
@@ -188,19 +206,21 @@ export async function recordActivityEnd(
     .single();
   if (insertErr || !instance) throw insertErr ?? new Error("Failed to create activity instance");
 
-  // Record attendance
-  const serverId = getCurrentServerId();
+  // Record attendance via RPC (bypasses RLS)
   for (const memberId of attendeeIds) {
     try {
-      await supabase.from("activity_attendance").insert({
-        activity_instance_id: instance.id,
-        member_id: memberId,
-        server_id: serverId,
+      await supabase.rpc("mark_activity_attendance", {
+        p_activity_instance_id: instance.id,
+        p_member_id: memberId,
+        p_present: true,
       });
     } catch (err) {
       console.error("Failed to add activity attendance for member:", memberId, err);
     }
   }
+
+  // Advance guild rotation
+  try { await advanceActivityRotation(activityId); } catch {}
 
   return instance.id;
 }

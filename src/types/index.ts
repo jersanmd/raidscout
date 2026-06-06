@@ -13,7 +13,7 @@ export interface Boss {
   spawn_type: SpawnType;
   /** Hours until respawn after death (only for fixed_hours bosses) */
   respawn_hours: number | null;
-  /** Fixed weekly schedule (only for fixed_schedule bosses) */
+  /** Fixed weekly schedule (for fixed_schedule) or { time, start_date, utc_start } (for fixed_hours) */
   schedule: ScheduleSlot[] | null;
   server_id?: string;
   created_at: string;
@@ -54,6 +54,8 @@ export interface Member {
   id: string;
   name: string;
   guild_id?: string | null;
+  combat_power?: number | null;
+  class?: string | null;
   created_at: string;
 }
 

@@ -28,7 +28,7 @@ import {
   addRallyImageToDeath,
 } from "@/lib/supabase";
 import { createCustomBoss, finishActivity, recordActivityEnd } from "@/lib/supabase";
-import { calculateActivityInfo } from "@/lib/activityCalculator";
+import { calculateActivityInfo, toUtcTime } from "@/lib/activityCalculator";
 import { BossCard } from "@/components/BossCard";
 import { DeathRecordModal } from "@/components/DeathRecordModal";
 import { FilterBar } from "@/components/FilterBar";
@@ -210,6 +210,51 @@ export function BossListView() {
   // Apply window + guild filter client-side — always keep alive & unknown bosses visible
   const filteredSpawns = useMemo(() => {
     let result = spawns;
+
+    // Merge in activities sorted by next start time
+    if (activities.length > 0) {
+      const lastInstanceMap = new Map<string, ActivityInstance | null>();
+      for (const inst of activityInstances) {
+        if (typeof inst.activity_id === "string" && !lastInstanceMap.has(inst.activity_id)) {
+          lastInstanceMap.set(inst.activity_id, inst);
+        }
+      }
+      const now = new Date();
+      const activitySpawns: BossWithSpawn[] = activities
+        .filter(a => a.is_enabled)
+        .map((a) => {
+        const lastInst = lastInstanceMap.get(a.id) ?? null;
+        const info = calculateActivityInfo(a, lastInst, now);
+        const isRunning = lastInst && lastInst.start_time && !lastInst.end_time;
+        return {
+          boss: {
+            id: a.id,
+            name: a.name,
+            spawn_type: a.schedule_type as any,
+            respawn_hours: null,
+            schedule: a.schedule ?? null,
+            server_id: a.server_id,
+            created_at: a.created_at,
+            points: a.points_per_participant,
+            category: (a as any).category,
+            tags: (a as any).tags,
+            is_recurring: a.schedule_type !== "one_time",
+            is_enabled: a.is_enabled,
+            is_custom: a.is_custom,
+            image_url: a.image_url,
+          },
+          nextSpawn: info.startTime,
+          status: isRunning ? "alive" : "countdown",
+          deathRecord: null,
+          remainingMs: info.startTime ? info.startTime.getTime() - Date.now() : Number.POSITIVE_INFINITY,
+          _isActivity: true,
+          _activity: a,
+          _lastInstance: lastInst,
+        } as BossWithSpawn & { _isActivity?: boolean; _activity?: Activity; _lastInstance?: ActivityInstance | null };
+      });
+      result = [...result, ...activitySpawns];
+    }
+
     if (filterWindow !== null) {
       const cutoff = Date.now() + filterWindow * 3600_000;
       result = result.filter(
@@ -222,8 +267,17 @@ export function BossListView() {
     if (filterGuild !== "all") {
       result = result.filter((s) => ownerGuildName(s.boss.id) === filterGuild);
     }
+    // Sort by time remaining — alive first, then soonest spawn
+    result.sort((a, b) => {
+      const aRem = a.remainingMs ?? Number.POSITIVE_INFINITY;
+      const bRem = b.remainingMs ?? Number.POSITIVE_INFINITY;
+      // Negative remainingMs means already past (alive) — put those first
+      if (aRem < 0 && bRem >= 0) return -1;
+      if (bRem < 0 && aRem >= 0) return 1;
+      return aRem - bRem;
+    });
     return result;
-  }, [spawns, filterWindow, filterGuild, ownerGuildName]);
+  }, [spawns, filterWindow, filterGuild, ownerGuildName, activities, activityInstances]);
 
   // Bosses spawning in the next 24 hours (for announce feature)
   const spawnsIn24h = useMemo(() => {
@@ -421,7 +475,8 @@ export function BossListView() {
   const handleEditActivityTime = useCallback(
     async (activityId: string, dateStr: string, timeStr: string) => {
       try {
-        const schedule = { time: timeStr, start_date: dateStr };
+        const tz = currentServer?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
+        const schedule = { time: timeStr, start_date: dateStr, utc_start: toUtcTime(dateStr, timeStr, tz) };
         await supabase.from("activities").update({ schedule }).eq("id", activityId);
         await queryClient.invalidateQueries({ queryKey: ["activities"] });
         await queryClient.invalidateQueries({ queryKey: ["activity_instances"] });
@@ -430,7 +485,7 @@ export function BossListView() {
         setToast({ type: "error", message: err?.message ?? "Failed to update time" });
       }
     },
-    [queryClient]
+    [queryClient, currentServer?.timezone]
   );
 
   const handleSetSpawnDate = useCallback(
@@ -746,15 +801,18 @@ export function BossListView() {
               {/* Day header with color-coded dot */}
               {(() => {
                 const firstStatus = group.spawns[0]?.status;
-                const isActivityGroup = group.label === "Activities";
-                const dotColor = isActivityGroup ? "bg-blue-400 " : firstStatus === "alive" ? "bg-emerald-400 " : firstStatus === "countdown" ? "bg-amber-400 " : "bg-cyan-400 ";
-                const textColor = firstStatus === "alive" ? "text-[#a1a1aa]" : firstStatus === "countdown" ? "text-[#a1a1aa]" : "text-[#a1a1aa]";
+                const dotColor = firstStatus === "alive" ? "bg-emerald-400 " : firstStatus === "countdown" ? "bg-amber-400 " : "bg-cyan-400 ";
+                const bossCount = group.spawns.filter(s => !(s as any)._isActivity).length;
+                const activityCount = group.spawns.filter(s => (s as any)._isActivity).length;
+                const parts: string[] = [];
+                if (bossCount > 0) parts.push(`${bossCount} boss${bossCount !== 1 ? "es" : ""}`);
+                if (activityCount > 0) parts.push(`${activityCount} activit${activityCount !== 1 ? "ies" : "y"}`);
                 return (
-                  <h3 className={`text-xs font-bold uppercase tracking-[0.15em] mb-4 flex items-center gap-2 ${textColor}`}>
+                  <h3 className="text-xs font-bold uppercase tracking-[0.15em] mb-4 flex items-center gap-2 text-[#a1a1aa]">
                     <span className={`w-2 h-2 rounded-full ${dotColor}`} />
                     {group.label}
                     <span className="text-[#3f3f46] font-mono font-normal normal-case tracking-normal text-[11px] ml-2">
-                      {group.spawns.length} {isActivityGroup ? "activit" + (group.spawns.length !== 1 ? "ies" : "y") : "boss" + (group.spawns.length !== 1 ? "es" : "")}
+                      {parts.join(" · ")}
                     </span>
                   </h3>
                 );
@@ -762,6 +820,29 @@ export function BossListView() {
 
               <div className="grid gap-2 sm:gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {group.spawns.map((s) => {
+                  const isAct = (s as any)._isActivity;
+                  if (isAct) {
+                    const a = (s as any)._activity;
+                    const lastInst = (s as any)._lastInstance;
+                    const hideScheduleTime = a.schedule_type === "fixed_hours" && lastInst?.end_time != null;
+                    return (
+                      <BossCard
+                        key={a.id}
+                        spawn={s}
+                        activity={a}
+                        onFinishActivity={handleFinishActivity}
+                        onRecordEnd={handleRecordActivityEnd}
+                        onEditActivityTime={handleEditActivityTime}
+                        multiMode={false}
+                        selected={false}
+                        viewerCanEdit={viewerCanEdit}
+                        viewerCanMarkDied={viewerCanMarkDied}
+                        justKilled={false}
+                        hasGuilds={false}
+                        hideScheduleTime={hideScheduleTime}
+                      />
+                    );
+                  }
                   const rot = bossRotationInfo(s.boss.id);
                   return (
                   <BossCard
@@ -797,80 +878,6 @@ export function BossListView() {
               </div>
             </section>
           ))}
-          {/* Activities section — rendered separately */}
-          {activities.length > 0 && (
-            <section>
-              <h3 className="text-xs font-bold uppercase tracking-[0.15em] mb-4 flex items-center gap-2 text-[#a1a1aa]">
-                <span className="w-2 h-2 rounded-full bg-blue-400" />
-                Activities
-                <span className="text-[#3f3f46] font-mono font-normal normal-case tracking-normal text-[11px] ml-2">
-                  {activities.length} activit{activities.length !== 1 ? "ies" : "y"}
-                </span>
-              </h3>
-              <div className="grid gap-2 sm:gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {(() => {
-                  // Build last-instance lookup from fetched instances
-                  const lastInstanceMap = new Map<string, ActivityInstance | null>();
-                  for (const inst of activityInstances) {
-                    if (typeof inst.activity_id === "string" && !lastInstanceMap.has(inst.activity_id)) {
-                      lastInstanceMap.set(inst.activity_id, inst);
-                    }
-                  }
-                  return activities.map((a) => {
-                  // Use the centralized activity calculator
-                  const now = new Date();
-                  const lastInst = lastInstanceMap.get(a.id) ?? null;
-                  const info = calculateActivityInfo(a, lastInst, now);
-                  const nextSpawn = info.startTime;
-                  // Only mark as "alive" (running) when a user actually started the activity
-                  const isRunning = lastInst && lastInst.start_time && !lastInst.end_time;
-                  const status: SpawnStatus = isRunning ? "alive" : "countdown";
-                  // For fixed_hours: hide creation time/date after first finish (recurrence handles it)
-                  const hideScheduleTime = a.schedule_type === "fixed_hours" && lastInst?.end_time != null;
-                  const activitySpawn: BossWithSpawn = {
-                    boss: {
-                      id: a.id,
-                      name: a.name,
-                      spawn_type: a.schedule_type as any,
-                      respawn_hours: null,
-                      schedule: a.schedule ?? null,
-                      server_id: a.server_id,
-                      created_at: a.created_at,
-                      points: a.points_per_participant,
-                      category: (a as any).category,
-                      tags: (a as any).tags,
-                      is_recurring: a.schedule_type !== "one_time",
-                      is_enabled: a.is_enabled,
-                      is_custom: a.is_custom,
-                      image_url: a.image_url,
-                    },
-                    nextSpawn,
-                    status,
-                    deathRecord: null,
-                    remainingMs: nextSpawn ? nextSpawn.getTime() - Date.now() : Number.POSITIVE_INFINITY,
-                  };
-                  return (
-                    <BossCard
-                      key={a.id}
-                      spawn={activitySpawn}
-                      activity={a}
-                      onRecordDeath={handleRecordDeath}
-                      onFinishActivity={handleFinishActivity}
-                      onRecordEnd={handleRecordActivityEnd}
-                      onEditActivityTime={handleEditActivityTime}
-                      multiMode={false}
-                      selected={false}
-                      viewerCanEdit={viewerCanEdit}
-                      viewerCanMarkDied={viewerCanMarkDied}
-                      justKilled={false}
-                      hasGuilds={false}
-                      hideScheduleTime={hideScheduleTime}
-                    />
-                  );
-                })})()}
-              </div>
-            </section>
-          )}
         </div>
       )}
 

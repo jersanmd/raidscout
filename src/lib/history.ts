@@ -8,6 +8,8 @@ export interface HistoryEntry {
   respawnTime?: string;
   spawnType?: "fixed_hours" | "fixed_schedule";
   deathRecordId?: string;
+  activityInstanceId?: string;
+  activityImageUrl?: string | null;
   createdAt: string;
   ownerGuildName?: string;
   attendanceCount?: number;

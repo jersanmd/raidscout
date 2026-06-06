@@ -8,7 +8,7 @@ import {
 } from "@/hooks/useAttendance";
 import { useMembers } from "@/hooks/useMembers";
 import { useServerId } from "@/contexts/ServerContext";
-import { markActivityAttendance } from "@/lib/supabase";
+import { markActivityAttendance, fetchActivityAttendance, fetchActivityInstance, setActivityRallyImages, setActivityPartyLeaders } from "@/lib/supabase";
 import { extractNamesWithAI } from "@/lib/vision";
 import {
   fetchGuilds,
@@ -120,13 +120,7 @@ export function ParticipantModal({
       queryKey: ["activity_attendance", activityInstanceId],
       queryFn: async () => {
         if (!activityInstanceId) return [];
-        const { data, error } = await supabase
-          .from("activity_attendance")
-          .select("id,member_id")
-          .eq("activity_instance_id", activityInstanceId)
-          .eq("present", true);
-        if (error) throw error;
-        return (data || []) as { id: string; member_id: string }[];
+        return await fetchActivityAttendance(activityInstanceId);
       },
       enabled: !!activityInstanceId,
       staleTime: 30_000,
@@ -150,40 +144,58 @@ export function ParticipantModal({
       .catch(() => setGuilds([]));
   }, []);
 
-  // Saved rally images from DB
+  // Saved rally images from DB (boss death records or activity instances)
   const [savedRallyUrls, setSavedRallyUrls] = useState<string[]>([]);
   useEffect(() => {
-    fetchDeathRallyImages(deathRecordId)
-      .then(setSavedRallyUrls)
-      .catch(() => {});
-  }, [deathRecordId]);
+    if (activityInstanceId) {
+      fetchActivityInstance(activityInstanceId)
+        .then(d => setSavedRallyUrls(d.rally_images || []))
+        .catch(() => {});
+    } else if (deathRecordId) {
+      fetchDeathRallyImages(deathRecordId)
+        .then(setSavedRallyUrls)
+        .catch(() => {});
+    }
+  }, [deathRecordId, activityInstanceId]);
 
-  // Party leaders state (per guild)
+  // Party leaders state (boss death records or activity instances)
   const [partyLeaders, setPartyLeaders] = useState<Record<string, string>>({});
   const [partyLeadersLoading, setPartyLeadersLoading] = useState(true);
   useEffect(() => {
-    (async () => {
-      try {
-        const { data } = await supabase
-          .from("death_records")
-          .select("party_leaders")
-          .eq("id", deathRecordId)
-          .single();
-        setPartyLeaders((data as any)?.party_leaders || {});
-      } catch {
-        setPartyLeaders({});
-      } finally {
-        setPartyLeadersLoading(false);
-      }
-    })();
-  }, [deathRecordId]);
+    if (activityInstanceId) {
+      fetchActivityInstance(activityInstanceId)
+        .then(d => { setPartyLeaders(d.party_leaders || {}); setPartyLeadersLoading(false); })
+        .catch(() => { setPartyLeaders({}); setPartyLeadersLoading(false); });
+    } else if (deathRecordId) {
+      (async () => {
+        try {
+          const { data } = await supabase
+            .from("death_records")
+            .select("party_leaders")
+            .eq("id", deathRecordId)
+            .single();
+          setPartyLeaders((data as any)?.party_leaders || {});
+        } catch {
+          setPartyLeaders({});
+        } finally {
+          setPartyLeadersLoading(false);
+        }
+      })();
+    } else {
+      setPartyLeadersLoading(false);
+    }
+  }, [deathRecordId, activityInstanceId]);
 
   const savePartyLeaders = async (updated: Record<string, string>) => {
     try {
-      await supabase
-        .from("death_records")
-        .update({ party_leaders: updated })
-        .eq("id", deathRecordId);
+      if (activityInstanceId) {
+        await setActivityPartyLeaders(activityInstanceId, updated);
+      } else {
+        await supabase
+          .from("death_records")
+          .update({ party_leaders: updated })
+          .eq("id", deathRecordId);
+      }
     } catch {}
   };
 
@@ -312,8 +324,16 @@ export function ParticipantModal({
     for (const file of images) {
       uploadRallyImage(file).then((url) => {
         if (url) {
-          addRallyImageToDeath(deathRecordId, url);
-          setSavedRallyUrls((prev) => [...prev, url]);
+          if (activityInstanceId) {
+            setSavedRallyUrls((prev) => {
+              const next = [...prev, url];
+              setActivityRallyImages(activityInstanceId, next);
+              return next;
+            });
+          } else {
+            addRallyImageToDeath(deathRecordId, url);
+            setSavedRallyUrls((prev) => [...prev, url]);
+          }
         }
       });
     }
@@ -732,10 +752,13 @@ export function ParticipantModal({
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              setSavedRallyUrls((p) =>
-                                p.filter((u) => u !== url),
-                              );
-                              removeRallyImageFromDeath(deathRecordId, url);
+                              const next = savedRallyUrls.filter((u) => u !== url);
+                              setSavedRallyUrls(next);
+                              if (activityInstanceId) {
+                                setActivityRallyImages(activityInstanceId, next);
+                              } else {
+                                removeRallyImageFromDeath(deathRecordId, url);
+                              }
                             }}
                             className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-red-500 text-[#fafafa] flex items-center justify-center opacity-0 group-hover:opacity-100 transition hover:bg-red-400"
                           >
@@ -854,8 +877,8 @@ export function ParticipantModal({
                                       if (att) {
                                         if (activityInstanceId) {
                                           await markActivityAttendance(activityInstanceId, m.id, false);
-                                          queryClient.invalidateQueries({ queryKey: ["activity_attendance", activityInstanceId] });
-                                        } else {
+                                          queryClient.invalidateQueries({ queryKey: ["activity_attendance", activityInstanceId] });                                        queryClient.invalidateQueries({ queryKey: ["activity_instances"] });
+                                        queryClient.invalidateQueries({ queryKey: ["activities"] });                                        } else {
                                           removeAttendance.mutate({
                                             attendanceId: att.id,
                                             deathRecordId,
@@ -865,8 +888,8 @@ export function ParticipantModal({
                                     } else {
                                       if (activityInstanceId) {
                                         await markActivityAttendance(activityInstanceId, m.id, true);
-                                        queryClient.invalidateQueries({ queryKey: ["activity_attendance", activityInstanceId] });
-                                      } else {
+                                        queryClient.invalidateQueries({ queryKey: ["activity_attendance", activityInstanceId] });                                        queryClient.invalidateQueries({ queryKey: ["activity_instances"] });
+                                        queryClient.invalidateQueries({ queryKey: ["activities"] });                                      } else {
                                         addAttendance.mutate({
                                           deathRecordId,
                                           memberId: m.id,

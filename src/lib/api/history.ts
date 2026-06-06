@@ -103,7 +103,7 @@ async function fetchActivityHistory(sid: string, since?: string, until?: string)
     .from("activity_instances")
     .select(`
       id, start_time, end_time, activity_id,
-      activities!inner(id, name, schedule_type)
+      activities!inner(id, name, schedule_type, image_url)
     `)
     .not("end_time", "is", null)
     .order("end_time", { ascending: false });
@@ -123,6 +123,8 @@ async function fetchActivityHistory(sid: string, since?: string, until?: string)
       activityName: act?.name ?? "Unknown",
       completionTime: inst.end_time,
       spawnType: act?.schedule_type,
+      activityInstanceId: inst.id,
+      activityImageUrl: act?.image_url ?? null,
       deathRecordId: undefined,
       createdAt: inst.end_time,
       ownerGuildName: undefined,

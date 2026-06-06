@@ -15,7 +15,7 @@ export function useActivities() {
         .from("activities")
         .select("*")
         .eq("server_id", serverId)
-        .eq("is_enabled", true)
+        .is("deleted_at", null)
         .order("name");
       if (error) throw error;
       return (data || []) as Activity[];

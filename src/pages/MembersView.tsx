@@ -3,7 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { useMembers } from "@/hooks/useMembers";
 import { useAuth } from "@/contexts/AuthContext";
-import { updateMemberName, deleteMember, upsertMember, isSupabaseConfigured, fetchGuilds, setMemberGuild, bulkAddMembers } from "@/lib/supabase";
+import { updateMemberName, deleteMember, upsertMember, isSupabaseConfigured, fetchGuilds, setMemberGuild, bulkAddMembers, supabase } from "@/lib/supabase";
 import { useServerId, useHasPermission } from "@/contexts/ServerContext";
 import type { Guild } from "@/types";
 import { Users, Plus, Pencil, Trash2, Loader2, X, Check, UserPlus, CheckCircle, AlertTriangle, Image, Upload, Copy, Shield, Search } from "lucide-react";
@@ -38,6 +38,8 @@ export function MembersView() {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [addName, setAddName] = useState("");
+  const [addCombatPower, setAddCombatPower] = useState("");
+  const [addClass, setAddClass] = useState("");
   const [adding, setAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
@@ -49,9 +51,37 @@ export function MembersView() {
   // Guilds
   const [guilds, setGuilds] = useState<Guild[]>([]);
 
+  // Classes — managed per server
+  const [classes, setClasses] = useState<string[]>([]);
+  const [newClassName, setNewClassName] = useState("");
+
   useEffect(() => {
     fetchGuilds(serverId).then(setGuilds).catch(() => setGuilds([]));
+    if (serverId) {
+      supabase.rpc("get_member_classes", { p_server_id: serverId })
+        .then(({ data }) => { if (data) setClasses(data as string[]); })
+        .catch(() => setClasses([]));
+    }
   }, [serverId]);
+
+  const handleAddClass = async () => {
+    const name = newClassName.trim();
+    if (!name || classes.includes(name)) return;
+    const updated = [...classes, name];
+    setClasses(updated);
+    setNewClassName("");
+    if (serverId) {
+      await supabase.rpc("set_member_classes", { p_server_id: serverId, p_classes: updated });
+    }
+  };
+
+  const handleRemoveClass = async (name: string) => {
+    const updated = classes.filter(c => c !== name);
+    setClasses(updated);
+    if (serverId) {
+      await supabase.rpc("set_member_classes", { p_server_id: serverId, p_classes: updated });
+    }
+  };
 
   // Guild selection for add / bulk
   const [addGuild, setAddGuild] = useState<string>("");
@@ -98,8 +128,10 @@ export function MembersView() {
 
     setAdding(true);
     try {
-      await upsertMember(name, addGuild || null);
+      await upsertMember(name, addGuild || null, addCombatPower ? Number(addCombatPower) : null, addClass || null);
       setAddName("");
+      setAddCombatPower("");
+      setAddClass("");
       invalidate();
       showToast("success", `"${name}" added`);
     } catch (err) {
@@ -228,9 +260,10 @@ export function MembersView() {
 
       {/* Add member */}
       {canManageRaidMembers && (
+      <>
       <form
         onSubmit={(e) => { e.preventDefault(); handleAdd(); }}
-        className="flex gap-2"
+        className="flex flex-col sm:flex-row gap-2"
       >
         <input
           type="text"
@@ -238,8 +271,25 @@ export function MembersView() {
           onChange={(e) => setAddName(e.target.value)}
           placeholder="Member name..."
           ref={memberInputRef}
-          className="flex-1 px-3 py-2 bg-[#18181b] border border-[#27272a] rounded-lg text-[#fafafa] placeholder-[#71717a] focus:outline-none focus:ring-2 focus:ring-[#52525b] focus:border-transparent transition text-sm"
+          className="flex-1 min-w-0 px-3 py-2 bg-[#18181b] border border-[#27272a] rounded-lg text-[#fafafa] placeholder-[#71717a] focus:outline-none focus:ring-2 focus:ring-[#52525b] focus:border-transparent transition text-sm"
         />
+        <input
+          type="number"
+          value={addCombatPower}
+          onChange={(e) => setAddCombatPower(e.target.value)}
+          placeholder="Combat Power"
+          className="w-28 px-2 py-2 bg-[#18181b] border border-[#27272a] rounded-lg text-[#fafafa] placeholder-[#71717a] text-sm focus:outline-none focus:ring-2 focus:ring-[#52525b] focus:border-transparent transition"
+        />
+        {classes.length > 0 && (
+          <select
+            value={addClass}
+            onChange={(e) => setAddClass(e.target.value)}
+            className="px-2 py-2 bg-[#18181b] border border-[#27272a] rounded-lg text-xs text-[#a1a1aa] outline-none focus:ring-2 focus:ring-[#52525b] focus:border-transparent transition max-w-[100px] truncate"
+          >
+            <option value="">No class</option>
+            {classes.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+        )}
         {guilds.length > 0 && (
           <select
             value={addGuild}
@@ -271,10 +321,33 @@ export function MembersView() {
           Bulk
         </button>
       </form>
+
+      {/* Class management */}
+      <div className="flex flex-wrap items-center gap-1.5">
+        <span className="text-[10px] sm:text-xs text-[#71717a] mr-1">Classes:</span>
+        {classes.map(c => (
+          <span key={c} className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] bg-[#27272a] text-[#d4d4d8] border border-[#3f3f46]">
+            {c}
+            <button onClick={() => handleRemoveClass(c)} className="text-[#71717a] hover:text-[#f87171]"><X className="w-3 h-3" /></button>
+          </span>
+        ))}
+        <div className="flex items-center gap-1">
+          <input
+            type="text"
+            value={newClassName}
+            onChange={(e) => setNewClassName(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), handleAddClass())}
+            placeholder="Add class..."
+            className="w-24 px-2 py-1 bg-[#18181b] border border-[#27272a] rounded text-xs text-[#fafafa] placeholder-[#52525b] focus:outline-none focus:border-[#52525b]"
+          />
+          <button onClick={handleAddClass} disabled={!newClassName.trim()} className="p-1 text-[#a1a1aa] hover:text-[#fafafa] disabled:opacity-30"><Plus className="w-3 h-3" /></button>
+        </div>
+      </div>
+      </>
       )}
 
       {/* Search */}
-      {members.length > 5 && (
+      {members.length > 0 && (
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#71717a]" />
           <input
@@ -320,7 +393,7 @@ export function MembersView() {
           {groups.map(group => {
             const c = group.guild ? guildColor(group.guild.name) : null;
             return (
-              <div key={group.guild?.id ?? "noguild"} className="w-96">
+              <div key={group.guild?.id ?? "noguild"} className="w-full lg:w-96">
                 <h3 className="text-xs font-semibold text-[#a1a1aa] uppercase tracking-wider mb-2 flex items-center gap-1.5">
                   {group.guild && c ? (
                     <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] border ${c.bg} ${c.text} ${c.border}`}>
@@ -338,14 +411,14 @@ export function MembersView() {
                   {group.members.map(member => (
             <div
               key={member.id}
-              className="flex items-center gap-3 px-4 py-2.5 rounded-lg bg-[#09090b]/50 border border-[#27272a]/50 group"
+              className="flex flex-wrap items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2.5 rounded-lg bg-[#09090b]/50 border border-[#27272a]/50 group"
             >
               <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-[#18181b] text-[#a1a1aa] font-bold text-sm shrink-0">
                 {member.name.charAt(0).toUpperCase()}
               </div>
 
               {editingId === member.id ? (
-                <div className="flex-1 flex gap-2">
+                <div className="flex-1 min-w-0 flex gap-2">
                   <input
                     type="text"
                     value={editName}
@@ -358,11 +431,47 @@ export function MembersView() {
                   <button onClick={() => setEditingId(null)} className="p-1 text-[#a1a1aa] hover:text-[#fafafa] transition"><X className="w-4 h-4" /></button>
                 </div>
               ) : (
-                <span className="flex-1 text-[#fafafa] text-sm font-medium text-center">{member.name}</span>
+                <span className="flex-1 min-w-0 text-[#fafafa] text-sm font-medium truncate">{member.name}</span>
+              )}
+
+              {/* Combat Power & Class — wrap on mobile */}
+              {editingId !== member.id && (
+                <div className="flex items-center gap-1 sm:gap-1.5 text-[10px] sm:text-xs shrink-0">
+                  <input
+                    type="number"
+                    defaultValue={member.combat_power ?? ""}
+                    placeholder="CP"
+                    onBlur={async (e) => {
+                      const val = e.target.value ? Number(e.target.value) : null;
+                      if (val === (member.combat_power ?? null)) return;
+                      try {
+                        await supabase.rpc("update_member_stats", { p_member_id: member.id, p_combat_power: val, p_class: member.class ?? null });
+                        invalidate();
+                      } catch {}
+                    }}
+                    className="w-20 px-1.5 py-1 bg-[#18181b] border border-[#27272a] rounded text-xs text-[#fafafa] placeholder-[#52525b] focus:outline-none focus:border-[#52525b]"
+                  />
+                  {classes.length > 0 && (
+                    <select
+                      value={member.class ?? ""}
+                      onChange={async (e) => {
+                        const cls = e.target.value || null;
+                        try {
+                          await supabase.rpc("update_member_stats", { p_member_id: member.id, p_combat_power: member.combat_power ?? null, p_class: cls });
+                          invalidate();
+                        } catch {}
+                      }}
+                      className="bg-[#18181b] border border-[#27272a] rounded px-1.5 py-1 text-xs text-[#a1a1aa] outline-none focus:border-[#52525b] max-w-[90px] truncate"
+                    >
+                      <option value="">—</option>
+                      {classes.map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                  )}
+                </div>
               )}
 
               {editingId !== member.id && canManageRaidMembers && (
-                <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition">
+                <div className="flex items-center gap-0.5 sm:opacity-0 group-hover:opacity-100 transition shrink-0">
                   <button onClick={() => startEdit(member)} className="p-1.5 text-[#71717a] hover:text-[#fafafa] transition rounded" title="Edit"><Pencil className="w-3.5 h-3.5" /></button>
                   <button onClick={() => setDeleteId(member.id)} className="p-1.5 text-[#71717a] hover:text-red-400 transition rounded" title="Delete"><Trash2 className="w-3.5 h-3.5" /></button>
                 </div>
@@ -375,7 +484,7 @@ export function MembersView() {
                     const gid = e.target.value || null;
                     try { await setMemberGuild(member.id, gid); invalidate(); } catch {}
                   }}
-                  className="bg-[#18181b] border border-[#27272a] rounded px-2 py-1 text-xs text-[#a1a1aa] outline-none focus:border-[#52525b] transition max-w-[120px] truncate"
+                  className="bg-[#18181b] border border-[#27272a] rounded px-1.5 py-1 text-[10px] sm:text-xs text-[#a1a1aa] outline-none focus:border-[#52525b] transition max-w-[100px] truncate shrink-0"
                 >
                   <option value="">No guild</option>
                   {guilds.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}

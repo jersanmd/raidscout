@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Loader2, Plus, Save, X, Image } from "lucide-react";
 import { localSlotToUtc, type ScheduleSlot } from "@/lib/scheduleTimezone";
+import { toUtcTime } from "@/lib/activityCalculator";
 import { createBossTemplate, uploadBossImage, createCustomBoss } from "@/lib/supabase";
 import { useUserTimezone } from "@/hooks/useUserTimezone";
 
@@ -19,9 +20,20 @@ interface Props {
 export function AddBossForm({ gameId, gameSlug, serverId, onCreated, onCancel }: Props) {
   const isServerMode = !!serverId;
   const { timezone: userTz } = useUserTimezone();
+  const tz = userTz || Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const todayStr = new Date().toLocaleDateString("en-CA", { timeZone: tz });
   const [name, setName] = useState("");
   const [spawnType, setSpawnType] = useState("fixed_hours");
   const [respawnHours, setRespawnHours] = useState("");
+  // Start date/time for fixed_hours (stored as UTC, displayed in user TZ)
+  const [startDate, setStartDate] = useState(todayStr);
+  const isToday = startDate === todayStr;
+  const nowHour = parseInt(new Date().toLocaleTimeString("en-GB", { timeZone: tz, hour: "2-digit", hour12: false }));
+  const nowMin = parseInt(new Date().toLocaleTimeString("en-GB", { timeZone: tz, minute: "2-digit", hour12: false }));
+  const defaultHour = isToday ? (nowHour + 1) % 24 : 0;
+  const defaultMin = isToday && defaultHour === nowHour + 1 ? nowMin : 0;
+  const [startHours, setStartHours] = useState(String(defaultHour));
+  const [startMinutes, setStartMinutes] = useState(String(defaultMin));
   const [points, setPoints] = useState(1);
   const [category, setCategory] = useState("");
   const [customCategory, setCustomCategory] = useState("");
@@ -43,7 +55,10 @@ export function AddBossForm({ gameId, gameSlug, serverId, onCreated, onCancel }:
       }
       if (isServerMode && serverId) {
         const schedule = spawnType === "fixed_schedule" && scheduleSlots.length > 0
-          ? scheduleSlots.map(s => localSlotToUtc(s.day, s.time, userTz)) : null;
+          ? scheduleSlots.map(s => localSlotToUtc(s.day, s.time, userTz))
+          : spawnType === "fixed_hours"
+            ? { time: `${startHours.padStart(2, "0")}:${startMinutes.padStart(2, "0")}`, start_date: startDate, utc_start: toUtcTime(startDate, `${startHours.padStart(2, "0")}:${startMinutes.padStart(2, "0")}`, tz) }
+            : null;
         await createCustomBoss(serverId, {
           name: name.trim(), spawn_type: spawnType,
           respawn_hours: respawnHours ? Number(respawnHours) : null,
@@ -61,7 +76,9 @@ export function AddBossForm({ gameId, gameSlug, serverId, onCreated, onCancel }:
         respawn_hours: respawnHours ? Number(respawnHours) : null,
         schedule: spawnType === "fixed_schedule" && scheduleSlots.length > 0
           ? scheduleSlots.map(s => localSlotToUtc(s.day, s.time, userTz))
-          : null,
+          : spawnType === "fixed_hours"
+            ? { time: `${startHours.padStart(2, "0")}:${startMinutes.padStart(2, "0")}`, start_date: startDate, utc_start: toUtcTime(startDate, `${startHours.padStart(2, "0")}:${startMinutes.padStart(2, "0")}`, tz) }
+            : null,
         is_recurring: true,
         points: isNaN(Number(points)) ? 1 : Number(points),
         category: category === "__custom__" ? customCategory || null : category || null,
@@ -70,6 +87,8 @@ export function AddBossForm({ gameId, gameSlug, serverId, onCreated, onCancel }:
       });
       }
       onCreated();
+    } catch (err: any) {
+      console.error("Boss creation failed:", err?.message || err?.code || err);
     } finally {
       setSaving(false);
     }
@@ -94,6 +113,26 @@ export function AddBossForm({ gameId, gameSlug, serverId, onCreated, onCancel }:
           </select>
         </div>
         {spawnType === "fixed_hours" && (
+          <>
+          <div>
+            <label className="block text-xs text-[#71717a] mb-0.5">Start Date</label>
+            <input type="date" min={todayStr} value={startDate} onChange={e => setStartDate(e.target.value)} className="w-full px-2.5 py-2 bg-[#09090b] border border-[#3f3f46] rounded text-sm text-[#fafafa] focus:outline-none focus:ring-1 focus:ring-[#52525b] [color-scheme:dark]" />
+          </div>
+          <div>
+            <label className="block text-xs text-[#71717a] mb-0.5">Start Time <span className="text-[#52525b] ml-1">(your local time — saved as UTC)</span></label>
+            <div className="flex items-center gap-1">
+              <select value={startHours} onChange={e => setStartHours(e.target.value)} className="w-20 px-2.5 py-2 bg-[#09090b] border border-[#3f3f46] rounded text-sm text-[#fafafa] focus:outline-none focus:ring-1 focus:ring-[#52525b]">
+                {Array.from({ length: 24 }, (_, i) => i)
+                  .filter(h => !isToday || h >= nowHour)
+                  .map(h => <option key={h} value={h}>{String(h).padStart(2,"0")}h</option>)}
+              </select>
+              <select value={startMinutes} onChange={e => setStartMinutes(e.target.value)} className="w-16 px-2.5 py-2 bg-[#09090b] border border-[#3f3f46] rounded text-sm text-[#fafafa] focus:outline-none focus:ring-1 focus:ring-[#52525b]">
+                {Array.from({ length: 60 }, (_, i) => i)
+                  .filter(m => !isToday || Number(startHours) > nowHour || m >= nowMin)
+                  .map(m => <option key={m} value={m}>{String(m).padStart(2,"0")}m</option>)}
+              </select>
+            </div>
+          </div>
           <div className="col-span-2">
             <label className="block text-xs text-[#71717a] mb-1">Respawn Time</label>
             <div className="flex items-center gap-2">
@@ -125,6 +164,7 @@ export function AddBossForm({ gameId, gameSlug, serverId, onCreated, onCancel }:
               </span>
             </div>
           </div>
+          </>
         )}
         {spawnType === "fixed_schedule" && (
           <div className="col-span-2">
