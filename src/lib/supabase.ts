@@ -111,6 +111,16 @@ export {
   deleteMember,
 } from "./api/members";
 
+// Static Parties
+export {
+  fetchStaticParties,
+  createParty,
+  deleteParty,
+  addMemberToParty,
+  removeMemberFromParty,
+} from "./api/parties";
+export type { StaticParty } from "./api/parties";
+
 // Guilds
 export {
   fetchGuilds,

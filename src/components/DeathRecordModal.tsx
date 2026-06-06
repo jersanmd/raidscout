@@ -6,7 +6,7 @@ import { useMembers } from "@/hooks/useMembers";
 import { useAuth } from "@/contexts/AuthContext";
 import { useServerId } from "@/contexts/ServerContext";
 import { extractNamesWithAI } from "@/lib/vision";
-import { isSupabaseConfigured, fetchGuilds } from "@/lib/supabase";
+import { isSupabaseConfigured, fetchGuilds, fetchStaticParties, type StaticParty } from "@/lib/supabase";
 import { guildColor } from "@/lib/constants";
 import type { Boss, Member, Guild } from "@/types";
 
@@ -58,8 +58,13 @@ export function DeathRecordModal({ boss, onClose, onSubmit, defaultDeathTime, hi
  // Attendance state
  const { data: members = [] } = useMembers();
  const [guilds, setGuilds] = useState<Guild[]>([]);
+ const [parties, setParties] = useState<StaticParty[]>([]);
+ const [partySelect, setPartySelect] = useState("");
  useEffect(() => {
- if (serverId) fetchGuilds(serverId).then(setGuilds).catch(() => setGuilds([]));
+ if (serverId) {
+   fetchGuilds(serverId).then(setGuilds).catch(() => setGuilds([]));
+   fetchStaticParties(serverId).then(setParties).catch(() => setParties([]));
+ }
  }, [serverId]);
  const guildMap = new Map(guilds.map(g => [g.id, g]));
  // Group members by guild — owner guild sorted first, members alphabetical within each group
@@ -982,6 +987,38 @@ export function DeathRecordModal({ boss, onClose, onSubmit, defaultDeathTime, hi
  </p>
  ) : (
  <div className="space-y-2">
+ {/* Quick Party Select */}
+ {parties.length > 0 && (
+ <div className="flex items-center gap-2 pb-1">
+ <select
+ value={partySelect}
+ onChange={(e) => {
+ const val = e.target.value;
+ setPartySelect(val);
+ if (val) {
+ const party = parties.find(p => p.id === val);
+ if (party) {
+ const ids = new Set(party.member_ids.filter(id => members.some(m => m.id === id)));
+ setSelectedIds(ids);
+ }
+ } else {
+ setSelectedIds(new Set());
+ }
+ }}
+ className="flex-1 px-2 py-1.5 bg-[#18181b] border border-[#27272a] rounded text-xs text-[#a1a1aa] outline-none focus:border-[#52525b]"
+ >
+ <option value="">Quick party...</option>
+ {parties.map(p => (
+ <option key={p.id} value={p.id}>{p.name} ({p.member_ids.length})</option>
+ ))}
+ </select>
+ {partySelect && (
+ <button onClick={() => { setPartySelect(""); setSelectedIds(new Set()); }} className="text-[10px] text-[#71717a] hover:text-[#fafafa]">
+ Clear
+ </button>
+ )}
+ </div>
+ )}
  {filteredGroupedMembers.map((group) => (
  <div key={group.guildId ?? "ungrouped"}>
  <p className={`text-[10px] font-medium uppercase tracking-wider mb-1 px-1 ${group.guildId ? guildColor(group.guildName).text : "text-[#71717a]"}`}>

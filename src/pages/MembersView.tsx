@@ -3,7 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { useMembers } from "@/hooks/useMembers";
 import { useAuth } from "@/contexts/AuthContext";
-import { updateMemberName, deleteMember, upsertMember, isSupabaseConfigured, fetchGuilds, setMemberGuild, bulkAddMembers, supabase } from "@/lib/supabase";
+import { updateMemberName, deleteMember, upsertMember, isSupabaseConfigured, fetchGuilds, setMemberGuild, bulkAddMembers, supabase, fetchStaticParties, createParty, deleteParty, addMemberToParty, removeMemberFromParty, type StaticParty } from "@/lib/supabase";
 import { useServerId, useHasPermission } from "@/contexts/ServerContext";
 import type { Guild } from "@/types";
 import { Users, Plus, Pencil, Trash2, Loader2, X, Check, UserPlus, CheckCircle, AlertTriangle, Image, Upload, Copy, Shield, Search } from "lucide-react";
@@ -55,12 +55,34 @@ export function MembersView() {
   const [classes, setClasses] = useState<string[]>([]);
   const [newClassName, setNewClassName] = useState("");
 
+  // Static parties
+  const [parties, setParties] = useState<StaticParty[]>([]);
+  const [newPartyName, setNewPartyName] = useState("");
+  const [newPartyGuild, setNewPartyGuild] = useState("");
+  const [showParties, setShowParties] = useState(false);
+
+  const refreshParties = () => {
+    if (serverId) fetchStaticParties(serverId).then(setParties).catch(() => {});
+  };
+
+  const handleCreateParty = async () => {
+    const name = newPartyName.trim();
+    if (!name) return;
+    try {
+      await createParty(name, newPartyGuild || null);
+      setNewPartyName("");
+      setNewPartyGuild("");
+      refreshParties();
+    } catch {}
+  };
+
   useEffect(() => {
     fetchGuilds(serverId).then(setGuilds).catch(() => setGuilds([]));
     if (serverId) {
       supabase.rpc("get_member_classes", { p_server_id: serverId })
         .then(({ data }) => { if (data) setClasses(data as string[]); })
-        .then(null, () => setClasses([]));
+        .catch(() => setClasses([]));
+      fetchStaticParties(serverId).then(setParties).catch(() => setParties([]));
     }
   }, [serverId]);
 
@@ -343,7 +365,78 @@ export function MembersView() {
           <button onClick={handleAddClass} disabled={!newClassName.trim()} className="p-1 text-[#a1a1aa] hover:text-[#fafafa] disabled:opacity-30"><Plus className="w-3 h-3" /></button>
         </div>
       </div>
-      </>
+      </>)}
+      {/* Remove duplicate closing */}
+
+      {/* Static Parties */}
+      {canManageRaidMembers && (
+      <div className="space-y-2">
+        <button
+          onClick={() => setShowParties(!showParties)}
+          className="flex items-center gap-1.5 text-xs text-[#a1a1aa] hover:text-[#fafafa] transition"
+        >
+          <Users className="w-3.5 h-3.5" />
+          Static Parties {parties.length > 0 && `(${parties.length})`}
+        </button>
+
+        {showParties && (
+          <div className="space-y-2 p-3 rounded-lg bg-[#18181b]/50 border border-[#27272a]/50">
+            {/* Create party */}
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={newPartyName}
+                onChange={(e) => setNewPartyName(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleCreateParty()}
+                placeholder="Party name..."
+                className="flex-1 px-2 py-1.5 bg-[#09090b] border border-[#3f3f46] rounded text-xs text-[#fafafa] placeholder-[#52525b] focus:outline-none focus:border-[#52525b]"
+              />
+              {guilds.length > 0 && (
+                <select
+                  value={newPartyGuild}
+                  onChange={(e) => setNewPartyGuild(e.target.value)}
+                  className="px-2 py-1.5 bg-[#09090b] border border-[#3f3f46] rounded text-xs text-[#a1a1aa] outline-none focus:border-[#52525b] max-w-[100px]"
+                >
+                  <option value="">Server-wide</option>
+                  {guilds.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+                </select>
+              )}
+              <button
+                onClick={handleCreateParty}
+                disabled={!newPartyName.trim()}
+                className="px-2.5 py-1.5 rounded text-xs font-medium bg-[#27272a] text-[#d4d4d8] hover:bg-[#3f3f46] disabled:opacity-40 transition"
+              >
+                <Plus className="w-3 h-3" />
+              </button>
+            </div>
+
+            {/* Party list */}
+            {parties.length === 0 ? (
+              <p className="text-xs text-[#71717a]">No parties yet. Create one to quick-select members.</p>
+            ) : (
+              <div className="space-y-1.5">
+                {parties.map(p => (
+                  <div key={p.id} className="flex items-center gap-2 p-2 rounded bg-[#09090b]/50 border border-[#27272a]/30">
+                    <div className="flex-1 min-w-0">
+                      <span className="text-xs text-[#fafafa] font-medium">{p.name}</span>
+                      {p.guild_name && (
+                        <span className="text-[10px] text-[#71717a] ml-1.5">({p.guild_name})</span>
+                      )}
+                      <span className="text-[10px] text-[#52525b] ml-1.5">{p.member_ids.length} members</span>
+                    </div>
+                    <button
+                      onClick={async () => { await deleteParty(p.id); refreshParties(); }}
+                      className="p-1 text-[#71717a] hover:text-[#f87171] transition"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
       )}
 
       {/* Search */}

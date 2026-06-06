@@ -592,5 +592,5 @@ MIT © [RaidScout](https://www.raidscout.com)
 ---
 
 <p align="center">
-  <sub>Built with ❤️ for the LordNine community. Forever free.</sub>
+  <sub>Built with ❤️ for the competitive gamers.</sub>
 </p>
