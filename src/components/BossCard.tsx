@@ -13,7 +13,7 @@ import type { BossWithSpawn, Activity } from "@/types";
 
 interface BossCardProps {
   spawn: BossWithSpawn;
-  onRecordDeath: (bossId: string, deathTime: Date, rallyImages: File[], attendeeIds: string[]) => void;
+  onRecordDeath?: (bossId: string, deathTime: Date, rallyImages: File[], attendeeIds: string[]) => void;
   onSetSpawnDate?: (bossId: string, spawnDate: Date) => void;
   onUrgentSpawn?: (bossName: string) => void;
   onCriticalSpawn?: (bossName: string) => void;
@@ -446,7 +446,7 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
           onSubmit={(dt, imgs, ids) => {
             if (isActivity && onRecordEnd) {
               onRecordEnd(activity!.id, dt, imgs, ids);
-            } else {
+            } else if (onRecordDeath) {
               onRecordDeath(boss.id, dt, imgs, ids);
             }
             setShowModal(false);
