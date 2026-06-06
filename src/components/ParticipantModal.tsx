@@ -8,7 +8,7 @@ import {
 } from "@/hooks/useAttendance";
 import { useMembers } from "@/hooks/useMembers";
 import { useServerId } from "@/contexts/ServerContext";
-import { addActivityAttendance, removeActivityAttendance } from "@/lib/supabase";
+import { markActivityAttendance } from "@/lib/supabase";
 import { extractNamesWithAI } from "@/lib/vision";
 import {
   fetchGuilds,
@@ -123,7 +123,8 @@ export function ParticipantModal({
         const { data, error } = await supabase
           .from("activity_attendance")
           .select("id,member_id")
-          .eq("activity_instance_id", activityInstanceId);
+          .eq("activity_instance_id", activityInstanceId)
+          .eq("present", true);
         if (error) throw error;
         return (data || []) as { id: string; member_id: string }[];
       },
@@ -852,7 +853,7 @@ export function ParticipantModal({
                                       );
                                       if (att) {
                                         if (activityInstanceId) {
-                                          await removeActivityAttendance(activityInstanceId, m.id);
+                                          await markActivityAttendance(activityInstanceId, m.id, false);
                                           queryClient.invalidateQueries({ queryKey: ["activity_attendance", activityInstanceId] });
                                         } else {
                                           removeAttendance.mutate({
@@ -863,7 +864,7 @@ export function ParticipantModal({
                                       }
                                     } else {
                                       if (activityInstanceId) {
-                                        await addActivityAttendance(activityInstanceId, m.id);
+                                        await markActivityAttendance(activityInstanceId, m.id, true);
                                         queryClient.invalidateQueries({ queryKey: ["activity_attendance", activityInstanceId] });
                                       } else {
                                         addAttendance.mutate({

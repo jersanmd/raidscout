@@ -289,11 +289,15 @@ export function LandingPage() {
           </div>
 
           {/* Headline */}
-          <h1 className="text-5xl md:text-7xl lg:text-8xl font-black tracking-tighter leading-[0.94] max-w-3xl mx-auto cyber-glitch">
-            <span className="text-[#fafafa] cyber-glow">Command</span>
+          <h1 className="text-4xl md:text-6xl lg:text-7xl font-black tracking-tight leading-[1.05] max-w-3xl mx-auto cyber-glitch">
+            <span className="text-[#fafafa] cyber-glow">Your Guild,</span>
             <br />
             <span className="text-[#a1a1aa]">
-              Your Guild
+              Your Raids,
+            </span>
+            <br />
+            <span className="text-emerald-400/80">
+              Perfectly Coordinated
             </span>
           </h1>
 
@@ -797,10 +801,10 @@ function AnimatedCommandInput() {
     <div className="p-3 rounded-lg bg-[#18181b] border border-white/[0.03]">
       <span className="text-neutral-400 block font-bold tracking-wider text-[10px] uppercase mb-1">Command Input</span>
       <div className="flex items-center space-x-0.5 relative">
-        <code className="text-cyan-400 font-mono font-bold text-sm block tracking-wide">
+        <code className="text-emerald-400 font-mono font-bold text-sm block tracking-wide">
           {typed}
         </code>
-        <span className={`w-1.5 h-4 ${phase === "typing" ? "bg-cyan-400 animate-pulse" : "bg-cyan-400"}`} />
+        <span className={`w-1.5 h-4 ${phase === "typing" ? "bg-emerald-400 animate-pulse" : "bg-emerald-400"}`} />
       </div>
     </div>
   );
@@ -854,7 +858,7 @@ function AnimatedBotResponse() {
             </div>
             <div className="bg-[#18181b] p-2.5 rounded-lg border border-white/[0.03] border-b-[#3f3f46]">
               <span className="text-[#a1a1aa] block font-bold text-[10px] tracking-wider uppercase mb-1">Next Spawn</span>
-              <span className="font-mono text-[11px] text-cyan-400 block font-bold tracking-tight">June 5, 2026 9:00 PM</span>
+              <span className="font-mono text-[11px] text-emerald-400 block font-bold tracking-tight">June 5, 2026 9:00 PM</span>
             </div>
           </div>
 
@@ -883,7 +887,7 @@ function CopyCodeBadge({ code, className = "" }: { code: string; className?: str
     <span className="relative inline-flex items-center">
       <code
         onClick={handleClick}
-        className={`text-cyan-400 font-mono font-bold text-sm block tracking-wide cursor-pointer select-all hover:brightness-125 transition-all ${className}`}
+        className={`text-emerald-400 font-mono font-bold text-sm block tracking-wide cursor-pointer select-all hover:brightness-125 transition-all ${className}`}
         title="Click to copy"
       >
         {code}

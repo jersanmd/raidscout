@@ -39,3 +39,4 @@ CREATE POLICY "Owners and moderators can manage activity attendance" ON public.a
     )
     OR public.is_admin()
   );
+    

@@ -12,23 +12,6 @@ export async function markActivityAttendance(activityInstanceId: string, memberI
   if (error) throw error;
 }
 
-export async function addActivityAttendance(activityInstanceId: string, memberId: string): Promise<void> {
-  const { error } = await supabase.from("activity_attendance").upsert({
-    activity_instance_id: activityInstanceId,
-    member_id: memberId,
-    present: true,
-  }, { onConflict: "activity_instance_id,member_id" });
-  if (error) throw error;
-}
-
-export async function removeActivityAttendance(activityInstanceId: string, memberId: string): Promise<void> {
-  const { error } = await supabase.from("activity_attendance")
-    .delete()
-    .eq("activity_instance_id", activityInstanceId)
-    .eq("member_id", memberId);
-  if (error) throw error;
-}
-
 export async function finalizeActivity(activityId: string): Promise<string> {
   const now = new Date().toISOString();
   const { data, error } = await supabase
