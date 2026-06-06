@@ -649,7 +649,6 @@ export function MembersView() {
           );
         })()
       )}
-      )}
 
       {/* Bulk add modal */}
       {showBulkModal && (
