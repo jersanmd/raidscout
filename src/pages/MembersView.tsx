@@ -60,7 +60,7 @@ export function MembersView() {
     if (serverId) {
       supabase.rpc("get_member_classes", { p_server_id: serverId })
         .then(({ data }) => { if (data) setClasses(data as string[]); })
-        .catch(() => setClasses([]));
+        .then(null, () => setClasses([]));
     }
   }, [serverId]);
 

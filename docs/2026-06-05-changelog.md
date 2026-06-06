@@ -7,7 +7,7 @@
   1. Missing `sort_order > 0` filter in rotation mode (bot included sort_order=0 entries that website excluded)
   2. `dist/bot.js` was cached by Docker — TypeScript changes weren't deployed
 - **Fix**: Added `bg.sort_order > 0` to rotation filter + ran `npm run build:bot` before `fly deploy`
-- **Lesson**: Always rebuild `dist/bot.js` before deploying to Fly.io
+- **Lesson**: Always rebuild `dist/bot.cjs` before deploying to Fly.io (`npx esbuild scripts/discord-bot-gateway.ts --bundle --platform=node --target=node22 --outfile=dist/bot.cjs --external:ws --format=cjs`)
 
 ## Landing Page: Active Guilds Count
 

@@ -1441,7 +1441,7 @@ function ParticipantModalInline({
       setActivityLoading(true);
       supabase.rpc("fetch_activity_attendance", { p_activity_instance_id: activityInstanceId })
         .then(({ data }) => { if (data) setActivityAttendance(data as any[]); })
-        .finally(() => setActivityLoading(false));
+        .then(() => setActivityLoading(false), () => setActivityLoading(false));
     }
   }, [activityInstanceId]);
 
