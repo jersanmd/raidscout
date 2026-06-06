@@ -48,7 +48,7 @@ export async function fetchHistoryFromSupabase(serverId?: string | null, since?:
     } catch { /* ignore */ }
   }
 
-  return unique.map((d: any) => {
+  const bossEntries = unique.map((d: any) => {
     const boss = d.bosses;
     const deathTime = new Date(d.death_time);
     let respawnTime: Date;
@@ -86,6 +86,46 @@ export async function fetchHistoryFromSupabase(serverId?: string | null, since?:
       deathRecordId: d.id,
       createdAt: d.death_time,
       ownerGuildName: guildMap.get(d.display_owner_guild_id ?? d.owner_guild_id),
+    };
+  });
+
+  // Fetch and merge activity history
+  const activityEntries = await fetchActivityHistory(sid, since, until);
+
+  return [...bossEntries, ...activityEntries].sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  );
+}
+
+/** Fetch finished activity instances for history */
+async function fetchActivityHistory(sid: string, since?: string, until?: string): Promise<HistoryEntry[]> {
+  let query = supabase
+    .from("activity_instances")
+    .select(`
+      id, start_time, end_time, activity_id,
+      activities!inner(id, name, schedule_type)
+    `)
+    .not("end_time", "is", null)
+    .order("end_time", { ascending: false });
+
+  if (since) query = query.gte("end_time", since);
+  if (until) query = query.lte("end_time", until);
+  if (!since && !until) query = query.limit(200);
+
+  const { data, error } = await query;
+  if (error) throw error;
+
+  return ((data as any[]) ?? []).map((inst: any) => {
+    const act = inst.activities;
+    return {
+      id: inst.id,
+      type: "activity" as const,
+      activityName: act?.name ?? "Unknown",
+      completionTime: inst.end_time,
+      spawnType: act?.schedule_type,
+      deathRecordId: undefined,
+      createdAt: inst.end_time,
+      ownerGuildName: undefined,
     };
   });
 }

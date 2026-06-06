@@ -21,6 +21,13 @@ export function AddActivityForm({ gameId, gameSlug, serverId, onCreated, onCance
   const [scheduleType, setScheduleType] = useState("fixed_hours");
   const [startHours, setStartHours] = useState("0");
   const [startMinutes, setStartMinutes] = useState("0");
+  const todayStr = new Date().toLocaleDateString("en-CA"); // YYYY-MM-DD in user's local timezone
+  const [startDate, setStartDate] = useState(todayStr);
+  const isToday = startDate === todayStr;
+  const nowHour = new Date().getHours();
+  const nowMin = new Date().getMinutes();
+  const [recurHours, setRecurHours] = useState("2");
+  const [recurMinutes, setRecurMinutes] = useState("0");
   const [pointsPerParticipant, setPointsPerParticipant] = useState(1);
   const [partySize, setPartySize] = useState("5");
   const [category, setCategory] = useState("");
@@ -43,11 +50,14 @@ export function AddActivityForm({ gameId, gameSlug, serverId, onCreated, onCance
       if (isServerMode && serverId) {
         const sched = scheduleType === "fixed_schedule" && scheduleSlots.length > 0
           ? scheduleSlots.map(s => localSlotToUtc(s.day, s.time))
-          : null;
+          : (scheduleType === "fixed_hours" || scheduleType === "one_time")
+            ? { time: `${startHours.padStart(2, "0")}:${startMinutes.padStart(2, "0")}`, start_date: startDate }
+            : null;
         await createCustomActivity(serverId, {
           name: name.trim(),
           schedule_type: scheduleType,
           schedule: sched,
+          duration_minutes: scheduleType === "fixed_hours" ? (parseInt(recurHours) || 0) * 60 + (parseInt(recurMinutes) || 0) : null,
           points_per_participant: isNaN(Number(pointsPerParticipant)) ? 1 : Number(pointsPerParticipant),
           party_size: partySize ? Number(partySize) : null,
           category: category || null, tags,
@@ -61,8 +71,9 @@ export function AddActivityForm({ gameId, gameSlug, serverId, onCreated, onCance
         schedule: scheduleType === "fixed_schedule" && scheduleSlots.length > 0
           ? scheduleSlots.map(s => localSlotToUtc(s.day, s.time))
           : (scheduleType === "fixed_hours" || scheduleType === "one_time")
-            ? `${startHours.padStart(2, "0")}:${startMinutes.padStart(2, "0")}`
+            ? { time: `${startHours.padStart(2, "0")}:${startMinutes.padStart(2, "0")}`, start_date: startDate }
             : undefined,
+        duration_minutes: scheduleType === "fixed_hours" ? (parseInt(recurHours) || 0) * 60 + (parseInt(recurMinutes) || 0) : null,
         points_per_participant: isNaN(Number(pointsPerParticipant)) ? 1 : Number(pointsPerParticipant),
         party_size: partySize ? Number(partySize) : null,
         category: category || null,
@@ -98,19 +109,39 @@ export function AddActivityForm({ gameId, gameSlug, serverId, onCreated, onCance
           </select>
         </div>
         {(scheduleType === "fixed_hours" || scheduleType === "one_time") && (
-          <div className="col-span-2">
-            <label className="block text-xs text-[#71717a] mb-1">Start Time</label>
-            <div className="flex items-center gap-2">
+          <>
+          <div>
+            <label className="block text-xs text-[#71717a] mb-0.5">Start Date</label>
+            <input type="date" min={todayStr} value={startDate} onChange={e => setStartDate(e.target.value)} className="w-full px-2.5 py-2 bg-[#09090b] border border-[#3f3f46] rounded text-sm text-[#fafafa] focus:outline-none focus:ring-1 focus:ring-[#52525b] [color-scheme:dark]" />
+          </div>
+          <div>
+            <label className="block text-xs text-[#71717a] mb-0.5">Start Time</label>
+            <div className="flex items-center gap-1">
+              <select value={startHours} onChange={e => setStartHours(e.target.value)} className="w-20 px-2.5 py-2 bg-[#09090b] border border-[#3f3f46] rounded text-sm text-[#fafafa] focus:outline-none focus:ring-1 focus:ring-[#52525b]">
+                {Array.from({ length: 24 }, (_, i) => i)
+                  .filter(h => !isToday || h >= nowHour)
+                  .map(h => <option key={h} value={h}>{String(h).padStart(2,"0")}h</option>)}
+              </select>
+              <select value={startMinutes} onChange={e => setStartMinutes(e.target.value)} className="w-16 px-2.5 py-2 bg-[#09090b] border border-[#3f3f46] rounded text-sm text-[#fafafa] focus:outline-none focus:ring-1 focus:ring-[#52525b]">
+                {Array.from({ length: 60 }, (_, i) => i)
+                  .filter(m => !isToday || Number(startHours) > nowHour || m >= nowMin)
+                  .map(m => <option key={m} value={m}>{String(m).padStart(2,"0")}m</option>)}
+              </select>
+            </div>
+          </div>
+          {scheduleType === "fixed_hours" && (
+            <div>
+              <label className="block text-xs text-[#71717a] mb-0.5">Recurs every</label>
               <div className="flex items-center gap-1">
-                <select value={startHours} onChange={e => setStartHours(e.target.value)} className="w-20 px-2.5 py-2 bg-[#09090b] border border-[#3f3f46] rounded text-sm text-[#fafafa] focus:outline-none focus:ring-1 focus:ring-[#52525b]">
-                  {Array.from({ length: 24 }, (_, i) => i).map(h => <option key={h} value={h}>{h}h</option>)}
-                </select>
-                <select value={startMinutes} onChange={e => setStartMinutes(e.target.value)} className="w-16 px-2.5 py-2 bg-[#09090b] border border-[#3f3f46] rounded text-sm text-[#fafafa] focus:outline-none focus:ring-1 focus:ring-[#52525b]">
-                  {[0, 15, 30, 45].map(m => <option key={m} value={m}>{m}m</option>)}
+                <input type="number" min="0" max="168" value={recurHours} onChange={e => setRecurHours(e.target.value)} className="w-16 px-2.5 py-2 bg-[#09090b] border border-[#3f3f46] rounded text-sm text-[#fafafa] focus:outline-none focus:ring-1 focus:ring-[#52525b]" />
+                <span className="text-xs text-[#71717a]">h</span>
+                <select value={recurMinutes} onChange={e => setRecurMinutes(e.target.value)} className="w-16 px-2.5 py-2 bg-[#09090b] border border-[#3f3f46] rounded text-sm text-[#fafafa] focus:outline-none focus:ring-1 focus:ring-[#52525b]">
+                  {Array.from({ length: 60 }, (_, i) => i + 1).map(m => <option key={m} value={m}>{m}m</option>)}
                 </select>
               </div>
             </div>
-          </div>
+          )}
+          </>
         )}
         {scheduleType === "fixed_schedule" && (
           <div className="col-span-2">

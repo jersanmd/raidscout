@@ -72,6 +72,7 @@ export {
   toggleBossEnabled,
   toggleActivityEnabled,
   finishActivity,
+  recordActivityEnd,
   setBossSpawnTime,
   fetchSpawnOverrides,
   markAllUnknownAlive,

@@ -248,6 +248,163 @@ html:not(.dark) .skeleton {
 button:active:not(:disabled) { transform: scale(0.97); }
 button { transition: transform 0.1s ease, opacity 0.15s ease, background-color 0.15s ease; }
 
+/* ═══════════════════════════════════════════════════════════
+   Boss Alive — Glitch / Hacking Animation
+   ═══════════════════════════════════════════════════════════ */
+
+@keyframes alive-border-pulse {
+  0%, 100% { box-shadow: 0 0 4px 0 rgba(16, 185, 129, 0.15), inset 0 0 0 0 rgba(16, 185, 129, 0); }
+  50% { box-shadow: 0 0 10px 1px rgba(16, 185, 129, 0.25), inset 0 0 4px 0 rgba(16, 185, 129, 0.06); }
+}
+
+@keyframes alive-scan {
+  0% { top: -2px; opacity: 0; }
+  10% { opacity: 0.6; }
+  90% { opacity: 0.6; }
+  100% { top: 100%; opacity: 0; }
+}
+
+@keyframes alive-flicker {
+  0%, 99.5%, 100% { opacity: 1; }
+  99.6% { opacity: 0.85; }
+}
+
+@keyframes alive-glitch-shift {
+  0%, 94%, 100% { transform: translateX(0); }
+  95% { transform: translateX(1px); }
+  96% { transform: translateX(-1px); }
+  97% { transform: translateX(0); }
+}
+
+.boss-card-alive {
+  animation: alive-border-pulse 2.5s ease-in-out infinite;
+  border-color: rgba(16, 185, 129, 0.4) !important;
+  border-left-color: rgba(16, 185, 129, 0.7) !important;
+  background: linear-gradient(180deg, rgba(16, 185, 129, 0.03) 0%, rgba(16, 185, 129, 0.01) 100%) !important;
+}
+
+.boss-card-alive::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent 0%, rgba(16, 185, 129, 0.5) 20%, rgba(16, 185, 129, 0.5) 80%, transparent 100%);
+  z-index: 2;
+  pointer-events: none;
+  animation: alive-scan 3s linear infinite;
+  border-radius: 12px 12px 0 0;
+}
+
+.boss-card-alive .boss-name-alive {
+  animation: alive-glitch-shift 4s ease-in-out infinite;
+}
+
+.boss-card-alive:hover {
+  animation: alive-border-pulse 1s ease-in-out infinite;
+  border-color: rgba(16, 185, 129, 0.6) !important;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   Boss Urgent (<5min) — Red Glitch Variant
+   ═══════════════════════════════════════════════════════════ */
+
+@keyframes urgent-border-pulse {
+  0%, 100% { box-shadow: 0 0 4px 0 rgba(239, 68, 68, 0.15), inset 0 0 0 0 rgba(239, 68, 68, 0); }
+  50% { box-shadow: 0 0 12px 2px rgba(239, 68, 68, 0.3), inset 0 0 4px 0 rgba(239, 68, 68, 0.08); }
+}
+
+@keyframes urgent-scan {
+  0% { top: -2px; opacity: 0; }
+  10% { opacity: 0.7; }
+  90% { opacity: 0.7; }
+  100% { top: 100%; opacity: 0; }
+}
+
+@keyframes urgent-glitch-shift {
+  0%, 90%, 92%, 100% { transform: translateX(0); }
+  91% { transform: translateX(2px); }
+}
+
+.boss-card-urgent {
+  animation: urgent-border-pulse 1.8s ease-in-out infinite;
+  border-color: rgba(239, 68, 68, 0.5) !important;
+  border-left-color: rgba(239, 68, 68, 0.8) !important;
+  background: linear-gradient(180deg, rgba(239, 68, 68, 0.04) 0%, rgba(239, 68, 68, 0.01) 100%) !important;
+}
+
+.boss-card-urgent::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent 0%, rgba(239, 68, 68, 0.6) 20%, rgba(239, 68, 68, 0.6) 80%, transparent 100%);
+  z-index: 2;
+  pointer-events: none;
+  animation: urgent-scan 2.5s linear infinite;
+  border-radius: 12px 12px 0 0;
+}
+
+.boss-card-urgent .boss-name-alive {
+  animation: urgent-glitch-shift 3s ease-in-out infinite;
+}
+
+.boss-card-urgent:hover {
+  animation: urgent-border-pulse 0.8s ease-in-out infinite;
+  border-color: rgba(239, 68, 68, 0.7) !important;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   Boss Warning (5-60min) — Amber Glitch Variant
+   ═══════════════════════════════════════════════════════════ */
+
+@keyframes warning-border-pulse {
+  0%, 100% { box-shadow: 0 0 4px 0 rgba(245, 158, 11, 0.12), inset 0 0 0 0 rgba(245, 158, 11, 0); }
+  50% { box-shadow: 0 0 10px 1px rgba(245, 158, 11, 0.22), inset 0 0 3px 0 rgba(245, 158, 11, 0.05); }
+}
+
+@keyframes warning-scan {
+  0% { top: -2px; opacity: 0; }
+  10% { opacity: 0.5; }
+  90% { opacity: 0.5; }
+  100% { top: 100%; opacity: 0; }
+}
+
+@keyframes warning-glitch-shift {
+  0%, 92%, 94%, 100% { transform: translateX(0); }
+  93% { transform: translateX(1px); }
+}
+
+.boss-card-warning {
+  animation: warning-border-pulse 2.2s ease-in-out infinite;
+  border-color: rgba(245, 158, 11, 0.4) !important;
+  border-left-color: rgba(245, 158, 11, 0.65) !important;
+  background: linear-gradient(180deg, rgba(245, 158, 11, 0.03) 0%, rgba(245, 158, 11, 0.01) 100%) !important;
+}
+
+.boss-card-warning::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent 0%, rgba(245, 158, 11, 0.45) 20%, rgba(245, 158, 11, 0.45) 80%, transparent 100%);
+  z-index: 2;
+  pointer-events: none;
+  animation: warning-scan 3.5s linear infinite;
+  border-radius: 12px 12px 0 0;
+}
+
+.boss-card-warning .boss-name-alive {
+  animation: warning-glitch-shift 4.5s ease-in-out infinite;
+}
+
+.boss-card-warning:hover {
+  animation: warning-border-pulse 1.2s ease-in-out infinite;
+  border-color: rgba(245, 158, 11, 0.6) !important;
+}
+
 /* Smooth page transitions */
 main > * { animation: fadeIn 0.25s ease-out; }
 
@@ -259,6 +416,94 @@ main > * { animation: fadeIn 0.25s ease-out; }
   transition: top 0.2s ease;
 }
 .skip-to-content:focus { top: 8px; }
+
+/* ═══════════════════════════════════════════════════════════
+   Cyberpunk / Hacking Text Effects
+   ═══════════════════════════════════════════════════════════ */
+
+@keyframes blink-cursor {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+@keyframes typing-glow {
+  0%, 100% { text-shadow: 0 0 4px rgba(16, 185, 129, 0); }
+  50% { text-shadow: 0 0 8px rgba(16, 185, 129, 0.3); }
+}
+
+@keyframes glitch-text {
+  0%, 92%, 100% { transform: translate(0); }
+  93% { transform: translate(-1px, 1px); }
+  94% { transform: translate(1px, -1px); }
+  96% { transform: translate(-1px, 0); }
+  97% { transform: translate(0); }
+}
+
+@keyframes matrix-scan {
+  0% { background-position: 0 0; }
+  100% { background-position: 0 100%; }
+}
+
+@keyframes terminal-boot {
+  0% { opacity: 0; }
+  20% { opacity: 0; }
+  25% { opacity: 1; }
+  30% { opacity: 0; }
+  33% { opacity: 1; }
+  36% { opacity: 0; }
+  40% { opacity: 1; }
+}
+
+@keyframes data-stream {
+  0% { transform: translateY(-100%); opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { transform: translateY(100%); opacity: 0; }
+}
+
+.cyber-cursor::after {
+  content: "▌";
+  animation: blink-cursor 1s step-end infinite;
+  color: rgba(16, 185, 129, 0.7);
+  margin-left: 2px;
+}
+
+.cyber-glow {
+  animation: typing-glow 2s ease-in-out infinite;
+}
+
+.cyber-glitch {
+  animation: glitch-text 4s ease-in-out infinite;
+}
+
+.cyber-boot {
+  animation: terminal-boot 1.5s ease-out;
+}
+
+/* Matrix rain overlay */
+.matrix-bg {
+  position: relative;
+  overflow: hidden;
+}
+.matrix-bg::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(16, 185, 129, 0.015) 2px,
+    rgba(16, 185, 129, 0.015) 4px
+  );
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Data stream lines */
+.data-stream {
+  animation: data-stream 3s linear infinite;
+}
 
 /* ── Phase 1: Visual Design System ─────────────────────────── */
 

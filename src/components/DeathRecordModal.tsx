@@ -20,9 +20,13 @@ interface DeathRecordModalProps {
  hideCustomTime?: boolean;
  /** Guild ID that currently owns this boss — its members will be sorted to the top */
  ownerGuildId?: string | null;
+ /** Render as an activity end modal instead of boss death */
+ isActivity?: boolean;
+ /** Activity name (used in title when isActivity) */
+ activityName?: string;
 }
 
-export function DeathRecordModal({ boss, onClose, onSubmit, defaultDeathTime, hideCustomTime, ownerGuildId }: DeathRecordModalProps) {
+export function DeathRecordModal({ boss, onClose, onSubmit, defaultDeathTime, hideCustomTime, ownerGuildId, isActivity = false, activityName }: DeathRecordModalProps) {
  const { user, isViewer } = useAuth();
  const serverId = useServerId();
  const queryClient = useQueryClient();
@@ -577,13 +581,15 @@ export function DeathRecordModal({ boss, onClose, onSubmit, defaultDeathTime, hi
  <div>
  <h2 className="text-lg font-bold text-[#fafafa]">
  {step === "death"
- ? <>Record Death: <span className="text-[#a1a1aa]">{boss.name}</span></>
- : <>Attendance: <span className="text-[#a1a1aa]">{boss.name}</span>{" · "}
+ ? (isActivity
+ ? <>Record End: <span className="text-[#a1a1aa]">{activityName ?? boss.name}</span></>
+ : <>Record Death: <span className="text-[#a1a1aa]">{boss.name}</span></>)
+ : <>Attendance: <span className="text-[#a1a1aa]">{isActivity ? (activityName ?? boss.name) : boss.name}</span>{" · "}
  {deathTime && <span className="text-[#a1a1aa] text-sm font-normal">{deathTime.toLocaleString()}</span>}
  <button
  onClick={() => setDeathTime(new Date())}
  className="ml-3 px-2 py-0.5 rounded text-[10px] font-medium bg-[#27272a] text-[#a1a1aa] hover:bg-white/[0.10] hover:text-[#fafafa] transition"
- title="Overwrite the death time with the current date and time"
+ title={isActivity ? "Overwrite the end time with the current date and time" : "Overwrite the death time with the current date and time"}
  >
  Use current time
  </button></>
@@ -611,7 +617,7 @@ export function DeathRecordModal({ boss, onClose, onSubmit, defaultDeathTime, hi
  }`}
  >
  <Zap className="w-4 h-4" />
- Died Now
+ {isActivity ? "End Now" : "Died Now"}
  </button>
  <button
  onClick={() => setMode("custom")}
@@ -628,24 +634,28 @@ export function DeathRecordModal({ boss, onClose, onSubmit, defaultDeathTime, hi
  {mode === "now" || hideCustomTime ? (
  <div className="text-center">
  <p className="text-[#a1a1aa] text-sm mb-2">
- {defaultDeathTime
+ {isActivity
+ ? "Current time will be recorded as the end time:"
+ : defaultDeathTime
  ? "Scheduled spawn time will be recorded as the death time:"
  : "Current time will be recorded as the death time:"}
  </p>
  <p className="text-[#fafafa] font-mono text-lg">
  {displayTime.toLocaleString()}
  </p>
- {boss.respawn_hours && (
+ {!isActivity && boss.respawn_hours ? (
  <p className="text-[#71717a] text-sm mt-2">
  Next spawn: +{boss.respawn_hours}h →{" "}
  {new Date(displayTime.getTime() + boss.respawn_hours * 3600_000).toLocaleString()}
  </p>
- )}
+ ) : isActivity ? (
+ <p className="text-[#71717a] text-sm mt-2">Next start: determined by activity schedule</p>
+ ) : null}
  <button
  onClick={handleDiedNow}
  className="mt-4 w-full py-2.5 rounded-lg font-semibold bg-[#18181b] border border-[#27272a] text-[#a1a1aa] hover:bg-[#3f3f46] hover: transition"
  >
- Confirm Death & Add Attendance
+ {isActivity ? "Confirm End & Add Attendance" : "Confirm Death & Add Attendance"}
  </button>
  </div>
  ) : (
@@ -680,7 +690,7 @@ export function DeathRecordModal({ boss, onClose, onSubmit, defaultDeathTime, hi
  type="submit"
  className="w-full py-2.5 rounded-lg font-semibold bg-[#18181b] border border-[#27272a] text-[#a1a1aa] hover:bg-[#3f3f46] hover: transition"
  >
- Confirm Death & Add Attendance
+ {isActivity ? "Confirm End & Add Attendance" : "Confirm Death & Add Attendance"}
  </button>
  </form>
  )}

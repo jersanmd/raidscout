@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useState, Fragment } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServer } from "@/contexts/ServerContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useHasPermission } from "@/contexts/ServerContext";
+import { useToast } from "@/contexts/ToastContext";
 import {
   fetchAllBossesForServer, fetchAllActivitiesForServer,
   updateCustomBoss, updateCustomActivity,
@@ -10,6 +11,7 @@ import {
   supabase, fetchGames,
 } from "@/lib/supabase";
 import { AddBossForm } from "@/components/AddBossForm";
+import { BossImage } from "@/components/BossImage";
 import { AddActivityForm } from "@/components/AddActivityForm";
 import { EditBossForm } from "@/components/EditBossForm";
 import { EditActivityForm } from "@/components/EditActivityForm";
@@ -38,6 +40,8 @@ export function ServerBossesActivitiesTab({ mode = "all" }: { mode?: "all" | "bo
   const [selectedGameId, setSelectedGameId] = useState("");
   const [seedResult, setSeedResult] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ type: "boss" | "activity"; id: string; name: string } | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const { toast } = useToast();
 
   const { data: games = [] } = useQuery({
     queryKey: ["games"],
@@ -71,13 +75,21 @@ export function ServerBossesActivitiesTab({ mode = "all" }: { mode?: "all" | "bo
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
-    const table = deleteTarget.type === "boss" ? "bosses" : "activities";
-    const queryKey = deleteTarget.type === "boss" ? "bosses-all" : "activities-all";
-    await supabase.from(table).delete().eq("id", deleteTarget.id);
-    queryClient.invalidateQueries({ queryKey: [queryKey, serverId] });
-    queryClient.refetchQueries({ queryKey: [queryKey, serverId] });
-    queryClient.invalidateQueries({ queryKey: [deleteTarget.type === "boss" ? "bosses" : "activities"] });
-    setDeleteTarget(null);
+    setDeleting(true);
+    try {
+      const table = deleteTarget.type === "boss" ? "bosses" : "activities";
+      const queryKey = deleteTarget.type === "boss" ? "bosses-all" : "activities-all";
+      const { error } = await supabase.from(table).delete().eq("id", deleteTarget.id);
+      if (error) throw error;
+      queryClient.invalidateQueries({ queryKey: [queryKey, serverId] });
+      queryClient.refetchQueries({ queryKey: [queryKey, serverId] });
+      queryClient.invalidateQueries({ queryKey: [deleteTarget.type === "boss" ? "bosses" : "activities"] });
+      setDeleteTarget(null);
+    } catch (err: any) {
+      toast("error", err?.message ?? `Failed to delete ${deleteTarget.type}`);
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const handleSeed = async () => {
@@ -195,14 +207,9 @@ export function ServerBossesActivitiesTab({ mode = "all" }: { mode?: "all" | "bo
         ) : (
           <div className="space-y-1">
             {bosses.map((boss: Boss) => (
-              <div key={boss.id} className="flex items-center gap-3 px-3 py-2 rounded-lg bg-[#18181b] border border-[#27272a]">
-                {boss.image_url ? (
-                  <img src={boss.image_url} alt={boss.name} className="w-8 h-8 rounded-lg object-cover border border-[#27272a] shrink-0" />
-                ) : (
-                  <div className="w-8 h-8 rounded-lg bg-[#09090b] border border-[#27272a] flex items-center justify-center shrink-0">
-                    <Skull className="w-4 h-4 text-[#52525b]" />
-                  </div>
-                )}
+              <Fragment key={boss.id}>
+              <div className="flex items-center gap-3 px-3 py-2 rounded-lg bg-[#18181b] border border-[#27272a]">
+                <BossImage bossName={boss.name} size="sm" />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-medium text-[#fafafa] truncate">{boss.name}</span>
@@ -249,38 +256,35 @@ export function ServerBossesActivitiesTab({ mode = "all" }: { mode?: "all" | "bo
                   </div>
                 )}
               </div>
-            ))}
-            {/* Inline EditBossForm */}
-            {editingBossId && (() => {
-              const boss = bosses.find(b => b.id === editingBossId);
-              if (!boss) return null;
-              return (
-                <div className="mt-1">
+              {/* Edit form appears below this boss */}
+              <div className={`grid transition-all duration-300 ease-in-out ${editingBossId === boss.id && boss.is_custom ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`}>
+                <div className="overflow-hidden">
                   <EditBossForm
                     boss={{
-                      id: boss.id,
-                      name: boss.name,
-                      spawn_type: boss.spawn_type as string,
-                      respawn_hours: boss.respawn_hours ?? null,
-                      schedule: boss.schedule ?? null,
-                      is_recurring: boss.is_recurring ?? true,
-                      points: boss.boss_points ?? boss.points ?? 1,
-                      category: boss.category ?? null,
-                      tags: boss.tags ?? [],
-                      image_url: boss.image_url ?? null,
-                    } as any}
-                    gameSlug=""
-                    serverId={serverId}
-                    onSaved={() => {
-                      setEditingBossId(null);
-                      queryClient.invalidateQueries({ queryKey: ["bosses-all", serverId] });
-                      queryClient.invalidateQueries({ queryKey: ["bosses"] });
-                    }}
-                    onCancel={() => setEditingBossId(null)}
-                  />
+                    id: boss.id,
+                    name: boss.name,
+                    spawn_type: boss.spawn_type as string,
+                    respawn_hours: boss.respawn_hours ?? null,
+                    schedule: boss.schedule ?? null,
+                    is_recurring: boss.is_recurring ?? true,
+                    points: boss.boss_points ?? boss.points ?? 1,
+                    category: boss.category ?? null,
+                    tags: boss.tags ?? [],
+                    image_url: boss.image_url ?? null,
+                  } as any}
+                  gameSlug=""
+                  serverId={serverId}
+                  onSaved={() => {
+                    setEditingBossId(null);
+                    queryClient.invalidateQueries({ queryKey: ["bosses-all", serverId] });
+                    queryClient.invalidateQueries({ queryKey: ["bosses"] });
+                  }}
+                  onCancel={() => setEditingBossId(null)}
+                />
                 </div>
-              );
-            })()}
+              </div>
+              </Fragment>
+            ))}
           </div>
         )}
       </section>
@@ -325,7 +329,8 @@ export function ServerBossesActivitiesTab({ mode = "all" }: { mode?: "all" | "bo
         ) : (
           <div className="space-y-1">
             {activities.map((activity: Activity) => (
-              <div key={activity.id} className="flex items-center gap-3 px-3 py-2 rounded-lg bg-[#18181b] border border-[#27272a]">
+              <Fragment key={activity.id}>
+              <div className="flex items-center gap-3 px-3 py-2 rounded-lg bg-[#18181b] border border-[#27272a]">
                 {activity.image_url ? (
                   <img src={activity.image_url} alt={activity.name} className="w-8 h-8 rounded-lg object-cover border border-[#27272a] shrink-0" />
                 ) : (
@@ -380,25 +385,21 @@ export function ServerBossesActivitiesTab({ mode = "all" }: { mode?: "all" | "bo
                   </div>
                 )}
               </div>
-            ))}
-            {/* Inline EditActivityForm */}
-            {editingActivityId && (() => {
-              const act = activities.find(a => a.id === editingActivityId);
-              if (!act) return null;
-              return (
-                <div className="mt-1">
+              {/* Edit form appears below this activity */}
+              <div className={`grid transition-all duration-300 ease-in-out ${editingActivityId === activity.id && activity.is_custom ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`}>
+                <div className="overflow-hidden">
                   <EditActivityForm
                     activity={{
-                      id: act.id,
-                      name: act.name,
-                      schedule_type: act.schedule_type,
-                      schedule: act.schedule ?? null,
-                      duration_minutes: act.duration_minutes ?? null,
-                      points_per_participant: act.points_per_participant,
-                      party_size: act.party_size ?? null,
-                      category: (act as any).category ?? null,
-                      tags: (act as any).tags ?? [],
-                      image_url: null,
+                      id: activity.id,
+                      name: activity.name,
+                      schedule_type: activity.schedule_type,
+                      schedule: activity.schedule ?? null,
+                      duration_minutes: activity.duration_minutes ?? null,
+                      points_per_participant: activity.points_per_participant,
+                      party_size: activity.party_size ?? null,
+                      category: (activity as any).category ?? null,
+                      tags: (activity as any).tags ?? [],
+                      image_url: activity.image_url ?? null,
                     }}
                     gameSlug=""
                     serverId={serverId}
@@ -410,8 +411,9 @@ export function ServerBossesActivitiesTab({ mode = "all" }: { mode?: "all" | "bo
                     onCancel={() => setEditingActivityId(null)}
                   />
                 </div>
-              );
-            })()}
+              </div>
+              </Fragment>
+            ))}
           </div>
         )}
       </section>
@@ -427,6 +429,7 @@ export function ServerBossesActivitiesTab({ mode = "all" }: { mode?: "all" | "bo
           variant="danger"
           onConfirm={handleDelete}
           onCancel={() => setDeleteTarget(null)}
+          loading={deleting}
         />
       )}
     </div>

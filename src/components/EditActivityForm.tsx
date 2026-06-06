@@ -33,6 +33,34 @@ export function EditActivityForm({ activity, gameSlug, serverId, onSaved, onCanc
   const [name, setName] = useState(activity.name);
   const [scheduleType, setScheduleType] = useState(activity.schedule_type);
   const [schedule, setSchedule] = useState<any>(activity.schedule ?? null);
+  
+  // Parse time from schedule (handles both old "HH:MM" string and new {time, start_date} object)
+  const parsedTime = typeof activity.schedule === "object" && activity.schedule?.time
+    ? activity.schedule.time
+    : typeof activity.schedule === "string" && activity.schedule.includes(":")
+      ? activity.schedule
+      : "00:00";
+  const parsedDate = typeof activity.schedule === "object" && activity.schedule?.start_date
+    ? activity.schedule.start_date
+    : new Date().toISOString().split("T")[0];
+  
+  const [startHours, setStartHours] = useState(parsedTime.split(":")[0]);
+  const [startMinutes, setStartMinutes] = useState(parsedTime.split(":")[1]);
+  const [startDate, setStartDate] = useState(parsedDate);
+  const todayStr = new Date().toLocaleDateString("en-CA");
+  const isToday = startDate === todayStr;
+  const nowHour = new Date().getHours();
+  const nowMin = new Date().getMinutes();
+  const [recurHours, setRecurHours] = useState(() => {
+    const mins = activity.duration_minutes;
+    if (!mins) return "2";
+    return String(Math.floor(mins / 60));
+  });
+  const [recurMinutes, setRecurMinutes] = useState(() => {
+    const mins = activity.duration_minutes;
+    if (!mins) return "0";
+    return String(mins % 60);
+  });
   const [pointsPerParticipant, setPointsPerParticipant] = useState(activity.points_per_participant);
   const [partySize, setPartySize] = useState<number | null>(activity.party_size ?? null);
   const [category, setCategory] = useState(activity.category || "");
@@ -43,15 +71,21 @@ export function EditActivityForm({ activity, gameSlug, serverId, onSaved, onCanc
   const handleSave = async () => {
     setSaving(true);
     try {
-      let processedSchedule = schedule;
+      let processedSchedule: any = null;
       if (scheduleType === "fixed_schedule" && Array.isArray(schedule) && schedule.length > 0) {
         processedSchedule = schedule.map((s: ScheduleSlot) => localSlotToUtc(s.day, s.time));
+      } else if (scheduleType === "fixed_hours" || scheduleType === "one_time") {
+        processedSchedule = {
+          time: `${String(startHours).padStart(2, "0")}:${String(startMinutes).padStart(2, "0")}`,
+          start_date: startDate,
+        };
       }
 
       const payload: Record<string, any> = {
         name: name.trim(),
         schedule_type: scheduleType,
         schedule: processedSchedule ?? null,
+        duration_minutes: scheduleType === "fixed_hours" ? (parseInt(recurHours) || 0) * 60 + (parseInt(recurMinutes) || 0) : null,
         points_per_participant: isNaN(Number(pointsPerParticipant)) ? 1 : Number(pointsPerParticipant),
         party_size: partySize,
         category: category || null,
@@ -89,30 +123,43 @@ export function EditActivityForm({ activity, gameSlug, serverId, onSaved, onCanc
           <select value={scheduleType} onChange={e => setScheduleType(e.target.value)} className="w-full px-2.5 py-2 bg-[#09090b] border border-[#3f3f46] rounded text-sm text-[#fafafa] focus:outline-none focus:ring-1 focus:ring-[#52525b]">
             <option value="fixed_hours">Fixed Hours</option>
             <option value="fixed_schedule">Fixed Schedule</option>
+            <option value="one_time">One Time</option>
           </select>
         </div>
-        {scheduleType === "fixed_hours" && (
-          <div className="col-span-2">
-            <label className="block text-xs text-[#71717a] mb-1">Start Time</label>
-            <div className="flex items-center gap-2">
-              <div className="flex items-center gap-1">
-                {(() => {
-                  const startStr = typeof schedule === "string" ? schedule : "00:00";
-                  const [h, m] = startStr.split(":").map(Number);
-                  return (
-                    <>
-                      <select value={h || 0} onChange={e => setSchedule(`${e.target.value}:${m || 0}`.replace(/:\d+$/, s => s.padStart(2, "0").padStart(3, ":0")))} className="w-20 px-2.5 py-2 bg-[#09090b] border border-[#3f3f46] rounded text-sm text-[#fafafa] focus:outline-none focus:ring-1 focus:ring-[#52525b]">
-                        {Array.from({ length: 24 }, (_, i) => i).map(h => <option key={h} value={h}>{h}h</option>)}
-                      </select>
-                      <select value={m || 0} onChange={e => setSchedule(`${h || 0}:${e.target.value}`)} className="w-16 px-2.5 py-2 bg-[#09090b] border border-[#3f3f46] rounded text-sm text-[#fafafa] focus:outline-none focus:ring-1 focus:ring-[#52525b]">
-                        {[0, 15, 30, 45].map(m => <option key={m} value={m}>{m}m</option>)}
-                      </select>
-                    </>
-                  );
-                })()}
-              </div>
+        {(scheduleType === "fixed_hours" || scheduleType === "one_time") && (
+          <>
+          <div>
+            <label className="block text-xs text-[#71717a] mb-0.5">Start Date</label>
+            <input type="date" min={todayStr} value={startDate} onChange={e => setStartDate(e.target.value)} className="w-full px-2.5 py-2 bg-[#09090b] border border-[#3f3f46] rounded text-sm text-[#fafafa] focus:outline-none focus:ring-1 focus:ring-[#52525b] [color-scheme:dark]" />
+          </div>
+          <div>
+            <label className="block text-xs text-[#71717a] mb-0.5">Start Time</label>
+            <div className="flex items-center gap-1">
+              <select value={startHours} onChange={e => setStartHours(e.target.value)} className="w-20 px-2.5 py-2 bg-[#09090b] border border-[#3f3f46] rounded text-sm text-[#fafafa] focus:outline-none focus:ring-1 focus:ring-[#52525b]">
+                {Array.from({ length: 24 }, (_, i) => i)
+                  .filter(h => !isToday || h >= nowHour)
+                  .map(h => <option key={h} value={h}>{String(h).padStart(2,"0")}h</option>)}
+              </select>
+              <select value={startMinutes} onChange={e => setStartMinutes(e.target.value)} className="w-16 px-2.5 py-2 bg-[#09090b] border border-[#3f3f46] rounded text-sm text-[#fafafa] focus:outline-none focus:ring-1 focus:ring-[#52525b]">
+                {Array.from({ length: 60 }, (_, i) => i)
+                  .filter(m => !isToday || Number(startHours) > nowHour || m >= nowMin)
+                  .map(m => <option key={m} value={m}>{String(m).padStart(2,"0")}m</option>)}
+              </select>
             </div>
           </div>
+          {scheduleType === "fixed_hours" && (
+            <div>
+              <label className="block text-xs text-[#71717a] mb-0.5">Recurs every</label>
+              <div className="flex items-center gap-1">
+                <input type="number" min="0" max="168" value={recurHours} onChange={e => setRecurHours(e.target.value)} className="w-16 px-2.5 py-2 bg-[#09090b] border border-[#3f3f46] rounded text-sm text-[#fafafa] focus:outline-none focus:ring-1 focus:ring-[#52525b]" />
+                <span className="text-xs text-[#71717a]">h</span>
+                <select value={recurMinutes} onChange={e => setRecurMinutes(e.target.value)} className="w-16 px-2.5 py-2 bg-[#09090b] border border-[#3f3f46] rounded text-sm text-[#fafafa] focus:outline-none focus:ring-1 focus:ring-[#52525b]">
+                  {Array.from({ length: 60 }, (_, i) => i + 1).map(m => <option key={m} value={m}>{m}m</option>)}
+                </select>
+              </div>
+            </div>
+          )}
+          </>
         )}
         {scheduleType === "fixed_schedule" && (
           <div className="col-span-2">

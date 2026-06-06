@@ -21,15 +21,63 @@ export function calculateActivityInfo(
     };
   }
 
-  // one_time or fixed_hours: schedule is a "HH:MM" string
+  // one_time or fixed_hours: schedule is a "HH:MM" string or {time, start_date} object
   if (activity.schedule_type === "one_time" || activity.schedule_type === "fixed_hours") {
-    const timeStr = typeof activity.schedule === "string" ? activity.schedule : null;
-    const startTime = buildTimeDate(now, timeStr);
+    const raw = activity.schedule;
+    const schedObj = (typeof raw === "object" && raw !== null && !Array.isArray(raw) && "time" in raw) ? raw as { time: string; start_date?: string } : null;
+    const timeStr = schedObj ? schedObj.time : (typeof raw === "string" ? raw : null);
+    const startDateStr = schedObj?.start_date ?? null;
+    const recurMs = (activity.duration_minutes ?? 0) * 60_000;
+
+    let startTime: Date;
+    if (startDateStr) {
+      // Build the initial start time from the configured start_date + time
+      startTime = buildTimeDate(now, timeStr, startDateStr);
+    } else {
+      startTime = buildTimeDate(now, timeStr);
+    }
+
+    // For fixed_hours with start_date: first occurrence = start_date + time (no advance).
+    // After first finish, advance by recurrence interval to find next occurrence.
+    if (activity.schedule_type === "fixed_hours") {
+      const effectiveRecurMs = recurMs > 0 ? recurMs : (startDateStr ? 24 * 60 * 60_000 : 0);
+      const hasBeenFinished = !!lastInstance?.end_time;
+
+      if (hasBeenFinished && effectiveRecurMs > 0) {
+        // After finish: advance from finish time (or base time) by recurrence to find next upcoming
+        const baseTime = lastInstance.end_time ? new Date(lastInstance.end_time) : startTime;
+        const elapsed = now.getTime() - baseTime.getTime();
+        const intervals = Math.ceil(elapsed / effectiveRecurMs);
+        startTime = new Date(baseTime.getTime() + intervals * effectiveRecurMs);
+        if (startTime.getTime() <= now.getTime()) {
+          startTime = new Date(startTime.getTime() + effectiveRecurMs);
+        }
+        return {
+          activity,
+          activityInstance: { id: "", activity_id: activity.id, start_time: startTime.toISOString(), created_at: "" },
+          startTime,
+          status: "countdown",
+        };
+      }
+
+      if (effectiveRecurMs > 0) {
+        // First occurrence: use base time directly (countdown if future, active if now)
+        return {
+          activity,
+          activityInstance: { id: "", activity_id: activity.id, start_time: startTime.toISOString(), created_at: "" },
+          startTime,
+          status: startTime > now ? "countdown" : "active",
+        };
+      }
+    }
+
     return {
       activity,
       activityInstance: { id: "", activity_id: activity.id, start_time: startTime.toISOString(), created_at: "" },
       startTime,
-      status: activity.schedule_type === "one_time" ? (startTime > now ? "countdown" : "active") : "active",
+      status: activity.schedule_type === "one_time"
+        ? (startTime > now ? "countdown" : (lastInstance?.end_time ? "completed" : "active"))
+        : startTime > now ? "countdown" : "active",
     };
   }
 
@@ -53,15 +101,23 @@ export function calculateActivityInfo(
   };
 }
 
-/** Build a Date from a "HH:MM" time string, using today (or tomorrow if already past). */
-function buildTimeDate(now: Date, timeStr: string | null): Date {
+/** Build a Date from a "HH:MM" time string and optional start date. */
+function buildTimeDate(now: Date, timeStr: string | null, startDateStr?: string | null): Date {
   if (!timeStr) return now;
   const [h, m] = timeStr.split(":").map(Number);
-  const d = new Date(now);
-  d.setHours(h, m, 0, 0);
-  // If already past today, move to tomorrow
-  if (d.getTime() <= now.getTime()) {
-    d.setDate(d.getDate() + 1);
+  
+  // Use the configured start date if available, otherwise use today
+  let d: Date;
+  if (startDateStr) {
+    const [y, mo, day] = startDateStr.split("-").map(Number);
+    d = new Date(y, mo - 1, day, h, m, 0, 0);
+  } else {
+    d = new Date(now);
+    d.setHours(h, m, 0, 0);
+    // If already past today, move to tomorrow
+    if (d.getTime() <= now.getTime()) {
+      d.setDate(d.getDate() + 1);
+    }
   }
   return d;
 }

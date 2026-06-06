@@ -12,7 +12,7 @@ import { TIMEZONES } from "@/lib/timezones";
 import { version } from "../../package.json";
 
 export function AdminPanelView() {
-  const [tab, setTab] = useState<"servers" | "users" | "audit" | "games" | "infra" | "database" | "plan" | "cron" | "deleted">("infra");
+  const [tab, setTab] = useState<"servers" | "users" | "audit" | "games" | "infra" | "database" | "cron" | "deleted">("infra");
   const { setCurrentServer, currentServer } = useServer();
   const { userRole, user, signOut } = useAuth();
   const { timezone, setTimezone } = useUserTimezone(currentServer?.timezone);
@@ -80,7 +80,7 @@ export function AdminPanelView() {
     queryKey: ["admin", "plan"],
     queryFn: fetchPlanUsage,
     staleTime: 30_000,
-    enabled: userRole === "admin" && tab === "plan",
+    enabled: userRole === "admin" && tab === "database",
   });
 
   const { data: cronStatus, isLoading: cronLoading } = useQuery({
@@ -297,15 +297,6 @@ export function AdminPanelView() {
         >
           <HardDrive className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           Database
-        </button>
-        <button
-          onClick={() => setTab("plan")}
-          className={`flex items-center justify-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-md text-xs sm:text-sm font-medium transition whitespace-nowrap ${
-            tab === "plan" ? "bg-[#27272a] text-[#fafafa]" : "text-[#a1a1aa] hover:text-[#e4e4e7]"
-          }`}
-        >
-          <BarChart3 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-          Usage
         </button>
         <button
           onClick={() => setTab("cron")}
@@ -792,7 +783,7 @@ export function AdminPanelView() {
       {/* Database Tab */}
       {tab === "database" && (
         <div className="space-y-4">
-          {dbLoading ? (
+          {dbLoading || planLoading ? (
             <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 text-[#71717a] animate-spin" /></div>
           ) : !dbStats ? (
             <p className="text-[#71717a] text-sm text-center py-12">Failed to load database stats.</p>
@@ -801,22 +792,58 @@ export function AdminPanelView() {
               {/* Overview cards */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-4 text-center">
-                  <p className="text-2xl font-bold text-[#fafafa]">{dbStats.db_size || '—'}</p>
-                  <p className="text-[10px] text-[#71717a] mt-1">Total Size</p>
+                  <p className="text-2xl font-bold text-[#fafafa]">{planUsage?.db_size || dbStats.db_size || '—'}</p>
+                  <div className="w-full h-1.5 bg-[#18181b] rounded-full mt-2 overflow-hidden">
+                    <div className="h-full bg-[#a1a1aa] rounded-full" style={{ width: `${Math.min(100, ((planUsage?.db_size_bytes || 0) / (8 * 1024 * 1024 * 1024)) * 100)}%` }} />
+                  </div>
+                  <p className="text-[10px] text-[#71717a] mt-1">DB Size (8 GB limit)</p>
                 </div>
                 <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-4 text-center">
                   <p className="text-2xl font-bold text-[#a1a1aa]">{dbStats.cache_hit_ratio ?? '—'}%</p>
                   <p className="text-[10px] text-[#71717a] mt-1">Cache Hit Ratio</p>
+                  <p className="text-[10px] text-[#52525b] mt-2">{planUsage?.total_rows?.toLocaleString() ?? '—'} rows · {planUsage?.table_count ?? dbStats.table_stats?.length ?? 0} tables</p>
                 </div>
                 <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-4 text-center">
-                  <p className="text-2xl font-bold text-[#a1a1aa]">{dbStats.active_connections ?? '—'}</p>
-                  <p className="text-[10px] text-[#71717a] mt-1">Active Connections</p>
+                  <p className="text-2xl font-bold text-[#fafafa]">{planUsage?.active_connections ?? dbStats.active_connections ?? '—'}<span className="text-sm text-[#71717a]">/{planUsage?.max_connections ?? dbStats.total_connections ?? '—'}</span></p>
+                  <div className="w-full h-1.5 bg-[#18181b] rounded-full mt-2 overflow-hidden flex">
+                    <div className="h-full bg-blue-500 rounded-l-full" style={{ width: `${((planUsage?.active_connections || dbStats.active_connections || 0) / (planUsage?.max_connections || dbStats.total_connections || 1)) * 100}%` }} />
+                    <div className="h-full bg-[#3f3f46] rounded-r-full" style={{ width: `${((planUsage?.idle_connections || 0) / (planUsage?.max_connections || dbStats.total_connections || 1)) * 100}%` }} />
+                  </div>
+                  <div className="flex items-center justify-center gap-3 mt-1.5 text-[10px]">
+                    <span className="text-[#a1a1aa] flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-blue-500 inline-block" />Active: {planUsage?.active_connections ?? dbStats.active_connections ?? 0}</span>
+                    {planUsage?.idle_connections != null && <span className="text-[#71717a] flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-[#3f3f46] inline-block" />Idle: {planUsage.idle_connections}</span>}
+                  </div>
                 </div>
                 <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-4 text-center">
-                  <p className="text-2xl font-bold text-[#a1a1aa]">{dbStats.total_connections ?? '—'}</p>
-                  <p className="text-[10px] text-[#71717a] mt-1">Total Connections</p>
+                  <p className="text-xl font-bold text-[#fafafa]">{planUsage?.auth_users ?? '—'}</p>
+                  <p className="text-[10px] text-[#71717a] mt-1">Auth Users</p>
+                  <p className="text-[10px] text-[#52525b] mt-2">{planUsage?.active_auth_users_30d ?? 0} active 30d</p>
                 </div>
               </div>
+
+              {/* Storage + Row count row */}
+              {planUsage && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-4">
+                    <p className="text-xs text-[#71717a] mb-1">Storage</p>
+                    <p className="text-xl font-bold text-[#fafafa]">{planUsage.storage_size_pretty || '0 bytes'}</p>
+                    <p className="text-[10px] text-[#52525b] mt-2">{planUsage.storage_objects ?? 0} objects</p>
+                  </div>
+                  <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-4">
+                    <h4 className="text-xs font-semibold text-[#71717a] mb-1">Plan Limits (Pro)</h4>
+                    <div className="grid grid-cols-2 gap-1 text-[10px]">
+                      <span className="text-[#71717a]">Database:</span><span className="text-[#fafafa] text-right">8 GB</span>
+                      <span className="text-[#71717a]">Users:</span><span className="text-[#fafafa] text-right">100K</span>
+                      <span className="text-[#71717a]">Storage:</span><span className="text-[#fafafa] text-right">100 GB</span>
+                      <span className="text-[#71717a]">Bandwidth:</span><span className="text-[#fafafa] text-right">250 GB</span>
+                      <span className="text-[#71717a]">Functions:</span><span className="text-[#fafafa] text-right">2M/mo</span>
+                      <span className="text-[#71717a]">Realtime:</span><span className="text-[#fafafa] text-right">500</span>
+                      <span className="text-[#71717a]">API:</span><span className="text-[#fafafa] text-right">Unlimited</span>
+                      <span className="text-[#71717a]">Backups:</span><span className="text-[#fafafa] text-right">7 days</span>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Table sizes */}
               <div>
@@ -846,77 +873,6 @@ export function AdminPanelView() {
 
               <p className="text-[10px] text-[#52525b] text-right">
                 Snapshot at {new Date(dbStats.timestamp).toLocaleString()}
-              </p>
-            </>
-          )}
-        </div>
-      )}
-
-      {/* Plan Usage Tab */}
-      {tab === "plan" && (
-        <div className="space-y-4">
-          {planLoading ? (
-            <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 text-[#71717a] animate-spin" /></div>
-          ) : !planUsage ? (
-            <p className="text-[#71717a] text-sm text-center py-12">Failed to load usage data.</p>
-          ) : (
-            <>
-              {/* Resource cards */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-4">
-                  <p className="text-xs text-[#71717a] mb-1">Database Size</p>
-                  <p className="text-xl font-bold text-[#fafafa]">{planUsage.db_size || '—'}</p>
-                  <div className="w-full h-1.5 bg-[#18181b] rounded-full mt-2 overflow-hidden">
-                    <div className="h-full bg-[#a1a1aa] rounded-full" style={{ width: `${Math.min(100, ((planUsage.db_size_bytes || 0) / (8 * 1024 * 1024 * 1024)) * 100)}%` }} />
-                  </div>
-                  <p className="text-[10px] text-[#52525b] mt-1">Pro plan (8 GB)</p>
-                </div>
-                <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-4">
-                  <p className="text-xs text-[#71717a] mb-1">Auth Users</p>
-                  <p className="text-xl font-bold text-[#fafafa]">{planUsage.auth_users ?? '—'}</p>
-                  <p className="text-[10px] text-[#52525b] mt-2">{planUsage.active_auth_users_30d ?? 0} active last 30d</p>
-                </div>
-                <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-4">
-                  <p className="text-xs text-[#71717a] mb-1">Connections</p>
-                  <p className="text-xl font-bold text-[#fafafa]">{planUsage.total_connections}/{planUsage.max_connections}</p>
-                  <div className="w-full h-1.5 bg-[#18181b] rounded-full mt-2 overflow-hidden flex">
-                    <div className="h-full bg-blue-500 rounded-l-full" style={{ width: `${((planUsage.active_connections || 0) / (planUsage.max_connections || 1)) * 100}%` }} />
-                    <div className="h-full bg-[#3f3f46] rounded-r-full" style={{ width: `${((planUsage.idle_connections || 0) / (planUsage.max_connections || 1)) * 100}%` }} />
-                  </div>
-                  <div className="flex items-center gap-3 mt-1.5 text-[10px]">
-                    <span className="text-[#a1a1aa] flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-blue-500 inline-block" />Active: {planUsage.active_connections ?? 0}</span>
-                    <span className="text-[#71717a] flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-[#3f3f46] inline-block" />Idle: {planUsage.idle_connections ?? 0}</span>
-                  </div>
-                </div>
-                <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-4">
-                  <p className="text-xs text-[#71717a] mb-1">Storage</p>
-                  <p className="text-xl font-bold text-[#fafafa]">{planUsage.storage_size_pretty || '0 bytes'}</p>
-                  <p className="text-[10px] text-[#52525b] mt-2">{planUsage.storage_objects ?? 0} objects</p>
-                </div>
-                <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-4">
-                  <p className="text-xs text-[#71717a] mb-1">Total Rows</p>
-                  <p className="text-xl font-bold text-[#fafafa]">{planUsage.total_rows?.toLocaleString() ?? '—'}</p>
-                  <p className="text-[10px] text-[#52525b] mt-2">{planUsage.table_count ?? 0} tables</p>
-                </div>
-              </div>
-
-              {/* Free tier limits reference */}
-              <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-4">
-                <h4 className="text-sm font-semibold text-[#fafafa] mb-2">Plan Limits (Pro)</h4>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-                  <div><span className="text-[#71717a]">Database:</span> <span className="text-[#fafafa]">8 GB</span></div>
-                  <div><span className="text-[#71717a]">Auth Users:</span> <span className="text-[#fafafa]">100K</span></div>
-                  <div><span className="text-[#71717a]">Storage:</span> <span className="text-[#fafafa]">100 GB</span></div>
-                  <div><span className="text-[#71717a]">Bandwidth:</span> <span className="text-[#fafafa]">250 GB</span></div>
-                  <div className="mt-1"><span className="text-[#71717a]">Edge Functions:</span> <span className="text-[#fafafa]">2M/mo</span></div>
-                  <div className="mt-1"><span className="text-[#71717a]">Realtime:</span> <span className="text-[#fafafa]">500 concurrent</span></div>
-                  <div className="mt-1"><span className="text-[#71717a]">API Requests:</span> <span className="text-[#fafafa]">Unlimited</span></div>
-                  <div className="mt-1"><span className="text-[#71717a]">Daily Backups:</span> <span className="text-[#fafafa]">7 days</span></div>
-                </div>
-              </div>
-
-              <p className="text-[10px] text-[#52525b] text-right">
-                Snapshot at {new Date(planUsage.timestamp).toLocaleString()}
               </p>
             </>
           )}
@@ -1080,33 +1036,34 @@ export function AdminPanelView() {
 
       {/* Infra Tab */}
       {tab === "infra" && (
-        <div className="space-y-4">
+        <div className="space-y-3 sm:space-y-4">
+          {/* Bot Logs Terminal */}
           <div className="bg-[#0a0a0a] border border-[#1a1a1a] rounded-xl overflow-hidden shadow-inner">
             {/* Terminal header */}
-            <div className="flex items-center gap-1.5 px-3 py-2 bg-[#0d0d0d] border-b border-[#1a1a1a]">
-              <span className="w-2.5 h-2.5 rounded-full bg-[#ff5f57]"></span>
-              <span className="w-2.5 h-2.5 rounded-full bg-[#febc2e]"></span>
-              <span className="w-2.5 h-2.5 rounded-full bg-[#28c840]"></span>
-              <span className="text-[10px] text-[#52525b] ml-2 font-mono">bot-logs — raidscout-bot</span>
+            <div className="flex items-center gap-1.5 px-2 sm:px-3 py-1.5 sm:py-2 bg-[#0d0d0d] border-b border-[#1a1a1a]">
+              <span className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-[#ff5f57] shrink-0"></span>
+              <span className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-[#febc2e] shrink-0"></span>
+              <span className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-[#28c840] shrink-0"></span>
+              <span className="text-[9px] sm:text-[10px] text-[#52525b] ml-1 sm:ml-2 font-mono truncate">bot-logs — raidscout-bot</span>
               <div className="flex-1" />
-              <button onClick={() => refetchLogs()} className="p-0.5 rounded text-[#52525b] hover:text-[#a1a1aa] transition" title="Refresh">
+              <button onClick={() => refetchLogs()} className="p-0.5 rounded text-[#52525b] hover:text-[#a1a1aa] transition shrink-0" title="Refresh">
                 <RefreshCw className="w-3 h-3" />
               </button>
             </div>
             {/* Terminal body */}
-            <div ref={logScrollRef} className="h-96 overflow-y-auto font-mono text-[11px] leading-relaxed p-2">
+            <div ref={logScrollRef} className="h-72 sm:h-96 overflow-y-auto font-mono text-[10px] sm:text-[11px] leading-relaxed p-1.5 sm:p-2">
               {logsLoading ? (
                 <div className="flex justify-center py-6"><Loader2 className="w-4 h-4 text-[#52525b] animate-spin" /></div>
               ) : !botLogs?.logs?.length ? (
                 <p className="text-[#3a3a3a] px-2 py-6 text-center select-none">No logs yet — waiting for bot events...</p>
               ) : (
                 botLogs.logs.map((l: any, i: number) => (
-                  <div key={i} className="flex gap-1.5 py-[1px] hover:bg-[#0d0d0d]">
-                    <span className="text-[#404040] shrink-0 w-[60px] sm:w-[85px] select-none">{l.ts ? new Date(l.ts).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", second: "2-digit", timeZone: timezone }) : "--:--:--"}</span>
-                    <span className={`shrink-0 w-10 text-right select-none ${
+                  <div key={i} className="flex gap-1 sm:gap-1.5 py-[1px] hover:bg-[#0d0d0d]">
+                    <span className="text-[#404040] shrink-0 w-[52px] sm:w-[75px] select-none">{l.ts ? new Date(l.ts).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", second: "2-digit", timeZone: timezone }) : "--:--:--"}</span>
+                    <span className={`shrink-0 w-8 sm:w-10 text-right select-none text-[10px] sm:text-[11px] ${
                       l.level === "error" ? "text-[#ff5f57]" : l.level === "warn" ? "text-[#febc2e]" : "text-[#52525b]"
                     }`}>{l.level}</span>
-                    <span className={`truncate ${
+                    <span className={`truncate text-[10px] sm:text-[11px] ${
                       l.level === "error" ? "text-[#ff5f57]" : l.level === "warn" ? "text-[#febc2e]" : "text-[#a1a1aa]"
                     }`}>{l.msg}</span>
                   </div>
@@ -1114,6 +1071,8 @@ export function AdminPanelView() {
               )}
             </div>
           </div>
+
+          {/* Bot Status Header */}
           <div className="flex items-center justify-between">
             <h4 className="text-sm font-semibold text-[#fafafa]">Bot Status</h4>
             <button onClick={() => refetchBot()} className="p-1 rounded text-[#a1a1aa] hover:text-[#fafafa] transition" title="Refresh">
@@ -1126,65 +1085,72 @@ export function AdminPanelView() {
             <p className="text-[#71717a] text-sm text-center py-12">Bot unreachable.</p>
           ) : (
             <>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
-                <div className={`bg-[#18181b] border rounded-xl p-3 sm:p-4 text-center ${botStatus.discord_connected ? 'border-emerald-500/30' : 'border-[#27272a]'}`}>
-                  <div className={`w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full mx-auto mb-1.5 sm:mb-2 ${botStatus.discord_connected ? 'bg-emerald-400 animate-pulse' : 'bg-[#71717a]'}`} />
-                  <p className={`text-sm sm:text-lg font-bold ${botStatus.discord_connected ? 'text-emerald-300' : 'text-[#f87171]'}`}>
+              {/* Status Cards — 2-col on mobile, 4-col on desktop */}
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
+                <div className={`bg-[#18181b] border rounded-xl p-2 sm:p-4 text-center ${botStatus.discord_connected ? 'border-emerald-500/30' : 'border-[#27272a]'}`}>
+                  <div className={`w-2 h-2 sm:w-3 sm:h-3 rounded-full mx-auto mb-1 sm:mb-2 ${botStatus.discord_connected ? 'bg-emerald-400 animate-pulse' : 'bg-[#71717a]'}`} />
+                  <p className={`text-xs sm:text-lg font-bold ${botStatus.discord_connected ? 'text-emerald-300' : 'text-[#f87171]'}`}>
                     {botStatus.discord_connected ? 'ONLINE' : 'OFFLINE'}
                   </p>
-                  <p className="text-[9px] sm:text-[10px] text-[#71717a] mt-0.5 sm:mt-1">Discord Gateway</p>
+                  <p className="text-[9px] sm:text-[10px] text-[#71717a] mt-0.5 sm:mt-1">Discord</p>
                 </div>
-                <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-3 sm:p-4 text-center">
-                  <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#a1a1aa] mx-auto mb-1.5 sm:mb-2" />
-                  <p className="text-[11px] sm:text-xs text-[#d4d4d8] font-mono truncate">{botStatus.uptime_display}</p>
+                <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-2 sm:p-4 text-center">
+                  <Clock className="w-3 h-3 sm:w-4 sm:h-4 text-[#a1a1aa] mx-auto mb-1 sm:mb-2" />
+                  <p className="text-[10px] sm:text-xs text-[#d4d4d8] font-mono truncate">{botStatus.uptime_display}</p>
                   <p className="text-[9px] sm:text-[10px] text-[#71717a] mt-0.5 sm:mt-1">Uptime</p>
                 </div>
-                <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-3 sm:p-4 text-center">
-                  <HardDrive className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#a1a1aa] mx-auto mb-1.5 sm:mb-2" />
+                <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-2 sm:p-4 text-center">
+                  <HardDrive className="w-3 h-3 sm:w-4 sm:h-4 text-[#a1a1aa] mx-auto mb-1 sm:mb-2" />
                   <p className="text-xs sm:text-lg font-bold text-[#d4d4d8] truncate">{botStatus.memory_mb} / 512 MB</p>
                   <p className="text-[9px] sm:text-[10px] text-[#71717a] mt-0.5 sm:mt-1">Memory</p>
                 </div>
-                <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-3 sm:p-4 text-center">
-                  <Radio className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#a1a1aa] mx-auto mb-1.5 sm:mb-2" />
-                  <p className="text-[11px] sm:text-xs text-[#d4d4d8] font-mono truncate">{botStatus.region} · 2 vCPU</p>
+                <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-2 sm:p-4 text-center">
+                  <Radio className="w-3 h-3 sm:w-4 sm:h-4 text-[#a1a1aa] mx-auto mb-1 sm:mb-2" />
+                  <p className="text-[10px] sm:text-xs text-[#d4d4d8] font-mono truncate">{botStatus.region} · 2 vCPU</p>
                   <p className="text-[9px] sm:text-[10px] text-[#71717a] mt-0.5 sm:mt-1">Machine</p>
                 </div>
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-3 text-center">
-                  <p className="text-xs text-[#d4d4d8] font-mono">{botStatus.node_version}</p>
-                  <p className="text-[10px] text-[#71717a] mt-0.5">Node.js</p>
+
+              {/* Extra Info Cards — 3-col on all screens */}
+              <div className="grid grid-cols-3 gap-2 sm:gap-3">
+                <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-2 sm:p-3 text-center">
+                  <p className="text-[10px] sm:text-xs text-[#d4d4d8] font-mono truncate">{botStatus.node_version}</p>
+                  <p className="text-[9px] sm:text-[10px] text-[#71717a] mt-0.5">Node.js</p>
                 </div>
-                <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-3 text-center">
-                  <p className="text-xs text-[#d4d4d8] font-mono">fly.io</p>
-                  <p className="text-[10px] text-[#71717a] mt-0.5">Platform</p>
+                <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-2 sm:p-3 text-center">
+                  <p className="text-[10px] sm:text-xs text-[#d4d4d8] font-mono">fly.io</p>
+                  <p className="text-[9px] sm:text-[10px] text-[#71717a] mt-0.5">Platform</p>
                 </div>
-                <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-3 text-center">
-                  <p className="text-xs text-[#d4d4d8] font-mono">sin</p>
-                  <p className="text-[10px] text-[#71717a] mt-0.5">Region</p>
+                <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-2 sm:p-3 text-center">
+                  <p className="text-[10px] sm:text-xs text-[#d4d4d8] font-mono">sin</p>
+                  <p className="text-[9px] sm:text-[10px] text-[#71717a] mt-0.5">Region</p>
                 </div>
               </div>
+
+              {/* Spawn Cron */}
               <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-3 sm:p-4">
-                <h5 className="text-xs font-semibold text-[#d4d4d8] mb-3">Spawn Cron</h5>
+                <h5 className="text-xs font-semibold text-[#d4d4d8] mb-2 sm:mb-3">Spawn Cron</h5>
                 <div className="grid grid-cols-3 gap-2 sm:gap-4 text-center">
                   <div>
-                    <p className="text-base sm:text-lg font-bold text-[#d4d4d8] font-mono">{botStatus.spawn_cron?.last_tick_seconds_ago ?? "—"}s</p>
+                    <p className="text-sm sm:text-lg font-bold text-[#d4d4d8] font-mono">{botStatus.spawn_cron?.last_tick_seconds_ago ?? "—"}s</p>
                     <p className="text-[9px] sm:text-[10px] text-[#71717a]">Last Tick</p>
                   </div>
                   <div>
-                    <p className="text-base sm:text-lg font-bold text-[#d4d4d8]">{botStatus.spawn_cron?.servers_checked}</p>
+                    <p className="text-sm sm:text-lg font-bold text-[#d4d4d8]">{botStatus.spawn_cron?.servers_checked}</p>
                     <p className="text-[9px] sm:text-[10px] text-[#71717a]">Servers</p>
                   </div>
                   <div>
-                    <p className="text-base sm:text-lg font-bold text-[#d4d4d8]">{botStatus.spawn_cron?.bosses_checked}</p>
+                    <p className="text-sm sm:text-lg font-bold text-[#d4d4d8]">{botStatus.spawn_cron?.bosses_checked}</p>
                     <p className="text-[9px] sm:text-[10px] text-[#71717a]">Bosses</p>
                   </div>
                 </div>
               </div>
+
               <p className="text-[10px] text-[#52525b]">Auto-refreshes every 15s.</p>
+
               {/* Maintenance Mode */}
               <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-3 sm:p-4 space-y-3">
-                <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:justify-between">
+                <div className="flex flex-col gap-2">
                   <div>
                     <h4 className="text-sm font-semibold text-[#fafafa]">Maintenance Mode</h4>
                     <p className="text-[10px] sm:text-xs text-[#71717a]">Block all non-admin users. Set an end time so users know when to return.</p>
@@ -1201,7 +1167,7 @@ export function AdminPanelView() {
                       }
                       setMaintenance(!maintenance);
                     }}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition self-start ${
                       maintenance
                         ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/20"
                         : "bg-amber-500/10 text-amber-400 border border-amber-500/30 hover:bg-amber-500/20"
@@ -1211,11 +1177,11 @@ export function AdminPanelView() {
                   </button>
                 </div>
                 {!maintenance && (
-                  <div className="flex flex-col sm:flex-row gap-2">
+                  <div className="flex flex-col gap-2">
                     <input type="date" value={maintEndDate} onChange={e => setMaintEndDate(e.target.value)}
-                      className="w-full sm:w-auto px-2 py-1.5 bg-[#09090b] border border-[#27272a] rounded text-xs text-[#fafafa]" />
+                      className="w-full px-2 py-1.5 bg-[#09090b] border border-[#27272a] rounded text-xs text-[#fafafa]" />
                     <input type="time" value={maintEndTime} onChange={e => setMaintEndTime(e.target.value)}
-                      className="w-full sm:w-auto px-2 py-1.5 bg-[#09090b] border border-[#27272a] rounded text-xs text-[#fafafa]" />
+                      className="w-full px-2 py-1.5 bg-[#09090b] border border-[#27272a] rounded text-xs text-[#fafafa]" />
                   </div>
                 )}
               </div>

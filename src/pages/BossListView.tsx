@@ -27,7 +27,8 @@ import {
   uploadRallyImage,
   addRallyImageToDeath,
 } from "@/lib/supabase";
-import { createCustomBoss, finishActivity } from "@/lib/supabase";
+import { createCustomBoss, finishActivity, recordActivityEnd } from "@/lib/supabase";
+import { calculateActivityInfo } from "@/lib/activityCalculator";
 import { BossCard } from "@/components/BossCard";
 import { DeathRecordModal } from "@/components/DeathRecordModal";
 import { FilterBar } from "@/components/FilterBar";
@@ -40,7 +41,7 @@ import { emitSpawnAlert } from "@/hooks/useSpawnAlerts";
 import { guildColor } from "@/lib/constants";
 import { getOwnerGuildName, getRotationInfo } from "@/lib/rotation";
 import { Skull, Loader2, X, CheckCircle, AlertTriangle, CheckSquare, Megaphone, Volume2, VolumeX, Eye, Copy, Settings, Search } from "lucide-react";
-import type { BossWithSpawn, BossGuild, Guild, DeathRecord, SpawnStatus } from "@/types";
+import type { BossWithSpawn, BossGuild, Guild, DeathRecord, SpawnStatus, ActivityInstance } from "@/types";
 
 const sentAlerts = new Set<string>();
 
@@ -193,7 +194,7 @@ export function BossListView() {
 
   const { spawns, isLoading } = useBossSpawns(searchText, filterType, refreshKey);
   const { data: deathRecords = [] } = useDeathRecords();
-  const { activities = [], isLoading: activitiesLoading } = useActivities();
+  const { activities = [], activityInstances = [], isLoading: activitiesLoading } = useActivities();
 
   const bulkBoss = useMemo(() => {
     if (selectedIds.size === 0) return null;
@@ -391,9 +392,27 @@ export function BossListView() {
       try {
         await finishActivity(activityId);
         await queryClient.invalidateQueries({ queryKey: ["activities"] });
+        await queryClient.invalidateQueries({ queryKey: ["activity_instances"] });
         setToast({ type: "success", message: "Activity finished!" });
       } catch (err: any) {
         setToast({ type: "error", message: err?.message ?? "Failed to finish activity" });
+      }
+    },
+    [queryClient]
+  );
+
+  const handleRecordActivityEnd = useCallback(
+    async (activityId: string, endTime: Date, _rallyImages: File[], attendeeIds: string[]) => {
+      try {
+        await recordActivityEnd(activityId, endTime, attendeeIds);
+        await queryClient.invalidateQueries({ queryKey: ["activities"] });
+        await queryClient.invalidateQueries({ queryKey: ["activity_instances"] });
+        setToast({
+          type: "success",
+          message: `Activity ended${attendeeIds.length > 0 ? ` with ${attendeeIds.length} attendee${attendeeIds.length !== 1 ? "s" : ""}` : ""}!`,
+        });
+      } catch (err: any) {
+        setToast({ type: "error", message: err?.message ?? "Failed to record activity end" });
       }
     },
     [queryClient]
@@ -787,41 +806,25 @@ export function BossListView() {
                 </span>
               </h3>
               <div className="grid gap-2 sm:gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {activities.map((a) => {
-                  // Calculate next occurrence for scheduled activities
-                  let nextSpawn: Date | null = null;
-                  let status: SpawnStatus = "alive";
-                  const now = new Date();
-                  if (a.schedule_type === "fixed_schedule" && Array.isArray(a.schedule) && a.schedule.length > 0) {
-                    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-                    const candidates: Date[] = [];
-                    const schedule = a.schedule as { day: number; time: string }[];
-                    for (const slot of schedule) {
-                      const [h, m] = slot.time.split(":").map(Number);
-                      const candidate = new Date(today);
-                      candidate.setDate(today.getDate() + ((slot.day + 7 - today.getDay()) % 7));
-                      candidate.setHours(h, m, 0, 0);
-                      if (candidate.getTime() <= now.getTime()) {
-                        candidate.setDate(candidate.getDate() + 7);
-                      }
-                      candidates.push(candidate);
+                {(() => {
+                  // Build last-instance lookup from fetched instances
+                  const lastInstanceMap = new Map<string, ActivityInstance | null>();
+                  for (const inst of activityInstances) {
+                    if (typeof inst.activity_id === "string" && !lastInstanceMap.has(inst.activity_id)) {
+                      lastInstanceMap.set(inst.activity_id, inst);
                     }
-                    candidates.sort((x, y) => x.getTime() - y.getTime());
-                    nextSpawn = candidates[0];
-                    status = "countdown";
-                  } else if (a.schedule_type === "one_time" && typeof a.schedule === "string" && a.schedule) {
-                    // One-time: parse "HH:MM" start time
-                    const [h, m] = (a.schedule as string).split(":").map(Number);
-                    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-                    const startTime = new Date(today);
-                    startTime.setHours(h, m, 0, 0);
-                    // If already past today, move to tomorrow
-                    if (startTime.getTime() <= now.getTime()) {
-                      startTime.setDate(startTime.getDate() + 1);
-                    }
-                    nextSpawn = startTime;
-                    status = "countdown";
                   }
+                  return activities.map((a) => {
+                  // Use the centralized activity calculator
+                  const now = new Date();
+                  const lastInst = lastInstanceMap.get(a.id) ?? null;
+                  const info = calculateActivityInfo(a, lastInst, now);
+                  const nextSpawn = info.startTime;
+                  // Only mark as "alive" (running) when a user actually started the activity
+                  const isRunning = lastInst && lastInst.start_time && !lastInst.end_time;
+                  const status: SpawnStatus = isRunning ? "alive" : "countdown";
+                  // For fixed_hours: hide creation time/date after first finish (recurrence handles it)
+                  const hideScheduleTime = a.schedule_type === "fixed_hours" && lastInst?.end_time != null;
                   const activitySpawn: BossWithSpawn = {
                     boss: {
                       id: a.id,
@@ -851,6 +854,7 @@ export function BossListView() {
                       activity={a}
                       onRecordDeath={handleRecordDeath}
                       onFinishActivity={handleFinishActivity}
+                      onRecordEnd={handleRecordActivityEnd}
                       onEditActivityTime={handleEditActivityTime}
                       multiMode={false}
                       selected={false}
@@ -858,9 +862,10 @@ export function BossListView() {
                       viewerCanMarkDied={viewerCanMarkDied}
                       justKilled={false}
                       hasGuilds={false}
+                      hideScheduleTime={hideScheduleTime}
                     />
                   );
-                })}
+                })})()}
               </div>
             </section>
           )}

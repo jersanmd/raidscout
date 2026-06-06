@@ -164,6 +164,12 @@ export function ActivityGuildsTab() {
                     onClick={() => setExpandedActivity(isExpanded ? null : activity.id)}
                     className="w-full flex items-center gap-2 px-4 py-3 hover:bg-[#27272a]/30 transition text-left"
                   >
+                    <span className={`w-2 h-2 rounded-full shrink-0 ${
+                      activity.schedule_type === "fixed_hours" ? "bg-emerald-400" :
+                      activity.schedule_type === "fixed_schedule" ? "bg-violet-400" :
+                      activity.schedule_type === "one_time" ? "bg-amber-400" :
+                      "bg-[#52525b]"
+                    }`} />
                     <span className="text-xs text-[#fafafa] font-medium flex-1 truncate">{activity.name}</span>
                     <span className={`text-xs px-1.5 py-0.5 rounded ${
                       mode === "rotation" ? "text-[#a1a1aa] bg-[#18181b]" :

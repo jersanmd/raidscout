@@ -167,6 +167,7 @@ export interface WeekDaySpawns {
   date: Date;
   isToday: boolean;
   spawns: SpawnInfo[];
+  activities: ActivityInfo[];
 }
 
 // ── Point Rules ─────────────────────────────────────────────

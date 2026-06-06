@@ -98,7 +98,7 @@ export async function createCustomActivity(
   serverId: string,
   data: {
     name: string; schedule_type: string; schedule?: any;
-    points_per_participant?: number;
+    points_per_participant?: number; duration_minutes?: number | null;
     party_size?: number | null; category?: string | null; tags?: string[];
     image_url?: string | null;
   }
@@ -107,11 +107,18 @@ export async function createCustomActivity(
     p_server_id: serverId, p_name: data.name, p_schedule_type: data.schedule_type,
     p_schedule: data.schedule ?? null,
     p_points_per_participant: data.points_per_participant ?? 1,
+    p_duration_minutes: data.duration_minutes ?? null,
     p_party_size: data.party_size ?? null,
     p_category: data.category ?? null, p_tags: data.tags ?? [],
     p_image_url: data.image_url ?? null,
   });
   if (error) throw error;
+  
+  // If RPC doesn't support duration_minutes yet, set it via direct UPDATE
+  if (data.duration_minutes != null) {
+    await supabase.from("activities").update({ duration_minutes: data.duration_minutes }).eq("id", id as string);
+  }
+  
   return { id: id as string } as Activity;
 }
 
@@ -152,6 +159,50 @@ export async function finishActivity(activityId: string): Promise<void> {
     end_time: now,
   });
   if (error) throw error;
+}
+
+/** Record an activity end with a custom time and attendance. */
+export async function recordActivityEnd(
+  activityId: string,
+  endTime: Date,
+  attendeeIds: string[]
+): Promise<string> {
+  const { data: activity } = await supabase.from("activities").select("schedule_type").eq("id", activityId).single();
+  if (!activity) throw new Error("Activity not found");
+
+  if (activity.schedule_type === "one_time") {
+    const { error } = await supabase.from("activities").update({ is_enabled: false }).eq("id", activityId);
+    if (error) throw error;
+  }
+
+  const endTimeStr = endTime.toISOString();
+  // Create the activity instance with start_time = end_time (since we don't track actual start)
+  const { data: instance, error: insertErr } = await supabase
+    .from("activity_instances")
+    .insert({
+      activity_id: activityId,
+      start_time: endTimeStr,
+      end_time: endTimeStr,
+    })
+    .select()
+    .single();
+  if (insertErr || !instance) throw insertErr ?? new Error("Failed to create activity instance");
+
+  // Record attendance
+  const serverId = getCurrentServerId();
+  for (const memberId of attendeeIds) {
+    try {
+      await supabase.from("activity_attendance").insert({
+        activity_instance_id: instance.id,
+        member_id: memberId,
+        server_id: serverId,
+      });
+    } catch (err) {
+      console.error("Failed to add activity attendance for member:", memberId, err);
+    }
+  }
+
+  return instance.id;
 }
 
 // ── Spawn Overrides ─────────────────────────────────────────

@@ -46,7 +46,7 @@ export function CountdownTimer({ target, bossName, onUrgent, onCritical, onSpawn
 
   if (timer.isPast) {
     return (
-      <span className="text-[#a1a1aa] font-mono font-medium text-base animate-pulse drop-">
+      <span className="text-emerald-400 font-mono font-medium text-base animate-pulse">
         Spawned
       </span>
     );
@@ -56,11 +56,11 @@ export function CountdownTimer({ target, bossName, onUrgent, onCritical, onSpawn
     <span
       className={`font-mono font-medium tabular-nums text-base tracking-tight ${
         isCritical
-          ? "text-[#a1a1aa] animate-pulse drop-"
+          ? "text-red-500 animate-pulse"
           : isUrgent
-            ? "text-[#a1a1aa] animate-pulse drop-"
+            ? "text-red-400 animate-pulse"
             : timer.totalSeconds < 3600
-              ? "text-[#a1a1aa] drop-"
+              ? "text-amber-400"
               : "text-[#fafafa]"
       }`}
     >

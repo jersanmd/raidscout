@@ -22,13 +22,15 @@ import {
   advanceBossRotation,
   uploadRallyImage,
   addRallyImageToDeath,
+  recordActivityEnd,
 } from "@/lib/supabase";
-import { Loader2, Users, X, Calendar } from "lucide-react";
+import { Loader2, Users, X, Calendar, CheckCheck } from "lucide-react";
 import { SavingOverlay } from "@/components/SavingOverlay";
 import { useUserTimezone } from "@/hooks/useUserTimezone";
 import { getOwnerGuildName as getOwnerGuildNameLib } from "@/lib/rotation";
 import { useActivities } from "@/hooks/useActivities";
-import type { WeekDaySpawns, SpawnInfo, Boss, BossGuild, Guild } from "@/types";
+import { calculateActivityInfo } from "@/lib/activityCalculator";
+import type { WeekDaySpawns, SpawnInfo, Boss, BossGuild, Guild, ActivityInstance, ActivityInfo, Activity } from "@/types";
 
 export function WeeklyScheduleView() {
   const { currentServer } = useServer();
@@ -73,6 +75,16 @@ export function WeeklyScheduleView() {
 
   // Selected boss for "Mark as Died" modal (with optional spawn time for schedule bosses)
   const [markBoss, setMarkBoss] = useState<{ boss: Boss; spawnTime?: Date } | null>(null);
+
+  // Selected activity for "Record End" modal
+  const [markActivity, setMarkActivity] = useState<{ activity: Activity; activityName: string } | null>(null);
+
+  // Selected activity instance for participant modal (finished activities)
+  const [selectedActivityInstance, setSelectedActivityInstance] = useState<{
+    activityInstanceId: string;
+    activityName: string;
+    endTime: string;
+  } | null>(null);
 
   // Global saving overlay
   const [savingMessage, setSavingMessage] = useState<string | null>(null);
@@ -303,11 +315,60 @@ export function WeeklyScheduleView() {
         date,
         isToday,
         spawns: daySpawns,
+        activities: [],
       });
     }
 
+    // ── Activities: slot into the correct day ──────────────
+    const lastInstanceMap = new Map<string, ActivityInstance>();
+    const activityMap = new Map<string, Activity>();
+    for (const a of activities) activityMap.set(a.id, a);
+    for (const inst of activityInstances) {
+      const existing = lastInstanceMap.get(inst.activity_id);
+      if (!existing || new Date(inst.start_time) > new Date(existing.start_time)) {
+        lastInstanceMap.set(inst.activity_id, inst);
+      }
+    }
+
+    for (const a of activities) {
+      // Include enabled activities + finished ones (one_time gets disabled after finish)
+      const info = calculateActivityInfo(a, lastInstanceMap.get(a.id) ?? null);
+      if (!a.is_enabled && !lastInstanceMap.get(a.id)?.end_time) continue;
+      const activityDate = info.startTime;
+      // Find which day this activity falls on
+      for (const day of days) {
+        if (activityDate.toDateString() === day.date.toDateString()) {
+          day.activities.push(info);
+          break;
+        }
+      }
+    }
+
+    // ── Finished activity instances (like death records) ──
+    // Only add for activities where calculateActivityInfo didn't already return completed
+    for (const inst of activityInstances) {
+      if (!inst.end_time) continue;
+      const activity = activityMap.get(inst.activity_id);
+      if (!activity) continue;
+      const calcInfo = calculateActivityInfo(activity, lastInstanceMap.get(activity.id) ?? null);
+      if (calcInfo.status === "completed") continue; // already handled above
+      
+      const endDate = new Date(inst.end_time);
+      for (const day of days) {
+        if (endDate.toDateString() === day.date.toDateString()) {
+          day.activities.push({
+            activity,
+            activityInstance: inst,
+            startTime: endDate,
+            status: "completed" as const,
+          });
+          break;
+        }
+      }
+    }
+
     return days;
-  }, [bosses, deathRecords, weekOffset]);
+  }, [bosses, deathRecords, weekOffset, activities, activityInstances]);
 
   const isLoading = bossesLoading || recordsLoading;
 
@@ -364,75 +425,89 @@ export function WeeklyScheduleView() {
               )}
             </div>
 
-            {day.spawns.length === 0 ? (
-              <p className="text-[#52525b] text-sm">No spawns</p>
+            {day.spawns.length === 0 && day.activities.length === 0 ? (
+              <p className="text-[#52525b] text-sm">No events</p>
             ) : (
               <div className="space-y-2">
-                {day.spawns.map((s, i) => {
-                  const isDeathEvent = s.deathRecord !== null && !s.deathRecord.is_initial_spawn && s.nextSpawn?.getTime() === new Date(s.deathRecord.death_time).getTime();
-                  const isScheduleBoss = s.boss.spawn_type === "fixed_schedule";
+                {(() => {
+                  const items: ({ type: "spawn"; data: SpawnInfo; idx: number } | { type: "activity"; data: typeof day.activities[0]; idx: number })[] = [];
+                  day.spawns.forEach((s, i) => items.push({ type: "spawn", data: s, idx: i }));
+                  day.activities.forEach((info, i) => {
+                    if (info.status !== "countdown" && info.status !== "active" && info.status !== "completed") return;
+                    items.push({ type: "activity", data: info, idx: i });
+                  });
+                  items.sort((a, b) => {
+                    const aTime = a.type === "spawn" ? a.data.nextSpawn?.getTime() ?? 0 : a.data.startTime.getTime();
+                    const bTime = b.type === "spawn" ? b.data.nextSpawn?.getTime() ?? 0 : b.data.startTime.getTime();
+                    return aTime - bTime;
+                  });
 
-                  return (
-                  <div
-                    key={`${s.boss.id}-${i}`}
-                    onClick={() => {
-                      if (isDeathEvent && s.deathRecord) {
-                        setSelectedDeath({
-                          deathRecordId: s.deathRecord.id,
-                          bossName: s.boss.name,
-                          deathTime: s.deathRecord.death_time,
-                          ownerGuildId: s.deathRecord.display_owner_guild_id ?? s.deathRecord.owner_guild_id,
-                        });
-                      } else if (!isViewer || viewerCanMarkDied) {
-                        setMarkBoss({
-                          boss: s.boss,
-                          spawnTime: isScheduleBoss ? s.nextSpawn ?? undefined : undefined,
-                        });
-                      }
-                    }}
-                    className={`flex items-center justify-between py-1.5 px-2 rounded-lg transition-all duration-200 ${
-                      isDeathEvent
-                        ? "bg-[#0d0d10] border border-[#27272a] cursor-pointer hover:bg-[#18181b]"
-                        : (isViewer && !viewerCanMarkDied)
-                        ? "bg-[#18181b] cursor-default opacity-60"
-                        : "bg-[#1c1c20] border border-[#27272a] cursor-pointer hover:bg-[#27272a] hover:border-[#52525b] hover:scale-[1.01]"
-                    }`}
-                  >
-                    <div className="flex items-center gap-2">
-                      <span
-                        className={`w-2 h-2 rounded-full ${
-                          isDeathEvent ? "bg-[#a1a1aa]" :
-                          s.boss.spawn_type === "fixed_schedule"
-                            ? "bg-[#a1a1aa]"
-                            : "bg-[#a1a1aa]"
-                        }`}
-                      />
-                      <span className="text-[#fafafa] text-sm">{s.boss.name}</span>
-                      {isDeathEvent && (
-                        <span className="text-[10px] text-red-400 inline-flex items-center gap-1">Killed <Users className="w-3 h-3" /></span>
-                      )}
-                    </div>
-                    <div className="text-right">
-                      <span className="text-[#a1a1aa] text-sm">
-                        {s.nextSpawn?.toLocaleTimeString("en-US", { timeZone: userTz,
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </span>
-                      {(() => {
-                        let gName: string | null | undefined;
-                        if (isDeathEvent && s.deathRecord) {
-                          gName = guilds.find(g => g.id === (s.deathRecord!.display_owner_guild_id ?? s.deathRecord!.owner_guild_id))?.name;
+                  return items.map((item) => {
+                    if (item.type === "spawn") {
+                      const s = item.data as SpawnInfo;
+                      const isDeathEvent = s.deathRecord !== null && !s.deathRecord.is_initial_spawn && s.nextSpawn?.getTime() === new Date(s.deathRecord.death_time).getTime();
+                      const isScheduleBoss = s.boss.spawn_type === "fixed_schedule";
+                      return (
+                      <div key={`boss-m-${s.boss.id}-${item.idx}`}
+                        onClick={() => {
+                          if (isDeathEvent && s.deathRecord) {
+                            setSelectedDeath({ deathRecordId: s.deathRecord.id, bossName: s.boss.name, deathTime: s.deathRecord.death_time, ownerGuildId: s.deathRecord.display_owner_guild_id ?? s.deathRecord.owner_guild_id });
+                          } else if (!isViewer || viewerCanMarkDied) {
+                            setMarkBoss({ boss: s.boss, spawnTime: isScheduleBoss ? s.nextSpawn ?? undefined : undefined });
+                          }
+                        }}
+                        className={`flex items-center justify-between py-1.5 px-2 rounded-lg transition-all duration-200 ${
+                          isDeathEvent ? "bg-[#0d0d10] border border-[#27272a] cursor-pointer hover:bg-[#18181b]" :
+                          (isViewer && !viewerCanMarkDied) ? "bg-[#18181b] cursor-default opacity-60" :
+                          "bg-[#1c1c20] border border-[#27272a] cursor-pointer hover:bg-[#27272a] hover:border-[#52525b] hover:scale-[1.01]"
+                        }`}>
+                        <div className="flex items-center gap-2">
+                          <span className={`w-2 h-2 rounded-full ${isDeathEvent ? "bg-[#a1a1aa]" : "bg-[#a1a1aa]"}`} />
+                          <span className="text-[#fafafa] text-sm">{s.boss.name}</span>
+                          {isDeathEvent && <span className="text-[10px] text-red-400 inline-flex items-center gap-1">Killed <Users className="w-3 h-3" /></span>}
+                        </div>
+                        <div className="text-right">
+                          <span className="text-[#a1a1aa] text-sm">{s.nextSpawn?.toLocaleTimeString("en-US", { timeZone: userTz, hour: "2-digit", minute: "2-digit" })}</span>
+                          {(() => {
+                            let gName: string | null | undefined;
+                            if (isDeathEvent && s.deathRecord) { gName = guilds.find(g => g.id === (s.deathRecord!.display_owner_guild_id ?? s.deathRecord!.owner_guild_id))?.name; }
+                            else { gName = getOwnerGuildName(s.boss.id, day.day); }
+                            if (!gName) return null;
+                            return <div className={`text-[10px] font-medium ${guildColor(gName).text}`}>{gName}</div>;
+                          })()}
+                        </div>
+                      </div>
+                    );} else {
+                      const info = item.data as typeof day.activities[0];
+                      return (
+                      <button key={`act-m-${item.idx}`} onClick={() => {
+                        if (info.status === "completed" && info.activityInstance?.id) {
+                          setSelectedActivityInstance({ activityInstanceId: info.activityInstance.id, activityName: info.activity.name, endTime: info.activityInstance.end_time ?? info.startTime.toISOString() });
                         } else {
-                          gName = getOwnerGuildName(s.boss.id, day.day);
+                          setMarkActivity({ activity: info.activity, activityName: info.activity.name });
                         }
-                        if (!gName) return null;
-                        return (
-                        <div className={`text-[10px] font-medium ${guildColor(gName).text}`}>{gName}</div>
-                      ); })()}
-                    </div>
-                  </div>
-                )})}
+                      }} className={`w-full text-left flex items-center justify-between text-xs rounded px-2 py-1.5 cursor-pointer hover:brightness-110 transition ${
+                        info.status === "active" ? "bg-emerald-900/20 border border-emerald-800/50" :
+                        info.status === "completed" ? "bg-[#0d0d10] border border-[#27272a]" :
+                        "bg-blue-900/20 border border-blue-800/50"
+                      }`}>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[#fafafa] font-medium truncate">{info.activity.name}</span>
+                            <span className={`shrink-0 ml-2 ${info.status === "active" ? "text-emerald-400" : info.status === "completed" ? "text-[#a1a1aa]" : "text-blue-400"}`}>
+                              {info.status === "countdown" ? info.startTime.toLocaleTimeString("en-US", { timeZone: userTz, hour: "2-digit", minute: "2-digit" }) :
+                               info.status === "active" ? "Active" :
+                               info.startTime.toLocaleTimeString("en-US", { timeZone: userTz, hour: "2-digit", minute: "2-digit" })}
+                            </span>
+                          </div>
+                          {info.status === "completed" && (
+                            <span className="text-[10px] text-red-400 font-medium flex items-center gap-1">Finished <CheckCheck className="w-3 h-3" /></span>
+                          )}
+                        </div>
+                      </button>
+                    );}
+                  });
+                })()}
               </div>
             )}
           </div>
@@ -465,72 +540,115 @@ export function WeeklyScheduleView() {
               </div>
             </div>
 
-            {/* Spawns */}
+            {/* Spawns & Activities — merged and sorted by time */}
             <div className="p-2 space-y-1.5 min-h-[120px]">
-              {day.spawns.length === 0 ? (
-                <p className="text-[#3f3f46] text-xs text-center py-4 italic">No spawns</p>
+              {(day.spawns.length === 0 && day.activities.length === 0) ? (
+                <p className="text-[#3f3f46] text-xs text-center py-4 italic">No events</p>
               ) : (
-                day.spawns.map((s, i) => {
-                  const isDeathEvent = s.deathRecord !== null && !s.deathRecord.is_initial_spawn && s.nextSpawn?.getTime() === new Date(s.deathRecord.death_time).getTime();
-                  const isScheduleBoss = s.boss.spawn_type === "fixed_schedule";
+                (() => {
+                  // Merge spawns and activities into a single time-sorted list
+                  const items: ({ type: "spawn"; data: SpawnInfo; idx: number } | { type: "activity"; data: typeof day.activities[0]; idx: number })[] = [];
+                  day.spawns.forEach((s, i) => items.push({ type: "spawn", data: s, idx: i }));
+                  day.activities.forEach((info, i) => {
+                    if (info.status !== "countdown" && info.status !== "active" && info.status !== "completed") return;
+                    items.push({ type: "activity", data: info, idx: i });
+                  });
+                  items.sort((a, b) => {
+                    const aTime = a.type === "spawn" ? a.data.nextSpawn?.getTime() ?? 0 : a.data.startTime.getTime();
+                    const bTime = b.type === "spawn" ? b.data.nextSpawn?.getTime() ?? 0 : b.data.startTime.getTime();
+                    return aTime - bTime;
+                  });
 
-                  return (
-                  <div
-                    key={`${s.boss.id}-${i}`}
-                    onClick={() => {
-                      if (isDeathEvent && s.deathRecord) {
-                        setSelectedDeath({
-                          deathRecordId: s.deathRecord.id,
-                          bossName: s.boss.name,
-                          deathTime: s.deathRecord.death_time,
-                          ownerGuildId: s.deathRecord.display_owner_guild_id ?? s.deathRecord.owner_guild_id,
-                        });
-                      } else if (!isViewer || viewerCanMarkDied) {
-                        setMarkBoss({
-                          boss: s.boss,
-                          spawnTime: isScheduleBoss ? s.nextSpawn ?? undefined : undefined,
-                        });
-                      }
-                    }}
-                    className={`text-xs rounded px-1.5 py-1 transition-all duration-200 ${
-                      isDeathEvent
-                        ? "bg-[#0d0d10] border border-[#27272a] cursor-pointer hover:bg-[#18181b]"
-                        : (isViewer && !viewerCanMarkDied)
-                        ? "bg-[#18181b] cursor-default opacity-60"
-                        : "bg-[#1c1c20] border border-[#27272a] cursor-pointer hover:bg-[#27272a] hover:border-[#52525b] hover:scale-[1.02]"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="text-[#fafafa] font-medium truncate">
-                        {s.boss.name}
-                      </span>
-                      <div className="text-right shrink-0 ml-1">
-                        <div className="text-[#a1a1aa]">
-                          {s.nextSpawn?.toLocaleTimeString("en-US", { timeZone: userTz,
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
-                        </div>
-                        {(() => {
-                          let gName: string | null | undefined;
+                  return items.map((item) => {
+                    if (item.type === "spawn") {
+                      const s = item.data as SpawnInfo;
+                      const isDeathEvent = s.deathRecord !== null && !s.deathRecord.is_initial_spawn && s.nextSpawn?.getTime() === new Date(s.deathRecord.death_time).getTime();
+                      const isScheduleBoss = s.boss.spawn_type === "fixed_schedule";
+                      return (
+                      <div
+                        key={`boss-${s.boss.id}-${item.idx}`}
+                        onClick={() => {
                           if (isDeathEvent && s.deathRecord) {
-                            gName = guilds.find(g => g.id === (s.deathRecord!.display_owner_guild_id ?? s.deathRecord!.owner_guild_id))?.name;
-                          } else {
-                            gName = getOwnerGuildName(s.boss.id, day.day);
+                            setSelectedDeath({
+                              deathRecordId: s.deathRecord.id,
+                              bossName: s.boss.name,
+                              deathTime: s.deathRecord.death_time,
+                              ownerGuildId: s.deathRecord.display_owner_guild_id ?? s.deathRecord.owner_guild_id,
+                            });
+                          } else if (!isViewer || viewerCanMarkDied) {
+                            setMarkBoss({
+                              boss: s.boss,
+                              spawnTime: isScheduleBoss ? s.nextSpawn ?? undefined : undefined,
+                            });
                           }
-                          if (!gName) return null;
-                          return (
-                          <div className={`text-[9px] font-medium ${guildColor(gName).text}`}>{gName}</div>
-                        ); })()}
+                        }}
+                        className={`text-xs rounded px-1.5 py-1 transition-all duration-200 ${
+                          isDeathEvent
+                            ? "bg-[#0d0d10] border border-[#27272a] cursor-pointer hover:bg-[#18181b]"
+                            : (isViewer && !viewerCanMarkDied)
+                            ? "bg-[#18181b] cursor-default opacity-60"
+                            : "bg-[#1c1c20] border border-[#27272a] cursor-pointer hover:bg-[#27272a] hover:border-[#52525b] hover:scale-[1.02]"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="text-[#fafafa] font-medium truncate">{s.boss.name}</span>
+                          <div className="text-right shrink-0 ml-1">
+                            <div className="text-[#a1a1aa]">
+                              {s.nextSpawn?.toLocaleTimeString("en-US", { timeZone: userTz, hour: "2-digit", minute: "2-digit" })}
+                            </div>
+                            {(() => {
+                              let gName: string | null | undefined;
+                              if (isDeathEvent && s.deathRecord) {
+                                gName = guilds.find(g => g.id === (s.deathRecord!.display_owner_guild_id ?? s.deathRecord!.owner_guild_id))?.name;
+                              } else {
+                                gName = getOwnerGuildName(s.boss.id, day.day);
+                              }
+                              if (!gName) return null;
+                              return <div className={`text-[9px] font-medium ${guildColor(gName).text}`}>{gName}</div>;
+                            })()}
+                          </div>
+                        </div>
+                        {isDeathEvent && (
+                          <span className="text-[10px] text-red-400 font-medium flex items-center gap-1">
+                            Killed <Users className="w-3 h-3" />
+                          </span>
+                        )}
                       </div>
-                    </div>
-                    {isDeathEvent && (
-                      <span className="text-[10px] text-red-400 font-medium flex items-center gap-1">
-                        Killed <Users className="w-3 h-3" />
-                      </span>
-                    )}
-                  </div>
-                )})
+                    )} else {
+                      const info = item.data as typeof day.activities[0];
+                      return (
+                      <button key={`act-${item.idx}`} onClick={() => {
+                        if (info.status === "completed" && info.activityInstance?.id) {
+                          setSelectedActivityInstance({ activityInstanceId: info.activityInstance.id, activityName: info.activity.name, endTime: info.activityInstance.end_time ?? info.startTime.toISOString() });
+                        } else {
+                          setMarkActivity({ activity: info.activity, activityName: info.activity.name });
+                        }
+                      }} className={`w-full text-left text-xs rounded px-1.5 py-1 cursor-pointer hover:brightness-110 transition ${
+                        info.status === "active" ? "bg-emerald-900/20 border border-emerald-800/50" :
+                        info.status === "completed" ? "bg-[#0d0d10] border border-[#27272a]" :
+                        "bg-blue-900/20 border border-blue-800/50"
+                      }`}>
+                        <div className="flex items-center justify-between">
+                          <span className="text-[#fafafa] font-medium truncate">{info.activity.name}</span>
+                          <span className={`shrink-0 ml-1 ${
+                            info.status === "active" ? "text-emerald-400" :
+                            info.status === "completed" ? "text-[#a1a1aa]" :
+                            "text-blue-400"
+                          }`}>
+                            {info.status === "countdown" ? info.startTime.toLocaleTimeString("en-US", { timeZone: userTz, hour: "2-digit", minute: "2-digit" }) :
+                             info.status === "active" ? "Active" :
+                             info.startTime.toLocaleTimeString("en-US", { timeZone: userTz, hour: "2-digit", minute: "2-digit" })}
+                          </span>
+                        </div>
+                        {info.status === "completed" && (
+                          <span className="text-[10px] text-red-400 font-medium flex items-center gap-1">
+                            Finished <CheckCheck className="w-3 h-3" />
+                          </span>
+                        )}
+                      </button>
+                    );}
+                  });
+                })()
               )}
             </div>
           </div>
@@ -560,6 +678,18 @@ export function WeeklyScheduleView() {
         />
       )}
 
+      {/* Activity Instance Participant Modal (finished activities) */}
+      {selectedActivityInstance && (
+        <ParticipantModal
+          deathRecordId={selectedActivityInstance.activityInstanceId}
+          bossName={selectedActivityInstance.activityName}
+          deathTime={selectedActivityInstance.endTime}
+          activityInstanceId={selectedActivityInstance.activityInstanceId}
+          onClose={() => setSelectedActivityInstance(null)}
+          readOnly
+        />
+      )}
+
       {/* Mark as Died Modal */}
       {markBoss && (
         <DeathRecordModal
@@ -571,6 +701,26 @@ export function WeeklyScheduleView() {
           onSubmit={(deathTime, rallyImages, attendeeIds) => {
             handleRecordDeath(markBoss.boss.id, deathTime, rallyImages, attendeeIds);
             setMarkBoss(null);
+          }}
+        />
+      )}
+
+      {/* Record Activity End Modal */}
+      {markActivity && (
+        <DeathRecordModal
+          boss={markActivity.activity as any}
+          isActivity
+          activityName={markActivity.activityName}
+          onClose={() => setMarkActivity(null)}
+          onSubmit={async (endTime, _rallyImages, attendeeIds) => {
+            try {
+              await recordActivityEnd(markActivity.activity.id, endTime, attendeeIds);
+              queryClient.invalidateQueries({ queryKey: ["activities"] });
+              queryClient.invalidateQueries({ queryKey: ["activity_instances"] });
+              setMarkActivity(null);
+            } catch (err: any) {
+              console.error("Failed to record activity end:", err);
+            }
           }}
         />
       )}
@@ -665,30 +815,6 @@ export function WeeklyScheduleView() {
         </div>
       )}
 
-      {/* Activities for the week */}
-      {activities.length > 0 && (
-        <section className="mt-6 pt-4 border-t border-[#27272a]">
-          <h3 className="text-sm font-semibold text-[#a1a1aa] uppercase tracking-wider flex items-center gap-2 mb-3">
-            <Calendar className="w-4 h-4" /> Activities
-          </h3>
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            {activities.map(a => {
-              const slots = Array.isArray(a.schedule) ? a.schedule : [];
-              if (slots.length === 0) return null;
-              return slots.map((slot, i) => {
-                const dayName = DAY_NAMES_SHORT[slot.day];
-                return (
-                  <div key={`${a.id}-${i}`} className="flex items-center gap-2 bg-[#18181b]/50 border border-[#27272a] rounded-lg px-3 py-2">
-                    <span className="text-xs">📅</span>
-                    <span className="text-sm text-[#a1a1aa] flex-1 truncate">{a.name}</span>
-                    <span className="text-xs text-[#71717a]">{dayName} {slot.time}</span>
-                  </div>
-                );
-              });
-            })}
-          </div>
-        </section>
-      )}
     </div>
   );
 }

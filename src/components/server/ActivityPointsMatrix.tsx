@@ -46,8 +46,7 @@ export function ActivityPointsMatrix({
   }
 
   return (
-    <div className="bg-[#09090b] border border-[#27272a] rounded-xl p-3 sm:p-4 max-w-full">
-      <div className="overflow-x-auto -mx-3 sm:mx-0">
+    <div className="overflow-x-auto -mx-3 sm:mx-0">
         <table className="w-full text-[10px] sm:text-xs">
           <thead>
             <tr>
@@ -157,6 +156,5 @@ export function ActivityPointsMatrix({
           </tbody>
         </table>
       </div>
-    </div>
   );
 }

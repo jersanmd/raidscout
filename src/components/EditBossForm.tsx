@@ -126,7 +126,7 @@ export function EditBossForm({ boss, gameSlug, serverId, onSaved, onCancel }: Pr
                     setRespawnHours(h + m / 60);
                   }}
                   className="w-16 px-2.5 py-2 bg-[#09090b] border border-[#3f3f46] rounded text-sm text-[#fafafa] focus:outline-none focus:ring-1 focus:ring-[#52525b]">
-                  {[0, 15, 30, 45].map(m => <option key={m} value={m}>{m}m</option>)}
+                  {Array.from({ length: 60 }, (_, i) => i).map(m => <option key={m} value={m}>{m}m</option>)}
                 </select>
               </div>
               <span className="text-xs text-[#52525b]">

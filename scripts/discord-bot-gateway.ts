@@ -388,9 +388,25 @@ async function handleMessage(msg: any) {
   const author: string = msg.author?.username ?? "unknown";
 
   // ── Log helper ──────────────────────────────────────
-  const cmdLog = (cmd: string, result: "ok" | "fail", detail?: string) => {
+  const guildServerNames = new Map<string, string>();
+  const resolveServerName = async (gid: string): Promise<string> => {
+    const cached = guildServerNames.get(gid);
+    if (cached) return cached;
+    try {
+      const rows = await supabaseQuerySafe(`discord_configs?discord_guild_id=eq.${gid}&select=raidscout_server_id,servers!inner(name)&limit=1`);
+      const name = rows?.[0]?.servers?.name ?? "?";
+      guildServerNames.set(gid, name);
+      return name;
+    } catch {
+      guildServerNames.set(gid, "?");
+      return "?";
+    }
+  };
+  const cmdLog = async (cmd: string, result: "ok" | "fail", detail?: string) => {
     const guildTag = guildId ? guildId.slice(0, 8) : "DM";
-    console.log(`[cmd] ${author}@${guildTag}:${cmd} — ${result}${detail ? ` (${detail})` : ""}`);
+    const srvName = guildId ? await resolveServerName(guildId) : "";
+    const namePart = srvName ? ` [${srvName}]` : "";
+    console.log(`[cmd] ${author}@${guildTag}${namePart}:${cmd} — ${result}${detail ? ` (${detail})` : ""}`);
   };
 
   // ── Resolve prefix & command ────────────────────────
@@ -427,6 +443,16 @@ async function handleMessage(msg: any) {
 
   // Resolve server ID for this guild+prefix combo (needed for maintenance check & commands)
   const serverId = await resolveServerId(guildId, matchedPrefix || prefixes[0] || "");
+
+  // Fix server name cache — look up the actual server name by serverId (not guildId)
+  // Multiple RaidScout servers can share a Discord guild, so guildId-based lookup picks arbitrarily
+  if (serverId && guildId) {
+    try {
+      const srvRows = await supabaseQuerySafe(`servers?id=eq.${serverId}&select=name`);
+      const srvName = srvRows?.[0]?.name;
+      if (srvName) guildServerNames.set(guildId, srvName);
+    } catch { /* ignore */ }
+  }
 
   // Check maintenance mode — skip all commands if maintenance is on for this server
   if (serverId) {
@@ -485,7 +511,7 @@ async function handleMessage(msg: any) {
       },
       body: JSON.stringify({ content: text }),
     });
-    cmdLog(cmd, "ok");
+    await cmdLog(cmd, "ok");
   }
 
   async function replyEmbed(title: string, desc: string, color: number, fields?: any[]) {
@@ -500,14 +526,14 @@ async function handleMessage(msg: any) {
       }),
     });
     if (!res.ok) console.error(`replyEmbed failed: ${res.status}`, await res.text().catch(() => ""));
-    cmdLog(cmd, "ok");
+    await cmdLog(cmd, "ok");
   }
 
   // ── list ─────────────────────────────────────────────
   if (cmd === "list") {
-    if (!serverId) { cmdLog(cmd, "fail", "not linked"); return reply("⚠️ This Discord server is not linked to RaidScout. An admin needs to go to **Server Settings → Integrations** on the RaidScout web app and link this Discord server."); }
+    if (!serverId) { await cmdLog(cmd, "fail", "not linked"); return reply("⚠️ This Discord server is not linked to RaidScout. An admin needs to go to **Server Settings → Integrations** on the RaidScout web app and link this Discord server."); }
     const bosses = await supabaseQuery(`bosses?server_id=eq.${serverId}&order=name`);
-    if (!bosses?.length) { cmdLog(cmd, "fail", "no bosses"); return reply("No bosses found."); }
+    if (!bosses?.length) { await cmdLog(cmd, "fail", "no bosses"); return reply("No bosses found."); }
     // Split into chunks of 25 (Discord embed field limit)
     const chunkSize = 25;
     const chunks: string[] = [];
@@ -531,12 +557,12 @@ async function handleMessage(msg: any) {
         }),
       });
     }
-    cmdLog(cmd, "ok", `${bosses.length} bosses`);
+    await cmdLog(cmd, "ok", `${bosses.length} bosses`);
   }
 
   // ── notifhere ────────────────────────────────────────
   if (cmd === "notifhere") {
-    if (!serverId) { cmdLog(cmd, "fail", "not linked"); return reply("⚠️ This Discord server is not linked to RaidScout. An admin needs to go to **Server Settings → Integrations** on the RaidScout web app and link this Discord server."); }
+    if (!serverId) { await cmdLog(cmd, "fail", "not linked"); return reply("⚠️ This Discord server is not linked to RaidScout. An admin needs to go to **Server Settings → Integrations** on the RaidScout web app and link this Discord server."); }
     // Persist to DB so it survives bot restarts
     const existing = await supabaseQuerySafe(
       `discord_configs?discord_guild_id=eq.${guildId}&command_prefix=eq.${encodeURIComponent(matchedPrefix)}&select=id`
@@ -568,7 +594,7 @@ async function handleMessage(msg: any) {
 
   // ── threadhere ───────────────────────────────────────
   if (cmd === "threadhere") {
-    if (!serverId) { cmdLog(cmd, "fail", "not linked"); return reply("⚠️ This Discord server is not linked to RaidScout."); }
+    if (!serverId) { await cmdLog(cmd, "fail", "not linked"); return reply("⚠️ This Discord server is not linked to RaidScout."); }
     const existing = await supabaseQuerySafe(`discord_configs?discord_guild_id=eq.${guildId}&command_prefix=eq.${encodeURIComponent(matchedPrefix)}&select=id`);
     if (existing?.length) {
       await fetch(`${SUPABASE_URL}/rest/v1/discord_configs?id=eq.${existing[0].id}`, {
@@ -582,15 +608,15 @@ async function handleMessage(msg: any) {
 
   // ── forcespawn <boss> ───────────────────────────────
   if (cmd === "forcespawn") {
-    if (!serverId) { cmdLog(cmd, "fail", "not linked"); return reply("⚠️ Not linked to RaidScout."); }
+    if (!serverId) { await cmdLog(cmd, "fail", "not linked"); return reply("⚠️ Not linked to RaidScout."); }
 
     const bossName = args.slice(1).join(" ");
-    if (!bossName) { cmdLog(cmd, "fail", "no boss name"); return reply("Usage: `!forcespawn Boss Name`"); }
+    if (!bossName) { await cmdLog(cmd, "fail", "no boss name"); return reply("Usage: `!forcespawn Boss Name`"); }
 
     const bosses = await supabaseQuery(
       `bosses?server_id=eq.${serverId}&name=ilike.${encodeURIComponent("%" + bossName + "%")}&select=id,name,respawn_hours`
     );
-    if (!bosses?.length) { cmdLog(cmd, "fail", `boss "${bossName}" not found`); return reply(`Boss **${bossName}** not found.`); }
+    if (!bosses?.length) { await cmdLog(cmd, "fail", `boss "${bossName}" not found`); return reply(`Boss **${bossName}** not found.`); }
     const boss = bosses[0];
 
     // Delete existing override, then insert with calculated death_time
@@ -731,7 +757,7 @@ async function handleMessage(msg: any) {
 
   // ── nextspawn [boss|guild] ───────────────────────────
   if (cmd === "nextspawn" || cmd === "spawn") {
-    if (!serverId) { cmdLog(cmd, "fail", "not linked"); return reply("⚠️ This Discord server is not linked to RaidScout. An admin needs to go to **Server Settings → Integrations** on the RaidScout web app and link this Discord server."); }
+    if (!serverId) { await cmdLog(cmd, "fail", "not linked"); return reply("⚠️ This Discord server is not linked to RaidScout. An admin needs to go to **Server Settings → Integrations** on the RaidScout web app and link this Discord server."); }
 
     const filter = args[1];
     const tz = await resolveServerTimezone(serverId);
@@ -833,7 +859,7 @@ async function handleMessage(msg: any) {
     }
 
     if (upcoming.length === 0) {
-      if (filter) cmdLog(cmd, "fail", `no spawns for "${filter}"`); else cmdLog(cmd, "fail", "no spawns in 24h");
+      if (filter) await cmdLog(cmd, "fail", `no spawns for "${filter}"`); else await cmdLog(cmd, "fail", "no spawns in 24h");
       return reply(filter ? `No spawn data for **${filter}** in 24h.` : "No bosses spawning in 24h.");
     }
 
@@ -866,12 +892,12 @@ async function handleMessage(msg: any) {
     }).then(async (res) => {
       // Message stored for reference; underline feature removed
     });
-    cmdLog(cmd, "ok", `${upcoming.length} spawns`);
+    await cmdLog(cmd, "ok", `${upcoming.length} spawns`);
   }
 
   // ── killed <boss> [HH:MM] [yesterday|today] ──────────
   if (cmd === "killed" || cmd === "kill") {
-    if (!serverId) { cmdLog(cmd, "fail", "not linked"); return reply("⚠️ This Discord server is not linked to RaidScout. An admin needs to go to **Server Settings → Integrations** on the RaidScout web app and link this Discord server."); }
+    if (!serverId) { await cmdLog(cmd, "fail", "not linked"); return reply("⚠️ This Discord server is not linked to RaidScout. An admin needs to go to **Server Settings → Integrations** on the RaidScout web app and link this Discord server."); }
 
     // Parse: !kill Boss Name [HH:MM] [yesterday|today]
     let timeStr: string | undefined;
@@ -896,7 +922,7 @@ async function handleMessage(msg: any) {
 
     bossName = remaining.join(" ");
 
-    if (!bossName) { cmdLog(cmd, "fail", "no boss name"); return reply("Usage: `!kill Boss Name [HH:MM] [yesterday|today]`"); }
+    if (!bossName) { await cmdLog(cmd, "fail", "no boss name"); return reply("Usage: `!kill Boss Name [HH:MM] [yesterday|today]`"); }
 
     const bosses = await supabaseQuery(
       `bosses?server_id=eq.${serverId}&name=ilike.${encodeURIComponent("%" + bossName + "%")}`,
@@ -952,7 +978,7 @@ async function handleMessage(msg: any) {
     }
 
     if (!isAlive) {
-      cmdLog(cmd, "fail", `${boss.name} not alive`);
+      await cmdLog(cmd, "fail", `${boss.name} not alive`);
       fetch(`https://discord.com/api/v10/channels/${channelId}/messages/${msg.id}/reactions/${encodeURIComponent("❌")}/@me`, {
         method: "PUT", headers: { Authorization: `Bot ${TOKEN}` },
       }).catch(() => {});
@@ -1068,6 +1094,8 @@ async function handleMessage(msg: any) {
       { name: "Recorded By", value: author, inline: true },
     ];
     if (nextSpawnField) replyFields.push(nextSpawnField);
+
+    await cmdLog(cmd, "ok", `${boss.name} → ${guildName || "unknown"}`);
 
     return replyEmbed(
       `☠️ ${boss.name} Killed by ${guildName || author}`,
@@ -1186,7 +1214,7 @@ async function createEventThreads(
         }
 
         console.log(`[thread] Created "${threadName}" in channel ${channelId} for ${ownerGuildName}`);
-        cmdLog("thread", "ok", `${bossName}→${ownerGuildName}`);
+        await cmdLog("thread", "ok", `${bossName}→${ownerGuildName}`);
       } catch (err: any) {
         console.error(`[thread] Error for channel ${channelId}:`, err.message);
       }

@@ -126,7 +126,11 @@ export function NoServerView() {
                     onClick={() => { setSelectedGame(g); setMode("create"); }}
                     className="group w-full flex items-center gap-3 px-4 py-3 rounded-lg bg-[#18191d]/60 border border-neutral-800/60 hover:bg-[#1c1d22] transition-all duration-200 text-left"
                   >
-                    <Gamepad2 className="w-4 h-4 text-neutral-500 shrink-0 group-hover:text-neutral-300 transition-colors duration-200" />
+                    {g.icon_url ? (
+                      <img src={g.icon_url} alt={g.name} className="w-8 h-8 rounded-lg object-cover shrink-0" />
+                    ) : (
+                      <Gamepad2 className="w-4 h-4 text-neutral-500 shrink-0 group-hover:text-neutral-300 transition-colors duration-200" />
+                    )}
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-semibold text-neutral-200 group-hover:text-white transition-colors duration-200">
                         {g.name}

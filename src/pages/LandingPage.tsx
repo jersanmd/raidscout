@@ -125,16 +125,16 @@ function LiveBossTimer() {
     <div className="flex items-center gap-5">
       {/* Boss name + status */}
       <div className="flex items-center gap-2">
-        <span className={`w-1.5 h-1.5 rounded-full ${status ? 'bg-[#a1a1aa]' : 'bg-emerald-400'}`} />
+        <span className={`w-1.5 h-1.5 rounded-full ${status ? 'bg-emerald-400' : 'bg-emerald-400 animate-pulse'}`} />
         <div className="text-left">
           <span className="text-xs text-[#d4d4d8] font-medium">{bossName}</span>
-          <span className={`ml-2 text-[10px] font-medium uppercase tracking-wider ${status ? 'text-[#a1a1aa]' : 'text-emerald-400'}`}>
+          <span className={`ml-2 text-[10px] font-medium uppercase tracking-wider font-mono ${status ? 'text-emerald-400/70' : 'text-emerald-400'}`}>
             {status ? 'Alive' : 'Tracking'}
           </span>
         </div>
       </div>
       {/* Divider */}
-      <span className="text-[#3f3f46]">|</span>
+      <span className="text-[#3f3f46] font-mono">|</span>
       {/* Countdown */}
       <div className="text-left">
         <span className="text-[10px] uppercase tracking-wider text-[#71717a] block mb-0.5">{status ? 'Since' : 'Respawns in'}</span>
@@ -146,6 +146,39 @@ function LiveBossTimer() {
   );
 }
 
+// ── TypeWriter Effect ──────────────────────────────────────
+function TypeWriter({ text, delay = 40, className = "" }: { text: string; delay?: number; className?: string }) {
+  const [displayed, setDisplayed] = useState("");
+  const [started, setStarted] = useState(false);
+  const ref = useRef<HTMLSpanElement>(null);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting && !started) {
+        setStarted(true);
+      }
+    }, { threshold: 0.5 });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [started]);
+
+  useEffect(() => {
+    if (!started || displayed.length >= text.length) return;
+    const timer = setTimeout(() => {
+      setDisplayed(text.slice(0, displayed.length + 1));
+    }, delay);
+    return () => clearTimeout(timer);
+  }, [started, displayed, text, delay]);
+
+  return (
+    <span ref={ref} className={className}>
+      {displayed}
+      {displayed.length < text.length && <span className="inline-block w-[2px] h-[1em] bg-emerald-400/60 ml-0.5 align-middle animate-pulse" />}
+    </span>
+  );
+}
 export function LandingPage() {
   const { signIn, signUp, viewerSignIn } = useAuth();
   const [email, setEmail] = useState("");
@@ -247,22 +280,30 @@ export function LandingPage() {
       </script>
 
       {/* ── Hero ── */}
-      <section className="relative px-6 pt-32 pb-24 text-center overflow-hidden">
+      <section className="relative px-6 pt-32 pb-24 text-center overflow-hidden matrix-bg">
         {/* ── Background ── */}
         <div className="absolute inset-0 bg-[#09090b]" />
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_60%_40%_at_50%_0%,rgba(250,250,250,0.02),transparent_70%)]" />
 
+        {/* Data stream lines */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-20">
+          {[...Array(6)].map((_, i) => (
+            <div key={i} className="data-stream absolute w-px bg-gradient-to-b from-transparent via-emerald-400/30 to-transparent"
+              style={{ left: `${15 + i * 14}%`, height: "60%", top: `${-10 + (i % 3) * 15}%`, animationDelay: `${i * 0.5}s`, animationDuration: `${2.5 + i * 0.8}s` }} />
+          ))}
+        </div>
+
         {/* ── Content ── */}
         <div className="relative z-10 max-w-4xl mx-auto space-y-10">
           {/* Badge */}
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-[#27272a] text-[#71717a] text-[11px] font-medium tracking-wider uppercase">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#a1a1aa]" />
-            Guild Operations Platform
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-emerald-500/20 text-emerald-400/60 text-[11px] font-medium tracking-wider uppercase cyber-boot">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="font-mono">{">>"}</span> Guild Operations Platform
           </div>
 
           {/* Headline */}
-          <h1 className="text-5xl md:text-7xl lg:text-8xl font-black tracking-tighter leading-[0.94] max-w-3xl mx-auto">
-            <span className="text-[#fafafa]">Command</span>
+          <h1 className="text-5xl md:text-7xl lg:text-8xl font-black tracking-tighter leading-[0.94] max-w-3xl mx-auto cyber-glitch">
+            <span className="text-[#fafafa] cyber-glow">Command</span>
             <br />
             <span className="text-[#a1a1aa]">
               Your Guild
@@ -270,8 +311,8 @@ export function LandingPage() {
           </h1>
 
           {/* Subheadline */}
-          <p className="text-sm md:text-base text-[#71717a] max-w-lg mx-auto leading-relaxed">
-            Real-time boss tracking, multi-guild rotations, attendance monitoring, and Discord coordination. The command center competitive guilds trust.
+          <p className="text-sm md:text-base text-emerald-400/60 max-w-lg mx-auto leading-relaxed font-mono cyber-cursor">
+            <TypeWriter text="Real-time boss tracking, multi-guild rotations, attendance monitoring, and Discord coordination. The command center competitive guilds trust." delay={25} />
           </p>
 
           {/* CTAs */}
@@ -294,9 +335,9 @@ export function LandingPage() {
           <div className="pt-2">
             <div className="relative inline-flex flex-col gap-3 px-6 py-4 rounded-xl border border-[#27272a] bg-[#09090b]">
               <div className="flex items-center gap-2">
-                <span className="text-[10px] font-medium tracking-wider uppercase text-[#52525b]">Live Operations — Yvonne 6</span>
-                <span className="ml-auto flex items-center gap-1.5 text-[10px] text-[#71717a]">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#a1a1aa]" />
+                <span className="text-[10px] font-medium tracking-wider uppercase text-emerald-400/60 font-mono">{">>"} Live Operations — Yvonne 6</span>
+                <span className="ml-auto flex items-center gap-1.5 text-[10px] text-emerald-400/60 font-mono">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                   RECEIVING
                 </span>
               </div>
@@ -639,13 +680,7 @@ export function LandingPage() {
             <div className="p-6 grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
               {/* LEFT BAR: Quick Status */}
               <div className="md:col-span-4 space-y-3 text-xs">
-                <div className="p-3 rounded-lg bg-[#18181b] border border-white/[0.03]">
-                  <span className="text-neutral-400 block font-bold tracking-wider text-[10px] uppercase mb-1">Command Input</span>
-                  <div className="flex items-center space-x-0.5 relative">
-                    <CopyCodeBadge code=";killed Icaruthia" />
-                    <span className="w-1.5 h-4 bg-cyan-400 animate-pulse" />
-                  </div>
-                </div>
+                <AnimatedCommandInput />
                 <div className="p-3 rounded-lg bg-[#18181b] border border-white/[0.03]">
                   <span className="text-purple-300 block font-bold tracking-wider text-[10px] uppercase mb-1">Automation Dispatch</span>
                   <p className="text-neutral-300 leading-relaxed">Instantly syncs rotation matrix updates back to web dashboards.</p>
@@ -654,51 +689,7 @@ export function LandingPage() {
 
               {/* RIGHT BAR: Kill Notification Embed */}
               <div className="md:col-span-8">
-                <div className="flex items-start space-x-3">
-                  <div className="w-9 h-9 rounded-full bg-gradient-to-b from-slate-900 to-slate-950 border border-purple-500/30 flex items-center justify-center font-bold text-white shrink-0 shadow-xl text-xs font-mono">
-                    RSB
-                  </div>
-                  <div className="w-full">
-                    <div className="flex items-baseline space-x-1.5 mb-1.5">
-                      <span className="font-bold text-[#fafafa] text-sm">RaidScout Bot</span>
-                      <span className="bg-[#18181b] text-[#fafafa] text-[9px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider">APP</span>
-                      <span className="text-[10px] text-neutral-400 font-mono ml-2">Synced just now</span>
-                    </div>
-
-                    {/* Embed Panel */}
-                    <div className="border-l-4 border-[#27272a] bg-[#18181b] rounded-r-xl p-5 shadow-2xl relative overflow-hidden border-y border-white/[0.02] border-r-white/[0.02]">
-                      {/* Scanner Line */}
-                      <div className="absolute inset-x-0 h-[2px] bg-gradient-to-r from-transparent via-red-500/50 to-transparent pointer-events-none z-20 animate-scan-line" />
-                      {/* Grid Pattern */}
-                      <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.01)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.01)_1px,transparent_1px)] bg-[size:16px_16px] pointer-events-none" />
-
-                      <div className="text-sm font-black text-[#fafafa] tracking-wide mb-4 flex items-center gap-2 drop-shadow-[0_2px_8px_rgba(0,0,0,0.5)]">
-                        <span className="text-red-400 text-base animate-pulse">☠️</span>
-                        <span>Icaruthia Killed by <span className="text-red-400 tracking-widest font-mono">PANORTH</span></span>
-                      </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 relative z-10">
-                        <div className="bg-[#18181b] p-2.5 rounded-lg border border-white/[0.03]">
-                          <span className="text-[#a1a1aa] block font-bold text-[10px] tracking-wider uppercase mb-1">Death Time</span>
-                          <span className="font-mono text-[11px] text-[#fafafa] block font-semibold">June 2, 2026 9:09 PM</span>
-                        </div>
-                        <div className="bg-[#18181b] p-2.5 rounded-lg border border-white/[0.03]">
-                          <span className="text-[#a1a1aa] block font-bold text-[10px] tracking-wider uppercase mb-1">Recorded By</span>
-                          <span className="font-mono text-[11px] text-[#d4d4d8] block font-semibold">._.r0cky</span>
-                        </div>
-                        <div className="bg-[#18181b] p-2.5 rounded-lg border border-white/[0.03] border-b-[#3f3f46]">
-                          <span className="text-[#a1a1aa] block font-bold text-[10px] tracking-wider uppercase mb-1">Next Spawn</span>
-                          <span className="font-mono text-[11px] text-cyan-400 block font-bold tracking-tight">June 5, 2026 9:00 PM</span>
-                        </div>
-                      </div>
-
-                      <div className="mt-4 pt-3 border-t border-white/[0.03] text-[10px] text-neutral-500 flex items-center justify-between font-mono">
-                        <span>Core Analytics Instance #04</span>
-                        <span className="text-purple-400/70 font-semibold tracking-wider animate-pulse">Powered by RaidScout</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                <AnimatedBotResponse />
               </div>
             </div>
           </div>
@@ -898,6 +889,105 @@ function copyToClipboard(text: string): boolean {
  * Inline code snippet that copies to clipboard on click and shows a
  * floating "Copied!" badge for 2 seconds positioned above the element.
  */
+// ── Animated Terminal Demo ──────────────────────────────
+
+const DEMO_CMD = ";killed Icaruthia";
+
+function AnimatedCommandInput() {
+  const [typed, setTyped] = useState("");
+  const [phase, setPhase] = useState<"typing" | "done">("typing");
+
+  useEffect(() => {
+    if (typed.length < DEMO_CMD.length) {
+      const t = setTimeout(() => setTyped(DEMO_CMD.slice(0, typed.length + 1)), 60 + Math.random() * 40);
+      return () => clearTimeout(t);
+    } else {
+      setPhase("done");
+    }
+  }, [typed]);
+
+  // Loop: reset after pause
+  useEffect(() => {
+    if (phase !== "done") return;
+    const t = setTimeout(() => { setTyped(""); setPhase("typing"); }, 4000);
+    return () => clearTimeout(t);
+  }, [phase]);
+
+  return (
+    <div className="p-3 rounded-lg bg-[#18181b] border border-white/[0.03]">
+      <span className="text-neutral-400 block font-bold tracking-wider text-[10px] uppercase mb-1">Command Input</span>
+      <div className="flex items-center space-x-0.5 relative">
+        <code className="text-cyan-400 font-mono font-bold text-sm block tracking-wide">
+          {typed}
+        </code>
+        <span className={`w-1.5 h-4 ${phase === "typing" ? "bg-cyan-400 animate-pulse" : "bg-cyan-400"}`} />
+      </div>
+    </div>
+  );
+}
+
+function AnimatedBotResponse() {
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    // Show response after command typing (~2.5s), then loop
+    const show = () => {
+      setVisible(true);
+      setTimeout(() => { setVisible(false); setTimeout(show, 1500); }, 6000);
+    };
+    const t = setTimeout(show, 2500);
+    return () => clearTimeout(t);
+  }, []);
+
+  return (
+    <div className="flex items-start space-x-3">
+      <div className="w-9 h-9 rounded-full bg-gradient-to-b from-slate-900 to-slate-950 border border-purple-500/30 flex items-center justify-center font-bold text-white shrink-0 shadow-xl text-xs font-mono">
+        RSB
+      </div>
+      <div className="w-full">
+        <div className="flex items-baseline space-x-1.5 mb-1.5">
+          <span className="font-bold text-[#fafafa] text-sm">RaidScout Bot</span>
+          <span className="bg-[#18181b] text-[#fafafa] text-[9px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider">APP</span>
+          <span className="text-[10px] text-neutral-400 font-mono ml-2">{visible ? "Synced just now" : "Waiting for input..."}</span>
+        </div>
+
+        {/* Embed Panel */}
+        <div className={`border-l-4 border-[#27272a] bg-[#18181b] rounded-r-xl p-5 shadow-2xl relative overflow-hidden border-y border-white/[0.02] border-r-white/[0.02] transition-all duration-500 ${visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
+          {/* Scanner Line */}
+          <div className="absolute inset-x-0 h-[2px] bg-gradient-to-r from-transparent via-red-500/50 to-transparent pointer-events-none z-20 animate-scan-line" />
+          {/* Grid Pattern */}
+          <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.01)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.01)_1px,transparent_1px)] bg-[size:16px_16px] pointer-events-none" />
+
+          <div className="text-sm font-black text-[#fafafa] tracking-wide mb-4 flex items-center gap-2 drop-shadow-[0_2px_8px_rgba(0,0,0,0.5)]">
+            <span className="text-red-400 text-base animate-pulse">☠️</span>
+            <span>Icaruthia Killed by <span className="text-red-400 tracking-widest font-mono">PANORTH</span></span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 relative z-10">
+            <div className="bg-[#18181b] p-2.5 rounded-lg border border-white/[0.03]">
+              <span className="text-[#a1a1aa] block font-bold text-[10px] tracking-wider uppercase mb-1">Death Time</span>
+              <span className="font-mono text-[11px] text-[#fafafa] block font-semibold">June 2, 2026 9:09 PM</span>
+            </div>
+            <div className="bg-[#18181b] p-2.5 rounded-lg border border-white/[0.03]">
+              <span className="text-[#a1a1aa] block font-bold text-[10px] tracking-wider uppercase mb-1">Recorded By</span>
+              <span className="font-mono text-[11px] text-[#d4d4d8] block font-semibold">._.r0cky</span>
+            </div>
+            <div className="bg-[#18181b] p-2.5 rounded-lg border border-white/[0.03] border-b-[#3f3f46]">
+              <span className="text-[#a1a1aa] block font-bold text-[10px] tracking-wider uppercase mb-1">Next Spawn</span>
+              <span className="font-mono text-[11px] text-cyan-400 block font-bold tracking-tight">June 5, 2026 9:00 PM</span>
+            </div>
+          </div>
+
+          <div className="mt-4 pt-3 border-t border-white/[0.03] text-[10px] text-neutral-500 flex items-center justify-between font-mono">
+            <span>Core Analytics Instance #04</span>
+            <span className="text-purple-400/70 font-semibold tracking-wider animate-pulse">Powered by RaidScout</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function CopyCodeBadge({ code, className = "" }: { code: string; className?: string }) {
   const [show, setShow] = useState(false);
 

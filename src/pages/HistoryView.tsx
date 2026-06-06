@@ -5,6 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useServerId } from "@/contexts/ServerContext";
 import { useQueryClient } from "@tanstack/react-query";
 import { ParticipantModal } from "@/components/ParticipantModal";
+import { BossImage } from "@/components/BossImage";
 import { Clock, Trash2, Skull, Repeat, Timer, Users, Loader2, Pencil, X, Search } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { guildColor } from "@/lib/constants";
@@ -190,7 +191,7 @@ export function HistoryView() {
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-2 shrink-0">
           <Clock className="w-5 h-5 text-[#71717a]" />
-          <h2 className="text-xl font-semibold text-[#fafafa]">Death History</h2>
+          <h2 className="text-xl font-semibold text-[#fafafa]">History</h2>
         </div>
         <div className="flex items-center gap-2 order-3 sm:order-none w-full sm:w-auto mt-2 sm:mt-0">
           <div className="relative flex-1 sm:flex-initial sm:w-48 lg:w-64">
@@ -301,13 +302,11 @@ export function HistoryView() {
                       }`}
                       title={entry.deathRecordId ? "Click to see participants" : ""}
                     >
-                      {/* Icon — no background, just the symbol */}
+                      {/* Icon — boss image or activity emoji */}
                       {entry.type === "activity" ? (
                         <span className="text-sm text-[#52525b] shrink-0">📋</span>
-                      ) : entry.spawnType === "fixed_schedule" ? (
-                        <Repeat className="w-4 h-4 text-[#52525b] shrink-0" />
                       ) : (
-                        <Timer className="w-4 h-4 text-[#52525b] shrink-0" />
+                        <BossImage bossName={entry.bossName!} size="sm" />
                       )}
 
                       {/* Content */}

@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { useBossSpawns } from "@/hooks/useBossSpawns";
+import { useTimer } from "@/hooks/useTimer";
 import { CountdownTimer } from "./CountdownTimer";
 import { BossImage } from "./BossImage";
 import { Clock } from "lucide-react";
@@ -16,7 +17,7 @@ export function UpcomingStrip({ ownerGuildName }: { ownerGuildName: (bossId: str
 
   const upcoming = useMemo(() => {
     return spawns
-      .filter((s) => s.status === "countdown")
+      .filter((s) => s.status === "countdown" && s.remainingMs > 0)
       .slice(0, 3);
   }, [spawns]);
 
@@ -67,14 +68,14 @@ export function UpcomingStrip({ ownerGuildName }: { ownerGuildName: (bossId: str
 }
 
 const threatStyles = {
-  critical: { dot: "bg-red-500", label: "Now" },
-  warning: { dot: "bg-amber-500", label: "Soon" },
-  normal: { dot: "bg-[#52525b]", label: "Upcoming" },
+  critical: { dot: "bg-red-500", label: "Now", labelColor: "text-red-400" },
+  warning: { dot: "bg-amber-500", label: "Soon", labelColor: "text-amber-400" },
+  normal: { dot: "bg-[#52525b]", label: "Upcoming", labelColor: "text-[#71717a]" },
 } as const;
 
 function UpcomingSlot({
   spawn,
-  threatLevel,
+  threatLevel: initialThreat,
   formatTime,
   guildName,
 }: {
@@ -83,17 +84,26 @@ function UpcomingSlot({
   formatTime: (d: Date) => string;
   guildName?: string;
 }) {
+  const timer = useTimer(spawn.nextSpawn);
+  // Dynamically determine threat from live timer, not static remainingMs
+  const threatLevel: "critical" | "warning" | "normal" = timer.isPast
+    ? "normal"
+    : timer.totalSeconds <= 300
+      ? "critical"
+      : timer.totalSeconds <= 3600
+        ? "warning"
+        : initialThreat;
   const t = threatStyles[threatLevel];
 
   return (
-    <div className="relative flex items-center gap-3 p-4">
+    <div className={`relative flex items-center gap-3 p-4 ${threatLevel === "critical" ? "boss-card-urgent" : threatLevel === "warning" ? "boss-card-warning" : ""}`}>
       {/* Minimal monochrome avatar */}
       <BossImage bossName={spawn.boss.name} size="sm" />
 
       {/* Name + time */}
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-1.5 flex-wrap">
-          <span className="text-[#fafafa] font-medium text-sm truncate">
+          <span className={`font-medium text-sm truncate ${threatLevel === "critical" ? "boss-name-alive text-red-400" : threatLevel === "warning" ? "boss-name-alive text-amber-400" : "text-[#fafafa]"}`}>
             {spawn.boss.name}
           </span>
           {guildName && (() => { const c = guildColor(guildName); return (
@@ -106,7 +116,7 @@ function UpcomingSlot({
           <span className="text-xs text-[#52525b] font-mono">
             {spawn.nextSpawn ? formatTime(spawn.nextSpawn) : "—"}
           </span>
-          <span className="inline-flex items-center gap-1 text-[10px] text-[#71717a]">
+          <span className={`inline-flex items-center gap-1 text-[10px] ${t.labelColor}`}>
             <span className={`w-1.5 h-1.5 rounded-full ${t.dot}`} />
             {t.label}
           </span>
