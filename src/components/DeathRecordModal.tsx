@@ -1127,30 +1127,30 @@ export function DeathRecordModal({ boss, onClose, onSubmit, defaultDeathTime, hi
  {/* Sticky footer — always visible even when body scrolls */}
  {step === "attendance" && (
  <div className="p-4 border-t border-[#27272a] shrink-0 space-y-2">
- {/* Per-guild Party Leader selectors */}
+ {/* Per-guild Party Leader search inputs */}
  {selectedIds.size > 0 && groupedMembers.length > 1 && (
  <div className="space-y-1.5">
  <span className="text-[10px] text-[#71717a] uppercase tracking-wider">Party Leaders (per guild)</span>
- {groupedMembers.filter(g => g.members.some(m => selectedIds.has(m.id))).map(g => (
- <div key={g.guildId ?? "_none_"} className="flex items-center gap-2">
- <span className="text-[10px] text-[#71717a] w-16 truncate shrink-0" title={g.guildName}>{g.guildName || "No Guild"}</span>
- <select
- value={partyLeaders[g.guildId ?? "_none_"] ?? ""}
- onChange={(e) => setPartyLeaders(prev => {
- const next = { ...prev };
- if (e.target.value) next[g.guildId ?? "_none_"] = e.target.value;
- else delete next[g.guildId ?? "_none_"];
- return next;
+ {groupedMembers.filter(g => g.members.some(m => selectedIds.has(m.id))).map(g => {
+ const guildKey = g.guildId ?? "_none_";
+ const currentId = partyLeaders[guildKey];
+ const currentMember = currentId ? members.find(m => m.id === currentId) : null;
+ const eligible = g.members.filter(m => selectedIds.has(m.id));
+ return (
+ <PartyLeaderSearch
+ key={guildKey}
+ guildName={g.guildName || "No Guild"}
+ guildKey={guildKey}
+ members={eligible}
+ selectedId={currentId}
+ selectedName={currentMember?.name}
+ onSelect={(memberId) => setPartyLeaders(prev => {
+ if (!memberId) { const next = { ...prev }; delete next[guildKey]; return next; }
+ return { ...prev, [guildKey]: memberId };
  })}
- className="flex-1 px-2 py-1 bg-[#18181b] border border-[#27272a] rounded text-xs text-[#fafafa] focus:outline-none focus:ring-1 focus:ring-[#27272a]"
- >
- <option value="">None</option>
- {g.members.filter(m => selectedIds.has(m.id)).map(m => (
- <option key={m.id} value={m.id}>{m.name}</option>
- ))}
- </select>
- </div>
- ))}
+ />
+ );
+ })}
  </div>
  )}
  <button
@@ -1255,6 +1255,70 @@ function levenshtein(a: string, b: string): number {
  [prev, curr] = [curr, prev];
  }
  return prev[n];
+}
+
+// ── Party Leader Search Combobox ─────────────────────────────
+
+function PartyLeaderSearch({
+  guildName, guildKey, members, selectedId, selectedName, onSelect,
+}: {
+  guildName: string; guildKey: string; members: { id: string; name: string }[];
+  selectedId?: string; selectedName?: string; onSelect: (id: string | null) => void;
+}) {
+  const [search, setSearch] = useState(selectedName ?? "");
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const filtered = search.trim()
+    ? members.filter(m => m.name.toLowerCase().includes(search.toLowerCase()))
+    : members;
+
+  const displayName = selectedId ? members.find(m => m.id === selectedId)?.name ?? search : search;
+
+  return (
+    <div key={guildKey} className="flex items-center gap-2">
+      <span className="text-[10px] text-[#71717a] w-16 truncate shrink-0" title={guildName}>{guildName}</span>
+      <div ref={ref} className="flex-1 relative">
+        <input
+          type="text"
+          value={open ? search : (selectedName || search)}
+          onChange={(e) => { setSearch(e.target.value); setOpen(true); }}
+          onFocus={() => setOpen(true)}
+          placeholder="Search leader..."
+          className="w-full px-2 py-1 bg-[#18181b] border border-[#27272a] rounded text-xs text-[#fafafa] placeholder-[#52525b] focus:outline-none focus:ring-1 focus:ring-[#27272a]"
+        />
+        {(selectedId || search) && (
+          <button
+            onClick={() => { setSearch(""); onSelect(null); }}
+            className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[#52525b] hover:text-[#f87171]"
+          >
+            <X className="w-3 h-3" />
+          </button>
+        )}
+        {open && filtered.length > 0 && (
+          <div className="absolute z-10 left-0 right-0 mt-1 max-h-32 overflow-y-auto bg-[#18181b] border border-[#27272a] rounded shadow-lg">
+            {filtered.slice(0, 20).map(m => (
+              <button
+                key={m.id}
+                onClick={() => { setSearch(m.name); onSelect(m.id); setOpen(false); }}
+                className={`w-full text-left px-2 py-1 text-xs hover:bg-[#27272a] transition ${m.id === selectedId ? "text-[#fafafa] bg-[#27272a]" : "text-[#a1a1aa]"}`}
+              >
+                {m.name}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }
 
 /**
