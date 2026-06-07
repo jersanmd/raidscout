@@ -90,7 +90,7 @@ export function EditBossForm({ boss, gameSlug, serverId, onSaved, onCancel }: Pr
         respawn_hours: respawnHours,
         schedule: processedSchedule ?? null,
         is_recurring: true,
-        boss_points: isNaN(Number(points)) ? 1 : Number(points),
+        ...(isServerMode ? { boss_points: isNaN(Number(points)) ? 1 : Number(points) } : { points: isNaN(Number(points)) ? 1 : Number(points) }),
         category: category || null,
         tags,
       };
