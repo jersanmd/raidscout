@@ -319,15 +319,6 @@ export function BossListView() {
         if (lastDeath && targetGuildId) {
           await supabase.from("death_records").update({ owner_guild_id: targetGuildId }).eq("id", lastDeath.id);
         }
-        // Set rotation_adjustment so the daily calculation stays at the target index
-        // Daily mode advances +1 when death→spawn crosses a day, so we offset that
-        const boss = spawns.find(s => s.boss.id === bossId)?.boss;
-        const respawnHours = boss?.respawn_hours ?? 0;
-        const sameDay = lastDeath
-          ? new Date(lastDeath.death_time).toDateString() === new Date(new Date(lastDeath.death_time).getTime() + respawnHours * 3600000).toDateString()
-          : true;
-        const adjustment = sameDay ? 0 : -1;
-        await supabase.from("bosses").update({ rotation_adjustment: adjustment }).eq("id", bossId);
       } else {
         // Rotation (per kill) mode: set rotation_counter directly
         await setBossRotation(bossId, targetIndex);

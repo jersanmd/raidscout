@@ -345,21 +345,4 @@ describe("getOwnerGuildName — edge cases", () => {
     const result = getOwnerGuildName("b1", bg, [makeGuild("g1", "Alpha"), makeGuild("g2", "Beta")], [death], [makeSpawn(boss)]);
     expect(result).toBe("Beta"); // Advances from first guild idx=1
   });
-
-  it("daily mode with rotation_adjustment", () => {
-    const boss = makeBoss({ id: "b1", respawn_hours: 24, rotation_adjustment: 1 });
-    const bg = [
-      makeBossGuild("b1", "g1", 0, "daily"),
-      makeBossGuild("b1", "g2", 1, "daily"),
-    ];
-    // Killed by g1 on different day, adjustment +1 skips g2 to g1
-    const death = makeDeath("b1", new Date(Date.UTC(2026,4,22,12,0,0)), "g1");
-    const result = getOwnerGuildName(
-      "b1", bg,
-      [makeGuild("g1", "Alpha"), makeGuild("g2", "Beta")],
-      [death],
-      [makeSpawn(boss)],
-    );
-    expect(result).toBe("Alpha"); // lastIdx=0 + 1 + adjustment(1) = 2 → safeMod(2,2)=0 → Alpha
-  });
 });

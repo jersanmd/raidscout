@@ -85,7 +85,6 @@ export function getRotationInfo(
   if (bgs.length === 0) return null;
 
   const bossData = spawns.find(s => s.boss.id === bossId)?.boss;
-  const adjustment = bossData?.rotation_adjustment ?? 0;
 
   // ── Per-kill rotation mode ──
   const rotationEntries = bgs
@@ -109,7 +108,7 @@ export function getRotationInfo(
     .filter(bg => bg.mode === "daily")
     .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
   if (dailyEntries.length > 1) {
-    const idx = getDailyRotationIndex(bossId, dailyEntries, deathRecords, adjustment, spawns, timezone || "UTC");
+    const idx = getDailyRotationIndex(bossId, dailyEntries, deathRecords, spawns, timezone || "UTC");
     return {
       guilds: dailyEntries.map(bg => ({
         name: guilds.find(g => g.id === bg.guild_id)?.name ?? "?",
@@ -163,14 +162,12 @@ function getDailyOwnerGuild(
   // Different day → advance rotation
   const lastGuildId = (lastDeath as any).owner_guild_id;
   if (!lastGuildId) {
-    const adjustment = bossData?.rotation_adjustment ?? 0;
-    let idx = safeMod(1 + adjustment, dailyEntries.length);
+    let idx = safeMod(1, dailyEntries.length);
     return guilds.find(g => g.id === dailyEntries[idx].guild_id)?.name;
   }
 
   const lastIdx = dailyEntries.findIndex(bg => bg.guild_id === lastGuildId);
-  const adjustment = bossData?.rotation_adjustment ?? 0;
-  let nextIdx = safeMod((lastIdx >= 0 ? lastIdx + 1 : 0) + adjustment, dailyEntries.length);
+  let nextIdx = safeMod((lastIdx >= 0 ? lastIdx + 1 : 0), dailyEntries.length);
   return guilds.find(g => g.id === dailyEntries[nextIdx].guild_id)?.name;
 }
 
@@ -179,7 +176,6 @@ function getDailyRotationIndex(
   bossId: string,
   dailyEntries: BossGuild[],
   deathRecords: DeathRecord[],
-  adjustment: number,
   spawns: SpawnInfo[],
   timezone: string,
 ): number {
@@ -203,10 +199,10 @@ function getDailyRotationIndex(
       idx = lastIdx;
     } else {
       // Different day — advance rotation
-      idx = safeMod(lastIdx + 1 + adjustment, dailyEntries.length);
+      idx = safeMod(lastIdx + 1, dailyEntries.length);
     }
   } else {
-    idx = safeMod(1 + adjustment, dailyEntries.length);
+    idx = safeMod(1, dailyEntries.length);
   }
 
   return safeMod(idx, dailyEntries.length);
