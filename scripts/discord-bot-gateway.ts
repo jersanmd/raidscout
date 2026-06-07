@@ -1088,8 +1088,8 @@ async function handleMessage(msg: any) {
       headers: { apikey: SUPABASE_KEY!, Authorization: `Bearer ${SUPABASE_KEY!}` },
     }).catch(() => {});
 
-    // Increment rotation_counter atomically
-    if (serverBossGuilds.some((bg: any) => bg.boss_id === boss.id)) {
+    // Increment rotation_counter only for rotation-mode bosses (not daily/schedule)
+    if (serverBossGuilds.some((bg: any) => bg.boss_id === boss.id && bg.mode === "rotation")) {
       await fetch(`${SUPABASE_URL}/rest/v1/bosses?id=eq.${boss.id}`, {
         method: "PATCH",
         headers: { apikey: SUPABASE_KEY!, Authorization: `Bearer ${SUPABASE_KEY!}`, "Content-Type": "application/json" },
