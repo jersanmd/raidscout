@@ -70,6 +70,11 @@
 			"label": "esbuild + fly deploy",
 			"type": "shell",
 			"command": "npx esbuild scripts/discord-bot-gateway.ts --bundle --platform=node --target=node22 --outfile=dist/bot.cjs --external:ws --format=cjs 2>&1 && fly deploy 2>&1"
+		},
+		{
+			"label": "esbuild build",
+			"type": "shell",
+			"command": "npx esbuild scripts/discord-bot-gateway.ts --bundle --platform=node --target=node22 --outfile=dist/bot.cjs --external:ws --format=cjs 2>&1"
 		}
 	]
 }

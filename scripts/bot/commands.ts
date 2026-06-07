@@ -300,7 +300,6 @@ export async function handleMessage(msg: any) {
       { name: `${p}cmdhere${aliasNote("cmdhere")}`, value: "Restrict commands to this channel", inline: false },
       { name: `${p}threadhere${aliasNote("threadhere")}`, value: "Set auto-thread channel", inline: false },
       { name: `${p}forcespawn <boss>`, value: "Force a boss to spawn", inline: false },
-      { name: `${p}forcespawnall`, value: "Force-spawn ALL fixed-timer bosses\n`--all` -- across all servers", inline: false },
       { name: `${p}party <boss/activity>`, value: "Show party members for a boss/activity", inline: false },
     ]);
   }
