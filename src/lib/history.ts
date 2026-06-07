@@ -12,5 +12,6 @@ export interface HistoryEntry {
   activityImageUrl?: string | null;
   createdAt: string;
   ownerGuildName?: string;
+  ownerGuildId?: string;
   attendanceCount?: number;
 }

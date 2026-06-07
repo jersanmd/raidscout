@@ -87,9 +87,9 @@ export async function editDeathTime(deathRecordId: string, newDeathTime: Date): 
 }
 
 export async function setDeathDisplayGuild(deathRecordId: string, guildId: string): Promise<void> {
-  const { error } = await supabase.rpc("set_death_display_guild", {
-    p_death_record_id: deathRecordId,
-    p_guild_id: guildId,
-  });
+  const { error } = await supabase
+    .from("death_records")
+    .update({ owner_guild_id: guildId })
+    .eq("id", deathRecordId);
   if (error) throw new Error(error.message);
 }

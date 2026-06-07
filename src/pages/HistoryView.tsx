@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { type HistoryEntry } from "@/lib/history";
-import { fetchHistoryFromSupabase, deleteDeathRecord, isSupabaseConfigured, editDeathTime, fetchGuilds } from "@/lib/supabase";
+import { fetchHistoryFromSupabase, deleteDeathRecord, isSupabaseConfigured, editDeathTime, fetchGuilds, setDeathDisplayGuild } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { useServerId } from "@/contexts/ServerContext";
 import { useQueryClient } from "@tanstack/react-query";
@@ -61,6 +61,7 @@ export function HistoryView() {
   // Edit death time
   const [editEntry, setEditEntry] = useState<HistoryEntry | null>(null);
   const [editDate, setEditDate] = useState("");
+  const [editGuild, setEditGuild] = useState("");
   const [editSaving, setEditSaving] = useState(false);
   const [editToast, setEditToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
@@ -91,6 +92,26 @@ export function HistoryView() {
       setEditEntry(null);
     } catch (err: any) {
       setEditToast({ type: "error", message: err?.message ?? "Failed to update death time" });
+    } finally {
+      setEditSaving(false);
+    }
+  };
+
+  const handleEditDeathGuild = async () => {
+    if (!editEntry?.deathRecordId || !editGuild) return;
+    setEditSaving(true);
+    try {
+      await setDeathDisplayGuild(editEntry.deathRecordId, editGuild);
+      queryClient.invalidateQueries({ queryKey: ["death_records"] });
+      if (serverId) {
+        const since = dateFrom ? new Date(dateFrom + "T00:00:00Z").toISOString() : undefined;
+        const until = dateTo ? new Date(dateTo + "T23:59:59Z").toISOString() : undefined;
+        fetchHistory(since, until);
+      }
+      setEditToast({ type: "success", message: "Guild updated!" });
+      setEditEntry(null);
+    } catch (err: any) {
+      setEditToast({ type: "error", message: err?.message ?? "Failed to update guild" });
     } finally {
       setEditSaving(false);
     }
@@ -354,6 +375,7 @@ export function HistoryView() {
                               const dt = new Date(entry.deathTime || "");
                               const local = new Date(dt.getTime() - dt.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
                               setEditDate(local);
+                              setEditGuild(entry.ownerGuildId ?? "");
                               setEditEntry(entry);
                             }}
                             className="text-[#52525b] hover:text-[#a1a1aa] transition opacity-0 group-hover:opacity-100 shrink-0 p-1"
@@ -401,16 +423,31 @@ export function HistoryView() {
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <p className="text-sm text-[#a1a1aa] mb-3">
+            <p className="text-sm text-[#a1a1aa] mb-1">
               Change the death time for <span className="text-[#fafafa] font-medium">{editEntry.bossName}</span>
             </p>
             <input
               type="datetime-local"
               value={editDate}
               onChange={(e) => setEditDate(e.target.value)}
-              className="w-full bg-[#27272a] border border-[#3f3f46] rounded-lg px-3 py-2 text-sm text-[#fafafa] outline-none focus:border-[#52525b] mb-4"
+              className="w-full bg-[#27272a] border border-[#3f3f46] rounded-lg px-3 py-2 text-sm text-[#fafafa] outline-none focus:border-[#52525b] mb-3"
               autoFocus
             />
+            {guilds.length > 0 && (
+              <div className="mb-4">
+                <label className="text-xs text-[#71717a] block mb-1">Owner Guild</label>
+                <select
+                  value={editGuild}
+                  onChange={(e) => setEditGuild(e.target.value)}
+                  className="w-full bg-[#27272a] border border-[#3f3f46] rounded-lg px-3 py-2 text-sm text-[#fafafa] outline-none focus:border-[#52525b]"
+                >
+                  <option value="">Unset</option>
+                  {guilds.map(g => (
+                    <option key={g.id} value={g.id}>{g.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
             <div className="flex justify-end gap-2">
               <button
                 onClick={() => setEditEntry(null)}
@@ -420,11 +457,18 @@ export function HistoryView() {
                 Cancel
               </button>
               <button
+                onClick={handleEditDeathGuild}
+                disabled={editSaving || !editGuild}
+                className="px-4 py-2 rounded-md text-sm font-medium bg-[#18181b] border border-[#3f3f46] text-[#d4d4d8] hover:bg-[#27272a] transition disabled:opacity-50"
+              >
+                Set Guild
+              </button>
+              <button
                 onClick={handleEditDeathTime}
                 disabled={editSaving}
                 className="px-4 py-2 rounded-md text-sm font-medium bg-[#fafafa] text-[#09090b] hover:bg-[#e4e4e7] transition disabled:opacity-50"
               >
-                {editSaving ? "Saving..." : "Save"}
+                Save Time
               </button>
             </div>
           </div>
