@@ -401,7 +401,7 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
         {/* Bottom action buttons — bosses only */}
         {!compact && !multiMode && !isActivity && (canEdit || canMarkDied) && (
           <div className="flex items-center justify-end gap-1.5 mt-3 pt-3 border-t border-white/[0.05] relative z-[1]">
-            {canEdit && (
+            {canEdit && status !== "unknown" && (
               <button
                 onClick={() => {
                   const d = nextSpawn || new Date();
@@ -415,7 +415,7 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
                 Edit Spawn
               </button>
             )}
-            {canMarkDied && (
+            {canMarkDied && status !== "unknown" && (
             <>
             {/* Party assign button */}
             <div className="relative">
@@ -431,6 +431,9 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
                 Party
               </button>
             </div>
+            </>
+            )}
+            {canMarkDied && (
             <button
               onClick={() => setShowModal(true)}
               className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#18181b] border border-[#27272a] text-[#fafafa] text-[11px] font-medium hover:bg-[#27272a] active:scale-95 transition-all duration-200 whitespace-nowrap"
@@ -438,7 +441,6 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
               <Skull className="w-3 h-3" />
               Mark Died
             </button>
-            </>
             )}
           </div>
         )}

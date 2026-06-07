@@ -86,25 +86,38 @@ export async function createEventThreads(
         continue;
       }
 
-      // Create a new thread
-      const threadName = `🔔 ${name}${guildName ? ` -- ${guildName}` : ""} -- <t:${spawnUnix}:t>`;
-      const res = await discordFetch(
-        `https://discord.com/api/v10/channels/${channelId}/messages`,
+      // Create a new thread (two-step: create thread, then send message)
+      const spawnDate = new Date(spawnUnix * 1000);
+      const timeStr = spawnDate.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true });
+      const dateStr = spawnDate.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+      const threadName = `${name}${guildName ? ` -- ${guildName}` : ""} -- ${dateStr}, ${timeStr}`;
+      const threadRes = await discordFetch(
+        `https://discord.com/api/v10/channels/${channelId}/threads`,
         {
           method: "POST",
           headers: { Authorization: `Bot ${TOKEN}`, "Content-Type": "application/json" },
           body: JSON.stringify({
-            content: firstMessage,
-            thread_name: threadName,
+            name: threadName,
+            type: 11, // GUILD_PUBLIC_THREAD
+            auto_archive_duration: 10080, // 7 days (matches original code)
           }),
         }
       );
 
-      if (res.ok) {
-        const msg = await res.json() as any;
-        if (msg?.thread?.id) {
-          threadCache.set(cacheKey, { threadId: msg.thread.id, createdAt: Date.now() });
-        }
+      if (threadRes.ok) {
+        const thread = await threadRes.json() as any;
+        threadCache.set(cacheKey, { threadId: thread.id, createdAt: Date.now() });
+        console.log(`[thread] Created "${threadName}" in channel ${channelId}${guildName ? ` for ${guildName}` : ""}`);
+
+        // Send the first message inside the thread
+        await discordFetch(
+          `https://discord.com/api/v10/channels/${thread.id}/messages`,
+          {
+            method: "POST",
+            headers: { Authorization: `Bot ${TOKEN}`, "Content-Type": "application/json" },
+            body: JSON.stringify({ content: firstMessage }),
+          }
+        ).catch(() => {});
       }
     }
   } catch (err: any) {

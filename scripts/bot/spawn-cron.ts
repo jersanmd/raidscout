@@ -4,12 +4,20 @@
 import { TOKEN, SUPABASE_URL, SUPABASE_KEY } from "./config";
 import { discordFetch } from "./discord-api";
 import { supabaseQuery, supabaseQuerySafe } from "./supabase";
-import { resolveServerTimezone } from "./server-cache";
+import { resolveServerTimezone, getNotifyPrefix } from "./server-cache";
 import { addHours, computeOwnerGuild, getScheduleTz, scheduleSlotToUTC, findNextScheduleSlot } from "./spawn-utils";
 import { broadcastNotification } from "./notifications";
 import { createEventThreads } from "./threads";
 
 const sentNotifs = new Map<string, number>();
+
+// Clean up stale dedup entries every 10 minutes (keep 2 hours worth)
+setInterval(() => {
+  const cutoff = Date.now() - 2 * 3600_000;
+  for (const [key, ts] of sentNotifs) {
+    if (ts < cutoff) sentNotifs.delete(key);
+  }
+}, 10 * 60_000);
 
 let cronStarted = false;
 let lastTickTime = 0;
@@ -121,10 +129,11 @@ async function runSpawnCron() {
           const spawnDedupKey = `${serverId}-${boss.id}-boss_spawned-${spawnUnix}`;
           if (!sentNotifs.has(spawnDedupKey)) {
             sentNotifs.set(spawnDedupKey, Date.now());
+            const prefix = await getNotifyPrefix(serverId).catch(() => "");
             const timeStr = spawnTime.toLocaleString("en-US", {
               timeZone: tz || "Asia/Manila", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: true,
             });
-            const text = `🟢 **${boss.name}** has spawned -- **${guildName}** ${timeStr}`;
+            const text = `${prefix ? prefix + " " : ""}🟢 **${boss.name}** has spawned -- **${guildName}** ${timeStr}`;
             await broadcastNotification(serverId, {}, "", text);
           }
           continue; // Don't re-process in 5-min block
@@ -134,18 +143,17 @@ async function runSpawnCron() {
 
         // ── 5-minute warning + thread ──
         if (secsUntilSpawn > 0 && secsUntilSpawn <= 300) {
-          const dedupKey = `${serverId}-${boss.id}-boss_spawning-${spawnUnix}`;
-          const existing = await supabaseQuerySafe(
-            `spawn_notifications?server_id=eq.${serverId}&boss_id=eq.${boss.id}&event=eq.boss_spawning&spawn_timestamp=eq.${spawnUnix}&limit=1`
-          );
-          if (!existing?.length) {
+          const dedupKey = `${serverId}-${boss.id}-5min-${spawnUnix}`;
+          if (!sentNotifs.has(dedupKey)) {
+            sentNotifs.set(dedupKey, Date.now());
+            const prefix = await getNotifyPrefix(serverId).catch(() => "");
             const timeStr = spawnTime.toLocaleString("en-US", {
               timeZone: tz || "Asia/Manila", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: true,
             });
-            const text = `⚠️ **${boss.name}** spawning in 5 min -- **${guildName}** ${timeStr}`;
+            const text = `${prefix ? prefix + " " : ""}⚠️ **${boss.name}** spawning in 5 min -- **${guildName}** ${timeStr}`;
             await broadcastNotification(serverId, {}, "", text);
 
-            // Record notification to prevent duplicates
+            // Record notification to prevent duplicates (best-effort, in-memory is the real dedup)
             await fetch(`${SUPABASE_URL}/rest/v1/spawn_notifications`, {
               method: "POST",
               headers: { apikey: SUPABASE_KEY!, Authorization: `Bearer ${SUPABASE_KEY!}`, "Content-Type": "application/json" },
@@ -154,13 +162,13 @@ async function runSpawnCron() {
                 event: "boss_spawning", spawn_timestamp: spawnUnix, notified_via: "discord",
               }),
             }).catch(() => {});
+          }
 
-            // Auto-thread with party list
-            const threadDedupKey = `${serverId}-thread-${boss.id}-${spawnUnix}`;
-            if (!sentNotifs.has(threadDedupKey)) {
-              sentNotifs.set(threadDedupKey, Date.now());
-              await createEventThreads(serverId, boss.name, guildName, spawnUnix, "boss", boss.id).catch(console.error);
-            }
+          // Auto-thread with party list (independent of notification dedup)
+          const threadDedupKey = `${serverId}-thread-${boss.id}-${spawnUnix}`;
+          if (!sentNotifs.has(threadDedupKey)) {
+            sentNotifs.set(threadDedupKey, Date.now());
+            await createEventThreads(serverId, boss.name, guildName, spawnUnix, "boss", boss.id).catch(console.error);
           }
         }
       } catch (bossErr: any) {
