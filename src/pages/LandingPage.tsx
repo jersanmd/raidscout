@@ -7,7 +7,7 @@ import { version } from "../../package.json";
 import {
   Timer, Shield, BarChart3, Sparkles, MessageSquare, Calendar, Skull, Eye, Trophy, Server, Clock, Lock, Image,
   LogIn, UserPlus, Mail, CheckCircle, AlertTriangle, Key, ChevronDown, Bot,
-  Crosshair, Radio, Activity, Wifi, Copy, Terminal, Check, Hash, AtSign
+  Crosshair, Radio, Activity, Wifi, Copy, Terminal, Check, Hash, AtSign, Play, X
 } from "lucide-react";
 
 // ── Animated Counter ────────────────────────────────────────
@@ -189,6 +189,9 @@ export function LandingPage() {
   const [loading, setLoading] = useState(false);
   const [resetSent, setResetSent] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [showVideo, setShowVideo] = useState(false);
+
+  const YOUTUBE_ID = import.meta.env.VITE_YOUTUBE_DEMO_ID || "dQw4w9WgXcQ";
 
   // Live stats from Supabase
   const [liveStats, setLiveStats] = useState({
@@ -319,6 +322,13 @@ export function LandingPage() {
               className="px-6 py-3 rounded-lg font-medium text-sm text-[#71717a] hover:text-[#a1a1aa] transition-colors duration-200"
             >
               View Capabilities
+            </button>
+            <button
+              onClick={() => setShowVideo(true)}
+              className="px-6 py-3 rounded-lg font-medium text-sm border border-[#fafafa]/20 text-[#fafafa] hover:border-[#fafafa]/40 hover:bg-[#fafafa]/5 transition-all duration-200 flex items-center gap-2"
+            >
+              <Play className="w-4 h-4" fill="currentColor" />
+              Watch Demo
             </button>
           </div>
 
@@ -1253,6 +1263,36 @@ function FAQ() {
           </div>
         </div>
       ))}
+
+      {/* YouTube Demo Modal */}
+      {showVideo && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/80" onClick={() => setShowVideo(false)} />
+          <div className="relative bg-[#09090b] border border-[#27272a] rounded-xl w-full max-w-3xl shadow-2xl overflow-hidden">
+            <div className="flex items-center justify-between p-4 border-b border-[#27272a]">
+              <h3 className="text-sm font-medium text-[#fafafa] flex items-center gap-2">
+                <Play className="w-4 h-4" fill="currentColor" />
+                RaidScout Demo
+              </h3>
+              <button
+                onClick={() => setShowVideo(false)}
+                className="p-1 text-[#71717a] hover:text-[#fafafa] transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="aspect-video">
+              <iframe
+                src={`https://www.youtube.com/embed/${YOUTUBE_ID}?autoplay=1&rel=0`}
+                allow="autoplay; encrypted-media"
+                allowFullScreen
+                className="w-full h-full"
+                title="RaidScout Demo"
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
