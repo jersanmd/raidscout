@@ -12,6 +12,17 @@ import { createEventThreads } from "./threads";
 const sentNotifs = new Map<string, number>();
 
 let cronStarted = false;
+let lastTickTime = 0;
+let lastServersChecked = 0;
+let lastBossesChecked = 0;
+
+export function getCronStats() {
+  return {
+    last_tick_seconds_ago: lastTickTime ? Math.floor((Date.now() - lastTickTime) / 1000) : null,
+    servers_checked: lastServersChecked,
+    bosses_checked: lastBossesChecked,
+  };
+}
 
 export function startSpawnCron() {
   if (cronStarted) return;
@@ -29,6 +40,10 @@ export function startSpawnCron() {
 }
 
 async function runSpawnCron() {
+  lastTickTime = Date.now();
+  let serversChecked = 0;
+  let bossesChecked = 0;
+
   const configs = await supabaseQuerySafe(
     `discord_configs?select=raidscout_server_id,discord_guild_id,notification_channel_id&notification_channel_id=not.is.null`
   );
@@ -53,8 +68,10 @@ async function runSpawnCron() {
 
     if (!bosses?.length) continue;
 
+    serversChecked++;
     for (const boss of bosses) {
       try {
+        bossesChecked++;
         const bossDeaths = (deaths || []).filter((d: any) => d.boss_id === boss.id && !d.is_initial_spawn);
         const lastDeath = bossDeaths.sort((a: any, b: any) =>
           new Date(b.death_time).getTime() - new Date(a.death_time).getTime()
@@ -200,4 +217,6 @@ async function runSpawnCron() {
       }
     }
   }
+  lastServersChecked = serversChecked;
+  lastBossesChecked = bossesChecked;
 }

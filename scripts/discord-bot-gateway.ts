@@ -7,11 +7,14 @@
 // @ts-nocheck
 
 import { WebSocket } from "ws";
+import * as http from "http";
 import { TOKEN, setBotUserId } from "./bot/config";
 import { installLogging } from "./bot/logging";
+import { LOG_BUFFER } from "./bot/logging";
 import { handleGuildJoin } from "./bot/guild-join";
 import { handleMessage } from "./bot/commands";
 import { startSpawnCron } from "./bot/spawn-cron";
+import { getCronStats } from "./bot/spawn-cron";
 
 // -- Crash resilience --------------------------------------
 process.on("uncaughtException", (err: any) => {
@@ -96,5 +99,63 @@ async function connect() {
 }
 
 console.log("RaidScout Discord Bot starting...");
+
+// ── HTTP API for admin panel (CORS enabled) ─────────────────
+const PORT = parseInt(process.env.PORT || "3003", 10);
+const startTime = Date.now();
+
+function corsHeaders(): Record<string, string> {
+  return {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "GET, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type",
+  };
+}
+
+http.createServer((req, res) => {
+  const url = new URL(req.url || "/", `http://localhost:${PORT}`);
+  const headers = { ...corsHeaders(), "Content-Type": "application/json" };
+
+  // CORS preflight
+  if (req.method === "OPTIONS") {
+    res.writeHead(204, corsHeaders());
+    return res.end();
+  }
+
+  // GET /status
+  if (req.method === "GET" && url.pathname === "/status") {
+    const uptime = Math.floor((Date.now() - startTime) / 1000);
+    const h = Math.floor(uptime / 3600);
+    const m = Math.floor((uptime % 3600) / 60);
+    const s = uptime % 60;
+    const uptimeDisplay = `${h}h ${m}m ${s}s`;
+
+    res.writeHead(200, headers);
+    return res.end(JSON.stringify({
+      ok: true,
+      discord_connected: discordConnected,
+      uptime_display: uptimeDisplay,
+      memory_mb: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
+      region: process.env.FLY_REGION || "sin",
+      node_version: process.version,
+      spawn_cron: getCronStats(),
+    }));
+  }
+
+  // GET /logs?limit=100
+  if (req.method === "GET" && url.pathname === "/logs") {
+    const limit = Math.min(parseInt(url.searchParams.get("limit") || "100", 10), 500);
+    const logs = LOG_BUFFER.slice(-limit).reverse();
+    res.writeHead(200, headers);
+    return res.end(JSON.stringify({ logs }));
+  }
+
+  // Health check fallback
+  res.writeHead(200, { "Content-Type": "text/plain", ...corsHeaders() });
+  res.end(`OK — Discord ${discordConnected ? "connected" : "disconnected"}`);
+}).listen(PORT, "0.0.0.0", () => {
+  console.log(`HTTP API listening on 0.0.0.0:${PORT}`);
+});
+
 startSpawnCron();
 connect().catch(console.error);
