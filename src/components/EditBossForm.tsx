@@ -84,22 +84,33 @@ export function EditBossForm({ boss, gameSlug, serverId, onSaved, onCancel }: Pr
         };
       }
 
-      const payload: Record<string, any> = {
-        name: name.trim(),
-        spawn_type: spawnType,
-        respawn_hours: respawnHours,
-        schedule: processedSchedule ?? null,
-        is_recurring: true,
-        ...(isServerMode ? { boss_points: isNaN(Number(points)) ? 1 : Number(points) } : { points: isNaN(Number(points)) ? 1 : Number(points) }),
-        category: category || null,
-        tags,
-      };
-      if (imageUrl !== null) payload.image_url = imageUrl;
-
       if (isServerMode) {
-        await updateCustomBoss(boss.id, payload);
+        // bosses table: uses boss_points, image_url
+        const serverPayload: Record<string, any> = {
+          name: name.trim(),
+          spawn_type: spawnType,
+          respawn_hours: respawnHours,
+          schedule: processedSchedule ?? null,
+          is_recurring: true,
+          boss_points: isNaN(Number(points)) ? 1 : Number(points),
+          category: category || null,
+          tags,
+        };
+        if (imageUrl !== null) serverPayload.image_url = imageUrl;
+        await updateCustomBoss(boss.id, serverPayload);
       } else {
-        await updateBossTemplate(boss.id, payload);
+        // boss_templates table: uses points, no image_url
+        const templatePayload: Record<string, any> = {
+          name: name.trim(),
+          spawn_type: spawnType,
+          respawn_hours: respawnHours,
+          schedule: processedSchedule ?? null,
+          is_recurring: true,
+          points: isNaN(Number(points)) ? 1 : Number(points),
+          category: category || null,
+          tags,
+        };
+        await updateBossTemplate(boss.id, templatePayload);
       }
       onSaved();
     } catch (err: any) {
