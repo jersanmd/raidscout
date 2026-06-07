@@ -332,6 +332,29 @@ export function DeathRecordModal({ boss, onClose, onSubmit, defaultDeathTime, hi
  return next;
  });
  }
+
+ // Auto-set party leader: first AI-detected name that matches a member in the owner's guild
+ if (ownerGuildId) {
+ const ownerGuildMembers = members.filter(m => m.guild_id === ownerGuildId);
+ if (ownerGuildMembers.length > 0) {
+ for (const name of names) {
+ const lower = name.toLowerCase();
+ const match = ownerGuildMembers.find(m => m.name.toLowerCase() === lower);
+ if (match) {
+ setPartyLeaders(prev => ({ ...prev, [ownerGuildId]: match.id }));
+ break;
+ }
+ }
+ // If no exact match, try fuzzy on owner guild members
+ for (const name of names) {
+ const close = findClosestMember(name, ownerGuildMembers);
+ if (close) {
+ setPartyLeaders(prev => ({ ...prev, [ownerGuildId]: close.id }));
+ break;
+ }
+ }
+ }
+ }
  } catch (err) {
  console.error("AI scan failed:", err);
  setAiError(
