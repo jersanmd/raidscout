@@ -7,6 +7,10 @@ export interface StaticParty {
   name: string;
   guild_id: string | null;
   guild_name: string | null;
+  boss_id: string | null;
+  boss_name: string | null;
+  activity_id: string | null;
+  activity_name: string | null;
   member_ids: string[];
   member_names: string[];
 }
@@ -19,11 +23,12 @@ export async function fetchStaticParties(serverId?: string | null): Promise<Stat
   return (data || []) as StaticParty[];
 }
 
-export async function createParty(name: string, guildId: string | null): Promise<string> {
+export async function createParty(name: string, guildId: string | null, bossId: string | null = null, activityId: string | null = null): Promise<string> {
   const sid = getCurrentServerId();
   if (!sid) throw new Error("No server selected");
   const { data, error } = await supabase.rpc("create_static_party", {
     p_server_id: sid, p_name: name.trim(), p_guild_id: guildId,
+    p_boss_id: bossId, p_activity_id: activityId,
   });
   if (error) throw error;
   return data as string;
@@ -43,5 +48,21 @@ export async function addMemberToParty(partyId: string, memberId: string): Promi
 
 export async function removeMemberFromParty(memberId: string): Promise<void> {
   const { error } = await supabase.rpc("remove_member_from_party", { p_member_id: memberId });
+  if (error) throw error;
+}
+
+/** Assign a party to a specific boss */
+export async function assignPartyToBoss(partyId: string, bossId: string): Promise<void> {
+  const { error } = await supabase.rpc("assign_party_to_boss", {
+    p_party_id: partyId, p_boss_id: bossId,
+  });
+  if (error) throw error;
+}
+
+/** Unlink a party from its boss/activity */
+export async function unlinkParty(partyId: string): Promise<void> {
+  const { error } = await supabase.rpc("unlink_party", {
+    p_party_id: partyId,
+  });
   if (error) throw error;
 }

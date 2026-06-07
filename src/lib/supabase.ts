@@ -118,6 +118,8 @@ export {
   deleteParty,
   addMemberToParty,
   removeMemberFromParty,
+  assignPartyToBoss,
+  unlinkParty,
 } from "./api/parties";
 export type { StaticParty } from "./api/parties";
 

@@ -1,12 +1,12 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { useQueryClient } from "@tanstack/react-query";
-import { Clock, Zap, X, Upload, Check, Plus, Search, Users, ClipboardPaste, Sparkles, Loader2, Pencil, ImagePlus } from "lucide-react";
+import { Clock, Zap, X, Upload, Check, Plus, Search, Users, ClipboardPaste, Sparkles, Loader2, Pencil, ImagePlus, Shield } from "lucide-react";
 import { useMembers } from "@/hooks/useMembers";
 import { useAuth } from "@/contexts/AuthContext";
 import { useServerId } from "@/contexts/ServerContext";
 import { extractNamesWithAI } from "@/lib/vision";
-import { isSupabaseConfigured, fetchGuilds, fetchStaticParties, type StaticParty } from "@/lib/supabase";
+import { isSupabaseConfigured, fetchGuilds, fetchStaticParties, assignPartyToBoss, unlinkParty, type StaticParty } from "@/lib/supabase";
 import { guildColor } from "@/lib/constants";
 import type { Boss, Member, Guild } from "@/types";
 
@@ -66,6 +66,9 @@ export function DeathRecordModal({ boss, onClose, onSubmit, defaultDeathTime, hi
    fetchStaticParties(serverId).then(setParties).catch(() => setParties([]));
  }
  }, [serverId]);
+ const refreshParties = () => {
+ if (serverId) fetchStaticParties(serverId).then(setParties).catch(() => {});
+ };
  const guildMap = new Map(guilds.map(g => [g.id, g]));
  // Group members by guild — owner guild sorted first, members alphabetical within each group
  const groupedMembers = useMemo(() => {
@@ -1010,9 +1013,57 @@ export function DeathRecordModal({ boss, onClose, onSubmit, defaultDeathTime, hi
  </p>
  ) : (
  <div className="space-y-2">
- {/* Quick Party Select */}
- {parties.length > 0 && (
- <div className="flex items-center gap-2 pb-1">
+ {/* Party assignment + Quick Select */}
+ {parties.length > 0 && boss && (
+ <div className="space-y-1.5 pb-1">
+ {/* Assign party to this boss */}
+ <div className="flex items-center gap-2">
+ {(() => {
+ const linkedParty = parties.find(p => p.boss_id === boss.id);
+ if (linkedParty) {
+ return (
+ <>
+ <span className="text-[10px] text-emerald-400/80 flex items-center gap-1">
+ <Shield className="w-3 h-3" />{linkedParty.name}
+ </span>
+ <button
+ onClick={async () => {
+ await unlinkParty(linkedParty.id);
+ refreshParties();
+ }}
+ className="text-[10px] text-[#71717a] hover:text-[#f87171] transition"
+ >
+ Unlink
+ </button>
+ <span className="text-[10px] text-[#52525b] ml-auto">Party assigned — members auto-organized</span>
+ </>
+ );
+ }
+ const unlinkedParties = parties.filter(p => !p.boss_id && !p.activity_id);
+ if (unlinkedParties.length === 0) return null;
+ return (
+ <select
+ value=""
+ onChange={async (e) => {
+ const val = e.target.value;
+ if (val) {
+ await assignPartyToBoss(val, boss.id);
+ refreshParties();
+ }
+ }}
+ className="flex-1 px-2 py-1.5 bg-[#18181b] border border-[#27272a] rounded text-xs text-[#a1a1aa] outline-none focus:border-[#52525b]"
+ >
+ <option value="">Assign a party to this boss...</option>
+ {unlinkedParties.map(p => (
+ <option key={p.id} value={p.id}>{p.name} ({p.member_ids.length})</option>
+ ))}
+ </select>
+ );
+ })()}
+ </div>
+
+ {/* Quick party select */}
+ <div className="flex items-center gap-2">
  <select
  value={partySelect}
  onChange={(e) => {
@@ -1032,7 +1083,7 @@ export function DeathRecordModal({ boss, onClose, onSubmit, defaultDeathTime, hi
  >
  <option value="">Quick party...</option>
  {parties.map(p => (
- <option key={p.id} value={p.id}>{p.name} ({p.member_ids.length})</option>
+ <option key={p.id} value={p.id}>{p.boss_id === boss.id ? "🔗 " : ""}{p.name} ({p.member_ids.length})</option>
  ))}
  </select>
  {partySelect && (
@@ -1040,6 +1091,7 @@ export function DeathRecordModal({ boss, onClose, onSubmit, defaultDeathTime, hi
  Clear
  </button>
  )}
+ </div>
  </div>
  )}
  {filteredGroupedMembers.map((group) => (

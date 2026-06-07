@@ -4,12 +4,15 @@ import { useServer, useHasPermission } from "@/contexts/ServerContext";
 import { CountdownTimer } from "./CountdownTimer";
 import { DeathRecordModal } from "./DeathRecordModal";
 import { BossImage } from "./BossImage";
-import { Repeat, Timer, Skull, CheckSquare, Square, Shield, Pencil, X, Calendar, Users, Star, CheckCircle } from "lucide-react";
+import { Repeat, Timer, Skull, CheckSquare, Square, Shield, Pencil, X, Calendar, Users, Star, CheckCircle, Plus } from "lucide-react";
 import { useUserTimezone, formatInTimezone } from "@/hooks/useUserTimezone";
 import { utcSlotToLocal } from "@/lib/scheduleTimezone";
 import { useTimer } from "@/hooks/useTimer";
 import { guildColor } from "@/lib/constants";
-import type { BossWithSpawn, Activity } from "@/types";
+import { fetchStaticParties, assignPartyToBoss, createParty, deleteParty, addMemberToParty, removeMemberFromParty, fetchGuilds, type StaticParty } from "@/lib/supabase";
+import { useServerId } from "@/contexts/ServerContext";
+import { useMembers } from "@/hooks/useMembers";
+import type { BossWithSpawn, Activity, Guild, Member } from "@/types";
 
 interface BossCardProps {
   spawn: BossWithSpawn;
@@ -62,6 +65,19 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
   const [editDateValue, setEditDateValue] = useState("");
   const [editTimeValue, setEditTimeValue] = useState("");
   const [optimisticOwner, setOptimisticOwner] = useState<string | null>(null);
+  const [showPartyModal, setShowPartyModal] = useState(false);
+  const [showCustomPartyModal, setShowCustomPartyModal] = useState(false);
+  const [parties, setParties] = useState<StaticParty[]>([]);
+  const [guilds, setGuilds] = useState<Guild[]>([]);
+  // New party creation state (matches MembersView)
+  const [newPartyGuildFilter, setNewPartyGuildFilter] = useState<string>("");
+  const [newPartySize, setNewPartySize] = useState<number>(5);
+  const [newPartyBoxes, setNewPartyBoxes] = useState<string[][]>([]);
+  const [newPartyUnassignedSearch, setNewPartyUnassignedSearch] = useState("");
+  const [creatingParties, setCreatingParties] = useState(false);
+  const [showAllStatic, setShowAllStatic] = useState(false);
+  const serverId = useServerId();
+  const { data: members = [] } = useMembers();
 
   // Clear optimistic override once the parent prop catches up
   useEffect(() => {
@@ -69,6 +85,20 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
       setOptimisticOwner(null);
     }
   }, [ownerGuildName, optimisticOwner]);
+
+  // Load parties on mount
+  useEffect(() => {
+    if (serverId) {
+      fetchStaticParties(serverId).then(setParties).catch(() => setParties([]));
+    }
+  }, [serverId]);
+
+  // Load guilds on mount
+  useEffect(() => {
+    if (serverId) {
+      fetchGuilds(serverId).then(setGuilds).catch(() => setGuilds([]));
+    }
+  }, [serverId]);
 
   const canSetSpawn = useHasPermission("can_manage_spawns");
   const canRecordDeath = useHasPermission("can_record_death");
@@ -386,6 +416,21 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
               </button>
             )}
             {canMarkDied && (
+            <>
+            {/* Party assign button */}
+            <div className="relative">
+              <button
+                onClick={() => { setShowPartyModal(true); setShowAllStatic(false); }}
+                className={`flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg border text-[11px] font-medium active:scale-95 transition-all duration-200 whitespace-nowrap ${parties.some(p => p.boss_id === boss.id) ? "bg-emerald-900/20 border-emerald-800/50 text-emerald-400" : "bg-[#18181b] border-[#27272a] text-[#a1a1aa] hover:bg-[#27272a] hover:text-[#fafafa]"}`}
+              >
+                {parties.some(p => p.boss_id === boss.id) ? (
+                  <CheckCircle className="w-3 h-3" />
+                ) : (
+                  <Users className="w-3 h-3" />
+                )}
+                Party
+              </button>
+            </div>
             <button
               onClick={() => setShowModal(true)}
               className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#18181b] border border-[#27272a] text-[#fafafa] text-[11px] font-medium hover:bg-[#27272a] active:scale-95 transition-all duration-200 whitespace-nowrap"
@@ -393,6 +438,7 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
               <Skull className="w-3 h-3" />
               Mark Died
             </button>
+            </>
             )}
           </div>
         )}
@@ -453,6 +499,217 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
           }}
         />
       )}
+
+      {/* Create Party Builder Modal — drag & drop, mirrors MembersView parties tab */}
+      {showCustomPartyModal && (() => {
+        // Filtered unassigned members
+        const filteredMembers = members.filter(m => {
+          if (newPartyGuildFilter && m.guild_id !== newPartyGuildFilter) return false;
+          return !newPartyBoxes.some(box => box.includes(m.id));
+        });
+        const searchedMembers = filteredMembers.filter(m =>
+          !newPartyUnassignedSearch || m.name.toLowerCase().includes(newPartyUnassignedSearch.toLowerCase())
+        );
+
+        const handleGenerateBoxes = () => {
+          const filtered = members.filter(m => !newPartyGuildFilter || m.guild_id === newPartyGuildFilter);
+          const count = Math.max(1, Math.ceil(filtered.length / Math.max(1, newPartySize)));
+          setNewPartyBoxes(Array.from({ length: count }, () => []));
+        };
+
+        const handleDropInSlot = (boxIndex: number, slotIndex: number, memberId: string) => {
+          setNewPartyBoxes(prev => {
+            const boxes = [...prev];
+            const cleaned = boxes.map(box => box.filter(id => id !== memberId));
+            const target = [...(cleaned[boxIndex] ?? [])];
+            target.splice(slotIndex, 0, memberId);
+            cleaned[boxIndex] = target.slice(0, newPartySize);
+            return cleaned;
+          });
+        };
+
+        const handleDropUnassigned = (memberId: string) => {
+          setNewPartyBoxes(prev => prev.map(box => box.filter(id => id !== memberId)));
+        };
+
+        const handleAutoAssign = (memberId: string) => {
+          setNewPartyBoxes(prev => {
+            const boxes = [...prev];
+            for (let i = 0; i < boxes.length; i++) {
+              if (boxes[i].length < newPartySize && !boxes[i].includes(memberId)) {
+                const next = boxes.map(box => box.filter(id => id !== memberId));
+                next[i] = [...next[i], memberId];
+                return next;
+              }
+            }
+            return prev;
+          });
+        };
+
+        const handleSaveParties = async () => {
+          setCreatingParties(true);
+          try {
+            for (let i = 0; i < newPartyBoxes.length; i++) {
+              const box = newPartyBoxes[i];
+              if (box.length === 0) continue;
+              const guildId = newPartyGuildFilter || null;
+              const partyId = await createParty(`Party ${i + 1}`, guildId, boss.id);
+              for (const memberId of box) {
+                await addMemberToParty(partyId, memberId).catch(() => {});
+              }
+            }
+            // Refresh parties list
+            if (serverId) {
+              const updated = await fetchStaticParties(serverId);
+              setParties(updated);
+            }
+            setShowCustomPartyModal(false);
+            setNewPartyBoxes([]);
+          } catch { /* ignore */ }
+          setCreatingParties(false);
+        };
+
+        return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-2">
+          <div className="absolute inset-0 bg-black/60" onClick={() => { setShowCustomPartyModal(false); setNewPartyBoxes([]); }} />
+          <div className="relative bg-[#18181b] border border-[#27272a] rounded-xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl">
+            {/* Header */}
+            <div className="flex items-center justify-between p-4 border-b border-[#27272a] shrink-0">
+              <div>
+                <h3 className="text-sm font-semibold text-[#fafafa]">Create Parties for {boss.name}</h3>
+                <p className="text-[11px] text-[#71717a]">Drag members into party boxes, then save to assign</p>
+              </div>
+              <button onClick={() => { setShowCustomPartyModal(false); setNewPartyBoxes([]); }} className="p-1.5 rounded-lg text-[#71717a] hover:text-[#fafafa] hover:bg-[#27272a] transition">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Controls */}
+            <div className="flex flex-wrap items-center gap-2 px-4 py-2 border-b border-[#27272a] shrink-0">
+              {guilds.length > 0 && (
+                <select value={newPartyGuildFilter} onChange={(e) => { setNewPartyGuildFilter(e.target.value); setNewPartyBoxes([]); }}
+                  className="px-2 py-1.5 bg-[#09090b] border border-[#27272a] rounded-lg text-xs text-[#a1a1aa] outline-none focus:border-[#52525b]">
+                  <option value="">All guilds</option>
+                  {guilds.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+                </select>
+              )}
+              <label className="flex items-center gap-1.5 text-xs text-[#a1a1aa]">
+                Party size:
+                <input type="number" value={newPartySize} onChange={(e) => setNewPartySize(Math.max(1, Number(e.target.value) || 1))}
+                  min={1} className="w-16 px-2 py-1.5 bg-[#09090b] border border-[#27272a] rounded-lg text-[#fafafa] text-xs text-center focus:outline-none focus:border-[#52525b]" />
+              </label>
+              <button onClick={handleGenerateBoxes}
+                className="px-3 py-1.5 rounded-lg text-xs font-medium bg-[#fafafa] text-[#09090b] hover:bg-[#e4e4e7] transition">
+                Generate Boxes
+              </button>
+              {newPartyBoxes.length > 0 && (
+                <button onClick={handleSaveParties} disabled={creatingParties}
+                  className="px-3 py-1.5 rounded-lg text-xs font-medium bg-[#22c55e] text-[#09090b] hover:bg-[#16a34a] disabled:opacity-50 transition ml-auto">
+                  {creatingParties ? "Saving…" : `Save & Assign to ${boss.name}`}
+                </button>
+              )}
+            </div>
+
+            {/* Body: drag & drop area */}
+            <div className="flex-1 overflow-y-auto p-4">
+              {newPartyBoxes.length === 0 ? (
+                <p className="text-xs text-[#52525b] text-center py-12">
+                  Select a guild (optional), set party size, then click "Generate Boxes" to start.
+                </p>
+              ) : (
+                <div className="flex gap-4 h-full">
+                  {/* Left: Unassigned */}
+                  <div className="w-56 shrink-0 rounded-lg border border-dashed border-[#3f3f46] bg-[#09090b]/50 p-2 space-y-1 self-start"
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={(e) => { e.preventDefault(); const mid = e.dataTransfer.getData("text/plain"); if (mid) handleDropUnassigned(mid); }}>
+                    <p className="text-[10px] text-[#52525b] uppercase tracking-wider px-2 py-1">Unassigned ({filteredMembers.length})</p>
+                    <div className="px-1">
+                      <input type="text" value={newPartyUnassignedSearch} onChange={(e) => setNewPartyUnassignedSearch(e.target.value)}
+                        placeholder="Search..." className="w-full px-2 py-1 bg-[#09090b] border border-[#27272a] rounded text-[10px] text-[#fafafa] placeholder-[#52525b] focus:outline-none focus:border-[#52525b]" />
+                    </div>
+                    {searchedMembers.length === 0 ? (
+                      <p className="text-[10px] text-[#3f3f46] text-center py-4">All members placed</p>
+                    ) : (
+                      searchedMembers.map(m => {
+                        const g = guilds.find(g => g.id === m.guild_id);
+                        const c = g ? guildColor(g.name) : null;
+                        return (
+                          <div key={m.id} draggable
+                            onDragStart={(e) => { e.dataTransfer.setData("text/plain", m.id); e.dataTransfer.effectAllowed = "move"; }}
+                            onDoubleClick={() => handleAutoAssign(m.id)}
+                            className="flex items-center gap-2 px-2 py-1.5 rounded bg-[#18181b] border border-[#27272a] text-xs text-[#d4d4d8] cursor-grab active:cursor-grabbing hover:border-[#52525b] transition">
+                            <span className="w-5 h-5 rounded bg-[#09090b] flex items-center justify-center text-[10px] text-[#71717a] font-bold shrink-0">{m.name.charAt(0)}</span>
+                            <span className="truncate flex-1">{m.name}</span>
+                            {g && c && (
+                              <span className={`shrink-0 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] border ${c.bg} ${c.text} ${c.border}`}>
+                                <Shield className="w-2.5 h-2.5" />{g.name}
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+
+                  {/* Right: Party boxes */}
+                  <div className="flex-1 flex flex-wrap gap-2 items-start content-start">
+                    {newPartyBoxes.map((box, i) => {
+                      const boxMembers = box.map(id => members.find(m => m.id === id)).filter(Boolean) as Member[];
+                      const slots: (Member | null)[] = Array.from({ length: newPartySize }, (_, s) => boxMembers[s] ?? null);
+                      return (
+                        <div key={i} className="w-[180px] shrink-0 rounded-lg border border-[#27272a] bg-[#18181b]/30 p-2 space-y-0.5">
+                          <p className="text-[10px] text-[#52525b] uppercase tracking-wider px-1 flex items-center justify-between">
+                            <span>Party {i + 1} <span className="text-[#3f3f46]">({box.length}/{newPartySize})</span></span>
+                            {box.length > 0 && (
+                              <button onClick={() => setNewPartyBoxes(prev => { const b = [...prev]; b[i] = []; return b; })}
+                                className="text-[#52525b] hover:text-[#f87171] transition" title="Clear">
+                                <X className="w-3 h-3" />
+                              </button>
+                            )}
+                          </p>
+                          {slots.map((m, s) =>
+                            m ? (() => {
+                              const g = guilds.find(g => g.id === m.guild_id);
+                              const c = g ? guildColor(g.name) : null;
+                              return (
+                                <div key={m.id} draggable
+                                  onDragStart={(e) => { e.dataTransfer.setData("text/plain", m.id); e.dataTransfer.effectAllowed = "move"; }}
+                                  onDragOver={(e) => e.preventDefault()}
+                                  onDrop={(e) => { e.preventDefault(); e.stopPropagation(); const mid = e.dataTransfer.getData("text/plain"); if (mid) handleDropInSlot(i, s, mid); }}
+                                  className="flex items-center gap-1.5 px-2 py-1 rounded bg-[#09090b] border border-[#27272a] text-xs text-[#d4d4d8] group cursor-grab active:cursor-grabbing">
+                                  <span className="w-4 h-4 rounded bg-[#18181b] flex items-center justify-center text-[9px] text-[#71717a] font-bold shrink-0">{m.name.charAt(0)}</span>
+                                  <span className="truncate flex-1">{m.name}</span>
+                                  {g && c && (
+                                    <span className={`shrink-0 inline-flex items-center gap-0.5 px-1 py-0 rounded text-[8px] border ${c.bg} ${c.text} ${c.border}`}>
+                                      <Shield className="w-2 h-2" />{g.name}
+                                    </span>
+                                  )}
+                                  <button onClick={() => setNewPartyBoxes(prev => { const b = [...prev]; b[i] = b[i].filter(id => id !== m.id); return b; })}
+                                    className="opacity-0 group-hover:opacity-100 text-[#52525b] hover:text-[#f87171] transition">
+                                    <X className="w-3 h-3" />
+                                  </button>
+                                </div>
+                              );
+                            })() : (
+                              <div key={`empty-${s}`}
+                                className="flex items-center justify-center px-2 py-2 rounded border border-dashed border-[#3f3f46] text-[11px] text-[#52525b] min-h-[28px]"
+                                onDragOver={(e) => e.preventDefault()}
+                                onDrop={(e) => { e.preventDefault(); const mid = e.dataTransfer.getData("text/plain"); if (mid) handleDropInSlot(i, s, mid); }}>
+                                <span className="text-[#27272a]">Drop slot</span>
+                              </div>
+                            )
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+        );
+      })()}
 
       {showEditSpawnModal && !isActivity && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -552,6 +809,212 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
                 className="px-4 py-2 rounded-lg text-sm font-medium bg-[#fafafa] hover:bg-[#e4e4e7] text-[#09090b] transition disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Party Assignment Modal */}
+      {showPartyModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60" onClick={() => setShowPartyModal(false)} />
+          <div className="relative bg-[#18181b] border border-[#27272a] rounded-xl w-full max-w-md max-h-[80vh] overflow-hidden flex flex-col shadow-2xl">
+            {/* Header */}
+            <div className="flex items-center justify-between p-4 border-b border-[#27272a] shrink-0">
+              <div>
+                <h3 className="text-sm font-semibold text-[#fafafa]">Party Assignment</h3>
+                <p className="text-[11px] text-[#71717a]">{boss.name}</p>
+              </div>
+              <button onClick={() => setShowPartyModal(false)} className="p-1.5 rounded-lg text-[#71717a] hover:text-[#fafafa] hover:bg-[#27272a] transition">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Party list */}
+            <div className="flex-1 overflow-y-auto p-4">
+              {(() => {
+                const linked = parties.filter(p => p.boss_id === boss.id);
+                const nonEmpty = parties.filter(p => p.member_ids.length > 0);
+
+                // If this boss has custom parties AND user hasn't toggled to show all
+                if (linked.length > 0 && !showAllStatic) {
+                  const renderParty = (party: StaticParty) => {
+                    const partyMembers = party.member_ids.map(id => members.find(m => m.id === id)).filter(Boolean) as Member[];
+                    const g = party.guild_name ? { name: party.guild_name } : null;
+                    const c = g ? guildColor(g.name) : null;
+                    return (
+                      <div key={party.id} className="rounded-lg border border-emerald-800/50 bg-emerald-900/10 p-2.5">
+                        <div className="flex items-center justify-between mb-1.5">
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <CheckCircle className="w-3 h-3 text-emerald-400 shrink-0" />
+                            <span className="text-[11px] font-medium text-[#fafafa] truncate">{party.name}</span>
+                            {g && c && (
+                              <span className={`shrink-0 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] border ${c.bg} ${c.text} ${c.border}`}>
+                                <Shield className="w-2.5 h-2.5" />{g.name}
+                              </span>
+                            )}
+                          </div>
+                          <span className="text-[10px] text-[#52525b] shrink-0 ml-1">{partyMembers.length}</span>
+                        </div>
+                        {partyMembers.length > 0 ? (
+                          <div className="flex flex-wrap gap-1 mb-1.5">
+                            {partyMembers.map(m => (
+                              <span key={m.id} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-[#18181b] border border-[#27272a] text-[10px] text-[#d4d4d8]">
+                                <span className="w-3.5 h-3.5 rounded bg-[#09090b] flex items-center justify-center text-[9px] text-[#71717a] font-bold">{m.name.charAt(0)}</span>
+                                {m.name}
+                              </span>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-[10px] text-[#3f3f46] mb-1.5">Empty party</p>
+                        )}
+                        <button
+                          onClick={async () => {
+                            const { unlinkParty } = await import("@/lib/supabase");
+                            await unlinkParty(party.id).catch(() => {});
+                            setParties(prev => prev.map(p => p.id === party.id ? { ...p, boss_id: null } : p));
+                          }}
+                          className="w-full text-center px-2 py-1 text-[10px] text-[#71717a] hover:text-[#f87171] rounded hover:bg-[#27272a] transition">
+                          Unlink from {boss.name}
+                        </button>
+                      </div>
+                    );
+                  };
+
+                  return (
+                    <div className="space-y-2">
+                      <p className="text-[10px] text-[#71717a] uppercase tracking-wider">
+                        Custom parties for {boss.name} ({linked.length})
+                      </p>
+                      {linked.map(renderParty)}
+                      <button
+                        onClick={() => setShowAllStatic(true)}
+                        className="w-full mt-3 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-dashed border-[#3f3f46] text-[11px] text-[#a1a1aa] hover:text-[#fafafa] hover:border-[#52525b] hover:bg-[#27272a] transition">
+                        <Shield className="w-3 h-3" />
+                        View all static parties
+                      </button>
+                    </div>
+                  );
+                }
+
+                // Show static party list (or reset toggle when modal reopens)
+                // Reset toggle when no linked parties
+                if (linked.length === 0 && showAllStatic) {
+                  // This will be caught on next render
+                }
+
+                if (nonEmpty.length === 0) {
+                  return (
+                    <div className="space-y-3">
+                      <p className="text-xs text-[#52525b] text-center py-8">
+                        No parties yet. Create one in the Members → Parties tab.
+                      </p>
+                      {linked.length > 0 && (
+                        <button onClick={() => setShowAllStatic(false)}
+                          className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-dashed border-[#3f3f46] text-[11px] text-[#a1a1aa] hover:text-[#fafafa] hover:border-[#52525b] hover:bg-[#27272a] transition">
+                          Back to custom parties
+                        </button>
+                      )}
+                    </div>
+                  );
+                }
+
+                // Group by guild_name
+                const grouped: Record<string, StaticParty[]> = {};
+                for (const p of nonEmpty) {
+                  const key = p.guild_name || "Other";
+                  if (!grouped[key]) grouped[key] = [];
+                  grouped[key].push(p);
+                }
+                const guildKeys = Object.keys(grouped);
+
+                const renderStaticParty = (party: StaticParty) => {
+                  const isLinked = party.boss_id === boss.id;
+                  const partyMembers = party.member_ids.map(id => members.find(m => m.id === id)).filter(Boolean) as Member[];
+                  const g = party.guild_name ? { name: party.guild_name } : null;
+                  const c = g ? guildColor(g.name) : null;
+                  return (
+                    <div key={party.id} className={`rounded-lg border p-2.5 transition ${isLinked ? "border-emerald-800/50 bg-emerald-900/10" : "border-[#27272a] bg-[#09090b]/50"}`}>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          {isLinked && <CheckCircle className="w-3 h-3 text-emerald-400 shrink-0" />}
+                          <span className="text-[11px] font-medium text-[#fafafa] truncate">{party.name}</span>
+                        </div>
+                        <span className="text-[10px] text-[#52525b] shrink-0 ml-1">{partyMembers.length}</span>
+                      </div>
+                      <div className="flex flex-wrap gap-1 mb-1.5">
+                        {partyMembers.map(m => (
+                          <span key={m.id} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-[#18181b] border border-[#27272a] text-[10px] text-[#d4d4d8]">
+                            <span className="w-3.5 h-3.5 rounded bg-[#09090b] flex items-center justify-center text-[9px] text-[#71717a] font-bold">{m.name.charAt(0)}</span>
+                            {m.name}
+                          </span>
+                        ))}
+                      </div>
+                      {isLinked ? (
+                        <button
+                          onClick={async () => {
+                            const { unlinkParty } = await import("@/lib/supabase");
+                            await unlinkParty(party.id).catch(() => {});
+                            setParties(prev => prev.map(p => p.id === party.id ? { ...p, boss_id: null } : p));
+                          }}
+                          className="w-full text-center px-2 py-1 text-[10px] text-[#71717a] hover:text-[#f87171] rounded hover:bg-[#27272a] transition">Unlink</button>
+                      ) : (
+                        <button
+                          onClick={async () => {
+                            if (!serverId) return;
+                            await assignPartyToBoss(party.id, boss.id).catch(() => {});
+                            setParties(prev => prev.map(p => p.id === party.id ? { ...p, boss_id: boss.id, boss_name: boss.name } : p));
+                          }}
+                          className="w-full text-center px-2 py-1.5 rounded text-[10px] font-medium bg-[#fafafa] text-[#09090b] hover:bg-[#e4e4e7] transition">Assign to {boss.name}</button>
+                      )}
+                    </div>
+                  );
+                };
+
+                return (
+                  <div className="space-y-3">
+                    {linked.length > 0 && (
+                      <button onClick={() => setShowAllStatic(false)}
+                        className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-dashed border-[#3f3f46] text-[11px] text-[#a1a1aa] hover:text-[#fafafa] hover:border-[#52525b] hover:bg-[#27272a] transition">
+                        Back to custom parties
+                      </button>
+                    )}
+                    <div className={guildKeys.length > 1 ? "grid grid-cols-2 gap-3" : "space-y-2"}>
+                      {guildKeys.map(guildName => {
+                        const col = guildColor(guildName);
+                        const guildParties = grouped[guildName];
+                        return (
+                          <div key={guildName} className="space-y-2">
+                            <div className="flex items-center gap-1.5 pb-1.5 border-b border-[#27272a]">
+                              {guildName !== "Other" && col && (
+                                <span className={`shrink-0 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] border ${col.bg} ${col.text} ${col.border}`}>
+                                  <Shield className="w-2.5 h-2.5" />{guildName}
+                                </span>
+                              )}
+                              {guildName === "Other" && (
+                                <span className="text-[10px] text-[#52525b] uppercase tracking-wider">Other</span>
+                              )}
+                              <span className="text-[10px] text-[#3f3f46]">{guildParties.length} {guildParties.length === 1 ? "party" : "parties"}</span>
+                            </div>
+                            {guildParties.map(renderStaticParty)}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+
+            {/* Footer */}
+            <div className="p-3 border-t border-[#27272a] shrink-0">
+              <button
+                onClick={() => { setShowPartyModal(false); setShowCustomPartyModal(true); }}
+                className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-dashed border-[#3f3f46] text-[11px] text-[#a1a1aa] hover:text-[#fafafa] hover:border-[#52525b] hover:bg-[#27272a] transition"
+              >
+                <Plus className="w-3 h-3" />
+                Create custom party
               </button>
             </div>
           </div>

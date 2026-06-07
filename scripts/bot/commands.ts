@@ -1,0 +1,521 @@
+// @ts-nocheck
+// Command handler -- all Discord chat commands
+
+import { TOKEN, SUPABASE_URL, SUPABASE_KEY, botUserId } from "./config";
+import { discordFetch } from "./discord-api";
+import { supabaseQuery, supabaseQuerySafe } from "./supabase";
+import { getGuildPrefixes, resolveServerId, resolveServerTimezone, bustPrefixCache } from "./server-cache";
+import { addHours, computeOwnerGuild, getScheduleTz, scheduleSlotToUTC, findNextScheduleSlot } from "./spawn-utils";
+import { fetchPartyList } from "./party-utils";
+import { broadcastNotification } from "./notifications";
+
+export async function handleMessage(msg: any) {
+  const content: string = msg.content?.trim() ?? "";
+  const channelId: string = msg.channel_id;
+  const guildId: string = msg.guild_id;
+  const author: string = msg.author?.username ?? "unknown";
+
+  const guildServerNames = new Map<string, string>();
+  const resolveServerName = async (gid: string): Promise<string> => {
+    const cached = guildServerNames.get(gid);
+    if (cached) return cached;
+    try {
+      const rows = await supabaseQuerySafe(`discord_configs?discord_guild_id=eq.${gid}&select=raidscout_server_id,servers!inner(name)&limit=1`);
+      const name = rows?.[0]?.servers?.name ?? "?";
+      guildServerNames.set(gid, name);
+      return name;
+    } catch { guildServerNames.set(gid, "?"); return "?"; }
+  };
+  const cmdLog = async (cmd: string, result: "ok" | "fail", detail?: string) => {
+    const guildTag = guildId ? guildId.slice(0, 8) : "DM";
+    const srvName = guildId ? await resolveServerName(guildId) : "";
+    const namePart = srvName ? ` [${srvName}]` : "";
+    console.log(`[cmd] ${author}@${guildTag}${namePart}:${cmd} -- ${result}${detail ? ` (${detail})` : ""}`);
+  };
+
+  // Resolve prefix & command
+  let mentionedPrefix = "";
+  if (botUserId && content) {
+    const mentionPattern = new RegExp(`<@!?${botUserId}>\\s*`);
+    const mentionMatch = content.match(mentionPattern);
+    if (mentionMatch) mentionedPrefix = mentionMatch[0];
+  }
+
+  if (!guildId) return;
+  const prefixes = await getGuildPrefixes(guildId);
+  const matchedPrefix = prefixes.find(p => content.startsWith(p));
+  if (!matchedPrefix && !mentionedPrefix) return;
+  const effectivePrefix = matchedPrefix || mentionedPrefix;
+  const args = content.slice(effectivePrefix.length).split(/\s+/);
+  const rawCmd = args[0]?.toLowerCase();
+
+  let aliases: Record<string, string> = {};
+  const aliasPrefix = matchedPrefix || prefixes[0] || "";
+  if (aliasPrefix) {
+    const aliasRows = await supabaseQuerySafe(
+      `discord_configs?discord_guild_id=eq.${guildId}&command_prefix=eq.${encodeURIComponent(aliasPrefix)}&select=command_aliases`
+    );
+    if (aliasRows?.[0]?.command_aliases) aliases = aliasRows[0].command_aliases;
+  }
+  const cmd = aliases[rawCmd] || rawCmd;
+  const serverId = await resolveServerId(guildId, matchedPrefix || prefixes[0] || "");
+
+  if (serverId && guildId) {
+    try {
+      const srvRows = await supabaseQuerySafe(`servers?id=eq.${serverId}&select=name`);
+      const srvName = srvRows?.[0]?.name;
+      if (srvName) guildServerNames.set(guildId, srvName);
+    } catch { /* ignore */ }
+  }
+
+  // Maintenance check
+  if (serverId) {
+    try {
+      const maintRows = await supabaseQuerySafe(`app_settings?key=eq.maintenance_mode&server_id=eq.${serverId}&select=value`);
+      const globalMaint = await supabaseQuerySafe(`app_settings?key=eq.maintenance_mode&server_id=is.null&select=value`);
+      const isMaint = maintRows?.[0]?.value === "true" || globalMaint?.[0]?.value === "true";
+      if (isMaint && cmd && cmd !== "help" && cmd !== "commands") {
+        let mtMsg = "🔧 RaidScout is currently under maintenance for this server. Please try again later.";
+        try {
+          const endRows = await supabaseQuerySafe(`app_settings?key=eq.maintenance_end&server_id=eq.${serverId}&select=value`);
+          const globalEnd = await supabaseQuerySafe(`app_settings?key=eq.maintenance_end&server_id=is.null&select=value`);
+          const endVal = endRows?.[0]?.value || globalEnd?.[0]?.value;
+          if (endVal) {
+            const endDate = new Date(endVal);
+            const tz = await resolveServerTimezone(serverId);
+            mtMsg += `\n📅 Expected to be back ${endDate.toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", timeZone: tz, timeZoneName: "short" })}.`;
+          }
+        } catch { /* ignore */ }
+        await discordFetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
+          method: "POST", headers: { Authorization: `Bot ${TOKEN}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ content: mtMsg }),
+        });
+        return;
+      }
+    } catch { /* proceed */ }
+  }
+
+  // ✅ reaction
+  const validCmds = new Set(["list","nextspawn","spawn","killed","kill","forcespawn","forcespawnall","spawnall","commands","help","notifhere","cmdhere","threadhere","party"]);
+  if (validCmds.has(cmd)) {
+    discordFetch(`https://discord.com/api/v10/channels/${channelId}/messages/${msg.id}/reactions/${encodeURIComponent("✅")}/@me`, {
+      method: "PUT", headers: { Authorization: `Bot ${TOKEN}` },
+    }).catch(() => {});
+  }
+
+  // Command channel restriction
+  if (matchedPrefix) {
+    const cfgRows = await supabaseQuerySafe(`discord_configs?discord_guild_id=eq.${guildId}&command_prefix=eq.${encodeURIComponent(matchedPrefix)}&select=command_channel_id`);
+    const cmdChannel = cfgRows?.[0]?.command_channel_id;
+    if (cmdChannel && channelId !== cmdChannel && cmd !== "cmdhere" && cmd !== "notifhere" && cmd !== "threadhere" && cmd !== "forcespawn" && cmd !== "forcespawnall" && cmd !== "spawnall") return;
+  }
+
+  async function reply(text: string) {
+    await discordFetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
+      method: "POST", headers: { Authorization: `Bot ${TOKEN}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ content: text }),
+    });
+    await cmdLog(cmd, "ok");
+  }
+
+  async function replyEmbed(title: string, desc: string, color: number, fields?: any[]) {
+    const res = await discordFetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
+      method: "POST", headers: { Authorization: `Bot ${TOKEN}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ embeds: [{ title, description: desc, color, fields, footer: { text: "Powered by RaidScout" } }] }),
+    });
+    if (!res.ok) console.error(`replyEmbed failed: ${res.status}`, await res.text().catch(() => ""));
+    await cmdLog(cmd, "ok");
+  }
+
+  // ── list ──
+  if (cmd === "list") {
+    if (!serverId) { await cmdLog(cmd, "fail", "not linked"); return reply("⚠️ This Discord server is not linked to RaidScout."); }
+    const bosses = await supabaseQuery(`bosses?server_id=eq.${serverId}&is_enabled=not.is.false&deleted_at=is.null&order=name`);
+    if (!bosses?.length) { await cmdLog(cmd, "fail", "no bosses"); return reply("No bosses found."); }
+    const chunkSize = 25;
+    const chunks: string[] = [];
+    for (let i = 0; i < bosses.length; i += chunkSize) {
+      chunks.push(bosses.slice(i, i + chunkSize).map((b: any, j: number) => `${i + j + 1}. ${b.name}`).join("\n"));
+    }
+    for (let c = 0; c < chunks.length; c++) {
+      await discordFetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
+        method: "POST", headers: { Authorization: `Bot ${TOKEN}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ embeds: [{ title: c === 0 ? `📋 Boss List (${bosses.length} bosses)` : undefined, description: chunks[c], color: 0x8b5cf6, footer: c === 0 ? { text: "Powered by RaidScout" } : undefined }] }),
+      });
+    }
+    await cmdLog(cmd, "ok", `${bosses.length} bosses`);
+    return;
+  }
+
+  // ── notifhere ──
+  if (cmd === "notifhere") {
+    if (!serverId) { await cmdLog(cmd, "fail", "not linked"); return reply("⚠️ Not linked to RaidScout."); }
+    const existing = await supabaseQuerySafe(`discord_configs?discord_guild_id=eq.${guildId}&command_prefix=eq.${encodeURIComponent(matchedPrefix)}&select=id`);
+    if (existing?.length) {
+      await fetch(`${SUPABASE_URL}/rest/v1/discord_configs?id=eq.${existing[0].id}`, {
+        method: "PATCH", headers: { apikey: SUPABASE_KEY!, Authorization: `Bearer ${SUPABASE_KEY!}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ notification_channel_id: msg.channel_id }),
+      });
+    }
+    return reply("✅ This channel will now receive boss kill, spawn, and activity notifications.");
+  }
+
+  // ── cmdhere ──
+  if (cmd === "cmdhere") {
+    if (!serverId) return reply("⚠️ Not linked to RaidScout.");
+    const existing = await supabaseQuerySafe(`discord_configs?discord_guild_id=eq.${guildId}&command_prefix=eq.${encodeURIComponent(matchedPrefix)}&select=id`);
+    if (existing?.length) {
+      await fetch(`${SUPABASE_URL}/rest/v1/discord_configs?id=eq.${existing[0].id}`, {
+        method: "PATCH", headers: { apikey: SUPABASE_KEY!, Authorization: `Bearer ${SUPABASE_KEY!}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ command_channel_id: msg.channel_id }),
+      });
+      bustPrefixCache(guildId);
+    }
+    return reply("✅ Bot commands will now only work in this channel.");
+  }
+
+  // ── threadhere ──
+  if (cmd === "threadhere") {
+    if (!serverId) { await cmdLog(cmd, "fail", "not linked"); return reply("⚠️ Not linked to RaidScout."); }
+    const existing = await supabaseQuerySafe(`discord_configs?discord_guild_id=eq.${guildId}&command_prefix=eq.${encodeURIComponent(matchedPrefix)}&select=id`);
+    if (existing?.length) {
+      await fetch(`${SUPABASE_URL}/rest/v1/discord_configs?id=eq.${existing[0].id}`, {
+        method: "PATCH", headers: { apikey: SUPABASE_KEY!, Authorization: `Bearer ${SUPABASE_KEY!}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ thread_channel_id: msg.channel_id }),
+      });
+    }
+    return reply("✅ Auto-threads for spawn events will be created in this channel.");
+  }
+
+  // ── party <boss|activity> ──
+  if (cmd === "party") {
+    if (!serverId) { await cmdLog(cmd, "fail", "not linked"); return reply("⚠️ Not linked to RaidScout."); }
+    const targetName = args.slice(1).join(" ");
+    if (!targetName) { await cmdLog(cmd, "fail", "no name"); return reply("Usage: `!party Boss/Activity Name`"); }
+
+    let targetId: string | null = null, targetLabel = targetName, ownerType: "boss" | "activity" = "boss";
+    const bosses = await supabaseQuerySafe(`bosses?server_id=eq.${serverId}&is_enabled=not.is.false&deleted_at=is.null&name=ilike.${encodeURIComponent("%" + targetName + "%")}&select=id,name`);
+    if (bosses?.length) { targetId = bosses[0].id; targetLabel = bosses[0].name; }
+    else {
+      const activities = await supabaseQuerySafe(`activities?server_id=eq.${serverId}&is_enabled=not.is.false&deleted_at=is.null&name=ilike.${encodeURIComponent("%" + targetName + "%")}&select=id,name`);
+      if (activities?.length) { targetId = activities[0].id; targetLabel = activities[0].name; ownerType = "activity"; }
+    }
+    if (!targetId) return reply(`**${targetName}** not found.`);
+
+    const parties = await fetchPartyList(serverId, targetId, ownerType);
+    if (!parties.length) return reply(`📋 **${targetLabel}** -- No party assigned yet.`);
+
+    const fields = parties.map(p => ({
+      name: `🎯 ${p.name} (${p.members.length})`, value: p.members.join("\n") || "_No members_", inline: true
+    }));
+    await discordFetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
+      method: "POST", headers: { Authorization: `Bot ${TOKEN}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ embeds: [{ title: `📋 Party Setup -- ${targetLabel}`, fields, color: 0x8b5cf6, footer: { text: "Powered by RaidScout" } }] }),
+    });
+    await cmdLog(cmd, "ok", `${targetLabel} → ${parties.length} parties`);
+    return;
+  }
+
+  // ── forcespawn <boss> ──
+  if (cmd === "forcespawn") {
+    if (!serverId) { await cmdLog(cmd, "fail", "not linked"); return reply("⚠️ Not linked to RaidScout."); }
+    const bossName = args.slice(1).join(" ");
+    if (!bossName) { await cmdLog(cmd, "fail", "no boss name"); return reply("Usage: `!forcespawn Boss Name`"); }
+    const bosses = await supabaseQuery(`bosses?server_id=eq.${serverId}&is_enabled=not.is.false&deleted_at=is.null&name=ilike.${encodeURIComponent("%" + bossName + "%")}&select=id,name,respawn_hours`);
+    if (!bosses?.length) { await cmdLog(cmd, "fail", `boss "${bossName}" not found`); return reply(`Boss **${bossName}** not found.`); }
+    const boss = bosses[0];
+    const now = new Date();
+    const deathTime = new Date(now.getTime() - (boss.respawn_hours || 24) * 3600000).toISOString();
+    await fetch(`${SUPABASE_URL}/rest/v1/boss_spawn_overrides?boss_id=eq.${boss.id}&server_id=eq.${serverId}`, {
+      method: "DELETE", headers: { apikey: SUPABASE_KEY!, Authorization: `Bearer ${SUPABASE_KEY!}` },
+    }).catch(() => {});
+    await fetch(`${SUPABASE_URL}/rest/v1/boss_spawn_overrides`, {
+      method: "POST", headers: { apikey: SUPABASE_KEY!, Authorization: `Bearer ${SUPABASE_KEY!}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ server_id: serverId, boss_id: boss.id, death_time: deathTime }),
+    }).catch(() => {});
+    return reply(`✅ **${boss.name}** has been force-spawned.`);
+  }
+
+  // ── forcespawnall ──
+  if (cmd === "forcespawnall" || cmd === "spawnall") {
+    const allFlag = args[1] === "--all";
+    if (allFlag) {
+      const allServers = await supabaseQuery(`servers?deleted_at=is.null&select=id,name`);
+      if (!allServers?.length) return reply("No servers found.");
+      let totalCount = 0; const results: string[] = []; const now = Date.now();
+      for (const srv of allServers) {
+        const bosses = await supabaseQuery(`bosses?server_id=eq.${srv.id}&is_enabled=not.is.false&deleted_at=is.null&spawn_type=eq.fixed_hours&select=id,respawn_hours`);
+        if (!bosses?.length) continue;
+        let count = 0;
+        for (const b of bosses) {
+          try {
+            const dt = new Date(now - (b.respawn_hours || 24) * 3600000).toISOString();
+            await fetch(`${SUPABASE_URL}/rest/v1/boss_spawn_overrides?boss_id=eq.${b.id}&server_id=eq.${srv.id}`, { method: "DELETE", headers: { apikey: SUPABASE_KEY!, Authorization: `Bearer ${SUPABASE_KEY!}` } });
+            await fetch(`${SUPABASE_URL}/rest/v1/boss_spawn_overrides`, { method: "POST", headers: { apikey: SUPABASE_KEY!, Authorization: `Bearer ${SUPABASE_KEY!}`, "Content-Type": "application/json" }, body: JSON.stringify({ server_id: srv.id, boss_id: b.id, death_time: dt }) });
+            count++;
+          } catch { /* skip */ }
+        }
+        if (count > 0) { totalCount += count; results.push(`**${srv.name}**: ${count} bosses`); }
+      }
+      if (results.length === 0) return reply("No fixed-timer bosses found.");
+      return reply(`✅ **forcespawnall --all** complete!\n${results.join("\n")}\n\n**Total: ${totalCount}** bosses across **${results.length}** servers.`);
+    }
+    if (!serverId) return reply("⚠️ Not linked to RaidScout.");
+    const bosses = await supabaseQuery(`bosses?server_id=eq.${serverId}&is_enabled=not.is.false&deleted_at=is.null&spawn_type=eq.fixed_hours&select=id,respawn_hours`);
+    if (!bosses?.length) return reply("No fixed-timer bosses found.");
+    const now = Date.now(); let count = 0;
+    for (const b of bosses) {
+      try {
+        const dt = new Date(now - (b.respawn_hours || 24) * 3600000).toISOString();
+        await fetch(`${SUPABASE_URL}/rest/v1/boss_spawn_overrides?boss_id=eq.${b.id}&server_id=eq.${serverId}`, { method: "DELETE", headers: { apikey: SUPABASE_KEY!, Authorization: `Bearer ${SUPABASE_KEY!}` } });
+        await fetch(`${SUPABASE_URL}/rest/v1/boss_spawn_overrides`, { method: "POST", headers: { apikey: SUPABASE_KEY!, Authorization: `Bearer ${SUPABASE_KEY!}`, "Content-Type": "application/json" }, body: JSON.stringify({ server_id: serverId, boss_id: b.id, death_time: dt }) });
+        count++;
+      } catch { /* skip */ }
+    }
+    return reply(`✅ **${count}** fixed-timer bosses force-spawned.`);
+  }
+
+  // ── commands / help ──
+  if (cmd === "commands" || cmd === "help") {
+    const p = matchedPrefix;
+    const guildConfigs = await supabaseQuerySafe(`discord_configs?discord_guild_id=eq.${guildId}&select=command_prefix,label,command_aliases`);
+    const multiServer = (guildConfigs?.length ?? 0) > 1;
+    const prefixNote = multiServer ? `\n💡 Multiple servers linked:\n${guildConfigs.map((c: any) => `\`${c.command_prefix}\` -- ${c.label || "Unnamed"}`).join("\n")}` : "";
+    const serverConfig = guildConfigs?.find((c: any) => c.command_prefix === matchedPrefix);
+    const aliasesMap: Record<string, string> = serverConfig?.command_aliases || {};
+    const reverseAliases: Record<string, string> = {};
+    for (const [canon, alias] of Object.entries(aliasesMap)) { if (alias) reverseAliases[canon] = alias; }
+    const aliasNote = (alias: string) => reverseAliases[alias] ? ` (alias: \`${p}${reverseAliases[alias]}\`)` : "";
+    return replyEmbed("📋 RaidScout Bot Commands", `Prefix: \`${p}\`${prefixNote}`, 0x8b5cf6, [
+      { name: `${p}list${aliasNote("list")}`, value: "Show all boss names", inline: false },
+      { name: `${p}nextspawn${aliasNote("nextspawn")}`, value: "List boss spawns in the next 24 hours", inline: false },
+      { name: `${p}nextspawn <boss>`, value: "Check spawn for a specific boss", inline: false },
+      { name: `${p}nextspawn <guild>`, value: "List spawns for a specific guild", inline: false },
+      { name: `${p}killed <boss>${aliasNote("killed")}`, value: "Record a boss kill right now", inline: false },
+      { name: `${p}killed <boss> HH:MM`, value: "Record a kill at a custom time", inline: false },
+      { name: `${p}killed <boss> HH:MM today`, value: "Force today's date", inline: false },
+      { name: `${p}killed <boss> HH:MM yesterday`, value: "Force yesterday's date", inline: false },
+      { name: `${p}commands${aliasNote("commands")}`, value: "Show this help", inline: false },
+      { name: `${p}notifhere${aliasNote("notifhere")}`, value: "Set notification channel", inline: false },
+      { name: `${p}cmdhere${aliasNote("cmdhere")}`, value: "Restrict commands to this channel", inline: false },
+      { name: `${p}threadhere${aliasNote("threadhere")}`, value: "Set auto-thread channel", inline: false },
+      { name: `${p}forcespawn <boss>`, value: "Force a boss to spawn", inline: false },
+      { name: `${p}forcespawnall`, value: "Force-spawn ALL fixed-timer bosses\n`--all` -- across all servers", inline: false },
+      { name: `${p}party <boss/activity>`, value: "Show party members for a boss/activity", inline: false },
+    ]);
+  }
+
+  // ── nextspawn [boss|guild] ──
+  if (cmd === "nextspawn" || cmd === "spawn") {
+    if (!serverId) { await cmdLog(cmd, "fail", "not linked"); return reply("⚠️ Not linked to RaidScout."); }
+    const filter = args[1];
+    const tz = await resolveServerTimezone(serverId);
+    const [bosses, deaths, guilds, overrides] = await Promise.all([
+      supabaseQuery(`bosses?server_id=eq.${serverId}&is_enabled=not.is.false&deleted_at=is.null&order=name`),
+      supabaseQuery(`death_records?server_id=eq.${serverId}&order=death_time.desc&limit=200`),
+      supabaseQuery(`guilds?server_id=eq.${serverId}`),
+      supabaseQuery(`boss_spawn_overrides?server_id=eq.${serverId}&select=boss_id,death_time`),
+    ]);
+    const overrideMap = new Map((overrides || []).map((o: any) => [o.boss_id, o.death_time]));
+    const filterGuild = filter ? guilds.find((g: any) => g.name.toLowerCase() === filter.toLowerCase()) : null;
+    const now = new Date();
+    const cutoff = addHours(now, 24);
+    const upcoming: { name: string; time: string; unix: number; guild: string }[] = [];
+    const bossGuilds = await supabaseQuery(`boss_guilds?select=boss_id,guild_id,sort_order,day_of_week,mode`);
+    const serverGuildIds = new Set(guilds.map((g: any) => g.id));
+    const serverBossGuilds = bossGuilds.filter((bg: any) => serverGuildIds.has(bg.guild_id));
+
+    for (const boss of bosses) {
+      if (filter && !boss.name.toLowerCase().includes(filter.toLowerCase())) {
+        if (!filterGuild) continue;
+        const lastDeath = deaths.filter((d: any) => d.boss_id === boss.id && !d.is_initial_spawn).sort((a: any, b: any) => new Date(b.death_time).getTime() - new Date(a.death_time).getTime())[0];
+        const gName = computeOwnerGuild(boss, serverBossGuilds, guilds, lastDeath, now, tz) || "";
+        if (gName.toLowerCase() !== filterGuild.name.toLowerCase()) continue;
+      }
+      const lastDeath = deaths.filter((d: any) => d.boss_id === boss.id && !d.is_initial_spawn).sort((a: any, b: any) => new Date(b.death_time).getTime() - new Date(a.death_time).getTime())[0];
+      let spawn: Date;
+      if (boss.spawn_type === "fixed_hours") {
+        const overrideDeathTime = overrideMap.get(boss.id);
+        const effectiveDeathTime = overrideDeathTime ?? lastDeath?.death_time ?? null;
+        spawn = effectiveDeathTime ? addHours(new Date(effectiveDeathTime), boss.respawn_hours ?? 0) : now;
+        if (spawn <= now) spawn = now;
+      } else if (boss.spawn_type === "fixed_schedule" && boss.schedule) {
+        const schedTz = getScheduleTz(boss, tz);
+        let recentTime: Date | null = null;
+        for (let d = 0; d <= 7; d++) { const check = new Date(now); check.setDate(check.getDate() - d);
+          for (const slot of boss.schedule) { const c = scheduleSlotToUTC(schedTz, check, slot.day, slot.time); if (c <= now && (!recentTime || c > recentTime)) recentTime = c; }
+        }
+        if (!recentTime) { spawn = findNextScheduleSlot(boss.schedule, now, schedTz); }
+        else {
+          const nextSlotTime = findNextScheduleSlot(boss.schedule, new Date(recentTime.getTime() + 60_000), schedTz);
+          const aliveUntil = new Date(Math.min(nextSlotTime.getTime() - 3600_000, recentTime.getTime() + 4 * 3600_000));
+          const wasKilled = lastDeath && new Date(lastDeath.death_time) >= recentTime;
+          spawn = (!wasKilled && now >= recentTime && now < aliveUntil) ? now : findNextScheduleSlot(boss.schedule, now, schedTz);
+        }
+      } else continue;
+      if (spawn.getTime() <= cutoff.getTime()) {
+        const gName = computeOwnerGuild(boss, serverBossGuilds, guilds, lastDeath, spawn, tz) || "";
+        const unix = Math.floor(spawn.getTime() / 1000);
+        upcoming.push({ name: boss.name, time: spawn <= now ? "**ALIVE NOW**" : `<t:${unix}:t>`, unix, guild: gName });
+      }
+    }
+    if (upcoming.length === 0) {
+      if (filter) await cmdLog(cmd, "fail", `no spawns for "${filter}"`); else await cmdLog(cmd, "fail", "no spawns in 24h");
+      return reply(filter ? `No spawn data for **${filter}** in 24h.` : "No bosses spawning in 24h.");
+    }
+    upcoming.sort((a, b) => {
+      if (a.time === "**ALIVE NOW**" && b.time !== "**ALIVE NOW**") return -1;
+      if (b.time === "**ALIVE NOW**" && a.time !== "**ALIVE NOW**") return 1;
+      return a.unix - b.unix;
+    });
+    const lines = upcoming.map((b, i) => {
+      const prefix = b.time === "**ALIVE NOW**" ? "🟢 " : "";
+      const guild = b.guild ? ` -- ${b.guild}` : "";
+      const countdown = b.time !== "**ALIVE NOW**" ? ` (<t:${b.unix}:R>)` : "";
+      return `${i + 1}. ${prefix}${b.name}${guild} ${b.time}${countdown}`;
+    });
+    await discordFetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
+      method: "POST", headers: { Authorization: `Bot ${TOKEN}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ embeds: [{ title: filterGuild ? `📋 ${filterGuild.name} Spawns (24h)` : filter ? `${filter} Spawn` : "📋 Upcoming Boss Spawns (24h)", description: lines.join("\n"), color: 0x8b5cf6, footer: { text: "Powered by RaidScout" } }] }),
+    });
+    await cmdLog(cmd, "ok", `${upcoming.length} spawns`);
+    return;
+  }
+
+  // ── killed <boss> [HH:MM] [yesterday|today] ──
+  if (cmd === "killed" || cmd === "kill") {
+    if (!serverId) { await cmdLog(cmd, "fail", "not linked"); return reply("⚠️ Not linked to RaidScout."); }
+    let timeStr: string | undefined, bossName: string, explicitDay: "yesterday" | "today" | null = null;
+    const remaining = args.slice(1);
+    const lastWord = remaining[remaining.length - 1]?.toLowerCase();
+    if (lastWord === "yesterday" || lastWord === "today") { explicitDay = lastWord; remaining.pop(); }
+    const maybeTime = remaining[remaining.length - 1];
+    if (maybeTime && /^\d{1,2}:\d{2}$/.test(maybeTime)) { timeStr = maybeTime; remaining.pop(); }
+    bossName = remaining.join(" ");
+    if (!bossName) { await cmdLog(cmd, "fail", "no boss name"); return reply("Usage: `!kill Boss/Activity Name [HH:MM] [yesterday|today]`"); }
+
+    const bosses = await supabaseQuery(`bosses?server_id=eq.${serverId}&is_enabled=not.is.false&deleted_at=is.null&name=ilike.${encodeURIComponent("%" + bossName + "%")}`);
+    // Activity fallback
+    if (!bosses?.length) {
+      const activities = await supabaseQuerySafe(`activities?server_id=eq.${serverId}&is_enabled=not.is.false&deleted_at=is.null&name=ilike.${encodeURIComponent("%" + bossName + "%")}`);
+      if (!activities?.length) return reply(`**${bossName}** not found.`);
+      const activity = activities[0];
+      let activityTime = new Date();
+      if (timeStr) {
+        const [h, m] = timeStr.split(":").map(Number);
+        if (h > 23 || m > 59) return reply("Invalid time.");
+        const tz = await resolveServerTimezone(serverId);
+        const now = new Date();
+        const localDate = now.toLocaleDateString("en-CA", { timeZone: tz });
+        const [y, mo, d] = localDate.split("-").map(Number);
+        const testUtc = Date.UTC(y, mo - 1, d, h, m);
+        const testLocal = new Intl.DateTimeFormat("en-US", { timeZone: tz, hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(testUtc));
+        const [tlH, tlM] = testLocal.split(":").map(Number);
+        const offsetMs = ((tlH - h) * 60 + (tlM - m)) * 60_000;
+        activityTime = new Date(testUtc - offsetMs);
+        if (explicitDay === "yesterday") activityTime.setUTCDate(activityTime.getUTCDate() - 1);
+        else if (!explicitDay && activityTime > now) activityTime.setUTCDate(activityTime.getUTCDate() - 1);
+      }
+      await fetch(`${SUPABASE_URL}/rest/v1/activity_instances`, {
+        method: "POST", headers: { apikey: SUPABASE_KEY!, Authorization: `Bearer ${SUPABASE_KEY!}`, "Content-Type": "application/json", Prefer: "return=representation" },
+        body: JSON.stringify({ activity_id: activity.id, start_time: activityTime.toISOString(), end_time: activityTime.toISOString() }),
+      });
+      if (activity.schedule_type === "one_time") {
+        await fetch(`${SUPABASE_URL}/rest/v1/activities?id=eq.${activity.id}`, { method: "PATCH", headers: { apikey: SUPABASE_KEY!, Authorization: `Bearer ${SUPABASE_KEY!}`, "Content-Type": "application/json" }, body: JSON.stringify({ is_enabled: false }) }).catch(() => {});
+      }
+      const timeLabel = timeStr ? ` at ${timeStr}` : "";
+      await reply(`✅ **${activity.name}** completed${timeLabel}`);
+      await cmdLog(cmd, "ok", `activity:${activity.name}`);
+      return;
+    }
+
+    const boss = bosses[0];
+    const recentDeaths = await supabaseQuery(`death_records?server_id=eq.${serverId}&boss_id=eq.${boss.id}&order=death_time.desc&limit=1`);
+    const overrides2 = await supabaseQuery(`boss_spawn_overrides?server_id=eq.${serverId}&boss_id=eq.${boss.id}&select=death_time&limit=1`);
+    const overrideDeathTime = overrides2?.[0]?.death_time ?? null;
+    let isAlive = false;
+    const tz = await resolveServerTimezone(serverId);
+    const aliveNow = new Date();
+
+    if (boss.spawn_type === "fixed_hours") {
+      const lastDeathForAlive = recentDeaths?.[0];
+      const effectiveDt = overrideDeathTime ?? lastDeathForAlive?.death_time ?? null;
+      if (effectiveDt) { const st = new Date(new Date(effectiveDt).getTime() + (boss.respawn_hours ?? 0) * 3600000); isAlive = st <= aliveNow; }
+      else isAlive = true;
+    } else if (boss.spawn_type === "fixed_schedule" && boss.schedule) {
+      const schedTz = getScheduleTz(boss, tz);
+      let recentSlot: Date | null = null;
+      for (let d = 0; d <= 7; d++) { const check = new Date(aliveNow); check.setDate(check.getDate() - d);
+        for (const slot of boss.schedule) { const c = scheduleSlotToUTC(schedTz, check, slot.day, slot.time); if (c <= aliveNow && (!recentSlot || c > recentSlot)) recentSlot = c; }
+      }
+      if (recentSlot) {
+        const nextSlot = findNextScheduleSlot(boss.schedule, new Date(recentSlot.getTime() + 60_000), schedTz);
+        const aliveUntil = new Date(Math.min(nextSlot.getTime() - 3600_000, recentSlot.getTime() + 4 * 3600_000));
+        const wasKilled = recentDeaths?.[0] && new Date(recentDeaths[0].death_time) >= recentSlot;
+        isAlive = !wasKilled && aliveNow >= recentSlot && aliveNow < aliveUntil;
+      }
+    }
+    if (!isAlive) {
+      await cmdLog(cmd, "fail", `${boss.name} not alive`);
+      discordFetch(`https://discord.com/api/v10/channels/${channelId}/messages/${msg.id}/reactions/${encodeURIComponent("❌")}/@me`, { method: "PUT", headers: { Authorization: `Bot ${TOKEN}` } }).catch(() => {});
+      return reply(`❌ **${boss.name}** is not currently alive. Use \`;forcespawn ${boss.name}\` first.`);
+    }
+    if (recentDeaths?.length) {
+      const lastKill = new Date(recentDeaths[0].death_time);
+      const cooldownEnd = new Date(lastKill.getTime() + 2 * 3600_000);
+      if (new Date() < cooldownEnd) {
+        discordFetch(`https://discord.com/api/v10/channels/${channelId}/messages/${msg.id}/reactions/${encodeURIComponent("❌")}/@me`, { method: "PUT", headers: { Authorization: `Bot ${TOKEN}` } }).catch(() => {});
+        const killedAt = Math.floor(lastKill.getTime() / 1000);
+        return reply(`⏳ **${boss.name}** already declared dead at <t:${killedAt}:t>.`);
+      }
+    }
+
+    let deathTime = new Date();
+    if (timeStr) {
+      const [h, m] = timeStr.split(":").map(Number);
+      if (h > 23 || m > 59) return reply("Invalid time.");
+      const now2 = new Date();
+      const localDate = now2.toLocaleDateString("en-CA", { timeZone: tz });
+      const [y, mo, d] = localDate.split("-").map(Number);
+      const testUtc = Date.UTC(y, mo - 1, d, h, m);
+      const testLocal = new Intl.DateTimeFormat("en-US", { timeZone: tz, hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(testUtc));
+      const [tlH, tlM] = testLocal.split(":").map(Number);
+      const offsetMs = ((tlH - h) * 60 + (tlM - m)) * 60_000;
+      deathTime = new Date(testUtc - offsetMs);
+      if (explicitDay === "yesterday") deathTime.setUTCDate(deathTime.getUTCDate() - 1);
+      else if (!explicitDay && deathTime > now2) deathTime.setUTCDate(deathTime.getUTCDate() - 1);
+    }
+
+    const serverGuilds = await supabaseQuery(`guilds?server_id=eq.${serverId}`);
+    const allBossGuilds = await supabaseQuery(`boss_guilds?select=boss_id,guild_id,sort_order,day_of_week,mode`);
+    const sgIds = new Set(serverGuilds.map((g: any) => g.id));
+    const serverBossGuilds2 = allBossGuilds.filter((bg: any) => sgIds.has(bg.guild_id));
+    const prevDeaths = await supabaseQuery(`death_records?server_id=eq.${serverId}&boss_id=eq.${boss.id}&order=death_time.desc&limit=1`);
+    const lastDeath2 = prevDeaths?.[0] ?? null;
+    const gName = computeOwnerGuild(boss, serverBossGuilds2, serverGuilds, lastDeath2, deathTime, tz);
+    const ownerGuildId = gName ? serverGuilds.find((g: any) => g.name === gName)?.id ?? null : null;
+
+    await fetch(`${SUPABASE_URL}/rest/v1/death_records`, {
+      method: "POST", headers: { apikey: SUPABASE_KEY!, Authorization: `Bearer ${SUPABASE_KEY!}`, "Content-Type": "application/json", Prefer: "return=representation" },
+      body: JSON.stringify({ boss_id: boss.id, server_id: serverId, death_time: deathTime.toISOString(), owner_guild_id: ownerGuildId }),
+    });
+    await fetch(`${SUPABASE_URL}/rest/v1/boss_spawn_overrides?boss_id=eq.${boss.id}&server_id=eq.${serverId}`, { method: "DELETE", headers: { apikey: SUPABASE_KEY!, Authorization: `Bearer ${SUPABASE_KEY!}` } }).catch(() => {});
+    if (serverBossGuilds2.some((bg: any) => bg.boss_id === boss.id && bg.mode === "rotation")) {
+      await fetch(`${SUPABASE_URL}/rest/v1/bosses?id=eq.${boss.id}`, { method: "PATCH", headers: { apikey: SUPABASE_KEY!, Authorization: `Bearer ${SUPABASE_KEY!}`, "Content-Type": "application/json" }, body: JSON.stringify({ rotation_counter: (boss.rotation_counter ?? 0) + 1 }) });
+    }
+
+    const guildName = ownerGuildId ? serverGuilds.find((g: any) => g.id === ownerGuildId)?.name ?? "" : "";
+    let nextSpawnUnix = 0;
+    if (boss.spawn_type === "fixed_hours") nextSpawnUnix = Math.floor((deathTime.getTime() + (boss.respawn_hours ?? 0) * 3600_000) / 1000);
+    else if (boss.spawn_type === "fixed_schedule" && boss.schedule) { const schedTz3 = getScheduleTz(boss, tz); const ns = findNextScheduleSlot(boss.schedule, deathTime, schedTz3); nextSpawnUnix = Math.floor(ns.getTime() / 1000); }
+    const nextSpawnField = nextSpawnUnix > 0 ? { name: "Next Spawn", value: `<t:${nextSpawnUnix}:f>`, inline: true } : null;
+    const deathTimeStr = deathTime.toLocaleString("en-US", { timeZone: tz || "Asia/Manila", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: true });
+    const killText = `💀 **${boss.name}** killed by **${guildName || author}** ${deathTimeStr}`;
+    broadcastNotification(serverId, {}, channelId, killText);
+    const unix = Math.floor(deathTime.getTime() / 1000);
+    const replyFields: any[] = [{ name: "Death Time", value: `<t:${unix}:f>`, inline: true }, { name: "Recorded By", value: author, inline: true }];
+    if (nextSpawnField) replyFields.push(nextSpawnField);
+    await cmdLog(cmd, "ok", `${boss.name} → ${guildName || "unknown"}`);
+    return replyEmbed(`☠️ ${boss.name} Killed by ${guildName || author}`, "", 0xef4444, replyFields);
+  }
+}
