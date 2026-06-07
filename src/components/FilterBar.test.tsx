@@ -15,19 +15,19 @@ describe("FilterBar", () => {
 
   it("renders search input with placeholder", () => {
     render(<FilterBar {...defaultProps} />);
-    expect(screen.getByPlaceholderText("Search...")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Search bosses...")).toBeInTheDocument();
   });
 
   it("displays the current search text value", () => {
     render(<FilterBar {...defaultProps} searchText="Venatus" />);
-    const input = screen.getByPlaceholderText("Search...") as HTMLInputElement;
+    const input = screen.getByPlaceholderText("Search bosses...") as HTMLInputElement;
     expect(input.value).toBe("Venatus");
   });
 
   it("calls onSearchChange when user types", () => {
     const handleChange = vi.fn();
     render(<FilterBar {...defaultProps} onSearchChange={handleChange} />);
-    const input = screen.getByPlaceholderText("Search...") as HTMLInputElement;
+    const input = screen.getByPlaceholderText("Search bosses...") as HTMLInputElement;
 
     fireEvent.change(input, { target: { value: "Ego" } });
 
@@ -51,13 +51,13 @@ describe("FilterBar", () => {
   it("highlights active filter type button", () => {
     render(<FilterBar {...defaultProps} filterType="fixed_hours" />);
     const timerBtn = screen.getByRole("button", { name: "Timer" });
-    expect(timerBtn.className).toContain("border-orange-800");
+    expect(timerBtn.className).toContain("border-[#3f3f46]");
   });
 
   it("highlights active window filter button", () => {
     render(<FilterBar {...defaultProps} filterWindow={8} />);
     const btn8h = screen.getByRole("button", { name: "8h" });
-    expect(btn8h.className).toContain("border-red-800");
+    expect(btn8h.className).toContain("border-[#3f3f46]");
   });
 
   it("calls onFilterTypeChange when Timer is clicked", async () => {

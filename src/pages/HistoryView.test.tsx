@@ -10,6 +10,7 @@ vi.mock("@/lib/supabase", () => ({
   fetchHistoryFromSupabase: vi.fn().mockResolvedValue([]),
   deleteDeathRecord: vi.fn().mockResolvedValue(undefined),
   editDeathTime: vi.fn().mockResolvedValue(undefined),
+  fetchGuilds: vi.fn().mockResolvedValue([]),
   isSupabaseConfigured: vi.fn().mockReturnValue(true),
 }));
 
@@ -51,7 +52,7 @@ describe("HistoryView", () => {
 
   it("renders the Death History heading", () => {
     renderWithProviders();
-    expect(screen.getByText("Death History")).toBeInTheDocument();
+    expect(screen.getByText("History")).toBeInTheDocument();
   });
 
   it("renders date range preset buttons", () => {

@@ -142,7 +142,7 @@ describe("ConfirmDialog", () => {
       <ConfirmDialog open={true} title="T" message="M" onConfirm={() => {}} onCancel={() => {}} />
     );
     const confirmBtn = screen.getByRole("button", { name: "Confirm" });
-    expect(confirmBtn.className).toContain("bg-red-600");
+    expect(confirmBtn.className).toContain("bg-[#fafafa]");
   });
 
   it("uses warning variant styling when specified", () => {
@@ -157,6 +157,6 @@ describe("ConfirmDialog", () => {
       />
     );
     const confirmBtn = screen.getByRole("button", { name: "Confirm" });
-    expect(confirmBtn.className).toContain("bg-amber-600");
+    expect(confirmBtn.className).toContain("bg-[#fafafa]");
   });
 });

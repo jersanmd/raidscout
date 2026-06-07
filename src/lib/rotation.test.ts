@@ -223,6 +223,7 @@ describe("getOwnerGuildName — schedule", () => {
   });
 
   it("uses current date when boss is alive", () => {
+    vi.setSystemTime(new Date(Date.UTC(2025, 5, 6, 12, 0, 0))); // Friday June 6, 2025 UTC
     const boss = makeBoss({ id: "b1", spawn_type: "fixed_schedule", respawn_hours: null });
     const bg = [
       makeBossGuild("b1", "g1", 0, "schedule", 5), // Friday
@@ -352,7 +353,7 @@ describe("getOwnerGuildName — edge cases", () => {
       makeBossGuild("b1", "g2", 1, "daily"),
     ];
     // Killed by g1 on different day, adjustment +1 skips g2 to g1
-    const death = makeDeath("b1", new Date(2026, 4, 22, 12, 0, 0), "g1");
+    const death = makeDeath("b1", new Date(Date.UTC(2026,4,22,12,0,0)), "g1");
     const result = getOwnerGuildName(
       "b1", bg,
       [makeGuild("g1", "Alpha"), makeGuild("g2", "Beta")],
