@@ -763,7 +763,7 @@ export function LandingPage() {
             </div>
             <div className="aspect-video">
               <iframe
-                src={`https://www.youtube.com/embed/${YOUTUBE_ID}?autoplay=1&rel=0`}
+                src={`https://www.youtube.com/embed/${YOUTUBE_ID}?rel=0`}
                 allow="autoplay; encrypted-media"
                 allowFullScreen
                 className="w-full h-full"
@@ -828,7 +828,7 @@ function AnimatedCommandInput() {
 
   useEffect(() => {
     if (typed.length < DEMO_CMD.length) {
-      const t = setTimeout(() => setTyped(DEMO_CMD.slice(0, typed.length + 1)), 60 + Math.random() * 40);
+      const t = setTimeout(() => setTyped(DEMO_CMD.slice(0, typed.length + 1)), 20 + Math.random() * 15);
       return () => clearTimeout(t);
     } else {
       setPhase("done");
@@ -952,15 +952,9 @@ function CopyCodeBadge({ code, className = "" }: { code: string; className?: str
 // ── Terminal Command Line ────────────────────────────────────
 const TERMINAL_COMMANDS = [
   { cmd: "!nextspawn", desc: "List all boss spawns in the next 24 hours", detail: "Shows spawn time, live countdown, and guild ownership" },
-  { cmd: "!nextspawn Venatus", desc: "Check spawn for a specific boss", detail: "Filter by boss name to see just that boss's timer" },
   { cmd: "!nextspawn Arcane", desc: "List spawns for a specific guild", detail: "See all upcoming bosses owned by a guild" },
   { cmd: "!killed Venatus", desc: "Record a boss kill right now", detail: "Same as 'Mark Died' — advances rotation" },
-  { cmd: "!killed Venatus 14:30", desc: "Record a kill at a custom time", detail: "Auto: if time passed today → today. Otherwise → yesterday" },
-  { cmd: "!killed Venatus 14:30 today", desc: "Force today's date", detail: "Always record on today's date" },
-  { cmd: "!killed Venatus 14:30 yesterday", desc: "Force yesterday's date", detail: "Always record on yesterday's date" },
-  { cmd: "!forcespawn Venatus", desc: "Force a boss to spawn immediately", detail: "Useful after server maintenance or resets" },
   { cmd: "!forcespawnall", desc: "Force-spawn ALL fixed-timer bosses", detail: "Bulk spawn after maintenance. Schedule bosses unaffected." },
-  { cmd: "!list", desc: "See all boss names", detail: "Numbered list with respawn hours and spawn type" },
   { cmd: "!commands", desc: "Show all available commands", detail: "Quick reference for your members" },
   { cmd: "!notifhere", desc: "Set notification channel", detail: "Run in announcements channel for boss kill & spawn alerts" },
   { cmd: "!cmdhere", desc: "Restrict commands to one channel", detail: "Bot only responds in the channel you choose" },
@@ -1001,7 +995,7 @@ function AnimatedCommandList() {
     
     const cmd = TERMINAL_COMMANDS[typingIndex].cmd;
     if (charIndex < cmd.length) {
-      const delay = 30 + Math.random() * 35;
+      const delay = 10 + Math.random() * 15;
       const t = setTimeout(() => {
         setTypedCmds(prev => {
           const next = [...prev];
