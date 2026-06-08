@@ -5,6 +5,7 @@ import { TOKEN, SUPABASE_URL, SUPABASE_KEY } from "./config";
 import { discordFetch } from "./discord-api";
 import { supabaseQuerySafe } from "./supabase";
 import { fetchPartyList, formatPartyListForThread } from "./party-utils";
+import { resolveServerTimezone } from "./server-cache";
 
 const threadCache = new Map<string, { threadId: string; createdAt: number }>();
 const THREAD_CACHE_TTL = 30 * 60_000; // 30 minutes
@@ -87,9 +88,10 @@ export async function createEventThreads(
       }
 
       // Create a new thread (two-step: create thread, then send message)
+      const tz = await resolveServerTimezone(serverId).catch(() => "UTC");
       const spawnDate = new Date(spawnUnix * 1000);
-      const timeStr = spawnDate.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true });
-      const dateStr = spawnDate.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+      const timeStr = spawnDate.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true, timeZone: tz });
+      const dateStr = spawnDate.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: tz });
       const threadName = `${name}${guildName ? ` -- ${guildName}` : ""} -- ${dateStr}, ${timeStr}`;
       const threadRes = await discordFetch(
         `https://discord.com/api/v10/channels/${channelId}/threads`,

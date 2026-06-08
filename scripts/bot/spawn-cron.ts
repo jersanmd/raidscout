@@ -4,7 +4,7 @@
 import { TOKEN, SUPABASE_URL, SUPABASE_KEY } from "./config";
 import { discordFetch } from "./discord-api";
 import { supabaseQuery, supabaseQuerySafe } from "./supabase";
-import { resolveServerTimezone, getNotifyPrefix } from "./server-cache";
+import { resolveServerTimezone } from "./server-cache";
 import { addHours, computeOwnerGuild, getScheduleTz, scheduleSlotToUTC, findNextScheduleSlot } from "./spawn-utils";
 import { broadcastNotification } from "./notifications";
 import { createEventThreads } from "./threads";
@@ -129,11 +129,10 @@ async function runSpawnCron() {
           const spawnDedupKey = `${serverId}-${boss.id}-boss_spawned-${spawnUnix}`;
           if (!sentNotifs.has(spawnDedupKey)) {
             sentNotifs.set(spawnDedupKey, Date.now());
-            const prefix = await getNotifyPrefix(serverId).catch(() => "");
             const timeStr = spawnTime.toLocaleString("en-US", {
               timeZone: tz || "Asia/Manila", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: true,
             });
-            const text = `${prefix ? prefix + " " : ""}🟢 **${boss.name}** has spawned -- **${guildName}** ${timeStr}`;
+            const text = `🟢 **${boss.name}** has spawned -- **${guildName}** ${timeStr}`;
             await broadcastNotification(serverId, {}, "", text);
           }
           continue; // Don't re-process in 5-min block
@@ -146,11 +145,10 @@ async function runSpawnCron() {
           const dedupKey = `${serverId}-${boss.id}-5min-${spawnUnix}`;
           if (!sentNotifs.has(dedupKey)) {
             sentNotifs.set(dedupKey, Date.now());
-            const prefix = await getNotifyPrefix(serverId).catch(() => "");
             const timeStr = spawnTime.toLocaleString("en-US", {
               timeZone: tz || "Asia/Manila", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: true,
             });
-            const text = `${prefix ? prefix + " " : ""}⚠️ **${boss.name}** spawning in 5 min -- **${guildName}** ${timeStr}`;
+            const text = `⚠️ **${boss.name}** spawning in 5 min -- **${guildName}** ${timeStr}`;
             await broadcastNotification(serverId, {}, "", text);
 
             // Record notification to prevent duplicates (best-effort, in-memory is the real dedup)

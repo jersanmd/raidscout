@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { useLeaderboard, type LeaderboardPeriod } from "@/hooks/useAttendance";
 import { useLeaderboardSnapshots, getLeaderboardResetAt } from "@/hooks/useLeaderboardSnapshots";
 import { guildColor } from "@/lib/constants";
@@ -57,6 +57,33 @@ function getUtcDayRange(startDateStr: string, endDateStr: string, timezone: stri
 export function LeaderboardView() {
   const [period, setPeriod] = useState<LeaderboardPeriod>("weekly");
   const { data: entries = [], isLoading } = useLeaderboard(period);
+
+  // Raw point totals from attendance records (no adjustments/multipliers)
+  const { data: rawPoints = new Map<string, number>() } = useQuery({
+    queryKey: ["leaderboard-raw", period, serverId],
+    queryFn: async () => {
+      if (!serverId) return new Map<string, number>();
+      const [attendance, deaths] = await Promise.all([
+        supabase.from("attendance_records").select("member_id, death_record_id").eq("server_id", serverId),
+        supabase.from("death_records").select("id, boss_id").eq("server_id", serverId),
+      ]);
+      const bossPoints = new Map<string, number>();
+      if (deaths.data) {
+        const bossIds = [...new Set(deaths.data.map(d => d.boss_id))];
+        const { data: bosses } = await supabase.from("bosses").select("id, boss_points").in("id", bossIds);
+        for (const b of (bosses || [])) bossPoints.set(b.id, b.boss_points ?? 1);
+      }
+      const map = new Map<string, number>();
+      for (const a of (attendance.data || [])) {
+        const death = deaths.data?.find(d => d.id === a.death_record_id);
+        const pts = death ? (bossPoints.get(death.boss_id) ?? 1) : 1;
+        map.set(a.member_id, (map.get(a.member_id) ?? 0) + pts);
+      }
+      return map;
+    },
+    staleTime: 30_000,
+    enabled: configured && !!serverId,
+  });
   const { user, isViewer } = useAuth();
   const { toast } = useToast();
   const serverId = useServerId();
@@ -860,7 +887,9 @@ export function LeaderboardView() {
                                     {style ? <span className="scale-75">{style.icon}</span> : <span className="text-xs font-bold text-[#71717a]">{rank}</span>}
                                   </div>
                                   <span className="text-sm text-[#fafafa] flex-1 truncate">{entry.name}</span>
-                                  <span className="text-xs font-mono text-[#a1a1aa]">{entry.points}pt</span>
+                                  <span className="text-xs font-mono text-[#a1a1aa]">
+                                    {(() => { const r = rawPoints.get(entry.id); return r != null && r !== entry.points ? `${r}pt · ` : ""; })()}{entry.points}pt
+                                  </span>
                                   {canAdjustPoints && (
                                     <button onClick={(e) => { e.stopPropagation(); setAdjustMember({ id: entry.id, name: entry.name, points: entry.points }); setAdjustValue(0); setAdjustReason(""); setAdjustError(null); }} className="p-0.5 rounded text-[#52525b] hover:text-amber-400 transition" title="Adjust points">
                                       <Edit3 className="w-3 h-3" />
@@ -1116,7 +1145,6 @@ export function LeaderboardView() {
         const killTotal = memberKills.reduce((sum, k) => sum + (k.points ?? 0), 0);
         const activityTotal = memberActivities.reduce((sum, a) => sum + (a.points ?? 0), 0);
         const combinedTotal = killTotal + activityTotal;
-        const leaderboardEntry = entries.find(e => e.id === selectedMember.id);
         return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/60" onClick={() => setSelectedMember(null)} />
@@ -1128,10 +1156,7 @@ export function LeaderboardView() {
                   {memberKills.length} kill{memberKills.length !== 1 ? "s" : ""}
                   {memberActivities.length > 0 && <> · {memberActivities.length} activit{memberActivities.length !== 1 ? "ies" : "y"}</>}
                   {" · "}
-                  <span className="text-amber-400 font-medium">{combinedTotal}pt</span> in history
-                  {leaderboardEntry && leaderboardEntry.points !== combinedTotal && (
-                    <span className="text-[#52525b]"> · <span className="text-[#fafafa] font-medium">{leaderboardEntry.points}pt</span> on board</span>
-                  )}
+                  <span className="text-amber-400 font-medium">{combinedTotal}pt</span>
                 </p>
               </div>
               <button onClick={() => setSelectedMember(null)} className="text-[#a1a1aa] hover:text-[#fafafa] transition p-1">
