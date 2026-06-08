@@ -31,7 +31,7 @@ async function createThreadInChannel(
 
   if (threadRes.ok) {
     const thread = await threadRes.json() as any;
-    console.log(`[thread] Created "${threadName}" in channel ${channelId}${guildName ? ` for ${guildName}` : ""}`);
+    console.log(`[thread] ✅ Created "${threadName}" → channel ${channelId}${guildName ? ` (${guildName})` : ""}`);
 
     await discordFetch(
       `https://discord.com/api/v10/channels/${thread.id}/messages`,
@@ -43,6 +43,7 @@ async function createThreadInChannel(
     ).catch(() => {});
     return thread.id;
   }
+  console.error(`[thread] ❌ Failed to create "${threadName}" in channel ${channelId}: HTTP ${threadRes.status}`);
   return null;
 }
 
@@ -59,6 +60,16 @@ export async function createEventThreads(
       `discord_configs?raidscout_server_id=eq.${serverId}&select=id,thread_channel_id,thread_guilds`
     );
     if (!configs?.length) return;
+
+    // Resolve thread_guilds UUIDs → guild names
+    const allThreadGuildIds = [...new Set(configs.flatMap((c: any) => c.thread_guilds || []))];
+    let guildIdToName = new Map<string, string>();
+    if (allThreadGuildIds.length > 0) {
+      const guildRows = await supabaseQuerySafe(
+        `guilds?select=id,name&id=in.(${allThreadGuildIds.join(",")})`
+      );
+      guildIdToName = new Map((guildRows || []).map((g: any) => [g.id, g.name]));
+    }
 
     const tz = await resolveServerTimezone(serverId).catch(() => "UTC");
     const spawnDate = new Date(spawnUnix * 1000);
@@ -83,44 +94,62 @@ export async function createEventThreads(
       const hasParties = firstMessage !== ".";
       const hasGuildOwner = !!guildName;
 
-      // ── Guild whitelist check ──
-      const guildAllowed = threadGuilds.length === 0 ||
-        (guildName != null && threadGuilds.some(g => g.toLowerCase() === guildName.toLowerCase()));
+      // ── Guild whitelist check (use resolved guild names, not UUIDs) ──
+      const threadGuildNames = threadGuilds.map((gid: string) => guildIdToName.get(gid) || gid);
+      const guildAllowed = guildName != null &&
+        threadGuildNames.some((g: string) => g.toLowerCase() === guildName.toLowerCase());
 
-      // Main thread: only if guild is allowed or has parties
-      if ((hasGuildOwner && guildAllowed) || hasParties) {
+      // Main thread: ONLY create when thread_guilds is configured AND owner matches whitelist
+      const shouldThread = threadGuilds.length > 0 && guildAllowed;
+      if (shouldThread) {
         const cacheKey = `${channelId}-${name}-${guildName || "noguild"}-${spawnUnix}`;
+        if (threadCache.has(cacheKey)) {
+          console.log(`[thread] ⏭️ Cache hit: "${name}" ${guildName || ""} channel ${channelId}`);
+          continue;
+        }
         const threadName = `${name}${guildName ? ` -- ${guildName}` : ""} -- ${dateStr}, ${timeStr}`;
-        await createThreadInChannel(channelId, threadName, firstMessage, guildName);
-        threadCache.set(cacheKey, { threadId: "", createdAt: Date.now() }); // mark as processed
+        const tid = await createThreadInChannel(channelId, threadName, firstMessage, guildName);
+        if (tid) threadCache.set(cacheKey, { threadId: tid, createdAt: Date.now() });
+      } else {
+        console.log(`[thread] ⏭️ Skip "${name}": owner=${guildName || "none"} whitelist=[${threadGuildNames.join(",")}]`);
       }
 
-      // ── Assist guild threads ──
-      if (targetId && guildName && ownerType === "boss") {
+      // ── Assist guild threads (owner_guild_id + assistant_guild_id from boss_assists) ──
+      if (targetId && ownerType === "boss") {
         try {
-          const assistTable = "boss_assists";
-          const ownerCol = "boss_id";
           const assists = await supabaseQuerySafe(
-            `${assistTable}?${ownerCol}=eq.${targetId}&select=assistant_guild_id`
+            `boss_assists?boss_id=eq.${targetId}&select=owner_guild_id,assistant_guild_id`
           );
           if (assists?.length) {
-            const guildIds = [...new Set(assists.map((a: any) => a.assistant_guild_id))];
+            // Collect ALL guild IDs involved: owners + assistants
+            const allIds = [...new Set([
+              ...assists.map((a: any) => a.owner_guild_id),
+              ...assists.map((a: any) => a.assistant_guild_id),
+            ])];
             const guildRows = await supabaseQuerySafe(
-              `guilds?select=id,name&id=in.(${guildIds.map((id: string) => `'${id}'`).join(",")})`
+              `guilds?select=id,name&id=in.(${allIds.join(",")})`
             );
             const guildNames = new Map((guildRows || []).map((g: any) => [g.id, g.name]));
+            const resolvedAll = allIds.map((gid: string) => guildNames.get(gid) || gid).filter((n: string) => n !== guildName);
+            console.log(`[thread] "${name}" assist guilds: [${resolvedAll.join(",")}]`);
 
-            for (const gid of guildIds) {
+            for (const gid of allIds) {
               const assistGuild = guildNames.get(gid);
               if (!assistGuild || assistGuild === guildName) continue;
 
-              // Respect thread_guilds whitelist for assist threads too
-              const assistAllowed = threadGuilds.length === 0 ||
-                threadGuilds.some(g => g.toLowerCase() === assistGuild.toLowerCase());
-              if (!assistAllowed) continue;
+              // Only thread assist guilds that are in the server's thread_guilds whitelist
+              const assistAllowed = threadGuildNames.length > 0 &&
+                threadGuildNames.some((g: string) => g.toLowerCase() === assistGuild.toLowerCase());
+              if (!assistAllowed) {
+                console.log(`[thread] ⏭️ Assist skip "${name}" → ${assistGuild}: not in whitelist [${threadGuildNames.join(",")}]`);
+                continue;
+              }
 
               const assistCacheKey = `${channelId}-${name}-${assistGuild}-assist-${spawnUnix}`;
-              if (threadCache.has(assistCacheKey)) continue;
+              if (threadCache.has(assistCacheKey)) {
+                console.log(`[thread] ⏭️ Assist cache hit: "${name}" → ${assistGuild}`);
+                continue;
+              }
               threadCache.set(assistCacheKey, { threadId: "", createdAt: Date.now() });
 
               const assistThreadName = `${name} -- ${assistGuild} [Assist] -- ${dateStr}, ${timeStr}`;

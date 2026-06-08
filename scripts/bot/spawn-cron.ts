@@ -42,9 +42,9 @@ export function startSpawnCron() {
     } catch (err: any) {
       console.error("[cron] Tick error:", err.message);
     }
-  }, 30_000);
+  }, 60_000);
 
-  console.log("Spawn cron started (30s tick)");
+  console.log("Spawn cron started (60s tick)");
 }
 
 async function runSpawnCron() {
@@ -57,22 +57,67 @@ async function runSpawnCron() {
   );
   if (!configs?.length) return;
 
-  // Deduplicate by server_id to avoid double-broadcasting
-  const serverIds = [...new Set(configs.map((c: any) => c.raidscout_server_id))];
+  // Fetch active servers (exclude soft-deleted)
+  const activeServers = await supabaseQuerySafe(`servers?select=id&deleted_at=is.null`);
+  const activeServerIds = new Set((activeServers || []).map((s: any) => s.id));
+
+  // Fetch thread configs for logging (which Discord servers have auto-threads enabled)
+  const threadConfigs = await supabaseQuerySafe(
+    `discord_configs?select=raidscout_server_id,discord_guild_id,thread_channel_id,thread_guilds&thread_channel_id=not.is.null`
+  );
+  // Map: serverId → [{ discord_guild_id, thread_guilds }]
+  const serverThreadMap = new Map<string, { discordId: string; threadGuilds: string[] }[]>();
+  for (const tc of (threadConfigs || [])) {
+    const sid = tc.raidscout_server_id;
+    if (!serverThreadMap.has(sid)) serverThreadMap.set(sid, []);
+    serverThreadMap.get(sid)!.push({ discordId: tc.discord_guild_id, threadGuilds: tc.thread_guilds || [] });
+  }
+
+  // Deduplicate by server_id to avoid double-broadcasting, exclude soft-deleted
+  const serverIds = [...new Set(configs.map((c: any) => c.raidscout_server_id))]
+    .filter((id: string) => activeServerIds.has(id));
 
   for (const serverId of serverIds) {
     const tz = await resolveServerTimezone(serverId).catch(() => "Asia/Manila");
-    const [bosses, deaths, guilds, overrides, bossGuilds] = await Promise.all([
+    const [bosses, deaths, guilds, overrides] = await Promise.all([
       supabaseQuerySafe(`bosses?server_id=eq.${serverId}&is_enabled=not.is.false&deleted_at=is.null`),
       supabaseQuerySafe(`death_records?server_id=eq.${serverId}&order=death_time.desc&limit=300`),
       supabaseQuerySafe(`guilds?server_id=eq.${serverId}`),
       supabaseQuerySafe(`boss_spawn_overrides?server_id=eq.${serverId}&select=boss_id,death_time`),
-      supabaseQuerySafe(`boss_guilds?select=boss_id,guild_id,sort_order,day_of_week,mode`),
     ]);
 
+    // Fetch boss_guilds filtered by this server's guilds (avoid cross-server row limit)
+    const guildIds = [...new Set((guilds || []).map((g: any) => g.id))];
+    const bossGuilds = guildIds.length > 0
+      ? await supabaseQuerySafe(`boss_guilds?select=boss_id,guild_id,sort_order,day_of_week,mode&guild_id=in.%28${guildIds.join("%2C")}%29&limit=10000`)
+      : [];
+    const serverBossGuilds = bossGuilds || [];
+
+    // Fetch boss_assists for this server's bosses
+    const bossIds = [...new Set((bosses || []).map((b: any) => b.id))];
+    const bossAssists = bossIds.length > 0
+      ? await supabaseQuerySafe(`boss_assists?select=boss_id,owner_guild_id,assistant_guild_id&boss_id=in.%28${bossIds.join("%2C")}%29&limit=10000`)
+      : [];
+    const serverBossAssists = bossAssists || [];
+
+    // Resolve assist guild names (may include guilds not in this server's guilds table)
+    const assistGuildIdsAll = [...new Set(serverBossAssists.map((a: any) => a.assistant_guild_id))];
+    const ownerGuildIdsAll = [...new Set(serverBossAssists.map((a: any) => a.owner_guild_id))];
+    const allAssistRelatedIds = [...new Set([...assistGuildIdsAll, ...ownerGuildIdsAll])];
+    const guildIdToName = new Map((guilds || []).map((g: any) => [g.id, g.name]));
+    if (allAssistRelatedIds.length > 0) {
+      const assistGuildRows = await supabaseQuerySafe(
+        `guilds?select=id,name&id=in.(${allAssistRelatedIds.join(",")})`
+      );
+      for (const g of (assistGuildRows || [])) {
+        if (!guildIdToName.has(g.id)) guildIdToName.set(g.id, g.name);
+      }
+      // DEBUG: server-level assist summary
+      // const resolvedCount = assistGuildRows?.length ?? 0;
+      // const unresolvedCount = allAssistRelatedIds.length - resolvedCount;
+      // console.log(`[cron] server=${serverId} boss_assists_rows=${serverBossAssists.length} assist_guild_ids=${assistGuildIdsAll.length} owner_guild_ids=${ownerGuildIdsAll.length} resolved=${resolvedCount} unresolved=${unresolvedCount}`);
+    }
     const overrideMap = new Map((overrides || []).map((o: any) => [o.boss_id, o.death_time]));
-    const guildIds = new Set((guilds || []).map((g: any) => g.id));
-    const serverBossGuilds = (bossGuilds || []).filter((bg: any) => guildIds.has(bg.guild_id));
 
     if (!bosses?.length) continue;
 
@@ -123,6 +168,71 @@ async function runSpawnCron() {
         const secsUntilSpawn = spawnUnix - nowUnix; // positive = not yet spawned
 
         const guildName = computeOwnerGuild(boss, serverBossGuilds, (guilds || []), lastDeath, spawnTime, tz) || "";
+
+        const tcfg = serverThreadMap.get(serverId) || [];
+
+        // Collect all guilds that will get threads: computed owner + boss_assists (owner + assistant)
+        const threadGuilds = new Set<string>();
+        if (guildName) threadGuilds.add(guildName);
+
+        const bossAssistRows = serverBossAssists.filter((a: any) => a.boss_id === boss.id);
+        const assistGuildIds = bossAssistRows.map((a: any) => a.assistant_guild_id);
+        const assistOwnerIds = bossAssistRows.map((a: any) => a.owner_guild_id);
+
+        const assistNames: string[] = [];
+        const assistUnresolved: string[] = [];
+
+        // Add owner_guild_id from boss_assists
+        for (const oid of assistOwnerIds) {
+          const oName = guildIdToName.get(oid);
+          if (oName && oName !== guildName) {
+            threadGuilds.add(oName);
+            assistNames.push(oName);
+          }
+        }
+        // Add assistant_guild_id from boss_assists
+        for (const agid of assistGuildIds) {
+          const agName = guildIdToName.get(agid);
+          if (agName) {
+            if (agName !== guildName && !threadGuilds.has(agName)) {
+              threadGuilds.add(agName);
+              assistNames.push(agName);
+            }
+          } else {
+            assistUnresolved.push(agid);
+          }
+        }
+        // DEBUG: per-boss assist details
+        // if (assistGuildIds.length > 0) {
+        //   const resolved = assistGuildIds.map((id: string) => guildIdToName.get(id) || "?");
+        //   const ownerIds = serverBossAssists
+        //     .filter((a: any) => a.boss_id === boss.id)
+        //     .map((a: any) => a.owner_guild_id);
+        //   const ownerNames = ownerIds.map((id: string) => guildIdToName.get(id) || "?");
+        //   console.log(`[cron] ${boss.name} assist_owner=[${ownerNames.join(",")}] assist_assistant=[${resolved.join(",")}] computed_owner=${guildName || "none"}`);
+        // }
+        if (assistUnresolved.length > 0) {
+          console.log(`[cron] ${boss.name} assist_unresolved_ids=[${assistUnresolved.join(",")}]`);
+        }
+
+        if (threadGuilds.size > 0) {
+          // Only include Discord IDs where at least one thread guild is in the whitelist
+          const matchingDiscordIds = tcfg
+            .filter((t: any) => {
+              if (!t.threadGuilds.length) return false;
+              const whitelistNames = t.threadGuilds.map((gid: string) => guildIdToName.get(gid) || gid);
+              return [...threadGuilds].some((tg: string) =>
+                whitelistNames.some((n: string) => n.toLowerCase() === tg.toLowerCase())
+              );
+            })
+            .map((t: any) => t.discordId);
+          const discordIds = matchingDiscordIds.join(",") || null;
+          if (discordIds) {
+            const ownerPart = guildName || "none";
+            const assistPart = assistNames.length > 0 ? ` assists=${assistNames.join(",")}` : "";
+            // console.log(`[cron] ${boss.name} owner=${ownerPart}${assistPart} thread_discord_ids=${discordIds}`);
+          }
+        }
 
         // ── Spawn-time notification (just spawned) ──
         if (secsSinceSpawn >= 0 && secsSinceSpawn <= 60) {
