@@ -63,79 +63,7 @@ export function LeaderboardView() {
   const queryClient = useQueryClient();
   const configured = isSupabaseConfigured();
 
-  // Raw point totals: sum of boss kill points + activity attendance points (no adjustments/multipliers)
-  const { data: rawPoints, isLoading: rawLoading } = useQuery({
-    queryKey: ["leaderboard-raw", period, serverId],
-    queryFn: async () => {
-      if (!serverId) return new Map<string, number>();
-      // Fetch all attendance records with their death record points
-      const { data: attendanceData } = await supabase
-        .from("attendance_records")
-        .select("member_id, death_record_id")
-        .eq("server_id", serverId);
-      
-      if (!attendanceData?.length) return new Map<string, number>();
-
-      // Get point values per death record by joining through death_records → bosses
-      const deathIds = [...new Set(attendanceData.map(a => a.death_record_id))];
-      const { data: deaths } = await supabase
-        .from("death_records")
-        .select("id, boss_id")
-        .in("id", deathIds)
-        .eq("server_id", serverId);
-
-      const bossIds = [...new Set((deaths || []).map(d => d.boss_id))];
-      const { data: bosses } = await supabase
-        .from("bosses")
-        .select("id, boss_points")
-        .in("id", bossIds);
-
-      const bossPointMap = new Map<string, number>();
-      for (const b of (bosses || [])) bossPointMap.set(b.id, b.boss_points ?? 1);
-      const deathPointMap = new Map<string, number>();
-      for (const d of (deaths || [])) deathPointMap.set(d.id, bossPointMap.get(d.boss_id) ?? 1);
-
-      const map = new Map<string, number>();
-      for (const a of attendanceData) {
-        const pts = deathPointMap.get(a.death_record_id) ?? 1;
-        map.set(a.member_id, (map.get(a.member_id) ?? 0) + pts);
-      }
-
-      // Also add activity attendance points
-      const { data: actAttendance } = await supabase
-        .from("activity_attendance")
-        .select("member_id, activity_instance_id")
-        .eq("server_id", serverId);
-
-      if (actAttendance?.length) {
-        const actInstanceIds = [...new Set(actAttendance.map(a => a.activity_instance_id))];
-        const { data: instances } = await supabase
-          .from("activity_instances")
-          .select("id, activity_id")
-          .in("id", actInstanceIds);
-
-        const actIds = [...new Set((instances || []).map(i => i.activity_id))];
-        const { data: activities } = await supabase
-          .from("activities")
-          .select("id, points_per_participant")
-          .in("id", actIds);
-
-        const actPointMap = new Map<string, number>();
-        for (const a of (activities || [])) actPointMap.set(a.id, a.points_per_participant ?? 1);
-        const instancePointMap = new Map<string, number>();
-        for (const i of (instances || [])) instancePointMap.set(i.id, actPointMap.get(i.activity_id) ?? 1);
-
-        for (const a of actAttendance) {
-          const pts = instancePointMap.get(a.activity_instance_id) ?? 1;
-          map.set(a.member_id, (map.get(a.member_id) ?? 0) + pts);
-        }
-      }
-
-      return map;
-    },
-    staleTime: 30_000,
-    enabled: configured && !!serverId,
-  });
+  // Helper: fetch all rows with pagination to avoid PostgREST 1000-row limit
 
   // Selected member for kill history modal
   const [selectedMember, setSelectedMember] = useState<{ id: string; name: string } | null>(null);
@@ -935,7 +863,7 @@ export function LeaderboardView() {
                                   </div>
                                   <span className="text-sm text-[#fafafa] flex-1 truncate">{entry.name}</span>
                                   <span className="text-xs font-mono text-[#a1a1aa]">
-                                    {!rawLoading && (() => { const r = rawPoints?.get(entry.id); return r != null && r !== entry.points ? `${r}pt · ` : ""; })()}{entry.points}pt
+                                    {entry.points}pt
                                   </span>
                                   {canAdjustPoints && (
                                     <button onClick={(e) => { e.stopPropagation(); setAdjustMember({ id: entry.id, name: entry.name, points: entry.points }); setAdjustValue(0); setAdjustReason(""); setAdjustError(null); }} className="p-0.5 rounded text-[#52525b] hover:text-amber-400 transition" title="Adjust points">
