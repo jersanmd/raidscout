@@ -353,7 +353,7 @@ export function LandingPage() {
               {[
                 { value: <AnimatedCounter value={liveStats.guilds} />, label: "Active Guilds" },
                 { value: <AnimatedCounter value={liveStats.kills} />, label: "Kills Recorded" },
-                { value: <AnimatedCounter value={liveStats.players} />, label: "Trackings" },
+                { value: <AnimatedCounter value={liveStats.players} />, label: "Participants" },
                 { value: <AnimatedCounter value={liveStats.servers} />, label: "Servers Online" },
               ].map((s) => (
                 <div key={s.label} className="text-center">

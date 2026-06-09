@@ -9,6 +9,7 @@ RETURNS TABLE(
   name text,
   owner_id uuid,
   created_at timestamptz,
+  deleted_at timestamptz,
   member_count bigint,
   raid_member_count bigint
 )
@@ -21,9 +22,11 @@ AS $$
     s.name,
     s.owner_id,
     s.created_at,
+    s.deleted_at,
     (SELECT COUNT(*) FROM public.server_members sm WHERE sm.server_id = s.id) AS member_count,
     (SELECT COUNT(*) FROM public.members m WHERE m.server_id = s.id) AS raid_member_count
   FROM public.servers s
+  WHERE s.deleted_at IS NULL
   ORDER BY s.created_at DESC;
 $$;
 

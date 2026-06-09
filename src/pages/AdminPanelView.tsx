@@ -161,7 +161,7 @@ export function AdminPanelView() {
   // Load stats for all servers when bot filter is active
   useEffect(() => {
     if (serverFilter !== "bot" || tab !== "servers") return;
-    const nonTestServers = servers.filter((s: any) => !s.name.toLowerCase().includes('test'));
+    const nonTestServers = servers.filter((s: any) => !s.name.toLowerCase().includes('test') && !s.deleted_at);
     nonTestServers.forEach((s: any) => {
       if (!serverStats[s.id]) {
         fetchServerStats(s.id).then(stats => {
@@ -327,8 +327,8 @@ export function AdminPanelView() {
             <p className="text-[#71717a] text-sm text-center py-12">No servers yet.</p>
           ) : (
             (() => {
-              const testServers = servers.filter((s: any) => s.name.toLowerCase().includes('test'));
-              let regularServers = servers.filter((s: any) => !s.name.toLowerCase().includes('test'));
+              const testServers = servers.filter((s: any) => s.name.toLowerCase().includes('test') && !s.deleted_at);
+              let regularServers = servers.filter((s: any) => !s.name.toLowerCase().includes('test') && !s.deleted_at);
               // Apply search filter
               if (serverSearch) {
                 regularServers = regularServers.filter((s: any) => s.name.toLowerCase().includes(serverSearch.toLowerCase()));
