@@ -50,6 +50,7 @@ export function MembersView() {
 
   // Guilds
   const [guilds, setGuilds] = useState<Guild[]>([]);
+  const [guildsLoading, setGuildsLoading] = useState(true);
 
   // Classes — managed per server
   const [classes, setClasses] = useState<string[]>([]);
@@ -186,7 +187,11 @@ export function MembersView() {
   };
 
   useEffect(() => {
-    fetchGuilds(serverId).then(setGuilds).catch(() => setGuilds([]));
+    setGuildsLoading(true);
+    fetchGuilds(serverId)
+      .then(setGuilds)
+      .catch(() => setGuilds([]))
+      .finally(() => setGuildsLoading(false));
     if (serverId) {
       supabase.rpc("get_member_classes", { p_server_id: serverId })
         .then(({ data }) => { if (data) setClasses(data as string[]); }, () => setClasses([]));
@@ -354,7 +359,7 @@ export function MembersView() {
     setEditName(member.name);
   };
 
-  if (isLoading) {
+  if (isLoading || guildsLoading) {
     return (
       <div className="flex items-center justify-center py-20">
         <Loader2 className="w-8 h-8 text-[#a1a1aa] animate-spin" />

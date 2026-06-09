@@ -67,8 +67,12 @@ export function HistoryView() {
 
   // Guilds for owner guild ID lookup
   const [guilds, setGuilds] = useState<Guild[]>([]);
+  const [guildsLoading, setGuildsLoading] = useState(true);
   useEffect(() => {
-    fetchGuilds().then(setGuilds).catch(() => setGuilds([]));
+    fetchGuilds()
+      .then(setGuilds)
+      .catch(() => setGuilds([]))
+      .finally(() => setGuildsLoading(false));
   }, []);
 
   const handleEditDeathTime = async () => {
@@ -276,7 +280,7 @@ export function HistoryView() {
         </div>
       )}
 
-      {loading ? (
+      {loading || guildsLoading ? (
         <div className="flex items-center justify-center py-20">
           <Loader2 className="w-8 h-8 text-[#a1a1aa] animate-spin" />
         </div>

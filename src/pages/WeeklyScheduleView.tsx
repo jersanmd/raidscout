@@ -147,13 +147,16 @@ export function WeeklyScheduleView() {
   // Guild data for ownership display
   const [guilds, setGuilds] = useState<Guild[]>([]);
   const [bossGuilds, setBossGuilds] = useState<BossGuild[]>([]);
+  const [guildsLoading, setGuildsLoading] = useState(true);
 
   useEffect(() => {
     const sid = currentServer?.id;
     if (!sid) return;
+    setGuildsLoading(true);
     Promise.all([fetchGuilds(sid), fetchBossGuilds(sid)])
       .then(([g, bg]) => { setGuilds(g); setBossGuilds(bg); })
-      .catch(() => { setGuilds([]); setBossGuilds([]); });
+      .catch(() => { setGuilds([]); setBossGuilds([]); })
+      .finally(() => setGuildsLoading(false));
   }, [currentServer?.id]);
 
   // Build minimal SpawnInfo[] so rotation.ts can access boss data (rotation_counter, etc.)
@@ -368,7 +371,7 @@ export function WeeklyScheduleView() {
     return days;
   }, [bosses, deathRecords, weekOffset, activities, activityInstances]);
 
-  const isLoading = bossesLoading || recordsLoading;
+  const isLoading = bossesLoading || recordsLoading || guildsLoading;
 
   if (isLoading) {
     return (

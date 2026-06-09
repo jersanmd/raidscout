@@ -121,9 +121,14 @@ export function LeaderboardView() {
   // Fetch guilds and members for filtering
   const { data: members = [] } = useMembers();
   const [guilds, setGuilds] = useState<Guild[]>([]);
+  const [guildsLoading, setGuildsLoading] = useState(true);
   useEffect(() => {
     if (!currentServer?.id) return;
-    fetchGuilds(currentServer.id).then(setGuilds).catch(() => setGuilds([]));
+    setGuildsLoading(true);
+    fetchGuilds(currentServer.id)
+      .then(setGuilds)
+      .catch(() => setGuilds([]))
+      .finally(() => setGuildsLoading(false));
   }, [currentServer?.id]);
 
   // Build member-guild lookup
@@ -225,7 +230,7 @@ export function LeaderboardView() {
     });
   };
 
-  if (isLoading) {
+  if (isLoading || guildsLoading) {
     return (
       <div className="max-w-7xl mx-auto px-4 py-6">
         <div className="bg-[#09090b] border border-[#27272a] rounded-xl overflow-hidden">

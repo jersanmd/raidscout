@@ -75,6 +75,7 @@ export function BossListView() {
   // Guild data for boss ownership badges
   const [guilds, setGuilds] = useState<Guild[]>([]);
   const [bossGuilds, setBossGuilds] = useState<BossGuild[]>([]);
+  const [guildsLoading, setGuildsLoading] = useState(true);
   const [hasWebhook, setHasWebhook] = useState(false);
   const [viewerCanEdit, setViewerCanEdit] = useState(false);
   const [viewerCanMarkDied, setViewerCanMarkDied] = useState(false);
@@ -85,7 +86,8 @@ export function BossListView() {
     if (!sid) return;
     Promise.all([fetchGuilds(sid), fetchBossGuilds(sid)])
       .then(([g, bg]) => { setGuilds(g); setBossGuilds(bg); })
-      .catch(() => { setGuilds([]); setBossGuilds([]); });
+      .catch(() => { setGuilds([]); setBossGuilds([]); })
+      .finally(() => setGuildsLoading(false));
 
     if (isViewer) {
       // Viewers get settings from AuthContext (fetched via get_server_by_viewer_key RPC)
@@ -605,7 +607,7 @@ export function BossListView() {
     return groups;
   }, [filteredSpawns]);
 
-  if (isLoading || activitiesLoading) {
+  if (isLoading || activitiesLoading || guildsLoading) {
     return (
       <div className="flex items-center justify-center py-32">
         <div className="w-8 h-8 border-2 border-[#27272a] border-t-cyan-400 rounded-full animate-spin" />

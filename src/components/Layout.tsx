@@ -9,7 +9,7 @@ import { DiscordWebhookBanner } from "@/components/DiscordWebhookBanner";
 import { NoMembersBanner } from "@/components/NoMembersBanner";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { useSpawnAlerts } from "@/hooks/useSpawnAlerts";
-import { Skull, List, Calendar, LogOut, Clock, Trophy, Users, BarChart3, Server, Settings, Plus, Shield, ExternalLink, Eye, Bell, Volume2, ChevronDown, Globe } from "lucide-react";
+import { Skull, List, Calendar, LogOut, Clock, Trophy, Users, BarChart3, Server, Settings, Plus, Shield, ExternalLink, Eye, Bell, Volume2, ChevronDown, Globe, Loader2 } from "lucide-react";
 import { version } from "../../package.json";
 import { useUserTimezone, detectTimezone, formatInTimezone } from "@/hooks/useUserTimezone";
 import { TIMEZONES } from "@/lib/timezones";
@@ -47,7 +47,7 @@ function playAlertSound() {
 
 export function Layout() {
   const { user, signOut, userRole, isViewer, viewerServerName } = useAuth();
-  const { servers, currentServer, setCurrentServer } = useServer();
+  const { servers, currentServer, setCurrentServer, loading: serverLoading } = useServer();
   const { timezone, setTimezone } = useUserTimezone(currentServer?.timezone);
   const [showCreate, setShowCreate] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
@@ -61,11 +61,12 @@ export function Layout() {
   const hasServer = !!currentServer;
 
   // Admin viewing a server: auto-join server_members to get owner RLS
-  useAdminViewAs(isAdmin ? currentServer?.id ?? null : null);
+  const { joining: adminJoining } = useAdminViewAs(isAdmin ? currentServer?.id ?? null : null);
 
   // Auto-redirect admin to admin panel if they land on data pages without a server
   useEffect(() => {
-    // Don't redirect if there's a persisted server in localStorage (just navigated from admin)
+    // Don't redirect while servers are still loading
+    if (serverLoading) return;
     const hasPersistedServer = !!localStorage.getItem("lordnine-current-server-id");
     if (isAdmin && !hasServer && !hasPersistedServer && location.pathname !== "/admin") {
       navigate("/admin", { replace: true });
@@ -99,6 +100,15 @@ export function Layout() {
 
   return (
     <div className="min-h-screen bg-[#09090b] flex flex-col" onClick={() => showUserMenu && setShowUserMenu(false)}>
+      {/* Admin joining server overlay */}
+      {adminJoining && (
+        <div className="fixed inset-0 z-[100] bg-[#09090b]/80 flex items-center justify-center">
+          <div className="text-center space-y-3">
+            <Loader2 className="w-8 h-8 text-[#a1a1aa] animate-spin mx-auto" />
+            <p className="text-sm text-[#a1a1aa]">Joining server as owner…</p>
+          </div>
+        </div>
+      )}
       <a href="#main-content" className="skip-to-content">Skip to content</a>
       {/* Header */}
       <header className="sticky top-0 z-50 bg-[#09090b]/80 backdrop-blur-xl border-b border-[#27272a] overflow-visible">

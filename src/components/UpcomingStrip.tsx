@@ -107,7 +107,7 @@ function UpcomingSlot({
             {spawn.boss.name}
           </span>
           {guildName && (() => { const c = guildColor(guildName); return (
-            <span className="text-[11px] text-[#71717a] font-medium shrink-0">
+            <span className={`text-[11px] font-medium shrink-0 ${c.text}`}>
               {guildName}
             </span>
           ); })()}

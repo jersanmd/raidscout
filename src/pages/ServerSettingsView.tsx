@@ -185,6 +185,14 @@ export function ServerSettingsView() {
     : "general";
   const [tab, setTab] = useState<string>(initialTab);
 
+  // Update both state and URL when tab changes
+  const setTabAndUrl = (key: string) => {
+    setTab(key);
+    const params = new URLSearchParams(searchParams);
+    params.set("tab", key);
+    navigate(`?${params.toString()}`, { replace: true });
+  };
+
   useEffect(() => {
     const gid = newDiscordId.trim();
     if (!gid) { setUsedPrefixes(new Set()); return; }
@@ -198,7 +206,7 @@ export function ServerSettingsView() {
     const highlight = searchParams.get("highlight");
     if (highlight === "discord-id" && discordIdInputRef.current) {
       // Switch to integrations tab
-      setTab("integrations");
+      setTabAndUrl("integrations");
       // Scroll to and highlight the input after render
       setTimeout(() => {
         discordIdInputRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -398,7 +406,7 @@ export function ServerSettingsView() {
   // Redirect moderators away from owner-only tabs
   useEffect(() => {
     if (!isOwner && tab === "danger") {
-      setTab("general");
+      setTabAndUrl("general");
     }
   }, [isOwner, tab]);
 
@@ -933,7 +941,7 @@ export function ServerSettingsView() {
       <div className="sm:hidden flex flex-wrap items-center gap-1 pb-1 mt-2">
         {(["general","guilds","bosses","boss-points","boss-guilds","activities","activity-points","activity-guilds","members","integrations","account",...(isOwner?["danger"]:[])] as string[]).map((key) => {
           const labels: Record<string,string> = {general:"General",guilds:"Guilds",bosses:"Bosses","boss-points":"Boss Points","boss-guilds":"Boss Guild Assignments",activities:"Activities","activity-points":"Activity Points","activity-guilds":"Activity Guild Assignments",members:"Moderator/Permissions",integrations:"Integrations",account:"Account",danger:"Danger"};
-          return <button key={key} onClick={() => setTab(key)}
+          return <button key={key} onClick={() => setTabAndUrl(key)}
             className={`shrink-0 px-2.5 py-1 rounded-md text-[11px] font-medium transition whitespace-nowrap ${tab===key?"bg-[#27272a] text-[#fafafa]":"text-[#71717a] hover:text-[#d4d4d8]"}`}>
             {labels[key]}
           </button>;
@@ -962,7 +970,7 @@ export function ServerSettingsView() {
               const icons: Record<string,React.ComponentType<{className?:string}>> = {general:Settings,guilds:Shield,bosses:Skull,"boss-points":Trophy,"boss-guilds":Swords,activities:Calendar,"activity-points":Trophy,"activity-guilds":Calendar,members:Users,integrations:Bell,account:Key,danger:AlertTriangle};
               const labels: Record<string,string> = {general:"General",guilds:"Guilds",bosses:"Bosses","boss-points":"Boss Points","boss-guilds":"Boss Guild Assignments",activities:"Activities","activity-points":"Activity Points","activity-guilds":"Activity Guild Assignments",members:"Moderator/Permissions",integrations:"Integrations",account:"Account",danger:"Danger"};
               const Icon = icons[key];
-              return <button key={key} onClick={() => setTab(key)}
+              return <button key={key} onClick={() => setTabAndUrl(key)}
                 className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition ${tab===key?"bg-[#27272a] text-[#fafafa]":"text-[#a1a1aa] hover:text-[#fafafa] hover:bg-[#27272a]/50"}`}>
                 <Icon className="w-3.5 h-3.5 shrink-0" />{labels[key]}
               </button>;

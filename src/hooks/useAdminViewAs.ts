@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useRef } from "react";
+import { useEffect, useCallback, useRef, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 
 const EDGE_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/admin-impersonate`;
@@ -12,6 +12,7 @@ const EDGE_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/admin-impers
 export function useAdminViewAs(serverId: string | null) {
   const { user, userRole } = useAuth();
   const previousId = useRef<string | null>(null);
+  const [joining, setJoining] = useState(false);
 
   // Cleanup stale admin memberships on mount (from crashes/disconnects)
   useEffect(() => {
@@ -40,11 +41,14 @@ export function useAdminViewAs(serverId: string | null) {
 
     // Join new server
     if (serverId && serverId !== prev) {
+      setJoining(true);
       fetch(EDGE_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ user_id: user.id, server_id: serverId, action: "join" }),
-      }).catch(() => {});
+      })
+        .catch(() => {})
+        .finally(() => setJoining(false));
     }
 
     previousId.current = serverId;
@@ -67,5 +71,5 @@ export function useAdminViewAs(serverId: string | null) {
     return targetServerId;
   }, []);
 
-  return { viewAsOwner };
+  return { viewAsOwner, joining };
 }
