@@ -442,7 +442,15 @@ export function AdminPanelView() {
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              setCurrentServer({ id: s.id, name: s.name, owner_id: s.owner_id, invite_code: s.id?.substring(0, 8) ?? "", created_at: s.created_at, role: "owner" });
+                              setCurrentServer({
+                                id: s.id,
+                                name: s.name,
+                                owner_id: s.owner_id,
+                                invite_code: s.invite_code || (s.id?.substring(0, 8) ?? ""),
+                                created_at: s.created_at,
+                                timezone: s.timezone || 'Asia/Manila',
+                                role: "owner" as const,
+                              });
                               queueMicrotask(() => navigate("/"));
                             }}
                             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-[#3f3f46] text-[#d4d4d8] hover:bg-[#18181b] hover:border-[#52525b] transition"

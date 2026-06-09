@@ -156,7 +156,7 @@ describe("getOwnerGuildName — daily", () => {
       makeBossGuild("b1", "g1", 0, "daily"),
       makeBossGuild("b1", "g2", 1, "daily"),
     ];
-    const result = getOwnerGuildName("b1", bg, guilds, [], [makeSpawn(boss)]);
+    const result = getOwnerGuildName("b1", bg, guilds, [], [makeSpawn(boss)], undefined, "UTC");
     expect(result).toBe("Alpha");
   });
 
@@ -166,9 +166,9 @@ describe("getOwnerGuildName — daily", () => {
       makeBossGuild("b1", "g1", 0, "daily"),
       makeBossGuild("b1", "g2", 1, "daily"),
     ];
-    // Killed at 2am UTC, respawns at 12pm UTC same day
+    // Killed at 2am UTC May 23, respawns at 12pm UTC same day
     const death = makeDeath("b1", new Date(Date.UTC(2026, 4, 23, 2, 0, 0)), "g1");
-    const result = getOwnerGuildName("b1", bg, guilds, [death], [makeSpawn(boss)]);
+    const result = getOwnerGuildName("b1", bg, guilds, [death], [makeSpawn(boss)], undefined, "UTC");
     expect(result).toBe("Alpha"); // Same day → same guild
   });
 
@@ -178,25 +178,22 @@ describe("getOwnerGuildName — daily", () => {
       makeBossGuild("b1", "g1", 0, "daily"),
       makeBossGuild("b1", "g2", 1, "daily"),
     ];
-    // Killed at 8pm UTC May 23, respawns at 6am UTC May 24 (next day)
-    const death = makeDeath("b1", new Date(Date.UTC(2026, 4, 23, 20, 0, 0)), "g1");
-    const result = getOwnerGuildName("b1", bg, guilds, [death], [makeSpawn(boss)]);
-    expect(result).toBe("Beta"); // Next day → next guild
+    // Death at 8pm May 22, spawn at 6am May 23 (different UTC days, spawn in the past)
+    const death = makeDeath("b1", new Date(Date.UTC(2026, 4, 22, 20, 0, 0)), "g1");
+    const result = getOwnerGuildName("b1", bg, guilds, [death], [makeSpawn(boss)], undefined, "UTC");
+    expect(result).toBe("Beta"); // Different day → next guild
   });
 
   it("wraps back to first guild after last", () => {
-    const boss = makeBoss({ id: "b1", respawn_hours: 24 });
+    const boss = makeBoss({ id: "b1", respawn_hours: 10 });
     const bg = [
       makeBossGuild("b1", "g1", 0, "daily"),
       makeBossGuild("b1", "g2", 1, "daily"),
     ];
-    // Killed May 22 at noon, respawns May 23 at noon (next day)
-    // Last guild was g2 → should wrap to g1
-    // Actually we need to simulate that g2 was the last killer
-    // Let me just set a death with g1 as killer on a different day
-    const death = makeDeath("b1", new Date(Date.UTC(2026, 4, 22, 12, 0, 0)), "g2");
-    const result = getOwnerGuildName("b1", bg, guilds, [death], [makeSpawn(boss)]);
-    expect(result).toBe("Alpha"); // g2 → advance to g1
+    // Killed by last guild on a different day → wrap to first
+    const death = makeDeath("b1", new Date(Date.UTC(2026, 4, 22, 20, 0, 0)), "g2");
+    const result = getOwnerGuildName("b1", bg, guilds, [death], [makeSpawn(boss)], undefined, "UTC");
+    expect(result).toBe("Alpha"); // g2 → wrap to g1
   });
 });
 
@@ -340,9 +337,12 @@ describe("getOwnerGuildName — edge cases", () => {
       makeBossGuild("b1", "g1", 0, "daily"),
       makeBossGuild("b1", "g2", 1, "daily"),
     ];
-    // Death from yesterday (different UTC day) but no owner_guild_id
-    const death = makeDeath("b1", new Date(Date.UTC(2026, 4, 22, 20, 0, 0)), undefined as any);
-    const result = getOwnerGuildName("b1", bg, [makeGuild("g1", "Alpha"), makeGuild("g2", "Beta")], [death], [makeSpawn(boss)]);
+    // Death yesterday evening, spawn this morning (different UTC days), no owner_guild_id
+    const yesterday20h = new Date(Date.UTC(
+      new Date().getUTCFullYear(), new Date().getUTCMonth(), new Date().getUTCDate() - 1, 20, 0, 0
+    ));
+    const death = makeDeath("b1", yesterday20h, undefined as any);
+    const result = getOwnerGuildName("b1", bg, [makeGuild("g1", "Alpha"), makeGuild("g2", "Beta")], [death], [makeSpawn(boss)], undefined, "UTC");
     expect(result).toBe("Beta"); // Advances from first guild idx=1
   });
 });

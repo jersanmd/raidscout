@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { NavLink, Outlet, useNavigate, useLocation, Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { useAdminViewAs } from "@/hooks/useAdminViewAs";
 import { useServer } from "@/contexts/ServerContext";
 import { CreateServerModal } from "@/components/CreateServerModal";
 import { DiscordWebhookBanner } from "@/components/DiscordWebhookBanner";
@@ -58,6 +59,9 @@ export function Layout() {
   const location = useLocation();
   const isAdmin = userRole === "admin";
   const hasServer = !!currentServer;
+
+  // Admin viewing a server: auto-join server_members to get owner RLS
+  useAdminViewAs(isAdmin ? currentServer?.id ?? null : null);
 
   // Auto-redirect admin to admin panel if they land on data pages without a server
   useEffect(() => {

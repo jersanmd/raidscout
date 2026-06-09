@@ -150,17 +150,16 @@ function getDailyOwnerGuild(
   const respawnHours = bossData?.respawn_hours ?? 0;
   const deathDate = new Date(lastDeath.death_time);
   const spawnDate = new Date(deathDate.getTime() + respawnHours * 3600000);
+  const lastGuildId = (lastDeath as any).owner_guild_id;
 
   // Same-day death + spawn → same guild keeps the boss (uses server timezone for day boundary)
   if (deathDate.toLocaleDateString("en-CA", { timeZone: timezone }) === spawnDate.toLocaleDateString("en-CA", { timeZone: timezone })) {
-    const lastGuildId = (lastDeath as any).owner_guild_id;
     return lastGuildId
       ? guilds.find(g => g.id === lastGuildId)?.name
       : guilds.find(g => g.id === dailyEntries[0].guild_id)?.name;
   }
 
   // Different day → advance rotation
-  const lastGuildId = (lastDeath as any).owner_guild_id;
   if (!lastGuildId) {
     let idx = safeMod(1, dailyEntries.length);
     return guilds.find(g => g.id === dailyEntries[idx].guild_id)?.name;

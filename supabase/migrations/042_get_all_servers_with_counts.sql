@@ -10,6 +10,8 @@ RETURNS TABLE(
   owner_id uuid,
   created_at timestamptz,
   deleted_at timestamptz,
+  timezone text,
+  invite_code text,
   member_count bigint,
   raid_member_count bigint
 )
@@ -23,6 +25,8 @@ AS $$
     s.owner_id,
     s.created_at,
     s.deleted_at,
+    s.timezone,
+    s.invite_code,
     (SELECT COUNT(*) FROM public.server_members sm WHERE sm.server_id = s.id) AS member_count,
     (SELECT COUNT(*) FROM public.members m WHERE m.server_id = s.id) AS raid_member_count
   FROM public.servers s
