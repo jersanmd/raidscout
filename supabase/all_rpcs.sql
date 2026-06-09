@@ -389,7 +389,12 @@ BEGIN
         '1970-01-01T00:00:00Z'::timestamptz
       ))
     LEFT JOIN public.bosses b ON b.id = dr.boss_id
-    LEFT JOIN public.boss_guilds bg ON bg.boss_id = b.id AND bg.guild_id = m.guild_id
+    LEFT JOIN (
+      SELECT DISTINCT ON (boss_id, guild_id) boss_id, guild_id, points
+      FROM public.boss_guilds
+      WHERE points IS NOT NULL
+      ORDER BY boss_id, guild_id, points DESC
+    ) bg ON bg.boss_id = b.id AND bg.guild_id = m.guild_id
     WHERE m.server_id = p_server_id
     GROUP BY m.id, m.name
   ),
@@ -512,7 +517,12 @@ BEGIN
         '1970-01-01T00:00:00Z'::timestamptz
       ))
     LEFT JOIN public.bosses b ON b.id = dr.boss_id
-    LEFT JOIN public.boss_guilds bg ON bg.boss_id = b.id AND bg.guild_id = m.guild_id
+    LEFT JOIN (
+      SELECT DISTINCT ON (boss_id, guild_id) boss_id, guild_id, points
+      FROM public.boss_guilds
+      WHERE points IS NOT NULL
+      ORDER BY boss_id, guild_id, points DESC
+    ) bg ON bg.boss_id = b.id AND bg.guild_id = m.guild_id
     WHERE m.server_id = p_server_id
     GROUP BY m.id, m.name
   ),

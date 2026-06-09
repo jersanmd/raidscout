@@ -106,7 +106,8 @@ export async function adjustMemberPoints(
 
 export async function fetchPointAdjustments(
   serverId: string,
-  memberId?: string | null
+  memberId?: string | null,
+  since?: string | null
 ): Promise<import("@/types").PointAdjustment[]> {
   const { data, error } = await supabase
     .rpc("fetch_point_adjustments", {
@@ -114,7 +115,13 @@ export async function fetchPointAdjustments(
       p_member_id: memberId ?? null,
     });
   if (error) throw error;
-  return (data ?? []) as import("@/types").PointAdjustment[];
+  let results = (data ?? []) as import("@/types").PointAdjustment[];
+  // Filter client-side by since date (RPC doesn't support this parameter yet)
+  if (since) {
+    const cutoff = new Date(since);
+    results = results.filter(a => new Date(a.created_at) >= cutoff);
+  }
+  return results;
 }
 
 // ── Member Kill History ─────────────────────────────────────
@@ -196,7 +203,11 @@ export async function fetchMemberKills(
       .in("boss_id", bossIds);
     for (const bg of (bgData || [])) {
       if ((bg as any).points != null) {
-        bgPointsMap.set((bg as any).boss_id, (bg as any).points);
+        const bossId = (bg as any).boss_id;
+        const pts = (bg as any).points;
+        if (!bgPointsMap.has(bossId) || pts > bgPointsMap.get(bossId)!) {
+          bgPointsMap.set(bossId, pts);
+        }
       }
     }
   }

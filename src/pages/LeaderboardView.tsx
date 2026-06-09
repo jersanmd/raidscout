@@ -69,6 +69,7 @@ export function LeaderboardView() {
   const [selectedMember, setSelectedMember] = useState<{ id: string; name: string } | null>(null);
   const [memberKills, setMemberKills] = useState<MemberBossKill[]>([]);
   const [memberActivities, setMemberActivities] = useState<MemberActivityAttendance[]>([]);
+  const [memberAdjustments, setMemberAdjustments] = useState<PointAdjustment[]>([]);
   const [killsLoading, setKillsLoading] = useState(false);
 
   // Participant modal (when clicking a boss in kill history)
@@ -180,12 +181,14 @@ export function LeaderboardView() {
         (async () => {
           let since = "1970-01-01T00:00:00Z";
           try { const { data: snaps } = await supabase.from("leaderboard_snapshots").select("finalized_at").eq("period", period).eq("server_id", serverId).order("finalized_at", { ascending: false }).limit(1); if (snaps && snaps.length > 0) since = (snaps[0] as any).finalized_at; } catch {}
-          const [kills, activities] = await Promise.all([
+          const [kills, activities, adjustments] = await Promise.all([
             fetchMemberKills(entry.id, since, serverId, serverTimezone).catch(() => [] as MemberBossKill[]),
             fetchMemberActivityHistory(entry.id, since, serverId).catch(() => [] as MemberActivityAttendance[]),
+            fetchPointAdjustments(serverId!, entry.id, since).catch(() => [] as PointAdjustment[]),
           ]);
           setMemberKills(kills);
           setMemberActivities(activities);
+          setMemberAdjustments(adjustments);
           setKillsLoading(false);
         })();
         // Clear the param so it doesn't re-trigger
@@ -851,14 +854,16 @@ export function LeaderboardView() {
                                         if (settings) since = (settings as any).value;
                                       }
                                       if (configured) {
-                                        const [kills, activities] = await Promise.all([
+                                        const [kills, activities, adjustments] = await Promise.all([
                                           fetchMemberKills(entry.id, since, serverId, serverTimezone),
                                           fetchMemberActivityHistory(entry.id, since, serverId),
+                                          fetchPointAdjustments(serverId!, entry.id, since).catch(() => [] as PointAdjustment[]),
                                         ]);
                                         setMemberKills(kills);
                                         setMemberActivities(activities);
+                                        setMemberAdjustments(adjustments);
                                       }
-                                    } catch { setMemberKills([]); setMemberActivities([]); }
+                                    } catch { setMemberKills([]); setMemberActivities([]); setMemberAdjustments([]); }
                                     finally { setKillsLoading(false); }
                                   }}
                                   className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-white/5 transition"
@@ -1116,15 +1121,17 @@ export function LeaderboardView() {
 
       {/* Kill history modal */}
       {selectedMember && (() => {
-        // Merge boss kills + activity attendance into one sorted history
+        // Merge boss kills + activity attendance + point adjustments into one sorted history
         const combined = [
           ...memberKills.map(k => ({ type: "kill" as const, name: k.boss_name, points: k.points ?? 0, time: k.killed_at, deathRecordId: k.death_record_id, activityInstanceId: null as string | null })),
           ...memberActivities.map(a => ({ type: "activity" as const, name: a.activity_name, points: a.points ?? 0, time: a.attended_at, deathRecordId: null as string | null, activityInstanceId: a.activity_instance_id })),
+          ...memberAdjustments.map(a => ({ type: "adjustment" as const, name: a.reason || "Point Adjustment", points: a.points, time: a.created_at, deathRecordId: null as string | null, activityInstanceId: null as string | null })),
         ].sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
 
         const killTotal = memberKills.reduce((sum, k) => sum + (k.points ?? 0), 0);
         const activityTotal = memberActivities.reduce((sum, a) => sum + (a.points ?? 0), 0);
-        const combinedTotal = killTotal + activityTotal;
+        const adjustmentTotal = memberAdjustments.reduce((sum, a) => sum + (a.points ?? 0), 0);
+        const combinedTotal = killTotal + activityTotal + adjustmentTotal;
         return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/60" onClick={() => setSelectedMember(null)} />
@@ -1155,10 +1162,14 @@ export function LeaderboardView() {
                 </p>
               ) : (
                 <div className="space-y-1">
-                  {combined.map((item, i) => (
+                  {combined.map((item, i) => {
+                    const isAdjustment = item.type === "adjustment";
+                    const isActivity = item.type === "activity";
+                    return (
                     <button
                       key={i}
                       onClick={() => {
+                        if (isAdjustment) return;
                         if (item.type === "kill") {
                           setParticipantDeathId(item.deathRecordId!);
                           setParticipantBossName(item.name);
@@ -1168,15 +1179,19 @@ export function LeaderboardView() {
                           setParticipantBossName(item.name);
                         }
                       }}
-                      className="w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-[#18181b]/50 hover:bg-[#27272a]/50 transition text-left"
+                      className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-[#18181b]/50 transition text-left ${isAdjustment ? "cursor-default" : "hover:bg-[#27272a]/50 cursor-pointer"}`}
                     >
-                      {item.type === "kill" ? (
-                        <Skull className="w-3.5 h-3.5 text-red-400 shrink-0" />
-                      ) : (
+                      {isAdjustment ? (
+                        <Plus className="w-3.5 h-3.5 text-purple-400 shrink-0" />
+                      ) : isActivity ? (
                         <Calendar className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                      ) : (
+                        <Skull className="w-3.5 h-3.5 text-red-400 shrink-0" />
                       )}
                       <span className="text-sm text-[#fafafa]">{item.name}</span>
-                      <span className="text-[10px] text-amber-400 font-medium ml-auto mr-2">+{item.points}</span>
+                      <span className={`text-[10px] font-medium ml-auto mr-2 ${isAdjustment ? (item.points >= 0 ? "text-emerald-400" : "text-red-400") : "text-amber-400"}`}>
+                        {isAdjustment && item.points >= 0 ? "+" : ""}{item.points}
+                      </span>
                       <span className="text-[10px] text-[#52525b]">
                         {new Date(item.time).toLocaleString("en-US", { timeZone: userTz,
                           month: "short",
@@ -1186,7 +1201,8 @@ export function LeaderboardView() {
                         })}
                       </span>
                     </button>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
