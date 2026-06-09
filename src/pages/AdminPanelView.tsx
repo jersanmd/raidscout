@@ -30,6 +30,7 @@ export function AdminPanelView() {
   const [serverFilter, setServerFilter] = useState<"all" | "bot">("all");
   const [serverSearch, setServerSearch] = useState("");
   const [userSearch, setUserSearch] = useState("");
+  const [userRoleFilter, setUserRoleFilter] = useState<"all" | "owner" | "moderator" | "member">("all");
   const [deletedSearch, setDeletedSearch] = useState("");
   const [restoreConfirm, setRestoreConfirm] = useState<{ id: string; name: string } | null>(null);
   const [restoreInput, setRestoreInput] = useState("");
@@ -66,6 +67,29 @@ export function AdminPanelView() {
     queryKey: ["admin", "users"],
     queryFn: fetchAllUsers,
     staleTime: 10_000,
+    enabled: userRole === "admin",
+  });
+
+  // Fetch server owners and moderators for user role filtering (uses SECURITY DEFINER RPC to bypass RLS)
+  const { data: serverRoles = { owners: new Set<string>(), moderators: new Set<string>() } } = useQuery({
+    queryKey: ["admin", "server-roles"],
+    queryFn: async () => {
+      const owners = new Set<string>();
+      const moderators = new Set<string>();
+
+      const { data, error } = await supabase.rpc("get_all_admin_roles");
+      if (error) { console.error("[admin] get_all_admin_roles error:", error.message); }
+      if (data) {
+        for (const r of data as any[]) {
+          if (r.role === "owner") owners.add(r.user_id);
+          else if (r.role === "moderator") moderators.add(r.user_id);
+        }
+      }
+
+      console.log("[admin] server roles:", { owners: owners.size, moderators: moderators.size });
+      return { owners, moderators };
+    },
+    staleTime: 30_000,
     enabled: userRole === "admin",
   });
 
@@ -535,26 +559,43 @@ export function AdminPanelView() {
 
       {/* Server Owners Tab */}
       {tab === "users" && (() => {
-        const filteredUsers = users.filter((u: any) =>
-          !userSearch ||
-          (u.email || "").toLowerCase().includes(userSearch.toLowerCase()) ||
-          (u.user_id || "").toLowerCase().includes(userSearch.toLowerCase())
-        );
+        const { owners, moderators } = serverRoles;
+        const filteredUsers = users.filter((u: any) => {
+          // Search filter
+          if (userSearch && !(u.email || "").toLowerCase().includes(userSearch.toLowerCase()) && !(u.user_id || "").toLowerCase().includes(userSearch.toLowerCase())) return false;
+          // Role filter
+          if (userRoleFilter === "owner" && !owners.has(u.user_id)) return false;
+          if (userRoleFilter === "moderator" && !moderators.has(u.user_id)) return false;
+          if (userRoleFilter === "member" && (owners.has(u.user_id) || moderators.has(u.user_id))) return false;
+          return true;
+        });
         return (
         <div>
           <div className="flex items-center justify-between mb-3">
             <h4 className="text-xs font-semibold text-[#a1a1aa] uppercase tracking-wider">
-              Users ({filteredUsers.length}{userSearch ? ` / ${users.length}` : ""})
+              Users ({filteredUsers.length}{userSearch || userRoleFilter !== "all" ? ` / ${users.length}` : ""})
             </h4>
-            <div className="relative">
-              <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-[#52525b]" />
-              <input
-                type="text"
-                placeholder="Search by email or ID…"
-                value={userSearch}
-                onChange={e => setUserSearch(e.target.value)}
-                className="w-48 pl-7 pr-2 py-1.5 text-xs bg-[#18181b] border border-[#27272a] rounded text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#52525b]"
-              />
+            <div className="flex items-center gap-2">
+              <select
+                value={userRoleFilter}
+                onChange={e => setUserRoleFilter(e.target.value as any)}
+                className="w-32 pl-2 pr-2 py-1.5 text-xs bg-[#18181b] border border-[#27272a] rounded text-[#fafafa] focus:outline-none focus:border-[#52525b]"
+              >
+                <option value="all">All Roles</option>
+                <option value="owner">Server Owners</option>
+                <option value="moderator">Moderators</option>
+                <option value="member">Members Only</option>
+              </select>
+              <div className="relative">
+                <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-[#52525b]" />
+                <input
+                  type="text"
+                  placeholder="Search by email…"
+                  value={userSearch}
+                  onChange={e => setUserSearch(e.target.value)}
+                  className="w-40 pl-7 pr-2 py-1.5 text-xs bg-[#18181b] border border-[#27272a] rounded text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#52525b]"
+                />
+              </div>
             </div>
           </div>
           {usrLoading ? (
@@ -602,7 +643,12 @@ export function AdminPanelView() {
                       <code className="text-[10px] text-[#52525b] font-mono truncate block">{u.user_id?.substring(0, 12)}...</code>
                     </div>
                     <div className="col-span-2">
-                      <span className="text-[10px] text-[#71717a]">{u.role}</span>
+                      {(() => {
+                        if (u.role === "admin") return <span className="text-[10px] text-amber-400 font-medium">Admin</span>;
+                        if (owners.has(u.user_id)) return <span className="text-[10px] text-emerald-400 font-medium">Owner</span>;
+                        if (moderators.has(u.user_id)) return <span className="text-[10px] text-sky-400 font-medium">Mod</span>;
+                        return <span className="text-[10px] text-[#71717a]">Member</span>;
+                      })()}
                     </div>
                     <div className="col-span-2">
                       <span className="text-[10px] text-[#71717a]">{new Date(u.created_at).toLocaleDateString()}</span>
