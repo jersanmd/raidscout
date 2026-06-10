@@ -66,12 +66,22 @@ export async function fetchAnalytics(since: string, serverId?: string | null): P
   }
 
   if (!att.length) {
-    const { data: directAtt, error: aErr } = await supabase
-      .from("attendance_records")
-      .select("death_record_id, member_id")
-      .in("death_record_id", deathIds);
-    if (aErr) throw aErr;
-    att = directAtt || [];
+    // Paginated fallback — Supabase defaults to 1,000 rows max
+    const allAtt: any[] = [];
+    let attPage = 0;
+    while (true) {
+      const { data: directAtt, error: aErr } = await supabase
+        .from("attendance_records")
+        .select("death_record_id, member_id")
+        .in("death_record_id", deathIds)
+        .range(attPage * 1000, (attPage + 1) * 1000 - 1);
+      if (aErr) throw aErr;
+      if (!directAtt?.length) break;
+      allAtt.push(...directAtt);
+      if (directAtt.length < 1000) break;
+      attPage++;
+    }
+    att = allAtt;
   }
 
   // Get bosses for names
