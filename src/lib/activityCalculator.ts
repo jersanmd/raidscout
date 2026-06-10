@@ -58,6 +58,17 @@ export function calculateActivityInfo(
       const effectiveRecurMs = recurMs > 0 ? recurMs : (startDateStr ? 24 * 60 * 60_000 : 0);
       const hasBeenFinished = !!lastInstance?.end_time;
 
+      // If started but never finished, stay on the current occurrence
+      if (!hasBeenFinished && lastInstance?.start_time && effectiveRecurMs > 0) {
+        const st = new Date(lastInstance.start_time);
+        return {
+          activity,
+          activityInstance: lastInstance,
+          startTime: st,
+          status: st > now ? "countdown" : "active",
+        };
+      }
+
       if (hasBeenFinished && effectiveRecurMs > 0) {
         // After finish: advance from finish time (or base time) by recurrence to find next upcoming
         const baseTime = lastInstance.end_time ? new Date(lastInstance.end_time) : startTime;
@@ -104,6 +115,18 @@ export function calculateActivityInfo(
       activityInstance: { id: "", activity_id: activity.id, start_time: now.toISOString(), created_at: "" },
       startTime: now,
       status: "active",
+    };
+  }
+
+  // If the last instance was started but never finished, stay on that slot
+  // (requires explicit "Finish" before advancing to the next schedule)
+  if (lastInstance?.start_time && !lastInstance.end_time) {
+    const startTime = new Date(lastInstance.start_time);
+    return {
+      activity,
+      activityInstance: lastInstance,
+      startTime,
+      status: startTime > now ? "countdown" : "active",
     };
   }
 
