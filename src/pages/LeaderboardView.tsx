@@ -83,6 +83,7 @@ export function LeaderboardView() {
     useLeaderboardSnapshots();
   const [finalizing, setFinalizing] = useState(false);
   const [showSnapshots, setShowSnapshots] = useState<string | null>(null);
+  const prevShowSnapshots = useRef<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [guildFilter, setGuildFilter] = useState<string>("all");
   const [showFinalizeConfirm, setShowFinalizeConfirm] = useState<string | null>(null);
@@ -956,7 +957,7 @@ export function LeaderboardView() {
                 return (
                   <button
                     key={snap.id}
-                    onClick={() => { setShowSnapshots(null); setSnapshotGuildFilter("all"); loadSnapshot(snap.id); }}
+                    onClick={() => { prevShowSnapshots.current = showSnapshots; setShowSnapshots(null); setSnapshotGuildFilter("all"); loadSnapshot(snap.id); }}
                     className="w-full flex items-start gap-2 px-2.5 py-2 rounded-lg bg-[#18181b]/50 border border-[#27272a]/50 hover:border-[#52525b] transition text-left"
                   >
                     <History className="w-3.5 h-3.5 text-[#a1a1aa] shrink-0 mt-0.5" />
@@ -1011,7 +1012,7 @@ export function LeaderboardView() {
                 <div className="flex items-center justify-between p-3 border-b border-[#27272a] shrink-0">
                   <div className="flex items-center gap-2">
                     <button
-                      onClick={() => { clearViewing(); setShowSnapshots("__all__"); }}
+                      onClick={() => { clearViewing(); setShowSnapshots(prevShowSnapshots.current ?? "__all__"); }}
                       className="text-[#a1a1aa] hover:text-[#fafafa] p-1 transition"
                       title="Back to list"
                     >
