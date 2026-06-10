@@ -40,7 +40,7 @@ export async function handleGuildJoin(guild: any) {
           },
           {
             name: "3️⃣ Try a command",
-            value: "`!list` -- See all bosses\n`!nextspawn` -- Upcoming spawns in 24h\n`!nextspawn <boss>` -- Check a specific boss\n`!nextspawn <guild>` -- Spawns for a guild\n`!killed <boss>` -- Record a kill (only on alive bosses)\n`!party <boss>` -- Show party members for a boss\n`!forcespawn <boss>` -- Force a boss to spawn\n`!forcespawnall` -- Spawn all fixed-timer bosses\n`!forcespawnall --all` -- Spawn all fixed-timer bosses across ALL servers\n`!commands` -- Full command list",
+            value: "`!list` -- See all bosses\n`!nextspawn` -- Upcoming spawns in 24h\n`!nextspawn <boss>` -- Check a specific boss\n`!nextspawn <guild>` -- Spawns for a guild\n`!killed <boss>` -- Record a kill (only on alive bosses)\n`!editkilltime <boss> HH:MM [YYYY-MM-DD]` -- Fix a kill time (AM/PM correction)\n`!party <boss>` -- Show party members for a boss\n`!forcespawn <boss>` -- Force a boss to spawn\n`!forcespawnall` -- Spawn all fixed-timer bosses\n`!forcespawnall --all` -- Spawn all fixed-timer bosses across ALL servers\n`!commands` -- Full command list",
           },
           {
             name: "💡 Multiple RaidScout servers?",

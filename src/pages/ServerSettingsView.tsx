@@ -2369,7 +2369,7 @@ export function ServerSettingsView() {
                         {editAliasLinkId === link.id && (
                           <div className="pt-3 border-t border-[#27272a]/50 animate-slideDown">
                             <div className="space-y-2">
-                              {["list","nextspawn","killed","forcespawn","forcespawnall","commands","notifhere","threadhere","cmdhere"].map(cmd => (
+                              {["list","nextspawn","killed","editkilltime","forcespawn","forcespawnall","commands","notifhere","threadhere","cmdhere"].map(cmd => (
                                 <div key={cmd} className="flex items-center gap-2">
                                   <span className="text-xs text-[#a1a1aa] w-24 font-mono">{cmd}</span>
                                   <span className="text-xs text-[#52525b]">→</span>

@@ -93,7 +93,12 @@ export function Layout() {
 
   // Spawn alerts — listen for boss spawns from other clients
   useSpawnAlerts((bossName) => {
-    setSpawnToast(`⚡ ${bossName} spawning in ≤ 5 min!`);
+    // If the message already has a custom prefix (⚠️), use it as-is
+    if (bossName.startsWith("⚠️")) {
+      setSpawnToast(bossName);
+    } else {
+      setSpawnToast(`⚡ ${bossName} spawning in ≤ 5 min!`);
+    }
     playAlertSound();
     setTimeout(() => setSpawnToast(null), 8000);
   });

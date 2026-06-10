@@ -96,7 +96,7 @@ export async function handleMessage(msg: any) {
   }
 
   // ✅ reaction
-  const validCmds = new Set(["list","nextspawn","spawn","killed","kill","forcespawn","forcespawnall","spawnall","commands","help","notifhere","cmdhere","threadhere","party"]);
+  const validCmds = new Set(["list","nextspawn","spawn","killed","kill","editkilltime","forcespawn","forcespawnall","spawnall","commands","help","notifhere","cmdhere","threadhere","party"]);
   if (validCmds.has(cmd)) {
     discordFetch(`https://discord.com/api/v10/channels/${channelId}/messages/${msg.id}/reactions/${encodeURIComponent("✅")}/@me`, {
       method: "PUT", headers: { Authorization: `Bot ${TOKEN}` },
@@ -287,14 +287,12 @@ export async function handleMessage(msg: any) {
     for (const [canon, alias] of Object.entries(aliasesMap)) { if (alias) reverseAliases[canon] = alias; }
     const aliasNote = (alias: string) => reverseAliases[alias] ? ` (alias: \`${p}${reverseAliases[alias]}\`)` : "";
     return replyEmbed("📋 RaidScout Bot Commands", `Prefix: \`${p}\`${prefixNote}`, 0x8b5cf6, [
-      { name: `${p}list${aliasNote("list")}`, value: "Show all boss names", inline: false },
       { name: `${p}nextspawn${aliasNote("nextspawn")}`, value: "List boss spawns in the next 24 hours", inline: false },
       { name: `${p}nextspawn <boss>`, value: "Check spawn for a specific boss", inline: false },
       { name: `${p}nextspawn <guild>`, value: "List spawns for a specific guild", inline: false },
       { name: `${p}killed <boss>${aliasNote("killed")}`, value: "Record a boss kill right now", inline: false },
       { name: `${p}killed <boss> HH:MM`, value: "Record a kill at a custom time", inline: false },
-      { name: `${p}killed <boss> HH:MM today`, value: "Force today's date", inline: false },
-      { name: `${p}killed <boss> HH:MM yesterday`, value: "Force yesterday's date", inline: false },
+      { name: `${p}editkilltime <boss> HH:MM [YYYY-MM-DD]`, value: "Fix a kill time (AM/PM correction)", inline: false },
       { name: `${p}commands${aliasNote("commands")}`, value: "Show this help", inline: false },
       { name: `${p}notifhere${aliasNote("notifhere")}`, value: "Set notification channel", inline: false },
       { name: `${p}cmdhere${aliasNote("cmdhere")}`, value: "Restrict commands to this channel", inline: false },
@@ -516,5 +514,104 @@ export async function handleMessage(msg: any) {
     if (nextSpawnField) replyFields.push(nextSpawnField);
     await cmdLog(cmd, "ok", `${boss.name} → ${guildName || "unknown"}`);
     return replyEmbed(`☠️ ${boss.name} Killed by ${guildName || author}`, "", 0xef4444, replyFields);
+  }
+
+  // ── editkilltime <boss> HH:MM [YYYY-MM-DD] ──
+  if (cmd === "editkilltime") {
+    if (!serverId) { await cmdLog(cmd, "fail", "not linked"); return reply("⚠️ Not linked to RaidScout."); }
+    const remaining = args.slice(1);
+    const timeStr = remaining[remaining.length - 1];
+    if (!timeStr || !/^\d{1,2}:\d{2}$/.test(timeStr)) { await cmdLog(cmd, "fail", "no HH:MM"); return reply("Usage: `!editkilltime Boss Name HH:MM [YYYY-MM-DD]`"); }
+    remaining.pop();
+
+    // Check for optional date: YYYY-MM-DD
+    let explicitDate: string | null = null;
+    const maybeDate = remaining[remaining.length - 1];
+    if (maybeDate && /^\d{4}-\d{2}-\d{2}$/.test(maybeDate)) {
+      explicitDate = maybeDate;
+      remaining.pop();
+    }
+
+    const bossName = remaining.join(" ");
+    if (!bossName) { await cmdLog(cmd, "fail", "no boss name"); return reply("Usage: `!editkilltime Boss Name HH:MM [YYYY-MM-DD]`"); }
+
+    const bosses = await supabaseQuery(`bosses?server_id=eq.${serverId}&is_enabled=not.is.false&deleted_at=is.null&name=ilike.${encodeURIComponent("%" + bossName + "%")}`);
+    if (!bosses?.length) { await cmdLog(cmd, "fail", `boss "${bossName}" not found`); return reply(`Boss **${bossName}** not found.`); }
+    const boss = bosses[0];
+
+    // Find the most recent death record for this boss
+    const recentDeaths = await supabaseQuery(`death_records?server_id=eq.${serverId}&boss_id=eq.${boss.id}&order=death_time.desc&limit=1`);
+    if (!recentDeaths?.length) { await cmdLog(cmd, "fail", `no death record for ${boss.name}`); return reply(`No death record found for **${boss.name}**.`); }
+    const deathRecord = recentDeaths[0];
+
+    // Parse the new time (user enters server-local time, we convert to UTC)
+    const [h, m] = timeStr.split(":").map(Number);
+    if (h > 23 || m > 59) return reply("Invalid time.");
+    const tz = await resolveServerTimezone(serverId);
+    const now = new Date();
+
+    let y: number, mo: number, d: number;
+    if (explicitDate) {
+      // Use the explicit date (server-local)
+      [y, mo, d] = explicitDate.split("-").map(Number);
+    } else {
+      // Use today's date in server timezone
+      const localDate = now.toLocaleDateString("en-CA", { timeZone: tz });
+      [y, mo, d] = localDate.split("-").map(Number);
+    }
+
+    // Convert server-local date+time to UTC using timezone offset detection
+    const testUtc = Date.UTC(y, mo - 1, d, h, m);
+    const testLocal = new Intl.DateTimeFormat("en-US", { timeZone: tz, hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(testUtc));
+    const [tlH, tlM] = testLocal.split(":").map(Number);
+    const offsetMs = ((tlH - h) * 60 + (tlM - m)) * 60_000;
+    let newDeathTime = new Date(testUtc - offsetMs);
+
+    // If no explicit date and time would be in the future, assume yesterday
+    if (!explicitDate && newDeathTime > now) newDeathTime.setUTCDate(newDeathTime.getUTCDate() - 1);
+
+    // Recalculate owner guild with the new time
+    const serverGuilds = await supabaseQuery(`guilds?server_id=eq.${serverId}`);
+    const allBossGuilds = await supabaseQuery(`boss_guilds?select=boss_id,guild_id,sort_order,day_of_week,mode`);
+    const sgIds = new Set(serverGuilds.map((g: any) => g.id));
+    const serverBossGuilds = allBossGuilds.filter((bg: any) => sgIds.has(bg.guild_id));
+    const prevDeaths = await supabaseQuery(`death_records?server_id=eq.${serverId}&boss_id=eq.${boss.id}&order=death_time.desc&limit=2`);
+    const lastDeath = prevDeaths?.length > 1 ? prevDeaths[1] : null; // previous death before the one we're editing
+    const gName = computeOwnerGuild(boss, serverBossGuilds, serverGuilds, lastDeath, newDeathTime, tz);
+    const ownerGuildId = gName ? serverGuilds.find((g: any) => g.name === gName)?.id ?? null : null;
+
+    // Update the death record
+    await fetch(`${SUPABASE_URL}/rest/v1/death_records?id=eq.${deathRecord.id}`, {
+      method: "PATCH", headers: { apikey: SUPABASE_KEY!, Authorization: `Bearer ${SUPABASE_KEY!}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ death_time: newDeathTime.toISOString(), owner_guild_id: ownerGuildId }),
+    });
+
+    // Also update spawn override if one exists
+    const overrides = await supabaseQuery(`boss_spawn_overrides?server_id=eq.${serverId}&boss_id=eq.${boss.id}&select=id`);
+    if (overrides?.length) {
+      await fetch(`${SUPABASE_URL}/rest/v1/boss_spawn_overrides?id=eq.${overrides[0].id}`, {
+        method: "PATCH", headers: { apikey: SUPABASE_KEY!, Authorization: `Bearer ${SUPABASE_KEY!}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ death_time: newDeathTime.toISOString() }),
+      });
+    }
+
+    // Recalculate next spawn
+    let nextSpawnUnix = 0;
+    if (boss.spawn_type === "fixed_hours") nextSpawnUnix = Math.floor((newDeathTime.getTime() + (boss.respawn_hours ?? 0) * 3600_000) / 1000);
+    else if (boss.spawn_type === "fixed_schedule" && boss.schedule) {
+      const schedTz = getScheduleTz(boss, tz);
+      const ns = findNextScheduleSlot(boss.schedule, newDeathTime, schedTz);
+      nextSpawnUnix = Math.floor(ns.getTime() / 1000);
+    }
+
+    const guildName = ownerGuildId ? serverGuilds.find((g: any) => g.id === ownerGuildId)?.name ?? "" : "";
+    const unix = Math.floor(newDeathTime.getTime() / 1000);
+    const replyFields: any[] = [
+      { name: "Updated Death Time", value: `<t:${unix}:f>`, inline: true },
+      { name: "Killed By", value: guildName || "Unknown", inline: true },
+    ];
+    if (nextSpawnUnix > 0) replyFields.push({ name: "Next Spawn", value: `<t:${nextSpawnUnix}:f>`, inline: true });
+    await cmdLog(cmd, "ok", `${boss.name} → ${timeStr}`);
+    return replyEmbed(`✏️ ${boss.name} Kill Time Updated`, `Time changed to **${timeStr}**`, 0x3b82f6, replyFields);
   }
 }
