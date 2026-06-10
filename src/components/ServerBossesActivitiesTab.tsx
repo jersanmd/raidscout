@@ -286,7 +286,7 @@ export function ServerBossesActivitiesTab({ mode = "all" }: { mode?: "all" | "bo
                 )}
               </div>
               {/* Edit form appears below this boss */}
-              <div className={`grid transition-all duration-300 ease-in-out ${editingBossId === boss.id ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`}>
+              <div className={`grid transition-all duration-300 ease-in-out ${editingBossId === boss.id ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0 overflow-hidden"}`}>
                 <div className="overflow-hidden">
                   <EditBossForm
                     boss={{
@@ -448,7 +448,7 @@ export function ServerBossesActivitiesTab({ mode = "all" }: { mode?: "all" | "bo
                 )}
               </div>
               {/* Edit form appears below this activity */}
-              <div className={`grid transition-all duration-300 ease-in-out ${editingActivityId === activity.id && activity.is_custom ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`}>
+              <div className={`grid transition-all duration-300 ease-in-out ${editingActivityId === activity.id && activity.is_custom ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0 overflow-hidden"}`}>
                 <div className="overflow-hidden">
                   <EditActivityForm
                     activity={{
