@@ -12,7 +12,7 @@
         "test:watch": "vitest",
         "test:coverage": "vitest run --coverage",
         "start:bot": "node dist/bot.js",
-    "build:bot": "esbuild scripts/discord-bot-gateway.ts --bundle --platform=node --target=node22 --format=esm --outfile=dist/bot.js --external:ws"
+    "build:bot": "esbuild scripts/discord-bot-gateway.ts --bundle --platform=node --target=node22 --format=cjs --outfile=dist/bot.cjs --external:ws"
     },
     "dependencies": {
         "@supabase/supabase-js": "^2.49.1",
