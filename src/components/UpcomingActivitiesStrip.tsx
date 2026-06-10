@@ -16,7 +16,7 @@ export function UpcomingActivitiesStrip() {
         lastMap.set(ai.activity_id, ai);
       }
     }
-    return getUpcomingActivities(activities, lastMap, 1).slice(0, 3);
+    return getUpcomingActivities(activities, lastMap, 365).slice(0, 3);
   }, [activities, activityInstances]);
 
   if (upcoming.length === 0) return null;

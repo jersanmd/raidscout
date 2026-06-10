@@ -721,7 +721,7 @@ export function BossListView() {
       {/* Upcoming strip — next 3 bosses to spawn */}
       <UpcomingStrip ownerGuildName={ownerGuildName} />
 
-      {/* Upcoming activities — next 3, hidden if none in 24h */}
+      {/* Upcoming activities — next 3 */}
       <UpcomingActivitiesStrip />
 
       {/* Filters */}
