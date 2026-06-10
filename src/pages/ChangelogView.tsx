@@ -1,5 +1,6 @@
-import { useState, useEffect } from "react";
-import { ChevronDown, ChevronRight, FileText } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { ChevronDown, ChevronRight, FileText, ArrowLeft } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 declare const APP_VERSION: string;
 
@@ -13,9 +14,11 @@ interface ChangelogEntry {
 const changelogModules = import.meta.glob("/docs/*-changelog.md", { query: "?raw", import: "default" });
 
 export function ChangelogView() {
+  const navigate = useNavigate();
   const [entries, setEntries] = useState<ChangelogEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const contentRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
   useEffect(() => {
     (async () => {
@@ -42,7 +45,16 @@ export function ChangelogView() {
   const toggleExpand = (date: string) => {
     setExpanded(prev => {
       const next = new Set(prev);
-      if (next.has(date)) next.delete(date); else next.add(date);
+      if (next.has(date)) {
+        next.delete(date);
+      } else {
+        next.add(date);
+        // Scroll to the content after it renders
+        setTimeout(() => {
+          const el = contentRefs.current.get(date);
+          if (el) el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        }, 100);
+      }
       return next;
     });
   };
@@ -113,6 +125,13 @@ export function ChangelogView() {
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-6 space-y-4">
+      <button
+        onClick={() => navigate("/")}
+        className="flex items-center gap-1 text-[#71717a] hover:text-[#fafafa] transition text-xs"
+      >
+        <ArrowLeft className="w-3.5 h-3.5" />
+        Back to RaidScout
+      </button>
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <FileText className="w-5 h-5 text-[#a1a1aa]" />
@@ -141,7 +160,10 @@ export function ChangelogView() {
               <span className="text-xs text-[#52525b] ml-auto">{entry.date}</span>
             </button>
             {expanded.has(entry.date) && (
-              <div className="px-4 pb-4 border-t border-[#27272a] pt-2">
+              <div
+                ref={(el) => { if (el) contentRefs.current.set(entry.date, el); }}
+                className="px-4 pb-4 border-t border-[#27272a] pt-2"
+              >
                 <div dangerouslySetInnerHTML={{ __html: renderMarkdown(entry.content) }} />
               </div>
             )}
