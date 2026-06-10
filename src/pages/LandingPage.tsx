@@ -149,28 +149,26 @@ function LiveBossTimer() {
 // ── TypeWriter Effect ──────────────────────────────────────
 function TypeWriter({ text, delay = 40, className = "" }: { text: string; delay?: number; className?: string }) {
   const [displayed, setDisplayed] = useState("");
-  const [started, setStarted] = useState(false);
+  const [isVisible, setIsVisible] = useState(false);
   const ref = useRef<HTMLSpanElement>(null);
 
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
     const obs = new IntersectionObserver(([entry]) => {
-      if (entry.isIntersecting && !started) {
-        setStarted(true);
-      }
+      setIsVisible(entry.isIntersecting);
     }, { threshold: 0.5 });
     obs.observe(el);
     return () => obs.disconnect();
-  }, [started]);
+  }, []);
 
   useEffect(() => {
-    if (!started || displayed.length >= text.length) return;
+    if (!isVisible || displayed.length >= text.length) return;
     const timer = setTimeout(() => {
       setDisplayed(text.slice(0, displayed.length + 1));
     }, delay);
     return () => clearTimeout(timer);
-  }, [started, displayed, text, delay]);
+  }, [isVisible, displayed, text, delay]);
 
   return (
     <span ref={ref} className={className}>
@@ -967,28 +965,23 @@ function AnimatedCommandList() {
   const [typingIndex, setTypingIndex] = useState(0);
   const [charIndex, setCharIndex] = useState(0);
   const [loopKey, setLoopKey] = useState(0);
-  const [started, setStarted] = useState(false);
+  const [isVisible, setIsVisible] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
-  const hasStarted = useRef(false);
 
-  // Only start animation when section scrolls into view
+  // Only animate when section is visible in the viewport
   useEffect(() => {
     const el = containerRef.current;
-    if (!el || hasStarted.current) return;
+    if (!el) return;
     const obs = new IntersectionObserver(([entry]) => {
-      if (entry.isIntersecting) {
-        hasStarted.current = true;
-        setStarted(true);
-        obs.disconnect();
-      }
+      setIsVisible(entry.isIntersecting);
     }, { threshold: 0.1, rootMargin: "0px 0px 100px 0px" });
     obs.observe(el);
     return () => obs.disconnect();
   }, []);
 
-  // Type current command character by character
+  // Type current command character by character — only when visible
   useEffect(() => {
-    if (!started) return;
+    if (!isVisible) return;
     if (typingIndex >= TERMINAL_COMMANDS.length) {
       return; // Done — no loop, animate once per page load
     }
@@ -1014,11 +1007,11 @@ function AnimatedCommandList() {
       }, 400);
       return () => clearTimeout(t);
     }
-  }, [typingIndex, charIndex, loopKey, started]);
+  }, [typingIndex, charIndex, loopKey, isVisible]);
 
   return (
     <div ref={containerRef} className="bg-[#18181b] divide-y divide-white/[0.03] min-h-[80px]">
-      {!started && (
+      {!isVisible && (
         <div className="flex items-center gap-4 px-5 py-3.5 font-mono">
           <span className="shrink-0 mt-0.5 text-emerald-400/60 select-none">❯</span>
           <span className="text-emerald-400/40 text-sm animate-pulse">_</span>

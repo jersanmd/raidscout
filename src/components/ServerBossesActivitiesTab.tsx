@@ -266,7 +266,7 @@ export function ServerBossesActivitiesTab({ mode = "all" }: { mode?: "all" | "bo
                         <ToggleLeft className="w-4 h-4 text-[#52525b]" />
                       )}
                     </button>
-                    {boss.is_custom && (
+                    {canManage && (
                       <button
                         onClick={() => setEditingBossId(editingBossId === boss.id ? null : boss.id)}
                         className="p-1 rounded hover:bg-[#27272a] transition"
@@ -286,7 +286,7 @@ export function ServerBossesActivitiesTab({ mode = "all" }: { mode?: "all" | "bo
                 )}
               </div>
               {/* Edit form appears below this boss */}
-              <div className={`grid transition-all duration-300 ease-in-out ${editingBossId === boss.id && boss.is_custom ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`}>
+              <div className={`grid transition-all duration-300 ease-in-out ${editingBossId === boss.id ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`}>
                 <div className="overflow-hidden">
                   <EditBossForm
                     boss={{

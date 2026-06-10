@@ -55,7 +55,7 @@ async function runSpawnCron() {
   const configs = await supabaseQuerySafe(
     `discord_configs?select=raidscout_server_id,discord_guild_id,notification_channel_id&notification_channel_id=not.is.null`
   );
-  if (!configs?.length) return;
+  if (!configs?.length && !threadConfigs?.length) return;
 
   // Fetch active servers (exclude soft-deleted)
   const activeServers = await supabaseQuerySafe(`servers?select=id&deleted_at=is.null`);
@@ -73,8 +73,12 @@ async function runSpawnCron() {
     serverThreadMap.get(sid)!.push({ discordId: tc.discord_guild_id, threadGuilds: tc.thread_guilds || [] });
   }
 
-  // Deduplicate by server_id to avoid double-broadcasting, exclude soft-deleted
-  const serverIds = [...new Set(configs.map((c: any) => c.raidscout_server_id))]
+  // Deduplicate by server_id — include both notification + thread configs, exclude soft-deleted
+  const allConfigServerIds = [
+    ...configs.map((c: any) => c.raidscout_server_id),
+    ...(threadConfigs || []).map((c: any) => c.raidscout_server_id),
+  ];
+  const serverIds = [...new Set(allConfigServerIds)]
     .filter((id: string) => activeServerIds.has(id));
 
   for (const serverId of serverIds) {
