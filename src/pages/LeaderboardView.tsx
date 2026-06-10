@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { useLeaderboard, type LeaderboardPeriod } from "@/hooks/useAttendance";
@@ -112,6 +112,15 @@ export function LeaderboardView() {
   const touchStartX = useRef(0);
   const touchDeltaX = useRef(0);
   const isSwiping = useRef(false);
+
+  // Responsive items per page: 2 on lg+ screens, 1 on smaller
+  const [itemsPerPage, setItemsPerPage] = useState(() => window.innerWidth >= 1024 ? 2 : 1);
+  useEffect(() => {
+    const update = () => setItemsPerPage(window.innerWidth >= 1024 ? 2 : 1);
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, []);
+
   const [adjustMember, setAdjustMember] = useState<{ id: string; name: string; points: number } | null>(null);
   const [adjustValue, setAdjustValue] = useState(0);
   const [adjustReason, setAdjustReason] = useState("");
@@ -141,6 +150,15 @@ export function LeaderboardView() {
 
   const guildGroups = (() => { const g = new Map<string | null, typeof entries>(); for (const e of filteredEntries) { const n = memberGuildNameMap.get(e.id) ?? null; if (!g.has(n)) g.set(n, []); g.get(n)!.push(e); } return [...g.entries()].sort(([a],[b]) => a === null ? 1 : b === null ? -1 : a.localeCompare(b)); })();
 
+  // Group guild groups into carousel pages (2 per page on lg+, 1 on mobile)
+  const carouselPages = useMemo(() => {
+    const pages: (typeof guildGroups)[] = [];
+    for (let i = 0; i < guildGroups.length; i += itemsPerPage) {
+      pages.push(guildGroups.slice(i, i + itemsPerPage));
+    }
+    return pages;
+  }, [guildGroups, itemsPerPage]);
+
   // Swipe handlers (must be after guildGroups)
   const handleSwipeStart = useCallback((clientX: number) => {
     touchStartX.current = clientX;
@@ -157,16 +175,16 @@ export function LeaderboardView() {
     isSwiping.current = false;
     const threshold = 50;
     if (touchDeltaX.current > threshold) {
-      setCarouselPage(p => p === 0 ? guildGroups.length - 1 : p - 1);
+      setCarouselPage(p => p === 0 ? carouselPages.length - 1 : p - 1);
     } else if (touchDeltaX.current < -threshold) {
-      setCarouselPage(p => p >= guildGroups.length - 1 ? 0 : p + 1);
+      setCarouselPage(p => p >= carouselPages.length - 1 ? 0 : p + 1);
     }
     touchDeltaX.current = 0;
-  }, [guildGroups.length]);
+  }, [carouselPages.length]);
 
   useEffect(() => { if (!serverId) return; const s = localStorage.getItem(`raidscout-carousel-${serverId}`); if (s) setCarouselPage(parseInt(s, 10)); }, [serverId]);
   useEffect(() => { if (serverId) localStorage.setItem(`raidscout-carousel-${serverId}`, String(carouselPage)); }, [carouselPage, serverId]);
-  useEffect(() => { setCarouselPage(p => p >= guildGroups.length && guildGroups.length > 0 ? guildGroups.length - 1 : p); }, [guildGroups.length]);
+  useEffect(() => { setCarouselPage(p => p >= carouselPages.length && carouselPages.length > 0 ? carouselPages.length - 1 : p); }, [carouselPages.length]);
 
   // Auto-open member from URL param (linked from History page)
   const [searchParams, setSearchParams] = useSearchParams();
@@ -776,11 +794,11 @@ export function LeaderboardView() {
               </div>
             </div>
             <div className="relative">
-              {guildGroups.length > 1 && (<>
-                <button onClick={() => setCarouselPage(p => p === 0 ? guildGroups.length - 1 : p - 1)} className="absolute left-0 top-0 bottom-0 z-10 px-2 flex items-center bg-[#09090b]/40 hover:bg-[#09090b]/60 transition -ml-2 rounded-l-xl">
+              {carouselPages.length > 1 && (<>
+                <button onClick={() => setCarouselPage(p => p === 0 ? carouselPages.length - 1 : p - 1)} className="absolute left-0 top-0 bottom-0 z-10 px-2 flex items-center bg-[#09090b]/40 hover:bg-[#09090b]/60 transition -ml-2 rounded-l-xl">
                   <ChevronLeft className="w-6 h-6 text-[#d4d4d8]" />
                 </button>
-                <button onClick={() => setCarouselPage(p => p >= guildGroups.length - 1 ? 0 : p + 1)} className="absolute right-0 top-0 bottom-0 z-10 px-2 flex items-center bg-[#09090b]/40 hover:bg-[#09090b]/60 transition -mr-2 rounded-r-xl">
+                <button onClick={() => setCarouselPage(p => p >= carouselPages.length - 1 ? 0 : p + 1)} className="absolute right-0 top-0 bottom-0 z-10 px-2 flex items-center bg-[#09090b]/40 hover:bg-[#09090b]/60 transition -mr-2 rounded-r-xl">
                   <ChevronRight className="w-6 h-6 text-[#d4d4d8]" />
                 </button>
               </>)}
@@ -794,108 +812,114 @@ export function LeaderboardView() {
                 onMouseLeave={handleSwipeEnd}
               >
                 <div className="flex transition-transform duration-300 ease-out" style={{ transform: `translateX(-${carouselPage * 100}%)` }}>
-                  {guildGroups.map(([guildName, guildEntries]) => {
-                    const gColor = guildName ? guildColor(guildName) : { bg: "bg-[#18181b]", text: "text-[#d4d4d8]", border: "border-[#27272a]" };
-                    const guildSnapCount = guildName ? snapshots.filter(s => (s as any).period?.startsWith("weekly:") && (s as any).period.includes(guildName)).length : 0;
-                    return (
-                      <div key={guildName ?? "__unguilded__"} className="w-full flex-shrink-0 px-2">
-                        <div className={`rounded-xl border ${gColor.border} ${gColor.bg} overflow-hidden`}>
-                          {/* Guild header */}
-                          <div className={`px-3 py-2 border-b ${gColor.border} flex items-center gap-2 flex-wrap`}>
-                            <Shield className="w-5 h-5 shrink-0" />
-                            <span className={`text-base font-semibold ${gColor.text} truncate`}>{guildName ?? "Unguilded"}</span>
-                            <span className="text-xs text-[#71717a]">{guildEntries.length}</span>
-                            {guildName && (
-                              <button onClick={(e) => { e.stopPropagation(); setShowSnapshots(guildName); }} className="text-xs px-2.5 py-1 rounded bg-[#18181b] border border-[#27272a] text-[#a1a1aa] hover:text-amber-400 transition flex items-center gap-1" title={`${guildName} history (${guildSnapCount} results)`}>
-                                <History className="w-3.5 h-3.5" />History{guildSnapCount > 0 ? ` (${guildSnapCount})` : ""}
-                              </button>
-                            )}
-                            {isStaff && guildName && (
-                              <button onClick={async (e) => { e.stopPropagation(); setShowAdjustHistory(guildName); if (serverId) { try { setAdjustHistory(await fetchPointAdjustments(serverId)); } catch { setAdjustHistory([]); } } }} className="text-xs px-2.5 py-1 rounded bg-[#18181b] border border-[#27272a] text-purple-400 hover:text-purple-300 transition" title={`${guildName} point history`}>
-                                Points
-                              </button>
-                            )}
-                            {canExportAttendance && guildName && (
-                              <button onClick={(e) => { e.stopPropagation(); setShowExport(showExport === guildName ? null : guildName); }} className={`text-xs px-2.5 py-1 rounded border transition flex items-center gap-1 ${showExport === guildName ? "bg-amber-500/20 border-amber-500/40 text-amber-400" : "bg-[#18181b] border-[#27272a] text-[#a1a1aa] hover:text-amber-400"}`} title={`Export ${guildName} attendance`}>
-                                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Export
-                              </button>
-                            )}
-                            {isStaff && guildName && (
-                              <button onClick={(e) => { e.stopPropagation(); setShowFinalizeConfirm(guildName); }} className="ml-auto text-xs px-2.5 py-1 rounded bg-amber-500/10 border border-amber-500/30 text-amber-400 hover:bg-amber-500/20 transition" title={`Finalize ${guildName} rankings`}>
-                                Finalize
-                              </button>
-                            )}
-                            {isStaff && guildName && (
-                              <button onClick={(e) => { e.stopPropagation(); setShowResetConfirm(guildName); }} className="text-xs px-2.5 py-1 rounded bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 transition flex items-center gap-1" title={`Reset all ${guildName} points`}>
-                                <RotateCcw className="w-3.5 h-3.5" />Reset
-                              </button>
-                            )}
-                          </div>
-                          {/* Member rows */}
-                          <div className="divide-y divide-[#27272a]/50">
-                            {guildEntries.map((entry, i) => {
-                              const rank = i + 1;
-                              const style = rankColors[rank];
-                              return (
-                                <div
-                                  key={entry.id}
-                                  onClick={async () => {
-                                    setSelectedMember({ id: entry.id, name: entry.name });
-                                    setKillsLoading(true);
-                                    try {
-                                      let since = "1970-01-01T00:00:00Z";
-                                      if (period !== "all" && guildName) {
-                                        // Per-guild reset: use guild-specific reset date from app_settings
-                                        const { data: settings } = await supabase
-                                          .from("app_settings")
-                                          .select("value")
-                                          .eq("server_id", serverId)
-                                          .eq("key", `leaderboard_reset_at:${guildName}`)
-                                          .maybeSingle();
-                                        if (settings) since = (settings as any).value;
-                                      }
-                                      if (configured) {
-                                        const [kills, activities, adjustments] = await Promise.all([
-                                          fetchMemberKills(entry.id, since, serverId, serverTimezone),
-                                          fetchMemberActivityHistory(entry.id, since, serverId),
-                                          fetchPointAdjustments(serverId!, entry.id, since).catch(() => [] as PointAdjustment[]),
-                                        ]);
-                                        setMemberKills(kills);
-                                        setMemberActivities(activities);
-                                        setMemberAdjustments(adjustments);
-                                      }
-                                    } catch { setMemberKills([]); setMemberActivities([]); setMemberAdjustments([]); }
-                                    finally { setKillsLoading(false); }
-                                  }}
-                                  className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-white/5 transition"
-                                >
-                                  <div className="flex items-center justify-center w-6 h-6 shrink-0">
-                                    {style ? <span className="scale-75">{style.icon}</span> : <span className="text-xs font-bold text-[#71717a]">{rank}</span>}
-                                  </div>
-                                  <span className="text-sm text-[#fafafa] flex-1 truncate">{entry.name}</span>
-                                  <span className="text-xs font-mono text-[#a1a1aa]">
-                                    {entry.points}pt
-                                  </span>
-                                  {canAdjustPoints && (
-                                    <button onClick={(e) => { e.stopPropagation(); setAdjustMember({ id: entry.id, name: entry.name, points: entry.points }); setAdjustValue(0); setAdjustReason(""); setAdjustError(null); }} className="p-0.5 rounded text-[#52525b] hover:text-amber-400 transition" title="Adjust points">
-                                      <Edit3 className="w-3 h-3" />
+                  {carouselPages.map((pageGuilds, pageIdx) => (
+                    <div key={pageIdx} className="w-full flex-shrink-0 px-2">
+                      <div className="flex flex-col lg:flex-row gap-4">
+                        {pageGuilds.map(([guildName, guildEntries]) => {
+                          const gColor = guildName ? guildColor(guildName) : { bg: "bg-[#18181b]", text: "text-[#d4d4d8]", border: "border-[#27272a]" };
+                          const guildSnapCount = guildName ? snapshots.filter(s => (s as any).period?.startsWith("weekly:") && (s as any).period.includes(guildName)).length : 0;
+                          return (
+                            <div key={guildName ?? "__unguilded__"} className="flex-1 min-w-0">
+                              <div className="rounded-xl border border-[#27272a] bg-[#18181b] overflow-hidden">
+                                {/* Guild header — subtle guild color accent */}
+                                <div className={`px-3 py-2.5 border-b border-[#27272a] flex items-center gap-2 flex-wrap bg-[#09090b]/50`}>
+                                  <Shield className={`w-5 h-5 shrink-0 ${gColor.text}`} />
+                                  <span className={`text-sm font-semibold ${gColor.text} truncate`}>{guildName ?? "Unguilded"}</span>
+                                  <span className="text-xs text-[#71717a] font-medium">{guildEntries.length}</span>
+                                  {guildName && (
+                                    <button onClick={(e) => { e.stopPropagation(); setShowSnapshots(guildName); }} className="text-xs px-2.5 py-1 rounded bg-[#18181b] border border-[#27272a] text-[#a1a1aa] hover:text-amber-400 transition flex items-center gap-1" title={`${guildName} history (${guildSnapCount} results)`}>
+                                      <History className="w-3.5 h-3.5" />History{guildSnapCount > 0 ? ` (${guildSnapCount})` : ""}
+                                    </button>
+                                  )}
+                                  {isStaff && guildName && (
+                                    <button onClick={async (e) => { e.stopPropagation(); setShowAdjustHistory(guildName); if (serverId) { try { setAdjustHistory(await fetchPointAdjustments(serverId)); } catch { setAdjustHistory([]); } } }} className="text-xs px-2.5 py-1 rounded bg-[#18181b] border border-[#27272a] text-purple-400 hover:text-purple-300 transition" title={`${guildName} point history`}>
+                                      Points
+                                    </button>
+                                  )}
+                                  {canExportAttendance && guildName && (
+                                    <button onClick={(e) => { e.stopPropagation(); setShowExport(showExport === guildName ? null : guildName); }} className={`text-xs px-2.5 py-1 rounded border transition flex items-center gap-1 ${showExport === guildName ? "bg-amber-500/20 border-amber-500/40 text-amber-400" : "bg-[#18181b] border-[#27272a] text-[#a1a1aa] hover:text-amber-400"}`} title={`Export ${guildName} attendance`}>
+                                      <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Export
+                                    </button>
+                                  )}
+                                  {isStaff && guildName && (
+                                    <button onClick={(e) => { e.stopPropagation(); setShowFinalizeConfirm(guildName); }} className="ml-auto text-xs px-2.5 py-1 rounded bg-amber-500/10 border border-amber-500/30 text-amber-400 hover:bg-amber-500/20 transition" title={`Finalize ${guildName} rankings`}>
+                                      Finalize
+                                    </button>
+                                  )}
+                                  {isStaff && guildName && (
+                                    <button onClick={(e) => { e.stopPropagation(); setShowResetConfirm(guildName); }} className="text-xs px-2.5 py-1 rounded bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 transition flex items-center gap-1" title={`Reset all ${guildName} points`}>
+                                      <RotateCcw className="w-3.5 h-3.5" />Reset
                                     </button>
                                   )}
                                 </div>
-                              );
-                            })}
-                          </div>
-                        </div>
+                                {/* Member rows */}
+                                <div className="divide-y divide-[#27272a]/50">
+                                  {guildEntries.map((entry, i) => {
+                                    const rank = i + 1;
+                                    const style = rankColors[rank];
+                                    return (
+                                      <div
+                                        key={entry.id}
+                                        onClick={async () => {
+                                          setSelectedMember({ id: entry.id, name: entry.name });
+                                          setKillsLoading(true);
+                                          try {
+                                            let since = "1970-01-01T00:00:00Z";
+                                            if (period !== "all" && guildName) {
+                                              // Per-guild reset: use guild-specific reset date from app_settings
+                                              const { data: settings } = await supabase
+                                                .from("app_settings")
+                                                .select("value")
+                                                .eq("server_id", serverId)
+                                                .eq("key", `leaderboard_reset_at:${guildName}`)
+                                                .maybeSingle();
+                                              if (settings) since = (settings as any).value;
+                                            }
+                                            if (configured) {
+                                              const [kills, activities, adjustments] = await Promise.all([
+                                                fetchMemberKills(entry.id, since, serverId, serverTimezone),
+                                                fetchMemberActivityHistory(entry.id, since, serverId),
+                                                fetchPointAdjustments(serverId!, entry.id, since).catch(() => [] as PointAdjustment[]),
+                                              ]);
+                                              setMemberKills(kills);
+                                              setMemberActivities(activities);
+                                              setMemberAdjustments(adjustments);
+                                            }
+                                          } catch { setMemberKills([]); setMemberActivities([]); setMemberAdjustments([]); }
+                                          finally { setKillsLoading(false); }
+                                        }}
+                                        className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-white/5 transition"
+                                      >
+                                        <div className="flex items-center justify-center w-6 h-6 shrink-0">
+                                          {style ? <span className="scale-75">{style.icon}</span> : <span className="text-xs font-bold text-[#71717a]">{rank}</span>}
+                                        </div>
+                                        <span className="text-sm text-[#fafafa] flex-1 truncate">{entry.name}</span>
+                                        <span className="text-xs font-mono text-[#a1a1aa]">
+                                          {entry.points}pt
+                                        </span>
+                                        {canAdjustPoints && (
+                                          <button onClick={(e) => { e.stopPropagation(); setAdjustMember({ id: entry.id, name: entry.name, points: entry.points }); setAdjustValue(0); setAdjustReason(""); setAdjustError(null); }} className="p-0.5 rounded text-[#52525b] hover:text-amber-400 transition" title="Adjust points">
+                                            <Edit3 className="w-3 h-3" />
+                                          </button>
+                                        )}
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
-                    );
-                  })}
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
-            {guildGroups.length > 1 && (
+            {carouselPages.length > 1 && (
               <div className="flex justify-center gap-1.5 mt-3">
-                {guildGroups.map((_, i) => (
-                  <button key={i} onClick={() => setCarouselPage(i)} className={`w-2.5 h-2.5 rounded-full transition ${i === carouselPage ? "bg-amber-400" : "bg-[#52525b] hover:bg-[#71717a]"}`} />
+                {carouselPages.map((_, i) => (
+                  <button key={i} onClick={() => setCarouselPage(i)} className={`w-2 h-2 rounded-full transition ${i === carouselPage ? "bg-[#fafafa]" : "bg-[#3f3f46] hover:bg-[#52525b]"}`} />
                 ))}
               </div>
             )}

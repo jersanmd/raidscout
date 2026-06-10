@@ -6,7 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { updateMemberName, deleteMember, upsertMember, isSupabaseConfigured, fetchGuilds, setMemberGuild, bulkAddMembers, supabase, fetchStaticParties, createParty, deleteParty, addMemberToParty, removeMemberFromParty, type StaticParty } from "@/lib/supabase";
 import { useServerId, useHasPermission } from "@/contexts/ServerContext";
 import type { Guild } from "@/types";
-import { Users, Plus, Pencil, Trash2, Loader2, X, Check, UserPlus, CheckCircle, AlertTriangle, Image, Upload, Copy, Shield, Search } from "lucide-react";
+import { Users, Plus, Pencil, Trash2, Loader2, X, Check, UserPlus, CheckCircle, AlertTriangle, Image, Upload, Copy, Shield, Search, ChevronLeft, ChevronRight } from "lucide-react";
 import type { Member } from "@/types";
 import { guildColor } from "@/lib/constants";
 
@@ -64,6 +64,43 @@ export function MembersView() {
   const [unassignedSearch, setUnassignedSearch] = useState("");
   const [savingParties, setSavingParties] = useState(false);
   const [membersTab, setMembersTab] = useState<"members" | "parties">("members");
+
+  // Carousel state
+  const [carouselPage, setCarouselPage] = useState(0);
+  const touchStartX = useRef(0);
+  const touchDeltaX = useRef(0);
+  const isSwiping = useRef(false);
+
+  // Responsive items per page: 2 on lg+ screens, 1 on smaller
+  const [itemsPerPage, setItemsPerPage] = useState(() => window.innerWidth >= 1024 ? 2 : 1);
+  useEffect(() => {
+    const update = () => setItemsPerPage(window.innerWidth >= 1024 ? 2 : 1);
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, []);
+
+  // Swipe handlers
+  const handleSwipeStart = useCallback((clientX: number) => {
+    touchStartX.current = clientX;
+    isSwiping.current = true;
+  }, []);
+
+  const handleSwipeMove = useCallback((clientX: number) => {
+    if (!isSwiping.current) return;
+    touchDeltaX.current = clientX - touchStartX.current;
+  }, []);
+
+  const handleSwipeEnd = useCallback((totalPages: number) => {
+    if (!isSwiping.current) return;
+    isSwiping.current = false;
+    const threshold = 50;
+    if (touchDeltaX.current > threshold) {
+      setCarouselPage(p => p === 0 ? totalPages - 1 : p - 1);
+    } else if (touchDeltaX.current < -threshold) {
+      setCarouselPage(p => p >= totalPages - 1 ? 0 : p + 1);
+    }
+    touchDeltaX.current = 0;
+  }, []);
 
   // Current guild key for boxes
   const currentGuildKey = partyGuildFilter || "__all__";
@@ -257,6 +294,36 @@ export function MembersView() {
     const q = searchText.toLowerCase();
     return sortedMembers.filter(m => m.name.toLowerCase().includes(q));
   }, [sortedMembers, searchText]);
+
+  // Group members by guild (memoized)
+  const guildGroups = useMemo(() => {
+    const grouped = new Map<string, { guild: Guild | null; members: Member[] }>();
+    for (const m of filteredMembers) {
+      const guild = guilds.find(g => g.id === m.guild_id) ?? null;
+      const key = guild?.id ?? "__noguild__";
+      if (!grouped.has(key)) grouped.set(key, { guild, members: [] });
+      grouped.get(key)!.members.push(m);
+    }
+    return [...grouped.values()].sort((a, b) => {
+      if (!a.guild) return 1;
+      if (!b.guild) return -1;
+      return a.guild.name.localeCompare(b.guild.name);
+    });
+  }, [filteredMembers, guilds]);
+
+  // Group guild groups into carousel pages (2 per page on lg+, 1 on mobile)
+  const carouselPages = useMemo(() => {
+    const pages: typeof guildGroups[] = [];
+    for (let i = 0; i < guildGroups.length; i += itemsPerPage) {
+      pages.push(guildGroups.slice(i, i + itemsPerPage));
+    }
+    return pages;
+  }, [guildGroups, itemsPerPage]);
+
+  // Clamp carousel page when page count changes
+  useEffect(() => {
+    setCarouselPage(p => p >= carouselPages.length && carouselPages.length > 0 ? carouselPages.length - 1 : p);
+  }, [carouselPages.length]);
 
   const handleAdd = async () => {
     const name = addName.trim();
@@ -733,133 +800,149 @@ export function MembersView() {
           <p className="text-[#71717a] text-sm">No members yet</p>
         </div>
       ) : (
-        (() => {
-          // Group members by guild
-          const grouped = new Map<string, { guild: Guild | null; members: Member[] }>();
-          for (const m of filteredMembers) {
-            const guild = guilds.find(g => g.id === m.guild_id) ?? null;
-            const key = guild?.id ?? "__noguild__";
-            if (!grouped.has(key)) grouped.set(key, { guild, members: [] });
-            grouped.get(key)!.members.push(m);
-          }
-          // Sort groups: guilds alphabetically, "No Guild" last
-          const groups = [...grouped.values()].sort((a, b) => {
-            if (!a.guild) return 1;
-            if (!b.guild) return -1;
-            return a.guild.name.localeCompare(b.guild.name);
-          });
+        <>
+        <div className="relative">
+          {carouselPages.length > 1 && (<>
+            <button onClick={() => setCarouselPage(p => p === 0 ? carouselPages.length - 1 : p - 1)} className="absolute left-0 top-0 bottom-0 z-10 px-2 flex items-center bg-[#09090b]/40 hover:bg-[#09090b]/60 transition -ml-2 rounded-l-xl">
+              <ChevronLeft className="w-6 h-6 text-[#d4d4d8]" />
+            </button>
+            <button onClick={() => setCarouselPage(p => p >= carouselPages.length - 1 ? 0 : p + 1)} className="absolute right-0 top-0 bottom-0 z-10 px-2 flex items-center bg-[#09090b]/40 hover:bg-[#09090b]/60 transition -mr-2 rounded-r-xl">
+              <ChevronRight className="w-6 h-6 text-[#d4d4d8]" />
+            </button>
+          </>)}
+          <div className="overflow-hidden px-10"
+            onTouchStart={e => handleSwipeStart(e.touches[0].clientX)}
+            onTouchMove={e => handleSwipeMove(e.touches[0].clientX)}
+            onTouchEnd={() => handleSwipeEnd(carouselPages.length)}
+            onMouseDown={e => { e.preventDefault(); handleSwipeStart(e.clientX); }}
+            onMouseMove={e => handleSwipeMove(e.clientX)}
+            onMouseUp={() => handleSwipeEnd(carouselPages.length)}
+            onMouseLeave={() => handleSwipeEnd(carouselPages.length)}
+          >
+            <div className="flex transition-transform duration-300 ease-out" style={{ transform: `translateX(-${carouselPage * 100}%)` }}>
+              {carouselPages.map((pageGroups, pageIdx) => (
+                <div key={pageIdx} className="w-full flex-shrink-0 px-2">
+                  <div className="flex flex-col lg:flex-row gap-4">
+                    {pageGroups.map(group => {
+                      const c = group.guild ? guildColor(group.guild.name) : null;
+                      return (
+                        <div key={group.guild?.id ?? "noguild"} className="flex-1 min-w-0">
+                          <h3 className="text-xs font-semibold text-[#a1a1aa] uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                            {group.guild && c ? (
+                              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] border border-[#27272a] bg-[#18181b] ${c.text}`}>
+                                <Shield className="w-3 h-3" />
+                                {group.guild.name}
+                              </span>
+                            ) : (
+                              <span className="text-[#71717a]">No Guild</span>
+                            )}
+                            <span className="text-[#52525b] font-normal normal-case text-[11px]">
+                              {group.members.length} member{group.members.length !== 1 ? "s" : ""}
+                            </span>
+                          </h3>
+                          <div className="space-y-1">
+                            {group.members.map(member => (
+                      <div
+                        key={member.id}
+                        className="flex flex-wrap items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2.5 rounded-lg bg-[#09090b]/50 border border-[#27272a]/50 group"
+                      >
+                        <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-[#18181b] text-[#a1a1aa] font-bold text-sm shrink-0">
+                          {member.name.charAt(0).toUpperCase()}
+                        </div>
 
-          return (
-        <div className="flex flex-wrap justify-center gap-4">
-          {groups.map(group => {
-            const c = group.guild ? guildColor(group.guild.name) : null;
-            return (
-              <div key={group.guild?.id ?? "noguild"} className="w-full lg:w-96">
-                <h3 className="text-xs font-semibold text-[#a1a1aa] uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                  {group.guild && c ? (
-                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] border ${c.bg} ${c.text} ${c.border}`}>
-                      <Shield className="w-3 h-3" />
-                      {group.guild.name}
-                    </span>
-                  ) : (
-                    <span className="text-[#71717a]">No Guild</span>
-                  )}
-                  <span className="text-[#52525b] font-normal normal-case text-[11px]">
-                    {group.members.length} member{group.members.length !== 1 ? "s" : ""}
-                  </span>
-                </h3>
-                <div className="space-y-1">
-                  {group.members.map(member => (
-            <div
-              key={member.id}
-              className="flex flex-wrap items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2.5 rounded-lg bg-[#09090b]/50 border border-[#27272a]/50 group"
-            >
-              <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-[#18181b] text-[#a1a1aa] font-bold text-sm shrink-0">
-                {member.name.charAt(0).toUpperCase()}
-              </div>
+                        {editingId === member.id ? (
+                          <div className="flex-1 min-w-0 flex gap-2">
+                            <input
+                              type="text"
+                              value={editName}
+                              onChange={(e) => setEditName(e.target.value)}
+                              onKeyDown={(e) => e.key === "Enter" && handleEdit(member.id)}
+                              autoFocus
+                              className="flex-1 px-2 py-1 bg-[#18181b] border border-[#3f3f46] rounded text-[#fafafa] text-sm focus:outline-none focus:ring-1 focus:ring-[#52525b]"
+                            />
+                            <button onClick={() => handleEdit(member.id)} disabled={saving} className="p-1 text-[#a1a1aa] hover:text-[#fafafa] transition"><Check className="w-4 h-4" /></button>
+                            <button onClick={() => setEditingId(null)} className="p-1 text-[#a1a1aa] hover:text-[#fafafa] transition"><X className="w-4 h-4" /></button>
+                          </div>
+                        ) : (
+                          <span className="flex-1 min-w-0 text-[#fafafa] text-sm font-medium truncate">{member.name}</span>
+                        )}
 
-              {editingId === member.id ? (
-                <div className="flex-1 min-w-0 flex gap-2">
-                  <input
-                    type="text"
-                    value={editName}
-                    onChange={(e) => setEditName(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && handleEdit(member.id)}
-                    autoFocus
-                    className="flex-1 px-2 py-1 bg-[#18181b] border border-[#3f3f46] rounded text-[#fafafa] text-sm focus:outline-none focus:ring-1 focus:ring-[#52525b]"
-                  />
-                  <button onClick={() => handleEdit(member.id)} disabled={saving} className="p-1 text-[#a1a1aa] hover:text-[#fafafa] transition"><Check className="w-4 h-4" /></button>
-                  <button onClick={() => setEditingId(null)} className="p-1 text-[#a1a1aa] hover:text-[#fafafa] transition"><X className="w-4 h-4" /></button>
+                        {/* Combat Power & Class — wrap on mobile */}
+                        {editingId !== member.id && (
+                          <div className="flex items-center gap-1 sm:gap-1.5 text-[10px] sm:text-xs shrink-0">
+                            <input
+                              type="number"
+                              defaultValue={member.combat_power ?? ""}
+                              placeholder="CP"
+                              onBlur={async (e) => {
+                                const val = e.target.value ? Number(e.target.value) : null;
+                                if (val === (member.combat_power ?? null)) return;
+                                try {
+                                  await supabase.rpc("update_member_stats", { p_member_id: member.id, p_combat_power: val, p_class: member.class ?? null });
+                                  invalidate();
+                                } catch {}
+                              }}
+                              className="w-20 px-1.5 py-1 bg-[#18181b] border border-[#27272a] rounded text-xs text-[#fafafa] placeholder-[#52525b] focus:outline-none focus:border-[#52525b]"
+                            />
+                            {classes.length > 0 && (
+                              <select
+                                value={member.class ?? ""}
+                                onChange={async (e) => {
+                                  const cls = e.target.value || null;
+                                  try {
+                                    await supabase.rpc("update_member_stats", { p_member_id: member.id, p_combat_power: member.combat_power ?? null, p_class: cls });
+                                    invalidate();
+                                  } catch {}
+                                }}
+                                className="bg-[#18181b] border border-[#27272a] rounded px-1.5 py-1 text-xs text-[#a1a1aa] outline-none focus:border-[#52525b] max-w-[90px] truncate"
+                              >
+                                <option value="">—</option>
+                                {classes.map(c => <option key={c} value={c}>{c}</option>)}
+                              </select>
+                            )}
+                          </div>
+                        )}
+
+                        {editingId !== member.id && canManageRaidMembers && (
+                          <div className="flex items-center gap-0.5 sm:opacity-0 group-hover:opacity-100 transition shrink-0">
+                            <button onClick={() => startEdit(member)} className="p-1.5 text-[#71717a] hover:text-[#fafafa] transition rounded" title="Edit"><Pencil className="w-3.5 h-3.5" /></button>
+                            <button onClick={() => setDeleteId(member.id)} className="p-1.5 text-[#71717a] hover:text-red-400 transition rounded" title="Delete"><Trash2 className="w-3.5 h-3.5" /></button>
+                          </div>
+                        )}
+
+                        {editingId !== member.id && guilds.length > 0 && (
+                          <select
+                            value={member.guild_id ?? ""}
+                            onChange={async (e) => {
+                              const gid = e.target.value || null;
+                              try { await setMemberGuild(member.id, gid); invalidate(); } catch {}
+                            }}
+                            className="bg-[#18181b] border border-[#27272a] rounded px-1.5 py-1 text-[10px] sm:text-xs text-[#a1a1aa] outline-none focus:border-[#52525b] transition max-w-[100px] truncate shrink-0"
+                          >
+                            <option value="">No guild</option>
+                            {guilds.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+                          </select>
+                        )}
+                      </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
-              ) : (
-                <span className="flex-1 min-w-0 text-[#fafafa] text-sm font-medium truncate">{member.name}</span>
-              )}
-
-              {/* Combat Power & Class — wrap on mobile */}
-              {editingId !== member.id && (
-                <div className="flex items-center gap-1 sm:gap-1.5 text-[10px] sm:text-xs shrink-0">
-                  <input
-                    type="number"
-                    defaultValue={member.combat_power ?? ""}
-                    placeholder="CP"
-                    onBlur={async (e) => {
-                      const val = e.target.value ? Number(e.target.value) : null;
-                      if (val === (member.combat_power ?? null)) return;
-                      try {
-                        await supabase.rpc("update_member_stats", { p_member_id: member.id, p_combat_power: val, p_class: member.class ?? null });
-                        invalidate();
-                      } catch {}
-                    }}
-                    className="w-20 px-1.5 py-1 bg-[#18181b] border border-[#27272a] rounded text-xs text-[#fafafa] placeholder-[#52525b] focus:outline-none focus:border-[#52525b]"
-                  />
-                  {classes.length > 0 && (
-                    <select
-                      value={member.class ?? ""}
-                      onChange={async (e) => {
-                        const cls = e.target.value || null;
-                        try {
-                          await supabase.rpc("update_member_stats", { p_member_id: member.id, p_combat_power: member.combat_power ?? null, p_class: cls });
-                          invalidate();
-                        } catch {}
-                      }}
-                      className="bg-[#18181b] border border-[#27272a] rounded px-1.5 py-1 text-xs text-[#a1a1aa] outline-none focus:border-[#52525b] max-w-[90px] truncate"
-                    >
-                      <option value="">—</option>
-                      {classes.map(c => <option key={c} value={c}>{c}</option>)}
-                    </select>
-                  )}
-                </div>
-              )}
-
-              {editingId !== member.id && canManageRaidMembers && (
-                <div className="flex items-center gap-0.5 sm:opacity-0 group-hover:opacity-100 transition shrink-0">
-                  <button onClick={() => startEdit(member)} className="p-1.5 text-[#71717a] hover:text-[#fafafa] transition rounded" title="Edit"><Pencil className="w-3.5 h-3.5" /></button>
-                  <button onClick={() => setDeleteId(member.id)} className="p-1.5 text-[#71717a] hover:text-red-400 transition rounded" title="Delete"><Trash2 className="w-3.5 h-3.5" /></button>
-                </div>
-              )}
-
-              {editingId !== member.id && guilds.length > 0 && (
-                <select
-                  value={member.guild_id ?? ""}
-                  onChange={async (e) => {
-                    const gid = e.target.value || null;
-                    try { await setMemberGuild(member.id, gid); invalidate(); } catch {}
-                  }}
-                  className="bg-[#18181b] border border-[#27272a] rounded px-1.5 py-1 text-[10px] sm:text-xs text-[#a1a1aa] outline-none focus:border-[#52525b] transition max-w-[100px] truncate shrink-0"
-                >
-                  <option value="">No guild</option>
-                  {guilds.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
-                </select>
-              )}
+              ))}
             </div>
-                  ))}
-                </div>
-              </div>
-            );
-          })}
+          </div>
         </div>
-          );
-        })()
+        {carouselPages.length > 1 && (
+          <div className="flex justify-center gap-1.5 mt-3">
+            {carouselPages.map((_, i) => (
+              <button key={i} onClick={() => setCarouselPage(i)} className={`w-2 h-2 rounded-full transition ${i === carouselPage ? "bg-[#fafafa]" : "bg-[#3f3f46] hover:bg-[#52525b]"}`} />
+            ))}
+          </div>
+        )}
+        </>
       ))}
 
       {/* Bulk add modal */}

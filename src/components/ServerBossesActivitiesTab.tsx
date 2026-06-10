@@ -285,9 +285,9 @@ export function ServerBossesActivitiesTab({ mode = "all" }: { mode?: "all" | "bo
                   </div>
                 )}
               </div>
-              {/* Edit form appears below this boss */}
-              <div className={`grid transition-all duration-300 ease-in-out ${editingBossId === boss.id ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0 overflow-hidden"}`}>
-                <div className="overflow-hidden">
+              {/* Edit form appears below this boss — only rendered when editing */}
+              {editingBossId === boss.id && (
+                <div className="mb-1">
                   <EditBossForm
                     boss={{
                     id: boss.id,
@@ -311,7 +311,7 @@ export function ServerBossesActivitiesTab({ mode = "all" }: { mode?: "all" | "bo
                   onCancel={() => setEditingBossId(null)}
                 />
                 </div>
-              </div>
+              )}
               </Fragment>
               );
               return (
@@ -447,9 +447,9 @@ export function ServerBossesActivitiesTab({ mode = "all" }: { mode?: "all" | "bo
                   </div>
                 )}
               </div>
-              {/* Edit form appears below this activity */}
-              <div className={`grid transition-all duration-300 ease-in-out ${editingActivityId === activity.id && activity.is_custom ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0 overflow-hidden"}`}>
-                <div className="overflow-hidden">
+              {/* Edit form appears below this activity — only rendered when editing */}
+              {editingActivityId === activity.id && activity.is_custom && (
+                <div className="mb-1">
                   <EditActivityForm
                     activity={{
                       id: activity.id,
@@ -476,7 +476,7 @@ export function ServerBossesActivitiesTab({ mode = "all" }: { mode?: "all" | "bo
                     onCancel={() => setEditingActivityId(null)}
                   />
                 </div>
-              </div>
+              )}
               </Fragment>
               );
               return (
