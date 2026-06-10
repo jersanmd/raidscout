@@ -849,13 +849,13 @@ export function BossListView() {
                     ownerGuildName={ownerGuildName(s.boss.id)}
                     ownerGuildId={(() => { const n = ownerGuildName(s.boss.id); return n ? guilds.find(g => g.name === n)?.id ?? null : null; })()}
                     onUrgentSpawn={(name) => {
-                      emitSpawnAlert(name);
+                      emitSpawnAlert(s._isActivity ? `📋 ${name} starting soon` : name);
                     }}
                     onCriticalSpawn={(name) => {
-                      emitSpawnAlert(`⚠️ ${name} spawning in 5s!`);
+                      emitSpawnAlert(s._isActivity ? `⚠️ ${name} starting in 5s!` : `⚠️ ${name} spawning in 5s!`);
                     }}
                     onSpawned={(name) => {
-                      emitSpawnAlert(`⚠️ ${name} spawning now!`);
+                      emitSpawnAlert(s._isActivity ? `⚠️ ${name} started!` : `⚠️ ${name} spawning now!`);
                     }}
                     rotationGuilds={rot?.guilds}
                     rotationCurrentIndex={rot?.currentIndex}

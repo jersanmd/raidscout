@@ -327,14 +327,14 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
                     )}
                     <div className="flex items-center gap-1.5 text-[11px]">
                       <span className={`font-mono uppercase tracking-wider ${status === "alive" ? "text-emerald-400" : "text-[#71717a]"}`}>
-                        {status === "alive" ? "SPAWN" : "SPAWNING"}
+                        {isActivity ? (status === "alive" ? "ACTIVE" : "STARTING") : (status === "alive" ? "SPAWN" : "SPAWNING")}
                       </span>
                       <span className="text-[#a1a1aa] font-mono">{formatDateTime(nextSpawn)}</span>
                     </div>
                   </div>
                 ) : (
                   <div className="flex items-center gap-1.5 text-[11px]">
-                    <span className="text-[#71717a] font-mono">Set spawn time to start timer</span>
+                    <span className="text-[#71717a] font-mono">{isActivity ? "Set start time" : "Set spawn time to start timer"}</span>
                   </div>
                 )}
 
