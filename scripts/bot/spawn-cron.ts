@@ -55,7 +55,7 @@ async function runSpawnCron() {
   const configs = await supabaseQuerySafe(
     `discord_configs?select=raidscout_server_id,discord_guild_id,notification_channel_id&notification_channel_id=not.is.null`
   );
-  if (!configs?.length && !threadConfigs?.length) return;
+  if (!configs?.length && !threadConfigs?.length && !cmdConfigs?.length) return;
 
   // Fetch active servers (exclude soft-deleted)
   const activeServers = await supabaseQuerySafe(`servers?select=id&deleted_at=is.null`);
@@ -73,13 +73,29 @@ async function runSpawnCron() {
     serverThreadMap.get(sid)!.push({ discordId: tc.discord_guild_id, threadGuilds: tc.thread_guilds || [] });
   }
 
-  // Deduplicate by server_id — include both notification + thread configs, exclude soft-deleted
+  // Fetch command channel configs (servers with !cmdhere set)
+  const cmdConfigs = await supabaseQuerySafe(
+    `discord_configs?select=raidscout_server_id&command_channel_id=not.is.null`
+  );
+
+  // Fetch ALL discord_configs for the server count (matches admin panel "Bot Alerts" logic)
+  const allDiscordConfigs = await supabaseQuerySafe(
+    `discord_configs?select=raidscout_server_id`
+  );
+
+  // Deduplicate by server_id — include ALL discord config types, exclude soft-deleted
   const allConfigServerIds = [
     ...configs.map((c: any) => c.raidscout_server_id),
     ...(threadConfigs || []).map((c: any) => c.raidscout_server_id),
+    ...(cmdConfigs || []).map((c: any) => c.raidscout_server_id),
   ];
   const serverIds = [...new Set(allConfigServerIds)]
     .filter((id: string) => activeServerIds.has(id));
+
+  // Count ALL servers with any Discord integration (matches admin panel "Bot Alerts")
+  const allDiscordServerIds = [...new Set((allDiscordConfigs || []).map((c: any) => c.raidscout_server_id))]
+    .filter((id: string) => activeServerIds.has(id));
+  serversChecked = allDiscordServerIds.length;
 
   for (const serverId of serverIds) {
     const tz = await resolveServerTimezone(serverId).catch(() => "Asia/Manila");
@@ -125,7 +141,6 @@ async function runSpawnCron() {
 
     if (!bosses?.length) continue;
 
-    serversChecked++;
     for (const boss of bosses) {
       try {
         bossesChecked++;

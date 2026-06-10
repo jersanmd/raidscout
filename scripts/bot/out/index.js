@@ -464,7 +464,7 @@ async function runSpawnCron() {
   const configs = await supabaseQuerySafe(
     `discord_configs?select=raidscout_server_id,discord_guild_id,notification_channel_id&notification_channel_id=not.is.null`
   );
-  if (!configs?.length && !threadConfigs?.length) return;
+  if (!configs?.length && !threadConfigs?.length && !cmdConfigs?.length) return;
   const activeServers = await supabaseQuerySafe(`servers?select=id&deleted_at=is.null`);
   const activeServerIds = new Set((activeServers || []).map((s) => s.id));
   const threadConfigs = await supabaseQuerySafe(
@@ -476,11 +476,20 @@ async function runSpawnCron() {
     if (!serverThreadMap.has(sid)) serverThreadMap.set(sid, []);
     serverThreadMap.get(sid).push({ discordId: tc.discord_guild_id, threadGuilds: tc.thread_guilds || [] });
   }
+  const cmdConfigs = await supabaseQuerySafe(
+    `discord_configs?select=raidscout_server_id&command_channel_id=not.is.null`
+  );
+  const allDiscordConfigs = await supabaseQuerySafe(
+    `discord_configs?select=raidscout_server_id`
+  );
   const allConfigServerIds = [
     ...configs.map((c) => c.raidscout_server_id),
-    ...(threadConfigs || []).map((c) => c.raidscout_server_id)
+    ...(threadConfigs || []).map((c) => c.raidscout_server_id),
+    ...(cmdConfigs || []).map((c) => c.raidscout_server_id)
   ];
   const serverIds = [...new Set(allConfigServerIds)].filter((id) => activeServerIds.has(id));
+  const allDiscordServerIds = [...new Set((allDiscordConfigs || []).map((c) => c.raidscout_server_id))].filter((id) => activeServerIds.has(id));
+  serversChecked = allDiscordServerIds.length;
   for (const serverId of serverIds) {
     const tz = await resolveServerTimezone(serverId).catch(() => "Asia/Manila");
     const [bosses, deaths, guilds, overrides] = await Promise.all([
@@ -509,7 +518,6 @@ async function runSpawnCron() {
     }
     const overrideMap = new Map((overrides || []).map((o) => [o.boss_id, o.death_time]));
     if (!bosses?.length) continue;
-    serversChecked++;
     for (const boss of bosses) {
       try {
         bossesChecked++;
