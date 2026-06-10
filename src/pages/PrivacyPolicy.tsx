@@ -18,7 +18,7 @@ export function PrivacyPolicyView() {
           Back
         </button>
       <h1 className="text-2xl font-bold text-[#fafafa]">Privacy Policy</h1>
-      <p className="text-slate-500 text-xs">Last updated: June 1, 2026</p>
+      <p className="text-slate-500 text-xs">Last updated: June 10, 2026</p>
 
       <section className="space-y-2">
         <h2 className="text-lg font-semibold text-[#fafafa]">1. Information We Collect</h2>
@@ -59,6 +59,14 @@ export function PrivacyPolicyView() {
           <li>Audit log entries recording administrative actions (server creation, setting changes, role assignments)</li>
           <li>No tracking cookies, analytics cookies, or advertising identifiers are used</li>
           <li>No IP addresses, browser fingerprints, or device information is logged or stored</li>
+        </ul>
+
+        <h3 className="text-base font-medium text-slate-200 mt-3">1.6 Viewer Mode</h3>
+        <ul className="list-disc pl-5 space-y-1">
+          <li>Viewer Mode allows anyone with a shared link to view boss timers, schedules, leaderboards, and activity data without creating an account</li>
+          <li>No personal data is collected from viewers — no email, no account, no cookies beyond the essential session token</li>
+          <li>Viewer access is read-only by default; server owners may optionally grant edit or mark-kill permissions</li>
+          <li>Viewer session tokens are temporary and scoped to a single server</li>
         </ul>
       </section>
 
@@ -129,6 +137,16 @@ export function PrivacyPolicyView() {
               <td className="py-2 pr-4">Discord</td>
               <td className="py-2 pr-4">Notifications (optional)</td>
               <td className="py-2">Boss spawn data, guild info via webhook</td>
+            </tr>
+            <tr className="border-b border-slate-800">
+              <td className="py-2 pr-4">Vercel</td>
+              <td className="py-2 pr-4">Frontend Hosting</td>
+              <td className="py-2">Page requests, static assets</td>
+            </tr>
+            <tr className="border-b border-slate-800">
+              <td className="py-2 pr-4">Fly.io</td>
+              <td className="py-2 pr-4">Bot Hosting</td>
+              <td className="py-2">Discord command traffic</td>
             </tr>
             <tr className="border-b border-slate-800">
               <td className="py-2 pr-4">OpenAI / DeepSeek</td>

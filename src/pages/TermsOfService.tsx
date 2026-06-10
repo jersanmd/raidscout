@@ -18,7 +18,7 @@ export function TermsOfServiceView() {
           Back
         </button>
       <h1 className="text-2xl font-bold text-[#fafafa]">Terms of Service</h1>
-      <p className="text-slate-500 text-xs">Last updated: June 1, 2026</p>
+      <p className="text-slate-500 text-xs">Last updated: June 10, 2026</p>
 
       <section className="space-y-2">
         <h2 className="text-lg font-semibold text-[#fafafa]">1. Acceptance of Terms</h2>
@@ -32,9 +32,10 @@ export function TermsOfServiceView() {
         <h2 className="text-lg font-semibold text-[#fafafa]">2. Description of Service</h2>
         <p>
           RaidScout is a web-based companion tool for gamers, providing boss spawn tracking, activity scheduling,
-          guild management, leaderboard systems, and Discord integration across multiple games. The Service offers
-          real-time countdown timers, automated Discord notifications, attendance tracking, server analytics,
-          and optional AI-powered screenshot processing for member name extraction.
+          guild management, leaderboard systems, viewer mode (read-only access without accounts), and Discord
+          integration across multiple games. The Service offers real-time countdown timers, automated Discord
+          notifications, attendance tracking, server analytics, and optional AI-powered screenshot processing
+          for member name extraction.
         </p>
         <p>
           The Service is game-agnostic and may support multiple titles. Game-specific data such as boss names,
@@ -94,7 +95,23 @@ export function TermsOfServiceView() {
       </section>
 
       <section className="space-y-2">
-        <h2 className="text-lg font-semibold text-[#fafafa]">6. User-Generated Content</h2>
+        <h2 className="text-lg font-semibold text-[#fafafa]">6. Viewer Mode</h2>
+        <p>
+          Server Owners may generate a read-only viewer link that allows anyone with the link to view boss timers,
+          schedules, leaderboards, and activity data without creating an account. Viewer access is subject to the
+          following:
+        </p>
+        <ul className="list-disc pl-5 space-y-1">
+          <li>Viewers see only public-facing data (timers, schedules, leaderboards) for the linked server</li>
+          <li>Viewers cannot modify data unless the Server Owner explicitly enables edit or mark-kill permissions</li>
+          <li>Viewer links are server-scoped and do not grant access to other servers</li>
+          <li>Server Owners may revoke or rotate viewer keys at any time from Server Settings</li>
+          <li>Viewer access does not constitute an account — no personal data is collected from viewers</li>
+        </ul>
+      </section>
+
+      <section className="space-y-2">
+        <h2 className="text-lg font-semibold text-[#fafafa]">7. User-Generated Content</h2>
         <p>
           By creating content within the Service (including but not limited to server names, guild names, member names,
           and uploaded screenshots), you grant RaidScout a non-exclusive, worldwide, royalty-free license to host,
@@ -108,12 +125,14 @@ export function TermsOfServiceView() {
       </section>
 
       <section className="space-y-2">
-        <h2 className="text-lg font-semibold text-[#fafafa]">7. Third-Party Services &amp; Integrations</h2>
+        <h2 className="text-lg font-semibold text-[#fafafa]">8. Third-Party Services &amp; Integrations</h2>
         <p>The Service integrates with the following third-party services:</p>
         <ul className="list-disc pl-5 space-y-1">
           <li><strong>Discord:</strong> Optional notification delivery via webhooks. Subject to Discord&apos;s <a href="https://discord.com/terms" target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:text-indigo-300">Terms of Service</a>.</li>
           <li><strong>AI Vision:</strong> Optional screenshot-based name extraction using OpenAI or DeepSeek APIs. Screenshots are processed in-memory and are not stored by the Service or retained by the AI providers per their API data usage policies.</li>
           <li><strong>Supabase:</strong> Database, authentication, and hosting infrastructure. Subject to Supabase&apos;s <a href="https://supabase.com/terms" target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:text-indigo-300">Terms of Service</a>.</li>
+          <li><strong>Vercel:</strong> Frontend application hosting and deployment. Subject to Vercel&apos;s <a href="https://vercel.com/legal/terms" target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:text-indigo-300">Terms of Service</a>.</li>
+          <li><strong>Fly.io:</strong> Discord bot hosting for 24/7 command availability. Subject to Fly.io&apos;s <a href="https://fly.io/legal/terms-of-service" target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:text-indigo-300">Terms of Service</a>.</li>
         </ul>
         <p>
           We are not responsible for the content, privacy practices, or availability of third-party services.
@@ -121,7 +140,7 @@ export function TermsOfServiceView() {
       </section>
 
       <section className="space-y-2">
-        <h2 className="text-lg font-semibold text-[#fafafa]">8. Intellectual Property</h2>
+        <h2 className="text-lg font-semibold text-[#fafafa]">9. Intellectual Property</h2>
         <p>
           The RaidScout name, logo, branding, website design, and source code are the intellectual property of
           RaidScout. All game names, boss names, guild names, and related trademarks are the property of their
@@ -131,7 +150,7 @@ export function TermsOfServiceView() {
       </section>
 
       <section className="space-y-2">
-        <h2 className="text-lg font-semibold text-[#fafafa]">9. Disclaimer of Warranties</h2>
+        <h2 className="text-lg font-semibold text-[#fafafa]">10. Disclaimer of Warranties</h2>
         <p>
           THE SERVICE IS PROVIDED ON AN &ldquo;AS IS&rdquo; AND &ldquo;AS AVAILABLE&rdquo; BASIS WITHOUT WARRANTIES
           OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO IMPLIED WARRANTIES OF
@@ -146,7 +165,7 @@ export function TermsOfServiceView() {
       </section>
 
       <section className="space-y-2">
-        <h2 className="text-lg font-semibold text-[#fafafa]">10. Limitation of Liability</h2>
+        <h2 className="text-lg font-semibold text-[#fafafa]">11. Limitation of Liability</h2>
         <p>
           TO THE FULLEST EXTENT PERMITTED BY APPLICABLE LAW, RAID SCOUT SHALL NOT BE LIABLE FOR ANY INDIRECT,
           INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES, INCLUDING BUT NOT LIMITED TO LOSS OF PROFITS,
@@ -166,7 +185,7 @@ export function TermsOfServiceView() {
       </section>
 
       <section className="space-y-2">
-        <h2 className="text-lg font-semibold text-[#fafafa]">11. Termination</h2>
+        <h2 className="text-lg font-semibold text-[#fafafa]">12. Termination</h2>
         <p>
           We reserve the right to suspend or terminate your access to the Service at our sole discretion, without
           prior notice, for any reason including but not limited to violation of these Terms. Upon termination:
@@ -180,7 +199,7 @@ export function TermsOfServiceView() {
       </section>
 
       <section className="space-y-2">
-        <h2 className="text-lg font-semibold text-[#fafafa]">12. Changes to Terms</h2>
+        <h2 className="text-lg font-semibold text-[#fafafa]">13. Changes to Terms</h2>
         <p>
           We reserve the right to modify these Terms at any time. Material changes will be communicated through
           our Discord community and/or via email where feasible. The &ldquo;Last updated&rdquo; date at the top
@@ -190,7 +209,7 @@ export function TermsOfServiceView() {
       </section>
 
       <section className="space-y-2">
-        <h2 className="text-lg font-semibold text-[#fafafa]">13. Governing Law</h2>
+        <h2 className="text-lg font-semibold text-[#fafafa]">14. Governing Law</h2>
         <p>
           These Terms shall be governed by and construed in accordance with applicable laws. Any disputes arising
           from these Terms or the Service shall be resolved through good-faith negotiations. If resolution cannot
@@ -200,7 +219,7 @@ export function TermsOfServiceView() {
       </section>
 
       <section className="space-y-2">
-        <h2 className="text-lg font-semibold text-[#fafafa]">14. Contact</h2>
+        <h2 className="text-lg font-semibold text-[#fafafa]">15. Contact</h2>
         <p>
           For questions, concerns, or legal inquiries regarding these Terms, contact us through our{" "}
           <a href="https://discord.gg/738AmkeQtU" target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:text-indigo-300 transition">

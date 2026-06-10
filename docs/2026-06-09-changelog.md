@@ -10,11 +10,9 @@
 - **Wait for guild data** before rendering: 5 pages (BossListView, WeeklyScheduleView, LeaderboardView, MembersView, HistoryView) now gate on guild fetch completion
 - **Guild color in UpcomingStrip**: guild name now uses `guildColor()` text color instead of hardcoded `text-[#71717a]`
 
-## Admin Features
+## Daily Rotation Fixes
 
-- **Admin user role filter** using SECURITY DEFINER RPC (`get_all_admin_roles`)
-- **Admin view-as-owner**: admins can join any server as owner for debugging
-- **Daily rotation test fixes**: SQL simulation scripts corrected (1-based PostgreSQL array indexing)
+- **SQL simulation scripts** corrected (1-based PostgreSQL array indexing)
 - **RPC improvements**: various SECURITY DEFINER function updates
 
 ## Landing Page

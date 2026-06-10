@@ -712,6 +712,7 @@ export function LandingPage() {
             <h4 className="text-sm font-semibold text-[#fafafa] mb-5">Resources</h4>
             <div className="space-y-3 text-sm text-[#fafafa]/40">
               <a href="https://discord.gg/738AmkeQtU" target="_blank" rel="noopener noreferrer" className="block hover:text-[#fafafa] transition-colors">RaidScout Support</a>
+              <Link to="/changelog" className="block hover:text-[#fafafa] transition-colors">Changelog</Link>
             </div>
           </div>
           <div>

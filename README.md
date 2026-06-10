@@ -82,10 +82,14 @@ and responds to prefix commands:
 | `!spawn <boss>` | `!spawn Venatus` | Check spawn time for a specific boss |
 | `!kill <boss>` | `!kill Venatus` | Record a kill right now |
 | `!kill <boss> HH:MM` | `!kill Venatus 13:05` | Record a kill at a specific time (server timezone-aware) |
-| `!kill <boss> HH:MM yesterday` | `!kill Venatus 13:05 yesterday` | Force yesterday's date |
-| `!list` | `!list` | Show all boss names |
+| `!editkilltime <boss> HH:MM` | `!editkilltime Titore 18:26` | Fix a kill time (AM/PM correction), optional date `YYYY-MM-DD` |
+| `!forcespawn <boss>` | `!forcespawn Venatus` | Force a boss to spawn |
+| `!forcespawnall` | `!forcespawnall` | Force-spawn all fixed-timer bosses |
+| `!party <boss>` | `!party Venatus` | Show party members for a boss/activity |
 | `!commands` | `!commands` | Display the help menu with custom alias hints |
 | `!notifhere` | `!notifhere` | Set the current channel to receive boss spawn & kill notifications |
+| `!cmdhere` | `!cmdhere` | Restrict commands to this channel |
+| `!threadhere` | `!threadhere` | Set auto-thread channel for spawn events |
 
 **Bot highlights:**
 
@@ -109,6 +113,7 @@ Track repeatable guild activities alongside boss spawns:
 - **One-Time** — Single events that auto-disable after completion.
 - **Guild assignments** — Assign guilds with rotation, daily, or schedule modes.
 - **Activity points** — Configurable points per participant, contributes to leaderboard rankings.
+- **Explicit finish required** — Activities stay active until manually marked finished; no auto-advancing past unfinished instances.
 - **Attendance tracking** — Mark who participated, view activity attendance history.
 - **Soft-delete** — Three-state system: Active, Disabled, Soft-deleted (hidden).
 
@@ -155,6 +160,7 @@ Powered by OpenAI's vision models via a Supabase Edge Function. Optional — man
 
 Turn boss hunting into a competition:
 
+- **Per-guild carousel** — Swipeable guild cards (2 per slide on desktop, 1 on mobile) with rankings, history, and export.
 - **Configurable scoring** — Set points per boss (e.g., Venatus = 50pts, minor bosses = 10pts).
 - **Point adjustments** — Manually add or deduct points for bonuses or penalties.
 - **Weekly, monthly, all-time rankings** — Auto-calculated from kill data and attendance.
@@ -217,10 +223,16 @@ Install RaidScout as a native-like app on any device:
 - **Offline support** — service worker caches critical assets.
 - **Fast reloads** — Vite + code-splitting for instant page transitions.
 
-### 💸 Forever Free
 
-No paywalls. No subscription tiers. No "premium" features locked behind a credit card.
-Every feature is available to every user, on every server, forever.
+### 📋 Changelog
+
+All changes are documented in daily changelogs available at `/changelog` on the site
+and in the `docs/` folder of the repository.
+
+### 📋 Changelog
+
+All changes are documented in daily changelogs available at `/changelog` on the site
+and in the `docs/` folder of the repository.
 
 ---
 
@@ -232,7 +244,7 @@ Every feature is available to every user, on every server, forever.
 | **Backend** | Supabase — Postgres, Auth, Realtime, Edge Functions, Storage | Managed Postgres with built-in auth, real-time subscriptions, and serverless functions |
 | **State** | TanStack React Query 5 · React Context | Automatic caching, background refetching, and optimistic updates |
 | **Routing** | React Router 7 | Code-split, lazy-loaded pages for fast initial load |
-| **Testing** | Vitest 4 · React Testing Library 16 | 43 unit tests covering spawn logic, rotation math, constants, and hooks |
+| **Testing** | Vitest 4 · React Testing Library 16 | 155 unit tests across 10 test files — spawn logic, rotation math, bot queries, UI components |
 | **Icons** | Lucide React | Lightweight, tree-shakeable icon library |
 | **Dates** | date-fns 4 | Timezone-aware date formatting with minimal bundle size |
 | **SEO** | react-helmet-async · JSON-LD structured data · sitemap.xml · OG/Twitter cards | Full social media preview support and search engine indexing |
@@ -271,7 +283,7 @@ Every feature is available to every user, on every server, forever.
 ┌──────────────────────▼──────────────────────────────────┐
 │                 External Services                         │
 │  ┌──────────┐  ┌──────────┐  ┌──────────────────┐      │
-│  │ Discord  │  │ OpenAI   │  │ Railway           │      │
+│  │ Discord  │  │ OpenAI   │  │ Fly.io            │      │
 │  │ Webhooks │  │ Vision   │  │ (bot hosting)     │      │
 │  │ + Bot    │  │ API      │  │                   │      │
 │  └──────────┘  └──────────┘  └──────────────────┘      │
@@ -400,6 +412,8 @@ The bot is **timezone-aware** — it reads each server's configured timezone and
 - If the specified time already passed today → assumes today.
 - If the time hasn't happened yet → assumes yesterday.
 - Use `yesterday` or `today` keywords to override.
+- **`!editkilltime`** lets you fix an incorrectly recorded kill time without deleting the record.
+- Optional date parameter (`YYYY-MM-DD`) for kills older than 24 hours.
 
 ---
 
@@ -444,14 +458,19 @@ Set these environment variables in the Vercel dashboard:
 Vercel auto-deploys on every push to `master`. No additional configuration needed —
 the `vercel.json` in the repo handles SPA routing and cache headers.
 
-### Discord Bot Hosting (Railway)
+### Discord Bot Hosting (Fly.io)
 
-The bot process (`scripts/discord-bot-gateway.ts`) needs a separate 24/7 host:
+The bot process runs on Fly.io for 24/7 uptime. Deploy with:
 
-1. Create a new Railway project from the same GitHub repo.
-2. Set the start command: `npx tsx scripts/discord-bot-gateway.ts`
-3. Add environment variables: `DISCORD_BOT_TOKEN`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`
-4. Deploy — ~$5/month on Railway's hobby plan.
+```bash
+npm run build:bot
+flyctl deploy -a raidscout-bot
+```
+
+Set these secrets on Fly.io:
+- `DISCORD_BOT_TOKEN` — Your Discord bot token
+- `SUPABASE_URL` — Your Supabase project URL
+- `SUPABASE_SERVICE_ROLE_KEY` — Your Supabase service role key
 
 ---
 

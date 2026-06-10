@@ -9,9 +9,3 @@
 - **Spawn-time notifications**: bot alerts for upcoming spawns
 - **Encoding fix**: Unicode characters in boss names now display correctly
 
-## Admin Panel HTTP API
-
-- Added HTTP API with CORS for admin panel
-- `/status` endpoint: cron stats, server counts, bot health
-- `/logs` endpoint: command execution logs
-- **Fly.io health check** fix: proper HTTP response for uptime monitoring

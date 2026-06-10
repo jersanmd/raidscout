@@ -16,7 +16,7 @@
 
 - **Server Settings → Bosses tab** — collapsed edit forms no longer leave extra space below footer (conditional rendering instead of CSS grid animation)
 - **Leaderboard snapshot back button** returns to correct guild filter
-- **Spawn cron server count** matches admin panel — includes all `discord_configs` (thread + command channels)
+- **Spawn cron server count** now includes all `discord_configs` (thread + command channels)
 - **Thymele schedule** UTC times corrected
 - **Moderator boss editing** permission fixed (was restricted to custom bosses only)
 - **`build:bot` output format** fixed — now outputs `.cjs` to match Dockerfile (previous deploys used stale June 9 cache)

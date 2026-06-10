@@ -1,4 +1,4 @@
-# May 24, 2026 — Changelog (v1.12.2)
+# May 24, 2026 — Changelog (v0.12.2)
 
 ## Spawn Overrides System (NEW)
 - `boss_spawn_overrides` table: separate storage for spawn time adjustments
@@ -8,12 +8,6 @@
 - `fetchSpawnOverrides` + `overrideMap` in `useBossSpawns`
 - Realtime subscription invalidates spawn_overrides
 - 5 new unit tests + 9 integration tests (62 total)
-
-## Admin Panel
-- Guild member breakdown with colored badges
-- "Raid Members" and "Members" stat tiles
-- Server rows show raid member count badge
-- Mobile-responsive tabs
 
 ## Leaderboard Fixes
 - Removed auto-finalize every Monday

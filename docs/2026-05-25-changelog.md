@@ -1,6 +1,6 @@
-# May 25, 2026 — Changelog (v1.13.2 → v1.13.8)
+# May 25, 2026 — Changelog (v0.13.2 → v0.13.8)
 
-## v1.13.2-1.13.3 Bug Fixes
+## v0.13.2-1.13.3 Bug Fixes
 - **Viewer 406**: `get_server_by_viewer_key` RPC returns viewer settings; AuthContext stores them
 - **Stale death records**: `staleTime: 0`, `refetchOnMount: true`
 - **Search empty state**: "No bosses match" message
@@ -9,29 +9,27 @@
 - **rotation_counter default**: 0 → 1 in DB
 - **get_leaderboard RPC**: UNION includes point-adjustment-only members
 
-## v1.13.4
+## v0.13.4
 - Member kills modal respects leaderboard reset date
 
-## v1.13.5
+## v0.13.5
 - Viewer server webhook URL in ServerContext
 - `get_server_viewer_key` RPC replaces REST query
 - Removed dead NotificationToggle
 
-## v1.13.6
+## v0.13.6
 - `saveLeaderboardSnapshot` accepts `serverId` param
 - `subscribeToServerSettings`: multi-subscriber via callbacks Set
 - `useBosses` staleTime: 0, refetchOnMount: true
 
-## v1.13.7
+## v0.13.7
 - Viewer settings re-verification on every page load
 - Viewer timezone from `get_server_by_viewer_key`
 - ViewerRoute key switching for re-auth
-- AdminPanelView redirect for non-admins
 - `get_latest_deaths` excludes initial spawn records
 
-## v1.13.8
+## v0.13.8
 - Dead code removal: AuthForm, useAutoFinalize, notifications.ts, dead history.ts functions
-- Admin NoServer bypass: admins without server see NoServerView + Admin Panel link
 - `useMembers` staleTime: 0 / subscribeToDeathRecords/Bosses accept serverId param
 
 ## DB Migrations Deployed

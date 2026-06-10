@@ -24,6 +24,7 @@ const ServerSettingsView = lazy(() => import("@/pages/ServerSettingsView").then(
 const AdminPanelView = lazy(() => import("@/pages/AdminPanelView").then(m => ({ default: m.AdminPanelView })));
 const TermsOfServiceView = lazy(() => import("@/pages/TermsOfService").then(m => ({ default: m.TermsOfServiceView })));
 const PrivacyPolicyView = lazy(() => import("@/pages/PrivacyPolicy").then(m => ({ default: m.PrivacyPolicyView })));
+const ChangelogView = lazy(() => import("@/pages/ChangelogView").then(m => ({ default: m.ChangelogView })));
 
 /** Loading fallback shown while route chunks load */
 function PageLoader() {
@@ -90,6 +91,7 @@ function AppContent() {
         {/* Public pages — accessible without login */}
         <Route path="/terms" element={<Suspense fallback={<PageLoader />}><TermsOfServiceView /></Suspense>} />
         <Route path="/privacy" element={<Suspense fallback={<PageLoader />}><PrivacyPolicyView /></Suspense>} />
+        <Route path="/changelog" element={<Suspense fallback={<PageLoader />}><ChangelogView /></Suspense>} />
 
         {/* Viewer key auto-login route */}
         <Route path="/view/:viewerKey" element={<ViewerRoute />} />
