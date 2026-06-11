@@ -1282,26 +1282,30 @@ export function AdminPanelView() {
       {tab === "games" && <AdminGamesTab />}
     </div>
 
-      {/* Footer */}
-      <footer className="border-t border-[#27272a]/50 bg-gradient-to-b from-[#09090b] to-[#09090b] mt-auto">
-        <div className="max-w-7xl mx-auto px-4 py-5 space-y-3">
+      {/* Footer — same as main Layout */}
+      <footer className="border-t border-[#27272a] bg-[#09090b]">
+        <div className="max-w-[90rem] mx-auto px-4 py-5 space-y-3">
           <div className="flex items-center gap-2 text-xs text-[#71717a]">
             <img src="/logo.png" alt="" className="w-4 h-4 rounded opacity-40" />
             <span>RaidScout — Track boss respawn timers across any game, schedule hunts, and monitor member performance across your guild. </span>
           </div>
-          <div className="flex items-center gap-4 text-xs text-[#52525b] flex-wrap">
-            <a href="https://discord.gg/738AmkeQtU" target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 hover:text-[#a1a1aa] transition" title="Join our Discord community">
-              <ExternalLink className="w-3 h-3" />
-              Discord Community
-            </a>
-            <a href="https://www.facebook.com/profile.php?id=61590144185090" target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 hover:text-[#a1a1aa] transition" title="Follow us on Facebook">
-              <ExternalLink className="w-3 h-3" />
-              Facebook Page
-            </a>
-            <span className="text-[#3f3f46]">|</span>
-            <Link to="/terms" className="hover:text-[#a1a1aa] transition">Terms of Service</Link>
-            <Link to="/privacy" className="hover:text-[#a1a1aa] transition">Privacy Policy</Link>
-            <span className="text-[#3f3f46]">|</span>
+          <div>
+            <span className="text-[11px] font-semibold text-[#52525b] uppercase tracking-wider">Resources</span>
+            <div className="flex items-center gap-3 text-xs text-[#a1a1aa] flex-wrap mt-1">
+              <a href="https://discord.gg/738AmkeQtU" target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 hover:text-[#5865f2] transition" title="Join our Discord community">
+                <ExternalLink className="w-3 h-3" />
+                Discord
+              </a>
+              <a href="https://www.facebook.com/profile.php?id=61590144185090" target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 hover:text-[#1877f2] transition" title="Follow us on Facebook">
+                <ExternalLink className="w-3 h-3" />
+                Facebook
+              </a>
+              <Link to="/terms" className="hover:text-[#d4d4d8] transition">Terms</Link>
+              <Link to="/privacy" className="hover:text-[#d4d4d8] transition">Privacy</Link>
+              <Link to="/changelog" className="hover:text-[#d4d4d8] transition">Changelog</Link>
+            </div>
+          </div>
+          <div className="flex items-center gap-4 text-xs text-[#fafafa]/20">
             <span>v{version}</span>
             <span>© 2026 RaidScout. All rights reserved.</span>
           </div>
