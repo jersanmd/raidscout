@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { fetchAllServers, fetchAllUsers, fetchAuditLog, fetchServerStats, fetchDatabaseStats, fetchPlanUsage, fetchCronStatus, restoreServer, supabase } from "@/lib/supabase";
 import { useServer } from "@/contexts/ServerContext";
 import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/contexts/ToastContext";
 import { Loader2, Shield, Server, Users, Eye, ChevronDown, ChevronUp, ClipboardList, HardDrive, BarChart3, Crosshair, Skull, Activity, Radio, Clock, Trash2, RefreshCw, LogOut, Gamepad2, Globe, ExternalLink, Search, AlertTriangle } from "lucide-react";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { AdminGamesTab } from "@/components/AdminGamesTab";
@@ -15,6 +16,7 @@ export function AdminPanelView() {
   const [tab, setTab] = useState<"servers" | "users" | "audit" | "games" | "infra" | "database" | "cron" | "deleted">("infra");
   const { setCurrentServer, currentServer } = useServer();
   const { userRole, user, signOut } = useAuth();
+  const { toast } = useToast();
   const { timezone, setTimezone } = useUserTimezone(currentServer?.timezone);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -22,6 +24,9 @@ export function AdminPanelView() {
   const [userServers, setUserServers] = useState<Record<string, { server_id: string; server_name: string; role: string }[]>>({});
   const [loadingServers, setLoadingServers] = useState(false);
   const [expandedServer, setExpandedServer] = useState<string | null>(null);
+  const [forceSpawning, setForceSpawning] = useState<string | null>(null);
+  const [forceSpawnConfirm, setForceSpawnConfirm] = useState<{ serverId: string; serverName: string } | null>(null);
+  const [forceSpawnInput, setForceSpawnInput] = useState("");
   const [serverStats, setServerStats] = useState<Record<string, any>>({});
   const [auditServerFilter, setAuditServerFilter] = useState<string>("all");
   const [auditTimeRange, setAuditTimeRange] = useState<string>("1d");
@@ -33,6 +38,23 @@ export function AdminPanelView() {
   const [userRoleFilter, setUserRoleFilter] = useState<"all" | "owner" | "moderator" | "member">("all");
   const [deletedSearch, setDeletedSearch] = useState("");
   const [restoreConfirm, setRestoreConfirm] = useState<{ id: string; name: string } | null>(null);
+
+  const handleForceSpawn = async () => {
+    if (!forceSpawnConfirm) return;
+    const { serverId, serverName } = forceSpawnConfirm;
+    setForceSpawnConfirm(null);
+    setForceSpawnInput("");
+    setForceSpawning(serverId);
+    try {
+      const { data, error } = await supabase.rpc("admin_forcespawn_all", { p_server_id: serverId });
+      if (error) throw error;
+      toast("success", `Force-spawned ${data} bosses in "${serverName}".`);
+    } catch (err: any) {
+      toast("error", err?.message || "Force spawn failed.");
+    } finally {
+      setForceSpawning(null);
+    }
+  };
   const [restoreInput, setRestoreInput] = useState("");
   const [restoring, setRestoring] = useState(false);
   const navigate = useNavigate();
@@ -461,8 +483,20 @@ export function AdminPanelView() {
                           </div>
                         )}
 
-                        {/* View Server — clean outline button */}
-                        <div className="flex items-center justify-end pt-1 border-t border-[#27272a]">
+                        {/* View Server + Force Spawn All buttons */}
+                        <div className="flex items-center justify-end gap-2 pt-1 border-t border-[#27272a]">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setForceSpawnConfirm({ serverId: s.id, serverName: s.name });
+                              setForceSpawnInput("");
+                            }}
+                            disabled={forceSpawning === s.id}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-amber-500/30 text-amber-400 hover:bg-amber-500/10 hover:border-amber-500/50 transition disabled:opacity-50"
+                          >
+                            {forceSpawning === s.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+                            Force Spawn All
+                          </button>
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
@@ -1283,6 +1317,49 @@ export function AdminPanelView() {
         onConfirm={signOut}
         onCancel={() => setShowLogoutConfirm(false)}
       />
+
+      {/* Force Spawn All Confirm */}
+      {forceSpawnConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60" onClick={() => setForceSpawnConfirm(null)} />
+          <div className="relative bg-[#18181b] border border-[#27272a] rounded-xl w-full max-w-md shadow-2xl p-6 space-y-4">
+            <h3 className="text-sm font-bold text-[#fafafa]">Force Spawn All</h3>
+            <p className="text-xs text-[#a1a1aa]">
+              This will force-spawn <strong>all fixed-timer bosses</strong> in{" "}
+              <strong className="text-amber-400">{forceSpawnConfirm.serverName}</strong>.
+              Type the server name to confirm.
+            </p>
+            <input
+              type="text"
+              value={forceSpawnInput}
+              onChange={(e) => setForceSpawnInput(e.target.value)}
+              placeholder={forceSpawnConfirm.serverName}
+              autoFocus
+              className="w-full px-3 py-2 bg-[#09090b] border border-[#27272a] rounded-lg text-[#fafafa] text-sm placeholder-[#52525b] focus:outline-none focus:ring-2 focus:ring-amber-500/50 transition"
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && forceSpawnInput === forceSpawnConfirm.serverName) {
+                  handleForceSpawn();
+                }
+              }}
+            />
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setForceSpawnConfirm(null)}
+                className="px-3 py-1.5 rounded-lg text-xs font-medium border border-[#3f3f46] text-[#a1a1aa] hover:bg-[#27272a] transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleForceSpawn}
+                disabled={forceSpawnInput !== forceSpawnConfirm.serverName}
+                className="px-3 py-1.5 rounded-lg text-xs font-medium bg-amber-500 text-[#fafafa] hover:bg-amber-600 transition disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Force Spawn All
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
