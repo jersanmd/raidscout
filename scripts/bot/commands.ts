@@ -401,7 +401,24 @@ export async function handleMessage(msg: any) {
       if (act.schedule_type === "fixed_schedule" && Array.isArray(raw)) {
         // Custom items store schedule in UTC, seed/template items in Asia/Manila
         const actTz = (act.is_custom || act.template_id) ? "UTC" : "Asia/Manila";
-        startTime = findNextScheduleSlot(raw, now, actTz);
+        // Check if we're within the most recent slot's active window (mirrors boss logic)
+        let recentSlot: Date | null = null;
+        for (let d = 0; d <= 7; d++) { const check = new Date(now); check.setDate(check.getDate() - d);
+          for (const slot of raw) { const c = scheduleSlotToUTC(actTz, check, slot.day, slot.time); if (c <= now && (!recentSlot || c > recentSlot)) recentSlot = c; }
+        }
+        if (recentSlot) {
+          const nextSlotAfterRecent = findNextScheduleSlot(raw, new Date(recentSlot.getTime() + 60_000), actTz);
+          const maxActiveWindow = Math.min(nextSlotAfterRecent.getTime() - recentSlot.getTime() - 3600_000, 4 * 3600_000);
+          const activeUntil = new Date(recentSlot.getTime() + maxActiveWindow);
+          const wasFinished = lastInst?.end_time && new Date(lastInst.end_time) >= recentSlot;
+          if (!wasFinished && now >= recentSlot && now < activeUntil) {
+            startTime = now;
+          } else {
+            startTime = findNextScheduleSlot(raw, now, actTz);
+          }
+        } else {
+          startTime = findNextScheduleSlot(raw, now, actTz);
+        }
       } else {
         const schedObj = (typeof raw === "object" && raw !== null && !Array.isArray(raw)) ? raw as { time: string; start_date?: string; utc_start?: string } : null;
         const timeStr = schedObj?.time ?? (typeof raw === "string" ? raw : null);
@@ -491,8 +508,25 @@ export async function handleMessage(msg: any) {
       // Check if activity has a running instance
       const actInstances = await supabaseQuerySafe(`activity_instances?activity_id=eq.${activity.id}&order=start_time.desc&limit=1`);
       const latestInst = actInstances?.[0] ?? null;
-      const isRunning = latestInst && latestInst.start_time && !latestInst.end_time;
+      let isRunning = latestInst && latestInst.start_time && !latestInst.end_time;
       const alreadyCompleted = latestInst && latestInst.end_time;
+
+      // For fixed_schedule activities without an instance, check if we're in the active window
+      if (!isRunning && !alreadyCompleted && activity.schedule_type === "fixed_schedule" && Array.isArray(activity.schedule)) {
+        const actTz = (activity.is_custom || activity.template_id) ? "UTC" : "Asia/Manila";
+        const schedule = activity.schedule;
+        const now2 = new Date();
+        let recentSlot: Date | null = null;
+        for (let d = 0; d <= 7; d++) { const check = new Date(now2); check.setDate(check.getDate() - d);
+          for (const slot of schedule) { const c = scheduleSlotToUTC(actTz, check, slot.day, slot.time); if (c <= now2 && (!recentSlot || c > recentSlot)) recentSlot = c; }
+        }
+        if (recentSlot) {
+          const nextSlotAfterRecent = findNextScheduleSlot(schedule, new Date(recentSlot.getTime() + 60_000), actTz);
+          const maxActiveWindow = Math.min(nextSlotAfterRecent.getTime() - recentSlot.getTime() - 3600_000, 4 * 3600_000);
+          const activeUntil = new Date(recentSlot.getTime() + maxActiveWindow);
+          isRunning = now2 >= recentSlot && now2 < activeUntil;
+        }
+      }
 
       if (!isRunning) {
         await cmdLog(cmd, "fail", `${activity.name} not active`);
@@ -519,14 +553,28 @@ export async function handleMessage(msg: any) {
         if (explicitDay === "yesterday") activityTime.setUTCDate(activityTime.getUTCDate() - 1);
         else if (!explicitDay && activityTime > now) activityTime.setUTCDate(activityTime.getUTCDate() - 1);
       }
-      await fetch(`${SUPABASE_URL}/rest/v1/activity_instances?id=eq.${latestInst.id}`, {
-        method: "PATCH", headers: { apikey: SUPABASE_KEY!, Authorization: `Bearer ${SUPABASE_KEY!}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ end_time: activityTime.toISOString() }),
-      });
+      if (latestInst) {
+        await fetch(`${SUPABASE_URL}/rest/v1/activity_instances?id=eq.${latestInst.id}`, {
+          method: "PATCH", headers: { apikey: SUPABASE_KEY!, Authorization: `Bearer ${SUPABASE_KEY!}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ end_time: activityTime.toISOString() }),
+        });
+      } else {
+        // No instance yet (e.g., fixed_schedule in active window) — create one with start_time too
+        // Use the activityTime as both start and end (default: now)
+        const startTime = activityTime; // Use same time for both start and end
+        await fetch(`${SUPABASE_URL}/rest/v1/activity_instances`, {
+          method: "POST", headers: { apikey: SUPABASE_KEY!, Authorization: `Bearer ${SUPABASE_KEY!}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ activity_id: activity.id, start_time: startTime.toISOString(), end_time: activityTime.toISOString() }),
+        });
+      }
       if (activity.schedule_type === "one_time") {
         await fetch(`${SUPABASE_URL}/rest/v1/activities?id=eq.${activity.id}`, { method: "PATCH", headers: { apikey: SUPABASE_KEY!, Authorization: `Bearer ${SUPABASE_KEY!}`, "Content-Type": "application/json" }, body: JSON.stringify({ is_enabled: false }) }).catch(() => {});
       }
       const timeLabel = timeStr ? ` at ${timeStr}` : "";
+      // Send notification to notifhere channel
+      const activityTimeStr = activityTime.toLocaleString("en-US", { timeZone: (await resolveServerTimezone(serverId)) || "Asia/Manila", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: true });
+      const activityKillText = `📋 **${activity.name}** finished by **${author}** ${activityTimeStr}`;
+      broadcastNotification(serverId, {}, channelId, activityKillText);
       await reply(`✅ **${activity.name}** completed${timeLabel}`);
       await cmdLog(cmd, "ok", `activity:${activity.name}`);
       return;

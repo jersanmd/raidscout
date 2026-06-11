@@ -64,6 +64,23 @@ export function subscribeToBosses(serverId: string, onChange: () => void) {
   return channel;
 }
 
+export function subscribeToActivityInstances(serverId: string, onChange: () => void) {
+  const sid = serverId || "unknown";
+  const chanName = `activity-instances-${sid}`;
+  const { channel, isNew } = getOrCreateChannel(chanName);
+
+  if (isNew) {
+    channel.on("postgres_changes", { event: "INSERT", schema: "public", table: "activity_instances" }, () => onChange());
+    channel.on("postgres_changes", { event: "UPDATE", schema: "public", table: "activity_instances" }, () => onChange());
+    channel.on("postgres_changes", { event: "DELETE", schema: "public", table: "activity_instances" }, () => onChange());
+    channel.subscribe((status) => {
+      if (status === "CLOSED" || status === "CHANNEL_ERROR") activeChannels.delete(chanName);
+    });
+  }
+
+  return channel;
+}
+
 export function subscribeToServerSettings(
   serverId: string,
   onUpdate: (payload: any) => void

@@ -336,7 +336,7 @@ async function runSpawnCron() {
           const nowUnix = Math.floor(Date.now() / 1000);
           const secsUntilStart = startUnix - nowUnix;
 
-          // ── 5-minute thread for activities ──
+          // ── 5-minute thread + notification for activities ──
           if (secsUntilStart > 0 && secsUntilStart <= 300) {
             const threadDedupKey = `${serverId}-thread-activity-${activity.id}-${startUnix}`;
             if (!sentNotifs.has(threadDedupKey)) {
@@ -344,6 +344,28 @@ async function runSpawnCron() {
               await createEventThreads(
                 serverId, activity.name, undefined, startUnix, "activity", activity.id
               ).catch(console.error);
+            }
+          }
+
+          // ── Spawn notification for activities ──
+          const notifDedupKey = `${serverId}-notif-activity-${activity.id}-${startUnix}`;
+          if (!sentNotifs.has(notifDedupKey)) {
+            // 5-min warning
+            if (secsUntilStart > 0 && secsUntilStart <= 300) {
+              sentNotifs.set(notifDedupKey, Date.now());
+              const timeStr = nextStart.toLocaleTimeString("en-US", { timeZone: tz, hour: "2-digit", minute: "2-digit", hour12: true });
+              broadcastNotification(serverId, {},
+                "", // No source channel — use notification_channel_id from configs
+                `📋 **${activity.name}** starting at ${timeStr}`
+              ).catch(() => {});
+            }
+            // Spawned now
+            if (secsUntilStart <= 0 && secsUntilStart > -60) {
+              sentNotifs.set(notifDedupKey, Date.now());
+              broadcastNotification(serverId, {},
+                "",
+                `📋 **${activity.name}** is starting now!`
+              ).catch(() => {});
             }
           }
         } catch (actErr: any) {

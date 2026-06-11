@@ -27,11 +27,18 @@
 ## 🤖 Discord Bot
 
 - **All commands now support activities** — `!killed`, `!forcespawn`, `!editkilltime`, `!nextspawn`, and `!list` all have activity fallbacks. Activities are merged and sorted alongside bosses in `!nextspawn` output.
-- **`!killed` activity validation** — `!killed` on an activity now checks if it's running before recording; suggests `!editkilltime` to adjust start time instead of blindly creating a completion record
+- **`!killed` activity validation** — `!killed` on an activity now checks if it's running before recording; suggests `!editkilltime` to adjust start time instead of blindly creating a completion record. Fixed_schedule activities now correctly detected as "running" even without an existing instance row.
+- **`!nextspawn` activity active window** — fixed_schedule activities now show as **ACTIVE NOW** in `!nextspawn` when within their active window (previously skipped to next schedule slot)
+- **Activity notifications** — killing an activity via `!killed` now broadcasts a notification to the `notifhere` channel. Spawn cron also sends 5-minute and spawn-now notifications for activities.
+- **Activity spawn auto-threads** — activities now create auto-threads in `threadhere` channels 5 minutes before starting (like bosses do)
 - **`!killed` cooldown skipped** — `!forcespawn` no longer triggers the 2-hour cooldown check
 - **`!editkilltime` hint** — when a kill is rejected because the boss isn't alive or is on cooldown, the bot now suggests using `!editkilltime` to fix the previous kill instead (now also works for activities, says "start time" instead of "kill time")
 - **Timezone handling** — activities now use the correct timezone (UTC for custom/template, Asia/Manila for seed)
 - **`!editkilltime` duplicate var fix** — removed duplicate variable declarations in the boss block that could cause runtime crashes
+
+## ⚡ Realtime
+
+- **Activity realtime** — `activity_instances` and `activities` tables now have Supabase realtime enabled. UI updates instantly when activities are killed via Discord bot — no page refresh needed.
 
 ## 🧪 Testing
 

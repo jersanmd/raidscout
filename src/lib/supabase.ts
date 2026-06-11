@@ -97,6 +97,7 @@ export {
 export {
   subscribeToDeathRecords,
   subscribeToBosses,
+  subscribeToActivityInstances,
   subscribeToServerSettings,
   subscribeToSpawnAlerts,
   cleanupChannel,
