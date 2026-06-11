@@ -130,6 +130,29 @@ export function calculateActivityInfo(
     };
   }
 
+  // Check if we're currently within the most recent schedule slot's active window.
+  // If the slot has started but there's no finished instance for it, show "active".
+  const sortedSlots = [...schedule].sort((a, b) => {
+    if (a.day !== b.day) return a.day - b.day;
+    return timeToMinutes(a.time) - timeToMinutes(b.time);
+  });
+  const recentSlot = findMostRecentSlot(sortedSlots, now);
+  if (recentSlot) {
+    // The activity stays active until the NEXT slot's grace period or until explicitly finished
+    const nextSlotAfterRecent = findNextScheduleSlot(schedule, new Date(recentSlot.getTime() + 60_000));
+    const maxActiveWindow = Math.min(nextSlotAfterRecent.getTime() - recentSlot.getTime() - 3600_000, 4 * 3600_000);
+    const activeUntil = new Date(recentSlot.getTime() + maxActiveWindow);
+    const wasFinished = lastInstance?.end_time && new Date(lastInstance.end_time) >= recentSlot;
+    if (!wasFinished && now >= recentSlot && now < activeUntil) {
+      return {
+        activity,
+        activityInstance: { id: "", activity_id: activity.id, start_time: recentSlot.toISOString(), created_at: "" },
+        startTime: recentSlot,
+        status: "active",
+      };
+    }
+  }
+
   const nextSlot = findNextScheduleSlot(schedule, lastInstance?.end_time ? new Date(lastInstance.end_time) : now);
   return {
     activity,
@@ -137,6 +160,25 @@ export function calculateActivityInfo(
     startTime: nextSlot,
     status: nextSlot > now ? "countdown" : "active",
   };
+}
+
+/** Find the most recent schedule slot before `now` (within the past 7 days). */
+function findMostRecentSlot(schedule: ScheduleSlot[], now: Date): Date | null {
+  let recent: Date | null = null;
+  for (let d = 0; d <= 7; d++) {
+    const check = new Date(now);
+    check.setUTCDate(check.getUTCDate() - d);
+    for (const slot of schedule) {
+      const sm = timeToMinutes(slot.time);
+      const slotDate = new Date(check);
+      slotDate.setUTCDate(slotDate.getUTCDate() - slotDate.getUTCDay() + slot.day);
+      slotDate.setUTCHours(Math.floor(sm / 60), sm % 60, 0, 0);
+      if (slotDate <= now && (!recent || slotDate > recent)) {
+        recent = slotDate;
+      }
+    }
+  }
+  return recent;
 }
 
 /** Build a Date from schedule data — prefers utc_start (ISO), falls back to time+start_date+timezone. */

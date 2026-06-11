@@ -32,7 +32,7 @@ serve(async (req: Request) => {
     // Fetch attendance with death & boss info
     let query = supabase
       .from("attendance_records")
-      .select("death_record_id, death_records!inner(death_time, boss_id, bosses!inner(name, boss_points))")
+      .select("death_record_id, death_records!inner(death_time, boss_id, owner_guild_id, bosses!inner(name, boss_points, image_url))")
       .eq("member_id", member_id)
       .eq("server_id", server_id)
       .order("created_at", { ascending: false });
@@ -114,6 +114,13 @@ serve(async (req: Request) => {
       return mult;
     };
 
+    // Fetch guild names for owner_guild_id resolution
+    const { data: guildData } = await supabase
+      .from("guilds")
+      .select("id, name")
+      .eq("server_id", server_id);
+    const guildNameMap = new Map((guildData || []).map((g: any) => [g.id, g.name]));
+
     // Map to frontend format with all modifiers
     const kills = (data as any[]).map((r: any) => {
       const bossId = r.death_records?.boss_id;
@@ -122,11 +129,14 @@ serve(async (req: Request) => {
         ? bgPointsMap[bossId]
         : bossPoints;
       const mult = guildId ? getMultiplier(r.death_records?.death_time) : 1;
+      const ownerGuildId = r.death_records?.owner_guild_id;
       return {
         death_record_id: r.death_record_id,
         boss_name: r.death_records?.bosses?.name ?? "Unknown",
         killed_at: r.death_records?.death_time,
         points: basePts * mult,
+        image_url: r.death_records?.bosses?.image_url || null,
+        guild_name: ownerGuildId ? guildNameMap.get(ownerGuildId) || null : null,
       };
     });
 

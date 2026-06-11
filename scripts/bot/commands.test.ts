@@ -250,3 +250,211 @@ describe("parseTimeArg", () => {
     expect(parseTimeArg("-1:00")).toBeNull();
   });
 });
+
+// ── Activity instance state detection (from killed command) ─
+interface ActInstance {
+  id: string;
+  activity_id: string;
+  start_time?: string | null;
+  end_time?: string | null;
+}
+
+function getActivityState(latestInst: ActInstance | null): "not-started" | "running" | "completed" {
+  if (!latestInst || !latestInst.start_time) return "not-started";
+  if (latestInst.end_time) return "completed";
+  return "running";
+}
+
+function formatActivityKilledError(state: "not-started" | "completed", name: string, prefix: string): string {
+  if (state === "completed") {
+    return `❌ **${name}** was already completed.\n-# Wrong time? Use \`${prefix}editkilltime ${name} HH:MM [YYYY-MM-DD]\` to fix the start time instead.`;
+  }
+  return `❌ **${name}** is not currently active.\n-# Wrong start time? Use \`${prefix}editkilltime ${name} HH:MM [YYYY-MM-DD]\` to adjust it.`;
+}
+
+describe("getActivityState", () => {
+  it('returns "not-started" for null instance', () => {
+    expect(getActivityState(null)).toBe("not-started");
+  });
+
+  it('returns "not-started" for instance without start_time', () => {
+    expect(getActivityState({ id: "i1", activity_id: "a1" })).toBe("not-started");
+  });
+
+  it('returns "running" for instance with start_time but no end_time', () => {
+    expect(getActivityState({ id: "i1", activity_id: "a1", start_time: "2026-06-11T10:00:00Z" })).toBe("running");
+  });
+
+  it('returns "completed" for instance with both start_time and end_time', () => {
+    expect(getActivityState({ id: "i1", activity_id: "a1", start_time: "2026-06-11T10:00:00Z", end_time: "2026-06-11T10:30:00Z" })).toBe("completed");
+  });
+
+  it('returns "not-started" for instance with end_time but no start_time', () => {
+    // Edge case: end_time without start_time — code checks start_time first
+    // This mirrors the actual code: isRunning = latestInst && latestInst.start_time && !latestInst.end_time
+    // If start_time is missing, it falls through to !isRunning (not-started)
+    expect(getActivityState({ id: "i1", activity_id: "a1", end_time: "2026-06-11T10:30:00Z" })).toBe("not-started");
+  });
+});
+
+describe("formatActivityKilledError", () => {
+  it("suggests editkilltime to fix start time for completed activities", () => {
+    const msg = formatActivityKilledError("completed", "Daily Quest", "!");
+    expect(msg).toContain("was already completed");
+    expect(msg).toContain("!editkilltime Daily Quest");
+    expect(msg).toContain("fix the start time");
+  });
+
+  it("suggests editkilltime to adjust start time for not-started activities", () => {
+    const msg = formatActivityKilledError("not-started", "Weekly Boss", ";");
+    expect(msg).toContain("is not currently active");
+    expect(msg).toContain(";editkilltime Weekly Boss");
+    expect(msg).toContain("adjust it");
+  });
+
+  it("includes HH:MM [YYYY-MM-DD] format hint", () => {
+    const msg = formatActivityKilledError("not-started", "Event", "!");
+    expect(msg).toContain("HH:MM");
+    expect(msg).toContain("YYYY-MM-DD");
+  });
+});
+
+// ── Killed command: date keyword parsing ────────────────────
+function parseDayKeyword(lastArg: string | undefined): "yesterday" | "today" | null {
+  if (!lastArg) return null;
+  const lower = lastArg.toLowerCase();
+  if (lower === "yesterday" || lower === "today") return lower;
+  return null;
+}
+
+describe("parseDayKeyword", () => {
+  it("detects yesterday", () => {
+    expect(parseDayKeyword("yesterday")).toBe("yesterday");
+    expect(parseDayKeyword("Yesterday")).toBe("yesterday");
+  });
+
+  it("detects today", () => {
+    expect(parseDayKeyword("today")).toBe("today");
+    expect(parseDayKeyword("TODAY")).toBe("today");
+  });
+
+  it("returns null for non-keywords", () => {
+    expect(parseDayKeyword("14:30")).toBeNull();
+    expect(parseDayKeyword("BossName")).toBeNull();
+    expect(parseDayKeyword(undefined)).toBeNull();
+  });
+});
+
+// ── Killed command: full args extraction ────────────────────
+interface KilledArgs {
+  bossName: string;
+  timeStr?: string;
+  explicitDay: "yesterday" | "today" | null;
+}
+
+function parseKilledArgs(rawArgs: string[]): KilledArgs | null {
+  if (rawArgs.length === 0) return null;
+  const remaining = [...rawArgs];
+  let explicitDay: "yesterday" | "today" | null = null;
+
+  const lastWord = remaining[remaining.length - 1]?.toLowerCase();
+  if (lastWord === "yesterday" || lastWord === "today") {
+    explicitDay = lastWord;
+    remaining.pop();
+  }
+
+  let timeStr: string | undefined;
+  const maybeTime = remaining[remaining.length - 1];
+  if (maybeTime && /^\d{1,2}:\d{2}$/.test(maybeTime)) {
+    timeStr = maybeTime;
+    remaining.pop();
+  }
+
+  const bossName = remaining.join(" ");
+  if (!bossName) return null;
+
+  return { bossName, timeStr, explicitDay };
+}
+
+describe("parseKilledArgs", () => {
+  it("parses boss name only", () => {
+    const result = parseKilledArgs(["Clemantis"]);
+    expect(result).toEqual({ bossName: "Clemantis", timeStr: undefined, explicitDay: null });
+  });
+
+  it("parses boss name with time", () => {
+    const result = parseKilledArgs(["Clemantis", "14:30"]);
+    expect(result).toEqual({ bossName: "Clemantis", timeStr: "14:30", explicitDay: null });
+  });
+
+  it("parses boss name with time and yesterday", () => {
+    const result = parseKilledArgs(["Clemantis", "14:30", "yesterday"]);
+    expect(result).toEqual({ bossName: "Clemantis", timeStr: "14:30", explicitDay: "yesterday" });
+  });
+
+  it("parses multi-word boss name", () => {
+    const result = parseKilledArgs(["Lord", "Nine", "14:30"]);
+    expect(result).toEqual({ bossName: "Lord Nine", timeStr: "14:30", explicitDay: null });
+  });
+
+  it("parses multi-word boss with today keyword", () => {
+    const result = parseKilledArgs(["General", "Aquleus", "08:00", "today"]);
+    expect(result).toEqual({ bossName: "General Aquleus", timeStr: "08:00", explicitDay: "today" });
+  });
+
+  it("parses activity with time", () => {
+    const result = parseKilledArgs(["Daily Quest", "10:00"]);
+    expect(result).toEqual({ bossName: "Daily Quest", timeStr: "10:00", explicitDay: null });
+  });
+
+  it("returns null for empty args", () => {
+    expect(parseKilledArgs([])).toBeNull();
+  });
+
+  it("parses boss name with only yesterday (no time)", () => {
+    const result = parseKilledArgs(["Clemantis", "yesterday"]);
+    expect(result).toEqual({ bossName: "Clemantis", timeStr: undefined, explicitDay: "yesterday" });
+  });
+
+  it("treats 'yesterday' literally when it's the only word", () => {
+    // If someone types ;killed yesterday, "yesterday" is a day keyword but no boss remains
+    const result = parseKilledArgs(["yesterday"]);
+    expect(result).toBeNull(); // bossName is empty after stripping keyword
+  });
+});
+
+// ── Not alive error messages (bosses) ───────────────────────
+function formatBossNotAliveError(bossName: string, prefix: string): string {
+  return `❌ **${bossName}** is not currently alive.\n-# Wrong kill time? Use \`${prefix}editkilltime ${bossName} HH:MM [YYYY-MM-DD]\` to fix the previous kill instead.`;
+}
+
+function formatBossCooldownError(bossName: string, killedAtUnix: number, prefix: string): string {
+  return `⏳ **${bossName}** already declared dead at <t:${killedAtUnix}:t>.\n-# Wrong time? Use \`${prefix}editkilltime ${bossName} HH:MM [YYYY-MM-DD]\` to fix it.`;
+}
+
+describe("killed error messages", () => {
+  const prefix = "!";
+
+  it("boss not alive message suggests fixing previous kill", () => {
+    const msg = formatBossNotAliveError("Clemantis", prefix);
+    expect(msg).toContain("is not currently alive");
+    expect(msg).toContain("!editkilltime Clemantis");
+    expect(msg).toContain("fix the previous kill");
+  });
+
+  it("boss cooldown message includes Discord timestamp", () => {
+    const unix = Math.floor(Date.now() / 1000) - 600; // 10 min ago
+    const msg = formatBossCooldownError("Clemantis", unix, prefix);
+    expect(msg).toContain("already declared dead");
+    expect(msg).toContain(`<t:${unix}:t>`);
+    expect(msg).toContain("!editkilltime Clemantis");
+  });
+
+  it("activity not active message uses different wording than boss", () => {
+    const actMsg = formatActivityKilledError("not-started", "Daily Quest", prefix);
+    const bossMsg = formatBossNotAliveError("Daily Quest", prefix);
+    expect(actMsg).not.toBe(bossMsg);
+    expect(actMsg).toContain("start time");
+    expect(bossMsg).toContain("kill time");
+  });
+});

@@ -16,6 +16,7 @@ import type { Guild, LeaderboardSnapshot, PointAdjustment } from "@/types";
 import { Trophy, Medal, Crown, Users, Loader2, X, Skull, CheckCheck, History, ChevronRight, ChevronLeft, Search, Shield, Plus, Minus, Edit3, RotateCcw, Calendar } from "lucide-react";
 import { TableRowSkeleton } from "@/components/Skeletons";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { BossImage } from "@/components/BossImage";
 
 const rankColors: Record<number, { icon: React.ReactNode; text: string; bg: string }> = {
   1: {
@@ -1148,7 +1149,7 @@ export function LeaderboardView() {
       {selectedMember && (() => {
         // Merge boss kills + activity attendance + point adjustments into one sorted history
         const combined = [
-          ...memberKills.map(k => ({ type: "kill" as const, name: k.boss_name, points: k.points ?? 0, time: k.killed_at, deathRecordId: k.death_record_id, activityInstanceId: null as string | null })),
+          ...memberKills.map(k => ({ type: "kill" as const, name: k.boss_name, points: k.points ?? 0, time: k.killed_at, deathRecordId: k.death_record_id, activityInstanceId: null as string | null, image_url: k.image_url ?? null, guild_name: k.guild_name ?? null })),
           ...memberActivities.map(a => ({ type: "activity" as const, name: a.activity_name, points: a.points ?? 0, time: a.attended_at, deathRecordId: null as string | null, activityInstanceId: a.activity_instance_id })),
           ...memberAdjustments.map(a => ({ type: "adjustment" as const, name: a.reason || "Point Adjustment", points: a.points, time: a.created_at, deathRecordId: null as string | null, activityInstanceId: null as string | null })),
         ].sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
@@ -1160,7 +1161,7 @@ export function LeaderboardView() {
         return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/60" onClick={() => setSelectedMember(null)} />
-          <div className="relative bg-[#09090b] border border-[#27272a] rounded-xl w-full max-w-xs shadow-2xl max-h-[80vh] flex flex-col">
+          <div className="relative bg-[#09090b] border border-[#27272a] rounded-xl w-full max-w-xs sm:max-w-sm md:max-w-md lg:max-w-lg shadow-2xl max-h-[80vh] flex flex-col">
             <div className="flex items-center justify-between p-3 border-b border-[#27272a] shrink-0">
               <div>
                 <h3 className="text-sm font-bold text-[#fafafa]">{selectedMember.name}</h3>
@@ -1211,9 +1212,22 @@ export function LeaderboardView() {
                       ) : isActivity ? (
                         <Calendar className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
                       ) : (
-                        <Skull className="w-3.5 h-3.5 text-red-400 shrink-0" />
+                        <BossImage
+                          bossName={item.name}
+                          imageUrl={item.image_url}
+                          size="sm"
+                          className="w-5 h-5 rounded shrink-0"
+                        />
                       )}
                       <span className="text-sm text-[#fafafa]">{item.name}</span>
+                      {!isAdjustment && !isActivity && item.guild_name && (
+                        <span
+                          className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-medium border ${guildColor(item.guild_name).bg} ${guildColor(item.guild_name).text} ${guildColor(item.guild_name).border}`}
+                        >
+                          <Shield className="w-2 h-2" />
+                          {item.guild_name}
+                        </span>
+                      )}
                       <span className={`text-[10px] font-medium ml-auto mr-2 ${isAdjustment ? (item.points >= 0 ? "text-emerald-400" : "text-red-400") : "text-amber-400"}`}>
                         {isAdjustment && item.points >= 0 ? "+" : ""}{item.points}
                       </span>

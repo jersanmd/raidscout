@@ -986,10 +986,6 @@ export function ParticipantModal({
                 src={rallyPreviews[fullscreenPreviewIndex]}
                 alt="Rally screenshot"
                 attendingNames={attendance.map(a => memberMap.get(a.member_id)).filter(Boolean) as string[]}
-                exactMatches={exactMatchNames}
-                fuzzyMatches={fuzzyMatchNames}
-                unmatched={unmatchedNames}
-                alreadyAttended={alreadyAttendedNames}
                 className="max-w-full max-h-[90vh] object-contain rounded-lg"
                 onClick={(e) => e.stopPropagation()}
               />

@@ -3,6 +3,7 @@ import { Skull } from "lucide-react";
 
 interface BossImageProps {
   bossName: string;
+  imageUrl?: string | null;
   size?: "sm" | "md" | "lg";
   className?: string;
 }
@@ -38,9 +39,9 @@ function bossToFilename(bossName: string): string {
   return baseName.toLowerCase().replace(/\s+/g, "");
 }
 
-export function BossImage({ bossName, size = "md", className = "" }: BossImageProps) {
+export function BossImage({ bossName, imageUrl, size = "md", className = "" }: BossImageProps) {
   const [imgError, setImgError] = useState(false);
-  const src = `/bosses/${bossToFilename(bossName)}.png`;
+  const src = imageUrl || `/bosses/${bossToFilename(bossName)}.png`;
 
   if (!imgError) {
     return (

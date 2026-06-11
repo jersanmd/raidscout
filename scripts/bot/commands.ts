@@ -487,6 +487,22 @@ export async function handleMessage(msg: any) {
       const activities = await supabaseQuerySafe(`activities?server_id=eq.${serverId}&is_enabled=not.is.false&deleted_at=is.null&name=ilike.${encodeURIComponent("%" + bossName + "%")}`);
       if (!activities?.length) return reply(`**${bossName}** not found.`);
       const activity = activities[0];
+
+      // Check if activity has a running instance
+      const actInstances = await supabaseQuerySafe(`activity_instances?activity_id=eq.${activity.id}&order=start_time.desc&limit=1`);
+      const latestInst = actInstances?.[0] ?? null;
+      const isRunning = latestInst && latestInst.start_time && !latestInst.end_time;
+      const alreadyCompleted = latestInst && latestInst.end_time;
+
+      if (!isRunning) {
+        await cmdLog(cmd, "fail", `${activity.name} not active`);
+        discordFetch(`https://discord.com/api/v10/channels/${channelId}/messages/${msg.id}/reactions/${encodeURIComponent("❌")}/@me`, { method: "PUT", headers: { Authorization: `Bot ${TOKEN}` } }).catch(() => {});
+        if (alreadyCompleted) {
+          return reply(`❌ **${activity.name}** was already completed.\n-# Wrong time? Use \`${matchedPrefix}editkilltime ${activity.name} HH:MM [YYYY-MM-DD]\` to fix the start time instead.`);
+        }
+        return reply(`❌ **${activity.name}** is not currently active.\n-# Wrong start time? Use \`${matchedPrefix}editkilltime ${activity.name} HH:MM [YYYY-MM-DD]\` to adjust it.`);
+      }
+
       let activityTime = new Date();
       if (timeStr) {
         const [h, m] = timeStr.split(":").map(Number);
@@ -503,9 +519,9 @@ export async function handleMessage(msg: any) {
         if (explicitDay === "yesterday") activityTime.setUTCDate(activityTime.getUTCDate() - 1);
         else if (!explicitDay && activityTime > now) activityTime.setUTCDate(activityTime.getUTCDate() - 1);
       }
-      await fetch(`${SUPABASE_URL}/rest/v1/activity_instances`, {
-        method: "POST", headers: { apikey: SUPABASE_KEY!, Authorization: `Bearer ${SUPABASE_KEY!}`, "Content-Type": "application/json", Prefer: "return=representation" },
-        body: JSON.stringify({ activity_id: activity.id, start_time: activityTime.toISOString(), end_time: activityTime.toISOString() }),
+      await fetch(`${SUPABASE_URL}/rest/v1/activity_instances?id=eq.${latestInst.id}`, {
+        method: "PATCH", headers: { apikey: SUPABASE_KEY!, Authorization: `Bearer ${SUPABASE_KEY!}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ end_time: activityTime.toISOString() }),
       });
       if (activity.schedule_type === "one_time") {
         await fetch(`${SUPABASE_URL}/rest/v1/activities?id=eq.${activity.id}`, { method: "PATCH", headers: { apikey: SUPABASE_KEY!, Authorization: `Bearer ${SUPABASE_KEY!}`, "Content-Type": "application/json" }, body: JSON.stringify({ is_enabled: false }) }).catch(() => {});
@@ -646,39 +662,13 @@ export async function handleMessage(msg: any) {
     if (!recentDeaths?.length) { await cmdLog(cmd, "fail", `no death record for ${boss.name}`); return reply(`No death record found for **${boss.name}**.`); }
     const deathRecord = recentDeaths[0];
 
-    // Parse the new time (user enters server-local time, we convert to UTC)
-    const [h, m] = timeStr.split(":").map(Number);
-    if (h > 23 || m > 59) return reply("Invalid time.");
-    const tz = await resolveServerTimezone(serverId);
-    const now = new Date();
-
-    let y: number, mo: number, d: number;
-    if (explicitDate) {
-      // Use the explicit date (server-local)
-      [y, mo, d] = explicitDate.split("-").map(Number);
-    } else {
-      // Use today's date in server timezone
-      const localDate = now.toLocaleDateString("en-CA", { timeZone: tz });
-      [y, mo, d] = localDate.split("-").map(Number);
-    }
-
-    // Convert server-local date+time to UTC using timezone offset detection
-    const testUtc = Date.UTC(y, mo - 1, d, h, m);
-    const testLocal = new Intl.DateTimeFormat("en-US", { timeZone: tz, hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(testUtc));
-    const [tlH, tlM] = testLocal.split(":").map(Number);
-    const offsetMs = ((tlH - h) * 60 + (tlM - m)) * 60_000;
-    let newDeathTime = new Date(testUtc - offsetMs);
-
-    // If no explicit date and time would be in the future, assume yesterday
-    if (!explicitDate && newDeathTime > now) newDeathTime.setUTCDate(newDeathTime.getUTCDate() - 1);
-
-    // Recalculate owner guild with the new time
+    // Recalculate owner guild with the new time (using top-level newDeathTime from lines 628-638)
     const serverGuilds = await supabaseQuery(`guilds?server_id=eq.${serverId}`);
     const allBossGuilds = await supabaseQuery(`boss_guilds?select=boss_id,guild_id,sort_order,day_of_week,mode`);
     const sgIds = new Set(serverGuilds.map((g: any) => g.id));
     const serverBossGuilds = allBossGuilds.filter((bg: any) => sgIds.has(bg.guild_id));
     const prevDeaths = await supabaseQuery(`death_records?server_id=eq.${serverId}&boss_id=eq.${boss.id}&order=death_time.desc&limit=2`);
-    const lastDeath = prevDeaths?.length > 1 ? prevDeaths[1] : null; // previous death before the one we're editing
+    const lastDeath = prevDeaths?.length > 1 ? prevDeaths[1] : null;
     const gName = computeOwnerGuild(boss, serverBossGuilds, serverGuilds, lastDeath, newDeathTime, tz);
     const ownerGuildId = gName ? serverGuilds.find((g: any) => g.name === gName)?.id ?? null : null;
 

@@ -131,6 +131,8 @@ export interface MemberBossKill {
   killed_at: string;
   death_record_id: string;
   points?: number;
+  image_url?: string | null;
+  guild_name?: string | null;
 }
 
 export interface MemberActivityAttendance {
@@ -169,7 +171,7 @@ export async function fetchMemberKills(
   // 2. Fallback: direct query
   let query = supabase
     .from("attendance_records")
-    .select("death_record_id, death_records!inner(death_time, boss_id, bosses!inner(name, boss_points))")
+    .select("death_record_id, death_records!inner(death_time, boss_id, owner_guild_id, bosses!inner(name, boss_points, image_url))")
     .eq("member_id", memberId)
     .order("created_at", { ascending: false });
 
@@ -190,8 +192,13 @@ export async function fetchMemberKills(
     .maybeSingle();
   const guildId = (memberData as any)?.guild_id as string | null;
 
-  // Get unique boss IDs for per-guild override lookup
+  // Get unique boss IDs for per-guild override lookup and resolve guild names
   const bossIds = [...new Set((data as any[]).map((r: any) => r.death_records.boss_id))];
+
+  // Fetch guild names for owner_guild_id resolution
+  let guildNameMap = new Map<string, string>();
+  const { data: guildData } = await supabase.from("guilds").select("id, name").eq("server_id", sid);
+  for (const g of (guildData || [])) { guildNameMap.set(g.id, g.name); }
 
   // Fetch per-guild point overrides
   let bgPointsMap = new Map<string, number>();
@@ -258,11 +265,14 @@ export async function fetchMemberKills(
       ? bgPointsMap.get(bossId)!
       : bossPoints;
     const mult = guildId ? getMultiplier(row.death_records.death_time) : 1;
+    const ownerGuildId = row.death_records.owner_guild_id;
     return {
       boss_name: row.death_records.bosses.name,
       killed_at: row.death_records.death_time,
       death_record_id: row.death_record_id,
       points: basePts * mult,
+      image_url: row.death_records.bosses.image_url || null,
+      guild_name: ownerGuildId ? guildNameMap.get(ownerGuildId) || null : null,
     };
   });
 }
