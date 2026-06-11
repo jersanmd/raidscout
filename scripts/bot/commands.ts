@@ -130,20 +130,28 @@ export async function handleMessage(msg: any) {
   // ── list ──
   if (cmd === "list") {
     if (!serverId) { await cmdLog(cmd, "fail", "not linked"); return reply("⚠️ This Discord server is not linked to RaidScout."); }
-    const bosses = await supabaseQuery(`bosses?server_id=eq.${serverId}&is_enabled=not.is.false&deleted_at=is.null&order=name`);
-    if (!bosses?.length) { await cmdLog(cmd, "fail", "no bosses"); return reply("No bosses found."); }
+    const [bosses, activities] = await Promise.all([
+      supabaseQuery(`bosses?server_id=eq.${serverId}&is_enabled=not.is.false&deleted_at=is.null&order=name`),
+      supabaseQuery(`activities?server_id=eq.${serverId}&is_enabled=not.is.false&deleted_at=is.null&order=name`),
+    ]);
+    const allItems = [
+      ...(bosses || []).map((b: any) => ({ name: b.name, type: "boss" })),
+      ...(activities || []).map((a: any) => ({ name: `📋 ${a.name}`, type: "activity" })),
+    ];
+    if (!allItems.length) { await cmdLog(cmd, "fail", "no items"); return reply("No bosses or activities found."); }
     const chunkSize = 25;
     const chunks: string[] = [];
-    for (let i = 0; i < bosses.length; i += chunkSize) {
-      chunks.push(bosses.slice(i, i + chunkSize).map((b: any, j: number) => `${i + j + 1}. ${b.name}`).join("\n"));
+    for (let i = 0; i < allItems.length; i += chunkSize) {
+      chunks.push(allItems.slice(i, i + chunkSize).map((item, j) => `${i + j + 1}. ${item.name}`).join("\n"));
     }
+    const total = `${bosses?.length || 0} bosses, ${activities?.length || 0} activities`;
     for (let c = 0; c < chunks.length; c++) {
       await discordFetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
         method: "POST", headers: { Authorization: `Bot ${TOKEN}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ embeds: [{ title: c === 0 ? `📋 Boss List (${bosses.length} bosses)` : undefined, description: chunks[c], color: 0x8b5cf6, footer: c === 0 ? { text: "Powered by RaidScout" } : undefined }] }),
+        body: JSON.stringify({ embeds: [{ title: c === 0 ? `📋 List (${total})` : undefined, description: chunks[c], color: 0x8b5cf6, footer: c === 0 ? { text: "Powered by RaidScout" } : undefined }] }),
       });
     }
-    await cmdLog(cmd, "ok", `${bosses.length} bosses`);
+    await cmdLog(cmd, "ok", total);
     return;
   }
 
@@ -216,24 +224,36 @@ export async function handleMessage(msg: any) {
     return;
   }
 
-  // ── forcespawn <boss> ──
+  // ── forcespawn <boss|activity> ──
   if (cmd === "forcespawn") {
-    if (!serverId) { await cmdLog(cmd, "fail", "not linked"); return reply("⚠️ Not linked to RaidScout."); }
-    const bossName = args.slice(1).join(" ");
-    if (!bossName) { await cmdLog(cmd, "fail", "no boss name"); return reply("Usage: `!forcespawn Boss Name`"); }
-    const bosses = await supabaseQuery(`bosses?server_id=eq.${serverId}&is_enabled=not.is.false&deleted_at=is.null&name=ilike.${encodeURIComponent("%" + bossName + "%")}&select=id,name,respawn_hours`);
-    if (!bosses?.length) { await cmdLog(cmd, "fail", `boss "${bossName}" not found`); return reply(`Boss **${bossName}** not found.`); }
-    const boss = bosses[0];
+    if (!serverId) { await cmdLog(cmd, "fail", "not linked"); return reply("⚠️ Not linked to Raidscout."); }
+    const name = args.slice(1).join(" ");
+    if (!name) { await cmdLog(cmd, "fail", "no name"); return reply("Usage: `!forcespawn Boss/Activity Name`"); }
+    // Try bosses first
+    const bosses = await supabaseQuery(`bosses?server_id=eq.${serverId}&is_enabled=not.is.false&deleted_at=is.null&name=ilike.${encodeURIComponent("%" + name + "%")}&select=id,name,respawn_hours`);
+    if (bosses?.length) {
+      const boss = bosses[0];
+      const now = new Date();
+      const deathTime = new Date(now.getTime() - (boss.respawn_hours || 24) * 3600000).toISOString();
+      await fetch(`${SUPABASE_URL}/rest/v1/boss_spawn_overrides?boss_id=eq.${boss.id}&server_id=eq.${serverId}`, {
+        method: "DELETE", headers: { apikey: SUPABASE_KEY!, Authorization: `Bearer ${SUPABASE_KEY!}` },
+      }).catch(() => {});
+      await fetch(`${SUPABASE_URL}/rest/v1/boss_spawn_overrides`, {
+        method: "POST", headers: { apikey: SUPABASE_KEY!, Authorization: `Bearer ${SUPABASE_KEY!}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ server_id: serverId, boss_id: boss.id, death_time: deathTime }),
+      });
+      return reply(`✅ **${boss.name}** has been force-spawned.`);
+    }
+    // Activity fallback — start it now
+    const activities = await supabaseQuery(`activities?server_id=eq.${serverId}&is_enabled=not.is.false&deleted_at=is.null&name=ilike.${encodeURIComponent("%" + name + "%")}&select=id,name`);
+    if (!activities?.length) { await cmdLog(cmd, "fail", `"${name}" not found`); return reply(`**${name}** not found.`); }
+    const act = activities[0];
     const now = new Date();
-    const deathTime = new Date(now.getTime() - (boss.respawn_hours || 24) * 3600000).toISOString();
-    await fetch(`${SUPABASE_URL}/rest/v1/boss_spawn_overrides?boss_id=eq.${boss.id}&server_id=eq.${serverId}`, {
-      method: "DELETE", headers: { apikey: SUPABASE_KEY!, Authorization: `Bearer ${SUPABASE_KEY!}` },
-    }).catch(() => {});
-    await fetch(`${SUPABASE_URL}/rest/v1/boss_spawn_overrides`, {
+    await fetch(`${SUPABASE_URL}/rest/v1/activity_instances`, {
       method: "POST", headers: { apikey: SUPABASE_KEY!, Authorization: `Bearer ${SUPABASE_KEY!}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ server_id: serverId, boss_id: boss.id, death_time: deathTime }),
-    }).catch(() => {});
-    return reply(`✅ **${boss.name}** has been force-spawned.`);
+      body: JSON.stringify({ activity_id: act.id, start_time: now.toISOString() }),
+    });
+    return reply(`✅ **${act.name}** activity started now.`);
   }
 
   // ── forcespawnall ──
@@ -356,6 +376,76 @@ export async function handleMessage(msg: any) {
         upcoming.push({ name: boss.name, time: spawn <= now ? "**ALIVE NOW**" : `<t:${unix}:t>`, unix, guild: gName });
       }
     }
+    // ── Activities (within 24h cutoff, merged and sorted with bosses) ──
+    const activities = await supabaseQuery(`activities?server_id=eq.${serverId}&is_enabled=not.is.false&deleted_at=is.null`);
+    let activityInstances: any[] = [];
+    if (activities?.length) {
+      const actIds = activities.map((a: any) => a.id);
+      // Fetch instances for these activities in batches (PostgREST in-filter limit ~100)
+      const batchSize = 100;
+      for (let i = 0; i < actIds.length; i += batchSize) {
+        const batch = actIds.slice(i, i + batchSize).map((id: string) => `"${id}"`).join(",");
+        const batchData = await supabaseQuery(`activity_instances?activity_id=in.(${batch})&order=start_time.desc&limit=${batchSize}`);
+        if (batchData) activityInstances.push(...batchData);
+      }
+    }
+    const lastActivityMap = new Map<string, any>();
+    for (const ai of activityInstances) {
+      if (!lastActivityMap.has(ai.activity_id)) lastActivityMap.set(ai.activity_id, ai);
+    }
+    for (const act of (activities || [])) {
+      if (filter && !act.name.toLowerCase().includes(filter.toLowerCase())) continue;
+      const lastInst = lastActivityMap.get(act.id);
+      let startTime: Date | null = null;
+      const raw = act.schedule;
+      if (act.schedule_type === "fixed_schedule" && Array.isArray(raw)) {
+        // Custom items store schedule in UTC, seed/template items in Asia/Manila
+        const actTz = (act.is_custom || act.template_id) ? "UTC" : "Asia/Manila";
+        startTime = findNextScheduleSlot(raw, now, actTz);
+      } else {
+        const schedObj = (typeof raw === "object" && raw !== null && !Array.isArray(raw)) ? raw as { time: string; start_date?: string; utc_start?: string } : null;
+        const timeStr = schedObj?.time ?? (typeof raw === "string" ? raw : null);
+        const utcStart = schedObj?.utc_start ?? null;
+        const recurMs = (act.duration_minutes ?? 0) * 60_000;
+        if (utcStart) {
+          // Activity has explicit UTC start time
+          startTime = new Date(utcStart);
+        } else if (timeStr) {
+          const [h, m] = timeStr.split(":").map(Number);
+          // Convert server-local HH:MM to UTC using timezone offset detection
+          const localDate = now.toLocaleDateString("en-CA", { timeZone: tz });
+          const [y, mo, d] = localDate.split("-").map(Number);
+          const testUtc = Date.UTC(y, mo - 1, d, h, m);
+          const testLocal = new Intl.DateTimeFormat("en-US", { timeZone: tz, hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(testUtc));
+          const [tlH, tlM] = testLocal.split(":").map(Number);
+          const offsetMs = ((tlH - h) * 60 + (tlM - m)) * 60_000;
+          startTime = new Date(testUtc - offsetMs);
+        }
+        if (startTime) {
+          if (startTime <= now && !utcStart) startTime.setUTCDate(startTime.getUTCDate() + 1);
+          if (lastInst?.end_time && recurMs > 0 && act.schedule_type === "fixed_hours") {
+            const baseTime = new Date(lastInst.end_time);
+            const elapsed = now.getTime() - baseTime.getTime();
+            const intervals = Math.ceil(elapsed / recurMs);
+            startTime = new Date(baseTime.getTime() + intervals * recurMs);
+            if (startTime.getTime() <= now.getTime()) startTime = new Date(startTime.getTime() + recurMs);
+          }
+          if (!lastInst?.end_time && lastInst?.start_time && recurMs > 0) {
+            startTime = new Date(lastInst.start_time);
+          }
+        }
+      }
+      if (startTime && startTime.getTime() <= cutoff.getTime()) {
+        const unix = Math.floor(startTime.getTime() / 1000);
+        upcoming.push({
+          name: `📋 ${act.name}`,
+          time: startTime <= now ? "**ACTIVE NOW**" : `<t:${unix}:t>`,
+          unix,
+          guild: "",
+        });
+      }
+    }
+
     if (upcoming.length === 0) {
       if (filter) await cmdLog(cmd, "fail", `no spawns for "${filter}"`); else await cmdLog(cmd, "fail", "no spawns in 24h");
       return reply(filter ? `No spawn data for **${filter}** in 24h.` : "No bosses spawning in 24h.");
@@ -455,15 +545,15 @@ export async function handleMessage(msg: any) {
     if (!isAlive) {
       await cmdLog(cmd, "fail", `${boss.name} not alive`);
       discordFetch(`https://discord.com/api/v10/channels/${channelId}/messages/${msg.id}/reactions/${encodeURIComponent("❌")}/@me`, { method: "PUT", headers: { Authorization: `Bot ${TOKEN}` } }).catch(() => {});
-      return reply(`❌ **${boss.name}** is not currently alive. Use \`;forcespawn ${boss.name}\` first.`);
+      return reply(`❌ **${boss.name}** is not currently alive.\n-# Wrong kill time? Use \`${matchedPrefix}editkilltime ${boss.name} HH:MM [YYYY-MM-DD]\` to fix the previous kill instead.`);
     }
-    if (recentDeaths?.length) {
+    if (recentDeaths?.length && !overrideDeathTime) {
       const lastKill = new Date(recentDeaths[0].death_time);
       const cooldownEnd = new Date(lastKill.getTime() + 2 * 3600_000);
       if (new Date() < cooldownEnd) {
         discordFetch(`https://discord.com/api/v10/channels/${channelId}/messages/${msg.id}/reactions/${encodeURIComponent("❌")}/@me`, { method: "PUT", headers: { Authorization: `Bot ${TOKEN}` } }).catch(() => {});
         const killedAt = Math.floor(lastKill.getTime() / 1000);
-        return reply(`⏳ **${boss.name}** already declared dead at <t:${killedAt}:t>.`);
+        return reply(`⏳ **${boss.name}** already declared dead at <t:${killedAt}:t>.\n-# Wrong time? Use \`${matchedPrefix}editkilltime ${boss.name} HH:MM [YYYY-MM-DD]\` to fix it.`);
       }
     }
 
@@ -513,18 +603,17 @@ export async function handleMessage(msg: any) {
     const replyFields: any[] = [{ name: "Death Time", value: `<t:${unix}:f>`, inline: true }, { name: "Recorded By", value: author, inline: true }];
     if (nextSpawnField) replyFields.push(nextSpawnField);
     await cmdLog(cmd, "ok", `${boss.name} → ${guildName || "unknown"}`);
-    return replyEmbed(`☠️ ${boss.name} Killed by ${guildName || author}`, "", 0xef4444, replyFields);
+    return replyEmbed(`☠️ ${boss.name} Killed by ${guildName || author}`, `Wrong time? Use \`${matchedPrefix}editkilltime ${boss.name} HH:MM [YYYY-MM-DD]\` to fix it.`, 0xef4444, replyFields);
   }
 
-  // ── editkilltime <boss> HH:MM [YYYY-MM-DD] ──
+  // ── editkilltime <boss|activity> HH:MM [YYYY-MM-DD] ──
   if (cmd === "editkilltime") {
     if (!serverId) { await cmdLog(cmd, "fail", "not linked"); return reply("⚠️ Not linked to RaidScout."); }
     const remaining = args.slice(1);
     const timeStr = remaining[remaining.length - 1];
-    if (!timeStr || !/^\d{1,2}:\d{2}$/.test(timeStr)) { await cmdLog(cmd, "fail", "no HH:MM"); return reply("Usage: `!editkilltime Boss Name HH:MM [YYYY-MM-DD]`"); }
+    if (!timeStr || !/^\d{1,2}:\d{2}$/.test(timeStr)) { await cmdLog(cmd, "fail", "no HH:MM"); return reply("Usage: `!editkilltime Boss/Activity HH:MM [YYYY-MM-DD]`"); }
     remaining.pop();
 
-    // Check for optional date: YYYY-MM-DD
     let explicitDate: string | null = null;
     const maybeDate = remaining[remaining.length - 1];
     if (maybeDate && /^\d{4}-\d{2}-\d{2}$/.test(maybeDate)) {
@@ -532,12 +621,25 @@ export async function handleMessage(msg: any) {
       remaining.pop();
     }
 
-    const bossName = remaining.join(" ");
-    if (!bossName) { await cmdLog(cmd, "fail", "no boss name"); return reply("Usage: `!editkilltime Boss Name HH:MM [YYYY-MM-DD]`"); }
+    const targetName = remaining.join(" ");
+    if (!targetName) { await cmdLog(cmd, "fail", "no name"); return reply("Usage: `!editkilltime Boss/Activity HH:MM [YYYY-MM-DD]`"); }
 
-    const bosses = await supabaseQuery(`bosses?server_id=eq.${serverId}&is_enabled=not.is.false&deleted_at=is.null&name=ilike.${encodeURIComponent("%" + bossName + "%")}`);
-    if (!bosses?.length) { await cmdLog(cmd, "fail", `boss "${bossName}" not found`); return reply(`Boss **${bossName}** not found.`); }
-    const boss = bosses[0];
+    const [h, m] = timeStr.split(":").map(Number);
+    const tz = await resolveServerTimezone(serverId);
+    const now = new Date();
+    const localDate = explicitDate || now.toLocaleDateString("en-CA", { timeZone: tz });
+    const [y, mo, d] = localDate.split("-").map(Number);
+    const testUtc = Date.UTC(y, mo - 1, d, h, m);
+    const testLocal = new Intl.DateTimeFormat("en-US", { timeZone: tz, hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(testUtc));
+    const [tlH, tlM] = testLocal.split(":").map(Number);
+    const offsetMs = ((tlH - h) * 60 + (tlM - m)) * 60_000;
+    const newDeathTime = new Date(testUtc - offsetMs);
+    if (!explicitDate && newDeathTime > now) newDeathTime.setUTCDate(newDeathTime.getUTCDate() - 1);
+
+    // Try bosses first
+    const bosses = await supabaseQuery(`bosses?server_id=eq.${serverId}&is_enabled=not.is.false&deleted_at=is.null&name=ilike.${encodeURIComponent("%" + targetName + "%")}`);
+    if (bosses?.length) {
+      const boss = bosses[0];
 
     // Find the most recent death record for this boss
     const recentDeaths = await supabaseQuery(`death_records?server_id=eq.${serverId}&boss_id=eq.${boss.id}&order=death_time.desc&limit=1`);
@@ -613,5 +715,22 @@ export async function handleMessage(msg: any) {
     if (nextSpawnUnix > 0) replyFields.push({ name: "Next Spawn", value: `<t:${nextSpawnUnix}:f>`, inline: true });
     await cmdLog(cmd, "ok", `${boss.name} → ${timeStr}`);
     return replyEmbed(`✏️ ${boss.name} Kill Time Updated`, `Time changed to **${timeStr}**`, 0x3b82f6, replyFields);
+  }
+
+    // Activity fallback — update the latest instance
+    const activities = await supabaseQuery(`activities?server_id=eq.${serverId}&is_enabled=not.is.false&deleted_at=is.null&name=ilike.${encodeURIComponent("%" + targetName + "%")}`);
+    if (!activities?.length) { await cmdLog(cmd, "fail", `"${targetName}" not found`); return reply(`**${targetName}** not found.`); }
+    const act = activities[0];
+    const instances = await supabaseQuery(`activity_instances?activity_id=eq.${act.id}&order=start_time.desc&limit=1`);
+    if (!instances?.length) { await cmdLog(cmd, "fail", `no instance for ${act.name}`); return reply(`No activity instance found for **${act.name}**.`); }
+    const inst = instances[0];
+    const instId = inst.id;
+
+    await fetch(`${SUPABASE_URL}/rest/v1/activity_instances?id=eq.${instId}`, {
+      method: "PATCH", headers: { apikey: SUPABASE_KEY!, Authorization: `Bearer ${SUPABASE_KEY!}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ start_time: newDeathTime.toISOString(), end_time: newDeathTime.toISOString() }),
+    });
+    await cmdLog(cmd, "ok", `${act.name} → ${timeStr}`);
+    return replyEmbed(`✏️ ${act.name} Time Updated`, `Time changed to **${timeStr}**`, 0x3b82f6, []);
   }
 }

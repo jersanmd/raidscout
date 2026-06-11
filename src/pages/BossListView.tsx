@@ -222,8 +222,9 @@ export function BossListView() {
         }
       }
       const now = new Date();
+      const q = searchText.trim().toLowerCase();
       const activitySpawns: BossWithSpawn[] = activities
-        .filter(a => a.is_enabled)
+        .filter(a => a.is_enabled && (!q || a.name.toLowerCase().includes(q)))
         .map((a) => {
         const lastInst = lastInstanceMap.get(a.id) ?? null;
         const info = calculateActivityInfo(a, lastInst, now);
@@ -257,6 +258,11 @@ export function BossListView() {
       result = [...result, ...activitySpawns];
     }
 
+    // When "Activities" filter is active, show only activities (hide bosses)
+    if (filterType === "activities") {
+      result = result.filter(s => s._isActivity);
+    }
+
     if (filterWindow !== null) {
       const cutoff = Date.now() + filterWindow * 3600_000;
       result = result.filter(
@@ -279,7 +285,7 @@ export function BossListView() {
       return aRem - bRem;
     });
     return result;
-  }, [spawns, filterWindow, filterGuild, ownerGuildName, activities, activityInstances]);
+  }, [spawns, filterWindow, filterGuild, ownerGuildName, activities, activityInstances, searchText, filterType]);
 
   // Bosses spawning in the next 24 hours (for announce feature)
   const spawnsIn24h = useMemo(() => {

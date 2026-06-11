@@ -109,16 +109,21 @@ describe("safeMod", () => {
 
 // ── getScheduleTz ────────────────────────────────────────────
 describe("getScheduleTz", () => {
-  it("returns server TZ for non-template bosses", () => {
+  it("returns Asia/Manila for non-template seed bosses", () => {
     expect(getScheduleTz({ template_id: null }, "Asia/Manila")).toBe("Asia/Manila");
   });
 
-  it("returns UTC for template bosses", () => {
+  it("returns UTC for custom/template bosses", () => {
     expect(getScheduleTz({ template_id: "tpl-123" }, "Asia/Manila")).toBe("UTC");
   });
 
-  it("returns server TZ when template_id is undefined", () => {
-    expect(getScheduleTz({}, "America/New_York")).toBe("America/New_York");
+  it("returns Asia/Manila even when server TZ differs (seed bosses are always Manila)", () => {
+    expect(getScheduleTz({}, "America/New_York")).toBe("Asia/Manila");
+  });
+
+  it("returns Asia/Manila for seed bosses regardless of server timezone", () => {
+    expect(getScheduleTz({ template_id: null }, "Europe/London")).toBe("Asia/Manila");
+    expect(getScheduleTz({ template_id: undefined }, "Pacific/Auckland")).toBe("Asia/Manila");
   });
 });
 
@@ -370,5 +375,69 @@ describe("findNextScheduleSlot", () => {
     const result = findNextScheduleSlot(schedule, after, tz);
     // Monday is the closest
     expect(result.getUTCDay()).toBe(1);
+  });
+
+  it("handles single-slot schedule (only Monday)", () => {
+    const singleSlot = [{ day: 1, time: "12:00" }];
+    const after = new Date("2026-06-09T00:00:00Z"); // Tuesday
+    const result = findNextScheduleSlot(singleSlot, after, tz);
+    // Next Monday
+    expect(result.getUTCDay()).toBe(1);
+  });
+});
+
+// ── scheduleSlotToUTC edge cases ─────────────────────────────
+describe("scheduleSlotToUTC edge cases", () => {
+  const tz = "Asia/Manila";
+
+  it("handles midnight slot (00:00)", () => {
+    const ref = new Date("2026-06-07T00:00:00Z"); // Sunday UTC
+    const result = scheduleSlotToUTC(tz, ref, 1, "00:00"); // Monday 00:00 Manila
+    // Monday 00:00 Manila = Sunday 16:00 UTC
+    expect(result.getUTCDay()).toBe(0); // Sunday in UTC
+    expect(result.getUTCHours()).toBe(16);
+  });
+
+  it("handles 23:59 slot", () => {
+    const ref = new Date("2026-06-07T00:00:00Z"); // Sunday UTC
+    const result = scheduleSlotToUTC(tz, ref, 1, "23:59"); // Monday 23:59 Manila
+    // Monday 23:59 Manila = Monday 15:59 UTC
+    expect(result.getUTCDay()).toBe(1);
+    expect(result.getUTCHours()).toBe(15);
+    expect(result.getUTCMinutes()).toBe(59);
+  });
+
+  it("handles timezone with negative offset (America/New_York = UTC-4)", () => {
+    const nyTz = "America/New_York";
+    const ref = new Date("2026-06-07T12:00:00Z"); // Sunday 12:00 UTC
+    const result = scheduleSlotToUTC(nyTz, ref, 1, "12:00"); // Monday 12:00 NY
+    // Monday 12:00 EDT = Monday 16:00 UTC
+    expect(result.getUTCDay()).toBe(1);
+    expect(result.getUTCHours()).toBe(16);
+  });
+
+  it("handles timezone with half-hour offset (Asia/Kolkata = UTC+5:30)", () => {
+    const tz530 = "Asia/Kolkata";
+    const ref = new Date("2026-06-07T00:00:00Z"); // Sunday
+    const result = scheduleSlotToUTC(tz530, ref, 1, "12:00"); // Monday 12:00 IST
+    // Monday 12:00 IST = Monday 06:30 UTC
+    expect(result.getUTCHours()).toBe(6);
+    expect(result.getUTCMinutes()).toBe(30);
+  });
+
+  it("handles same-day slot (today)", () => {
+    const ref = new Date("2026-06-09T00:00:00Z"); // Tuesday UTC
+    const result = scheduleSlotToUTC(tz, ref, 2, "12:00"); // Tuesday 12:00 Manila
+    // Tuesday 12:00 Manila = Tuesday 04:00 UTC
+    expect(result.toISOString()).toBe("2026-06-09T04:00:00.000Z");
+  });
+
+  it("wraps forward across 3-day boundary (Friday from Tuesday)", () => {
+    const ref = new Date("2026-06-09T00:00:00Z"); // Tuesday UTC
+    const result = scheduleSlotToUTC(tz, ref, 5, "12:00"); // Friday 12:00 Manila
+    // Diff = 5 - 2 = 3, not > 3, so no adjustment... actually:
+    // dayDiff = 5 - 2 = 3, 3 is not < -3 and not > 3, so no adjustment
+    // Should be Friday of the same week
+    expect(result.getUTCDay()).toBe(5);
   });
 });

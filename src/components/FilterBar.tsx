@@ -36,7 +36,7 @@ export function FilterBar({
           type="text"
           value={searchText}
           onChange={(e) => onSearchChange(e.target.value)}
-          placeholder="Search bosses..."
+          placeholder="Search bosses & activities..."
           className="w-full pl-10 pr-4 py-2.5 bg-[#18181b] border border-[#27272a] rounded-xl text-[#fafafa] placeholder-[#52525b] text-sm outline-none focus:border-[#52525b] focus:ring-1 focus:ring-[#27272a] transition-all duration-200"
         />
       </div>

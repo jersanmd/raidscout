@@ -69,7 +69,9 @@ export function computeOwnerGuild(
 }
 
 export function getScheduleTz(boss: any, serverTz: string): string {
-  return boss.template_id ? "UTC" : serverTz;
+  // Seed bosses without template_id were created with Manila-local times.
+  // Custom bosses (template_id set) are stored in UTC via localSlotToUtc.
+  return boss.template_id ? "UTC" : "Asia/Manila";
 }
 
 export function scheduleSlotToUTC(tz: string, refDate: Date, day: number, time: string): Date {

@@ -37,7 +37,7 @@ async function resolveRoles(guildId: string): Promise<Map<string, string>> {
   return map;
 }
 
-function resolvePrefix(prefix: string, roleMap: Map<string, string>): string {
+export function resolvePrefix(prefix: string, roleMap: Map<string, string>): string {
   return prefix.replace(/@(\S+)/g, (_, name) => {
     const id = roleMap.get(name.toLowerCase());
     return id ? `<@&${id}>` : `@${name}`;
