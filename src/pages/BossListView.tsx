@@ -621,6 +621,8 @@ export function BossListView() {
     );
   }
 
+  const enabledActivityCount = activities.filter(a => a.is_enabled).length;
+
   return (
     <div className="max-w-7xl mx-auto px-3 sm:px-4 py-4 sm:py-6 space-y-4 sm:space-y-6">
       {/* Saving overlay — blocks all interaction */}
@@ -633,7 +635,7 @@ export function BossListView() {
             <Skull className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#a1a1aa]" />
           </div>
           <span className="text-[#fafafa] font-bold text-xs sm:text-sm">
-            {spawns.length} Boss{spawns.length !== 1 ? "es" : ""}{activities.length > 0 ? ` · ${activities.length} Activit${activities.length !== 1 ? "ies" : "y"}` : ""}
+            {spawns.length} Boss{spawns.length !== 1 ? "es" : ""}{enabledActivityCount > 0 ? ` · ${enabledActivityCount} Activit${enabledActivityCount !== 1 ? "ies" : "y"}` : ""}
           </span>
         </div>
         <span className="w-px h-5 sm:h-6 bg-[#27272a]" />
