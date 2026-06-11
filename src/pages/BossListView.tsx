@@ -211,7 +211,7 @@ export function BossListView() {
 
   // Apply window + guild filter client-side — always keep alive & unknown bosses visible
   const filteredSpawns = useMemo(() => {
-    let result = spawns;
+    let result: (BossWithSpawn & { _isActivity?: boolean; _activity?: Activity; _lastInstance?: ActivityInstance | null })[] = spawns;
 
     // Merge in activities sorted by next start time
     if (activities.length > 0) {
