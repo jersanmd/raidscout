@@ -11,7 +11,7 @@ interface SEOProps {
 
 const SITE_NAME = "RaidScout";
 const BASE_URL = "https://www.raidscout.com";
-const DEFAULT_OG_IMAGE = `${BASE_URL}/og-image.png`;
+const DEFAULT_OG_IMAGE = `${BASE_URL}/og-banner.png`;
 
 export function SEOHead({
   title,
