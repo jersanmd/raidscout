@@ -97,3 +97,45 @@ export async function fetchDeathRallyImages(deathRecordId: string): Promise<stri
     .single();
   return parseRallyImageArray((data as any)?.rally_image_url);
 }
+
+// ── Scan Results Persistence ────────────────────────────────
+
+import type { ScanResults } from "@/types";
+
+/** Save AI scan results to a death record */
+export async function saveDeathScanResults(deathRecordId: string, results: ScanResults): Promise<void> {
+  const { error } = await supabase
+    .from("death_records")
+    .update({ scan_results: results })
+    .eq("id", deathRecordId);
+  if (error) console.error("Failed to save scan results:", error);
+}
+
+/** Load AI scan results from a death record */
+export async function fetchDeathScanResults(deathRecordId: string): Promise<ScanResults | null> {
+  const { data } = await supabase
+    .from("death_records")
+    .select("scan_results")
+    .eq("id", deathRecordId)
+    .single();
+  return (data as any)?.scan_results ?? null;
+}
+
+/** Save AI scan results to an activity instance */
+export async function saveActivityScanResults(instanceId: string, results: ScanResults): Promise<void> {
+  const { error } = await supabase
+    .from("activity_instances")
+    .update({ scan_results: results })
+    .eq("id", instanceId);
+  if (error) console.error("Failed to save activity scan results:", error);
+}
+
+/** Load AI scan results from an activity instance */
+export async function fetchActivityScanResults(instanceId: string): Promise<ScanResults | null> {
+  const { data } = await supabase
+    .from("activity_instances")
+    .select("scan_results")
+    .eq("id", instanceId)
+    .single();
+  return (data as any)?.scan_results ?? null;
+}

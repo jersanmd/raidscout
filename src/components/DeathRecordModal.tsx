@@ -2,18 +2,19 @@ import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { Clock, Zap, X, Upload, Check, Plus, Search, Users, ClipboardPaste, Sparkles, Loader2, Pencil, ImagePlus, Shield } from "lucide-react";
+import { RallyImageOverlay } from "@/components/RallyImageOverlay";
 import { useMembers } from "@/hooks/useMembers";
 import { useAuth } from "@/contexts/AuthContext";
 import { useServerId } from "@/contexts/ServerContext";
 import { extractNamesWithAI } from "@/lib/vision";
 import { isSupabaseConfigured, fetchGuilds, fetchStaticParties, assignPartyToBoss, unlinkParty, type StaticParty } from "@/lib/supabase";
 import { guildColor } from "@/lib/constants";
-import type { Boss, Member, Guild } from "@/types";
+import type { Boss, Member, Guild, ScanResults } from "@/types";
 
 interface DeathRecordModalProps {
  boss: Boss;
  onClose: () => void;
- onSubmit: (deathTime: Date, rallyImages: File[], attendeeIds: string[], partyLeaders?: Record<string, string> | null) => void;
+ onSubmit: (deathTime: Date, rallyImages: File[], attendeeIds: string[], partyLeaders?: Record<string, string> | null, scanResults?: ScanResults | null) => void;
  /** Pre-set death time (e.g., schedule spawn time). Skips the time-selection step entirely. */
  defaultDeathTime?: Date;
  /** Hide the "Custom Time" tab — only allow the pre-set or "now" time */
@@ -476,56 +477,6 @@ export function DeathRecordModal({ boss, onClose, onSubmit, defaultDeathTime, hi
  };
 
  /**
- * Parse pasted text into individual player names.
- * Handles:
- * - One name per line
- * - Comma-separated: "DonAlas, xSupladoo, Demonyita"
- * - Space-separated rows: "DonAlas xSupladoo Demonyita"
- * - Mixed: "DonAlas, xSupladoo\nDemonyita E66no99s"
- */
- const parsePastedNames = (text: string): string[] => {
- // Split by newlines first, then by commas, then by 2+ spaces
- const lines = text.split(/[\n\r]+/);
-
- const rawNames: string[] = [];
- for (const line of lines) {
- const trimmed = line.trim();
- if (!trimmed) continue;
-
- // Try comma-separated first
- if (trimmed.includes(",")) {
- rawNames.push(...trimmed.split(",").map((s) => s.trim()).filter(Boolean));
- } else {
- // Split by 2+ spaces (preserves names with single spaces)
- const spaceSplit = trimmed.split(/\s{2,}/);
- // If no double spaces, split by single spaces — but only if result looks like names
- if (spaceSplit.length === 1) {
- const singleSplit = trimmed.split(/\s+/);
- // Heuristic: if tokens are mostly single words (no spaces within), treat as names
- rawNames.push(...singleSplit.filter(Boolean));
- } else {
- rawNames.push(...spaceSplit.filter(Boolean));
- }
- }
- }
-
- // Deduplicate & clean
- const seen = new Set<string>();
- const names: string[] = [];
- for (const raw of rawNames) {
- const cleaned = raw.replace(/^[@#*•\-–—\s]+|[@#*•\-–—\s]+$/g, "").trim();
- if (cleaned.length < 2) continue;
- if (/^\d+$/.test(cleaned)) continue; // purely numeric
- const lower = cleaned.toLowerCase();
- if (!seen.has(lower)) {
- seen.add(lower);
- names.push(cleaned);
- }
- }
- return names;
- };
-
- /**
  * Process pasted names: create missing members and auto-select all.
  */
  const handleProcessPastedNames = () => {
@@ -582,10 +533,20 @@ export function DeathRecordModal({ boss, onClose, onSubmit, defaultDeathTime, hi
  }
  }
 
- onSubmit(deathTime, rallyImages, finalIds, Object.keys(partyLeaders).length > 0 ? partyLeaders : null);
- };
+  // Build scan results for persistence
+  const scanResults: ScanResults | null = aiScanned && aiDetectedNames && aiDetectedNames.length > 0
+    ? {
+        exactMatches: exactMatchNames,
+        fuzzyMatches: Object.fromEntries([...fuzzyMatchNames.entries()].map(([k, v]) => [k, v.name])),
+        unmatched: unmatchedNames,
+        alreadyAttended: [],
+      }
+    : null;
 
- const filteredGroupedMembers = useMemo(() => {
+  onSubmit(deathTime, rallyImages, finalIds, Object.keys(partyLeaders).length > 0 ? partyLeaders : null, scanResults);
+  };
+
+  const filteredGroupedMembers = useMemo(() => {
  if (!searchQuery.trim()) return groupedMembers;
  const q = searchQuery.toLowerCase();
  return groupedMembers
@@ -1237,15 +1198,15 @@ export function DeathRecordModal({ boss, onClose, onSubmit, defaultDeathTime, hi
  >
  <X className="w-6 h-6" />
  </button>
- <img
+ <RallyImageOverlay
  src={rallyPreviews[fullscreenPreviewIndex]}
  alt="Rally screenshot full size"
+ exactMatches={exactMatchNames}
+ fuzzyMatches={fuzzyMatchNames}
+ unmatched={unmatchedNames}
  className="max-w-full max-h-[90vh] object-contain rounded-lg"
  onClick={(e) => e.stopPropagation()}
  />
- <p className="absolute bottom-4 text-sm text-slate-400">
- Click anywhere or press Esc to close
- </p>
  </div>,
  document.body
  )}

@@ -12,11 +12,11 @@ import { guildColor } from "@/lib/constants";
 import { fetchStaticParties, assignPartyToBoss, createParty, deleteParty, addMemberToParty, removeMemberFromParty, fetchGuilds, type StaticParty } from "@/lib/supabase";
 import { useServerId } from "@/contexts/ServerContext";
 import { useMembers } from "@/hooks/useMembers";
-import type { BossWithSpawn, Activity, Guild, Member } from "@/types";
+import type { BossWithSpawn, Activity, Guild, Member, ScanResults } from "@/types";
 
 interface BossCardProps {
   spawn: BossWithSpawn;
-  onRecordDeath?: (bossId: string, deathTime: Date, rallyImages: File[], attendeeIds: string[]) => void;
+  onRecordDeath?: (bossId: string, deathTime: Date, rallyImages: File[], attendeeIds: string[], scanResults?: ScanResults | null) => void;
   onSetSpawnDate?: (bossId: string, spawnDate: Date) => void;
   onUrgentSpawn?: (bossName: string) => void;
   onCriticalSpawn?: (bossName: string) => void;
@@ -47,7 +47,7 @@ interface BossCardProps {
   /** Called when user clicks "Finish" on an activity */
   onFinishActivity?: (activityId: string) => void;
   /** Called when user records an activity end with time + attendance (same signature as onRecordDeath) */
-  onRecordEnd?: (activityId: string, endTime: Date, rallyImages: File[], attendeeIds: string[]) => void;
+  onRecordEnd?: (activityId: string, endTime: Date, rallyImages: File[], attendeeIds: string[], scanResults?: ScanResults | null) => void;
   /** Called when user edits an activity's next start date & time */
   onEditActivityTime?: (activityId: string, dateStr: string, timeStr: string) => void;
   /** Hide schedule/time display even when status is countdown (e.g., fixed_hours after first finish) */
@@ -491,11 +491,11 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
           activityName={activity?.name}
           ownerGuildId={ownerGuildId}
           onClose={() => setShowModal(false)}
-          onSubmit={(dt, imgs, ids) => {
+          onSubmit={(dt, imgs, ids, _partyLeaders, scanResults) => {
             if (isActivity && onRecordEnd) {
-              onRecordEnd(activity!.id, dt, imgs, ids);
+              onRecordEnd(activity!.id, dt, imgs, ids, scanResults);
             } else if (onRecordDeath) {
-              onRecordDeath(boss.id, dt, imgs, ids);
+              onRecordDeath(boss.id, dt, imgs, ids, scanResults);
             }
             setShowModal(false);
           }}

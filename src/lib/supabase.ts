@@ -199,6 +199,10 @@ export {
   addRallyImageToDeath,
   removeRallyImageFromDeath,
   fetchDeathRallyImages,
+  saveDeathScanResults,
+  fetchDeathScanResults,
+  saveActivityScanResults,
+  fetchActivityScanResults,
 } from "./api/storage";
 
 // Admin

@@ -172,7 +172,7 @@ export function WeeklyScheduleView() {
   }, [bossGuilds, guilds, deathRecords, spawnMap, currentServer?.timezone]);
 
   const handleRecordDeath = useCallback(
-    async (bossId: string, deathTime: Date, rallyImages: File[], attendeeIds: string[]) => {
+    async (bossId: string, deathTime: Date, rallyImages: File[], attendeeIds: string[], scanResults?: import("@/types").ScanResults | null) => {
       if (!user && !isViewer) return;
       const boss = bosses.find((b) => b.id === bossId);
       if (!boss) return;
@@ -181,6 +181,12 @@ export function WeeklyScheduleView() {
         const ownerGuildName = getOwnerGuildName(boss.id);
         const ownerGuildId = ownerGuildName ? guilds.find(g => g.name === ownerGuildName)?.id ?? null : null;
         const record = await insertDeathRecord(bossId, deathTime, ownerGuildId);
+
+        // Save AI scan results if available
+        if (scanResults) {
+          const { saveDeathScanResults } = await import("@/lib/supabase");
+          try { await saveDeathScanResults(record.id, scanResults); } catch {}
+        }
 
         // Upload rally images to storage
         for (const img of rallyImages) {
@@ -698,8 +704,8 @@ export function WeeklyScheduleView() {
           hideCustomTime={markBoss.boss.spawn_type === "fixed_schedule"}
           ownerGuildId={(() => { const n = getOwnerGuildName(markBoss.boss.id); return n ? guilds.find(g => g.name === n)?.id ?? null : null; })()}
           onClose={() => setMarkBoss(null)}
-          onSubmit={(deathTime, rallyImages, attendeeIds) => {
-            handleRecordDeath(markBoss.boss.id, deathTime, rallyImages, attendeeIds);
+          onSubmit={(deathTime, rallyImages, attendeeIds, _partyLeaders, scanResults) => {
+            handleRecordDeath(markBoss.boss.id, deathTime, rallyImages, attendeeIds, scanResults);
             setMarkBoss(null);
           }}
         />

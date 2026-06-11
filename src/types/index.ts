@@ -258,6 +258,14 @@ export interface ActivityInstance {
   created_at: string;
 }
 
+/** Persisted AI scan results for rally image overlays */
+export interface ScanResults {
+  exactMatches: string[];
+  fuzzyMatches: Record<string, string>; // detectedName → memberName
+  unmatched: string[];
+  alreadyAttended: string[];
+}
+
 export interface ActivityParty {
   id: string;
   activity_instance_id: string;

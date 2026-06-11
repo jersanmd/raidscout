@@ -336,7 +336,7 @@ export function BossListView() {
   }, [bossRotationInfo, queryClient, guilds, deathRecords]);
 
   const handleRecordDeath = useCallback(
-    async (bossId: string, deathTime: Date, rallyImages: File[], attendeeIds: string[]) => {
+    async (bossId: string, deathTime: Date, rallyImages: File[], attendeeIds: string[], scanResults?: import("@/types").ScanResults | null) => {
       // Log to history (without deathRecordId initially)
       const boss = spawns.find((s) => s.boss.id === bossId)?.boss;
       if (!boss) return;
@@ -352,6 +352,12 @@ export function BossListView() {
           const ownerGuildId = ownerGuildNameStr ? guilds.find(g => g.name === ownerGuildNameStr)?.id ?? null : null;
           const record = await insertDeathRecord(bossId, deathTime, ownerGuildId);
           deathRecordId = record.id;
+
+          // Save AI scan results if available
+          if (scanResults) {
+            const { saveDeathScanResults } = await import("@/lib/supabase");
+            try { await saveDeathScanResults(deathRecordId, scanResults); } catch {}
+          }
 
           // Upload rally images to storage
           for (const img of rallyImages) {

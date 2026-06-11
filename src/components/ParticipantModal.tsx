@@ -6,6 +6,7 @@ import {
   useAddAttendance,
   useRemoveAttendance,
 } from "@/hooks/useAttendance";
+import { RallyImageOverlay } from "@/components/RallyImageOverlay";
 import { useMembers } from "@/hooks/useMembers";
 import { useServerId } from "@/contexts/ServerContext";
 import { markActivityAttendance, fetchActivityAttendance, fetchActivityInstance, setActivityRallyImages, setActivityPartyLeaders } from "@/lib/supabase";
@@ -17,6 +18,10 @@ import {
   removeRallyImageFromDeath,
   uploadRallyImage,
   fetchDeathRallyImages,
+  fetchDeathScanResults,
+  saveDeathScanResults,
+  fetchActivityScanResults,
+  saveActivityScanResults,
 } from "@/lib/supabase";
 import { guildColor } from "@/lib/constants";
 import {
@@ -156,6 +161,41 @@ export function ParticipantModal({
         .then(setSavedRallyUrls)
         .catch(() => {});
     }
+  }, [deathRecordId, activityInstanceId]);
+
+  // Load persisted AI scan results on open
+  useEffect(() => {
+    (async () => {
+      try {
+        let results: import("@/types").ScanResults | null = null;
+        if (activityInstanceId) {
+          results = await fetchActivityScanResults(activityInstanceId);
+        } else if (deathRecordId) {
+          results = await fetchDeathScanResults(deathRecordId);
+        }
+        if (results) {
+          setExactMatchNames(results.exactMatches || []);
+          const fm = new Map<string, { id: string; name: string }>();
+          if (results.fuzzyMatches) {
+            // Need to look up member IDs from names — but we may not have members loaded yet
+            // Store names only; matching will be re-resolved when scan is re-run
+            for (const [detected, memberName] of Object.entries(results.fuzzyMatches)) {
+              fm.set(detected, { id: "", name: memberName });
+            }
+          }
+          setFuzzyMatchNames(fm);
+          setUnmatchedNames(results.unmatched || []);
+          setAlreadyAttendedNames(results.alreadyAttended || []);
+          // Mark as having detected names so the overlay shows
+          const allNames = [
+            ...(results.exactMatches || []),
+            ...Object.values(results.fuzzyMatches || {}),
+            ...(results.unmatched || []),
+          ];
+          if (allNames.length > 0) setAiDetectedNames(allNames);
+        }
+      } catch {}
+    })();
   }, [deathRecordId, activityInstanceId]);
 
   // Party leaders state (boss death records or activity instances)
@@ -407,11 +447,27 @@ export function ParticipantModal({
         } catch {}
       }
 
-      setExactMatchNames([]);
-      setFuzzyMatchNames(new Map());
+      // Keep scan results for overlay display (don't clear exact/fuzzy)
+      const allDetected = [...exactNames, ...fuzzyMap.keys(), ...unmatched];
+      setExactMatchNames(exactNames);
+      setFuzzyMatchNames(fuzzyMap);
       setUnmatchedNames(unmatched);
       setAlreadyAttendedNames(alreadyThere);
-      setAiDetectedNames(unmatched.length > 0 ? unmatched : null);
+      setAiDetectedNames(allDetected.length > 0 ? allDetected : null);
+
+      // Save scan results to DB for future viewing
+      const scanResults: import("@/types").ScanResults = {
+        exactMatches: exactNames,
+        fuzzyMatches: Object.fromEntries([...fuzzyMap.entries()].map(([k, v]) => [k, v.name])),
+        unmatched,
+        alreadyAttended: alreadyThere,
+      };
+      if (activityInstanceId) {
+        try { await saveActivityScanResults(activityInstanceId, scanResults); } catch {}
+      } else if (deathRecordId) {
+        try { await saveDeathScanResults(deathRecordId, scanResults); } catch {}
+      }
+
       if (idsToAdd.length > 0) {
         queryClient.invalidateQueries({ queryKey: ["attendance"] });
       }
@@ -926,9 +982,14 @@ export function ParticipantModal({
               >
                 <X className="w-6 h-6" />
               </button>
-              <img
+              <RallyImageOverlay
                 src={rallyPreviews[fullscreenPreviewIndex]}
                 alt="Rally screenshot"
+                attendingNames={attendance.map(a => memberMap.get(a.member_id)).filter(Boolean) as string[]}
+                exactMatches={exactMatchNames}
+                fuzzyMatches={fuzzyMatchNames}
+                unmatched={unmatchedNames}
+                alreadyAttended={alreadyAttendedNames}
                 className="max-w-full max-h-[90vh] object-contain rounded-lg"
                 onClick={(e) => e.stopPropagation()}
               />
