@@ -35,7 +35,8 @@ export function getOwnerGuildName(
   if (scheduleEntries.length > 0) {
     const dow = dayOfWeek ?? (() => {
       const spawn = spawns.find(s => s.boss.id === bossId);
-      const spawnDate = spawn?.status === "alive" ? new Date() : (spawn?.nextSpawn ?? new Date());
+      // Use effective spawn time — reflects force-spawn overrides
+      const spawnDate = spawn?.nextSpawn ?? new Date();
       return spawnDate.getDay();
     })();
     const match = scheduleEntries.find(bg => bg.day_of_week === dow);
@@ -149,7 +150,9 @@ function getDailyOwnerGuild(
   const bossData = spawns.find(s => s.boss.id === bossId)?.boss;
   const respawnHours = bossData?.respawn_hours ?? 0;
   const deathDate = new Date(lastDeath.death_time);
-  const spawnDate = new Date(deathDate.getTime() + respawnHours * 3600000);
+  // Use effective spawn time (reflects force-spawn overrides), fall back to natural spawn
+  const spawn = spawns.find(s => s.boss.id === bossId);
+  const spawnDate = spawn?.nextSpawn ?? new Date(deathDate.getTime() + respawnHours * 3600000);
   const lastGuildId = (lastDeath as any).owner_guild_id;
 
   // Same-day death + spawn → same guild keeps the boss (uses server timezone for day boundary)
@@ -191,7 +194,9 @@ function getDailyRotationIndex(
     const bossData = spawns.find(s => s.boss.id === bossId)?.boss;
     const respawnHours = bossData?.respawn_hours ?? 0;
     const deathDate = new Date(lastDeath.death_time);
-    const spawnDate = new Date(deathDate.getTime() + respawnHours * 3600000);
+    // Use effective spawn time (reflects force-spawn overrides), fall back to natural spawn
+    const spawn = spawns.find(s => s.boss.id === bossId);
+    const spawnDate = spawn?.nextSpawn ?? new Date(deathDate.getTime() + respawnHours * 3600000);
 
     if (deathDate.toLocaleDateString("en-CA", { timeZone: timezone }) === spawnDate.toLocaleDateString("en-CA", { timeZone: timezone })) {
       // Same day — same guild keeps the boss

@@ -38,7 +38,8 @@ export function computeOwnerGuild(
     }
     const respawnHours = boss.respawn_hours ?? 0;
     const deathDate = new Date(lastDeath.death_time);
-    const spawnDate = new Date(deathDate.getTime() + respawnHours * 3600000);
+    // Use the effective spawn time (passed in, includes force-spawn overrides)
+    const spawnDate = spawn;
     const lastGuildId = lastDeath.owner_guild_id;
     const sameDay = deathDate.toLocaleDateString("en-CA", { timeZone: tz }) === spawnDate.toLocaleDateString("en-CA", { timeZone: tz });
     if (sameDay) {

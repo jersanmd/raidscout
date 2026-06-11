@@ -314,16 +314,29 @@ export function BossListView() {
       if (info.mode === "daily") {
         // Daily mode: update the last death record's owner_guild_id directly
         const targetGuildName = info.guilds[targetIndex]?.name;
+        if (!targetGuildName) {
+          setToast({ type: "error", message: "Target guild not found." });
+          return;
+        }
         const targetGuildId = guilds.find(g => g.name === targetGuildName)?.id;
+        if (!targetGuildId) {
+          setToast({ type: "error", message: `Guild "${targetGuildName}" not found in server.` });
+          return;
+        }
         const lastDeath = deathRecords
           .filter(dr => dr.boss_id === bossId && !dr.is_initial_spawn)
           .sort((a, b) => new Date(b.death_time).getTime() - new Date(a.death_time).getTime())[0];
-        if (lastDeath && targetGuildId) {
-          await supabase.from("death_records").update({ owner_guild_id: targetGuildId }).eq("id", lastDeath.id);
+        if (!lastDeath) {
+          setToast({ type: "error", message: "No death record found for this boss. Record a kill first." });
+          return;
         }
+        await supabase.from("death_records").update({ owner_guild_id: targetGuildId }).eq("id", lastDeath.id);
+        setToast({ type: "success", message: `Rotation set to ${targetGuildName}.` });
       } else {
         // Rotation (per kill) mode: set rotation_counter directly
+        const targetGuildName = info.guilds[targetIndex]?.name;
         await setBossRotation(bossId, targetIndex);
+        setToast({ type: "success", message: `Rotation set to ${targetGuildName ?? "next guild"}.` });
       }
       await queryClient.invalidateQueries({ queryKey: ["bosses"] });
       await queryClient.refetchQueries({ queryKey: ["bosses"] });
@@ -333,7 +346,7 @@ export function BossListView() {
     } catch (err: any) {
       setToast({ type: "error", message: err?.message ?? "Failed to set rotation" });
     }
-  }, [bossRotationInfo, queryClient, guilds, deathRecords]);
+  }, [bossRotationInfo, queryClient, guilds, deathRecords, setToast]);
 
   const handleRecordDeath = useCallback(
     async (bossId: string, deathTime: Date, rallyImages: File[], attendeeIds: string[], scanResults?: import("@/types").ScanResults | null) => {
