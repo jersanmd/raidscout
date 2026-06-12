@@ -33,4 +33,32 @@
   - Bot build integrity (3 tests): valid JS output via `new Function()`, spawn-cron logic bundled, error logging present
   - Error logging behavior (2 tests): `catch(err) { console.error(...) }` doesn't throw, preserves error info
   - File validation (15 tests): all 14 changed files exist and have content, zero silent `catch {}` in 6 critical files
-- **155 tests total** (152 passing, 3 pre-existing FilterBar UI placeholder mismatches)
+- **13 new useRecordDeath tests** — verifies death insert, scan save, image upload, attendance, query invalidation, rotation advance, toast notifications, and Discord notification dispatch
+- **195 tests total** (192 passing, 3 pre-existing FilterBar UI placeholder mismatches)
+
+---
+
+## 🔧 Bot Reliability
+
+- **Command timeout (15s)** — every Discord command now has a hard 15-second timeout. If the database is slow, the bot replies "Command timed out" instead of hanging silently forever.
+- **Active command tracking** — `/status` endpoint now includes `active_commands` count for monitoring bot load in real time.
+- **Concurrency module** — new `scripts/bot/concurrency.ts` tracks in-flight commands and enforces timeouts via `Promise.race`.
+
+## 🏗️ Type Safety
+
+- **`@ts-nocheck` removed from all 13 bot runtime files** — the entire bot runtime (gateway, commands, spawn cron, notifications, threads, party utils, server cache, guild join, Discord API, config, logging, supabase helpers, concurrency) now has TypeScript checking under `tsconfig.bot.json`.
+- **Generic database helpers** — `supabaseQuery<T>` and `supabaseQuerySafe<T>` now support opt-in typing. Callers can provide a type parameter to get typed returns; defaults to `any` for backward compatibility.
+- **Fixed `shared/types.ts` import** — `leaderboard.ts` now correctly imports `MemberBossKill` and `MemberActivityAttendance` from the shared types module. Added `shared/*` path alias to both `tsconfig.app.json` and `vite.config.ts`.
+
+## ♻️ Code Quality
+
+- **`useRecordDeath` shared hook** — extracted 115 lines of duplicated death-recording logic from `BossListView` and `WeeklyScheduleView` into a single hook. Both files now call `recordDeath({ bossId, bossName, deathTime, attendeeIds, ... })`. Handles: death insert, AI scan save, rally image upload, spawn override delete, attendance loop, query invalidation, rotation advance, toast notifications, Discord notification.
+
+## 🎨 UI
+
+- **Simulated landing page hero timer** — replaced the hardcoded server-dependent demo timer with a fully client-side simulation. Cycles through 7 realistic bosses (Venatus, Viorent, Ego, Lady Dalia, Livera, Clemantis, Icaruthia) with countdowns, alive windows, and automatic respawn. Works on any deploy with zero server dependency.
+- **Centered game cards** — "One Platform, Any MMO" game cards now use centered flexbox layout instead of left-aligned grid.
+
+## 📄 Documentation
+
+- **Comprehensive project review** — `docs/PROJECT_REVIEW.md` with detailed assessments across product, UX, architecture, code quality, security, database, performance, SaaS/business, and launch readiness.
