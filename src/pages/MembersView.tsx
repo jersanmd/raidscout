@@ -3,6 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { useMembers } from "@/hooks/useMembers";
 import { useAuth } from "@/contexts/AuthContext";
+import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { updateMemberName, deleteMember, upsertMember, isSupabaseConfigured, fetchGuilds, setMemberGuild, bulkAddMembers, supabase, fetchStaticParties, createParty, deleteParty, addMemberToParty, removeMemberFromParty, type StaticParty } from "@/lib/supabase";
 import { useServerId, useHasPermission } from "@/contexts/ServerContext";
 import type { Guild } from "@/types";
@@ -267,6 +268,7 @@ export function MembersView() {
 
   // Bulk add
   const [showBulkModal, setShowBulkModal] = useState(false);
+  useEscapeKey(() => { setShowBulkModal(false); setBulkNames(""); });
   const [bulkNames, setBulkNames] = useState("");
   const [bulkAdding, setBulkAdding] = useState(false);
   const [bulkGuild, setBulkGuild] = useState<string>("");

@@ -12,6 +12,7 @@ import { guildColor } from "@/lib/constants";
 import { fetchStaticParties, assignPartyToBoss, createParty, deleteParty, addMemberToParty, removeMemberFromParty, fetchGuilds, type StaticParty } from "@/lib/supabase";
 import { useServerId } from "@/contexts/ServerContext";
 import { useMembers } from "@/hooks/useMembers";
+import { useEscapeKey } from "@/hooks/useEscapeKey";
 import type { BossWithSpawn, Activity, Guild, Member, ScanResults } from "@/types";
 
 interface BossCardProps {
@@ -67,6 +68,13 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
   const [optimisticOwner, setOptimisticOwner] = useState<string | null>(null);
   const [showPartyModal, setShowPartyModal] = useState(false);
   const [showCustomPartyModal, setShowCustomPartyModal] = useState(false);
+  useEscapeKey(() => {
+    setShowModal(false);
+    setShowEditSpawnModal(false);
+    setShowEditTimeModal(false);
+    setShowPartyModal(false);
+    setShowCustomPartyModal(false);
+  });
   const [parties, setParties] = useState<StaticParty[]>([]);
   const [guilds, setGuilds] = useState<Guild[]>([]);
   // New party creation state (matches MembersView)

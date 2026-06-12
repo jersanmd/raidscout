@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase, fetchGames } from "@/lib/supabase";
+import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { SEOHead } from "@/components/SEOHead";
 import { version } from "../../package.json";
 import {
@@ -205,6 +206,7 @@ export function LandingPage() {
   const [resetSent, setResetSent] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [showVideo, setShowVideo] = useState(false);
+  useEscapeKey(() => setShowVideo(false));
 
   const YOUTUBE_ID = import.meta.env.VITE_YOUTUBE_DEMO_ID || "dQw4w9WgXcQ";
 
