@@ -1,5 +1,6 @@
 import { supabase, getCurrentServerId } from "./client";
 import type { LeaderboardEntry } from "@/types";
+import type { MemberBossKill, MemberActivityAttendance } from "../../../shared/types";
 import { supabaseUrl, supabaseKey } from "./client";
 
 // ── Leaderboard ─────────────────────────────────────────────
