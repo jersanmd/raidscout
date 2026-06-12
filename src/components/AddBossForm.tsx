@@ -15,9 +15,11 @@ interface Props {
   serverId?: string;
   onCreated: () => void;
   onCancel: () => void;
+  /** Called with the new boss ID after creation (for chaining guild assignment etc.) */
+  onCreatedWithId?: (bossId: string) => Promise<void>;
 }
 
-export function AddBossForm({ gameId, gameSlug, serverId, onCreated, onCancel }: Props) {
+export function AddBossForm({ gameId, gameSlug, serverId, onCreated, onCancel, onCreatedWithId }: Props) {
   const isServerMode = !!serverId;
   const { timezone: userTz } = useUserTimezone();
   const tz = userTz || Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -59,7 +61,7 @@ export function AddBossForm({ gameId, gameSlug, serverId, onCreated, onCancel }:
           : spawnType === "fixed_hours"
             ? { time: `${startHours.padStart(2, "0")}:${startMinutes.padStart(2, "0")}`, start_date: startDate, utc_start: toUtcTime(startDate, `${startHours.padStart(2, "0")}:${startMinutes.padStart(2, "0")}`, tz) }
             : null;
-        await createCustomBoss(serverId, {
+        const result = await createCustomBoss(serverId, {
           name: name.trim(), spawn_type: spawnType,
           respawn_hours: respawnHours ? Number(respawnHours) : null,
           schedule, is_recurring: true,
@@ -68,6 +70,9 @@ export function AddBossForm({ gameId, gameSlug, serverId, onCreated, onCancel }:
           tags,
           image_url: imageUrl || null,
         });
+        if (onCreatedWithId) {
+          await onCreatedWithId(result.id);
+        }
       } else {
       await createBossTemplate({
         game_id: gameId!,
