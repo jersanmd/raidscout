@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase, createServer, fetchGames } from "@/lib/supabase";
+import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { useServer } from "@/contexts/ServerContext";
 import { Loader2, Plus, X, Server, Shield, ArrowLeft, ArrowRight, Gamepad2 } from "lucide-react";
 
@@ -20,6 +21,8 @@ export function CreateServerModal({ onClose }: { onClose: () => void }) {
       .catch(() => setGames([]))
       .finally(() => setGamesLoading(false));
   }, []);
+
+  useEscapeKey(onClose, !loading);
 
   const handleCreate = async () => {
     const trimmed = name.trim();

@@ -1,5 +1,6 @@
 import { AlertTriangle, Loader2 } from "lucide-react";
 import { useState } from "react";
+import { useEscapeKey } from "@/hooks/useEscapeKey";
 
 interface ConfirmDialogProps {
   open: boolean;
@@ -26,6 +27,7 @@ export function ConfirmDialog({
   onCancel,
 }: ConfirmDialogProps) {
   const [typed, setTyped] = useState("");
+  useEscapeKey(() => onCancel(false), open);
   if (!open) return null;
   const confirmed = !confirmText || typed === confirmText;
 

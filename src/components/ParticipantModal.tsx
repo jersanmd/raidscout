@@ -8,6 +8,7 @@ import {
 } from "@/hooks/useAttendance";
 import { RallyImageOverlay } from "@/components/RallyImageOverlay";
 import { useMembers } from "@/hooks/useMembers";
+import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { useServerId } from "@/contexts/ServerContext";
 import { markActivityAttendance, fetchActivityAttendance, fetchActivityInstance, setActivityRallyImages, setActivityPartyLeaders } from "@/lib/supabase";
 import { extractNamesWithAI } from "@/lib/vision";
@@ -137,6 +138,7 @@ export function ParticipantModal({
   const removeAttendance = useRemoveAttendance();
   const queryClient = useQueryClient();
   const serverId = useServerId();
+  useEscapeKey(onClose);
 
   const [memberSearch, setMemberSearch] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
