@@ -15,6 +15,7 @@ import { handleGuildJoin } from "./bot/guild-join";
 import { handleMessage } from "./bot/commands";
 import { startSpawnCron } from "./bot/spawn-cron";
 import { getCronStats } from "./bot/spawn-cron";
+import { withCommandTracking, getActiveCommandCount } from "./bot/concurrency";
 
 // -- Crash resilience --------------------------------------
 process.on("uncaughtException", (err: any) => {
@@ -83,7 +84,19 @@ async function connect() {
 
     if (t === "GUILD_CREATE") { handleGuildJoin(d).catch(console.error); }
     if (t === "READY") { setBotUserId(d.user.id); discordConnected = true; }
-    if (t === "MESSAGE_CREATE") { handleMessage(d).catch(console.error); }
+    if (t === "MESSAGE_CREATE") {
+      withCommandTracking(
+        () => handleMessage(d),
+        15_000,
+        () => {
+          fetch(`https://discord.com/api/v10/channels/${d.channel_id}/messages`, {
+            method: "POST",
+            headers: { Authorization: `Bot ${TOKEN}`, "Content-Type": "application/json" },
+            body: JSON.stringify({ content: "⏳ Command timed out — the server is currently overloaded. Please try again." }),
+          }).catch(() => {});
+        },
+      ).catch((err) => console.error("[gateway] Command error:", err.message));
+    }
   });
 
   ws.on("close", (code: any) => {
@@ -136,6 +149,7 @@ http.createServer((req, res) => {
       discord_connected: discordConnected,
       uptime_display: uptimeDisplay,
       memory_mb: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
+      active_commands: getActiveCommandCount(),
       region: process.env.FLY_REGION || "sin",
       node_version: process.version,
       spawn_cron: getCronStats(),
