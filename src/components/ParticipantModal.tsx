@@ -138,7 +138,7 @@ export function ParticipantModal({
   const removeAttendance = useRemoveAttendance();
   const queryClient = useQueryClient();
   const serverId = useServerId();
-  useEscapeKey(onClose);
+  useEscapeKey(onClose, fullscreenPreviewIndex === null);
 
   const [memberSearch, setMemberSearch] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -270,6 +270,7 @@ export function ParticipantModal({
   const [fullscreenPreviewIndex, setFullscreenPreviewIndex] = useState<
     number | null
   >(null);
+  useEscapeKey(() => setFullscreenPreviewIndex(null), fullscreenPreviewIndex !== null);
   const [aiError, setAiError] = useState<string | null>(null);
   const [aiDetectedNames, setAiDetectedNames] = useState<string[] | null>(null);
   // Three-way categorization

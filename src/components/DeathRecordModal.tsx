@@ -33,7 +33,7 @@ export function DeathRecordModal({ boss, onClose, onSubmit, defaultDeathTime, hi
  const serverId = useServerId();
  const queryClient = useQueryClient();
  const configured = isSupabaseConfigured();
- useEscapeKey(onClose);
+ useEscapeKey(onClose, fullscreenPreviewIndex === null);
 
  // Step tracking
  const [step, setStep] = useState<"death" | "attendance">(() =>
@@ -119,6 +119,7 @@ export function DeathRecordModal({ boss, onClose, onSubmit, defaultDeathTime, hi
  // Revoke all object URLs on unmount to prevent memory leaks
  useEffect(() => () => { rallyPreviewsRef.current.forEach(url => URL.revokeObjectURL(url)); }, []);
  const [fullscreenPreviewIndex, setFullscreenPreviewIndex] = useState<number | null>(null);
+ useEscapeKey(() => setFullscreenPreviewIndex(null), fullscreenPreviewIndex !== null);
  const [newMemberName, setNewMemberName] = useState("");
  const [newMemberGuildId, setNewMemberGuildId] = useState<string>("");
  const [searchQuery, setSearchQuery] = useState("");
