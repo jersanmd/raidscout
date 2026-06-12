@@ -9,6 +9,7 @@ import { useServerId } from "@/contexts/ServerContext";
 import { extractNamesWithAI } from "@/lib/vision";
 import { isSupabaseConfigured, fetchGuilds, fetchStaticParties, assignPartyToBoss, unlinkParty, type StaticParty } from "@/lib/supabase";
 import { guildColor } from "@/lib/constants";
+import { useEscapeKey } from "@/hooks/useEscapeKey";
 import type { Boss, Member, Guild, ScanResults } from "@/types";
 
 interface DeathRecordModalProps {
@@ -32,6 +33,7 @@ export function DeathRecordModal({ boss, onClose, onSubmit, defaultDeathTime, hi
  const serverId = useServerId();
  const queryClient = useQueryClient();
  const configured = isSupabaseConfigured();
+ useEscapeKey(onClose);
 
  // Step tracking
  const [step, setStep] = useState<"death" | "attendance">(() =>
