@@ -94,7 +94,7 @@ export function AddBossModal({ open, onClose }: Props) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/60" onClick={onClose} />
-      <div className="relative bg-[#18181b] border border-[#27272a] rounded-xl w-full max-w-lg shadow-2xl max-h-[90vh] flex flex-col">
+      <div className="relative bg-[#18181b] border border-[#27272a] rounded-xl w-full max-w-2xl shadow-2xl max-h-[90vh] flex flex-col">
         <div className="flex items-center justify-between p-4 border-b border-[#27272a]">
           <h2 className="text-base font-semibold text-[#fafafa]">Add Custom Boss</h2>
           <button
