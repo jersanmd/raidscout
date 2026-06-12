@@ -528,7 +528,7 @@ export function DeathRecordModal({ boss, onClose, onSubmit, defaultDeathTime, hi
  try {
  const member = await upsertMember(pm.name);
  finalIds.push(member.id);
- } catch { /* skip failed creates */ }
+ } catch (err) { console.error("[DeathRecordModal] upsertMember failed for pending member:", pm.name, err); }
  }
  }
  }

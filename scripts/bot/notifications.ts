@@ -36,7 +36,7 @@ async function resolveRoles(guildId: string): Promise<Map<string, string>> {
         map.set(role.name.toLowerCase(), role.id);
       }
     }
-  } catch { /* skip */ }
+  } catch (err) { console.error("[bot] role fetch failed for guild:", guildId, err); }
   guildRoleCache.set(guildId, map);
   // Clear cache every 30 min
   setTimeout(() => guildRoleCache.delete(guildId), 30 * 60_000);

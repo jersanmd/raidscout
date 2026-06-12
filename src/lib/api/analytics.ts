@@ -122,11 +122,11 @@ export async function fetchAnalytics(since: string, serverId?: string | null): P
               activityParticipation += batchData.length;
               for (const aa of batchData) activityMemberIds.add(aa.member_id);
             }
-          } catch { /* skip batch */ }
+          } catch (err) { console.error("[analytics] activity attendance batch fetch failed:", err); }
         }
       }
     }
-  } catch { /* activity stats are non-critical */ }
+  } catch (err) { console.error("[analytics] activity stats fetch failed:", err); }
 
   const allActiveMemberIds = new Set([...new Set((att || []).map((a: any) => a.member_id)), ...activityMemberIds]);
   const activeMembers = allActiveMemberIds.size;

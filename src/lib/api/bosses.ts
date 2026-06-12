@@ -176,7 +176,7 @@ export async function finishActivity(activityId: string): Promise<void> {
   if (error) throw error;
 
   // Advance guild rotation
-  try { await advanceActivityRotation(activityId); } catch {}
+  try { await advanceActivityRotation(activityId); } catch (err) { console.error("[bosses] advanceActivityRotation on start failed:", err); }
 }
 
 /** Record an activity end with a custom time and attendance. */
@@ -220,7 +220,7 @@ export async function recordActivityEnd(
   }
 
   // Advance guild rotation
-  try { await advanceActivityRotation(activityId); } catch {}
+  try { await advanceActivityRotation(activityId); } catch (err) { console.error("[bosses] advanceActivityRotation on end failed:", err); }
 
   return instance.id;
 }

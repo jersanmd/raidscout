@@ -23,7 +23,7 @@ export async function handleMessage(msg: any) {
       const name = rows?.[0]?.servers?.name ?? "?";
       guildServerNames.set(gid, name);
       return name;
-    } catch { guildServerNames.set(gid, "?"); return "?"; }
+    } catch (err) { console.error("[bot] resolveServerName failed for guild:", gid, err); guildServerNames.set(gid, "?"); return "?"; }
   };
   const cmdLog = async (cmd: string, result: "ok" | "fail", detail?: string) => {
     const guildTag = guildId ? guildId.slice(0, 8) : "DM";
@@ -64,7 +64,7 @@ export async function handleMessage(msg: any) {
       const srvRows = await supabaseQuerySafe(`servers?id=eq.${serverId}&select=name`);
       const srvName = srvRows?.[0]?.name;
       if (srvName) guildServerNames.set(guildId, srvName);
-    } catch { /* ignore */ }
+    } catch (err) { console.error("[bot] server name lookup failed for guild:", guildId, err); }
   }
 
   // Maintenance check
@@ -84,14 +84,14 @@ export async function handleMessage(msg: any) {
             const tz = await resolveServerTimezone(serverId);
             mtMsg += `\n📅 Expected to be back ${endDate.toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", timeZone: tz, timeZoneName: "short" })}.`;
           }
-        } catch { /* ignore */ }
+        } catch (err) { console.error("[bot] maintenance end lookup failed:", err); }
         await discordFetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
           method: "POST", headers: { Authorization: `Bot ${TOKEN}`, "Content-Type": "application/json" },
           body: JSON.stringify({ content: mtMsg }),
         });
         return;
       }
-    } catch { /* proceed */ }
+    } catch (err) { console.error("[bot] maintenance check failed:", err); }
   }
 
   // ✅ reaction
@@ -272,7 +272,7 @@ export async function handleMessage(msg: any) {
             await fetch(`${SUPABASE_URL}/rest/v1/boss_spawn_overrides?boss_id=eq.${b.id}&server_id=eq.${srv.id}`, { method: "DELETE", headers: { apikey: SUPABASE_KEY!, Authorization: `Bearer ${SUPABASE_KEY!}` } });
             await fetch(`${SUPABASE_URL}/rest/v1/boss_spawn_overrides`, { method: "POST", headers: { apikey: SUPABASE_KEY!, Authorization: `Bearer ${SUPABASE_KEY!}`, "Content-Type": "application/json" }, body: JSON.stringify({ server_id: srv.id, boss_id: b.id, death_time: dt }) });
             count++;
-          } catch { /* skip */ }
+          } catch (err) { console.error("[bot] forcespawnall delete override failed:", b.id, err); }
         }
         if (count > 0) { totalCount += count; results.push(`**${srv.name}**: ${count} bosses`); }
       }
@@ -289,7 +289,7 @@ export async function handleMessage(msg: any) {
         await fetch(`${SUPABASE_URL}/rest/v1/boss_spawn_overrides?boss_id=eq.${b.id}&server_id=eq.${serverId}`, { method: "DELETE", headers: { apikey: SUPABASE_KEY!, Authorization: `Bearer ${SUPABASE_KEY!}` } });
         await fetch(`${SUPABASE_URL}/rest/v1/boss_spawn_overrides`, { method: "POST", headers: { apikey: SUPABASE_KEY!, Authorization: `Bearer ${SUPABASE_KEY!}`, "Content-Type": "application/json" }, body: JSON.stringify({ server_id: serverId, boss_id: b.id, death_time: dt }) });
         count++;
-      } catch { /* skip */ }
+      } catch (err) { console.error("[bot] forcespawnall create override failed:", b.id, err); }
     }
     return reply(`✅ **${count}** fixed-timer bosses force-spawned.`);
   }

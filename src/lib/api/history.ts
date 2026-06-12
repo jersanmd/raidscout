@@ -45,7 +45,7 @@ export async function fetchHistoryFromSupabase(serverId?: string | null, since?:
       if (guildData) {
         for (const g of guildData as any[]) guildMap.set(g.id, g.name);
       }
-    } catch { /* ignore */ }
+    } catch (err) { console.error("[history] guild name lookup failed:", err); }
   }
 
   const bossEntries = unique.map((d: any) => {

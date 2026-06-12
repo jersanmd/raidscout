@@ -32,6 +32,17 @@ export function getCronStats() {
   };
 }
 
+// Process items in parallel with a concurrency cap to avoid overwhelming the DB pool
+async function concurrentMap<T, R>(items: T[], concurrency: number, fn: (item: T) => Promise<R>): Promise<R[]> {
+  const results: R[] = [];
+  for (let i = 0; i < items.length; i += concurrency) {
+    const batch = items.slice(i, i + concurrency);
+    const batchResults = await Promise.all(batch.map(fn));
+    results.push(...batchResults);
+  }
+  return results;
+}
+
 export function startSpawnCron() {
   if (cronStarted) return;
   cronStarted = true;
@@ -97,7 +108,8 @@ async function runSpawnCron() {
     .filter((id: string) => activeServerIds.has(id));
   serversChecked = allDiscordServerIds.length;
 
-  for (const serverId of serverIds) {
+  const serverResults = await concurrentMap(serverIds, 10, async (serverId) => {
+    let bossCount = 0;
     const tz = await resolveServerTimezone(serverId).catch(() => "Asia/Manila");
     const [bosses, deaths, guilds, overrides] = await Promise.all([
       supabaseQuerySafe(`bosses?server_id=eq.${serverId}&is_enabled=not.is.false&deleted_at=is.null`),
@@ -139,11 +151,11 @@ async function runSpawnCron() {
     }
     const overrideMap = new Map((overrides || []).map((o: any) => [o.boss_id, o.death_time]));
 
-    if (!bosses?.length) continue;
+    if (!bosses?.length) return bossCount;
 
     for (const boss of bosses) {
       try {
-        bossesChecked++;
+        bossCount++;
         const bossDeaths = (deaths || []).filter((d: any) => d.boss_id === boss.id && !d.is_initial_spawn);
         const lastDeath = bossDeaths.sort((a: any, b: any) =>
           new Date(b.death_time).getTime() - new Date(a.death_time).getTime()
@@ -373,7 +385,8 @@ async function runSpawnCron() {
         }
       }
     }
-  }
+    return bossCount;
+  });
   lastServersChecked = serversChecked;
-  lastBossesChecked = bossesChecked;
+  lastBossesChecked = serverResults.reduce((sum, c) => sum + c, 0);
 }

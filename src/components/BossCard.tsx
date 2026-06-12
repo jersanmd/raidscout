@@ -567,7 +567,7 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
             }
             setShowCustomPartyModal(false);
             setNewPartyBoxes([]);
-          } catch { /* ignore */ }
+          } catch (err) { console.error("[BossCard] custom party save failed:", err); }
           setCreatingParties(false);
         };
 

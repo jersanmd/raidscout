@@ -18,7 +18,7 @@ export async function fetchAttendanceForDeath(deathRecordId: string): Promise<At
       body: JSON.stringify({ death_record_ids: [deathRecordId], server_id: sid }),
     });
     if (resp.ok) return await resp.json();
-  } catch { /* fall through */ }
+  } catch (err) { console.error("[attendance] edge function fetch failed, falling back to direct query:", err); }
 
   // Fallback: direct query (works for authenticated users)
   const { data, error } = await supabase

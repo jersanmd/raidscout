@@ -16,7 +16,7 @@ export async function supabaseQuery(path: string): Promise<any> {
 }
 
 export async function supabaseQuerySafe(path: string): Promise<any> {
-  try { return await supabaseQuery(path); } catch { return []; }
+  try { return await supabaseQuery(path); } catch (err) { console.error("[bot] supabaseQuerySafe failed:", path, err); return []; }
 }
 
 export async function supabaseInsert(table: string, record: any): Promise<any> {

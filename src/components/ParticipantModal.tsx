@@ -194,7 +194,7 @@ export function ParticipantModal({
           ];
           if (allNames.length > 0) setAiDetectedNames(allNames);
         }
-      } catch {}
+      } catch (err) { console.error("[ParticipantModal] AI vision fetch failed:", err); }
     })();
   }, [deathRecordId, activityInstanceId]);
 
@@ -236,7 +236,7 @@ export function ParticipantModal({
           .update({ party_leaders: updated })
           .eq("id", deathRecordId);
       }
-    } catch {}
+    } catch (err) { console.error("[ParticipantModal] savePartyLeaders failed:", err); }
   };
 
   // Group members by guild for party leader selectors
@@ -444,7 +444,7 @@ export function ParticipantModal({
       for (const memberId of idsToAdd) {
         try {
           await addAttendance.mutateAsync({ deathRecordId, memberId });
-        } catch {}
+        } catch (err) { console.error("[ParticipantModal] bulk addAttendance failed for member:", memberId, err); }
       }
 
       // Keep scan results for overlay display (don't clear exact/fuzzy)
@@ -463,9 +463,9 @@ export function ParticipantModal({
         alreadyAttended: alreadyThere,
       };
       if (activityInstanceId) {
-        try { await saveActivityScanResults(activityInstanceId, scanResults); } catch {}
+        try { await saveActivityScanResults(activityInstanceId, scanResults); } catch (err) { console.error("[ParticipantModal] saveActivityScanResults failed:", err); }
       } else if (deathRecordId) {
-        try { await saveDeathScanResults(deathRecordId, scanResults); } catch {}
+        try { await saveDeathScanResults(deathRecordId, scanResults); } catch (err) { console.error("[ParticipantModal] saveDeathScanResults failed:", err); }
       }
 
       if (idsToAdd.length > 0) {
@@ -520,9 +520,9 @@ export function ParticipantModal({
               deathRecordId,
               memberId: member.id,
             });
-          } catch {}
+          } catch (err) { console.error("[ParticipantModal] manual addAttendance failed:", member.id, err); }
         }
-      } catch {}
+      } catch (err) { console.error("[ParticipantModal] manual attendance operation failed:", err); }
     }
 
     setUnmatchedNames([]);
@@ -721,7 +721,7 @@ export function ParticipantModal({
                                                     memberId: member.id,
                                                   },
                                                 );
-                                              } catch {}
+                                              } catch (err) { console.error("[ParticipantModal] unmatched addAttendance failed:", member.id, err); }
                                             }
                                             setUnmatchedNames((prev) =>
                                               prev.filter((n) => n !== name),
@@ -734,7 +734,7 @@ export function ParticipantModal({
                                             queryClient.invalidateQueries({
                                               queryKey: ["attendance"],
                                             });
-                                          } catch {}
+                                          } catch (err) { console.error("[ParticipantModal] unmatched attendance operation failed:", err); }
                                         }}
                                         className="px-1.5 py-1.5 hover:bg-[#27272a] transition"
                                         title="Add to attendance"

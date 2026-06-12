@@ -185,19 +185,19 @@ export function WeeklyScheduleView() {
         // Save AI scan results if available
         if (scanResults) {
           const { saveDeathScanResults } = await import("@/lib/supabase");
-          try { await saveDeathScanResults(record.id, scanResults); } catch {}
+          try { await saveDeathScanResults(record.id, scanResults); } catch (err) { console.error("[WeeklySchedule] saveDeathScanResults failed:", err); }
         }
 
         // Upload rally images to storage
         for (const img of rallyImages) {
           const url = await uploadRallyImage(img);
           if (url) {
-            try { await addRallyImageToDeath(record.id, url); } catch {}
+            try { await addRallyImageToDeath(record.id, url); } catch (err) { console.error("[WeeklySchedule] addRallyImageToDeath failed:", err); }
           }
         }
 
         for (const memberId of attendeeIds) {
-          try { await addAttendance(record.id, memberId); } catch {}
+          try { await addAttendance(record.id, memberId); } catch (err) { console.error("[WeeklySchedule] addAttendance failed for member:", memberId, err); }
         }
 
         queryClient.invalidateQueries({ queryKey: ["death_records"] });

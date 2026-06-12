@@ -375,21 +375,21 @@ export function BossListView() {
           // Save AI scan results if available
           if (scanResults) {
             const { saveDeathScanResults } = await import("@/lib/supabase");
-            try { await saveDeathScanResults(deathRecordId, scanResults); } catch {}
+            try { await saveDeathScanResults(deathRecordId, scanResults); } catch (err) { console.error("[BossListView] saveDeathScanResults failed:", err); }
           }
 
           // Upload rally images to storage
           for (const img of rallyImages) {
             const url = await uploadRallyImage(img);
             if (url) {
-              try { await addRallyImageToDeath(deathRecordId, url); } catch {}
+              try { await addRallyImageToDeath(deathRecordId, url); } catch (err) { console.error("[BossListView] addRallyImageToDeath failed:", err); }
             }
           }
 
           // Delete override from DB and cache so the kill's countdown takes priority
           const sid = getCurrentServerId();
           if (sid) {
-            try { await supabase.from("boss_spawn_overrides").delete().eq("boss_id", bossId).eq("server_id", sid); } catch {}
+            try { await supabase.from("boss_spawn_overrides").delete().eq("boss_id", bossId).eq("server_id", sid); } catch (err) { console.error("[BossListView] delete spawn override failed:", err); }
             queryClient.setQueryData(["spawn_overrides", sid], (old: any[]) =>
               (old ?? []).filter((o: any) => o.boss_id !== bossId)
             );
@@ -428,7 +428,7 @@ export function BossListView() {
           setTimeout(() => setJustKilledId(null), 600);
 
           // Advance rotation counter on kill
-          try { await advanceBossRotation(bossId); } catch {}
+          try { await advanceBossRotation(bossId); } catch (err) { console.error("[BossListView] advanceBossRotation failed:", err); }
           queryClient.invalidateQueries({ queryKey: ["bosses"] });
 
           // Send Discord notification
@@ -446,7 +446,7 @@ export function BossListView() {
               } else if (!result.ok) {
                 setToast({ type: "error", message: "Discord notification failed. Check bot status." });
               }
-            } catch { /* notification is best-effort */ }
+            } catch (err) { console.error("[BossListView] Discord notification failed:", err); }
           }
         } catch (err) {
           console.error("Failed to record death:", err);
@@ -695,7 +695,7 @@ export function BossListView() {
                     osc.start(t);
                     osc.stop(t + 0.5);
                   });
-                } catch {}
+                } catch (err) { console.error("[BossListView] alert sound playback failed:", err); }
               }}
               className="w-16 h-1.5 accent-amber-400 cursor-pointer"
             />

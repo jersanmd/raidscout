@@ -200,7 +200,7 @@ export function LeaderboardView() {
         // Calculate period start, accounting for last finalized snapshot reset
         (async () => {
           let since = "1970-01-01T00:00:00Z";
-          try { const { data: snaps } = await supabase.from("leaderboard_snapshots").select("finalized_at").eq("period", period).eq("server_id", serverId).order("finalized_at", { ascending: false }).limit(1); if (snaps && snaps.length > 0) since = (snaps[0] as any).finalized_at; } catch {}
+          try { const { data: snaps } = await supabase.from("leaderboard_snapshots").select("finalized_at").eq("period", period).eq("server_id", serverId).order("finalized_at", { ascending: false }).limit(1); if (snaps && snaps.length > 0) since = (snaps[0] as any).finalized_at; } catch (err) { console.error("[Leaderboard] snapshot fetch failed:", err); }
           const [kills, activities, adjustments] = await Promise.all([
             fetchMemberKills(entry.id, since, serverId, serverTimezone).catch(() => [] as MemberBossKill[]),
             fetchMemberActivityHistory(entry.id, since, serverId).catch(() => [] as MemberActivityAttendance[]),
