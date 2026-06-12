@@ -1,4 +1,4 @@
-# June 12, 2026 — Changelog (v0.14.2)
+# June 12, 2026 — Changelog (v0.14.3)
 
 ## ⚡ Performance
 
@@ -58,6 +58,20 @@
 
 - **Simulated landing page hero timer** — replaced the hardcoded server-dependent demo timer with a fully client-side simulation. Cycles through 7 realistic bosses (Venatus, Viorent, Ego, Lady Dalia, Livera, Clemantis, Icaruthia) with countdowns, alive windows, and automatic respawn. Works on any deploy with zero server dependency.
 - **Centered game cards** — "One Platform, Any MMO" game cards now use centered flexbox layout instead of left-aligned grid.
+- **Add Boss & Add Activity modals** — moderators can now create custom bosses and activities directly from the Bosses/Activities page via "Add Boss" and "Add Activity" buttons in the filter bar. Each opens a modal with the same fields as Server Settings (name, spawn type, schedule, points, category, tags, image upload). Buttons are inline with filter controls and hidden in viewer mode.
+- **Inline filter bar layout** — "Add Boss" and "Add Activity" buttons now flow inline with filter buttons (All, Timer, Schedule, etc.) instead of being pushed to the far right. FilterBar `extra` prop alignment is now consumer-controlled.
+- **Party assignment removed from attendance modal** — the "Assign a party to this boss" and "Quick party" dropdowns have been removed from the DeathRecordModal (mark-dead attendance screen). Parties are now managed exclusively from the BossCard.
+- **Escape key on all modals** — every modal and inline panel throughout the app now closes on Escape: MembersView (delete confirm, bulk add), ServerSettingsView (delete server confirm, add point rule), BossCard (5 internal modals), HistoryView (2 modals), LandingPage, LeaderboardView (6 modals). Added `useEscapeKey` hook for consistent keyboard dismissal.
+
+## 🖼️ Fullscreen Rally Image UX
+
+- **Two-step Escape behavior** — pressing Escape while viewing a rally screenshot fullscreen now closes only the image on the first press; a second Escape press closes the modal behind it. Applied to `DeathRecordModal` (boss kills) and `ParticipantModal` (history entries).
+- **Parent Escape interference fixed** — `BossCard` and `HistoryView` had their own Escape handlers that were accidentally closing the `DeathRecordModal`/`ParticipantModal` on the first Escape press alongside the image. Now each parent only manages its own internal modals and delegates Escape to the child modal.
+- **Fullscreen image closes on click** — clicking the dark backdrop behind the fullscreen image also dismisses just the image (not the modal).
+
+## 🧪 Testing
+
+- **`useEscapeKey` tests** (8 new) — covers: callback on Escape, ignore non-Escape keys, disabled mode, `preventDefault` call, cleanup on unmount, callback updates on rerender, enabled/disabled toggle, and two-step fullscreen→modal Escape behavior.
 
 ## 📄 Documentation
 
