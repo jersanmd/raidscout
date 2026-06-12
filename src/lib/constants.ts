@@ -1,7 +1,7 @@
 import type { Boss, ScheduleSlot } from "@/types";
 
 /**
- * All 39 LordNine bosses with their spawn configurations.
+ * LordNine boss templates with their spawn configurations.
  * Times are interpreted in the user's local timezone.
  */
 export const BOSSES: Omit<Boss, "id" | "created_at">[] = [

@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>The Operating System for Competitive MMO Guilds</strong><br />
-  Track 39+ world bosses across multiple servers, coordinate multi-guild kill rotations,
+  Track world bosses across multiple servers, coordinate multi-guild kill rotations,
   scan rally screenshots with AI, and compete on live leaderboards — all in real time.
 </p>
 
@@ -339,7 +339,7 @@ Apply migrations **in order** from the Supabase SQL Editor or CLI:
 
 ### 3. Seed Boss Data
 
-Run `supabase/seed.sql` to populate all 39 bosses with their spawn types, respawn hours,
+Run `supabase/seed.sql` to populate all bosses with their spawn types, respawn hours,
 and schedule configurations.
 
 ### 4. Configure Auth
@@ -519,7 +519,7 @@ src/
 │   └── useTimer.ts                # 1-second interval countdown + status detection
 │
 ├── lib/
-│   ├── constants.ts               # 39 boss definitions, guild color palette, app config
+│   ├── constants.ts               # boss definitions, guild color palette, app config
 │   ├── history.ts                 # URL hash-based navigation history
 │   ├── notifications.ts           # Browser Notification API wrapper
 │   ├── rotation.ts                # Pure functions: guild rotation math, safeMod, day-of-week logic
@@ -556,7 +556,7 @@ supabase/
 │   ├── 003_leaderboard_snapshots.sql # leaderboard_snapshots + point_adjustments
 │   ├── 004_helper_functions.sql   # update_updated_at, audit triggers, get_all_users
 │   └── ...                        # Additional migrations for cron, public stats, viewer RPCs
-├── seed.sql                       # 39 boss definitions + guild/member sample data
+├── seed.sql                       # boss definitions + guild/member sample data
 └── functions/
     ├── ai-vision/                 # OpenAI GPT-4o rally screenshot scanner
     │   ├── index.ts               # Edge Function entry point
