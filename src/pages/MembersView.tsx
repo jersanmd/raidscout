@@ -268,7 +268,7 @@ export function MembersView() {
 
   // Bulk add
   const [showBulkModal, setShowBulkModal] = useState(false);
-  useEscapeKey(() => { setShowBulkModal(false); setBulkNames(""); });
+  useEscapeKey(() => { setShowBulkModal(false); setBulkNames(""); setDeleteId(null); });
   const [bulkNames, setBulkNames] = useState("");
   const [bulkAdding, setBulkAdding] = useState(false);
   const [bulkGuild, setBulkGuild] = useState<string>("");
