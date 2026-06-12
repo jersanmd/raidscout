@@ -532,9 +532,9 @@ export async function handleMessage(msg: any) {
         await cmdLog(cmd, "fail", `${activity.name} not active`);
         discordFetch(`https://discord.com/api/v10/channels/${channelId}/messages/${msg.id}/reactions/${encodeURIComponent("❌")}/@me`, { method: "PUT", headers: { Authorization: `Bot ${TOKEN}` } }).catch(() => {});
         if (alreadyCompleted) {
-          return reply(`❌ **${activity.name}** was already completed.\n-# Wrong time? Use \`${matchedPrefix}editkilltime ${activity.name} HH:MM\` to fix the start time instead.`);
+          return reply(`❌ **${activity.name}** was already completed.${timeStr ? `\n-# Wrong time? Use \`${matchedPrefix}editkilltime ${activity.name} HH:MM\` to fix the start time instead.` : ""}`);
         }
-        return reply(`❌ **${activity.name}** is not currently active.\n-# Wrong start time? Use \`${matchedPrefix}editkilltime ${activity.name} HH:MM\` to adjust it.`);
+        return reply(`❌ **${activity.name}** is not currently active.${timeStr ? `\n-# Wrong start time? Use \`${matchedPrefix}editkilltime ${activity.name} HH:MM\` to adjust it.` : ""}`);
       }
 
       let activityTime = new Date();
@@ -609,7 +609,7 @@ export async function handleMessage(msg: any) {
     if (!isAlive) {
       await cmdLog(cmd, "fail", `${boss.name} not alive`);
       discordFetch(`https://discord.com/api/v10/channels/${channelId}/messages/${msg.id}/reactions/${encodeURIComponent("❌")}/@me`, { method: "PUT", headers: { Authorization: `Bot ${TOKEN}` } }).catch(() => {});
-      return reply(`❌ **${boss.name}** is not currently alive.\n-# Wrong kill time? Use \`${matchedPrefix}editkilltime ${boss.name} HH:MM\` to fix the previous kill instead.`);
+      return reply(`❌ **${boss.name}** is not currently alive.${timeStr ? `\n-# Wrong time? Use \`${matchedPrefix}editkilltime ${boss.name} HH:MM\` to fix the previous kill instead.` : ""}`);
     }
     if (recentDeaths?.length && !overrideDeathTime) {
       const lastKill = new Date(recentDeaths[0].death_time);
@@ -617,7 +617,7 @@ export async function handleMessage(msg: any) {
       if (new Date() < cooldownEnd) {
         discordFetch(`https://discord.com/api/v10/channels/${channelId}/messages/${msg.id}/reactions/${encodeURIComponent("❌")}/@me`, { method: "PUT", headers: { Authorization: `Bot ${TOKEN}` } }).catch(() => {});
         const killedAt = Math.floor(lastKill.getTime() / 1000);
-        return reply(`⏳ **${boss.name}** already declared dead at <t:${killedAt}:t>.\n-# Wrong time? Use \`${matchedPrefix}editkilltime ${boss.name} HH:MM\` to fix it.`);
+        return reply(`⏳ **${boss.name}** already declared dead at <t:${killedAt}:t>.${timeStr ? `\n-# Wrong time? Use \`${matchedPrefix}editkilltime ${boss.name} HH:MM\` to fix it.` : ""}`);
       }
     }
 
@@ -667,7 +667,7 @@ export async function handleMessage(msg: any) {
     const replyFields: any[] = [{ name: "Death Time", value: `<t:${unix}:f>`, inline: true }, { name: "Recorded By", value: author, inline: true }];
     if (nextSpawnField) replyFields.push(nextSpawnField);
     await cmdLog(cmd, "ok", `${boss.name} → ${guildName || "unknown"}`);
-    return replyEmbed(`☠️ ${boss.name} Killed by ${guildName || author}`, `Wrong time? Use \`${matchedPrefix}editkilltime ${boss.name} HH:MM\` to fix it.`, 0xef4444, replyFields);
+    return replyEmbed(`☠️ ${boss.name} Killed by ${guildName || author}`, timeStr ? `Wrong time? Use \`${matchedPrefix}editkilltime ${boss.name} HH:MM\` to fix it.` : `Recorded at <t:${unix}:t>`, 0xef4444, replyFields);
   }
 
   // ── editkilltime <boss|activity> HH:MM [YYYY-MM-DD] ──
