@@ -511,8 +511,9 @@ export async function handleMessage(msg: any) {
       let isRunning = latestInst && latestInst.start_time && !latestInst.end_time;
       const alreadyCompleted = latestInst && latestInst.end_time;
 
-      // For fixed_schedule activities without an instance, check if we're in the active window
-      if (!isRunning && !alreadyCompleted && activity.schedule_type === "fixed_schedule" && Array.isArray(activity.schedule)) {
+      // For fixed_schedule activities with an existing instance, check if we're in the active window.
+      // Without an instance, a newly created activity should NOT be considered "running" from a past slot.
+      if (!isRunning && !alreadyCompleted && latestInst && activity.schedule_type === "fixed_schedule" && Array.isArray(activity.schedule)) {
         const actTz = (activity.is_custom || activity.template_id) ? "UTC" : "Asia/Manila";
         const schedule = activity.schedule;
         const now2 = new Date();
