@@ -1,4 +1,3 @@
-// @ts-nocheck
 // Auto-thread creation for spawn events
 
 import { TOKEN, SUPABASE_URL, SUPABASE_KEY } from "./config";
@@ -129,7 +128,7 @@ export async function createEventThreads(
             const guildRows = await supabaseQuerySafe(
               `guilds?select=id,name&id=in.(${allIds.join(",")})`
             );
-            const guildNames = new Map((guildRows || []).map((g: any) => [g.id, g.name]));
+            const guildNames = new Map<string, string>((guildRows || []).map((g: any) => [String(g.id), String(g.name)]));
             const resolvedAll = allIds.map((gid: string) => guildNames.get(gid) || gid).filter((n: string) => n !== guildName);
             console.log(`[thread] "${name}" assist guilds: [${resolvedAll.join(",")}]`);
 

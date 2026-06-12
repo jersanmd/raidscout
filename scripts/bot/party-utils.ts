@@ -1,4 +1,3 @@
-// @ts-nocheck
 // Party lookup -- shared between ;party command and thread creation
 
 import { supabaseQuerySafe } from "./supabase";
@@ -33,7 +32,7 @@ export async function fetchPartyList(
       const guilds = await supabaseQuerySafe(
         `guilds?select=id,name&id=in.(${guildIds.map((id: string) => `'${id}'`).join(",")})`
       );
-      const guildNameMap = new Map((guilds || []).map((g: any) => [g.id, g.name]));
+      const guildNameMap = new Map<string, string>((guilds || []).map((g: any) => [String(g.id), String(g.name)]));
       for (const m of (members || [])) {
         if (m.guild_id && guildNameMap.has(m.guild_id)) {
           memberGuildMap.set(m.id, guildNameMap.get(m.guild_id));

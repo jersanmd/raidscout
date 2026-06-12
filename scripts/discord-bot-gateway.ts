@@ -4,8 +4,6 @@
 //
 // Run: npx tsx scripts/discord-bot-gateway.ts
 // Requires: DISCORD_BOT_TOKEN, SUPABASE_SERVICE_ROLE_KEY
-// @ts-nocheck
-
 import { WebSocket } from "ws";
 import * as http from "http";
 import { TOKEN, setBotUserId } from "./bot/config";

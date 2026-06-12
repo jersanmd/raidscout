@@ -1,4 +1,3 @@
-// @ts-nocheck
 // Server & cache helpers
 
 import { supabaseQuerySafe } from "./supabase";

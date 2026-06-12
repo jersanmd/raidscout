@@ -1,4 +1,3 @@
-// @ts-nocheck
 // Discord API -- rate-limit-aware fetch
 
 export async function discordFetch(url: string, options: RequestInit = {}, retries = 3): Promise<Response> {

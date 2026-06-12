@@ -1,4 +1,3 @@
-// @ts-nocheck
 // Guild join handler -- welcome message
 
 import { TOKEN } from "./config";
