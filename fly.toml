@@ -24,6 +24,12 @@ primary_region = "sin"
     port = 443
     handlers = ["tls", "http"]
 
+  [[services.tcp_checks]]
+    interval = "15s"
+    timeout = "5s"
+    grace_period = "10s"
+    restart_limit = 3
+
 [[vm]]
   cpu_kind = "shared"
   cpus = 2

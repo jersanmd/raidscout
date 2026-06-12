@@ -150,6 +150,13 @@ http.createServer((req, res) => {
     return res.end(JSON.stringify({ logs }));
   }
 
+  // GET /health — Fly.io health check
+  if (req.method === "GET" && (url.pathname === "/health")) {
+    res.writeHead(200, { "Content-Type": "text/plain", ...corsHeaders() });
+    res.end(`OK — Discord ${discordConnected ? "connected" : "disconnected"}`);
+    return;
+  }
+
   // Health check fallback
   res.writeHead(200, { "Content-Type": "text/plain", ...corsHeaders() });
   res.end(`OK — Discord ${discordConnected ? "connected" : "disconnected"}`);
