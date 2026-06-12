@@ -231,7 +231,7 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
               ) : (
                 <span title="Fixed hours"><Timer className="w-3.5 h-3.5 text-[#a1a1aa] shrink-0" /></span>
               )}
-              {displayOwner && !isActivity && (() => { const c = guildColor(displayOwner); return (
+              {displayOwner && (() => { const c = guildColor(displayOwner); return (
                 <span className={`flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded border shrink-0 ${c.bg} ${c.text} ${c.border}`}>
                   <Shield className="w-3 h-3" />
                   {displayOwner}

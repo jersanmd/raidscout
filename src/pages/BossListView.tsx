@@ -15,6 +15,7 @@ import {
   announceSpawns,
   supabase,
   fetchBossGuilds,
+  fetchActivityGuilds,
   fetchGuilds,
   setBossSpawnTime,
   adjustBossRotation,
@@ -40,7 +41,7 @@ import { emitSpawnAlert } from "@/hooks/useSpawnAlerts";
 import { guildColor } from "@/lib/constants";
 import { getOwnerGuildName, getRotationInfo } from "@/lib/rotation";
 import { Skull, Loader2, X, CheckCircle, AlertTriangle, CheckSquare, Megaphone, Volume2, VolumeX, Eye, Copy, Settings, Search, Plus } from "lucide-react";
-import type { BossWithSpawn, BossGuild, Guild, DeathRecord, SpawnStatus, Activity, ActivityInstance } from "@/types";
+import type { BossWithSpawn, BossGuild, Guild, DeathRecord, SpawnStatus, Activity, ActivityInstance, ActivityGuild } from "@/types";
 
 const sentAlerts = new Set<string>();
 
@@ -75,6 +76,7 @@ export function BossListView() {
   // Guild data for boss ownership badges
   const [guilds, setGuilds] = useState<Guild[]>([]);
   const [bossGuilds, setBossGuilds] = useState<BossGuild[]>([]);
+  const [activityGuilds, setActivityGuilds] = useState<ActivityGuild[]>([]);
   const [guildsLoading, setGuildsLoading] = useState(true);
   const [hasWebhook, setHasWebhook] = useState(false);
   const [viewerCanEdit, setViewerCanEdit] = useState(false);
@@ -84,9 +86,9 @@ export function BossListView() {
   useEffect(() => {
     const sid = currentServer?.id;
     if (!sid) return;
-    Promise.all([fetchGuilds(sid), fetchBossGuilds(sid)])
-      .then(([g, bg]) => { setGuilds(g); setBossGuilds(bg); })
-      .catch(() => { setGuilds([]); setBossGuilds([]); })
+    Promise.all([fetchGuilds(sid), fetchBossGuilds(sid), fetchActivityGuilds(sid)])
+      .then(([g, bg, ag]) => { setGuilds(g); setBossGuilds(bg); setActivityGuilds(ag ?? []); })
+      .catch(() => { setGuilds([]); setBossGuilds([]); setActivityGuilds([]); })
       .finally(() => setGuildsLoading(false));
 
     if (isViewer) {
@@ -811,7 +813,12 @@ export function BossListView() {
                         viewerCanEdit={viewerCanEdit}
                         viewerCanMarkDied={viewerCanMarkDied}
                         justKilled={false}
-                        hasGuilds={false}
+                        hasGuilds={activityGuilds.some(ag => ag.activity_id === a.id)}
+                        ownerGuildName={(() => {
+                          const ag = activityGuilds.filter(x => x.activity_id === a.id).sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+                          if (ag.length === 0) return undefined;
+                          return guilds.find(g => g.id === ag[0].guild_id)?.name;
+                        })()}
                         hideScheduleTime={hideScheduleTime}
                       />
                     );

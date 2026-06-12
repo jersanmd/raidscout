@@ -137,8 +137,9 @@ export function calculateActivityInfo(
     return timeToMinutes(a.time) - timeToMinutes(b.time);
   });
   const recentSlot = findMostRecentSlot(sortedSlots, now);
-  if (recentSlot) {
-    // The activity stays active until the NEXT slot's grace period or until explicitly finished
+  if (recentSlot && lastInstance) {
+    // Only show "active" within a past slot if there's an instance (activity was actually started).
+    // Without an instance, a newly created activity should show countdown to the next slot.
     const nextSlotAfterRecent = findNextScheduleSlot(schedule, new Date(recentSlot.getTime() + 60_000));
     const maxActiveWindow = Math.min(nextSlotAfterRecent.getTime() - recentSlot.getTime() - 3600_000, 4 * 3600_000);
     const activeUntil = new Date(recentSlot.getTime() + maxActiveWindow);
