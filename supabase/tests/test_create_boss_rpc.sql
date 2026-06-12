@@ -1,9 +1,8 @@
 -- ============================================================================
 -- RPC & RLS test: create_custom_boss and create_custom_activity
--- Run this in the Supabase SQL Editor against your project.
+-- Run this in the Supabase SQL Editor while logged in as an authenticated user.
 -- ============================================================================
 
--- Helper: create a test user (run as superuser or service_role)
 DO $$
 DECLARE
   v_user_id UUID;
@@ -12,11 +11,10 @@ DECLARE
   v_boss_id UUID;
   v_act_id UUID;
 BEGIN
-  -- 1. Get or create test user
-  SELECT id INTO v_user_id FROM auth.users WHERE email = 'test@raidscout.test' LIMIT 1;
+  -- Use the currently authenticated user (you in the SQL Editor)
+  v_user_id := auth.uid();
   IF v_user_id IS NULL THEN
-    RAISE NOTICE 'Test user not found. Create one via Auth UI first.';
-    RETURN;
+    RAISE EXCEPTION 'You must be logged in to run this test. Open the SQL Editor from the Supabase dashboard while authenticated.';
   END IF;
 
   RAISE NOTICE '=== Testing with user: % ===', v_user_id;
@@ -38,9 +36,16 @@ BEGIN
 
   RAISE NOTICE 'Created guild: %', v_guild_id;
 
+  -- Verify the required RPC functions exist
+  IF NOT EXISTS (SELECT 1 FROM pg_proc WHERE proname = 'create_custom_boss') THEN
+    RAISE EXCEPTION 'RPC create_custom_boss not found. Run the migrations first.';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_proc WHERE proname = 'create_custom_activity') THEN
+    RAISE EXCEPTION 'RPC create_custom_activity not found. Run the migrations first.';
+  END IF;
+
   -- 4. Test create_custom_boss RPC
-  SELECT id INTO v_boss_id
-  FROM create_custom_boss(
+  v_boss_id := create_custom_boss(
     p_server_id := v_server_id,
     p_name := '__rls_test_boss__',
     p_spawn_type := 'fixed_hours',
@@ -62,8 +67,7 @@ BEGIN
   ), 'Boss was not created correctly!';
 
   -- 5. Test create_custom_activity RPC
-  SELECT id INTO v_act_id
-  FROM create_custom_activity(
+  v_act_id := create_custom_activity(
     p_server_id := v_server_id,
     p_name := '__rls_test_activity__',
     p_schedule_type := 'fixed_hours',
