@@ -45,7 +45,111 @@ function AnimatedCounter({ value, suffix = "+" }: { value: number; suffix?: stri
 
 // ── Live Timer for Hero ──────────────────────────────────────
 const HERO_BOSSES = ["Venatus", "Viorent", "Ego", "Lady Dalia", "Livera"];
-const YVONNE6_ID = "b0379776-df4b-4b47-9cc3-52cbb7142948";
+// ── Simulated Boss Timer (zero server dependency) ──────────
+const SIMULATED_BOSSES = [
+  { name: "Venatus", respawnHours: 10 },
+  { name: "Viorent", respawnHours: 12 },
+  { name: "Ego", respawnHours: 21 },
+  { name: "Lady Dalia", respawnHours: 8 },
+  { name: "Livera", respawnHours: 24 },
+  { name: "Clemantis", respawnHours: 48 },
+  { name: "Icaruthia", respawnHours: 62 },
+];
+
+function SimulatedBossTimer() {
+  const [timeStr, setTimeStr] = useState("--:--:--");
+  const [bossName, setBossName] = useState(SIMULATED_BOSSES[0].name);
+  const [alive, setAlive] = useState(false);
+  const spawnRef = useRef<Map<string, Date>>(new Map());
+  const bossIndexRef = useRef(0);
+  const tickRef = useRef<number | null>(null);
+  const cycleRef = useRef<number | null>(null);
+
+  // Generate a realistic spawn time: -2h to +8h from now
+  const randomSpawnTime = useCallback((respawnHours: number) => {
+    const offsetMs = (Math.random() * 10 - 2) * 3600_000; // -2h to +8h
+    return new Date(Date.now() + offsetMs);
+  }, []);
+
+  // Set up a boss: generate spawn time if needed, start counting
+  const activateBoss = useCallback((index: number) => {
+    const boss = SIMULATED_BOSSES[index % SIMULATED_BOSSES.length];
+    let spawnTime = spawnRef.current.get(boss.name);
+    if (!spawnTime) {
+      spawnTime = randomSpawnTime(boss.respawnHours);
+      spawnRef.current.set(boss.name, spawnTime);
+    }
+    setBossName(boss.name);
+
+    // Clear old tick
+    if (tickRef.current) clearInterval(tickRef.current);
+
+    const tick = () => {
+      const diff = spawnTime!.getTime() - Date.now();
+      if (diff <= 0) {
+        // Boss is alive — keep alive for ~2h, then regenerate
+        const aliveDuration = Date.now() - spawnTime!.getTime();
+        if (aliveDuration > 2 * 3600_000) {
+          // "Killed" — generate next spawn
+          const nextSpawn = new Date(Date.now() + boss.respawnHours * 3600_000);
+          spawnRef.current.set(boss.name, nextSpawn);
+          spawnTime = nextSpawn;
+          setAlive(false);
+          tick(); // re-run with new spawn
+          return;
+        }
+        setTimeStr("ALIVE");
+        setAlive(true);
+        return;
+      }
+      setAlive(false);
+      const h = Math.floor(diff / 3600000);
+      const m = Math.floor((diff % 3600000) / 60000);
+      const s = Math.floor((diff % 60000) / 1000);
+      setTimeStr(`${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`);
+    };
+
+    tick();
+    tickRef.current = window.setInterval(tick, 1000);
+  }, [randomSpawnTime]);
+
+  // Cycle through bosses every 8s
+  useEffect(() => {
+    activateBoss(0);
+    cycleRef.current = window.setInterval(() => {
+      bossIndexRef.current = (bossIndexRef.current + 1) % SIMULATED_BOSSES.length;
+      activateBoss(bossIndexRef.current);
+    }, 8000);
+    return () => {
+      if (cycleRef.current) clearInterval(cycleRef.current);
+      if (tickRef.current) clearInterval(tickRef.current);
+    };
+  }, [activateBoss]);
+
+  return (
+    <div className="flex items-center gap-5">
+      {/* Boss name + status */}
+      <div className="flex items-center gap-2">
+        <span className={`w-1.5 h-1.5 rounded-full ${alive ? 'bg-emerald-400' : 'bg-emerald-400 animate-pulse'}`} />
+        <div className="text-left">
+          <span className="text-xs text-[#d4d4d8] font-medium">{bossName}</span>
+          <span className={`ml-2 text-[10px] font-medium uppercase tracking-wider font-mono ${alive ? 'text-emerald-400/70' : 'text-emerald-400'}`}>
+            {alive ? 'Alive' : 'Tracking'}
+          </span>
+        </div>
+      </div>
+      {/* Divider */}
+      <span className="text-[#3f3f46] font-mono">|</span>
+      {/* Countdown */}
+      <div className="text-left">
+        <span className="text-[10px] uppercase tracking-wider text-[#71717a] block mb-0.5">{alive ? 'Since' : 'Respawns in'}</span>
+        <span className="font-mono text-xl font-bold tabular-nums tracking-tight text-[#fafafa]">
+          {timeStr}
+        </span>
+      </div>
+    </div>
+  );
+}
 
 // ── Tester Credits ──────────────────────────────────────────
 const TESTERS = [
@@ -58,105 +162,6 @@ const TESTERS = [
   { name: ".iwhiterabbit", avatar: "/testers/iwhiterabbit.png", discord: "721989425139154975" },
   { name: "itscj8", avatar: "/testers/itscj8.png", discord: "837693858124005396" },
 ];
-
-function LiveBossTimer() {
-  const [timeStr, setTimeStr] = useState("--:--:--");
-  const [bossName, setBossName] = useState("Venatus");
-  const [nextSpawn, setNextSpawn] = useState<Date | null>(null);
-  const [bossIndex, setBossIndex] = useState(0);
-  const intervalRef = useRef<number | null>(null);
-  const cycleRef = useRef<number | null>(null);
-
-  // Fetch timer for current boss
-  const fetchBoss = useCallback(async (name: string) => {
-    try {
-      // First check if the demo server even exists (graceful on staging / new deploys)
-      const { data: serverCheck, error: serverErr } = await supabase
-        .from("servers")
-        .select("id")
-        .eq("id", YVONNE6_ID)
-        .maybeSingle();
-      if (serverErr || !serverCheck) return;
-
-      const { data: bosses } = await supabase
-        .from("bosses")
-        .select("id,name,respawn_hours")
-        .eq("name", name)
-        .eq("server_id", YVONNE6_ID)
-        .limit(1);
-      if (!bosses?.length) return;
-      const boss = bosses[0];
-      setBossName(boss.name);
-
-      const { data: deaths } = await supabase
-        .from("death_records")
-        .select("death_time")
-        .eq("boss_id", boss.id)
-        .eq("server_id", YVONNE6_ID)
-        .order("death_time", { ascending: false })
-        .limit(1);
-      if (deaths?.length) {
-        const deathTime = new Date(deaths[0].death_time);
-        setNextSpawn(new Date(deathTime.getTime() + (boss.respawn_hours ?? 10) * 3600_000));
-      }
-    } catch { /* keep fallback */ }
-  }, []);
-
-  // Initial fetch + cycle through bosses
-  useEffect(() => {
-    fetchBoss(HERO_BOSSES[0]);
-    cycleRef.current = window.setInterval(() => {
-      setBossIndex(prev => {
-        const next = (prev + 1) % HERO_BOSSES.length;
-        fetchBoss(HERO_BOSSES[next]);
-        return next;
-      });
-    }, 8000);
-    return () => { if (cycleRef.current) clearInterval(cycleRef.current); };
-  }, [fetchBoss]);
-
-  // Countdown tick
-  useEffect(() => {
-    if (!nextSpawn) return;
-    const tick = () => {
-      const diff = nextSpawn.getTime() - Date.now();
-      if (diff <= 0) { setTimeStr("ALIVE"); return; }
-      const h = Math.floor(diff / 3600000);
-      const m = Math.floor((diff % 3600000) / 60000);
-      const s = Math.floor((diff % 60000) / 1000);
-      setTimeStr(`${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`);
-    };
-    tick();
-    intervalRef.current = window.setInterval(tick, 1000);
-    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
-  }, [nextSpawn]);
-
-  const status = timeStr === "ALIVE";
-
-  return (
-    <div className="flex items-center gap-5">
-      {/* Boss name + status */}
-      <div className="flex items-center gap-2">
-        <span className={`w-1.5 h-1.5 rounded-full ${status ? 'bg-emerald-400' : 'bg-emerald-400 animate-pulse'}`} />
-        <div className="text-left">
-          <span className="text-xs text-[#d4d4d8] font-medium">{bossName}</span>
-          <span className={`ml-2 text-[10px] font-medium uppercase tracking-wider font-mono ${status ? 'text-emerald-400/70' : 'text-emerald-400'}`}>
-            {status ? 'Alive' : 'Tracking'}
-          </span>
-        </div>
-      </div>
-      {/* Divider */}
-      <span className="text-[#3f3f46] font-mono">|</span>
-      {/* Countdown */}
-      <div className="text-left">
-        <span className="text-[10px] uppercase tracking-wider text-[#71717a] block mb-0.5">{status ? 'Since' : 'Respawns in'}</span>
-        <span className="font-mono text-xl font-bold tabular-nums tracking-tight text-[#fafafa]">
-          {timeStr}
-        </span>
-      </div>
-    </div>
-  );
-}
 
 // ── TypeWriter Effect ──────────────────────────────────────
 function TypeWriter({ text, delay = 40, className = "" }: { text: string; delay?: number; className?: string }) {
@@ -356,7 +361,7 @@ export function LandingPage() {
                   RECEIVING
                 </span>
               </div>
-              <LiveBossTimer />
+              <SimulatedBossTimer />
             </div>
           </div>
 
