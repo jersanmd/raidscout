@@ -145,7 +145,7 @@ export function Layout() {
           <div className="flex items-center gap-2 overflow-x-auto scrollbar-none touch-pan-x -mr-2 pr-2 min-w-0">
             {/* Nav tabs — hidden for admin without a selected server */}
             {showDataNav && (
-            <nav className="flex bg-[#18181b] rounded-lg p-0.5 shrink-0">
+            <nav className="hidden md:flex bg-[#18181b] rounded-lg p-0.5 shrink-0">
               <NavLink
                 to="/"
                 end
