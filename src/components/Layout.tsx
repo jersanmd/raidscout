@@ -324,9 +324,73 @@ export function Layout() {
       <NoMembersBanner />
 
       {/* Content */}
-      <main className="flex-1">
+      <main className="flex-1 pb-16 md:pb-0">
         <Outlet />
       </main>
+
+      {/* Mobile Bottom Navigation */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-[#09090b]/95 backdrop-blur-xl border-t border-[#27272a] safe-area-bottom">
+        <div className="flex items-center justify-around h-14 max-w-lg mx-auto">
+          <NavLink
+            to="/"
+            end
+            className={({ isActive }) =>
+              `flex flex-col items-center justify-center gap-0.5 px-3 py-1.5 min-w-[64px] rounded-lg transition-colors ${
+                isActive ? "text-[#fafafa]" : "text-[#52525b]"
+              }`
+            }
+          >
+            <List className="w-5 h-5" />
+            <span className="text-[10px] font-medium">Bosses</span>
+          </NavLink>
+          <NavLink
+            to="/schedule"
+            className={({ isActive }) =>
+              `flex flex-col items-center justify-center gap-0.5 px-3 py-1.5 min-w-[64px] rounded-lg transition-colors ${
+                isActive ? "text-[#fafafa]" : "text-[#52525b]"
+              }`
+            }
+          >
+            <Calendar className="w-5 h-5" />
+            <span className="text-[10px] font-medium">Schedule</span>
+          </NavLink>
+          <NavLink
+            to="/leaderboard"
+            className={({ isActive }) =>
+              `flex flex-col items-center justify-center gap-0.5 px-3 py-1.5 min-w-[64px] rounded-lg transition-colors ${
+                isActive ? "text-[#fafafa]" : "text-[#52525b]"
+              }`
+            }
+          >
+            <Trophy className="w-5 h-5" />
+            <span className="text-[10px] font-medium">Ranks</span>
+          </NavLink>
+          {!isViewer && (
+          <NavLink
+            to="/members"
+            className={({ isActive }) =>
+              `flex flex-col items-center justify-center gap-0.5 px-3 py-1.5 min-w-[64px] rounded-lg transition-colors ${
+                isActive ? "text-[#fafafa]" : "text-[#52525b]"
+              }`
+            }
+          >
+            <Users className="w-5 h-5" />
+            <span className="text-[10px] font-medium">Members</span>
+          </NavLink>
+          )}
+          <NavLink
+            to="/analytics"
+            className={({ isActive }) =>
+              `flex flex-col items-center justify-center gap-0.5 px-3 py-1.5 min-w-[64px] rounded-lg transition-colors ${
+                isActive ? "text-[#fafafa]" : "text-[#52525b]"
+              }`
+            }
+          >
+            <BarChart3 className="w-5 h-5" />
+            <span className="text-[10px] font-medium">Stats</span>
+          </NavLink>
+        </div>
+      </nav>
 
       {/* Footer */}
       <footer className="border-t border-[#27272a] bg-[#09090b]">

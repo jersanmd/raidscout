@@ -675,3 +675,8 @@ main > * { animation: fadeIn 0.25s ease-out; }
 .animate-scan-line {
   animation: scan-line 4s linear infinite;
 }
+
+/* ── Mobile Safe Area (iPhone notch) ─────────────────────── */
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
