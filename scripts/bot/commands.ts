@@ -567,7 +567,7 @@ export async function handleMessage(msg: any) {
         });
       }
       if (activity.schedule_type === "one_time") {
-        await fetch(`${SUPABASE_URL}/rest/v1/activities?id=eq.${activity.id}`, { method: "PATCH", headers: { apikey: SUPABASE_KEY!, Authorization: `Bearer ${SUPABASE_KEY!}`, "Content-Type": "application/json" }, body: JSON.stringify({ is_enabled: false }) }).catch(() => {});
+        await fetch(`${SUPABASE_URL}/rest/v1/activities?id=eq.${activity.id}`, { method: "PATCH", headers: { apikey: SUPABASE_KEY!, Authorization: `Bearer ${SUPABASE_KEY!}`, "Content-Type": "application/json" }, body: JSON.stringify({ is_enabled: false }) }).catch((err) => console.error("[bot] Failed to disable one_time activity:", activity.id, err));
       }
       const timeLabel = timeStr ? ` at ${timeStr}` : "";
       // Send notification to notifhere channel
@@ -649,7 +649,7 @@ export async function handleMessage(msg: any) {
       method: "POST", headers: { apikey: SUPABASE_KEY!, Authorization: `Bearer ${SUPABASE_KEY!}`, "Content-Type": "application/json", Prefer: "return=representation" },
       body: JSON.stringify({ boss_id: boss.id, server_id: serverId, death_time: deathTime.toISOString(), owner_guild_id: ownerGuildId }),
     });
-    await fetch(`${SUPABASE_URL}/rest/v1/boss_spawn_overrides?boss_id=eq.${boss.id}&server_id=eq.${serverId}`, { method: "DELETE", headers: { apikey: SUPABASE_KEY!, Authorization: `Bearer ${SUPABASE_KEY!}` } }).catch(() => {});
+    await fetch(`${SUPABASE_URL}/rest/v1/boss_spawn_overrides?boss_id=eq.${boss.id}&server_id=eq.${serverId}`, { method: "DELETE", headers: { apikey: SUPABASE_KEY!, Authorization: `Bearer ${SUPABASE_KEY!}` } }).catch((err) => console.error("[bot] Failed to delete spawn override after kill:", boss.id, serverId, err));
     if (serverBossGuilds2.some((bg: any) => bg.boss_id === boss.id && bg.mode === "rotation")) {
       await fetch(`${SUPABASE_URL}/rest/v1/bosses?id=eq.${boss.id}`, { method: "PATCH", headers: { apikey: SUPABASE_KEY!, Authorization: `Bearer ${SUPABASE_KEY!}`, "Content-Type": "application/json" }, body: JSON.stringify({ rotation_counter: (boss.rotation_counter ?? 0) + 1 }) });
     }
