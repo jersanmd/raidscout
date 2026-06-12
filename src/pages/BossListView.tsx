@@ -24,7 +24,7 @@ import {
   subscribeToServerSettings,
   cleanupChannel,
 } from "@/lib/supabase";
-import { createCustomBoss, finishActivity, recordActivityEnd } from "@/lib/supabase";
+import { finishActivity, recordActivityEnd } from "@/lib/supabase";
 import { useRecordDeath } from "@/hooks/useRecordDeath";
 import { calculateActivityInfo, toUtcTime } from "@/lib/activityCalculator";
 import { BossCard } from "@/components/BossCard";
@@ -32,13 +32,14 @@ import { DeathRecordModal } from "@/components/DeathRecordModal";
 import { FilterBar } from "@/components/FilterBar";
 import { UpcomingStrip } from "@/components/UpcomingStrip";
 import { UpcomingActivitiesStrip } from "@/components/UpcomingActivitiesStrip";
-import { AddBossForm } from "@/components/AddBossForm";
 import { SavingOverlay } from "@/components/SavingOverlay";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { AddBossModal } from "@/components/AddBossModal";
+import { AddActivityModal } from "@/components/AddActivityModal";
 import { emitSpawnAlert } from "@/hooks/useSpawnAlerts";
 import { guildColor } from "@/lib/constants";
 import { getOwnerGuildName, getRotationInfo } from "@/lib/rotation";
-import { Skull, Loader2, X, CheckCircle, AlertTriangle, CheckSquare, Megaphone, Volume2, VolumeX, Eye, Copy, Settings, Search } from "lucide-react";
+import { Skull, Loader2, X, CheckCircle, AlertTriangle, CheckSquare, Megaphone, Volume2, VolumeX, Eye, Copy, Settings, Search, Plus } from "lucide-react";
 import type { BossWithSpawn, BossGuild, Guild, DeathRecord, SpawnStatus, Activity, ActivityInstance } from "@/types";
 
 const sentAlerts = new Set<string>();
@@ -62,6 +63,7 @@ export function BossListView() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [multiMode, setMultiMode] = useState(false);
   const [showAddBoss, setShowAddBoss] = useState(false);
+  const [showAddActivity, setShowAddActivity] = useState(false);
 
   // Track which boss just got killed for exit animation
   const [justKilledId, setJustKilledId] = useState<string | null>(null);
@@ -694,17 +696,37 @@ export function BossListView() {
         onFilterGuildChange={setFilterGuild}
         guilds={guilds}
         extra={isViewer ? undefined : (
-          <button
-            onClick={() => { if (multiMode) clearSelection(); setMultiMode(!multiMode); }}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 ${
-              multiMode
-                ? "bg-[#27272a] border border-[#3f3f46] text-[#a1a1aa] "
-                : "bg-[#18181b] border border-[#27272a] text-[#71717a] hover:text-[#d4d4d8] hover:border-[#3f3f46]"
-            }`}
-          >
-            <CheckSquare className="w-3.5 h-3.5" />
-            {multiMode ? `Selecting (${selectedIds.size})` : "Select Multiple"}
-          </button>
+          <>
+            {canAddBoss && (
+              <>
+                <button
+                  onClick={() => setShowAddBoss(true)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#18181b] border border-[#27272a] text-[#71717a] hover:text-[#d4d4d8] hover:border-[#3f3f46] transition"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  Add Boss
+                </button>
+                <button
+                  onClick={() => setShowAddActivity(true)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#18181b] border border-[#27272a] text-[#71717a] hover:text-[#d4d4d8] hover:border-[#3f3f46] transition"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  Add Activity
+                </button>
+              </>
+            )}
+            <button
+              onClick={() => { if (multiMode) clearSelection(); setMultiMode(!multiMode); }}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 ${
+                multiMode
+                  ? "bg-[#27272a] border border-[#3f3f46] text-[#a1a1aa] "
+                  : "bg-[#18181b] border border-[#27272a] text-[#71717a] hover:text-[#d4d4d8] hover:border-[#3f3f46]"
+              }`}
+            >
+              <CheckSquare className="w-3.5 h-3.5" />
+              {multiMode ? `Selecting (${selectedIds.size})` : "Select Multiple"}
+            </button>
+          </>
         )}
       />
 
@@ -871,6 +893,12 @@ export function BossListView() {
           }}
         />
       )}
+
+      {/* Add Custom Boss Modal */}
+      <AddBossModal open={showAddBoss} onClose={() => setShowAddBoss(false)} />
+
+      {/* Add Custom Activity Modal */}
+      <AddActivityModal open={showAddActivity} onClose={() => setShowAddActivity(false)} />
     </div>
   );
 }
