@@ -1,4 +1,3 @@
-// @ts-nocheck
 // Supabase REST helpers
 
 import { SUPABASE_URL, SUPABASE_KEY } from "./config";

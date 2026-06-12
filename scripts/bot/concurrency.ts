@@ -1,7 +1,6 @@
 // ── Concurrency tracker + command timeout ──────────────────
 // Prevents any single command from hogging the event loop
 // and exposes active count for health monitoring.
-// @ts-nocheck
 
 let activeCount = 0;
 

@@ -1,4 +1,3 @@
-// @ts-nocheck
 // Logging -- circular buffer + console override
 
 export const LOG_BUFFER: { ts: string; level: string; msg: string }[] = [];

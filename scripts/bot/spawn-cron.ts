@@ -1,4 +1,3 @@
-// @ts-nocheck
 // Spawn cron -- 30s tick: bosses + activities, 5-min warnings + threads with party lists
 
 import { TOKEN, SUPABASE_URL, SUPABASE_KEY } from "./config";
@@ -66,7 +65,6 @@ async function runSpawnCron() {
   const configs = await supabaseQuerySafe(
     `discord_configs?select=raidscout_server_id,discord_guild_id,notification_channel_id&notification_channel_id=not.is.null`
   );
-  if (!configs?.length && !threadConfigs?.length && !cmdConfigs?.length) return;
 
   // Fetch active servers (exclude soft-deleted)
   const activeServers = await supabaseQuerySafe(`servers?select=id&deleted_at=is.null`);
@@ -76,6 +74,13 @@ async function runSpawnCron() {
   const threadConfigs = await supabaseQuerySafe(
     `discord_configs?select=raidscout_server_id,discord_guild_id,thread_channel_id,thread_guilds&thread_channel_id=not.is.null`
   );
+  // Fetch command channel configs (servers with !cmdhere set)
+  const cmdConfigs = await supabaseQuerySafe(
+    `discord_configs?select=raidscout_server_id&command_channel_id=not.is.null`
+  );
+
+  if (!configs?.length && !threadConfigs?.length && !cmdConfigs?.length) return;
+
   // Map: serverId → [{ discord_guild_id, thread_guilds }]
   const serverThreadMap = new Map<string, { discordId: string; threadGuilds: string[] }[]>();
   for (const tc of (threadConfigs || [])) {
@@ -83,11 +88,6 @@ async function runSpawnCron() {
     if (!serverThreadMap.has(sid)) serverThreadMap.set(sid, []);
     serverThreadMap.get(sid)!.push({ discordId: tc.discord_guild_id, threadGuilds: tc.thread_guilds || [] });
   }
-
-  // Fetch command channel configs (servers with !cmdhere set)
-  const cmdConfigs = await supabaseQuerySafe(
-    `discord_configs?select=raidscout_server_id&command_channel_id=not.is.null`
-  );
 
   // Fetch ALL discord_configs for the server count (matches admin panel "Bot Alerts" logic)
   const allDiscordConfigs = await supabaseQuerySafe(
@@ -136,7 +136,7 @@ async function runSpawnCron() {
     const assistGuildIdsAll = [...new Set(serverBossAssists.map((a: any) => a.assistant_guild_id))];
     const ownerGuildIdsAll = [...new Set(serverBossAssists.map((a: any) => a.owner_guild_id))];
     const allAssistRelatedIds = [...new Set([...assistGuildIdsAll, ...ownerGuildIdsAll])];
-    const guildIdToName = new Map((guilds || []).map((g: any) => [g.id, g.name]));
+    const guildIdToName = new Map<string, string>((guilds || []).map((g: any) => [String(g.id), String(g.name)]));
     if (allAssistRelatedIds.length > 0) {
       const assistGuildRows = await supabaseQuerySafe(
         `guilds?select=id,name&id=in.(${allAssistRelatedIds.join(",")})`
