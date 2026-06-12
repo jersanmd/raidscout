@@ -786,7 +786,7 @@ export function LandingPage() {
             <div className="flex items-center justify-between p-4 border-b border-[#27272a]">
               <h3 className="text-sm font-medium text-[#fafafa] flex items-center gap-2">
                 <Play className="w-4 h-4" fill="currentColor" />
-                RaidScout Demo
+                What is RaidScout?
               </h3>
               <button
                 onClick={() => setShowVideo(false)}
@@ -801,7 +801,7 @@ export function LandingPage() {
                 allow="autoplay; encrypted-media"
                 allowFullScreen
                 className="w-full h-full"
-                title="RaidScout Demo"
+                title="What is RaidScout?"
               />
             </div>
           </div>
