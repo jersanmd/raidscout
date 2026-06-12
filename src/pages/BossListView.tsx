@@ -717,7 +717,7 @@ export function BossListView() {
             )}
             <button
               onClick={() => { if (multiMode) clearSelection(); setMultiMode(!multiMode); }}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 ${
+              className={`ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 ${
                 multiMode
                   ? "bg-[#27272a] border border-[#3f3f46] text-[#a1a1aa] "
                   : "bg-[#18181b] border border-[#27272a] text-[#71717a] hover:text-[#d4d4d8] hover:border-[#3f3f46]"

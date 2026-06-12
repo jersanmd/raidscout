@@ -128,7 +128,7 @@ export function FilterBar({
             </select>
           </>
         )}
-        {extra && <span className="ml-auto">{extra}</span>}
+        {extra}
       </div>
     </div>
   );
