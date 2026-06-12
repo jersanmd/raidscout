@@ -8,7 +8,7 @@ import { version } from "../../package.json";
 import {
   Timer, Shield, BarChart3, Sparkles, MessageSquare, Calendar, Skull, Eye, Trophy, Server, Clock, Lock, Image,
   LogIn, UserPlus, Mail, CheckCircle, AlertTriangle, Key, ChevronDown, Bot,
-  Crosshair, Radio, Activity, Wifi, Copy, Terminal, Check, Hash, AtSign, Play, X, Gamepad2, Globe
+  Crosshair, Radio, Activity, Wifi, Copy, Terminal, Check, Hash, AtSign, Play, X, Gamepad2, Globe, EyeOff
 } from "lucide-react";
 
 // ── Animated Counter ────────────────────────────────────────
@@ -803,8 +803,8 @@ export function LandingPage() {
                     <div className="relative">
                       <input type={showPassword ? "text" : "password"} value={password} onChange={e => setPassword(e.target.value)} required minLength={6} placeholder="••••••••"
                         className="w-full px-4 py-3 bg-white/[0.03] border border-white/[0.08] rounded-xl text-[#fafafa] placeholder-white/20 text-sm outline-none focus:border-sky-500/50 focus:ring-1 focus:ring-sky-500/20 transition-all duration-200 pr-10" />
-                      <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#fafafa]/30 hover:text-[#fafafa]/60 transition" tabIndex={-1}>
-                        <Eye className="w-4 h-4" />
+                      <button type="button" onClick={() => { setShowPassword(!showPassword); if (isSignUp) setShowConfirmPassword(!showPassword); }} className={`absolute right-3 top-1/2 -translate-y-1/2 transition ${showPassword ? "text-sky-400" : "text-[#fafafa]/25 hover:text-[#fafafa]/50"}`} tabIndex={-1}>
+                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                       </button>
                     </div>
                     {strengthLabel && (
@@ -836,8 +836,8 @@ export function LandingPage() {
                                 ? "border-emerald-500/50 focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20"
                                 : "border-white/[0.08] focus:border-sky-500/50 focus:ring-1 focus:ring-sky-500/20"
                           }`} />
-                        <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#fafafa]/30 hover:text-[#fafafa]/60 transition" tabIndex={-1}>
-                          <Eye className="w-4 h-4" />
+                        <button type="button" onClick={() => { setShowConfirmPassword(!showConfirmPassword); setShowPassword(!showConfirmPassword); }} className={`absolute right-3 top-1/2 -translate-y-1/2 transition ${showConfirmPassword ? "text-sky-400" : "text-[#fafafa]/25 hover:text-[#fafafa]/50"}`} tabIndex={-1}>
+                          {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                         </button>
                       </div>
                       {confirmPassword && password !== confirmPassword && (
