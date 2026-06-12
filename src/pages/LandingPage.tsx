@@ -199,6 +199,7 @@ export function LandingPage() {
   const { signIn, signUp } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [isSignUp, setIsSignUp] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -247,12 +248,34 @@ export function LandingPage() {
     e.preventDefault();
     setError(null);
     setSuccess(null);
+
+    if (isSignUp) {
+      if (password !== confirmPassword) { setError("Passwords do not match."); return; }
+      const strength = getPasswordStrength(password);
+      if (strength === "weak") { setError("Password is too weak. Use at least 8 characters with a mix of uppercase, lowercase, numbers, and symbols."); return; }
+    }
+
     setLoading(true);
     const { error: err } = isSignUp ? await signUp(email, password) : await signIn(email, password);
     if (err) setError(err);
     else if (isSignUp) setSuccess("Account created! Check your email for a verification link, then sign in.");
     setLoading(false);
   };
+
+  const getPasswordStrength = (p: string): "weak" | "medium" | "strong" => {
+    if (p.length < 8) return "weak";
+    let score = 0;
+    if (/[a-z]/.test(p)) score++;
+    if (/[A-Z]/.test(p)) score++;
+    if (/[0-9]/.test(p)) score++;
+    if (/[^a-zA-Z0-9]/.test(p)) score++;
+    if (p.length >= 12) score++;
+    if (score <= 2) return "weak";
+    if (score <= 3) return "medium";
+    return "strong";
+  };
+
+  const strengthLabel = isSignUp && password ? getPasswordStrength(password) : null;
 
   const handleForgotPassword = async () => {
     if (!email.trim()) { setError("Enter your email first."); return; }
@@ -760,9 +783,9 @@ export function LandingPage() {
                 <form onSubmit={handleSubmit} className="space-y-4">
                   {/* Sign In / Sign Up tabs */}
                   <div className="flex bg-white/[0.03] rounded-xl p-1 mb-2">
-                    <button type="button" onClick={() => { setIsSignUp(false); setError(null); setSuccess(null); setResetSent(false); setAcceptedTerms(false); }}
+                    <button type="button" onClick={() => { setIsSignUp(false); setError(null); setSuccess(null); setResetSent(false); setAcceptedTerms(false); setConfirmPassword(""); }}
                       className={`flex-1 py-2 rounded-lg text-xs font-medium transition-all duration-200 ${!isSignUp ? "bg-white/[0.06] text-[#fafafa] shadow-sm" : "text-[#fafafa]/40 hover:text-[#fafafa]/70"}`}>Sign In</button>
-                    <button type="button" onClick={() => { setIsSignUp(true); setError(null); setSuccess(null); setResetSent(false); setAcceptedTerms(false); }}
+                    <button type="button" onClick={() => { setIsSignUp(true); setError(null); setSuccess(null); setResetSent(false); setAcceptedTerms(false); setConfirmPassword(""); }}
                       className={`flex-1 py-2 rounded-lg text-xs font-medium transition-all duration-200 ${isSignUp ? "bg-white/[0.06] text-[#fafafa] shadow-sm" : "text-[#fafafa]/40 hover:text-[#fafafa]/70"}`}>Sign Up</button>
                   </div>
                   <div>
@@ -777,7 +800,42 @@ export function LandingPage() {
                     <label className="block text-xs font-medium text-emerald-400/50 mb-2 ml-1 font-mono tracking-wider uppercase">{">>"} Password</label>
                     <input type="password" value={password} onChange={e => setPassword(e.target.value)} required minLength={6} placeholder="••••••••"
                       className="w-full px-4 py-3 bg-white/[0.03] border border-white/[0.08] rounded-xl text-[#fafafa] placeholder-white/20 text-sm outline-none focus:border-sky-500/50 focus:ring-1 focus:ring-sky-500/20 transition-all duration-200" />
+                    {strengthLabel && (
+                      <div className="flex items-center gap-2 mt-1.5">
+                        <div className="flex-1 h-1 rounded-full bg-white/[0.06] overflow-hidden">
+                          <div className={`h-full rounded-full transition-all duration-300 ${
+                            strengthLabel === "weak" ? "w-1/3 bg-red-500" :
+                            strengthLabel === "medium" ? "w-2/3 bg-amber-500" :
+                            "w-full bg-emerald-500"
+                          }`} />
+                        </div>
+                        <span className={`text-[10px] font-mono uppercase tracking-wider ${
+                          strengthLabel === "weak" ? "text-red-400" :
+                          strengthLabel === "medium" ? "text-amber-400" :
+                          "text-emerald-400"
+                        }`}>{strengthLabel}</span>
+                      </div>
+                    )}
                   </div>
+                  {isSignUp && (
+                    <div>
+                      <label className="block text-xs font-medium text-emerald-400/50 mb-2 ml-1 font-mono tracking-wider uppercase">{">>"} Confirm Password</label>
+                      <input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} required minLength={6} placeholder="••••••••"
+                        className={`w-full px-4 py-3 bg-white/[0.03] border rounded-xl text-[#fafafa] placeholder-white/20 text-sm outline-none transition-all duration-200 ${
+                          confirmPassword && password !== confirmPassword
+                            ? "border-red-500/50 focus:border-red-500/50 focus:ring-1 focus:ring-red-500/20"
+                            : confirmPassword && password === confirmPassword
+                              ? "border-emerald-500/50 focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20"
+                              : "border-white/[0.08] focus:border-sky-500/50 focus:ring-1 focus:ring-sky-500/20"
+                        }`} />
+                      {confirmPassword && password !== confirmPassword && (
+                        <p className="text-[10px] text-red-400 mt-1 ml-1">Passwords do not match</p>
+                      )}
+                      {confirmPassword && password === confirmPassword && (
+                        <p className="text-[10px] text-emerald-400 mt-1 ml-1">Passwords match ✓</p>
+                      )}
+                    </div>
+                  )}
                   {!isSignUp && (
                     <div className="flex justify-end">
                       <button type="button" onClick={handleForgotPassword} disabled={loading} className="text-xs text-emerald-400/40 hover:text-emerald-400 transition font-mono">Forgot password?</button>
