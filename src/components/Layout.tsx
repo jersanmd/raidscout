@@ -133,7 +133,7 @@ export function Layout() {
             <div className="hidden w-8 h-8 rounded-lg bg-[#18181b] items-center justify-center">
               <Skull className="w-4 h-4 text-[#a1a1aa]" />
             </div>
-            <span className="font-semibold text-[#fafafa] hidden sm:block tracking-tight">RaidScout</span>
+            <span className="font-semibold text-[#fafafa] tracking-tight text-sm">RaidScout</span>
             {isViewer && viewerServerName && (
               <span className="text-xs text-[#a1a1aa] flex items-center gap-1">
                 <Eye className="w-3 h-3" />
