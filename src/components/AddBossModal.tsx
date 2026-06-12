@@ -18,7 +18,7 @@ export function AddBossModal({ open, onClose }: Props) {
   useEscapeKey(onClose, open);
 
   const [guilds, setGuilds] = useState<Guild[]>([]);
-  const [guildMode, setGuildMode] = useState<"none" | "rotation" | "daily" | "schedule">("none");
+  const [guildMode, setGuildMode] = useState<"none" | "rotation" | "daily" | "schedule">("rotation");
   const [selectedGuildIds, setSelectedGuildIds] = useState<string[]>([]);
   const [scheduleDays, setScheduleDays] = useState<Record<number, string | null>>({});
   const [submitting, setSubmitting] = useState(false);
@@ -29,6 +29,13 @@ export function AddBossModal({ open, onClose }: Props) {
       fetchGuilds(currentServer.id).then(setGuilds).catch(() => setGuilds([]));
     }
   }, [currentServer?.id]);
+
+  // Auto-select first guild as default for rotation
+  useEffect(() => {
+    if (guilds.length > 0 && selectedGuildIds.length === 0) {
+      setSelectedGuildIds([guilds[0].id]);
+    }
+  }, [guilds]);
 
   if (!open || !currentServer) return null;
 

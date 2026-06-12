@@ -115,25 +115,16 @@ describe("AddBossModal", () => {
     expect(screen.getByRole("button", { name: "Add Boss" })).toBeInTheDocument();
   });
 
-  it("renders rotation guild list when mode is rotation", async () => {
-    const user = userEvent.setup();
+  it("renders rotation guild list by default with first guild selected", async () => {
     renderWithProviders(<AddBossModal open={true} onClose={() => {}} />);
 
     await waitFor(() => {
       expect(screen.getByText("Guild Assignment")).toBeInTheDocument();
     });
 
-    // Select Rotation mode
-    const modeSelect = screen.getAllByRole("combobox").find(
-      s => s.querySelector("option[value='rotation']")
-    ) as HTMLSelectElement;
-    if (modeSelect) {
-      await user.selectOptions(modeSelect, "rotation");
-    }
-
-    // Should show "add guild" dropdown
+    // Default mode is rotation — first guild (Alpha) should be auto-selected
     await waitFor(() => {
-      expect(screen.getByText(/Add guild/)).toBeInTheDocument();
+      expect(screen.getByText("Alpha")).toBeInTheDocument();
     });
   });
 
