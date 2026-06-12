@@ -1,5 +1,4 @@
 import { supabase, getCurrentServerId } from "./client";
-import { supabaseUrl, supabaseKey } from "./client";
 
 // ── Analytics ───────────────────────────────────────────────
 
@@ -43,45 +42,22 @@ export async function fetchAnalytics(since: string, serverId?: string | null): P
 
   const deathIds = deaths.map(d => d.id);
 
-  // Get attendance — batched via edge function
+  // Get attendance — direct paginated query (more reliable than edge function)
   let att: any[] = [];
-  const ATT_BATCH = 500;
-  for (let i = 0; i < deathIds.length; i += ATT_BATCH) {
-    const batch = deathIds.slice(i, i + ATT_BATCH);
-    try {
-      const resp = await fetch(`${supabaseUrl}/functions/v1/get-attendance`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${supabaseKey}`,
-          "apikey": supabaseKey,
-        },
-        body: JSON.stringify({ death_record_ids: batch }),
-      });
-      if (resp.ok) {
-        const batchData = await resp.json();
-        if (batchData?.length) att.push(...batchData);
-      }
-    } catch { /* continue to next batch */ }
-  }
-
-  if (!att.length) {
-    // Paginated fallback — Supabase defaults to 1,000 rows max
-    const allAtt: any[] = [];
+  {
     let attPage = 0;
     while (true) {
-      const { data: directAtt, error: aErr } = await supabase
+      const { data: batch, error: aErr } = await supabase
         .from("attendance_records")
         .select("death_record_id, member_id")
         .in("death_record_id", deathIds)
         .range(attPage * 1000, (attPage + 1) * 1000 - 1);
-      if (aErr) throw aErr;
-      if (!directAtt?.length) break;
-      allAtt.push(...directAtt);
-      if (directAtt.length < 1000) break;
+      if (aErr) { console.warn("attendance fetch error:", aErr); break; }
+      if (!batch?.length) break;
+      att.push(...batch);
+      if (batch.length < 1000) break;
       attPage++;
     }
-    att = allAtt;
   }
 
   // Get bosses for names
@@ -104,7 +80,56 @@ export async function fetchAnalytics(since: string, serverId?: string | null): P
 
   const totalKills = deaths.length;
   const totalAttendance = (att || []).length;
-  const activeMembers = new Set((att || []).map(a => a.member_id)).size;
+  // Activity stats — completed instances within date range
+  let totalActivities = 0;
+  let activityParticipation = 0;
+  let activityMemberIds = new Set<string>();
+
+  try {
+    // Get activities for this server first (no server_id on activity_instances)
+    const { data: serverActivities } = await supabase
+      .from("activities")
+      .select("id")
+      .eq("server_id", sid)
+      .is("deleted_at", null);
+
+    if (serverActivities?.length) {
+      const serverActivityIds = serverActivities.map(a => a.id);
+
+      const { data: activityInstances } = await supabase
+        .from("activity_instances")
+        .select("id, activity_id, start_time, end_time")
+        .in("activity_id", serverActivityIds)
+        .not("end_time", "is", null)
+        .gte("end_time", since)
+        .order("end_time", { ascending: false })
+        .limit(5000);
+
+      if (activityInstances?.length) {
+        totalActivities = activityInstances.length;
+
+        // Get activity attendance
+        const instanceIds = activityInstances.map(ai => ai.id);
+        for (let i = 0; i < instanceIds.length; i += 500) {
+          const batch = instanceIds.slice(i, i + 500);
+          try {
+            const { data: batchData } = await supabase
+              .from("activity_attendance")
+              .select("activity_instance_id, member_id")
+              .in("activity_instance_id", batch)
+              .eq("present", true);
+            if (batchData) {
+              activityParticipation += batchData.length;
+              for (const aa of batchData) activityMemberIds.add(aa.member_id);
+            }
+          } catch { /* skip batch */ }
+        }
+      }
+    }
+  } catch { /* activity stats are non-critical */ }
+
+  const allActiveMemberIds = new Set([...new Set((att || []).map((a: any) => a.member_id)), ...activityMemberIds]);
+  const activeMembers = allActiveMemberIds.size;
 
   // Kills by week
   const weekMap = new Map<string, number>();
@@ -151,5 +176,5 @@ export async function fetchAnalytics(since: string, serverId?: string | null): P
   }
   const killsByDay = dayNames.map(day => ({ day, count: dayCounts.get(dayNames.indexOf(day)) || 0 }));
 
-  return { total_kills: totalKills, total_attendance: totalAttendance, active_members: activeMembers, kills_by_week: killsByWeek, top_bosses: topBosses, top_hunters: topHunters, kills_by_day: killsByDay, total_activities: 0, activity_participation: 0, activity_completion_rate: 0 };
+  return { total_kills: totalKills, total_attendance: totalAttendance, active_members: activeMembers, kills_by_week: killsByWeek, top_bosses: topBosses, top_hunters: topHunters, kills_by_day: killsByDay, total_activities: totalActivities, activity_participation: activityParticipation, activity_completion_rate: 0 };
 }
