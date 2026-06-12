@@ -8,7 +8,7 @@ import {
   fetchAllBossesForServer, fetchAllActivitiesForServer,
   updateCustomBoss, updateCustomActivity,
   toggleBossEnabled, toggleActivityEnabled,
-  supabase, fetchGames, fetchGuilds, setBossGuilds,
+  supabase, fetchGames, fetchGuilds, setBossGuilds, setActivityGuilds,
 } from "@/lib/supabase";
 import { AddBossForm } from "@/components/AddBossForm";
 import { BossImage } from "@/components/BossImage";
@@ -503,7 +503,7 @@ export function ServerBossesActivitiesTab({ mode = "all" }: { mode?: "all" | "bo
           )}
         </div>
         {showAddActivity && canManage && (
-          <div className="mb-3">
+          <div className="mb-3 bg-[#18181b] border border-[#27272a] rounded-lg p-3 space-y-3">
             <AddActivityForm
               serverId={serverId}
               gameId=""
@@ -518,7 +518,114 @@ export function ServerBossesActivitiesTab({ mode = "all" }: { mode?: "all" | "bo
                 queryClient.invalidateQueries({ queryKey: ["activity-points"] });
               }}
               onCancel={() => setShowAddActivity(false)}
+              onCreatedWithId={async (activityId) => {
+                if (guildMode === "none") return;
+                setSubmittingGuilds(true);
+                try {
+                  if (guildMode === "schedule") {
+                    const assignments = Object.entries(scheduleDays)
+                      .filter(([, gid]) => gid !== null && gid !== undefined)
+                      .map(([day, gid]) => ({ guild_id: gid as string, day_of_week: parseInt(day) }));
+                    if (assignments.length > 0) await setActivityGuilds(activityId, assignments, "schedule");
+                  } else {
+                    if (selectedGuildIds.length === 0) return;
+                    const assignments = selectedGuildIds.map((gid, i) => ({ guild_id: gid, sort_order: i + 1 }));
+                    await setActivityGuilds(activityId, assignments, guildMode);
+                  }
+                } catch (err) {
+                  console.error("[ServerBossesActivitiesTab] Activity guild assignment failed:", err);
+                } finally {
+                  setSubmittingGuilds(false);
+                }
+              }}
+              hideSubmitButton
+              formRef={formRef}
             />
+
+            {/* Guild Assignment Section */}
+            {guilds.length > 0 && (
+              <div className="space-y-2">
+                <h3 className="text-xs font-medium text-[#fafafa]">Guild Assignment</h3>
+
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] text-[#71717a] w-10">Mode:</span>
+                  <select
+                    value={guildMode}
+                    onChange={(e) => {
+                      setGuildMode(e.target.value as "none" | "rotation" | "daily" | "schedule");
+                      setSelectedGuildIds([]);
+                      setScheduleDays({});
+                    }}
+                    className="flex-1 bg-[#09090b] border border-[#3f3f46] rounded px-2 py-1.5 text-xs text-[#fafafa] outline-none focus:ring-1 focus:ring-[#52525b]"
+                  >
+                    <option value="none">None</option>
+                    <option value="rotation">Rotation (per kill)</option>
+                    <option value="daily">Daily (per day)</option>
+                    <option value="schedule">Schedule</option>
+                  </select>
+                </div>
+
+                {(guildMode === "rotation" || guildMode === "daily") && (
+                  <div className="space-y-1.5">
+                    <p className="text-[10px] text-[#71717a]">Guild order (first → last):</p>
+                    {selectedGuildIds.map((gid, idx) => {
+                      const g = guilds.find(x => x.id === gid);
+                      return (
+                        <div key={gid} className="flex items-center gap-1 bg-[#09090b]/50 rounded px-2 py-1.5">
+                          <span className="text-[10px] text-[#71717a] w-4">{idx + 1}.</span>
+                          <span className="text-xs text-[#e4e4e7] flex-1">{g?.name ?? "Unknown"}</span>
+                          <button onClick={() => moveGuild(gid, "up")} disabled={idx === 0} className="p-0.5 text-[#71717a] hover:text-[#a1a1aa] disabled:opacity-30"><ChevronUp className="w-3 h-3" /></button>
+                          <button onClick={() => moveGuild(gid, "down")} disabled={idx === selectedGuildIds.length - 1} className="p-0.5 text-[#71717a] hover:text-[#a1a1aa] disabled:opacity-30"><ChevronDown className="w-3 h-3" /></button>
+                          <button onClick={() => removeGuild(gid)} className="p-0.5 text-[#71717a] hover:text-[#f87171]"><X className="w-3 h-3" /></button>
+                        </div>
+                      );
+                    })}
+                    {availableGuilds.length > 0 && (
+                      <select
+                        value=""
+                        onChange={(e) => addGuild(e.target.value)}
+                        className="w-full bg-[#09090b] border border-[#3f3f46] rounded px-2 py-1.5 text-xs text-[#a1a1aa] outline-none focus:ring-1 focus:ring-[#52525b]"
+                      >
+                        <option value="">+ Add guild...</option>
+                        {availableGuilds.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+                      </select>
+                    )}
+                  </div>
+                )}
+
+                {guildMode === "schedule" && (
+                  <div className="space-y-1.5">
+                    <p className="text-[10px] text-[#71717a]">Assign a guild per day:</p>
+                    {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day, i) => (
+                      <div key={i} className="flex items-center gap-2">
+                        <span className="text-[10px] text-[#71717a] w-8">{day}</span>
+                        <select
+                          value={scheduleDays[i] ?? ""}
+                          onChange={(e) => setScheduleDays(prev => ({ ...prev, [i]: e.target.value || null }))}
+                          className="flex-1 bg-[#09090b] border border-[#3f3f46] rounded px-2 py-1.5 text-xs text-[#a1a1aa] outline-none focus:ring-1 focus:ring-[#52525b]"
+                        >
+                          <option value="">—</option>
+                          {guilds.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+                        </select>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {submittingGuilds && (
+                  <p className="text-[10px] text-[#71717a]">Assigning guilds to activity...</p>
+                )}
+              </div>
+            )}
+
+            {/* Footer Add button */}
+            <button
+              onClick={() => formRef.current?.requestSubmit()}
+              disabled={submittingGuilds}
+              className="w-full flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold bg-[#fafafa] hover:bg-[#e4e4e7] text-[#09090b] transition disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {submittingGuilds ? <><Loader2 className="w-4 h-4 animate-spin" /> Creating...</> : "Add Activity"}
+            </button>
           </div>
         )}
         {activities.length === 0 ? (

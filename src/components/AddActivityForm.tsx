@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Loader2, Plus, Save, X, Image } from "lucide-react";
 import { localSlotToUtc, type ScheduleSlot } from "@/lib/scheduleTimezone";
 import { toUtcTime } from "@/lib/activityCalculator";
@@ -15,9 +15,17 @@ interface Props {
   timezone?: string;
   onCreated: () => void;
   onCancel: () => void;
+  /** Called with the new activity ID after creation (for chaining guild assignment etc.) */
+  onCreatedWithId?: (activityId: string) => Promise<void>;
+  /** When true, hides the internal submit button — parent provides its own */
+  hideSubmitButton?: boolean;
+  /** Ref to the form element for external submission */
+  formRef?: React.RefObject<HTMLFormElement | null>;
 }
 
-export function AddActivityForm({ gameId, gameSlug, serverId, timezone, onCreated, onCancel }: Props) {
+export function AddActivityForm({ gameId, gameSlug, serverId, timezone, onCreated, onCancel, onCreatedWithId, hideSubmitButton, formRef: externalFormRef }: Props) {
+  const internalFormRef = useRef<HTMLFormElement>(null);
+  const formRef = externalFormRef || internalFormRef;
   const isServerMode = !!serverId;
   const [name, setName] = useState("");
   const [scheduleType, setScheduleType] = useState("fixed_hours");
@@ -59,7 +67,7 @@ export function AddActivityForm({ gameId, gameSlug, serverId, timezone, onCreate
           : (scheduleType === "fixed_hours" || scheduleType === "one_time")
             ? { time: `${startHours.padStart(2, "0")}:${startMinutes.padStart(2, "0")}`, start_date: startDate, utc_start: toUtcTime(startDate, `${startHours.padStart(2, "0")}:${startMinutes.padStart(2, "0")}`, tz) }
             : null;
-        await createCustomActivity(serverId, {
+        const result = await createCustomActivity(serverId, {
           name: name.trim(),
           schedule_type: scheduleType,
           schedule: sched,
@@ -69,6 +77,9 @@ export function AddActivityForm({ gameId, gameSlug, serverId, timezone, onCreate
           category: category || null, tags,
           image_url: imageUrl || null,
         });
+        if (onCreatedWithId) {
+          await onCreatedWithId(result.id);
+        }
       } else {
       await createActivityTemplate({
         game_id: gameId,
@@ -96,7 +107,7 @@ export function AddActivityForm({ gameId, gameSlug, serverId, timezone, onCreate
   };
 
   return (
-    <form onSubmit={handleSubmit} className="bg-[#18181b] border border-[#27272a] rounded-lg p-3 mb-2 space-y-2">
+    <form ref={formRef} onSubmit={handleSubmit} className="bg-[#18181b] border border-[#27272a] rounded-lg p-3 mb-2 space-y-2">
       <div className="flex items-center justify-between">
         {isServerMode ? <span className="text-sm font-medium text-[#fafafa]">New Custom Activity</span> : <span className="text-sm font-medium text-[#fafafa]">New Activity Template</span>}
         <button type="button" onClick={onCancel} className="text-[#71717a] hover:text-[#fafafa]"><X className="w-4 h-4" /></button>
@@ -228,9 +239,11 @@ export function AddActivityForm({ gameId, gameSlug, serverId, timezone, onCreate
           )}
         </div>
       </div>
+      {!hideSubmitButton && (
       <button type="submit" disabled={saving} className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded bg-[#fafafa] hover:bg-[#e4e4e7] text-[#09090b] transition disabled:opacity-50 disabled:cursor-not-allowed">
         {saving ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Saving...</> : <><Save className="w-3.5 h-3.5" /> Add Activity</>}
       </button>
+      )}
     </form>
   );
 }
