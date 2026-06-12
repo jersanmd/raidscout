@@ -47,6 +47,18 @@ function AnimatedCounter({ value, suffix = "+" }: { value: number; suffix?: stri
 const HERO_BOSSES = ["Venatus", "Viorent", "Ego", "Lady Dalia", "Livera"];
 const YVONNE6_ID = "b0379776-df4b-4b47-9cc3-52cbb7142948";
 
+// ── Tester Credits ──────────────────────────────────────────
+const TESTERS = [
+  { name: "bruubruu", avatar: "/testers/bruubruu.png", discord: "277497499823112195" },
+  { name: "itsyohboyjustin", avatar: "/testers/itsyohboyjustin.png", discord: "687362924385271813" },
+  { name: "mr.handsome18", avatar: "/testers/mrhandsome18.png", discord: "1065905461158744094" },
+  { name: "vn1tv", avatar: "/testers/vn1tv.png", discord: "568277430259941388" },
+  { name: "megane7182", avatar: "/testers/megane7182.png", discord: "172272647562985472" },
+  { name: "jshimura", avatar: "/testers/jshimura.png", discord: "553554185191292928" },
+  { name: ".iwhiterabbit", avatar: "/testers/iwhiterabbit.png", discord: "721989425139154975" },
+  { name: "itscj8", avatar: "/testers/itscj8.png", discord: "837693858124005396" },
+];
+
 function LiveBossTimer() {
   const [timeStr, setTimeStr] = useState("--:--:--");
   const [bossName, setBossName] = useState("Venatus");
@@ -367,6 +379,29 @@ export function LandingPage() {
               <span className="flex items-center gap-1.5"><Activity className="w-3 h-3" />99.9% Uptime</span>
               <span className="w-px h-3 bg-[#27272a]" />
               <span className="flex items-center gap-1.5"><Lock className="w-3 h-3 hidden sm:block" />End-to-end Encrypted</span>
+            </div>
+
+            {/* Tester avatars */}
+            <div className="flex flex-col items-center gap-2.5 pt-6">
+              <div className="flex items-center">
+                {TESTERS.map((tester, i) => (
+                  <a
+                    key={i}
+                    href={`https://discord.com/users/${tester.discord}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="group relative hover:z-10 transition-all duration-300"
+                    style={{ marginLeft: i === 0 ? 0 : "-10px", zIndex: TESTERS.length - i }}
+                  >
+                    <img
+                      src={tester.avatar}
+                      alt={tester.name}
+                      className="w-9 h-9 rounded-full object-cover ring-2 ring-[#09090b] group-hover:ring-amber-400/40 group-hover:scale-110 transition-all duration-300"
+                    />
+                  </a>
+                ))}
+              </div>
+              <span className="text-[10px] tracking-wide text-[#52525b]">trusted by guild leaders and guild managers worldwide</span>
             </div>
           </div>
         </div>
