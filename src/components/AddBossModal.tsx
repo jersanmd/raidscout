@@ -1,10 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useServer } from "@/contexts/ServerContext";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { AddBossForm } from "@/components/AddBossForm";
 import { fetchGuilds, setBossGuilds } from "@/lib/supabase";
-import { X, Plus, Minus, ChevronUp, ChevronDown } from "lucide-react";
+import { X, Plus, Minus, ChevronUp, ChevronDown, Loader2 } from "lucide-react";
 import type { Guild } from "@/types";
 
 interface Props {
@@ -18,9 +18,11 @@ export function AddBossModal({ open, onClose }: Props) {
   useEscapeKey(onClose, open);
 
   const [guilds, setGuilds] = useState<Guild[]>([]);
-  const [guildMode, setGuildMode] = useState<"none" | "rotation">("none");
+  const [guildMode, setGuildMode] = useState<"none" | "rotation" | "daily" | "schedule">("none");
   const [selectedGuildIds, setSelectedGuildIds] = useState<string[]>([]);
+  const [scheduleDays, setScheduleDays] = useState<Record<number, string | null>>({});
   const [submitting, setSubmitting] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
 
   useEffect(() => {
     if (currentServer?.id) {
@@ -38,14 +40,27 @@ export function AddBossModal({ open, onClose }: Props) {
   };
 
   const handleAssignGuilds = async (bossId: string) => {
-    if (guildMode === "none" || selectedGuildIds.length === 0) return;
+    if (guildMode === "none") return;
     setSubmitting(true);
     try {
-      const assignments = selectedGuildIds.map((gid, i) => ({
-        guild_id: gid,
-        sort_order: i + 1,
-      }));
-      await setBossGuilds(bossId, assignments, "rotation");
+      if (guildMode === "schedule") {
+        const assignments = Object.entries(scheduleDays)
+          .filter(([, gid]) => gid !== null && gid !== undefined)
+          .map(([day, gid]) => ({
+            guild_id: gid as string,
+            day_of_week: parseInt(day),
+          }));
+        if (assignments.length > 0) {
+          await setBossGuilds(bossId, assignments, "schedule");
+        }
+      } else {
+        if (selectedGuildIds.length === 0) { setSubmitting(false); return; }
+        const assignments = selectedGuildIds.map((gid, i) => ({
+          guild_id: gid,
+          sort_order: i + 1,
+        }));
+        await setBossGuilds(bossId, assignments, guildMode);
+      }
     } catch (err) {
       console.error("[AddBossModal] Guild assignment failed:", err);
     } finally {
@@ -95,6 +110,8 @@ export function AddBossModal({ open, onClose }: Props) {
             onCreated={handleCreated}
             onCancel={onClose}
             onCreatedWithId={handleAssignGuilds}
+            hideSubmitButton
+            formRef={formRef}
           />
 
           {/* Guild Assignment Section */}
@@ -102,7 +119,7 @@ export function AddBossModal({ open, onClose }: Props) {
             <div className="bg-[#18181b] border border-[#27272a] rounded-lg p-3 space-y-2">
               <h3 className="text-xs font-medium text-[#fafafa]">Guild Assignment</h3>
               <p className="text-[10px] text-[#71717a]">
-                Optionally assign this boss to a guild rotation now.
+                Optionally assign this boss to a guild now.
                 You can change this later in Server Settings.
               </p>
 
@@ -110,17 +127,24 @@ export function AddBossModal({ open, onClose }: Props) {
                 <span className="text-[10px] text-[#71717a] w-10">Mode:</span>
                 <select
                   value={guildMode}
-                  onChange={(e) => setGuildMode(e.target.value as "none" | "rotation")}
+                  onChange={(e) => {
+                    setGuildMode(e.target.value as "none" | "rotation" | "daily" | "schedule");
+                    setSelectedGuildIds([]);
+                    setScheduleDays({});
+                  }}
                   className="flex-1 bg-[#09090b] border border-[#3f3f46] rounded px-2 py-1.5 text-xs text-[#fafafa] outline-none focus:ring-1 focus:ring-[#52525b]"
                 >
                   <option value="none">None</option>
                   <option value="rotation">Rotation (per kill)</option>
+                  <option value="daily">Daily (per day)</option>
+                  <option value="schedule">Schedule</option>
                 </select>
               </div>
 
-              {guildMode === "rotation" && (
+              {/* Rotation & Daily modes */}
+              {(guildMode === "rotation" || guildMode === "daily") && (
                 <div className="space-y-1.5">
-                  <p className="text-[10px] text-[#71717a]">Guild rotation order (first → last):</p>
+                  <p className="text-[10px] text-[#71717a]">Guild order (first → last):</p>
                   {selectedGuildIds.length === 0 ? (
                     <p className="text-[10px] text-[#52525b] italic">No guilds selected. Add at least one.</p>
                   ) : (
@@ -143,19 +167,53 @@ export function AddBossModal({ open, onClose }: Props) {
                       onChange={(e) => addGuild(e.target.value)}
                       className="w-full bg-[#09090b] border border-[#3f3f46] rounded px-2 py-1.5 text-xs text-[#a1a1aa] outline-none focus:ring-1 focus:ring-[#52525b]"
                     >
-                      <option value="">+ Add guild to rotation...</option>
+                      <option value="">+ Add guild...</option>
                       {availableGuilds.map(g => (
                         <option key={g.id} value={g.id}>{g.name}</option>
                       ))}
                     </select>
                   )}
-                  {submitting && (
-                    <p className="text-[10px] text-[#71717a] mt-1">Assigning guilds to boss...</p>
-                  )}
                 </div>
+              )}
+
+              {/* Schedule mode */}
+              {guildMode === "schedule" && (
+                <div className="space-y-1.5">
+                  <p className="text-[10px] text-[#71717a]">Assign a guild per day of the week:</p>
+                  {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day, i) => (
+                    <div key={i} className="flex items-center gap-2">
+                      <span className="text-[10px] text-[#71717a] w-8">{day}</span>
+                      <select
+                        value={scheduleDays[i] ?? ""}
+                        onChange={(e) => setScheduleDays(prev => ({ ...prev, [i]: e.target.value || null }))}
+                        className="flex-1 bg-[#09090b] border border-[#3f3f46] rounded px-2 py-1.5 text-xs text-[#a1a1aa] outline-none focus:ring-1 focus:ring-[#52525b]"
+                      >
+                        <option value="">—</option>
+                        {guilds.map(g => (
+                          <option key={g.id} value={g.id}>{g.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {submitting && (
+                <p className="text-[10px] text-[#71717a] mt-1">Assigning guilds to boss...</p>
               )}
             </div>
           )}
+        </div>
+
+        {/* Footer with Add button */}
+        <div className="p-4 border-t border-[#27272a]">
+          <button
+            onClick={() => formRef.current?.requestSubmit()}
+            disabled={submitting}
+            className="w-full flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold bg-[#fafafa] hover:bg-[#e4e4e7] text-[#09090b] transition disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {submitting ? <><Loader2 className="w-4 h-4 animate-spin" /> Creating...</> : "Add Boss"}
+          </button>
         </div>
       </div>
     </div>

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Loader2, Plus, Save, X, Image } from "lucide-react";
 import { localSlotToUtc, type ScheduleSlot } from "@/lib/scheduleTimezone";
 import { toUtcTime } from "@/lib/activityCalculator";
@@ -17,9 +17,15 @@ interface Props {
   onCancel: () => void;
   /** Called with the new boss ID after creation (for chaining guild assignment etc.) */
   onCreatedWithId?: (bossId: string) => Promise<void>;
+  /** When true, hides the internal submit button — parent provides its own */
+  hideSubmitButton?: boolean;
+  /** Ref to the form element for external submission */
+  formRef?: React.RefObject<HTMLFormElement | null>;
 }
 
-export function AddBossForm({ gameId, gameSlug, serverId, onCreated, onCancel, onCreatedWithId }: Props) {
+export function AddBossForm({ gameId, gameSlug, serverId, onCreated, onCancel, onCreatedWithId, hideSubmitButton, formRef: externalFormRef }: Props) {
+  const internalFormRef = useRef<HTMLFormElement>(null);
+  const formRef = externalFormRef || internalFormRef;
   const isServerMode = !!serverId;
   const { timezone: userTz } = useUserTimezone();
   const tz = userTz || Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -100,7 +106,7 @@ export function AddBossForm({ gameId, gameSlug, serverId, onCreated, onCancel, o
   };
 
   return (
-    <form onSubmit={handleSubmit} className="bg-[#18181b] border border-[#27272a] rounded-lg p-3 mb-2 space-y-2">
+    <form ref={formRef} onSubmit={handleSubmit} className="bg-[#18181b] border border-[#27272a] rounded-lg p-3 mb-2 space-y-2">
       <div className="flex items-center justify-between">
         {isServerMode ? <span className="text-xs font-medium text-[#fafafa]">New Custom Boss</span> : <span className="text-xs font-medium text-[#fafafa]">New Boss Template</span>}
         <button type="button" onClick={onCancel} className="text-[#71717a] hover:text-[#fafafa]"><X className="w-3 h-3" /></button>
@@ -250,9 +256,11 @@ export function AddBossForm({ gameId, gameSlug, serverId, onCreated, onCancel, o
           )}
         </div>
       </div>
+      {!hideSubmitButton && (
       <button type="submit" disabled={saving} className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded bg-[#fafafa] hover:bg-[#e4e4e7] text-[#09090b] transition disabled:opacity-50 disabled:cursor-not-allowed">
         {saving ? <><Loader2 className="w-3 h-3 animate-spin" /> Saving...</> : <><Save className="w-3 h-3" /> Add</>}
       </button>
+      )}
     </form>
   );
 }
