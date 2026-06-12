@@ -27,7 +27,7 @@ export function ConfirmDialog({
   onCancel,
 }: ConfirmDialogProps) {
   const [typed, setTyped] = useState("");
-  useEscapeKey(() => onCancel(false), open);
+  useEscapeKey(onCancel, open);
   if (!open) return null;
   const confirmed = !confirmText || typed === confirmText;
 
