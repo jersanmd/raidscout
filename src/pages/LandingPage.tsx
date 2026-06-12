@@ -1,13 +1,13 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/lib/supabase";
+import { supabase, fetchGames } from "@/lib/supabase";
 import { SEOHead } from "@/components/SEOHead";
 import { version } from "../../package.json";
 import {
   Timer, Shield, BarChart3, Sparkles, MessageSquare, Calendar, Skull, Eye, Trophy, Server, Clock, Lock, Image,
   LogIn, UserPlus, Mail, CheckCircle, AlertTriangle, Key, ChevronDown, Bot,
-  Crosshair, Radio, Activity, Wifi, Copy, Terminal, Check, Hash, AtSign, Play, X
+  Crosshair, Radio, Activity, Wifi, Copy, Terminal, Check, Hash, AtSign, Play, X, Gamepad2, Globe
 } from "lucide-react";
 
 // ── Animated Counter ────────────────────────────────────────
@@ -207,6 +207,8 @@ export function LandingPage() {
   const [liveStats, setLiveStats] = useState({
     guilds: 0, kills: 0, players: 0, servers: 0,
   });
+  const [games, setGames] = useState<any[]>([]);
+  const [gamesLoading, setGamesLoading] = useState(true);
   useEffect(() => {
     (async () => {
       try {
@@ -230,6 +232,8 @@ export function LandingPage() {
         }
       } catch { /* keep fallback */ }
     })();
+    // Fetch supported games
+    fetchGames().then(data => { setGames(data || []); setGamesLoading(false); }).catch(() => setGamesLoading(false));
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -256,8 +260,8 @@ export function LandingPage() {
   return (
     <div className="min-h-screen bg-slate-950 text-[#fafafa] overflow-x-hidden scroll-smooth">
       <SEOHead
-        title="RaidScout"
-        description="Track bosses & activities across any game. Manage guild rotations, monitor attendance, coordinate parties, and stay on top of every spawn. Forever free."
+        title="RaidScout — Multi-Game Guild Operations Platform"
+        description="Track bosses & activities across any MMO. Manage guild rotations, monitor attendance, coordinate parties, and stay on top of every spawn. Forever free."
         canonicalUrl="/"
       />
 
@@ -267,7 +271,7 @@ export function LandingPage() {
           "@context": "https://schema.org",
           "@type": "WebApplication",
           name: "RaidScout",
-          description: "Track 39+ boss spawns, rotate multi-guild kills, scan rallies with AI, and compete on leaderboards.",
+          description: "Multi-game guild operations platform. Track boss spawns, rotate multi-guild kills, scan rallies with AI, and compete on leaderboards — across any MMO.",
           url: "https://www.raidscout.com",
           applicationCategory: "GameApplication",
           operatingSystem: "Web",
@@ -346,7 +350,7 @@ export function LandingPage() {
           <div className="pt-2">
             <div className="relative inline-flex flex-col gap-3 px-6 py-4 rounded-xl border border-[#27272a] bg-[#09090b]">
               <div className="flex items-center gap-2">
-                <span className="text-[10px] font-medium tracking-wider uppercase text-emerald-400/60 font-mono">{">>"} Live Operations — Yvonne 6</span>
+                <span className="text-[10px] font-medium tracking-wider uppercase text-emerald-400/60 font-mono">{">>"} Live Operations — Demo Server</span>
                 <span className="ml-auto flex items-center gap-1.5 text-[10px] text-emerald-400/60 font-mono">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                   RECEIVING
@@ -407,6 +411,77 @@ export function LandingPage() {
         </div>
       </section>
 
+      {/* ── Games We Support ── */}
+      {games.length > 0 && (
+        <section className="relative bg-[#09090b] px-6 py-16 border-b border-white/[0.04]">
+          <div className="max-w-5xl mx-auto text-center">
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/[0.03] border border-white/[0.06] text-[#a1a1aa] text-xs font-medium mb-6 backdrop-blur-sm">
+              <Globe className="w-3.5 h-3.5" /> MULTI-GAME PLATFORM
+            </div>
+            <h2 className="text-2xl md:text-3xl font-bold text-[#fafafa] mb-3">
+              One Platform, Any MMO
+            </h2>
+            <p className="text-[#71717a] text-sm max-w-xl mx-auto mb-10">
+              RaidScout works with any game that has timed boss spawns, scheduled events, or guild activities.
+              Select a game when creating your server and get pre-built templates — or start from scratch.
+            </p>
+
+            {/* Game Cards */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+              {games.map((game) => (
+                <div
+                  key={game.id}
+                  className="group relative p-5 rounded-2xl bg-[#18181b] border border-white/[0.04] hover:border-white/[0.12] hover:bg-white/[0.02] hover:-translate-y-1 transition-all duration-300 text-center"
+                >
+                  <div className="flex flex-col items-center gap-3">
+                    {game.icon_url ? (
+                      <img
+                        src={game.icon_url}
+                        alt={game.name}
+                        className="w-12 h-12 rounded-xl object-cover ring-1 ring-white/[0.06] group-hover:ring-white/[0.15] transition-all"
+                      />
+                    ) : (
+                      <div className="w-12 h-12 rounded-xl bg-white/[0.04] border border-white/[0.06] flex items-center justify-center group-hover:border-white/[0.15] transition-all">
+                        <Gamepad2 className="w-6 h-6 text-[#52525b] group-hover:text-[#a1a1aa] transition-colors" />
+                      </div>
+                    )}
+                    <div>
+                      <p className="text-sm font-semibold text-[#d4d4d8] group-hover:text-[#fafafa] transition-colors">
+                        {game.name}
+                      </p>
+                      <p className="text-[10px] text-[#52525b] mt-0.5">
+                        {(game.supported_spawn_types || []).length} spawn types
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+
+              {/* Custom Game Card */}
+              <div className="group relative p-5 rounded-2xl bg-[#18181b] border border-dashed border-white/[0.06] hover:border-white/[0.15] hover:bg-white/[0.01] hover:-translate-y-1 transition-all duration-300 text-center">
+                <div className="flex flex-col items-center gap-3">
+                  <div className="w-12 h-12 rounded-xl bg-white/[0.02] border border-dashed border-white/[0.08] flex items-center justify-center group-hover:border-white/[0.2] transition-all">
+                    <Sparkles className="w-5 h-5 text-[#52525b] group-hover:text-[#a1a1aa] transition-colors" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-[#d4d4d8] group-hover:text-[#fafafa] transition-colors">
+                      Custom Game
+                    </p>
+                    <p className="text-[10px] text-[#52525b] mt-0.5">
+                      Start from scratch
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <p className="text-[10px] text-[#52525b] mt-6 font-mono">
+              Don't see your game? Create a server with "Custom Game" and add your own bosses & activities.
+            </p>
+          </div>
+        </section>
+      )}
+
       {/* ── Features Grid ── */}
       <section id="features" className="relative bg-[#09090b] px-6 py-24">
         <div className="max-w-5xl mx-auto">
@@ -435,7 +510,7 @@ export function LandingPage() {
                     </div>
                     <div>
                       <h3 className="font-semibold text-sm text-[#fafafa] group-hover:text-[#fafafa] transition-colors">Live Countdown Timers</h3>
-                      <p className="text-xs text-[#71717a]">39+ bosses tracked in real time</p>
+                      <p className="text-xs text-[#71717a]">Multi-game boss & activity tracking</p>
                     </div>
                   </div>
                   {/* Mini countdown mock */}
