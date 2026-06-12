@@ -86,6 +86,11 @@ export function NoServerView() {
             <p className="text-sm text-[#71717a] mt-1">
               {isSeeded ? `Seeding from ${selectedGame?.name ?? "templates"}...` : "Setting up empty server..."}
             </p>
+            {guildName.trim() && (
+              <p className="text-xs text-[#52525b] mt-1">
+                Assigning all bosses to {guildName.trim()} (rotation mode)...
+              </p>
+            )}
             <p className="text-xs text-[#52525b] mt-2">This may take a few seconds</p>
           </div>
         </div>
