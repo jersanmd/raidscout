@@ -427,11 +427,11 @@ export function LandingPage() {
             </p>
 
             {/* Game Cards */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+            <div className="flex flex-wrap justify-center gap-4">
               {games.map((game) => (
                 <div
                   key={game.id}
-                  className="group relative p-5 rounded-2xl bg-[#18181b] border border-white/[0.04] hover:border-white/[0.12] hover:bg-white/[0.02] hover:-translate-y-1 transition-all duration-300 text-center"
+                  className="group relative p-5 rounded-2xl bg-[#18181b] border border-white/[0.04] hover:border-white/[0.12] hover:bg-white/[0.02] hover:-translate-y-1 transition-all duration-300 text-center w-44"
                 >
                   <div className="flex flex-col items-center gap-3">
                     {game.icon_url ? (
@@ -458,7 +458,7 @@ export function LandingPage() {
               ))}
 
               {/* Custom Game Card */}
-              <div className="group relative p-5 rounded-2xl bg-[#18181b] border border-dashed border-white/[0.06] hover:border-white/[0.15] hover:bg-white/[0.01] hover:-translate-y-1 transition-all duration-300 text-center">
+              <div className="group relative p-5 rounded-2xl bg-[#18181b] border border-dashed border-white/[0.06] hover:border-white/[0.15] hover:bg-white/[0.01] hover:-translate-y-1 transition-all duration-300 text-center w-44">
                 <div className="flex flex-col items-center gap-3">
                   <div className="w-12 h-12 rounded-xl bg-white/[0.02] border border-dashed border-white/[0.08] flex items-center justify-center group-hover:border-white/[0.2] transition-all">
                     <Sparkles className="w-5 h-5 text-[#52525b] group-hover:text-[#a1a1aa] transition-colors" />
