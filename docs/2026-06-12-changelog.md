@@ -1,4 +1,4 @@
-# June 12, 2026 — Changelog (v0.14.3)
+# June 12, 2026 — Changelog (v0.14.4)
 
 ## ⚡ Performance
 
@@ -8,6 +8,9 @@
 ## 🐛 Bug Fixes
 
 - **Silent error swallowing eliminated** — 30+ `catch {}` and `catch { /* ignore */ }` blocks replaced with `console.error` logging across 14 files (analytics, bosses, bot commands, notifications, spawn cron, attendance, history, death records, party management). The analytics attendance bug was originally caused by silently skipped batch errors — now impossible to miss.
+- **New schedule bosses showed "alive" immediately** — fixed in both the web app and Discord bot. Newly created fixed-schedule bosses and activities no longer appear as "alive/active" from past schedule slots. They now correctly show countdown to the next upcoming slot. Only bosses with an actual death record (or activities with an instance) are considered "alive."
+- **Activity history leaked across servers** — `fetchActivityHistory` was missing the `server_id` filter on the `activities` join. New servers no longer see completed activities from other servers.
+- **Activity guild badges missing** — activity cards on the Bosses/Activities page and the Upcoming Activities strip now show colored guild badges, matching boss cards. Activity guilds are fetched and resolved from `activity_guilds`.
 
 ## 🤖 Discord Bot
 
@@ -15,6 +18,11 @@
 - **`continue` → `return bossCount`** — fixed build error where `continue` was used inside an async callback (now correctly returns the boss count for the parallel results accumulator)
 - **`supabaseQuerySafe` now logs errors** — previously swallowed all query failures and returned `[]`. Now logs the path and error before returning the empty fallback.
 - **Bot role fetch failure logged** — Discord role resolution failures now produce `console.error` with guild ID and error details.
+- **Command timeout (15s)** — every Discord command now has a hard 15-second timeout. If the database is slow, the bot replies "Command timed out" instead of hanging silently forever.
+- **Active command tracking** — `/status` endpoint now includes `active_commands` count for monitoring bot load in real time.
+- **Concurrency module** — new `scripts/bot/concurrency.ts` tracks in-flight commands and enforces timeouts via `Promise.race`.
+- **Custom boss/activity timezone fix** — `getScheduleTz` now checks `is_custom` flag. Custom bosses and activities store schedules in UTC, not Asia/Manila. Fixes spawn time mismatches between bot and website for custom items.
+- **Schedule active window fix** — `!nextspawn` no longer marks new bosses as "ALIVE NOW" or new activities as "ACTIVE NOW" without an existing death record or activity instance.
 
 ## 🎨 UI
 
@@ -76,3 +84,32 @@
 ## 📄 Documentation
 
 - **Comprehensive project review** — `docs/PROJECT_REVIEW.md` with detailed assessments across product, UX, architecture, code quality, security, database, performance, SaaS/business, and launch readiness.
+
+---
+
+## ✨ New Features (June 12 — late session)
+
+### 🏪 Guild Assignment on Boss/Activity Creation
+
+- **Add Boss modal** — creating a custom boss now includes a Guild Assignment section with all 4 modes (None / Rotation / Daily / Schedule). Defaults to Rotation with the first guild auto-selected. Available from both the main page filter bar and Server Settings → Bosses tab.
+- **Add Activity modal** — same guild assignment UI for custom activities. Uses `setActivityGuilds` for assigning guilds to activities.
+- **"Add" button repositioned** — submit buttons moved to a full-width footer at the bottom of both modals and the Server Settings forms, with sticky styling.
+
+### 🔄 Auto-Assign Guild on Server Creation
+
+- **Migration `006_auto_assign_guild`** — `create_server_with_bosses` RPC now auto-assigns ALL bosses and activities to the first guild when a server has exactly 1 guild. Uses rotation (per-kill) mode. No more manual setup needed for single-guild servers.
+- **Loading spinner** — server creation spinner now shows "Assigning all bosses to [guild] (rotation mode)..." when a guild name is provided.
+
+### 🔒 Sign-Up Improvements
+
+- **Confirm password field** — sign-up form now requires entering the password twice. Red/green border feedback shows match status in real time.
+- **Password strength indicator** — color-coded progress bar (red → amber → green) with WEAK / MEDIUM / STRONG labels. Weak passwords are rejected with a descriptive error message.
+
+### 🛡️ Infrastructure
+
+- **`discord_configs` RLS policies** — added read access for authenticated and anon users to the `discord_configs` table, ensuring the bot can always read Discord server links.
+
+## 🧪 Testing (late session)
+
+- **`AddBossModal` tests** (10 new) — covers: null when closed, title/form rendering, guild assignment modes, guild section visibility, close via X/backdrop, footer button, rotation guild list, schedule day dropdowns.
+- **`create_custom_boss` SQL test** — verifies the RPC creates bosses/activities correctly with proper guild assignment, then cleans up. Uses `auth.uid()` for authentication.
