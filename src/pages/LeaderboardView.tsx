@@ -3,6 +3,7 @@ import { useSearchParams, useNavigate } from "react-router-dom";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { useLeaderboard, type LeaderboardPeriod } from "@/hooks/useAttendance";
 import { useLeaderboardSnapshots, getLeaderboardResetAt } from "@/hooks/useLeaderboardSnapshots";
+import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { guildColor } from "@/lib/constants";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
@@ -129,6 +130,14 @@ export function LeaderboardView() {
   const [adjustError, setAdjustError] = useState<string | null>(null);
   const [adjustHistory, setAdjustHistory] = useState<PointAdjustment[]>([]);
   const [showAdjustHistory, setShowAdjustHistory] = useState<string | null>(null);
+  useEscapeKey(() => {
+    setSelectedMember(null);
+    setShowSnapshots(null);
+    setShowFinalizeConfirm(null);
+    setShowResetConfirm(null);
+    setShowExport(null);
+    setShowAdjustHistory(null);
+  });
 
   // Fetch guilds and members for filtering
   const { data: members = [] } = useMembers();
