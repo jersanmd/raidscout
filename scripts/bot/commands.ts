@@ -667,7 +667,7 @@ export async function handleMessage(msg: any) {
     const replyFields: any[] = [{ name: "Death Time", value: `<t:${unix}:f>`, inline: true }, { name: "Recorded By", value: author, inline: true }];
     if (nextSpawnField) replyFields.push(nextSpawnField);
     await cmdLog(cmd, "ok", `${boss.name} → ${guildName || "unknown"}`);
-    return replyEmbed(`☠️ ${boss.name} Killed by ${guildName || author}`, timeStr ? `Wrong time? Use \`${matchedPrefix}editkilltime ${boss.name} HH:MM\` to fix it.` : `Recorded at <t:${unix}:t>`, 0xef4444, replyFields);
+    return replyEmbed(`☠️ ${boss.name} Killed by ${guildName || author}`, timeStr ? `Wrong time? Use \`${matchedPrefix}editkilltime ${boss.name} HH:MM\` to fix it.` : "", 0xef4444, replyFields);
   }
 
   // ── editkilltime <boss|activity> HH:MM [YYYY-MM-DD] ──
