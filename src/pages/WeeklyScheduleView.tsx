@@ -19,14 +19,12 @@ import {
   setDeathDisplayGuild,
   deleteDeathRecord,
   supabase,
-  advanceBossRotation,
-  uploadRallyImage,
-  addRallyImageToDeath,
   recordActivityEnd,
 } from "@/lib/supabase";
 import { Loader2, Users, X, Calendar, CheckCheck } from "lucide-react";
 import { SavingOverlay } from "@/components/SavingOverlay";
 import { useUserTimezone } from "@/hooks/useUserTimezone";
+import { useRecordDeath } from "@/hooks/useRecordDeath";
 import { getOwnerGuildName as getOwnerGuildNameLib } from "@/lib/rotation";
 import { useActivities } from "@/hooks/useActivities";
 import { calculateActivityInfo } from "@/lib/activityCalculator";
@@ -171,6 +169,8 @@ export function WeeklyScheduleView() {
     return getOwnerGuildNameLib(bossId, bossGuilds, guilds, deathRecords, spawnMap, dayOfWeek, currentServer?.timezone);
   }, [bossGuilds, guilds, deathRecords, spawnMap, currentServer?.timezone]);
 
+  const recordDeath = useRecordDeath(insertDeathRecord, addAttendance);
+
   const handleRecordDeath = useCallback(
     async (bossId: string, deathTime: Date, rallyImages: File[], attendeeIds: string[], scanResults?: import("@/types").ScanResults | null) => {
       if (!user && !isViewer) return;
@@ -178,42 +178,27 @@ export function WeeklyScheduleView() {
       if (!boss) return;
       setSavingMessage("Recording death...");
       try {
-        const ownerGuildName = getOwnerGuildName(boss.id);
-        const ownerGuildId = ownerGuildName ? guilds.find(g => g.name === ownerGuildName)?.id ?? null : null;
-        const record = await insertDeathRecord(bossId, deathTime, ownerGuildId);
-
-        // Save AI scan results if available
-        if (scanResults) {
-          const { saveDeathScanResults } = await import("@/lib/supabase");
-          try { await saveDeathScanResults(record.id, scanResults); } catch (err) { console.error("[WeeklySchedule] saveDeathScanResults failed:", err); }
-        }
-
-        // Upload rally images to storage
-        for (const img of rallyImages) {
-          const url = await uploadRallyImage(img);
-          if (url) {
-            try { await addRallyImageToDeath(record.id, url); } catch (err) { console.error("[WeeklySchedule] addRallyImageToDeath failed:", err); }
-          }
-        }
-
-        for (const memberId of attendeeIds) {
-          try { await addAttendance(record.id, memberId); } catch (err) { console.error("[WeeklySchedule] addAttendance failed for member:", memberId, err); }
-        }
-
-        queryClient.invalidateQueries({ queryKey: ["death_records"] });
-        queryClient.invalidateQueries({ queryKey: ["leaderboard"] });
-        queryClient.invalidateQueries({ queryKey: ["members"] });
-        queryClient.invalidateQueries({ queryKey: ["analytics"] });
-
-        // Advance rotation counter on kill
-        try { await advanceBossRotation(bossId); } catch {}
-
-        const sid = getCurrentServerId();
-        if (sid && boss) notifyDiscord(sid, "boss_died", {
-          boss_name: boss.name,
-          attendees: attendeeIds.length > 0 ? [`${attendeeIds.length} participant(s)`] : undefined,
-          guild_name: getOwnerGuildName(boss.id) ?? undefined,
+        const ownerGuildName = getOwnerGuildName(boss.id) ?? undefined;
+        await recordDeath({
+          bossId,
+          bossName: boss.name,
+          deathTime,
+          attendeeIds,
+          ownerGuildName: ownerGuildName || "",
+          scanResults,
+          rallyImages,
+          notifyDiscordChannel: false, // WeeklySchedule handles its own notification
         });
+
+        // WeeklySchedule-specific: manual Discord notification
+        const sid = getCurrentServerId();
+        if (sid) {
+          notifyDiscord(sid, "boss_died", {
+            boss_name: boss.name,
+            attendees: attendeeIds.length > 0 ? [`${attendeeIds.length} participant(s)`] : undefined,
+            guild_name: ownerGuildName,
+          });
+        }
       } catch (err) {
         console.error("Failed to record death:", err);
       } finally {

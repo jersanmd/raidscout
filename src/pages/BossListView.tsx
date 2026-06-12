@@ -21,13 +21,11 @@ import {
   toggleViewerCanEdit,
   toggleViewerCanMarkDied,
   setBossRotation,
-  advanceBossRotation,
   subscribeToServerSettings,
   cleanupChannel,
-  uploadRallyImage,
-  addRallyImageToDeath,
 } from "@/lib/supabase";
 import { createCustomBoss, finishActivity, recordActivityEnd } from "@/lib/supabase";
+import { useRecordDeath } from "@/hooks/useRecordDeath";
 import { calculateActivityInfo, toUtcTime } from "@/lib/activityCalculator";
 import { BossCard } from "@/components/BossCard";
 import { DeathRecordModal } from "@/components/DeathRecordModal";
@@ -354,100 +352,33 @@ export function BossListView() {
     }
   }, [bossRotationInfo, queryClient, guilds, deathRecords, setToast]);
 
+  const recordDeath = useRecordDeath(insertDeathRecord, addAttendance);
+
   const handleRecordDeath = useCallback(
     async (bossId: string, deathTime: Date, rallyImages: File[], attendeeIds: string[], scanResults?: import("@/types").ScanResults | null) => {
-      // Log to history (without deathRecordId initially)
       const boss = spawns.find((s) => s.boss.id === bossId)?.boss;
       if (!boss) return;
-      const respawnTime = boss.respawn_hours
-        ? new Date(deathTime.getTime() + boss.respawn_hours * 3600_000)
-        : deathTime;
-
-      let deathRecordId: string;
 
       if (user || isViewer) {
         try {
           const ownerGuildNameStr = ownerGuildName(boss.id);
-          const ownerGuildId = ownerGuildNameStr ? guilds.find(g => g.name === ownerGuildNameStr)?.id ?? null : null;
-          const record = await insertDeathRecord(bossId, deathTime, ownerGuildId);
-          deathRecordId = record.id;
+          await recordDeath({
+            bossId,
+            bossName: boss.name,
+            deathTime,
+            attendeeIds,
+            ownerGuildName: ownerGuildNameStr,
+            scanResults,
+            rallyImages,
+            notifyDiscordChannel: true,
+          });
 
-          // Save AI scan results if available
-          if (scanResults) {
-            const { saveDeathScanResults } = await import("@/lib/supabase");
-            try { await saveDeathScanResults(deathRecordId, scanResults); } catch (err) { console.error("[BossListView] saveDeathScanResults failed:", err); }
-          }
-
-          // Upload rally images to storage
-          for (const img of rallyImages) {
-            const url = await uploadRallyImage(img);
-            if (url) {
-              try { await addRallyImageToDeath(deathRecordId, url); } catch (err) { console.error("[BossListView] addRallyImageToDeath failed:", err); }
-            }
-          }
-
-          // Delete override from DB and cache so the kill's countdown takes priority
-          const sid = getCurrentServerId();
-          if (sid) {
-            try { await supabase.from("boss_spawn_overrides").delete().eq("boss_id", bossId).eq("server_id", sid); } catch (err) { console.error("[BossListView] delete spawn override failed:", err); }
-            queryClient.setQueryData(["spawn_overrides", sid], (old: any[]) =>
-              (old ?? []).filter((o: any) => o.boss_id !== bossId)
-            );
-          }
-
-          // Record attendance — collect errors instead of silently swallowing
-          const attendanceErrors: string[] = [];
-          for (const memberId of attendeeIds) {
-            try {
-              await addAttendance(deathRecordId, memberId);
-            } catch (err) {
-              const msg = err instanceof Error ? err.message : String(err);
-              attendanceErrors.push(msg);
-              console.error("Failed to add attendance for member:", memberId, err);
-            }
-          }
-
-          if (attendanceErrors.length > 0) {
-            setToast({
-              type: "error",
-              message: `Attendance partially saved: ${attendeeIds.length - attendanceErrors.length}/${attendeeIds.length} succeeded.`,
-            });
-          } else {
-            setToast({
-              type: "success",
-              message: `Death recorded${attendeeIds.length > 0 ? ` with ${attendeeIds.length} attendee${attendeeIds.length !== 1 ? "s" : ""}` : ""}!`,
-            });
-          }
-
-          await queryClient.refetchQueries({ queryKey: ["death_records"] });
-          debouncedInvalidateLeaderboard();
-          queryClient.invalidateQueries({ queryKey: ["members"] });
-
-          // Trigger exit animation
+          // Trigger exit animation (BossListView-specific)
           setJustKilledId(bossId);
           setTimeout(() => setJustKilledId(null), 600);
 
-          // Advance rotation counter on kill
-          try { await advanceBossRotation(bossId); } catch (err) { console.error("[BossListView] advanceBossRotation failed:", err); }
-          queryClient.invalidateQueries({ queryKey: ["bosses"] });
-
-          // Send Discord notification
-          if (user || isViewer) {
-            try {
-              const recordedBy = isViewer ? "Viewer" : userRole === "owner" ? "Owner" : userRole === "admin" ? "Admin" : "Moderator";
-              const result = await notifyDiscord(getCurrentServerId()!, "boss_died", {
-                boss_name: boss.name,
-                attendees: attendeeIds.length > 0 ? [`${attendeeIds.length} participant(s)`] : undefined,
-                guild_name: ownerGuildName(boss.id),
-                recorded_by: recordedBy,
-              }, "commands");
-              if (result.skipped) {
-                console.warn("Discord notify skipped — commands channel may not be set via ;cmdhere");
-              } else if (!result.ok) {
-                setToast({ type: "error", message: "Discord notification failed. Check bot status." });
-              }
-            } catch (err) { console.error("[BossListView] Discord notification failed:", err); }
-          }
+          await queryClient.refetchQueries({ queryKey: ["death_records"] });
+          debouncedInvalidateLeaderboard();
         } catch (err) {
           console.error("Failed to record death:", err);
           setToast({ type: "error", message: "Failed to save death record. Check the console for details." });
@@ -456,7 +387,7 @@ export function BossListView() {
         setToast({ type: "error", message: "Supabase not configured. Cannot record death." });
       }
     },
-    [user, isViewer, queryClient, spawns, ownerGuildName, guilds]
+    [user, isViewer, queryClient, spawns, ownerGuildName, recordDeath, setToast, debouncedInvalidateLeaderboard],
   );
 
   const handleFinishActivity = useCallback(
