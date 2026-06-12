@@ -16,6 +16,13 @@ setInterval(() => {
 // Cache guild role lookups (guildId -> roleName -> roleId)
 const guildRoleCache = new Map<string, Map<string, string>>();
 
+interface DiscordRole {
+  id: string;
+  name: string;
+  color: number;
+  position: number;
+}
+
 async function resolveRoles(guildId: string): Promise<Map<string, string>> {
   if (guildRoleCache.has(guildId)) return guildRoleCache.get(guildId)!;
   const map = new Map<string, string>();
@@ -24,7 +31,7 @@ async function resolveRoles(guildId: string): Promise<Map<string, string>> {
       headers: { Authorization: `Bot ${TOKEN}` },
     });
     if (res.ok) {
-      const roles = (await res.json()) as any[];
+      const roles = (await res.json()) as DiscordRole[];
       for (const role of roles) {
         map.set(role.name.toLowerCase(), role.id);
       }
