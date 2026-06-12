@@ -2,7 +2,7 @@
 
 import { SUPABASE_URL, SUPABASE_KEY } from "./config";
 
-export async function supabaseQuery(path: string): Promise<any> {
+export async function supabaseQuery<T = any>(path: string): Promise<T> {
   const url = `${SUPABASE_URL}/rest/v1/${path}`;
   const res = await fetch(url, {
     headers: { apikey: SUPABASE_KEY!, Authorization: `Bearer ${SUPABASE_KEY!}` },
@@ -11,11 +11,11 @@ export async function supabaseQuery(path: string): Promise<any> {
     console.error(`Supabase query failed: ${url} -- ${res.status}`);
     throw new Error(`Database query failed (${res.status})`);
   }
-  return res.json();
+  return res.json() as T;
 }
 
-export async function supabaseQuerySafe(path: string): Promise<any> {
-  try { return await supabaseQuery(path); } catch (err) { console.error("[bot] supabaseQuerySafe failed:", path, err); return []; }
+export async function supabaseQuerySafe<T = any>(path: string): Promise<T[]> {
+  try { return await supabaseQuery<T[]>(path); } catch (err) { console.error("[bot] supabaseQuerySafe failed:", path, err); return []; }
 }
 
 export async function supabaseInsert(table: string, record: any): Promise<any> {
