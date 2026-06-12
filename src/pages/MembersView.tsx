@@ -454,77 +454,83 @@ export function MembersView() {
         {canManageRaidMembers && (
         <form
           onSubmit={(e) => { e.preventDefault(); handleAdd(); }}
-          className="flex flex-wrap items-center gap-1.5"
+          className="flex flex-col gap-1.5 w-full sm:w-auto"
         >
-          <input
-            type="text"
-            value={addName}
-            onChange={(e) => setAddName(e.target.value)}
-            placeholder="Member name..."
-            ref={memberInputRef}
-            className="flex-1 min-w-0 px-2 py-1.5 bg-[#18181b] border border-[#27272a] rounded-lg text-[#fafafa] placeholder-[#52525b] focus:outline-none focus:ring-2 focus:ring-[#52525b] focus:border-transparent transition text-xs"
-          />
-          <input
-            type="number"
-            value={addCombatPower}
-            onChange={(e) => setAddCombatPower(e.target.value)}
-            placeholder="CP"
-            className="w-20 px-2 py-1.5 bg-[#18181b] border border-[#27272a] rounded-lg text-[#fafafa] placeholder-[#52525b] text-xs focus:outline-none focus:ring-2 focus:ring-[#52525b] focus:border-transparent transition"
-          />
-          {classes.length > 0 && (
-            <select
-              value={addClass}
-              onChange={(e) => setAddClass(e.target.value)}
-              className="px-1.5 py-1.5 bg-[#18181b] border border-[#27272a] rounded-lg text-[10px] text-[#a1a1aa] outline-none focus:ring-2 focus:ring-[#52525b] focus:border-transparent transition max-w-[80px] truncate"
-            >
-              <option value="">—</option>
-              {classes.map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
-          )}
-          {guilds.length > 0 && (
-            <select
-              value={addGuild}
-              onChange={(e) => setAddGuild(e.target.value)}
-              className="px-1.5 py-1.5 bg-[#18181b] border border-[#27272a] rounded-lg text-[10px] text-[#a1a1aa] outline-none focus:ring-2 focus:ring-[#52525b] focus:border-transparent transition max-w-[100px] truncate"
-            >
-              <option value="">—</option>
-              {guilds.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
-            </select>
-          )}
-          <button
-            type="submit"
-            disabled={adding || !addName.trim()}
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-[#fafafa] text-[#09090b] text-xs font-medium hover:bg-[#e4e4e7] disabled:opacity-50 transition"
-          >
-            {adding ? (
-              <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-            ) : (
-              <UserPlus className="w-3 h-3" />
+          {/* Row 1: Name + CP */}
+          <div className="flex gap-1.5 w-full">
+            <input
+              type="text"
+              value={addName}
+              onChange={(e) => setAddName(e.target.value)}
+              placeholder="Member name..."
+              ref={memberInputRef}
+              className="w-[60%] px-2 py-1.5 bg-[#18181b] border border-[#27272a] rounded-lg text-[#fafafa] placeholder-[#52525b] focus:outline-none focus:ring-2 focus:ring-[#52525b] focus:border-transparent transition text-xs"
+            />
+            <input
+              type="number"
+              value={addCombatPower}
+              onChange={(e) => setAddCombatPower(e.target.value)}
+              placeholder="CP"
+              className="w-[40%] px-2 py-1.5 bg-[#18181b] border border-[#27272a] rounded-lg text-[#fafafa] placeholder-[#52525b] text-xs focus:outline-none focus:ring-2 focus:ring-[#52525b] focus:border-transparent transition"
+            />
+          </div>
+          {/* Row 2: Guild + Class + Actions */}
+          <div className="flex flex-wrap items-center gap-1.5">
+            {classes.length > 0 && (
+              <select
+                value={addClass}
+                onChange={(e) => setAddClass(e.target.value)}
+                className="px-1.5 py-1.5 bg-[#18181b] border border-[#27272a] rounded-lg text-[10px] text-[#a1a1aa] outline-none focus:ring-2 focus:ring-[#52525b] focus:border-transparent transition max-w-[80px] truncate"
+              >
+                <option value="">—</option>
+                {classes.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
             )}
-            Add
-          </button>
-          <button
-            type="button"
-            onClick={() => setShowBulkModal(true)}
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-[#18181b] border border-[#27272a] text-[#a1a1aa] text-xs font-medium hover:bg-[#27272a] hover:text-[#fafafa] transition"
-          >
-            <Upload className="w-3 h-3" />
-            Bulk
-          </button>
-          {members.length > 0 && (
+            {guilds.length > 0 && (
+              <select
+                value={addGuild}
+                onChange={(e) => setAddGuild(e.target.value)}
+                className="px-1.5 py-1.5 bg-[#18181b] border border-[#27272a] rounded-lg text-[10px] text-[#a1a1aa] outline-none focus:ring-2 focus:ring-[#52525b] focus:border-transparent transition max-w-[100px] truncate"
+              >
+                <option value="">—</option>
+                {guilds.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+              </select>
+            )}
+            <button
+              type="submit"
+              disabled={adding || !addName.trim()}
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-[#fafafa] text-[#09090b] text-xs font-medium hover:bg-[#e4e4e7] disabled:opacity-50 transition"
+            >
+              {adding ? (
+                <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              ) : (
+                <UserPlus className="w-3 h-3" />
+              )}
+              Add
+            </button>
             <button
               type="button"
-              onClick={() => {
-                const names = members.map(m => m.name).join(", ");
-                navigator.clipboard.writeText(names);
-                setToast({ type: "success", message: `${members.length} names copied!` });
-              }}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#18181b] border border-[#27272a] text-[#a1a1aa] text-xs font-medium hover:bg-[#27272a] hover:text-[#fafafa] transition shrink-0"
+              onClick={() => setShowBulkModal(true)}
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-[#18181b] border border-[#27272a] text-[#a1a1aa] text-xs font-medium hover:bg-[#27272a] hover:text-[#fafafa] transition"
             >
-              <Copy className="w-3.5 h-3.5" />
-              Copy All
+              <Upload className="w-3 h-3" />
+              Bulk
             </button>
-          )}
+            {members.length > 0 && (
+              <button
+                type="button"
+                onClick={() => {
+                  const names = members.map(m => m.name).join(", ");
+                  navigator.clipboard.writeText(names);
+                  setToast({ type: "success", message: `${members.length} names copied!` });
+                }}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#18181b] border border-[#27272a] text-[#a1a1aa] text-xs font-medium hover:bg-[#27272a] hover:text-[#fafafa] transition shrink-0"
+              >
+                <Copy className="w-3.5 h-3.5" />
+                Copy All
+              </button>
+            )}
+          </div>
         </form>
         )}
 
