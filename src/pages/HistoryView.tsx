@@ -3,6 +3,7 @@ import { type HistoryEntry } from "@/lib/history";
 import { fetchHistoryFromSupabase, deleteDeathRecord, isSupabaseConfigured, editDeathTime, fetchGuilds, setDeathDisplayGuild } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { useServerId } from "@/contexts/ServerContext";
+import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { useQueryClient } from "@tanstack/react-query";
 import { ParticipantModal } from "@/components/ParticipantModal";
 import { BossImage } from "@/components/BossImage";
@@ -61,8 +62,7 @@ export function HistoryView() {
   // Edit death time
   const [editEntry, setEditEntry] = useState<HistoryEntry | null>(null);
   const [editDate, setEditDate] = useState("");
-  const [editGuild, setEditGuild] = useState("");
-  const [editSaving, setEditSaving] = useState(false);
+  const [editGuild, setEditGuild] = useState("");  useEscapeKey(() => { setSelectedEntry(null); setEditEntry(null); });  const [editSaving, setEditSaving] = useState(false);
   const [editToast, setEditToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
   // Guilds for owner guild ID lookup
