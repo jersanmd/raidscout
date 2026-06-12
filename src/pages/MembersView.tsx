@@ -462,7 +462,7 @@ export function MembersView() {
             onChange={(e) => setAddName(e.target.value)}
             placeholder="Member name..."
             ref={memberInputRef}
-            className="w-44 px-2 py-1.5 bg-[#18181b] border border-[#27272a] rounded-lg text-[#fafafa] placeholder-[#52525b] focus:outline-none focus:ring-2 focus:ring-[#52525b] focus:border-transparent transition text-xs"
+            className="flex-1 min-w-0 px-2 py-1.5 bg-[#18181b] border border-[#27272a] rounded-lg text-[#fafafa] placeholder-[#52525b] focus:outline-none focus:ring-2 focus:ring-[#52525b] focus:border-transparent transition text-xs"
           />
           <input
             type="number"
@@ -511,17 +511,31 @@ export function MembersView() {
             <Upload className="w-3 h-3" />
             Bulk
           </button>
+          {members.length > 0 && (
+            <button
+              type="button"
+              onClick={() => {
+                const names = members.map(m => m.name).join(", ");
+                navigator.clipboard.writeText(names);
+                setToast({ type: "success", message: `${members.length} names copied!` });
+              }}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#18181b] border border-[#27272a] text-[#a1a1aa] text-xs font-medium hover:bg-[#27272a] hover:text-[#fafafa] transition shrink-0"
+            >
+              <Copy className="w-3.5 h-3.5" />
+              Copy All
+            </button>
+          )}
         </form>
         )}
 
-        {members.length > 0 && (
+        {members.length > 0 && !canManageRaidMembers && (
           <button
             onClick={() => {
               const names = members.map(m => m.name).join(", ");
               navigator.clipboard.writeText(names);
               setToast({ type: "success", message: `${members.length} names copied!` });
             }}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#18181b] border border-[#27272a] text-[#a1a1aa] text-xs font-medium hover:bg-[#27272a] hover:text-[#fafafa] transition shrink-0"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#18181b] border border-[#27272a] text-[#a1a1aa] text-xs font-medium hover:bg-[#27272a] hover:text-[#fafafa] transition shrink-0 ml-auto"
           >
             <Copy className="w-3.5 h-3.5" />
             Copy All
