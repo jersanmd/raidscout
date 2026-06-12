@@ -132,7 +132,7 @@ export function BossListView() {
     });
 
     return () => { cleanupChannel(channel); };
-  }, [currentServer?.id, isViewer, ctxViewerCanEdit, ctxViewerCanMarkDied, ctxDiscordWebhookUrl]);
+  }, [currentServer?.id, isViewer, ctxViewerCanEdit, ctxViewerCanMarkDied, ctxDiscordWebhookUrl, refreshKey]);
 
   // Debounced leaderboard/analytics invalidation — batches rapid kills
   const debouncedInvalidateLeaderboard = useMemo(() => {
@@ -895,10 +895,10 @@ export function BossListView() {
       )}
 
       {/* Add Custom Boss Modal */}
-      <AddBossModal open={showAddBoss} onClose={() => setShowAddBoss(false)} />
+      <AddBossModal open={showAddBoss} onClose={() => { setShowAddBoss(false); setRefreshKey(k => k + 1); }} />
 
       {/* Add Custom Activity Modal */}
-      <AddActivityModal open={showAddActivity} onClose={() => setShowAddActivity(false)} />
+      <AddActivityModal open={showAddActivity} onClose={() => { setShowAddActivity(false); setRefreshKey(k => k + 1); }} />
     </div>
   );
 }
