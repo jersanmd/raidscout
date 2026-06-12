@@ -1,4 +1,3 @@
-// @ts-nocheck
 // Spawn calculation utilities
 
 export function addHours(d: Date, h: number) { return new Date(d.getTime() + h * 3600_000); }

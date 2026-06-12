@@ -1,4 +1,3 @@
-// @ts-nocheck
 // Command handler -- all Discord chat commands
 
 import { TOKEN, SUPABASE_URL, SUPABASE_KEY, botUserId } from "./config";

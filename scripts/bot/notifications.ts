@@ -1,4 +1,3 @@
-// @ts-nocheck
 // Notifications -- broadcast to linked Discord servers with role mention resolution
 
 import { TOKEN, SUPABASE_URL, SUPABASE_KEY } from "./config";
@@ -25,7 +24,7 @@ async function resolveRoles(guildId: string): Promise<Map<string, string>> {
       headers: { Authorization: `Bot ${TOKEN}` },
     });
     if (res.ok) {
-      const roles = await res.json();
+      const roles = (await res.json()) as any[];
       for (const role of roles) {
         map.set(role.name.toLowerCase(), role.id);
       }
