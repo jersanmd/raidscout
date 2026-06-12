@@ -104,8 +104,9 @@ async function fetchActivityHistory(sid: string, since?: string, until?: string)
     .from("activity_instances")
     .select(`
       id, start_time, end_time, activity_id,
-      activities!inner(id, name, schedule_type, image_url)
+      activities!inner(id, name, schedule_type, image_url, server_id)
     `)
+    .eq("activities.server_id", sid)
     .not("end_time", "is", null)
     .order("end_time", { ascending: false });
 
