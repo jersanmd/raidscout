@@ -11,6 +11,7 @@ import { ActivityGuildsTab } from "@/components/server/ActivityGuildsTab";
 import { ActivityPointsMatrix } from "@/components/server/ActivityPointsMatrix";
 import { CreateServerModal } from "@/components/CreateServerModal";
 import { useToast } from "@/contexts/ToastContext";
+import { useEscapeKey } from "@/hooks/useEscapeKey";
 
 export function ServerSettingsView() {
   const { currentServer, servers, loading: serversLoading, setCurrentServer, refreshServers, bumpWebhookVersion } = useServer();
@@ -288,6 +289,13 @@ export function ServerSettingsView() {
   const [bulkDailyAdded, setBulkDailyAdded] = useState<string[]>([]);
   const [bulkScheduleDays, setBulkScheduleDays] = useState<Record<number, string | null>>({});
   const [bossSearch, setBossSearch] = useState("");
+
+  // Escape key closes all inline panels
+  useEscapeKey(() => {
+    setShowDeleteConfirm(false);
+    setDeleteConfirmName("");
+    setShowAddRule(false);
+  });
 
   const toggleBossSelect = (bossId: string) => {
     setSelectedBossIds(prev => {
