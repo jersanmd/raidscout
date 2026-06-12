@@ -358,16 +358,22 @@ export async function handleMessage(msg: any) {
         if (spawn <= now) spawn = now;
       } else if (boss.spawn_type === "fixed_schedule" && boss.schedule) {
         const schedTz = getScheduleTz(boss, tz);
-        let recentTime: Date | null = null;
-        for (let d = 0; d <= 7; d++) { const check = new Date(now); check.setDate(check.getDate() - d);
-          for (const slot of boss.schedule) { const c = scheduleSlotToUTC(schedTz, check, slot.day, slot.time); if (c <= now && (!recentTime || c > recentTime)) recentTime = c; }
-        }
-        if (!recentTime) { spawn = findNextScheduleSlot(boss.schedule, now, schedTz); }
-        else {
-          const nextSlotTime = findNextScheduleSlot(boss.schedule, new Date(recentTime.getTime() + 60_000), schedTz);
-          const aliveUntil = new Date(Math.min(nextSlotTime.getTime() - 3600_000, recentTime.getTime() + 4 * 3600_000));
-          const wasKilled = lastDeath && new Date(lastDeath.death_time) >= recentTime;
-          spawn = (!wasKilled && now >= recentTime && now < aliveUntil) ? now : findNextScheduleSlot(boss.schedule, now, schedTz);
+        // Only check alive window if there's a death record (boss actually spawned before)
+        if (lastDeath) {
+          let recentTime: Date | null = null;
+          for (let d = 0; d <= 7; d++) { const check = new Date(now); check.setDate(check.getDate() - d);
+            for (const slot of boss.schedule) { const c = scheduleSlotToUTC(schedTz, check, slot.day, slot.time); if (c <= now && (!recentTime || c > recentTime)) recentTime = c; }
+          }
+          if (recentTime) {
+            const nextSlotTime = findNextScheduleSlot(boss.schedule, new Date(recentTime.getTime() + 60_000), schedTz);
+            const aliveUntil = new Date(Math.min(nextSlotTime.getTime() - 3600_000, recentTime.getTime() + 4 * 3600_000));
+            const wasKilled = new Date(lastDeath.death_time) >= recentTime;
+            spawn = (!wasKilled && now >= recentTime && now < aliveUntil) ? now : findNextScheduleSlot(boss.schedule, now, schedTz);
+          } else {
+            spawn = findNextScheduleSlot(boss.schedule, now, schedTz);
+          }
+        } else {
+          spawn = findNextScheduleSlot(boss.schedule, now, schedTz);
         }
       } else continue;
       if (spawn.getTime() <= cutoff.getTime()) {
@@ -401,22 +407,27 @@ export async function handleMessage(msg: any) {
       if (act.schedule_type === "fixed_schedule" && Array.isArray(raw)) {
         // Custom items store schedule in UTC, seed/template items in Asia/Manila
         const actTz = (act.is_custom || act.template_id) ? "UTC" : "Asia/Manila";
-        // Check if we're within the most recent slot's active window (mirrors boss logic)
-        let recentSlot: Date | null = null;
-        for (let d = 0; d <= 7; d++) { const check = new Date(now); check.setDate(check.getDate() - d);
-          for (const slot of raw) { const c = scheduleSlotToUTC(actTz, check, slot.day, slot.time); if (c <= now && (!recentSlot || c > recentSlot)) recentSlot = c; }
-        }
-        if (recentSlot) {
-          const nextSlotAfterRecent = findNextScheduleSlot(raw, new Date(recentSlot.getTime() + 60_000), actTz);
-          const maxActiveWindow = Math.min(nextSlotAfterRecent.getTime() - recentSlot.getTime() - 3600_000, 4 * 3600_000);
-          const activeUntil = new Date(recentSlot.getTime() + maxActiveWindow);
-          const wasFinished = lastInst?.end_time && new Date(lastInst.end_time) >= recentSlot;
-          if (!wasFinished && now >= recentSlot && now < activeUntil) {
-            startTime = now;
+        // Only check active window if there's an instance (activity was actually started before)
+        if (lastInst) {
+          let recentSlot: Date | null = null;
+          for (let d = 0; d <= 7; d++) { const check = new Date(now); check.setDate(check.getDate() - d);
+            for (const slot of raw) { const c = scheduleSlotToUTC(actTz, check, slot.day, slot.time); if (c <= now && (!recentSlot || c > recentSlot)) recentSlot = c; }
+          }
+          if (recentSlot) {
+            const nextSlotAfterRecent = findNextScheduleSlot(raw, new Date(recentSlot.getTime() + 60_000), actTz);
+            const maxActiveWindow = Math.min(nextSlotAfterRecent.getTime() - recentSlot.getTime() - 3600_000, 4 * 3600_000);
+            const activeUntil = new Date(recentSlot.getTime() + maxActiveWindow);
+            const wasFinished = lastInst?.end_time && new Date(lastInst.end_time) >= recentSlot;
+            if (!wasFinished && now >= recentSlot && now < activeUntil) {
+              startTime = now;
+            } else {
+              startTime = findNextScheduleSlot(raw, now, actTz);
+            }
           } else {
             startTime = findNextScheduleSlot(raw, now, actTz);
           }
         } else {
+          // No instance yet — countdown to next slot
           startTime = findNextScheduleSlot(raw, now, actTz);
         }
       } else {
