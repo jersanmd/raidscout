@@ -454,28 +454,28 @@ export function MembersView() {
         {canManageRaidMembers && (
         <form
           onSubmit={(e) => { e.preventDefault(); handleAdd(); }}
-          className="flex flex-col gap-1.5 w-full sm:w-auto"
+          className="flex flex-col sm:flex-row sm:items-center gap-1.5 w-full sm:w-auto"
         >
-          {/* Row 1: Name + CP */}
-          <div className="flex gap-1.5 w-full">
+          {/* Row 1 (mobile): Name + CP. On desktop: flows inline */}
+          <div className="flex sm:contents gap-1.5 w-full sm:w-auto">
             <input
               type="text"
               value={addName}
               onChange={(e) => setAddName(e.target.value)}
               placeholder="Member name..."
               ref={memberInputRef}
-              className="w-[60%] px-2 py-1.5 bg-[#18181b] border border-[#27272a] rounded-lg text-[#fafafa] placeholder-[#52525b] focus:outline-none focus:ring-2 focus:ring-[#52525b] focus:border-transparent transition text-xs"
+              className="w-[60%] sm:w-44 px-2 py-1.5 bg-[#18181b] border border-[#27272a] rounded-lg text-[#fafafa] placeholder-[#52525b] focus:outline-none focus:ring-2 focus:ring-[#52525b] focus:border-transparent transition text-xs"
             />
             <input
               type="number"
               value={addCombatPower}
               onChange={(e) => setAddCombatPower(e.target.value)}
               placeholder="CP"
-              className="w-[40%] px-2 py-1.5 bg-[#18181b] border border-[#27272a] rounded-lg text-[#fafafa] placeholder-[#52525b] text-xs focus:outline-none focus:ring-2 focus:ring-[#52525b] focus:border-transparent transition"
+              className="w-[40%] sm:w-20 px-2 py-1.5 bg-[#18181b] border border-[#27272a] rounded-lg text-[#fafafa] placeholder-[#52525b] text-xs focus:outline-none focus:ring-2 focus:ring-[#52525b] focus:border-transparent transition"
             />
           </div>
-          {/* Row 2: Guild + Class + Actions */}
-          <div className="flex flex-wrap items-center gap-1.5">
+          {/* Row 2 (mobile): actions. On desktop: flows inline */}
+          <div className="flex flex-wrap items-center sm:contents gap-1.5">
             {classes.length > 0 && (
               <select
                 value={addClass}
