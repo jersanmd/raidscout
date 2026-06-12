@@ -1,6 +1,7 @@
 // ── Member Kills Edge Function ─────────────────────────────
 // Returns kill history for a member. Works around PostgREST anon filtering bug.
 // Deploy: supabase functions deploy get-member-kills --no-verify-jwt
+// Types: Keep in sync with shared/types.ts (MemberBossKill)
 // @ts-nocheck -- Deno edge function, not Node.js
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";

@@ -126,21 +126,7 @@ export async function fetchPointAdjustments(
 
 // ── Member Kill History ─────────────────────────────────────
 
-export interface MemberBossKill {
-  boss_name: string;
-  killed_at: string;
-  death_record_id: string;
-  points?: number;
-  image_url?: string | null;
-  guild_name?: string | null;
-}
-
-export interface MemberActivityAttendance {
-  activity_name: string;
-  attended_at: string;
-  activity_instance_id: string;
-  points?: number;
-}
+export type { MemberBossKill, MemberActivityAttendance } from "../../../shared/types";
 
 export async function fetchMemberKills(
   memberId: string,
