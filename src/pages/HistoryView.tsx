@@ -62,7 +62,7 @@ export function HistoryView() {
   // Edit death time
   const [editEntry, setEditEntry] = useState<HistoryEntry | null>(null);
   const [editDate, setEditDate] = useState("");
-  const [editGuild, setEditGuild] = useState("");  useEscapeKey(() => { setSelectedEntry(null); setEditEntry(null); });  const [editSaving, setEditSaving] = useState(false);
+  const [editGuild, setEditGuild] = useState("");  useEscapeKey(() => { setEditEntry(null); });  const [editSaving, setEditSaving] = useState(false);
   const [editToast, setEditToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
   // Guilds for owner guild ID lookup
