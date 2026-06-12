@@ -44,7 +44,7 @@ export function useRecordDeath(
 ) {
   const queryClient = useQueryClient();
   const { user, isViewer, userRole } = useAuth();
-  const { setToast } = useToast();
+  const { toast } = useToast();
 
   const recordDeath = useCallback(async (opts: RecordDeathOptions): Promise<RecordDeathResult> => {
     const {
@@ -125,15 +125,9 @@ export function useRecordDeath(
 
     // 8. Toast
     if (attendanceErrors.length > 0) {
-      setToast({
-        type: "error",
-        message: `Attendance partially saved: ${attendeeIds.length - attendanceErrors.length}/${attendeeIds.length} succeeded.`,
-      });
+      toast("error", `Attendance partially saved: ${attendeeIds.length - attendanceErrors.length}/${attendeeIds.length} succeeded.`);
     } else {
-      setToast({
-        type: "success",
-        message: `Death recorded${attendeeIds.length > 0 ? ` with ${attendeeIds.length} attendee${attendeeIds.length !== 1 ? "s" : ""}` : ""}!`,
-      });
+      toast("success", `Death recorded${attendeeIds.length > 0 ? ` with ${attendeeIds.length} attendee${attendeeIds.length !== 1 ? "s" : ""}` : ""}!`);
     }
 
     // 9. Discord notification
@@ -152,7 +146,7 @@ export function useRecordDeath(
         if (result.skipped) {
           console.warn("[useRecordDeath] Discord notify skipped — commands channel may not be set via ;cmdhere");
         } else if (!result.ok) {
-          setToast({ type: "error", message: "Discord notification failed. Check bot status." });
+          toast("error", "Discord notification failed. Check bot status.");
         }
       } catch (err) {
         console.error("[useRecordDeath] Discord notification failed:", err);
@@ -160,7 +154,7 @@ export function useRecordDeath(
     }
 
     return { ok: attendanceErrors.length === 0, deathRecordId, errors: [...errors, ...attendanceErrors] };
-  }, [queryClient, user, isViewer, userRole, setToast, insertDeathRecord, addAttendance]);
+  }, [queryClient, user, isViewer, userRole, toast, insertDeathRecord, addAttendance]);
 
   return recordDeath;
 }

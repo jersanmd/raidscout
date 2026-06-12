@@ -367,7 +367,7 @@ export function BossListView() {
             bossName: boss.name,
             deathTime,
             attendeeIds,
-            ownerGuildName: ownerGuildNameStr,
+            ownerGuildName: ownerGuildNameStr || "",
             scanResults,
             rallyImages,
             notifyDiscordChannel: true,
