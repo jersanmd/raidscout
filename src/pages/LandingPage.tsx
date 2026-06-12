@@ -200,6 +200,8 @@ export function LandingPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -798,8 +800,13 @@ export function LandingPage() {
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-emerald-400/50 mb-2 ml-1 font-mono tracking-wider uppercase">{">>"} Password</label>
-                    <input type="password" value={password} onChange={e => setPassword(e.target.value)} required minLength={6} placeholder="••••••••"
-                      className="w-full px-4 py-3 bg-white/[0.03] border border-white/[0.08] rounded-xl text-[#fafafa] placeholder-white/20 text-sm outline-none focus:border-sky-500/50 focus:ring-1 focus:ring-sky-500/20 transition-all duration-200" />
+                    <div className="relative">
+                      <input type={showPassword ? "text" : "password"} value={password} onChange={e => setPassword(e.target.value)} required minLength={6} placeholder="••••••••"
+                        className="w-full px-4 py-3 bg-white/[0.03] border border-white/[0.08] rounded-xl text-[#fafafa] placeholder-white/20 text-sm outline-none focus:border-sky-500/50 focus:ring-1 focus:ring-sky-500/20 transition-all duration-200 pr-10" />
+                      <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#fafafa]/30 hover:text-[#fafafa]/60 transition" tabIndex={-1}>
+                        <Eye className="w-4 h-4" />
+                      </button>
+                    </div>
                     {strengthLabel && (
                       <div className="flex items-center gap-2 mt-1.5">
                         <div className="flex-1 h-1 rounded-full bg-white/[0.06] overflow-hidden">
@@ -820,14 +827,19 @@ export function LandingPage() {
                   {isSignUp && (
                     <div>
                       <label className="block text-xs font-medium text-emerald-400/50 mb-2 ml-1 font-mono tracking-wider uppercase">{">>"} Confirm Password</label>
-                      <input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} required minLength={6} placeholder="••••••••"
-                        className={`w-full px-4 py-3 bg-white/[0.03] border rounded-xl text-[#fafafa] placeholder-white/20 text-sm outline-none transition-all duration-200 ${
-                          confirmPassword && password !== confirmPassword
-                            ? "border-red-500/50 focus:border-red-500/50 focus:ring-1 focus:ring-red-500/20"
-                            : confirmPassword && password === confirmPassword
-                              ? "border-emerald-500/50 focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20"
-                              : "border-white/[0.08] focus:border-sky-500/50 focus:ring-1 focus:ring-sky-500/20"
-                        }`} />
+                      <div className="relative">
+                        <input type={showConfirmPassword ? "text" : "password"} value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} required minLength={6} placeholder="••••••••"
+                          className={`w-full px-4 py-3 bg-white/[0.03] border rounded-xl text-[#fafafa] placeholder-white/20 text-sm outline-none transition-all duration-200 pr-10 ${
+                            confirmPassword && password !== confirmPassword
+                              ? "border-red-500/50 focus:border-red-500/50 focus:ring-1 focus:ring-red-500/20"
+                              : confirmPassword && password === confirmPassword
+                                ? "border-emerald-500/50 focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20"
+                                : "border-white/[0.08] focus:border-sky-500/50 focus:ring-1 focus:ring-sky-500/20"
+                          }`} />
+                        <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#fafafa]/30 hover:text-[#fafafa]/60 transition" tabIndex={-1}>
+                          <Eye className="w-4 h-4" />
+                        </button>
+                      </div>
                       {confirmPassword && password !== confirmPassword && (
                         <p className="text-[10px] text-red-400 mt-1 ml-1">Passwords do not match</p>
                       )}
