@@ -3,10 +3,45 @@ import { getUpcomingActivities } from "@/lib/activityCalculator";
 import { useMemo } from "react";
 import { useTimer } from "@/hooks/useTimer";
 import { CountdownTimer } from "./CountdownTimer";
-import { Clock } from "lucide-react";
+import { Clock, Shield } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { useServerId } from "@/contexts/ServerContext";
+import { supabase } from "@/lib/supabase";
+import { guildColor } from "@/lib/constants";
+import type { ActivityGuild, Guild } from "@/types";
 
 export function UpcomingActivitiesStrip() {
   const { activities, activityInstances } = useActivities();
+  const serverId = useServerId();
+
+  // Fetch guilds and activity guilds for badge display
+  const { data: guilds = [] } = useQuery({
+    queryKey: ["guilds", serverId],
+    queryFn: async () => {
+      if (!serverId) return [];
+      const { data } = await supabase.from("guilds").select("id, name").eq("server_id", serverId);
+      return (data || []) as Guild[];
+    },
+    enabled: !!serverId,
+  });
+
+  const { data: activityGuilds = [] } = useQuery({
+    queryKey: ["activity_guilds", serverId],
+    queryFn: async () => {
+      if (!serverId) return [];
+      const { data } = await supabase.from("activity_guilds").select("*");
+      return (data || []) as ActivityGuild[];
+    },
+    enabled: !!serverId,
+  });
+
+  const getActivityOwnerGuild = (activityId: string): string | undefined => {
+    const ags = activityGuilds
+      .filter(ag => ag.activity_id === activityId)
+      .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+    if (ags.length === 0) return undefined;
+    return guilds.find(g => g.id === ags[0].guild_id)?.name;
+  };
 
   const upcoming = useMemo(() => {
     if (activities.length === 0) return [];
@@ -37,6 +72,7 @@ export function UpcomingActivitiesStrip() {
             activity={info.activity}
             startTime={info.startTime}
             formatTime={formatTime}
+            ownerGuildName={getActivityOwnerGuild(info.activity.id)}
           />
         ))}
         {Array.from({ length: Math.max(0, 3 - upcoming.length) }).map((_, i) => (
@@ -53,10 +89,12 @@ function UpcomingActivitySlot({
   activity,
   startTime,
   formatTime,
+  ownerGuildName,
 }: {
   activity: { id: string; name: string; image_url?: string | null };
   startTime: Date;
   formatTime: (d: Date) => string;
+  ownerGuildName?: string;
 }) {
   const timer = useTimer(startTime);
   const threatLevel: "critical" | "warning" | "normal" = timer.isPast
@@ -81,6 +119,12 @@ function UpcomingActivitySlot({
           <span className={`font-medium text-sm truncate ${threatLevel === "critical" ? "text-red-400" : threatLevel === "warning" ? "text-amber-400" : "text-[#fafafa]"}`}>
             {activity.name}
           </span>
+          {ownerGuildName && (() => { const c = guildColor(ownerGuildName); return (
+            <span className={`flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded border shrink-0 ${c.bg} ${c.text} ${c.border}`}>
+              <Shield className="w-3 h-3" />
+              {ownerGuildName}
+            </span>
+          ); })()}
         </div>
         <div className="flex items-center gap-2 mt-0.5">
           <span className="text-xs text-[#52525b] font-mono">{formatTime(startTime)}</span>
