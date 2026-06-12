@@ -69,7 +69,6 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
   const [showPartyModal, setShowPartyModal] = useState(false);
   const [showCustomPartyModal, setShowCustomPartyModal] = useState(false);
   useEscapeKey(() => {
-    setShowModal(false);
     setShowEditSpawnModal(false);
     setShowEditTimeModal(false);
     setShowPartyModal(false);
