@@ -267,9 +267,9 @@ function getActivityState(latestInst: ActInstance | null): "not-started" | "runn
 
 function formatActivityKilledError(state: "not-started" | "completed", name: string, prefix: string): string {
   if (state === "completed") {
-    return `❌ **${name}** was already completed.\n-# Wrong time? Use \`${prefix}editkilltime ${name} HH:MM [YYYY-MM-DD]\` to fix the start time instead.`;
+    return `❌ **${name}** was already completed.\n-# Wrong time? Use \`${prefix}editkilltime ${name} HH:MM\` to fix the start time instead.`;
   }
-  return `❌ **${name}** is not currently active.\n-# Wrong start time? Use \`${prefix}editkilltime ${name} HH:MM [YYYY-MM-DD]\` to adjust it.`;
+  return `❌ **${name}** is not currently active.\n-# Wrong start time? Use \`${prefix}editkilltime ${name} HH:MM\` to adjust it.`;
 }
 
 describe("getActivityState", () => {
@@ -312,10 +312,10 @@ describe("formatActivityKilledError", () => {
     expect(msg).toContain("adjust it");
   });
 
-  it("includes HH:MM [YYYY-MM-DD] format hint", () => {
+  it("includes HH:MM format hint", () => {
     const msg = formatActivityKilledError("not-started", "Event", "!");
     expect(msg).toContain("HH:MM");
-    expect(msg).toContain("YYYY-MM-DD");
+    expect(msg).not.toContain("YYYY-MM-DD");
   });
 });
 
@@ -425,11 +425,11 @@ describe("parseKilledArgs", () => {
 
 // ── Not alive error messages (bosses) ───────────────────────
 function formatBossNotAliveError(bossName: string, prefix: string): string {
-  return `❌ **${bossName}** is not currently alive.\n-# Wrong kill time? Use \`${prefix}editkilltime ${bossName} HH:MM [YYYY-MM-DD]\` to fix the previous kill instead.`;
+  return `❌ **${bossName}** is not currently alive.\n-# Wrong kill time? Use \`${prefix}editkilltime ${bossName} HH:MM\` to fix the previous kill instead.`;
 }
 
 function formatBossCooldownError(bossName: string, killedAtUnix: number, prefix: string): string {
-  return `⏳ **${bossName}** already declared dead at <t:${killedAtUnix}:t>.\n-# Wrong time? Use \`${prefix}editkilltime ${bossName} HH:MM [YYYY-MM-DD]\` to fix it.`;
+  return `⏳ **${bossName}** already declared dead at <t:${killedAtUnix}:t>.\n-# Wrong time? Use \`${prefix}editkilltime ${bossName} HH:MM\` to fix it.`;
 }
 
 describe("killed error messages", () => {

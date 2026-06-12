@@ -1,4 +1,4 @@
-# June 11, 2026 — Changelog (v0.14.2)
+# June 11–12, 2026 — Changelog (v0.14.2)
 
 ## 🆕 New Features
 
@@ -6,6 +6,7 @@
 - **Admin Force Spawn All** — Admin Panel → Servers now has a "Force Spawn All" button that spawns all fixed-timer bosses in a server. Requires typing the server name to confirm.
 - **Search filters activities & custom bosses** — the search bar on Bosses / Activities now matches activities and custom bosses by name, not just seed bosses. The "Activities" filter chip now shows only activities (previously showed bosses mixed in).
 - **Leaderboard kill history icons & guild badges** — player kill history now shows boss images (icons) and colored guild badges next to each boss name, with responsive modal widths
+- **Landing page tester avatars** — "Tested & Loved By" section with Discord profile avatars of guild leaders and managers who rely on RaidScout. Apple-style stacked avatar rings with Discord profile links.
 
 ## 🐛 Bug Fixes
 
@@ -23,6 +24,8 @@
 - **Leaderboard tighter spacing** — reduced gaps between period tabs, search, and carousel rankings to match other screens
 - **Leaderboard page margins** — responsive padding now matches Boss List standard (`px-3 sm:px-4 py-4 sm:py-6`)
 - **Rally fullscreen viewer** — only shows checked-in attendance names, not AI scan results (scan results now exclusive to death recording flow)
+- **Landing page tester avatars** — Apple-style stacked avatar rings with Discord profile links, "trusted by guild leaders and guild managers worldwide"
+- **OG image fix** — fixed filename from `og-image.png` to `og-banner.png` so the banner shows when sharing RaidScout links
 
 ## 🤖 Discord Bot
 
@@ -32,7 +35,7 @@
 - **Activity notifications** — killing an activity via `!killed` now broadcasts a notification to the `notifhere` channel. Spawn cron also sends 5-minute and spawn-now notifications for activities.
 - **Activity spawn auto-threads** — activities now create auto-threads in `threadhere` channels 5 minutes before starting (like bosses do)
 - **`!killed` cooldown skipped** — `!forcespawn` no longer triggers the 2-hour cooldown check
-- **`!editkilltime` hint** — when a kill is rejected because the boss isn't alive or is on cooldown, the bot now suggests using `!editkilltime` to fix the previous kill instead (now also works for activities, says "start time" instead of "kill time")
+- **`!editkilltime` hint** — when a kill is rejected because the boss isn't alive or is on cooldown, the bot now suggests using `!editkilltime` to fix the previous kill instead (now also works for activities, says "start time" instead of "kill time"). Simplified hint: `HH:MM` only (no `[YYYY-MM-DD]` — date assumed from current day).
 - **Timezone handling** — activities now use the correct timezone (UTC for custom/template, Asia/Manila for seed)
 - **`!editkilltime` duplicate var fix** — removed duplicate variable declarations in the boss block that could cause runtime crashes
 
