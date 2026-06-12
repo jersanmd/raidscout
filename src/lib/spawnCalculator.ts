@@ -68,28 +68,24 @@ function calculateFixedScheduleSpawn(boss: Boss, deathRecord: DeathRecord | null
     return { boss, nextSpawn: null, status: "unknown", deathRecord: null };
   }
 
-  // Always check if we're within an alive window of the most recent slot
-  const recentSlot = findMostRecentSlot(boss.schedule, now);
-  if (recentSlot) {
-    // buildDate always goes forward; for a past slot we must go backward
-    const slotTime = buildSlotDate(now, recentSlot.day, recentSlot.time);
-    // Alive until 1 hour before the NEXT scheduled slot, but capped so
-    // single-slot bosses don't appear "alive" for 6 days straight
-    const rawAliveUntil = findNextScheduleSlot(boss.schedule, new Date(slotTime.getTime() + 60_000));
-    const aliveUntil = new Date(Math.min(
-      rawAliveUntil.getTime() - ALIVE_BUFFER_HOURS * 3600_000,
-      slotTime.getTime() + MAX_ALIVE_WINDOW_HOURS * 3600_000,
-    ));
+  // Only check the "alive" window if there's a death record (boss actually spawned).
+  // Without a death record, a newly created boss should show countdown to the next slot.
+  if (deathRecord) {
+    const recentSlot = findMostRecentSlot(boss.schedule, now);
+    if (recentSlot) {
+      const slotTime = buildSlotDate(now, recentSlot.day, recentSlot.time);
+      const rawAliveUntil = findNextScheduleSlot(boss.schedule, new Date(slotTime.getTime() + 60_000));
+      const aliveUntil = new Date(Math.min(
+        rawAliveUntil.getTime() - ALIVE_BUFFER_HOURS * 3600_000,
+        slotTime.getTime() + MAX_ALIVE_WINDOW_HOURS * 3600_000,
+      ));
 
-    // If there's a death record, check if the boss was killed AFTER this slot started
-    const wasKilledAfterSlot = deathRecord
-      ? new Date(deathRecord.death_time) >= slotTime
-      : false;
+      const wasKilledAfterSlot = new Date(deathRecord.death_time) >= slotTime;
 
-    if (!wasKilledAfterSlot && now >= slotTime && now < aliveUntil) {
-      // Boss is currently alive — show next spawn after the alive window
-      const nextSpawn = findNextScheduleSlot(boss.schedule, new Date(aliveUntil.getTime() + 60_000));
-      return { boss, nextSpawn, status: "alive", deathRecord };
+      if (!wasKilledAfterSlot && now >= slotTime && now < aliveUntil) {
+        const nextSpawn = findNextScheduleSlot(boss.schedule, new Date(aliveUntil.getTime() + 60_000));
+        return { boss, nextSpawn, status: "alive", deathRecord };
+      }
     }
   }
 

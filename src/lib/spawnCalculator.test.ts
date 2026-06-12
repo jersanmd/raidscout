@@ -105,18 +105,19 @@ describe("calculateSpawnInfo — fixed_schedule", () => {
     expect(result.nextSpawn).not.toBeNull();
   });
 
-  it("returns alive when no death record and within alive window of most recent slot", () => {
+  it("returns countdown when no death record (newly created boss)", () => {
     const boss = makeBoss({
       spawn_type: "fixed_schedule",
       respawn_hours: null,
       schedule: [{ day: 1, time: "19:00" }], // Monday 7pm
     });
-    // Monday 20:30 — 1.5 hours after the 7pm spawn, within 2h alive window
+    // Monday 20:30 — 1.5 hours after the 7pm slot, but no death record means boss was never killed/spawned
     const now = new Date(Date.UTC(2025,5,2,20,30,0)); // June 2, 2025 Monday 8:30pm
 
     const result = calculateSpawnInfo(boss, null, now);
 
-    expect(result.status).toBe("alive");
+    // Without a death record, a new boss shows countdown to the next upcoming slot
+    expect(result.status).toBe("countdown");
     expect(result.nextSpawn).not.toBeNull(); // next week's slot
   });
 
@@ -289,13 +290,13 @@ describe("calculateSpawnInfo — real-world flows", () => {
       respawn_hours: null,
       schedule: [{ day: 1, time: "19:00" }], // Monday 7pm
     });
-    const now = new Date(Date.UTC(2025,5,2,20,0,0)); // Monday 8pm — within alive window
+    const now = new Date(Date.UTC(2025,5,2,20,0,0)); // Monday 8pm
     const override = { death_time: new Date(Date.UTC(2025,5,1,0,0,0)).toISOString() };
 
     const result = calculateSpawnInfo(boss, null, now, override);
 
-    // Override is ignored for fixed_schedule — schedule controls spawn
-    expect(result.status).toBe("alive");
+    // Override is ignored for fixed_schedule, and without a death record, new boss shows countdown
+    expect(result.status).toBe("countdown");
   });
 
   it("kill twice in same day with edit between", () => {
