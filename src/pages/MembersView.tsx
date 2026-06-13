@@ -7,7 +7,7 @@ import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { updateMemberName, deleteMember, upsertMember, isSupabaseConfigured, fetchGuilds, setMemberGuild, bulkAddMembers, supabase, fetchStaticParties, createParty, deleteParty, addMemberToParty, removeMemberFromParty, type StaticParty } from "@/lib/supabase";
 import { useServerId, useHasPermission } from "@/contexts/ServerContext";
 import type { Guild } from "@/types";
-import { Users, Plus, Pencil, Trash2, Loader2, X, Check, UserPlus, CheckCircle, AlertTriangle, Image, Upload, Copy, Shield, Search, ChevronLeft, ChevronRight, TrendingUp, ChevronUp, ChevronDown } from "lucide-react";
+import { Users, Plus, Pencil, Trash2, Loader2, X, Check, UserPlus, CheckCircle, AlertTriangle, Image, Upload, Copy, Shield, Search, ChevronLeft, ChevronRight, TrendingUp, ChevronUp, ChevronDown, Tag } from "lucide-react";
 import type { Member } from "@/types";
 import { guildColor } from "@/lib/constants";
 
@@ -65,7 +65,7 @@ export function MembersView() {
   const [allPartyBoxes, setAllPartyBoxes] = useState<Record<string, string[][]>>({});
   const [unassignedSearch, setUnassignedSearch] = useState("");
   const [savingParties, setSavingParties] = useState(false);
-  const [membersTab, setMembersTab] = useState<"members" | "parties" | "progress">("members");
+  const [membersTab, setMembersTab] = useState<"members" | "progress" | "parties" | "classes">("members");
 
   // Guild order for Progress tab (persisted in localStorage per server)
   const guildOrderKey = `guild-order-${serverId ?? "global"}`;
@@ -638,27 +638,17 @@ export function MembersView() {
           <Shield className="w-3.5 h-3.5 inline mr-1" />
           Parties {parties.length > 0 && `(${parties.length})`}
         </button>
-
-        {/* Classes — inline in tab bar */}
-        <div className="flex items-center gap-1 ml-auto">
-          <span className="text-[10px] text-[#52525b]">Classes:</span>
-          <span className="text-[9px] text-[#3f3f46] italic hidden sm:inline" title="Assign classes to personalize attendance records & leaderboard filters">personalize members</span>
-          {classes.map(c => (
-            <span key={c} className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] bg-[#18181b] text-[#a1a1aa] border border-[#27272a]">
-              {c}
-              <button onClick={() => handleRemoveClass(c)} className="text-[#52525b] hover:text-[#f87171]"><X className="w-2.5 h-2.5" /></button>
-            </span>
-          ))}
-          <input
-            type="text"
-            value={newClassName}
-            onChange={(e) => setNewClassName(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), handleAddClass())}
-            placeholder="Add class"
-            className="w-24 px-2 py-0.5 bg-[#18181b] border border-[#27272a] rounded text-[10px] text-[#fafafa] placeholder-[#52525b] focus:outline-none focus:border-[#52525b]"
-          />
-          <button onClick={handleAddClass} disabled={!newClassName.trim()} className="p-0.5 text-[#52525b] hover:text-[#fafafa] disabled:opacity-30"><Plus className="w-3 h-3" /></button>
-        </div>
+        <button
+          onClick={() => setMembersTab("classes")}
+          className={`px-3 py-1.5 rounded-t-md text-xs font-medium transition ${
+            membersTab === "classes"
+              ? "bg-[#18181b] text-[#fafafa] border border-[#27272a] border-b-transparent"
+              : "text-[#71717a] hover:text-[#d4d4d8]"
+          }`}
+        >
+          <Tag className="w-3.5 h-3.5 inline mr-1" />
+          Classes {classes.length > 0 && `(${classes.length})`}
+        </button>
       </div>
 
       {/* Parties Tab — Drag & Drop */}
@@ -917,6 +907,102 @@ export function MembersView() {
         <p className="text-[10px] text-[#52525b] text-center">
           Members update their CP via Discord using <code className="px-1 py-0.5 bg-[#18181b] rounded text-[#a1a1aa]">!updatestats PlayerName CP</code>
         </p>
+      </div>
+      )}
+
+      {/* Classes Tab — manage classes and assign to members */}
+      {membersTab === "classes" && (
+      <div className="space-y-4">
+        {/* Class list management */}
+        <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-4">
+          <h3 className="text-sm font-semibold text-[#fafafa] flex items-center gap-2 mb-3">
+            <Tag className="w-4 h-4 text-[#a1a1aa]" />
+            Class List
+          </h3>
+          <div className="flex flex-wrap items-center gap-2 mb-3">
+            {classes.length === 0 ? (
+              <p className="text-sm text-[#52525b]">No classes defined yet. Add classes like Tank, Healer, DPS to organize members.</p>
+            ) : (
+              classes.map(c => (
+                <span key={c} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs bg-[#09090b] text-[#d4d4d8] border border-[#27272a]">
+                  {c}
+                  <button onClick={() => handleRemoveClass(c)} className="text-[#52525b] hover:text-[#f87171] transition"><X className="w-3 h-3" /></button>
+                </span>
+              ))
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <input
+              type="text"
+              value={newClassName}
+              onChange={(e) => setNewClassName(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), handleAddClass())}
+              placeholder="e.g. Tank, Healer, DPS"
+              className="flex-1 px-3 py-2 bg-[#09090b] border border-[#27272a] rounded-lg text-sm text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#52525b]"
+            />
+            <button onClick={handleAddClass} disabled={!newClassName.trim()} className="px-3 py-2 bg-[#fafafa] text-[#09090b] rounded-lg text-sm font-medium hover:bg-[#e4e4e7] transition disabled:opacity-50">
+              <Plus className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+
+        {/* Member class assignment */}
+        <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-4">
+          <h3 className="text-sm font-semibold text-[#fafafa] flex items-center gap-2 mb-3">
+            <Users className="w-4 h-4 text-[#a1a1aa]" />
+            Assign Classes to Members
+          </h3>
+          {members.length === 0 ? (
+            <p className="text-sm text-[#52525b] text-center py-6">No members yet. Add members first, then assign classes here.</p>
+          ) : classes.length === 0 ? (
+            <p className="text-sm text-[#52525b] text-center py-6">Add classes above first, then assign them to members here.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-[10px] text-[#71717a] uppercase tracking-wider border-b border-[#27272a]">
+                    <th className="text-left py-2 px-2">Member</th>
+                    <th className="text-left py-2 px-2 hidden sm:table-cell">Guild</th>
+                    <th className="text-right py-2 px-2">Class</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {members.map(m => {
+                    const g = guilds.find(g => g.id === m.guild_id);
+                    return (
+                      <tr key={m.id} className="border-b border-[#27272a]/30 hover:bg-[#09090b]/30 transition">
+                        <td className="py-2 px-2">
+                          <Link to={`/members/${m.id}`} className="text-[#fafafa] hover:text-[#e4e4e7] transition text-sm">
+                            {m.name}
+                          </Link>
+                        </td>
+                        <td className="py-2 px-2 hidden sm:table-cell">
+                          {g ? <span className="text-[#a1a1aa] text-xs">{g.name}</span> : <span className="text-[#52525b] text-xs">—</span>}
+                        </td>
+                        <td className="py-2 px-2 text-right">
+                          <select
+                            value={m.class ?? ""}
+                            onChange={async (e) => {
+                              const cls = e.target.value || null;
+                              try {
+                                await supabase.rpc("update_member_stats", { p_member_id: m.id, p_combat_power: m.combat_power ?? null, p_class: cls });
+                                invalidate();
+                              } catch {}
+                            }}
+                            className="bg-[#09090b] border border-[#27272a] rounded px-2 py-1 text-xs text-[#a1a1aa] outline-none focus:border-[#52525b]"
+                          >
+                            <option value="">—</option>
+                            {classes.map(c => <option key={c} value={c}>{c}</option>)}
+                          </select>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       </div>
       )}
 
