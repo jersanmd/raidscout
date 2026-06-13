@@ -291,32 +291,6 @@ export function AdminPanelView() {
 
       {/* Tabs — desktop: all tabs inline; mobile: top-level + subtabs */}
 
-      {/* Mobile: top-level tabs as bottom nav */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-[#09090b] border-t border-[#27272a]" style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
-        <div className="flex items-center justify-around h-14 max-w-lg mx-auto">
-          <button onClick={() => setTab("infra")} className={`flex flex-col items-center justify-center gap-0.5 px-2 py-1.5 min-w-[64px] rounded-lg transition-colors ${tab === "infra" ? "text-[#fafafa]" : "text-[#52525b]"}`}>
-            <Radio className="w-5 h-5" />
-            <span className="text-[10px] font-medium">Infra</span>
-          </button>
-          <button onClick={() => setTab("games")} className={`flex flex-col items-center justify-center gap-0.5 px-2 py-1.5 min-w-[64px] rounded-lg transition-colors ${tab === "games" ? "text-[#fafafa]" : "text-[#52525b]"}`}>
-            <Gamepad2 className="w-5 h-5" />
-            <span className="text-[10px] font-medium">Games</span>
-          </button>
-          <button onClick={() => { setTab("servers"); setServerSubtab("servers"); }} className={`flex flex-col items-center justify-center gap-0.5 px-2 py-1.5 min-w-[64px] rounded-lg transition-colors ${tab === "servers" || tab === "database" || tab === "cron" || tab === "deleted" ? "text-[#fafafa]" : "text-[#52525b]"}`}>
-            <Server className="w-5 h-5" />
-            <span className="text-[10px] font-medium">Servers</span>
-          </button>
-          <button onClick={() => setTab("users")} className={`flex flex-col items-center justify-center gap-0.5 px-2 py-1.5 min-w-[64px] rounded-lg transition-colors ${tab === "users" || tab === "owners" ? "text-[#fafafa]" : "text-[#52525b]"}`}>
-            <Users className="w-5 h-5" />
-            <span className="text-[10px] font-medium">Owners</span>
-          </button>
-          <button onClick={() => setTab("audit")} className={`flex flex-col items-center justify-center gap-0.5 px-2 py-1.5 min-w-[64px] rounded-lg transition-colors ${tab === "audit" ? "text-[#fafafa]" : "text-[#52525b]"}`}>
-            <ClipboardList className="w-5 h-5" />
-            <span className="text-[10px] font-medium">Audit</span>
-          </button>
-        </div>
-      </nav>
-
       {/* Mobile: Servers subtabs (shown above content when Servers is active) */}
       {(tab === "servers" || tab === "database" || tab === "cron" || tab === "deleted") && (
         <div className="flex md:hidden flex-wrap bg-[#18181b]/50 rounded-lg p-0.5 gap-0.5 mb-3">
@@ -1328,6 +1302,32 @@ export function AdminPanelView() {
       {/* Games Tab */}
       {tab === "games" && <AdminGamesTab />}
     </div>
+
+      {/* Mobile: bottom navigation */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-[#09090b]/95 backdrop-blur-xl border-t border-[#27272a] safe-area-bottom">
+        <div className="flex items-center justify-around h-14 max-w-lg mx-auto">
+          <button onClick={() => setTab("infra")} className={`flex flex-col items-center justify-center gap-0.5 px-2 py-1.5 min-w-[64px] rounded-lg transition-colors ${tab === "infra" ? "text-[#fafafa]" : "text-[#52525b]"}`}>
+            <Radio className="w-5 h-5" />
+            <span className="text-[10px] font-medium">Infra</span>
+          </button>
+          <button onClick={() => setTab("games")} className={`flex flex-col items-center justify-center gap-0.5 px-2 py-1.5 min-w-[64px] rounded-lg transition-colors ${tab === "games" ? "text-[#fafafa]" : "text-[#52525b]"}`}>
+            <Gamepad2 className="w-5 h-5" />
+            <span className="text-[10px] font-medium">Games</span>
+          </button>
+          <button onClick={() => { setTab("servers"); setServerSubtab("servers"); }} className={`flex flex-col items-center justify-center gap-0.5 px-2 py-1.5 min-w-[64px] rounded-lg transition-colors ${tab === "servers" || tab === "database" || tab === "cron" || tab === "deleted" ? "text-[#fafafa]" : "text-[#52525b]"}`}>
+            <Server className="w-5 h-5" />
+            <span className="text-[10px] font-medium">Servers</span>
+          </button>
+          <button onClick={() => setTab("users")} className={`flex flex-col items-center justify-center gap-0.5 px-2 py-1.5 min-w-[64px] rounded-lg transition-colors ${tab === "users" || tab === "owners" ? "text-[#fafafa]" : "text-[#52525b]"}`}>
+            <Users className="w-5 h-5" />
+            <span className="text-[10px] font-medium">Owners</span>
+          </button>
+          <button onClick={() => setTab("audit")} className={`flex flex-col items-center justify-center gap-0.5 px-2 py-1.5 min-w-[64px] rounded-lg transition-colors ${tab === "audit" ? "text-[#fafafa]" : "text-[#52525b]"}`}>
+            <ClipboardList className="w-5 h-5" />
+            <span className="text-[10px] font-medium">Audit</span>
+          </button>
+        </div>
+      </nav>
 
       {/* Footer — same as main Layout */}
       <footer className="border-t border-[#27272a] bg-[#09090b] pb-16 md:pb-0">
