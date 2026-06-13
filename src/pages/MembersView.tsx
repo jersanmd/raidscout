@@ -123,15 +123,15 @@ export function MembersView() {
   };
 
   // Fetch member scores & growth from RPC
-  const { data: memberStats = {} } = useQuery<Record<string, { score: number; growth: number }>>({
+  const { data: memberStats = {} } = useQuery<Record<string, { score: number; growth: number; cpUpdatedAt?: string | null }>>({
     queryKey: ["memberStats", serverId],
     queryFn: async () => {
       if (!serverId || !configured) return {};
       const { data, error } = await supabase.rpc("get_member_scores", { p_server_id: serverId });
       if (error || !data) return {};
-      const map: Record<string, { score: number; growth: number }> = {};
-      (data as { member_id: string; score: number; cp_growth_30d: number }[]).forEach(r => {
-        map[r.member_id] = { score: r.score, growth: r.cp_growth_30d ?? 0 };
+      const map: Record<string, { score: number; growth: number; cpUpdatedAt?: string | null }> = {};
+      (data as { member_id: string; score: number; cp_growth_30d: number; cp_updated_at?: string | null }[]).forEach(r => {
+        map[r.member_id] = { score: r.score, growth: r.cp_growth_30d ?? 0, cpUpdatedAt: r.cp_updated_at };
       });
       return map;
     },
@@ -1372,7 +1372,23 @@ export function MembersView() {
                           )}
                         </td>
                         <td className="py-2.5 px-2 text-center align-middle">
-                          <span className={`inline-block w-2.5 h-2.5 rounded-full ${m.combat_power != null ? "bg-green-500 shadow-[0_0_6px_rgba(34,197,94,0.5)]" : "bg-[#3f3f46]"}`} title={m.combat_power != null ? "CP updated" : "CP not set"} />
+                          {(() => {
+                            const updatedAt = memberStats[m.id]?.cpUpdatedAt;
+                            if (!updatedAt && m.combat_power == null) {
+                              return <span className="inline-block w-2.5 h-2.5 rounded-full bg-[#3f3f46]" title="CP not set" />;
+                            }
+                            if (!updatedAt && m.combat_power != null) {
+                              return <span className="inline-block w-2.5 h-2.5 rounded-full bg-[#52525b]" title="CP set but never updated" />;
+                            }
+                            const daysAgo = (Date.now() - new Date(updatedAt).getTime()) / (1000 * 60 * 60 * 24);
+                            if (daysAgo <= 7) {
+                              return <span className="inline-block w-2.5 h-2.5 rounded-full bg-green-500 shadow-[0_0_6px_rgba(34,197,94,0.5)]" title={`Updated ${Math.round(daysAgo)}d ago`} />;
+                            }
+                            if (daysAgo <= 14) {
+                              return <span className="inline-block w-2.5 h-2.5 rounded-full bg-amber-500 shadow-[0_0_6px_rgba(245,158,11,0.5)]" title={`Updated ${Math.round(daysAgo)}d ago`} />;
+                            }
+                            return <span className="inline-block w-2.5 h-2.5 rounded-full bg-red-500 shadow-[0_0_6px_rgba(239,68,68,0.5)]" title={`Updated ${Math.round(daysAgo)}d ago`} />;
+                          })()}
                         </td>
                         {canManageRaidMembers && (
                           <td className="py-2 px-3 text-right">
