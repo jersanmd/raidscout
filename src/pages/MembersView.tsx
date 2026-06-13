@@ -419,6 +419,17 @@ export function MembersView() {
     if (error) console.error("Failed to remove class:", error);
   };
 
+  // Class delete confirmation
+  const [deleteClassName, setDeleteClassName] = useState<string | null>(null);
+  const [deleteClassConfirmText, setDeleteClassConfirmText] = useState("");
+
+  const confirmDeleteClass = async () => {
+    if (!deleteClassName) return;
+    await handleRemoveClass(deleteClassName);
+    setDeleteClassName(null);
+    setDeleteClassConfirmText("");
+  };
+
   // Guild selection for add / bulk
   const [addGuild, setAddGuild] = useState<string>("");
 
@@ -428,6 +439,7 @@ export function MembersView() {
 
   useEscapeKey(() => { setCpModalMember(null); setCpModalFocused(false); }, !!cpModalMember);
   useEscapeKey(() => { setHistoryMember(null); setEditingHistoryId(null); setDeletingHistoryId(null); }, !!historyMember);
+  useEscapeKey(() => { setDeleteClassName(null); setDeleteClassConfirmText(""); }, !!deleteClassName);
   const [bulkNames, setBulkNames] = useState("");
   const [bulkAdding, setBulkAdding] = useState(false);
   const [bulkGuild, setBulkGuild] = useState<string>("");
@@ -1659,7 +1671,7 @@ export function MembersView() {
                 <span key={c} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs bg-[#09090b] text-[#d4d4d8] border border-[#27272a]">
                   <IconComp className="w-3 h-3" style={{ color }} />
                   {c}
-                  <button onClick={() => handleRemoveClass(c)} className="text-[#52525b] hover:text-[#f87171] transition"><X className="w-3 h-3" /></button>
+                  <button onClick={() => { setDeleteClassName(c); setDeleteClassConfirmText(""); }} className="text-[#52525b] hover:text-[#f87171] transition"><X className="w-3 h-3" /></button>
                 </span>
                 );
               })
@@ -2133,6 +2145,49 @@ export function MembersView() {
           </div>
         </div>
         );
+      {/* Delete class confirmation */}
+      {deleteClassName && (() => {
+        const name = deleteClassName!;
+        const confirmed = deleteClassConfirmText.trim().toLowerCase() === name.toLowerCase();
+        return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60" onClick={() => { setDeleteClassName(null); setDeleteClassConfirmText(""); }} />
+          <div className="relative bg-[#09090b] border border-[#27272a] rounded-xl w-full max-w-xs shadow-2xl p-4 space-y-4">
+            <p className="text-[#fafafa] text-sm text-center">
+              Delete class <span className="font-bold">{deleteClassName}</span>?
+            </p>
+            <p className="text-[10px] text-[#71717a] text-center -mt-2">This will unassign this class from all members.</p>
+            <div>
+              <input
+                type="text"
+                value={deleteClassConfirmText}
+                onChange={(e) => setDeleteClassConfirmText(e.target.value)}
+                placeholder={`Type "${deleteClassName}" to confirm`}
+                autoFocus
+                className="w-full px-3 py-2 bg-[#18181b] border border-[#27272a] rounded-lg text-sm text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-red-500/50 text-center"
+                onKeyDown={(e) => { if (e.key === "Enter" && confirmed) confirmDeleteClass(); }}
+              />
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => { setDeleteClassName(null); setDeleteClassConfirmText(""); }}
+                className="flex-1 py-2 rounded-lg bg-[#18181b] text-[#d4d4d8] text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDeleteClass}
+                disabled={!confirmed}
+                className="flex-1 py-2 rounded-lg bg-red-600 text-white text-sm flex items-center justify-center gap-1.5 disabled:opacity-40 transition"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+        );
+      })()}
+
       })()}
     </div>
   );

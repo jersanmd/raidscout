@@ -6,6 +6,7 @@ import { ServerProvider, useServer } from "@/contexts/ServerContext";
 import { Layout } from "@/components/Layout";
 import { LandingPage } from "@/pages/LandingPage";
 import { ResetPasswordForm } from "@/components/ResetPasswordForm";
+import { PublicMemberProfile } from "@/components/PublicMemberProfile";
 import { ViewerRoute } from "@/components/ViewerRoute";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { ToastProvider } from "@/contexts/ToastContext";
@@ -98,6 +99,11 @@ function AppContent() {
         {/* Viewer key auto-login route */}
         <Route path="/view/:viewerKey" element={<ViewerRoute />} />
 
+        {/* Public member profile — masked slug link (shared in Discord) */}
+        <Route path="/m/:slug" element={<Suspense fallback={<PageLoader />}><PublicMemberProfile /></Suspense>} />
+        {/* Public member profile — direct ID access (redirects to landing if not authed) */}
+        <Route path="/members/:memberId" element={<Suspense fallback={<PageLoader />}><MemberProfileView /></Suspense>} />
+
         {/* Authenticated routes */}
         <Route path="*" element={!user && !isViewer ? <LandingPage /> : <AppRoutes />} />
       </Routes>
@@ -156,7 +162,6 @@ function AppRoutes() {
         <Route path="/history" element={<Suspense fallback={<PageLoader />}><HistoryView /></Suspense>} />
         <Route path="/leaderboard" element={<Suspense fallback={<PageLoader />}><LeaderboardView /></Suspense>} />
         <Route path="/members" element={<Suspense fallback={<PageLoader />}><MembersView /></Suspense>} />
-        <Route path="/members/:memberId" element={<Suspense fallback={<PageLoader />}><MemberProfileView /></Suspense>} />
         <Route path="/inventory" element={<Suspense fallback={<PageLoader />}><InventoryView /></Suspense>} />
         <Route path="/analytics" element={<Suspense fallback={<PageLoader />}><AnalyticsView /></Suspense>} />
         <Route path="/server-settings" element={<Suspense fallback={<PageLoader />}><ServerSettingsView /></Suspense>} />

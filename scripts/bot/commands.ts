@@ -863,17 +863,18 @@ export async function handleMessage(msg: any) {
       let memberId: string | null = null;
       let oldCp: number | null = null;
       let resolvedName = playerName;
+      let memberSlug: string | undefined;
 
       // Try exact match first (case-insensitive)
       let memberRows = await supabaseQuerySafe(
-        `members?server_id=eq.${serverId}&name=ilike.${encodeURIComponent(playerName)}&select=id,name,combat_power`
+        `members?server_id=eq.${serverId}&name=ilike.${encodeURIComponent(playerName)}&select=id,name,combat_power,public_slug`
       );
       console.log(`[bot] updatestats exact lookup: serverId=${serverId}, name=${playerName}, found=${memberRows?.length || 0}`);
 
       // If no exact match, try partial match
       if (!memberRows?.length) {
         memberRows = await supabaseQuerySafe(
-          `members?server_id=eq.${serverId}&name=ilike.${encodeURIComponent("%" + playerName + "%")}&select=id,name,combat_power&order=name&limit=26`
+          `members?server_id=eq.${serverId}&name=ilike.${encodeURIComponent("%" + playerName + "%")}&select=id,name,combat_power,public_slug&order=name&limit=26`
         );
         console.log(`[bot] updatestats partial lookup: serverId=${serverId}, name=${playerName}, found=${memberRows?.length || 0}`);
       }
@@ -882,6 +883,7 @@ export async function handleMessage(msg: any) {
         memberId = memberRows[0].id;
         oldCp = memberRows[0].combat_power ?? null;
         resolvedName = memberRows[0].name;
+        const memberSlug = memberRows[0].public_slug as string | undefined;
         // Update member's combat_power
         await fetch(`${SUPABASE_URL}/rest/v1/members?id=eq.${memberId}`, {
           method: "PATCH",
@@ -922,7 +924,7 @@ export async function handleMessage(msg: any) {
         });
         if (createRes.ok) {
           const created = await createRes.json() as any[];
-          if (created?.length) { memberId = created[0].id; resolvedName = created[0].name; }
+          if (created?.length) { memberId = created[0].id; resolvedName = created[0].name; memberSlug = created[0].public_slug; }
         } else {
           console.error("[bot] updatestats auto-create failed:", createRes.status, await createRes.text().catch(() => ""));
         }
@@ -971,7 +973,8 @@ export async function handleMessage(msg: any) {
       }
 
       const screenshotNote = screenshotUrl ? " 📸 Screenshot saved." : "";
-      const profileLink = `🔗 [Click here to check your member page on RaidScout](${SITE_URL}/members/${memberId})`;
+      const profileUrl = memberSlug ? `${SITE_URL}/m/${memberSlug}` : `${SITE_URL}/members/${memberId}`;
+      const profileLink = `🔗 [Click here to check your member page on RaidScout](${profileUrl})`;
       await cmdLog(cmd, "ok", `${resolvedName} → ${cpValue.toLocaleString()} CP`);
       return reply(`✅ **${resolvedName}** CP updated to **${cpValue.toLocaleString()}**.${screenshotNote}\n${profileLink}`);
     } catch (err: any) {
