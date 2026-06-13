@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 
 /**
@@ -35,10 +35,11 @@ export function ViewerRoute() {
     return () => { cancelled = true; };
   }, [viewerKey, viewerSignIn, isViewer]);
 
-  // Redirect to home after successful viewer sign-in
+  // Redirect to the target page (or home) after successful viewer sign-in
   useEffect(() => {
     if (isViewer) {
-      navigate("/", { replace: true });
+      const redirect = new URLSearchParams(window.location.search).get("redirect");
+      navigate(redirect || "/", { replace: true });
     }
   }, [isViewer, navigate]);
 

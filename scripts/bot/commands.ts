@@ -864,6 +864,13 @@ export async function handleMessage(msg: any) {
       let oldCp: number | null = null;
       let resolvedName = playerName;
       let memberSlug: string | undefined;
+      let viewerKey: string | null = null;
+
+      // Fetch viewer key for the server (for public profile links)
+      try {
+        const vkRes = await supabaseQuerySafe(`servers?id=eq.${serverId}&select=viewer_key`);
+        if (vkRes?.[0]?.viewer_key) viewerKey = vkRes[0].viewer_key;
+      } catch { /* ignore */ }
 
       // Try exact match first (case-insensitive)
       let memberRows = await supabaseQuerySafe(
@@ -973,7 +980,10 @@ export async function handleMessage(msg: any) {
       }
 
       const screenshotNote = screenshotUrl ? " 📸 Screenshot saved." : "";
-      const profileUrl = memberSlug ? `${SITE_URL}/m/${memberSlug}` : `${SITE_URL}/members/${memberId}`;
+      const memberPath = memberSlug ? `/m/${memberSlug}` : `/members/${memberId}`;
+      const profileUrl = viewerKey
+        ? `${SITE_URL}/view/${viewerKey}?redirect=${encodeURIComponent(memberPath)}`
+        : `${SITE_URL}${memberPath}`;
       const profileLink = `🔗 Click here to check your member page on RaidScout: <${profileUrl}>`;
       await cmdLog(cmd, "ok", `${resolvedName} → ${cpValue.toLocaleString()} CP`);
       return reply(`✅ **${resolvedName}** CP updated to **${cpValue.toLocaleString()}**.${screenshotNote}\n${profileLink}`);
