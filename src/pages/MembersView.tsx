@@ -1671,12 +1671,11 @@ export function MembersView() {
                 <span key={c} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs bg-[#09090b] text-[#d4d4d8] border border-[#27272a]">
                   <IconComp className="w-3 h-3" style={{ color }} />
                   {c}
-                  <button type="button" onClick={(e) => { e.stopPropagation(); console.log("X clicked:", c); setDeleteClassName(c); setDeleteClassConfirmText(""); }} className="text-[#52525b] hover:text-[#f87171] transition"><X className="w-3 h-3" /></button>
+                  <button type="button" onClick={(e) => { e.stopPropagation(); setDeleteClassName(c); setDeleteClassConfirmText(""); }} className="text-[#52525b] hover:text-[#f87171] transition"><X className="w-3 h-3" /></button>
                 </span>
                 );
               })
             )}
-            {deleteClassName && <p className="text-red-400 text-xs mt-1">Delete modal should be visible for: {deleteClassName}</p>}
           </div>
           <div className="flex items-center gap-2 mb-3">
             <div className="relative">
@@ -2146,9 +2145,10 @@ export function MembersView() {
           </div>
         </div>
         );
+      })()}
+
       {/* Delete class confirmation */}
       {deleteClassName && (() => {
-        console.log("Rendering class delete modal for:", deleteClassName);
         const name = deleteClassName!;
         return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -2189,7 +2189,6 @@ export function MembersView() {
         );
       })()}
 
-      })()}
     </div>
   );
 }
