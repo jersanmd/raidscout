@@ -22,6 +22,8 @@ const AnalyticsView = lazy(() => import("@/pages/AnalyticsView").then(m => ({ de
 const LeaderboardView = lazy(() => import("@/pages/LeaderboardView").then(m => ({ default: m.LeaderboardView })));
 const ServerSettingsView = lazy(() => import("@/pages/ServerSettingsView").then(m => ({ default: m.ServerSettingsView as ComponentType })));
 const AdminPanelView = lazy(() => import("@/pages/AdminPanelView").then(m => ({ default: m.AdminPanelView })));
+const MemberProfileView = lazy(() => import("@/pages/MemberProfileView").then(m => ({ default: m.MemberProfileView })));
+const InventoryView = lazy(() => import("@/pages/InventoryView").then(m => ({ default: m.InventoryView })));
 const TermsOfServiceView = lazy(() => import("@/pages/TermsOfService").then(m => ({ default: m.TermsOfServiceView })));
 const PrivacyPolicyView = lazy(() => import("@/pages/PrivacyPolicy").then(m => ({ default: m.PrivacyPolicyView })));
 const ChangelogView = lazy(() => import("@/pages/ChangelogView").then(m => ({ default: m.ChangelogView })));
@@ -154,6 +156,8 @@ function AppRoutes() {
         <Route path="/history" element={<Suspense fallback={<PageLoader />}><HistoryView /></Suspense>} />
         <Route path="/leaderboard" element={<Suspense fallback={<PageLoader />}><LeaderboardView /></Suspense>} />
         <Route path="/members" element={<Suspense fallback={<PageLoader />}><MembersView /></Suspense>} />
+        <Route path="/members/:memberId" element={<Suspense fallback={<PageLoader />}><MemberProfileView /></Suspense>} />
+        <Route path="/inventory" element={<Suspense fallback={<PageLoader />}><InventoryView /></Suspense>} />
         <Route path="/analytics" element={<Suspense fallback={<PageLoader />}><AnalyticsView /></Suspense>} />
         <Route path="/server-settings" element={<Suspense fallback={<PageLoader />}><ServerSettingsView /></Suspense>} />
       </Route>

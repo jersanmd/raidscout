@@ -227,3 +227,25 @@ export {
   fetchActivityAssists,
   toggleActivityAssist,
 } from "./api/activityGuilds";
+
+// Member Management & Inventory
+export {
+  fetchCpUpdates,
+  fetchMemberCpHistory,
+  fetchPendingCpUpdates,
+  submitCpUpdate,
+  updateCpStatus,
+  fetchMemberNotes,
+  addMemberNote,
+  deleteMemberNote,
+  fetchMemberProfile,
+  fetchItems,
+  createItem,
+  deleteItem,
+  fetchDistributions,
+  createDistribution,
+  deleteDistribution,
+  fetchTopCpGrowth,
+  fetchItemDistributionStats,
+  fetchTopRecipients,
+} from "./api/memberManagement";

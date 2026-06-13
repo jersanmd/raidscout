@@ -96,7 +96,7 @@ export async function handleMessage(msg: any) {
   }
 
   // ✅ reaction
-  const validCmds = new Set(["list","nextspawn","spawn","killed","kill","editkilltime","forcespawn","forcespawnall","spawnall","commands","help","notifhere","cmdhere","threadhere","party"]);
+  const validCmds = new Set(["list","nextspawn","spawn","killed","kill","editkilltime","forcespawn","forcespawnall","spawnall","commands","help","notifhere","cmdhere","threadhere","party","updatestats"]);
   if (validCmds.has(cmd)) {
     discordFetch(`https://discord.com/api/v10/channels/${channelId}/messages/${msg.id}/reactions/${encodeURIComponent("✅")}/@me`, {
       method: "PUT", headers: { Authorization: `Bot ${TOKEN}` },
@@ -782,5 +782,105 @@ export async function handleMessage(msg: any) {
     });
     await cmdLog(cmd, "ok", `${act.name} → ${timeStr}`);
     return replyEmbed(`✏️ ${act.name} Time Updated`, `Time changed to **${timeStr}**`, 0x3b82f6, []);
+  }
+
+  // ── updatestats <PlayerName> <CP> ──
+  if (cmd === "updatestats") {
+    if (!serverId) { await cmdLog(cmd, "fail", "not linked"); return reply("⚠️ Not linked to RaidScout."); }
+    const remaining = args.slice(1);
+    // Last arg should be a number (CP value)
+    const maybeCp = remaining[remaining.length - 1];
+    const cpValue = parseInt(maybeCp, 10);
+    if (isNaN(cpValue) || cpValue <= 0) {
+      await cmdLog(cmd, "fail", "invalid CP");
+      return reply("Usage: `!updatestats PlayerName CP`\nExample: `!updatestats PressX 113021`\nAttach a screenshot as proof.");
+    }
+    remaining.pop();
+    const playerName = remaining.join(" ").trim();
+    if (!playerName) {
+      await cmdLog(cmd, "fail", "no player name");
+      return reply("Usage: `!updatestats PlayerName CP`\nExample: `!updatestats PressX 113021`");
+    }
+
+    // Get screenshot URL from attachments
+    const screenshotUrl = msg.attachments?.length > 0 ? msg.attachments[0].url : null;
+
+    try {
+      // Submit CP update via REST API (service_role)
+      const body: any = {
+        server_id: serverId,
+        player_name: playerName,
+        new_cp: cpValue,
+        discord_user_id: msg.author?.id || null,
+        discord_username: msg.author?.username || author,
+        discord_message_id: msg.id,
+        status: "approved",
+      };
+      if (screenshotUrl) body.screenshot_url = screenshotUrl;
+
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/cp_updates`, {
+        method: "POST",
+        headers: {
+          apikey: SUPABASE_KEY!,
+          Authorization: `Bearer ${SUPABASE_KEY!}`,
+          "Content-Type": "application/json",
+          Prefer: "return=representation",
+        },
+        body: JSON.stringify(body),
+      });
+
+      if (!res.ok) {
+        const errText = await res.text().catch(() => "");
+        console.error("[bot] updatestats insert failed:", res.status, errText);
+        await cmdLog(cmd, "fail", `DB error ${res.status}`);
+        discordFetch(`https://discord.com/api/v10/channels/${channelId}/messages/${msg.id}/reactions/${encodeURIComponent("❌")}/@me`, {
+          method: "PUT", headers: { Authorization: `Bot ${TOKEN}` },
+        }).catch(() => {});
+        return reply(`❌ Failed to update stats for **${playerName}**. Please try again.`);
+      }
+
+      // Also update member's combat_power
+      const memberRows = await supabaseQuerySafe(
+        `members?server_id=eq.${serverId}&name=eq.${encodeURIComponent(playerName)}&select=id,combat_power`
+      );
+      if (memberRows?.length) {
+        await fetch(`${SUPABASE_URL}/rest/v1/members?id=eq.${memberRows[0].id}`, {
+          method: "PATCH",
+          headers: {
+            apikey: SUPABASE_KEY!,
+            Authorization: `Bearer ${SUPABASE_KEY!}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            combat_power: cpValue,
+            discord_user_id: msg.author?.id || null,
+          }),
+        });
+      } else {
+        // Auto-create member
+        await fetch(`${SUPABASE_URL}/rest/v1/members`, {
+          method: "POST",
+          headers: {
+            apikey: SUPABASE_KEY!,
+            Authorization: `Bearer ${SUPABASE_KEY!}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            name: playerName,
+            server_id: serverId,
+            combat_power: cpValue,
+            discord_user_id: msg.author?.id || null,
+          }),
+        });
+      }
+
+      const screenshotNote = screenshotUrl ? " 📸 Screenshot saved." : "";
+      await cmdLog(cmd, "ok", `${playerName} → ${cpValue.toLocaleString()} CP`);
+      return reply(`✅ **${playerName}** CP updated to **${cpValue.toLocaleString()}**.${screenshotNote}`);
+    } catch (err: any) {
+      console.error("[bot] updatestats error:", err);
+      await cmdLog(cmd, "fail", err.message);
+      return reply(`❌ Error updating **${playerName}**: ${err.message}`);
+    }
   }
 }

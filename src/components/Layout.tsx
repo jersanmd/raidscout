@@ -9,7 +9,7 @@ import { DiscordWebhookBanner } from "@/components/DiscordWebhookBanner";
 import { NoMembersBanner } from "@/components/NoMembersBanner";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { useSpawnAlerts } from "@/hooks/useSpawnAlerts";
-import { Skull, List, Calendar, LogOut, Clock, Trophy, Users, BarChart3, Server, Settings, Plus, Shield, ExternalLink, Eye, Bell, Volume2, ChevronDown, Globe, Loader2 } from "lucide-react";
+import { Skull, List, Calendar, LogOut, Clock, Trophy, Users, BarChart3, Server, Settings, Plus, Shield, ExternalLink, Eye, Bell, Volume2, ChevronDown, Globe, Loader2, Package } from "lucide-react";
 import { version } from "../../package.json";
 import { useUserTimezone, detectTimezone, formatInTimezone } from "@/hooks/useUserTimezone";
 import { TIMEZONES } from "@/lib/timezones";
@@ -227,6 +227,19 @@ export function Layout() {
                 <BarChart3 className="w-4 h-4" />
                 <span className="hidden sm:inline">Analytics</span>
               </NavLink>
+              <NavLink
+                to="/inventory"
+                className={({ isActive }) =>
+                  `flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-200 whitespace-nowrap ${
+                    isActive
+                      ? "bg-[#27272a] text-[#fafafa]"
+                      : "text-[#71717a] hover:text-[#a1a1aa]"
+                  }`
+                }
+              >
+                <Package className="w-4 h-4" />
+                <span className="hidden sm:inline">Inventory</span>
+              </NavLink>
             </nav>
             )}
 
@@ -388,6 +401,17 @@ export function Layout() {
           >
             <BarChart3 className="w-5 h-5" />
             <span className="text-[10px] font-medium">Stats</span>
+          </NavLink>
+          <NavLink
+            to="/inventory"
+            className={({ isActive }) =>
+              `flex flex-col items-center justify-center gap-0.5 px-3 py-1.5 min-w-[64px] rounded-lg transition-colors ${
+                isActive ? "text-[#fafafa]" : "text-[#52525b]"
+              }`
+            }
+          >
+            <Package className="w-5 h-5" />
+            <span className="text-[10px] font-medium">Items</span>
           </NavLink>
         </div>
       </nav>

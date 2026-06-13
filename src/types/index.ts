@@ -300,3 +300,97 @@ export interface BossAssist {
   server_id: string;
   created_at: string;
 }
+
+// ── Member Management & Inventory ──────────────────────────
+
+export type CpUpdateStatus = "pending" | "approved" | "rejected";
+
+export interface CpUpdate {
+  id: string;
+  server_id: string;
+  member_id: string;
+  player_name: string;
+  old_cp: number | null;
+  new_cp: number;
+  screenshot_url: string | null;
+  discord_user_id: string | null;
+  discord_username: string | null;
+  discord_message_id: string | null;
+  status: CpUpdateStatus;
+  submitted_at: string;
+  approved_by: string | null;
+  approved_at: string | null;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+}
+
+export interface MemberNote {
+  id: string;
+  server_id: string;
+  member_id: string;
+  note: string;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MemberWithProfile extends Member {
+  current_cp: number | null;
+  cp_growth_7d: number | null;
+  cp_growth_30d: number | null;
+  last_cp_update: string | null;
+  discord_user_id: string | null;
+  notes: MemberNote[];
+  cp_history: CpUpdate[];
+  loot_count: number;
+}
+
+export type ItemRarity = "common" | "uncommon" | "rare" | "epic" | "legendary";
+
+export interface Item {
+  id: string;
+  server_id: string;
+  name: string;
+  image_url: string | null;
+  description: string | null;
+  rarity: ItemRarity;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Distribution {
+  id: string;
+  server_id: string;
+  item_id: string;
+  member_id: string;
+  player_name: string;
+  quantity: number;
+  reason: string;
+  distributed_by: string;
+  distributed_at: string;
+  created_at: string;
+}
+
+export interface CpGrowthEntry {
+  member_id: string;
+  player_name: string;
+  growth: number;
+  current_cp: number;
+  update_count: number;
+}
+
+export interface ItemDistributionStat {
+  item_id: string;
+  item_name: string;
+  total_quantity: number;
+  recipient_count: number;
+  last_distributed: string | null;
+}
+
+export interface TopRecipient {
+  member_id: string;
+  player_name: string;
+  total_items: number;
+  unique_items: number;
+}
