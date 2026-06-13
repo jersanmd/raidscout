@@ -815,52 +815,51 @@ export function MembersView() {
           Track member combat power growth and manage profiles. CP updates submitted via Discord appear here after approval.
         </p>
 
-        {/* Placeholder: CP Growth leaderboard */}
-        <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-4">
-          <h3 className="text-sm font-semibold text-[#fafafa] flex items-center gap-2 mb-3">
-            <TrendingUp className="w-4 h-4 text-green-400" />
-            CP Overview
-          </h3>
-          {members.length === 0 ? (
-            <p className="text-sm text-[#52525b] text-center py-8">No members yet. Add members to start tracking CP.</p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-[10px] text-[#71717a] uppercase tracking-wider border-b border-[#27272a]">
-                    <th className="text-left py-2 px-2">Member</th>
-                    <th className="text-right py-2 px-2">Current CP</th>
-                    <th className="text-right py-2 px-2 hidden sm:table-cell">Guild</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {members.map(m => {
-                    const g = guilds.find(g => g.id === m.guild_id);
-                    return (
-                      <tr key={m.id} className="border-b border-[#27272a]/50 hover:bg-[#09090b]/30 transition">
+        {guildGroups.length === 0 ? (
+          <p className="text-sm text-[#52525b] text-center py-8">No members yet. Add members to start tracking CP.</p>
+        ) : (
+          guildGroups.map(group => (
+            <div key={group.guild?.id ?? "__noguild__"} className="bg-[#18181b] border border-[#27272a] rounded-xl overflow-hidden">
+              <div className="px-4 py-2.5 border-b border-[#27272a] flex items-center gap-2">
+                {group.guild ? (
+                  <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-medium ${(() => { const c = guildColor(group.guild.name); return `${c.bg} ${c.text} ${c.border}`; })()}`}>
+                    <Shield className="w-3 h-3" />
+                    {group.guild.name}
+                  </span>
+                ) : (
+                  <span className="text-[11px] text-[#52525b] font-medium">No Guild</span>
+                )}
+                <span className="text-[10px] text-[#52525b]">{group.members.length} member{group.members.length !== 1 ? "s" : ""}</span>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-[10px] text-[#71717a] uppercase tracking-wider border-b border-[#27272a]/50">
+                      <th className="text-left py-2 px-3 w-8"></th>
+                      <th className="text-left py-2 px-2">Member</th>
+                      <th className="text-right py-2 px-3">Current CP</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {group.members.map((m, i) => (
+                      <tr key={m.id} className="border-b border-[#27272a]/30 hover:bg-[#09090b]/30 transition">
+                        <td className="py-2 px-3 text-[10px] text-[#52525b] font-mono">{i + 1}</td>
                         <td className="py-2 px-2">
-                          <Link to={`/members/${m.id}`} className="text-[#fafafa] hover:text-[#e4e4e7] transition">
+                          <Link to={`/members/${m.id}`} className="text-[#fafafa] hover:text-[#e4e4e7] transition text-sm">
                             {m.name}
                           </Link>
                         </td>
-                        <td className="py-2 px-2 text-right text-[#a1a1aa] font-mono">
+                        <td className="py-2 px-3 text-right text-[#a1a1aa] font-mono text-sm">
                           {m.combat_power != null ? m.combat_power.toLocaleString() : "—"}
                         </td>
-                        <td className="py-2 px-2 text-right hidden sm:table-cell">
-                          {g ? (
-                            <span className="text-[#a1a1aa] text-xs">{g.name}</span>
-                          ) : (
-                            <span className="text-[#52525b] text-xs">—</span>
-                          )}
-                        </td>
                       </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
-          )}
-        </div>
+          ))
+        )}
 
         <p className="text-[10px] text-[#52525b] text-center">
           Members update their CP via Discord using <code className="px-1 py-0.5 bg-[#18181b] rounded text-[#a1a1aa]">!updatestats PlayerName CP</code>
