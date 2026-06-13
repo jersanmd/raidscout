@@ -13,7 +13,8 @@ import { TIMEZONES } from "@/lib/timezones";
 import { version } from "../../package.json";
 
 export function AdminPanelView() {
-  const [tab, setTab] = useState<"servers" | "users" | "audit" | "games" | "infra" | "database" | "cron" | "deleted">("infra");
+  const [tab, setTab] = useState<"servers" | "users" | "audit" | "games" | "infra" | "database" | "cron" | "deleted" | "owners">("infra");
+  const [serverSubtab, setServerSubtab] = useState<"servers" | "database" | "cron" | "deleted">("servers");
   const { setCurrentServer, currentServer } = useServer();
   const { userRole, user, signOut } = useAuth();
   const { toast } = useToast();
@@ -199,7 +200,7 @@ export function AdminPanelView() {
       return fetchAuditLog(500, serverId, since, until);
     },
     staleTime: 15_000,
-    enabled: userRole === "admin" && tab === "audit",
+    enabled: userRole === "admin" && (tab === "audit" || tab === "owners"),
   });
 
   // Auto-select first server when opening audit tab
@@ -219,7 +220,7 @@ export function AdminPanelView() {
     });
   }, [serverFilter, tab, servers]);
   useEffect(() => {
-    if (tab === "audit" && auditServerFilter === "all" && servers.length > 0) {
+    if ((tab === "audit" || tab === "owners") && auditServerFilter === "all" && servers.length > 0) {
       setAuditServerFilter(servers[0].id);
     }
   }, [tab, servers, auditServerFilter]);
@@ -288,8 +289,44 @@ export function AdminPanelView() {
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="flex flex-wrap bg-[#18181b] rounded-lg p-0.5 gap-0.5">
+      {/* Tabs — desktop: all tabs inline; mobile: top-level + subtabs */}
+
+      {/* Mobile: top-level tabs */}
+      <div className="flex md:hidden flex-wrap bg-[#18181b] rounded-lg p-0.5 gap-0.5">
+        <button onClick={() => setTab("infra")} className={`flex items-center justify-center gap-1.5 px-2.5 py-2 rounded-md text-xs font-medium transition whitespace-nowrap shrink-0 ${tab === "infra" ? "bg-[#27272a] text-[#fafafa]" : "text-[#a1a1aa] hover:text-[#e4e4e7]"}`}>
+          <Radio className="w-3.5 h-3.5" /> Infra
+        </button>
+        <button onClick={() => setTab("games")} className={`flex items-center justify-center gap-1.5 px-2.5 py-2 rounded-md text-xs font-medium transition whitespace-nowrap shrink-0 ${tab === "games" ? "bg-[#27272a] text-[#fafafa]" : "text-[#a1a1aa] hover:text-[#e4e4e7]"}`}>
+          <Gamepad2 className="w-3.5 h-3.5" /> Games
+        </button>
+        <button onClick={() => { setTab("servers"); setServerSubtab("servers"); }} className={`flex items-center justify-center gap-1.5 px-2.5 py-2 rounded-md text-xs font-medium transition whitespace-nowrap shrink-0 ${tab === "servers" || tab === "database" || tab === "cron" || tab === "deleted" ? "bg-[#27272a] text-[#fafafa]" : "text-[#a1a1aa] hover:text-[#e4e4e7]"}`}>
+          <Server className="w-3.5 h-3.5" /> Servers
+        </button>
+        <button onClick={() => setTab("owners")} className={`flex items-center justify-center gap-1.5 px-2.5 py-2 rounded-md text-xs font-medium transition whitespace-nowrap shrink-0 ${tab === "owners" || tab === "users" || tab === "audit" ? "bg-[#27272a] text-[#fafafa]" : "text-[#a1a1aa] hover:text-[#e4e4e7]"}`}>
+          <ClipboardList className="w-3.5 h-3.5" /> Owners Audit
+        </button>
+      </div>
+
+      {/* Mobile: Servers subtabs */}
+      {(tab === "servers" || tab === "database" || tab === "cron" || tab === "deleted") && (
+        <div className="flex md:hidden flex-wrap bg-[#18181b]/50 rounded-lg p-0.5 gap-0.5 -mt-1">
+          <button onClick={() => { setTab("servers"); setServerSubtab("servers"); }} className={`px-2.5 py-1.5 rounded-md text-[10px] font-medium transition whitespace-nowrap ${tab === "servers" ? "bg-[#27272a] text-[#fafafa]" : "text-[#71717a] hover:text-[#d4d4d8]"}`}>
+            Servers ({servers.length})
+          </button>
+          <button onClick={() => { setTab("database"); setServerSubtab("database"); }} className={`px-2.5 py-1.5 rounded-md text-[10px] font-medium transition whitespace-nowrap ${tab === "database" ? "bg-[#27272a] text-[#fafafa]" : "text-[#71717a] hover:text-[#d4d4d8]"}`}>
+            <HardDrive className="w-3 h-3 inline mr-1" /> Database
+          </button>
+          <button onClick={() => { setTab("cron"); setServerSubtab("cron"); }} className={`px-2.5 py-1.5 rounded-md text-[10px] font-medium transition whitespace-nowrap ${tab === "cron" ? "bg-[#27272a] text-[#fafafa]" : "text-[#71717a] hover:text-[#d4d4d8]"}`}>
+            <Clock className="w-3 h-3 inline mr-1" /> Test Cron
+          </button>
+          <button onClick={() => { setTab("deleted"); setServerSubtab("deleted"); }} className={`px-2.5 py-1.5 rounded-md text-[10px] font-medium transition whitespace-nowrap ${tab === "deleted" ? "bg-[#27272a] text-[#fafafa]" : "text-[#71717a] hover:text-[#d4d4d8]"}`}>
+            <Trash2 className="w-3 h-3 inline mr-1" /> Deleted
+          </button>
+        </div>
+      )}
+
+      {/* Desktop: all tabs inline */}
+      <div className="hidden md:flex flex-wrap bg-[#18181b] rounded-lg p-0.5 gap-0.5">
         <button
           onClick={() => setTab("infra")}
           className={`flex items-center justify-center gap-1.5 px-2 sm:px-3 py-2 rounded-md text-xs sm:text-sm font-medium transition whitespace-nowrap shrink-0 ${
@@ -592,7 +629,7 @@ export function AdminPanelView() {
       )}
 
       {/* Server Owners Tab */}
-      {tab === "users" && (() => {
+      {(tab === "users" || tab === "owners") && (() => {
         const { owners, moderators } = serverRoles;
         const filteredUsers = users.filter((u: any) => {
           // Search filter
@@ -731,7 +768,7 @@ export function AdminPanelView() {
       })()}
 
       {/* Audit Log Tab */}
-      {tab === "audit" && (() => {
+      {tab === "audit" || tab === "owners" ? (() => {
         const serverMap: Record<string, string> = {};
         for (const s of servers) {
           serverMap[s.id] = s.name;
