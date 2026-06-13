@@ -768,7 +768,7 @@ export function AdminPanelView() {
       })()}
 
       {/* Audit Log Tab */}
-      {tab === "audit" || tab === "owners" ? (() => {
+      {(tab === "audit" || tab === "owners") && (() => {
         const serverMap: Record<string, string> = {};
         for (const s of servers) {
           serverMap[s.id] = s.name;
