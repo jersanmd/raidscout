@@ -910,10 +910,7 @@ export function MembersView() {
                         )}
 
                         {editingId !== member.id && canManageRaidMembers && (
-                          <div className="flex items-center gap-0.5 sm:opacity-0 group-hover:opacity-100 transition shrink-0">
-                            <button onClick={() => startEdit(member)} className="p-1.5 text-[#71717a] hover:text-[#fafafa] transition rounded" title="Edit"><Pencil className="w-3.5 h-3.5" /></button>
-                            <button onClick={() => setDeleteId(member.id)} className="p-1.5 text-[#71717a] hover:text-red-400 transition rounded" title="Delete"><Trash2 className="w-3.5 h-3.5" /></button>
-                          </div>
+                          <button onClick={() => startEdit(member)} className="p-1.5 text-[#71717a] hover:text-[#fafafa] transition rounded shrink-0 sm:opacity-0 group-hover:opacity-100" title="Edit"><Pencil className="w-3.5 h-3.5" /></button>
                         )}
 
                         {editingId !== member.id && guilds.length > 0 && !isViewer && (
@@ -930,6 +927,10 @@ export function MembersView() {
                             <option value="">No guild</option>
                             {guilds.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
                           </select>
+                        )}
+
+                        {editingId !== member.id && canManageRaidMembers && (
+                          <button onClick={() => setDeleteId(member.id)} className="p-1.5 text-[#71717a] hover:text-red-400 transition rounded shrink-0 sm:opacity-0 group-hover:opacity-100" title="Delete"><Trash2 className="w-3.5 h-3.5" /></button>
                         )}
                       </div>
                             ))}
