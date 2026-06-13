@@ -54,44 +54,40 @@ export function MembersView() {
   const [guilds, setGuilds] = useState<Guild[]>([]);
   const [guildsLoading, setGuildsLoading] = useState(true);
 
-  // Classes — stored in localStorage per server (like guild order and icons)
-  const classesKey = `member-classes-${serverId ?? "global"}`;
-  const [classes, setClasses] = useState<string[]>(() => {
-    try { return JSON.parse(localStorage.getItem(classesKey) || "[]"); } catch { return []; }
-  });
-  const saveClasses = (arr: string[]) => {
-    setClasses(arr);
-    localStorage.setItem(classesKey, JSON.stringify(arr));
-  };
+  // Classes — fetched from server_classes table (shared across devices)
+  const [classes, setClasses] = useState<string[]>([]);
+  const [classIcons, setClassIcons] = useState<Record<string, string>>({});
+  const [classColors, setClassColors] = useState<Record<string, string>>({});
   const [newClassName, setNewClassName] = useState("");
   const [newClassIcon, setNewClassIcon] = useState<string>("Sword");
   const [classSearch, setClassSearch] = useState("");
+  const [progressSearch, setProgressSearch] = useState("");
 
-  // Class colors — persisted in localStorage per server
-  const classColorsKey = `class-colors-${serverId ?? "global"}`;
-  const [classColors, setClassColors] = useState<Record<string, string>>(() => {
-    try { return JSON.parse(localStorage.getItem(classColorsKey) || "{}"); } catch { return {}; }
-  });
-  const saveClassColors = (colors: Record<string, string>) => {
-    setClassColors(colors);
-    localStorage.setItem(classColorsKey, JSON.stringify(colors));
-  };
-
-  // Class colors — persisted in localStorage per server
-  const classColorsKey = `class-colors-${serverId ?? "global"}`;
-  const [classColors, setClassColors] = useState<Record<string, string>>(() => {
-    try { return JSON.parse(localStorage.getItem(classColorsKey) || "{}"); } catch { return {}; }
-  });
-  const saveClassColors = (colors: Record<string, string>) => {
-    setClassColors(colors);
-    localStorage.setItem(classColorsKey, JSON.stringify(colors));
-  };
+  // Fetch classes from DB
+  useEffect(() => {
+    if (!serverId) return;
+    supabase.from("server_classes")
+      .select("name, icon, color")
+      .eq("server_id", serverId)
+      .order("name")
+      .then(({ data }) => {
+        if (data) {
+          setClasses(data.map((r: any) => r.name));
+          const icons: Record<string, string> = {};
+          const colors: Record<string, string> = {};
+          data.forEach((r: any) => { icons[r.name] = r.icon; colors[r.name] = r.color; });
+          setClassIcons(icons);
+          setClassColors(colors);
+        }
+      });
+  }, [serverId]);
 
   // Auto-pick first unused color
   const CLASS_COLORS = [
     "#f87171", "#fb923c", "#fbbf24", "#a3e635", "#34d399",
     "#22d3ee", "#60a5fa", "#818cf8", "#c084fc", "#e879f9",
     "#f472b6", "#a1a1aa", "#fafafa", "#f59e0b", "#ef4444",
+    "#14b8a6", "#6366f1", "#ec4899", "#84cc16",
   ];
   const nextColor = useMemo(() => {
     const used = new Set(Object.values(classColors));
@@ -99,16 +95,6 @@ export function MembersView() {
   }, [classColors]);
   const [newClassColor, setNewClassColor] = useState<string>(nextColor);
   useEffect(() => { setNewClassColor(nextColor); }, [nextColor]);
-
-  // Class icons — persisted in localStorage per server
-  const classIconsKey = `class-icons-${serverId ?? "global"}`;
-  const [classIcons, setClassIcons] = useState<Record<string, string>>(() => {
-    try { return JSON.parse(localStorage.getItem(classIconsKey) || "{}"); } catch { return {}; }
-  });
-  const saveClassIcons = (icons: Record<string, string>) => {
-    setClassIcons(icons);
-    localStorage.setItem(classIconsKey, JSON.stringify(icons));
-  };
 
   // Icon palette for classes
   const CLASS_ICONS: { name: string; icon: React.ElementType; label: string }[] = [
@@ -133,6 +119,7 @@ export function MembersView() {
     { name: "Anchor", icon: Anchor, label: "Defense / Anchor" },
     { name: "Footprints", icon: Footprints, label: "Scout / Rogue" },
   ];
+
   const getClassIcon = (iconName: string) => {
     const entry = CLASS_ICONS.find(c => c.name === iconName);
     return entry ? entry.icon : Tag;
@@ -357,26 +344,29 @@ export function MembersView() {
     }
   }, [guilds]);
 
-  const handleAddClass = () => {
+  const handleAddClass = async () => {
     const name = newClassName.trim();
-    if (!name || classes.includes(name)) return;
-    saveClasses([...classes, name]);
-    setNewClassName("");
-    const icons = { ...classIcons, [name]: newClassIcon };
-    saveClassIcons(icons);
-    const colors = { ...classColors, [name]: newClassColor };
-    saveClassColors(colors);
-    setNewClassIcon("Sword");
+    if (!name || !serverId || classes.includes(name)) return;
+    const icon = newClassIcon;
+    const color = newClassColor;
+    // Optimistic UI
+    setClasses(prev => [...prev, name]);
+    setClassIcons(prev => ({ ...prev, [name]: icon }));
+    setClassColors(prev => ({ ...prev, [name]: color }));
+    setNewClassName(""); setNewClassIcon("Sword");
+    // Persist
+    const { error } = await supabase.from("server_classes").insert({ server_id: serverId, name, icon, color });
+    if (error) {
+      setClasses(prev => prev.filter(c => c !== name));
+      console.error("Failed to add class:", error);
+    }
   };
 
-  const handleRemoveClass = (name: string) => {
-    saveClasses(classes.filter(c => c !== name));
-    const icons = { ...classIcons };
-    delete icons[name];
-    saveClassIcons(icons);
-    const colors = { ...classColors };
-    delete colors[name];
-    saveClassColors(colors);
+  const handleRemoveClass = async (name: string) => {
+    if (!serverId) return;
+    setClasses(prev => prev.filter(c => c !== name));
+    const { error } = await supabase.from("server_classes").delete().eq("server_id", serverId).eq("name", name);
+    if (error) console.error("Failed to remove class:", error);
   };
 
   // Guild selection for add / bulk
@@ -389,6 +379,7 @@ export function MembersView() {
   const [bulkAdding, setBulkAdding] = useState(false);
   const [bulkGuild, setBulkGuild] = useState<string>("");
   const [searchText, setSearchText] = useState("");
+  const [sortMode, setSortMode] = useState<"guild" | "class">("guild");
 
   const showToast = useCallback((type: "success" | "error", message: string) => {
     setToast({ type, message });
@@ -429,6 +420,24 @@ export function MembersView() {
     });
   }, [filteredMembers, guilds]);
 
+  // Group members by class (for class-based sort mode)
+  const classGroups = useMemo(() => {
+    const grouped = new Map<string, { className: string | null; members: Member[] }>();
+    for (const m of filteredMembers) {
+      const key = m.class || "__unassigned__";
+      if (!grouped.has(key)) grouped.set(key, { className: m.class ?? null, members: [] });
+      grouped.get(key)!.members.push(m);
+    }
+    return [...grouped.values()].sort((a, b) => {
+      if (!a.className) return 1;
+      if (!b.className) return -1;
+      return a.className.localeCompare(b.className);
+    });
+  }, [filteredMembers]);
+
+  // Active groups based on sort mode
+  const activeGroups = sortMode === "class" ? classGroups : guildGroups;
+
   // Sort guild groups by custom order (Progress tab), fallback to alphabetical
   const sortedGuildGroups = useMemo(() => {
     if (guildOrder.length === 0) return guildGroups;
@@ -444,17 +453,31 @@ export function MembersView() {
 
   // Group guild groups into carousel pages (2 per page on lg+, 1 on mobile)
   const carouselPages = useMemo(() => {
-    const pages: typeof guildGroups[] = [];
+    const pages: { guild: Guild | null; members: Member[] }[][] = [];
     for (let i = 0; i < guildGroups.length; i += itemsPerPage) {
       pages.push(guildGroups.slice(i, i + itemsPerPage));
     }
     return pages;
   }, [guildGroups, itemsPerPage]);
 
+  // Class-based carousel pages
+  const classCarouselPages = useMemo(() => {
+    const pages: { className: string | null; members: Member[] }[][] = [];
+    for (let i = 0; i < classGroups.length; i += itemsPerPage) {
+      pages.push(classGroups.slice(i, i + itemsPerPage));
+    }
+    return pages;
+  }, [classGroups, itemsPerPage]);
+
+  // Unified type for rendering
+  type GroupRow = { guild: Guild | null; members: Member[] } | { className: string | null; members: Member[] };
+  const activeCarouselPages: GroupRow[][] = sortMode === "class" ? classCarouselPages : carouselPages;
+
   // Clamp carousel page when page count changes
   useEffect(() => {
-    setCarouselPage(p => p >= carouselPages.length && carouselPages.length > 0 ? carouselPages.length - 1 : p);
-  }, [carouselPages.length]);
+    const len = activeCarouselPages.length;
+    setCarouselPage(p => p >= len && len > 0 ? len - 1 : p);
+  }, [activeCarouselPages.length]);
 
   const handleAdd = async () => {
     const name = addName.trim();
@@ -823,7 +846,7 @@ export function MembersView() {
                   className="flex items-center gap-2 px-2 py-1.5 rounded bg-[#18181b] border border-[#27272a] text-xs text-[#d4d4d8] cursor-grab active:cursor-grabbing hover:border-[#52525b] transition"
                 >
                   <span className="w-5 h-5 rounded bg-[#09090b] flex items-center justify-center text-[10px] text-[#71717a] font-bold shrink-0">
-                    {m.name.charAt(0)}
+                    {m.class && classIcons[m.class] ? (() => { const CIcon = getClassIcon(classIcons[m.class]); const color = classColors[m.class] || "#a1a1aa"; return <CIcon className="w-3 h-3" style={{ color }} />; })() : m.name.charAt(0)}
                   </span>
                   <span className="truncate flex-1">{m.name}</span>
                   {g && c && (
@@ -885,7 +908,7 @@ export function MembersView() {
                         className="flex items-center gap-1.5 px-2 py-1 rounded bg-[#09090b] border border-[#27272a] text-xs text-[#d4d4d8] group cursor-grab active:cursor-grabbing"
                       >
                         <span className="w-4 h-4 rounded bg-[#18181b] flex items-center justify-center text-[9px] text-[#71717a] font-bold shrink-0">
-                          {m.name.charAt(0)}
+                          {m.class && classIcons[m.class] ? (() => { const CIcon = getClassIcon(classIcons[m.class]); const color = classColors[m.class] || "#a1a1aa"; return <CIcon className="w-2.5 h-2.5" style={{ color }} />; })() : m.name.charAt(0)}
                         </span>
                         <span className="truncate flex-1">{m.name}</span>
                         {g && c && (
@@ -929,9 +952,21 @@ export function MembersView() {
       {/* Progress Tab — member CP & growth overview */}
       {membersTab === "progress" && (
       <div className="space-y-4">
-        <p className="text-sm text-[#a1a1aa]">
-          Track member combat power growth and manage profiles. CP updates submitted via Discord appear here after approval.
-        </p>
+        <div className="flex items-center gap-3 flex-wrap">
+          <p className="text-sm text-[#a1a1aa] flex-1">
+            Track member combat power growth and manage profiles.
+          </p>
+          <div className="relative w-48">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#52525b]" />
+            <input
+              type="text"
+              value={progressSearch}
+              onChange={(e) => setProgressSearch(e.target.value)}
+              placeholder="Search members..."
+              className="w-full pl-8 pr-3 py-1.5 bg-[#18181b] border border-[#27272a] rounded-lg text-xs text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#52525b]"
+            />
+          </div>
+        </div>
 
         {sortedGuildGroups.length === 0 ? (
           <p className="text-sm text-[#52525b] text-center py-8">No members yet. Add members to start tracking CP.</p>
@@ -965,10 +1000,11 @@ export function MembersView() {
                     </tr>
                   </thead>
                   <tbody>
-                    {group.members.map((m, i) => (
+                    {group.members.filter(m => !progressSearch.trim() || m.name.toLowerCase().includes(progressSearch.toLowerCase())).map((m, i) => (
                       <tr key={m.id} className="border-b border-[#27272a]/30 hover:bg-[#09090b]/30 transition">
                         <td className="py-2 px-3 text-[10px] text-[#52525b] font-mono">{i + 1}</td>
                         <td className="py-2 px-2">
+                          {m.class && classIcons[m.class] && (() => { const CIcon = getClassIcon(classIcons[m.class]); const color = classColors[m.class] || "#a1a1aa"; return <CIcon className="w-3.5 h-3.5 inline mr-1.5" style={{ color }} />; })()}
                           <Link to={`/members/${m.id}`} className="text-[#fafafa] hover:text-[#e4e4e7] transition text-sm">
                             {m.name}
                           </Link>
@@ -1038,15 +1074,19 @@ export function MembersView() {
           </div>
           <div className="flex items-center gap-1.5 mb-3">
             <span className="text-[10px] text-[#52525b]">Color:</span>
-            {CLASS_COLORS.map(color => (
-              <button
-                key={color}
-                onClick={() => setNewClassColor(color)}
-                className={`w-5 h-5 rounded-full border-2 transition ${newClassColor === color ? "border-[#fafafa] scale-110" : "border-transparent hover:scale-105"}`}
-                style={{ backgroundColor: color }}
-                title={color}
-              />
-            ))}
+            {CLASS_COLORS.map(color => {
+              const used = Object.values(classColors).includes(color) && newClassColor !== color;
+              return (
+                <button
+                  key={color}
+                  onClick={() => !used && setNewClassColor(color)}
+                  disabled={used}
+                  className={`w-5 h-5 rounded-full border-2 transition ${used ? "opacity-20 cursor-not-allowed" : newClassColor === color ? "border-[#fafafa] scale-110" : "border-transparent hover:scale-105"}`}
+                  style={{ backgroundColor: color }}
+                  title={used ? `${color} (in use)` : color}
+                />
+              );
+            })}
           </div>
           <div className="flex items-center gap-2">
             <input
@@ -1110,6 +1150,7 @@ export function MembersView() {
                         {filtered.map(m => (
                           <tr key={m.id} className="border-t border-[#27272a]/30 hover:bg-[#09090b]/30 transition">
                             <td className="py-1.5 px-3">
+                              {m.class && classIcons[m.class] && (() => { const CIcon = getClassIcon(classIcons[m.class]); const color = classColors[m.class] || "#a1a1aa"; return <CIcon className="w-3.5 h-3.5 inline mr-2" style={{ color }} />; })()}
                               <Link to={`/members/${m.id}`} className="text-[#fafafa] hover:text-[#e4e4e7] transition text-sm">
                                 {m.name}
                               </Link>
@@ -1143,22 +1184,40 @@ export function MembersView() {
       </div>
       )}
 
-      {/* Search (Members tab only) */}
+      {/* Search + Sort toggle (Members tab only) */}
       {membersTab === "members" && members.length > 0 && (
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#71717a]" />
-          <input
-            type="text"
-            value={searchText}
-            onChange={(e) => setSearchText(e.target.value)}
-            placeholder="Search members..."
-            className="w-full pl-10 pr-3 py-2 bg-[#18181b] border border-[#27272a] rounded-lg text-[#fafafa] text-sm placeholder-[#71717a] focus:outline-none focus:ring-2 focus:ring-[#52525b] focus:border-transparent transition"
-          />
-          {searchText && (
-            <button onClick={() => setSearchText("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#71717a] hover:text-[#fafafa]">
-              <X className="w-3.5 h-3.5" />
+        <div className="flex gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#71717a]" />
+            <input
+              type="text"
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+              placeholder="Search members..."
+              className="w-full pl-10 pr-3 py-2 bg-[#18181b] border border-[#27272a] rounded-lg text-[#fafafa] text-sm placeholder-[#71717a] focus:outline-none focus:ring-2 focus:ring-[#52525b] focus:border-transparent transition"
+            />
+            {searchText && (
+              <button onClick={() => setSearchText("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#71717a] hover:text-[#fafafa]">
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+          <div className="flex bg-[#18181b] rounded-lg p-0.5">
+            <button
+              onClick={() => setSortMode("guild")}
+              className={`px-2.5 py-1.5 rounded-md text-xs font-medium transition ${sortMode === "guild" ? "bg-[#27272a] text-[#fafafa]" : "text-[#71717a] hover:text-[#d4d4d8]"}`}
+            >
+              <Shield className="w-3 h-3 inline mr-1" />
+              By Guild
             </button>
-          )}
+            <button
+              onClick={() => setSortMode("class")}
+              className={`px-2.5 py-1.5 rounded-md text-xs font-medium transition ${sortMode === "class" ? "bg-[#27272a] text-[#fafafa]" : "text-[#71717a] hover:text-[#d4d4d8]"}`}
+            >
+              <Tag className="w-3 h-3 inline mr-1" />
+              By Class
+            </button>
+          </div>
         </div>
       )}
 
@@ -1172,52 +1231,83 @@ export function MembersView() {
       ) : (
         <>
         <div className="relative">
-          {carouselPages.length > 1 && (<>
-            <button onClick={() => setCarouselPage(p => p === 0 ? carouselPages.length - 1 : p - 1)} className="absolute left-0 top-0 bottom-0 z-10 px-2 flex items-center bg-[#09090b]/40 hover:bg-[#09090b]/60 transition -ml-2 rounded-l-xl">
+          {activeCarouselPages.length > 1 && (<>
+            <button onClick={() => setCarouselPage(p => p === 0 ? activeCarouselPages.length - 1 : p - 1)} className="absolute left-0 top-0 bottom-0 z-10 px-2 flex items-center bg-[#09090b]/40 hover:bg-[#09090b]/60 transition -ml-2 rounded-l-xl">
               <ChevronLeft className="w-6 h-6 text-[#d4d4d8]" />
             </button>
-            <button onClick={() => setCarouselPage(p => p >= carouselPages.length - 1 ? 0 : p + 1)} className="absolute right-0 top-0 bottom-0 z-10 px-2 flex items-center bg-[#09090b]/40 hover:bg-[#09090b]/60 transition -mr-2 rounded-r-xl">
+            <button onClick={() => setCarouselPage(p => p >= activeCarouselPages.length - 1 ? 0 : p + 1)} className="absolute right-0 top-0 bottom-0 z-10 px-2 flex items-center bg-[#09090b]/40 hover:bg-[#09090b]/60 transition -mr-2 rounded-r-xl">
               <ChevronRight className="w-6 h-6 text-[#d4d4d8]" />
             </button>
           </>)}
           <div className="overflow-x-hidden px-10"
             onTouchStart={e => handleSwipeStart(e.touches[0].clientX)}
             onTouchMove={e => handleSwipeMove(e.touches[0].clientX)}
-            onTouchEnd={() => handleSwipeEnd(carouselPages.length)}
+            onTouchEnd={() => handleSwipeEnd(activeCarouselPages.length)}
             onMouseDown={e => { const tag = (e.target as HTMLElement).tagName; if (tag !== "SELECT" && tag !== "INPUT" && tag !== "BUTTON") e.preventDefault(); handleSwipeStart(e.clientX); }}
             onMouseMove={e => handleSwipeMove(e.clientX)}
-            onMouseUp={() => handleSwipeEnd(carouselPages.length)}
-            onMouseLeave={() => handleSwipeEnd(carouselPages.length)}
+            onMouseUp={() => handleSwipeEnd(activeCarouselPages.length)}
+            onMouseLeave={() => handleSwipeEnd(activeCarouselPages.length)}
           >
             <div className="flex transition-transform duration-300 ease-out" style={{ transform: `translateX(-${carouselPage * 100}%)` }}>
-              {carouselPages.map((pageGroups, pageIdx) => (
+              {activeCarouselPages.map((pageGroups, pageIdx) => (
                 <div key={pageIdx} className="w-full flex-shrink-0 px-2">
                   <div className="flex flex-col lg:flex-row gap-4">
                     {pageGroups.map(group => {
-                      const c = group.guild ? guildColor(group.guild.name) : null;
+                      const isClassGroup = "className" in group;
+                      const c = !isClassGroup && group.guild ? guildColor(group.guild.name) : null;
+                      const groupKey = isClassGroup ? (group as typeof classGroups[number]).className ?? "unassigned" : (group as typeof guildGroups[number]).guild?.id ?? "noguild";
+                      const groupLabel = isClassGroup
+                        ? ((group as typeof classGroups[number]).className ?? "Unassigned")
+                        : ((group as typeof guildGroups[number]).guild?.name ?? "No Guild");
+                      const members = isClassGroup ? (group as typeof classGroups[number]).members : (group as typeof guildGroups[number]).members;
                       return (
-                        <div key={group.guild?.id ?? "noguild"} className="flex-1 min-w-0">
+                        <div key={groupKey} className="flex-1 min-w-0">
                           <h3 className="text-xs font-semibold text-[#a1a1aa] uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                            {group.guild && c ? (
-                              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] border border-[#27272a] bg-[#18181b] ${c.text}`}>
-                                <Shield className="w-3 h-3" />
-                                {group.guild.name}
-                              </span>
+                            {isClassGroup ? (
+                              <>
+                                {(group as typeof classGroups[number]).className && classIcons[(group as typeof classGroups[number]).className!] ? (() => {
+                                  const cls = (group as typeof classGroups[number]).className!;
+                                  const CIcon = getClassIcon(classIcons[cls]);
+                                  const color = classColors[cls] || "#a1a1aa";
+                                  return (
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] border border-[#27272a] bg-[#18181b]" style={{ color, borderColor: `${color}40` }}>
+                                      <CIcon className="w-3 h-3" />
+                                      {cls}
+                                    </span>
+                                  );
+                                })() : (
+                                  <span className="text-[#71717a]">{groupLabel}</span>
+                                )}
+                              </>
                             ) : (
-                              <span className="text-[#71717a]">No Guild</span>
+                              <>
+                                {group.guild && c ? (
+                                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] border border-[#27272a] bg-[#18181b] ${c.text}`}>
+                                    <Shield className="w-3 h-3" />
+                                    {group.guild.name}
+                                  </span>
+                                ) : (
+                                  <span className="text-[#71717a]">No Guild</span>
+                                )}
+                              </>
                             )}
                             <span className="text-[#52525b] font-normal normal-case text-[11px]">
-                              {group.members.length} member{group.members.length !== 1 ? "s" : ""}
+                              {members.length} member{members.length !== 1 ? "s" : ""}
                             </span>
                           </h3>
                           <div className="space-y-1">
-                            {group.members.map(member => (
+                            {members.map((member, idx) => (
                       <div
                         key={member.id}
                         className="flex flex-wrap items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2.5 rounded-lg bg-[#09090b]/50 border border-[#27272a]/50 group"
                       >
+                        <span className="text-[10px] font-mono text-[#52525b] w-5 shrink-0">{(idx + 1).toString().padStart(2, "\u00A0")}</span>
                         <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-[#18181b] text-[#a1a1aa] font-bold text-sm shrink-0">
-                          {member.name.charAt(0).toUpperCase()}
+                          {member.class && classIcons[member.class] ? (() => {
+                            const CIcon = getClassIcon(classIcons[member.class]);
+                            const color = classColors[member.class] || "#a1a1aa";
+                            return <CIcon className="w-4 h-4" style={{ color }} />;
+                          })() : member.name.charAt(0).toUpperCase()}
                         </div>
 
                         {editingId === member.id ? (
@@ -1235,27 +1325,6 @@ export function MembersView() {
                           </div>
                         ) : (
                           <Link to={`/members/${member.id}`} className="flex-1 min-w-0 text-[#fafafa] text-sm font-medium truncate hover:text-[#e4e4e7] transition">{member.name}</Link>
-                        )}
-
-                        {/* Class selector */}
-                        {editingId !== member.id && classes.length > 0 && (
-                          <div className="flex items-center gap-1 sm:gap-1.5 text-[10px] sm:text-xs shrink-0">
-                            {member.class && classIcons[member.class] && (() => { const CIcon = getClassIcon(classIcons[member.class]); const color = classColors[member.class] || "#a1a1aa"; return <CIcon className="w-3 h-3" style={{ color }} />; })()}
-                            <select
-                              value={member.class ?? ""}
-                              onChange={async (e) => {
-                                const cls = e.target.value || null;
-                                try {
-                                  await supabase.from("members").update({ class: cls }).eq("id", member.id);
-                                  invalidate();
-                                } catch {}
-                              }}
-                              className="bg-[#18181b] border border-[#27272a] rounded px-1.5 py-1 text-xs text-[#a1a1aa] outline-none focus:border-[#52525b] max-w-[90px] truncate"
-                            >
-                                <option value="">—</option>
-                                {classes.map(c => <option key={c} value={c}>{c}</option>)}
-                              </select>
-                          </div>
                         )}
 
                         {editingId !== member.id && canManageRaidMembers && (
@@ -1293,9 +1362,9 @@ export function MembersView() {
             </div>
           </div>
         </div>
-        {carouselPages.length > 1 && (
+        {activeCarouselPages.length > 1 && (
           <div className="flex justify-center gap-1.5 mt-3">
-            {carouselPages.map((_, i) => (
+            {activeCarouselPages.map((_, i) => (
               <button key={i} onClick={() => setCarouselPage(i)} className={`w-2 h-2 rounded-full transition ${i === carouselPage ? "bg-[#fafafa]" : "bg-[#3f3f46] hover:bg-[#52525b]"}`} />
             ))}
           </div>

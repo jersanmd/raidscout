@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { useLeaderboard, type LeaderboardPeriod } from "@/hooks/useAttendance";
-import { useLeaderboardSnapshots, getLeaderboardResetAt } from "@/hooks/useLeaderboardSnapshots";
+import { useLeaderboardSnapshots } from "@/hooks/useLeaderboardSnapshots";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { guildColor } from "@/lib/constants";
 import { useAuth } from "@/contexts/AuthContext";
@@ -14,7 +14,7 @@ import { fetchMemberKills, fetchMemberActivityHistory, type MemberBossKill, type
 import { useAttendance } from "@/hooks/useAttendance";
 import { useMembers } from "@/hooks/useMembers";
 import type { Guild, LeaderboardSnapshot, PointAdjustment } from "@/types";
-import { Trophy, Medal, Crown, Users, Loader2, X, Skull, CheckCheck, History, ChevronRight, ChevronLeft, Search, Shield, Plus, Minus, Edit3, RotateCcw, Calendar } from "lucide-react";
+import { Trophy, Medal, Crown, Users, Loader2, X, Skull, CheckCheck, History, ChevronRight, ChevronLeft, Search, Shield, Plus, Minus, Edit3, RotateCcw, Calendar, Sword, Swords, ShieldHalf, ShieldCheck, Crosshair, Wand, Heart, Zap, Flame, Snowflake, Star, Anchor, Gavel, Axe, Target, Footprints, HandMetal, Tag } from "lucide-react";
 import { TableRowSkeleton } from "@/components/Skeletons";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { BossImage } from "@/components/BossImage";
@@ -155,6 +155,80 @@ export function LeaderboardView() {
   // Build member-guild lookup
   const memberGuildMap = new Map(members.map(m => [m.id, m.guild_id]));
   const memberGuildNameMap = new Map(members.map(m => { const g = guilds.find(g => g.id === m.guild_id); return [m.id, g?.name ?? null] as const; }));
+
+  // ── Class system (icons + colors from server_classes table) ──
+  const [classes, setClasses] = useState<string[]>([]);
+  const [classIcons, setClassIcons] = useState<Record<string, string>>({});
+  const [classColors, setClassColors] = useState<Record<string, string>>({});
+  useEffect(() => {
+    if (!serverId) return;
+    supabase.from("server_classes")
+      .select("name, icon, color")
+      .eq("server_id", serverId)
+      .order("name")
+      .then(({ data }) => {
+        if (data) {
+          setClasses((data as any[]).map(r => r.name));
+          const icons: Record<string, string> = {};
+          const colors: Record<string, string> = {};
+          (data as any[]).forEach(r => { icons[r.name] = r.icon; colors[r.name] = r.color; });
+          setClassIcons(icons);
+          setClassColors(colors);
+        }
+      });
+  }, [serverId]);
+
+  const CLASS_ICONS: { name: string; icon: React.ElementType; label: string }[] = [
+    { name: "Sword", icon: Sword, label: "Sword / Greatsword" },
+    { name: "Swords", icon: Swords, label: "Dual Daggers / Blades" },
+    { name: "HandMetal", icon: HandMetal, label: "Knuckles / Fist" },
+    { name: "ShieldIcon", icon: Shield, label: "Tank / Defense" },
+    { name: "ShieldHalf", icon: ShieldHalf, label: "Sword & Shield" },
+    { name: "ShieldCheck", icon: ShieldCheck, label: "Battle Shield / Paladin" },
+    { name: "Gavel", icon: Gavel, label: "Hammer / Warhammer" },
+    { name: "Axe", icon: Axe, label: "Axe / Great Axe" },
+    { name: "Crosshair", icon: Crosshair, label: "Ranger / Crossbow" },
+    { name: "Target", icon: Target, label: "Bow / Marksman" },
+    { name: "Wand", icon: Wand, label: "Staff / Battlestaff" },
+    { name: "Heart", icon: Heart, label: "Healer / Support" },
+    { name: "Zap", icon: Zap, label: "Lightning / Elemental" },
+    { name: "Flame", icon: Flame, label: "Fire Mage / Pyro" },
+    { name: "Snowflake", icon: Snowflake, label: "Ice Mage / Cryo" },
+    { name: "SkullIcon", icon: Skull, label: "Dark / Necromancer" },
+    { name: "Star", icon: Star, label: "Rare / Special" },
+    { name: "Crown", icon: Crown, label: "Leader / Officer" },
+    { name: "Anchor", icon: Anchor, label: "Defense / Anchor" },
+    { name: "Footprints", icon: Footprints, label: "Scout / Rogue" },
+  ];
+  const getClassIcon = (iconName: string) => {
+    const entry = CLASS_ICONS.find(c => c.name === iconName);
+    return entry ? entry.icon : Tag;
+  };
+
+  // Build member name → class lookup
+  const memberClassMap = useMemo(() => {
+    const map: Record<string, string | null> = {};
+    members.forEach(m => { map[m.name] = m.class ?? null; });
+    return map;
+  }, [members]);
+
+  const renderClassBadge = (memberName: string) => {
+    const cls = memberClassMap[memberName];
+    if (!cls) return null;
+    const iconName = classIcons[cls];
+    const color = classColors[cls];
+    const IconComp = iconName ? getClassIcon(iconName) : null;
+    return (
+      <span
+        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium shrink-0"
+        style={{ backgroundColor: color ? `${color}20` : undefined, color: color ?? undefined, border: color ? `1px solid ${color}40` : undefined }}
+        title={cls}
+      >
+        {IconComp && <IconComp className="w-3 h-3" />}
+        {cls}
+      </span>
+    );
+  };
 
   const filteredEntries = (() => { let r = entries; if (searchQuery.trim()) { const q = searchQuery.toLowerCase(); r = r.filter(e => e.name.toLowerCase().includes(q)); } return r; })();
 
@@ -904,6 +978,7 @@ export function LeaderboardView() {
                                           {style ? <span className="scale-75">{style.icon}</span> : <span className="text-xs font-bold text-[#71717a]">{rank}</span>}
                                         </div>
                                         <span className="text-sm text-[#fafafa] flex-1 truncate">{entry.name}</span>
+                                        {renderClassBadge(entry.name)}
                                         <span className="text-xs font-mono text-[#a1a1aa]">
                                           {entry.points}pt
                                         </span>
@@ -971,11 +1046,25 @@ export function LeaderboardView() {
             <div className="overflow-y-auto p-2 space-y-1.5 flex-1">
               {guildSnaps.map((snap, idx) => {
                 const finalized = new Date(snap.finalized_at);
-                const periodStart = new Date((snap as any).period_start || finalized);
-                if (!(snap as any).period_start) {
-                  if (snap.period === "weekly") periodStart.setDate(periodStart.getDate() - 7);
-                  else if (snap.period === "monthly") periodStart.setMonth(periodStart.getMonth() - 1);
-                  else periodStart.setTime(0);
+                const hasPeriodStart = !!(snap as any).period_start;
+                let periodStart: Date;
+                if (hasPeriodStart && new Date((snap as any).period_start).toDateString() !== finalized.toDateString()) {
+                  // Properly saved period_start — use as-is
+                  periodStart = new Date((snap as any).period_start);
+                } else {
+                  // Old bug: period_start missing or equals finalized — derive from next older snapshot
+                  const olderSnap = guildSnaps[idx + 1];
+                  if (olderSnap) {
+                    periodStart = new Date(olderSnap.finalized_at);
+                  } else if (snap.period.startsWith("weekly")) {
+                    periodStart = new Date(finalized);
+                    periodStart.setDate(periodStart.getDate() - 7);
+                  } else if (snap.period.startsWith("monthly")) {
+                    periodStart = new Date(finalized);
+                    periodStart.setMonth(periodStart.getMonth() - 1);
+                  } else {
+                    periodStart = new Date(0);
+                  }
                 }
                 const fmt = (d: Date) =>
                   snap.period === "all_time"
@@ -1025,12 +1114,14 @@ export function LeaderboardView() {
       {viewingSnapshot && (
         (() => {
           const finalized = new Date(viewingSnapshot.finalized_at);
+          const hasPeriodStart = !!(viewingSnapshot as any).period_start;
           const periodStart = new Date(
             (viewingSnapshot as any).period_start || viewingSnapshot.finalized_at
           );
-          if (!(viewingSnapshot as any).period_start) {
-            if (viewingSnapshot.period === "weekly") periodStart.setDate(periodStart.getDate() - 7);
-            else if (viewingSnapshot.period === "monthly") periodStart.setMonth(periodStart.getMonth() - 1);
+          // Fallback: if period_start is missing or same day as finalized (old bug), derive it
+          if (!hasPeriodStart || periodStart.toDateString() === finalized.toDateString()) {
+            if (viewingSnapshot.period.startsWith("weekly")) periodStart.setDate(finalized.getDate() - 7);
+            else if (viewingSnapshot.period.startsWith("monthly")) periodStart.setMonth(finalized.getMonth() - 1);
             else periodStart.setTime(0);
           }
           const fmt = (d: Date) =>
@@ -1438,8 +1529,8 @@ export function LeaderboardView() {
 
       <ConfirmDialog
         open={!!showFinalizeConfirm}
-        title={`Finalize ${showFinalizeConfirm === "__global__" ? "Leaderboard" : showFinalizeConfirm ?? ""}`}
-        message={showFinalizeConfirm === "__global__" ? `Save rankings as a snapshot and reset the ${period === "all" ? "all-time" : "weekly"} leaderboard.` : "Save current rankings for this guild as a snapshot and reset their points."}
+        title={`Finalize ${showFinalizeConfirm ?? ""}`}
+        message="Save current rankings for this guild as a snapshot and reset their points."
         confirmLabel="Finalize"
         variant="warning"
         loading={finalizing}
@@ -1448,16 +1539,21 @@ export function LeaderboardView() {
           const guildName = showFinalizeConfirm!;
           setShowFinalizeConfirm(null);
           try {
-            let rankings;
-            if (guildName === "__global__") {
-              rankings = entries.map((e, i) => ({ rank: i + 1, memberId: e.id, memberName: e.name, points: e.points }));
-              await finalizeResults(period === "all" ? "all_time" : "weekly", rankings, new Date().toISOString());
-            } else {
-              const guildEntries = guildGroups.find(([n]) => n === guildName)?.[1] ?? [];
-              rankings = guildEntries.map((e, i) => ({ rank: i + 1, memberId: e.id, memberName: e.name, points: e.points }));
-              await finalizeResults(`weekly:${guildName}`, rankings, new Date().toISOString());
+            const guildEntries = guildGroups.find(([n]) => n === guildName)?.[1] ?? [];
+            const rankings = guildEntries.map((e, i) => ({ rank: i + 1, memberId: e.id, memberName: e.name, points: e.points }));
+            // Period start = last reset date for this guild (from app_settings)
+            let resetAt = new Date(0).toISOString();
+            if (serverId) {
+              const { data: setting } = await supabase
+                .from("app_settings")
+                .select("value")
+                .eq("server_id", serverId)
+                .eq("key", `leaderboard_reset_at:${guildName}`)
+                .maybeSingle();
+              if (setting) resetAt = (setting as any).value;
             }
-            toast("success", `${guildName === "__global__" ? "Leaderboard" : guildName} finalized`);
+            await finalizeResults(`weekly:${guildName}`, rankings, resetAt);
+            toast("success", `${guildName} finalized`);
           } catch { toast("error", "Failed to finalize"); }
           finally { setFinalizing(false); }
         }}

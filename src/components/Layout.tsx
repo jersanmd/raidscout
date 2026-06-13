@@ -214,6 +214,7 @@ export function Layout() {
                 <span className="hidden sm:inline">Members</span>
               </NavLink>
               )}
+              {!isViewer && (
               <NavLink
                 to="/inventory"
                 className={({ isActive }) =>
@@ -227,6 +228,7 @@ export function Layout() {
                 <Package className="w-4 h-4" />
                 <span className="hidden sm:inline">Inventory</span>
               </NavLink>
+              )}
               <NavLink
                 to="/analytics"
                 className={({ isActive }) =>
@@ -368,6 +370,17 @@ export function Layout() {
             <span className="text-[10px] font-medium">Schedule</span>
           </NavLink>
           <NavLink
+            to="/history"
+            className={({ isActive }) =>
+              `flex flex-col items-center justify-center gap-0.5 px-3 py-1.5 min-w-[64px] rounded-lg transition-colors ${
+                isActive ? "text-[#fafafa]" : "text-[#52525b]"
+              }`
+            }
+          >
+            <Clock className="w-5 h-5" />
+            <span className="text-[10px] font-medium">History</span>
+          </NavLink>
+          <NavLink
             to="/leaderboard"
             className={({ isActive }) =>
               `flex flex-col items-center justify-center gap-0.5 px-3 py-1.5 min-w-[64px] rounded-lg transition-colors ${
@@ -391,6 +404,7 @@ export function Layout() {
             <span className="text-[10px] font-medium">Members</span>
           </NavLink>
           )}
+          {!isViewer && (
           <NavLink
             to="/inventory"
             className={({ isActive }) =>
@@ -402,6 +416,7 @@ export function Layout() {
             <Package className="w-5 h-5" />
             <span className="text-[10px] font-medium">Items</span>
           </NavLink>
+          )}
           <NavLink
             to="/analytics"
             className={({ isActive }) =>
