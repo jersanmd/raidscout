@@ -1774,9 +1774,10 @@ export function MembersView() {
           ) : (
             <div className="space-y-3">
               {sortedGuildGroups.map((group, gi) => {
+                const activeMembers = group.members.filter(m => m.is_active !== false);
                 const filtered = classSearch.trim()
-                  ? group.members.filter(m => m.name.toLowerCase().includes(classSearch.toLowerCase()))
-                  : group.members;
+                  ? activeMembers.filter(m => m.name.toLowerCase().includes(classSearch.toLowerCase()))
+                  : activeMembers;
                 if (filtered.length === 0) return null;
                 return (
                   <div key={group.guild?.id ?? "__noguild__"} className="rounded-lg overflow-hidden border border-[#27272a]/50">
