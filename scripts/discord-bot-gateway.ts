@@ -176,12 +176,25 @@ http.createServer((req, res) => {
     req.on("data", (chunk: string) => { body += chunk; });
     req.on("end", async () => {
       try {
-        const { channel_id, thread_name, message } = JSON.parse(body);
+        const { channel_id, thread_name, message, discord_guild_id, notification_prefix } = JSON.parse(body);
         if (!channel_id || !thread_name || !message) {
           res.writeHead(400, headers);
           return res.end(JSON.stringify({ ok: false, error: "Missing channel_id, thread_name, or message" }));
         }
-        const threadId = await createThreadInChannel(channel_id, thread_name, message, undefined);
+
+        // Resolve role names in notification_prefix (e.g., @Y6 → <@&role_id>)
+        let finalMessage = message;
+        if (discord_guild_id && notification_prefix) {
+          try {
+            const { resolvePrefix, resolveRoles } = await import("./bot/notifications");
+            const roleMap = await resolveRoles(discord_guild_id);
+            const resolvedPing = resolvePrefix(notification_prefix, roleMap);
+            // Replace the raw prefix in the message with the resolved one
+            finalMessage = message.replace(notification_prefix, resolvedPing);
+          } catch { /* ignore role resolution errors */ }
+        }
+
+        const threadId = await createThreadInChannel(channel_id, thread_name, finalMessage, undefined);
         if (threadId) {
           res.writeHead(200, headers);
           res.end(JSON.stringify({ ok: true, thread_id: threadId }));

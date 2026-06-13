@@ -31,7 +31,7 @@ serve(async (req: Request) => {
 
     // Fetch ALL progress channel configs for this server (with per-config prefixes)
     const dcRes = await fetch(
-      `${supabaseUrl}/rest/v1/discord_configs?select=progress_channel_id,label,notification_prefix,command_prefix,webhook_url,raidscout_server_id&raidscout_server_id=eq.${server_id}`,
+      `${supabaseUrl}/rest/v1/discord_configs?select=progress_channel_id,label,notification_prefix,command_prefix,discord_guild_id,webhook_url,raidscout_server_id&raidscout_server_id=eq.${server_id}`,
       { headers }
     );
     const configs = await dcRes.json();
@@ -103,6 +103,8 @@ serve(async (req: Request) => {
             thread_name: threadName,
             message: instructionMessage,
             server_id: server_id,
+            discord_guild_id: config.discord_guild_id || null,
+            notification_prefix: config.notification_prefix || null,
           }),
         });
 

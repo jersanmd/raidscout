@@ -23,7 +23,7 @@ interface DiscordRole {
   position: number;
 }
 
-async function resolveRoles(guildId: string): Promise<Map<string, string>> {
+export async function resolveRoles(guildId: string): Promise<Map<string, string>> {
   if (guildRoleCache.has(guildId)) return guildRoleCache.get(guildId)!;
   const map = new Map<string, string>();
   try {
