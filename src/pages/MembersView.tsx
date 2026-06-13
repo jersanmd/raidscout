@@ -7,7 +7,7 @@ import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { updateMemberName, deleteMember, upsertMember, isSupabaseConfigured, fetchGuilds, setMemberGuild, bulkAddMembers, supabase, fetchStaticParties, createParty, deleteParty, addMemberToParty, removeMemberFromParty, type StaticParty } from "@/lib/supabase";
 import { useServerId, useHasPermission } from "@/contexts/ServerContext";
 import type { Guild } from "@/types";
-import { Users, Plus, Pencil, Trash2, Loader2, X, Check, UserPlus, CheckCircle, AlertTriangle, Image, Upload, Copy, Shield, Search, ChevronLeft, ChevronRight, TrendingUp } from "lucide-react";
+import { Users, Plus, Pencil, Trash2, Loader2, X, Check, UserPlus, CheckCircle, AlertTriangle, Image, Upload, Copy, Shield, Search, ChevronLeft, ChevronRight, TrendingUp, ChevronUp, ChevronDown } from "lucide-react";
 import type { Member } from "@/types";
 import { guildColor } from "@/lib/constants";
 
@@ -66,6 +66,30 @@ export function MembersView() {
   const [unassignedSearch, setUnassignedSearch] = useState("");
   const [savingParties, setSavingParties] = useState(false);
   const [membersTab, setMembersTab] = useState<"members" | "parties" | "progress">("members");
+
+  // Guild order for Progress tab (persisted in localStorage per server)
+  const guildOrderKey = `guild-order-${serverId ?? "global"}`;
+  const [guildOrder, setGuildOrder] = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem(guildOrderKey) || "[]"); } catch { return []; }
+  });
+  const saveGuildOrder = (order: string[]) => {
+    setGuildOrder(order);
+    localStorage.setItem(guildOrderKey, JSON.stringify(order));
+  };
+  const moveGuildUp = (guildId: string) => {
+    const idx = guildOrder.indexOf(guildId);
+    if (idx <= 0) return;
+    const next = [...guildOrder];
+    [next[idx - 1], next[idx]] = [next[idx], next[idx - 1]];
+    saveGuildOrder(next);
+  };
+  const moveGuildDown = (guildId: string) => {
+    const idx = guildOrder.indexOf(guildId);
+    if (idx < 0 || idx >= guildOrder.length - 1) return;
+    const next = [...guildOrder];
+    [next[idx], next[idx + 1]] = [next[idx + 1], next[idx]];
+    saveGuildOrder(next);
+  };
 
   // Carousel state
   const [carouselPage, setCarouselPage] = useState(0);
@@ -313,6 +337,19 @@ export function MembersView() {
       return a.guild.name.localeCompare(b.guild.name);
     });
   }, [filteredMembers, guilds]);
+
+  // Sort guild groups by custom order (Progress tab), fallback to alphabetical
+  const sortedGuildGroups = useMemo(() => {
+    if (guildOrder.length === 0) return guildGroups;
+    const orderMap = new Map(guildOrder.map((id, i) => [id, i]));
+    return [...guildGroups].sort((a, b) => {
+      const aKey = a.guild?.id ?? "__noguild__";
+      const bKey = b.guild?.id ?? "__noguild__";
+      const aIdx = orderMap.get(aKey) ?? 999;
+      const bIdx = orderMap.get(bKey) ?? 999;
+      return aIdx - bIdx;
+    });
+  }, [guildGroups, guildOrder]);
 
   // Group guild groups into carousel pages (2 per page on lg+, 1 on mobile)
   const carouselPages = useMemo(() => {
@@ -815,14 +852,14 @@ export function MembersView() {
           Track member combat power growth and manage profiles. CP updates submitted via Discord appear here after approval.
         </p>
 
-        {guildGroups.length === 0 ? (
+        {sortedGuildGroups.length === 0 ? (
           <p className="text-sm text-[#52525b] text-center py-8">No members yet. Add members to start tracking CP.</p>
         ) : (
-          guildGroups.map(group => (
+          sortedGuildGroups.map((group, gi) => (
             <div key={group.guild?.id ?? "__noguild__"} className="bg-[#18181b] border border-[#27272a] rounded-xl overflow-hidden">
               <div className="px-4 py-2.5 border-b border-[#27272a] flex items-center gap-2">
                 {group.guild ? (
-                  <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-medium ${(() => { const c = guildColor(group.guild.name); return `${c.bg} ${c.text} ${c.border}`; })()}`}>
+                  <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-medium ${(() => { const c = guildColor(group.guild!.name); return `${c.bg} ${c.text} ${c.border}`; })()}`}>
                     <Shield className="w-3 h-3" />
                     {group.guild.name}
                   </span>
@@ -830,6 +867,12 @@ export function MembersView() {
                   <span className="text-[11px] text-[#52525b] font-medium">No Guild</span>
                 )}
                 <span className="text-[10px] text-[#52525b]">{group.members.length} member{group.members.length !== 1 ? "s" : ""}</span>
+                {group.guild && (
+                  <div className="flex items-center gap-0.5 ml-auto">
+                    <button onClick={() => moveGuildUp(group.guild!.id)} disabled={gi === 0} className="p-0.5 rounded text-[#52525b] hover:text-[#fafafa] disabled:opacity-20 transition" title="Move up"><ChevronUp className="w-3.5 h-3.5" /></button>
+                    <button onClick={() => moveGuildDown(group.guild!.id)} disabled={gi === sortedGuildGroups.filter(g => g.guild).length - 1} className="p-0.5 rounded text-[#52525b] hover:text-[#fafafa] disabled:opacity-20 transition" title="Move down"><ChevronDown className="w-3.5 h-3.5" /></button>
+                  </div>
+                )}
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
