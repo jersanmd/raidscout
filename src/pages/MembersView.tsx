@@ -12,7 +12,7 @@ import type { Member } from "@/types";
 import { guildColor } from "@/lib/constants";
 
 export function MembersView() {
-  const { user } = useAuth();
+  const { user, isViewer } = useAuth();
   const serverId = useServerId();
   const canManageRaidMembers = useHasPermission("can_manage_members");
   const queryClient = useQueryClient();
@@ -932,7 +932,7 @@ export function MembersView() {
                           </div>
                         )}
 
-                        {editingId !== member.id && guilds.length > 0 && canManageRaidMembers && (
+                        {editingId !== member.id && guilds.length > 0 && !isViewer && (
                           <select
                             value={member.guild_id ?? ""}
                             onChange={async (e) => {
