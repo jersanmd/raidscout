@@ -282,11 +282,11 @@ export function Layout() {
                   }
                   setShowUserMenu(!showUserMenu);
                 }}
-                className="flex items-center gap-1.5 text-[#fafafa]/70 hover:text-[#fafafa] text-sm transition p-1.5 rounded-md hover:bg-[#18181b]" title="Account menu"
+                className="flex items-center gap-1.5 md:gap-2 text-[#fafafa]/70 hover:text-[#fafafa] text-sm md:text-base transition p-1.5 md:p-2 rounded-md hover:bg-[#18181b]" title="Account menu"
               >
-                <User className="w-3.5 h-3.5" />
-                <span className="text-xs hidden sm:block max-w-[100px] truncate">{user?.email?.split("@")[0]}</span>
-                <ChevronDown className={`w-3 h-3 transition ${showUserMenu ? "rotate-180" : ""}`} />
+                <User className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                <span className="text-xs md:text-sm hidden sm:block max-w-[100px] md:max-w-[140px] truncate">{user?.email?.split("@")[0]}</span>
+                <ChevronDown className={`w-3 h-3 md:w-3.5 md:h-3.5 transition ${showUserMenu ? "rotate-180" : ""}`} />
               </button>
               {showUserMenu && createPortal(
                 <>
