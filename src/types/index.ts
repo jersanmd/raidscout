@@ -354,11 +354,13 @@ export type ItemRarity = "common" | "uncommon" | "rare" | "epic" | "legendary" |
 export interface Item {
   id: string;
   server_id: string;
+  game?: string | null;
   name: string;
   image_url: string | null;
   description: string | null;
   rarity: ItemRarity;
   created_by: string;
+  created_by_username?: string | null;
   created_at: string;
   updated_at: string;
 }

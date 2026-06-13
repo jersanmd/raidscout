@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  fetchItems, createItem, deleteItem, updateItem,
+  fetchItems, createItem, deleteItem, updateItem, searchItemsByGame,
   fetchDistributions, createDistribution, deleteDistribution,
   fetchItemDistributionStats, fetchTopRecipients,
   fetchMembers, isSupabaseConfigured,
@@ -173,6 +173,14 @@ export function InventoryView() {
       setShowCreateItem(false);
       resetCreateForm();
     },
+    onError: (err: any) => {
+      const msg = err?.message || "";
+      if (msg.includes("duplicate") || msg.includes("idx_items_game_name")) {
+        alert(`"${newItemName}" already exists in the game catalog. It may have been added by another server.`);
+      } else {
+        alert(`Failed to create item: ${msg}`);
+      }
+    },
   });
 
   // ── Distribute Modal ──
@@ -334,6 +342,14 @@ export function InventoryView() {
                       <span className="text-[10px] capitalize font-medium" style={{ color: RARITY_COLORS[item.rarity] }}>
                         {item.rarity}
                       </span>
+                      {item.server_id !== serverId && (
+                        <span className="text-[9px] text-[#3b82f6]/70 bg-[#3b82f6]/10 px-1 rounded" title="Item shared from another server">🌐 Shared</span>
+                      )}
+                      {item.created_by_username && (
+                        <span className="text-[9px] text-[#52525b]" title={`Added by ${item.created_by_username}`}>
+                          by {item.created_by_username}
+                        </span>
+                      )}
                     </div>
                   </div>
                   <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition">

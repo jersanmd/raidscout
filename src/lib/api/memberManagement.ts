@@ -375,13 +375,32 @@ export async function fetchMemberProfile(memberId: string): Promise<MemberWithPr
 export async function fetchItems(serverId?: string | null): Promise<Item[]> {
   const sid = serverId ?? getCurrentServerId();
   if (!sid) return [];
+
+  // Get the server's game for cross-server item sharing
+  const { data: server } = await supabase
+    .from("servers")
+    .select("game")
+    .eq("id", sid)
+    .single();
+
+  const game = server?.game;
+
   const { data, error } = await supabase
     .from("items")
     .select("*")
-    .eq("server_id", sid)
+    .or(game ? `game.eq.${game},server_id.eq.${sid}` : `server_id.eq.${sid}`)
     .order("name");
   if (error) throw error;
   return data as Item[];
+}
+
+export async function searchItemsByGame(game: string, query?: string): Promise<Item[]> {
+  const { data, error } = await supabase.rpc("search_items_by_game", {
+    p_game: game,
+    p_query: query || null,
+  });
+  if (error) throw error;
+  return (data || []) as Item[];
 }
 
 export async function createItem(item: {
@@ -392,15 +411,28 @@ export async function createItem(item: {
   rarity?: ItemRarity;
 }): Promise<Item> {
   const { data: userData } = await supabase.auth.getUser();
+  const username = userData.user?.email?.split("@")[0] || userData.user?.id?.slice(0, 8) || "unknown";
+
+  // Get server's game
+  const { data: server } = await supabase
+    .from("servers")
+    .select("game")
+    .eq("id", item.server_id)
+    .single();
+
+  const game = server?.game || null;
+
   const { data, error } = await supabase
     .from("items")
     .insert({
       server_id: item.server_id,
+      game,
       name: item.name.trim(),
       image_url: item.image_url || null,
       description: item.description || null,
       rarity: item.rarity || "common",
       created_by: userData.user?.id,
+      created_by_username: username,
     })
     .select()
     .single();

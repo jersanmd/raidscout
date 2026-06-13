@@ -104,7 +104,7 @@ export function Layout() {
   });
 
   return (
-    <div className="min-h-screen bg-[#09090b] flex flex-col" onClick={() => showUserMenu && setShowUserMenu(false)}>
+    <div className="min-h-screen bg-[#09090b] flex flex-col overflow-x-hidden" onClick={() => showUserMenu && setShowUserMenu(false)}>
       {/* Admin joining server overlay */}
       {adminJoining && (
         <div className="fixed inset-0 z-[100] bg-[#09090b]/80 flex items-center justify-center">

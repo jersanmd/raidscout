@@ -7,8 +7,9 @@ import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { updateMemberName, deleteMember, upsertMember, isSupabaseConfigured, fetchGuilds, setMemberGuild, bulkAddMembers, supabase, fetchStaticParties, createParty, deleteParty, addMemberToParty, removeMemberFromParty, type StaticParty, sendCpReminder, createProgressThread, addBackdatedCpUpdate, fetchMemberCpHistory, editCpUpdate, deleteCpUpdate } from "@/lib/supabase";
 import { useServerId, useHasPermission } from "@/contexts/ServerContext";
 import type { Guild, Member, CpUpdate } from "@/types";
-import { Users, Plus, Pencil, Trash2, Loader2, X, Check, UserPlus, CheckCircle, AlertTriangle, Image, Upload, Copy, Shield, Search, ChevronLeft, ChevronRight, TrendingUp, ChevronUp, ChevronDown, Tag, Sword, Swords, ShieldHalf, ShieldCheck, Crosshair, Wand, Heart, Zap, Flame, Snowflake, Skull, Star, Crown, Anchor, Gavel, Axe, Target, Footprints, HandMetal, Megaphone, Calendar, Clock, Eye } from "lucide-react";
+import { Users, Plus, Pencil, Trash2, Loader2, X, Check, UserPlus, CheckCircle, AlertTriangle, Image, Upload, Copy, Shield, Search, ChevronLeft, ChevronRight, TrendingUp, ChevronUp, ChevronDown, Tag, Sword, Swords, ShieldHalf, ShieldCheck, Crosshair, Wand, Heart, Zap, Flame, Snowflake, Skull, Star, Crown, Anchor, Gavel, Axe, Target, Footprints, HandMetal, Megaphone, Calendar, Clock, Eye, Package } from "lucide-react";
 import { guildColor } from "@/lib/constants";
+import { GearTrackingTab } from "@/components/GearTrackingTab";
 
 export function MembersView() {
   const { user, isViewer } = useAuth();
@@ -41,6 +42,7 @@ export function MembersView() {
   const [addCombatPower, setAddCombatPower] = useState("");
   const [addClass, setAddClass] = useState("");
   const [adding, setAdding] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [saving, setSaving] = useState(false);
@@ -84,6 +86,10 @@ export function MembersView() {
   const [newClassIcon, setNewClassIcon] = useState<string>("Sword");
   const [classSearch, setClassSearch] = useState("");
   const [progressSearch, setProgressSearch] = useState("");
+  const progressGuildKey = `progress-guild-${serverId ?? "global"}`;
+  const [progressGuildFilter, setProgressGuildFilter] = useState<string>(() => {
+    try { return localStorage.getItem(progressGuildKey) || ""; } catch { return ""; }
+  });
   const [showClassCreator, setShowClassCreator] = useState(false);
 
   // Sort state for guild member tables (persisted in localStorage)
@@ -203,14 +209,14 @@ export function MembersView() {
   const [unassignedSearch, setUnassignedSearch] = useState("");
   const [savingParties, setSavingParties] = useState(false);
   const tabParam = searchParams.get("tab");
-  const [membersTab, setMembersTabState] = useState<"members" | "progress" | "parties" | "classes">(() => {
-    if (tabParam === "members" || tabParam === "progress" || tabParam === "parties" || tabParam === "classes") {
+  const [membersTab, setMembersTabState] = useState<"members" | "progress" | "gear" | "parties" | "classes">(() => {
+    if (tabParam === "members" || tabParam === "progress" || tabParam === "gear" || tabParam === "parties" || tabParam === "classes") {
       return tabParam;
     }
     return isViewer ? "progress" : "members";
   });
 
-  const setMembersTab = (tab: "members" | "progress" | "parties" | "classes") => {
+  const setMembersTab = (tab: "members" | "progress" | "gear" | "parties" | "classes") => {
     setMembersTabState(tab);
     const params = new URLSearchParams(searchParams);
     params.set("tab", tab);
@@ -859,88 +865,40 @@ export function MembersView() {
           </div>
         </div>
 
-        {/* Add member form — inline in header */}
+        {/* Add member — button only, opens modal */}
         {canManageRaidMembers && (
-        <form
-          onSubmit={(e) => { e.preventDefault(); handleAdd(); }}
-          className="flex flex-col sm:flex-row sm:items-center gap-1.5 w-full sm:w-auto"
-        >
-          {/* Row 1 (mobile): Name + CP. On desktop: flows inline */}
-          <div className="flex sm:contents gap-1.5 w-full sm:w-auto">
-            <input
-              type="text"
-              value={addName}
-              onChange={(e) => setAddName(e.target.value)}
-              placeholder="Member name..."
-              ref={memberInputRef}
-              className="w-[60%] sm:w-44 px-2 py-1.5 bg-[#18181b] border border-[#27272a] rounded-lg text-[#fafafa] placeholder-[#52525b] focus:outline-none focus:ring-2 focus:ring-[#52525b] focus:border-transparent transition text-xs"
-            />
-            <input
-              type="number"
-              value={addCombatPower}
-              onChange={(e) => setAddCombatPower(e.target.value)}
-              placeholder="CP"
-              className="w-[40%] sm:w-20 px-2 py-1.5 bg-[#18181b] border border-[#27272a] rounded-lg text-[#fafafa] placeholder-[#52525b] text-xs focus:outline-none focus:ring-2 focus:ring-[#52525b] focus:border-transparent transition"
-            />
-          </div>
-          {/* Row 2 (mobile): actions. On desktop: flows inline */}
-          <div className="flex flex-wrap items-center sm:contents gap-1.5">
-            {classes.length > 0 && (
-              <select
-                value={addClass}
-                onChange={(e) => setAddClass(e.target.value)}
-                className="px-1.5 py-1.5 bg-[#18181b] border border-[#27272a] rounded-lg text-[10px] text-[#a1a1aa] outline-none focus:ring-2 focus:ring-[#52525b] focus:border-transparent transition max-w-[80px] truncate"
-              >
-                <option value="">—</option>
-                {classes.map(c => <option key={c} value={c}>{c}</option>)}
-              </select>
-            )}
-            {guilds.length > 0 && (
-              <select
-                value={addGuild}
-                onChange={(e) => setAddGuild(e.target.value)}
-                className="px-1.5 py-1.5 bg-[#18181b] border border-[#27272a] rounded-lg text-[10px] text-[#a1a1aa] outline-none focus:ring-2 focus:ring-[#52525b] focus:border-transparent transition max-w-[100px] truncate"
-              >
-                <option value="">—</option>
-                {guilds.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
-              </select>
-            )}
-            <button
-              type="submit"
-              disabled={adding || !addName.trim()}
-              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-[#fafafa] text-[#09090b] text-xs font-medium hover:bg-[#e4e4e7] disabled:opacity-50 transition"
-            >
-              {adding ? (
-                <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              ) : (
-                <UserPlus className="w-3 h-3" />
-              )}
-              Add
-            </button>
+        <div className="flex flex-wrap items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => setShowAddModal(true)}
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-[#fafafa] text-[#09090b] text-xs font-medium hover:bg-[#e4e4e7] transition"
+          >
+            <UserPlus className="w-3 h-3" />
+            Add Member
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowBulkModal(true)}
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-[#18181b] border border-[#27272a] text-[#a1a1aa] text-xs font-medium hover:bg-[#27272a] hover:text-[#fafafa] transition"
+          >
+            <Upload className="w-3 h-3" />
+            Bulk
+          </button>
+          {members.length > 0 && (
             <button
               type="button"
-              onClick={() => setShowBulkModal(true)}
-              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-[#18181b] border border-[#27272a] text-[#a1a1aa] text-xs font-medium hover:bg-[#27272a] hover:text-[#fafafa] transition"
+              onClick={() => {
+                const names = members.map(m => m.name).join(", ");
+                navigator.clipboard.writeText(names);
+                setToast({ type: "success", message: `${members.length} names copied!` });
+              }}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#18181b] border border-[#27272a] text-[#a1a1aa] text-xs font-medium hover:bg-[#27272a] hover:text-[#fafafa] transition shrink-0"
             >
-              <Upload className="w-3 h-3" />
-              Bulk
+              <Copy className="w-3.5 h-3.5" />
+              Copy All
             </button>
-            {members.length > 0 && (
-              <button
-                type="button"
-                onClick={() => {
-                  const names = members.map(m => m.name).join(", ");
-                  navigator.clipboard.writeText(names);
-                  setToast({ type: "success", message: `${members.length} names copied!` });
-                }}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#18181b] border border-[#27272a] text-[#a1a1aa] text-xs font-medium hover:bg-[#27272a] hover:text-[#fafafa] transition shrink-0"
-              >
-                <Copy className="w-3.5 h-3.5" />
-                Copy All
-              </button>
-            )}
-          </div>
-        </form>
+          )}
+        </div>
         )}
 
         {members.length > 0 && !canManageRaidMembers && (
@@ -986,6 +944,17 @@ export function MembersView() {
         >
           <TrendingUp className="w-3.5 h-3.5 inline mr-1" />
           Progress{isViewer ? " (View Only)" : ""}
+        </button>
+        <button
+          onClick={() => setMembersTab("gear")}
+          className={`px-3 py-1.5 rounded-t-md text-xs font-medium transition ${
+            membersTab === "gear"
+              ? "bg-[#18181b] text-[#fafafa] border border-[#27272a] border-b-transparent"
+              : "text-[#71717a] hover:text-[#d4d4d8]"
+          }`}
+        >
+          <Package className="w-3.5 h-3.5 inline mr-1" />
+          Gear Tracking
         </button>
         {!isViewer && canManageRaidMembers && (
           <button
@@ -1232,6 +1201,16 @@ export function MembersView() {
               className="w-full pl-8 pr-3 py-1.5 bg-[#18181b] border border-[#27272a] rounded-lg text-xs text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#52525b]"
             />
           </div>
+          {guilds.length > 0 && (
+            <select
+              value={progressGuildFilter}
+              onChange={(e) => { setProgressGuildFilter(e.target.value); localStorage.setItem(progressGuildKey, e.target.value); }}
+              className="px-2.5 py-1.5 bg-[#18181b] border border-[#27272a] rounded-lg text-xs text-[#a1a1aa] outline-none focus:border-[#52525b] transition"
+            >
+              <option value="">All Guilds</option>
+              {guilds.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+            </select>
+          )}
           {canManageRaidMembers && members.length > 0 && (
             <button
               type="button"
@@ -1249,10 +1228,14 @@ export function MembersView() {
           )}
         </div>
 
-        {sortedGuildGroups.length === 0 ? (
-          <p className="text-sm text-[#52525b] text-center py-8">No members yet. Add members to start tracking CP.</p>
-        ) : (
-          sortedGuildGroups.map((group, gi) => (
+        {(() => {
+          const displayGroups = progressGuildFilter
+            ? sortedGuildGroups.filter(g => g.guild?.id === progressGuildFilter)
+            : sortedGuildGroups;
+          return displayGroups.length === 0 ? (
+            <p className="text-sm text-[#52525b] text-center py-8">No members yet. Add members to start tracking CP.</p>
+          ) : (
+            displayGroups.map((group, gi) => (
             <div key={group.guild?.id ?? "__noguild__"} className="bg-[#18181b] border border-[#27272a] rounded-xl overflow-hidden">
               <div className="px-4 py-2.5 border-b border-[#27272a] flex items-center gap-2">
                 {group.guild ? (
@@ -1421,8 +1404,8 @@ export function MembersView() {
                 </table>
               </div>
             </div>
-          ))
-        )}
+          )));
+        })()}
 
         <p className="text-[10px] text-[#52525b] text-center">
           Members update their CP via Discord using <code className="px-1 py-0.5 bg-[#18181b] rounded text-[#a1a1aa]">!updatestats PlayerName CP</code>
@@ -1853,6 +1836,9 @@ export function MembersView() {
       </div>
       )}
 
+      {/* Gear Tracking Tab */}
+      {membersTab === "gear" && <GearTrackingTab />}
+
       {/* Search + Sort toggle (Members tab only) */}
       {membersTab === "members" && members.length > 0 && (
         <div className="flex gap-2">
@@ -2139,6 +2125,91 @@ export function MembersView() {
                   <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                 ) : null}
                 Add {newNames.length > 0 ? newNames.length : ""} Member{newNames.length !== 1 ? "s" : ""}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Member Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60" onClick={() => { setShowAddModal(false); }} />
+          <div className="relative bg-[#09090b] border border-[#27272a] rounded-xl w-full max-w-sm shadow-2xl">
+            <div className="flex items-center justify-between p-4 border-b border-[#27272a]">
+              <h2 className="text-lg font-bold text-[#fafafa] flex items-center gap-2">
+                <UserPlus className="w-5 h-5 text-[#a1a1aa]" />
+                Add Member
+              </h2>
+              <button onClick={() => setShowAddModal(false)} className="text-[#a1a1aa] hover:text-[#fafafa] transition p-1">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-4 space-y-3">
+              <div>
+                <label className="text-[10px] text-[#71717a] uppercase tracking-wider">Member Name</label>
+                <input
+                  type="text"
+                  value={addName}
+                  onChange={(e) => setAddName(e.target.value)}
+                  placeholder="Member name..."
+                  autoFocus
+                  className="w-full mt-1 px-3 py-2 bg-[#18181b] border border-[#27272a] rounded-lg text-sm text-[#fafafa] placeholder-[#52525b] focus:outline-none focus:border-[#52525b] transition"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] text-[#71717a] uppercase tracking-wider">Combat Power</label>
+                <input
+                  type="number"
+                  value={addCombatPower}
+                  onChange={(e) => setAddCombatPower(e.target.value)}
+                  placeholder="CP"
+                  className="w-full mt-1 px-3 py-2 bg-[#18181b] border border-[#27272a] rounded-lg text-sm text-[#fafafa] placeholder-[#52525b] focus:outline-none focus:border-[#52525b] transition"
+                />
+              </div>
+              {classes.length > 0 && (
+                <div>
+                  <label className="text-[10px] text-[#71717a] uppercase tracking-wider">Class</label>
+                  <select
+                    value={addClass}
+                    onChange={(e) => setAddClass(e.target.value)}
+                    className="w-full mt-1 px-3 py-2 bg-[#18181b] border border-[#27272a] rounded-lg text-sm text-[#a1a1aa] focus:outline-none focus:border-[#52525b] transition"
+                  >
+                    <option value="">—</option>
+                    {classes.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+              )}
+              {guilds.length > 0 && (
+                <div>
+                  <label className="text-[10px] text-[#71717a] uppercase tracking-wider">Guild</label>
+                  <select
+                    value={addGuild}
+                    onChange={(e) => setAddGuild(e.target.value)}
+                    className="w-full mt-1 px-3 py-2 bg-[#18181b] border border-[#27272a] rounded-lg text-sm text-[#a1a1aa] focus:outline-none focus:border-[#52525b] transition"
+                  >
+                    <option value="">—</option>
+                    {guilds.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+                  </select>
+                </div>
+              )}
+            </div>
+            <div className="flex gap-2 p-4 border-t border-[#27272a]">
+              <button
+                onClick={() => setShowAddModal(false)}
+                className="flex-1 py-2 rounded-lg bg-[#18181b] text-[#d4d4d8] text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => { handleAdd(); setShowAddModal(false); }}
+                disabled={adding || !addName.trim()}
+                className="flex-1 py-2 rounded-lg bg-[#fafafa] text-[#09090b] text-sm font-medium hover:bg-[#e4e4e7] disabled:opacity-50 flex items-center justify-center gap-1.5 transition"
+              >
+                {adding ? (
+                  <span className="w-4 h-4 border-2 border-[#09090b]/30 border-t-[#09090b] rounded-full animate-spin" />
+                ) : null}
+                Add Member
               </button>
             </div>
           </div>

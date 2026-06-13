@@ -496,7 +496,7 @@ export function MemberProfileView() {
                 </span>
               )}
             </div>
-            <div style={{ height: isMobile ? 80 : 100 }}>
+            <div style={{ height: isMobile ? 80 : 100, minHeight: 80, minWidth: 200 }}>
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={cpSparkData} margin={{ top: isMobile ? 6 : 28, right: isMobile ? 4 : 16, left: 0, bottom: 0 }}>
                   <XAxis dataKey="date" tick={{ fontSize: isMobile ? 7 : 8, fill: "#52525b" }} axisLine={false} tickLine={false} interval={Math.max(0, Math.floor(cpSparkData.length / (isMobile ? 4 : 6)) - 1)} />
@@ -552,7 +552,7 @@ export function MemberProfileView() {
           </div>
         </div>
         {dailyActivity.length > 0 ? (
-          <div style={{ height: 200 }}>
+          <div style={{ height: 200, minHeight: 200, minWidth: 200 }}>
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={dailyActivity} margin={{ top: 20, right: 40, left: 40, bottom: 0 }}>
                 <XAxis dataKey="label" tick={{ fontSize: 10, fill: "#52525b" }} axisLine={false} tickLine={false} interval={Math.max(0, Math.floor(dailyActivity.length / 8) - 1)}/>
@@ -691,7 +691,7 @@ export function MemberProfileView() {
               <span className="text-[10px] text-[#52525b] ml-auto">{weeklyPerf.length} weeks</span>
             </div>
             {weeklyPerf.length > 1 ? (
-              <div style={{ height: 180 }}>
+              <div style={{ height: 180, minHeight: 180, minWidth: 200 }}>
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={weeklyPerf} margin={{ top: 24, right: 0, left: 0, bottom: 0 }}>
                     <defs>
@@ -761,7 +761,7 @@ export function MemberProfileView() {
           <span className="text-[10px] text-[#52525b] ml-auto">{weeklyPerf.length} weeks</span>
         </div>
         {weeklyPerf.length > 1 ? (
-          <div style={{ height: 180 }}>
+          <div style={{ height: 180, minHeight: 180, minWidth: 200 }}>
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={weeklyPerf} margin={{ top: 24, right: 0, left: 0, bottom: 0 }}>
                 <defs>
@@ -884,7 +884,7 @@ export function MemberProfileView() {
       )}
 
       {/* Footer */}
-      <footer className="border-t border-[#27272a] bg-[#09090b] -mx-3 sm:-mx-4 -mb-4 sm:-mb-6 px-3 sm:px-4 py-5 mt-8 rounded-b-xl">
+      <footer className="border-t border-[#27272a] bg-[#09090b] py-5 mt-8" style={{ marginLeft: "calc(-1 * (100vw - 100%) / 2)", marginRight: "calc(-1 * (100vw - 100%) / 2)", marginBottom: "-24px", paddingLeft: "calc((100vw - 100%) / 2)", paddingRight: "calc((100vw - 100%) / 2)" }}>
         <div className="space-y-3">
           <div className="flex items-center gap-2 text-xs text-[#71717a]">
             <img src="/logo.png" alt="" className="w-4 h-4 rounded opacity-40" />

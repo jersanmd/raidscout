@@ -46,6 +46,10 @@ export function AdminGamesTab() {
   // Boss search
   const [bossSearch, setBossSearch] = useState("");
 
+  // Collapse toggles for boss/activity template sections
+  const [bossesExpanded, setBossesExpanded] = useState(true);
+  const [activitiesExpanded, setActivitiesExpanded] = useState(true);
+
   const { data: games = [], isLoading } = useQuery({
     queryKey: ["admin", "games"],
     queryFn: fetchGames,
@@ -349,7 +353,13 @@ export function AdminGamesTab() {
                     {/* Boss Templates */}
                     <div>
                       <div className="flex items-center justify-between mb-2 gap-2">
-                        <h4 className="text-xs font-semibold text-[#d4d4d8] flex items-center gap-1.5 shrink-0"><Skull className="w-3.5 h-3.5 text-red-400" /> Boss Templates ({(bossTemplates[game.id] || []).filter(bt => !bossSearch || bt.name.toLowerCase().includes(bossSearch.toLowerCase())).length})</h4>
+                        <button
+                          onClick={() => setBossesExpanded(p => !p)}
+                          className="flex items-center gap-1.5 shrink-0 hover:opacity-80 transition"
+                        >
+                          {bossesExpanded ? <ChevronUp className="w-3.5 h-3.5 text-[#71717a]" /> : <ChevronDown className="w-3.5 h-3.5 text-[#71717a]" />}
+                          <h4 className="text-xs font-semibold text-[#d4d4d8] flex items-center gap-1.5"><Skull className="w-3.5 h-3.5 text-red-400" /> Boss Templates ({(bossTemplates[game.id] || []).filter(bt => !bossSearch || bt.name.toLowerCase().includes(bossSearch.toLowerCase())).length})</h4>
+                        </button>
                         <div className="flex items-center gap-2 flex-1 justify-end">
                           <div className="relative flex-1 max-w-[200px]">
                             <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-[#52525b]" />
@@ -368,6 +378,7 @@ export function AdminGamesTab() {
                       </div>
 
                       {/* Add Boss Form */}
+                      <div className={`transition-all duration-300 ease-in-out overflow-hidden ${bossesExpanded ? "max-h-[5000px] opacity-100" : "max-h-0 opacity-0"}`}>
                       {showAddBoss && (
                         <AddBossForm
                           gameId={game.id}
@@ -417,17 +428,25 @@ export function AdminGamesTab() {
                         {(!bossTemplates[game.id] || bossTemplates[game.id].length === 0) && <p className="text-xs text-[#52525b] py-2">No boss templates yet.</p>}
                         {bossTemplates[game.id]?.length > 0 && (bossTemplates[game.id] || []).filter(bt => !bossSearch || bt.name.toLowerCase().includes(bossSearch.toLowerCase())).length === 0 && <p className="text-xs text-[#52525b] py-2">No bosses match "{bossSearch}".</p>}
                       </div>
+                      </div>
                     </div>
 
                     {/* Activity Templates */}
                     <div>
                       <div className="flex items-center justify-between mb-2">
-                        <h4 className="text-xs font-semibold text-[#d4d4d8] flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5 text-[#a1a1aa]" /> Activity Templates ({activityTemplates[game.id]?.length || 0})</h4>
+                        <button
+                          onClick={() => setActivitiesExpanded(p => !p)}
+                          className="flex items-center gap-1.5 shrink-0 hover:opacity-80 transition"
+                        >
+                          {activitiesExpanded ? <ChevronUp className="w-3.5 h-3.5 text-[#71717a]" /> : <ChevronDown className="w-3.5 h-3.5 text-[#71717a]" />}
+                          <h4 className="text-xs font-semibold text-[#d4d4d8] flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5 text-[#a1a1aa]" /> Activity Templates ({activityTemplates[game.id]?.length || 0})</h4>
+                        </button>
                         <button onClick={() => setShowAddActivity(true)} className="flex items-center gap-1 px-2 py-1 text-xs font-medium rounded bg-[#27272a] hover:bg-[#3f3f46] text-[#d4d4d8] transition">
                           <Plus className="w-3 h-3" /> Add Activity
                         </button>
                       </div>
 
+                      <div className={`transition-all duration-300 ease-in-out overflow-hidden ${activitiesExpanded ? "max-h-[5000px] opacity-100" : "max-h-0 opacity-0"}`}>
                       {/* Add Activity Form */}
                       {showAddActivity && (
                         <AddActivityForm
@@ -476,6 +495,7 @@ export function AdminGamesTab() {
                         );
                       })}
                         {(!activityTemplates[game.id] || activityTemplates[game.id].length === 0) && <p className="text-xs text-[#52525b] py-2">No activity templates yet.</p>}
+                      </div>
                       </div>
                     </div>
                   </>

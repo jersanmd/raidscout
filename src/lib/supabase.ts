@@ -246,6 +246,7 @@ export {
   deleteMemberNote,
   fetchMemberProfile,
   fetchItems,
+  searchItemsByGame,
   createItem,
   deleteItem,
   updateItem,
