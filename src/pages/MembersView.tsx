@@ -1951,7 +1951,7 @@ export function MembersView() {
                             </span>
                           </h3>
                           <div className="space-y-1">
-                            {members.map((member, idx) => (
+                            {(() => [...members].sort((a, b) => (a.is_active === false ? 1 : 0) - (b.is_active === false ? 1 : 0)))().map((member, idx) => (
                       <div
                         key={member.id}
                         className={`flex flex-wrap items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2.5 rounded-lg border group transition ${
@@ -2017,10 +2017,12 @@ export function MembersView() {
                                 setToast({ type: "error", message: err?.message || "Failed to update member" });
                               }
                             }}
-                            className={`p-1.5 transition rounded shrink-0 sm:opacity-0 group-hover:opacity-100 ${member.is_active === false ? 'text-amber-400 hover:text-amber-300 hover:bg-amber-400/10' : 'text-[#52525b] hover:text-[#a1a1aa]'}`}
+                            className="shrink-0 sm:opacity-0 group-hover:opacity-100 transition-opacity"
                             title={member.is_active === false ? "Enable member" : "Disable member"}
                           >
-                            {member.is_active === false ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                            <div className={`w-8 h-4.5 rounded-full relative transition-colors ${member.is_active === false ? 'bg-[#27272a]' : 'bg-green-500/60'}`}>
+                              <div className={`absolute top-0.5 w-3.5 h-3.5 rounded-full bg-white shadow transition-all ${member.is_active === false ? 'left-0.5' : 'left-4'}`} />
+                            </div>
                           </button>
                         )}
 
