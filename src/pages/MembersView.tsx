@@ -1765,7 +1765,7 @@ export function MembersView() {
             <p className="text-sm text-[#52525b] text-center py-6">Add classes above first, then assign them to members here.</p>
           ) : (
             <div className="space-y-3">
-              {guildGroups.map(group => {
+              {sortedGuildGroups.map((group, gi) => {
                 const filtered = classSearch.trim()
                   ? group.members.filter(m => m.name.toLowerCase().includes(classSearch.toLowerCase()))
                   : group.members;
@@ -1782,6 +1782,12 @@ export function MembersView() {
                         <span className="text-[10px] text-[#52525b] font-medium">No Guild</span>
                       )}
                       <span className="text-[9px] text-[#52525b]">{filtered.length} member{filtered.length !== 1 ? "s" : ""}</span>
+                      {group.guild && (
+                        <div className="flex items-center gap-0.5 ml-auto">
+                          <button onClick={() => moveGuildUp(group.guild!.id)} disabled={gi === 0} className="p-0.5 rounded text-[#52525b] hover:text-[#fafafa] disabled:opacity-20 transition" title="Move up"><ChevronUp className="w-3 h-3" /></button>
+                          <button onClick={() => moveGuildDown(group.guild!.id)} disabled={gi === sortedGuildGroups.filter(g => g.guild).length - 1} className="p-0.5 rounded text-[#52525b] hover:text-[#fafafa] disabled:opacity-20 transition" title="Move down"><ChevronDown className="w-3 h-3" /></button>
+                        </div>
+                      )}
                     </div>
                     <table className="w-full text-sm">
                       <tbody>
