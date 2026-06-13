@@ -306,22 +306,11 @@ export function MembersView() {
       .catch(() => setGuilds([]))
       .finally(() => setGuildsLoading(false));
     if (serverId) {
-      // Fetch classes from app_settings table directly (no RPC)
-      supabase.from("app_settings")
-        .select("value")
+      supabase.from("member_classes")
+        .select("name")
         .eq("server_id", serverId)
-        .eq("key", "member_classes")
-        .maybeSingle()
-        .then(({ data }) => {
-          if (data?.value) {
-            try {
-              const parsed = typeof data.value === "string" ? JSON.parse(data.value) : data.value;
-              setClasses(parsed.classes || []);
-            } catch { setClasses([]); }
-          } else {
-            setClasses([]);
-          }
-        })
+        .order("name")
+        .then(({ data }) => setClasses(data?.map((r: any) => r.name) ?? []))
         .catch(() => setClasses([]));
       fetchStaticParties(serverId).then(setParties).catch(() => setParties([]));
     }
@@ -334,40 +323,35 @@ export function MembersView() {
     }
   }, [guilds]);
 
-  // Helper: persist classes to app_settings table
-  const saveClassesToDb = async (classesArr: string[]) => {
-    if (!serverId) return;
-    try {
-      const { error } = await supabase.from("app_settings").upsert({
-        server_id: serverId,
-        key: "member_classes",
-        value: JSON.stringify({ classes: classesArr }),
-      }, { onConflict: "server_id,key" });
-      if (error) console.error("Failed to save classes:", error);
-    } catch (err) {
-      console.error("Failed to save classes:", err);
-    }
-  };
-
   const handleAddClass = async () => {
     const name = newClassName.trim();
-    if (!name || classes.includes(name)) return;
-    const updated = [...classes, name];
-    setClasses(updated);
+    if (!name || !serverId) return;
+    if (classes.includes(name)) return;
+    // Optimistically update UI
+    setClasses(prev => [...prev, name]);
     setNewClassName("");
     const icons = { ...classIcons, [name]: newClassIcon };
     saveClassIcons(icons);
     setNewClassIcon("Sword");
-    saveClassesToDb(updated);
+    // Persist to database
+    const { error } = await supabase.from("member_classes").insert({ server_id: serverId, name });
+    if (error) {
+      setClasses(prev => prev.filter(c => c !== name));
+      console.error("Failed to add class:", error);
+    }
   };
 
   const handleRemoveClass = async (name: string) => {
-    const updated = classes.filter(c => c !== name);
-    setClasses(updated);
+    if (!serverId) return;
+    setClasses(prev => prev.filter(c => c !== name));
     const icons = { ...classIcons };
     delete icons[name];
     saveClassIcons(icons);
-    saveClassesToDb(updated);
+    const { error } = await supabase.from("member_classes").delete().eq("server_id", serverId).eq("name", name);
+    if (error) {
+      setClasses(prev => [...prev, name]);
+      console.error("Failed to remove class:", error);
+    }
   };
 
   // Guild selection for add / bulk
