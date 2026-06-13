@@ -147,26 +147,26 @@ export function MemberProfileView() {
   }, [profile]);
   const totalEvents = profile ? (profile.attendance_history?.length || 0) + (profile.activity_attendance?.length || 0) : 0;
 
-  // 7-day and 30-day event counts
-  const events7d = useMemo(() => {
+  // 7-day and 30-day event counts (computed fresh each render)
+  const events7d = (() => {
     if (!profile) return 0;
     const now = Date.now();
     const cutoff = now - 7 * 86400000;
     const hunts = (profile.attendance_history || []).filter((a: any) => new Date(a.created_at).getTime() >= cutoff).length;
     const acts = (profile.activity_attendance || []).filter((a: any) => new Date(a.created_at).getTime() >= cutoff).length;
     return hunts + acts;
-  }, [profile]);
-  const events30d = useMemo(() => {
+  })();
+  const events30d = (() => {
     if (!profile) return 0;
     const now = Date.now();
     const cutoff = now - 30 * 86400000;
     const hunts = (profile.attendance_history || []).filter((a: any) => new Date(a.created_at).getTime() >= cutoff).length;
     const acts = (profile.activity_attendance || []).filter((a: any) => new Date(a.created_at).getTime() >= cutoff).length;
     return hunts + acts;
-  }, [profile]);
+  })();
 
   // Activity indicator: what % of weeks in the last 12 had at least 1 event?
-  const activityPct = useMemo(() => {
+  const activityPct = (() => {
     if (!profile) return 0;
     const now = Date.now();
     let activeWeeks = 0;
@@ -181,8 +181,9 @@ export function MemberProfileView() {
       });
       if (hasHunt || hasAct) activeWeeks++;
     }
+    console.log("[activityPct]", { activeWeeks, totalHunts: profile.attendance_history?.length, totalActs: profile.activity_attendance?.length });
     return Math.round((activeWeeks / 12) * 100);
-  }, [profile]);
+  })();
   const risks: string[] = useMemo(() => {
     if (!profile) return [];
     const r: string[] = [];
