@@ -215,19 +215,6 @@ export function Layout() {
               </NavLink>
               )}
               <NavLink
-                to="/analytics"
-                className={({ isActive }) =>
-                  `flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-200 whitespace-nowrap ${
-                    isActive
-                      ? "bg-[#27272a] text-[#fafafa]"
-                      : "text-[#71717a] hover:text-[#a1a1aa]"
-                  }`
-                }
-              >
-                <BarChart3 className="w-4 h-4" />
-                <span className="hidden sm:inline">Analytics</span>
-              </NavLink>
-              <NavLink
                 to="/inventory"
                 className={({ isActive }) =>
                   `flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-200 whitespace-nowrap ${
@@ -239,6 +226,19 @@ export function Layout() {
               >
                 <Package className="w-4 h-4" />
                 <span className="hidden sm:inline">Inventory</span>
+              </NavLink>
+              <NavLink
+                to="/analytics"
+                className={({ isActive }) =>
+                  `flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-200 whitespace-nowrap ${
+                    isActive
+                      ? "bg-[#27272a] text-[#fafafa]"
+                      : "text-[#71717a] hover:text-[#a1a1aa]"
+                  }`
+                }
+              >
+                <BarChart3 className="w-4 h-4" />
+                <span className="hidden sm:inline">Analytics</span>
               </NavLink>
             </nav>
             )}
@@ -392,17 +392,6 @@ export function Layout() {
           </NavLink>
           )}
           <NavLink
-            to="/analytics"
-            className={({ isActive }) =>
-              `flex flex-col items-center justify-center gap-0.5 px-3 py-1.5 min-w-[64px] rounded-lg transition-colors ${
-                isActive ? "text-[#fafafa]" : "text-[#52525b]"
-              }`
-            }
-          >
-            <BarChart3 className="w-5 h-5" />
-            <span className="text-[10px] font-medium">Stats</span>
-          </NavLink>
-          <NavLink
             to="/inventory"
             className={({ isActive }) =>
               `flex flex-col items-center justify-center gap-0.5 px-3 py-1.5 min-w-[64px] rounded-lg transition-colors ${
@@ -412,6 +401,17 @@ export function Layout() {
           >
             <Package className="w-5 h-5" />
             <span className="text-[10px] font-medium">Items</span>
+          </NavLink>
+          <NavLink
+            to="/analytics"
+            className={({ isActive }) =>
+              `flex flex-col items-center justify-center gap-0.5 px-3 py-1.5 min-w-[64px] rounded-lg transition-colors ${
+                isActive ? "text-[#fafafa]" : "text-[#52525b]"
+              }`
+            }
+          >
+            <BarChart3 className="w-5 h-5" />
+            <span className="text-[10px] font-medium">Stats</span>
           </NavLink>
         </div>
       </nav>
