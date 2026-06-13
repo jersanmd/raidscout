@@ -1229,9 +1229,9 @@ export function MembersView() {
         </div>
 
         {(() => {
-          const displayGroups = progressGuildFilter
+          const displayGroups = (progressGuildFilter
             ? sortedGuildGroups.filter(g => g.guild?.id === progressGuildFilter)
-            : sortedGuildGroups;
+            : sortedGuildGroups).map(g => ({ ...g, members: g.members.filter(m => m.is_active !== false) })).filter(g => g.members.length > 0);
           return displayGroups.length === 0 ? (
             <p className="text-sm text-[#52525b] text-center py-8">No members yet. Add members to start tracking CP.</p>
           ) : (
