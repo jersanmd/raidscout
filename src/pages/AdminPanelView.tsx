@@ -200,7 +200,7 @@ export function AdminPanelView() {
       return fetchAuditLog(500, serverId, since, until);
     },
     staleTime: 15_000,
-    enabled: userRole === "admin" && (tab === "audit" || tab === "owners"),
+    enabled: userRole === "admin" && tab === "audit",
   });
 
   // Auto-select first server when opening audit tab
@@ -220,7 +220,7 @@ export function AdminPanelView() {
     });
   }, [serverFilter, tab, servers]);
   useEffect(() => {
-    if ((tab === "audit" || tab === "owners") && auditServerFilter === "all" && servers.length > 0) {
+    if (tab === "audit" && auditServerFilter === "all" && servers.length > 0) {
       setAuditServerFilter(servers[0].id);
     }
   }, [tab, servers, auditServerFilter]);
@@ -306,7 +306,11 @@ export function AdminPanelView() {
             <Server className="w-5 h-5" />
             <span className="text-[10px] font-medium">Servers</span>
           </button>
-          <button onClick={() => setTab("owners")} className={`flex flex-col items-center justify-center gap-0.5 px-2 py-1.5 min-w-[64px] rounded-lg transition-colors ${tab === "owners" || tab === "users" || tab === "audit" ? "text-[#fafafa]" : "text-[#52525b]"}`}>
+          <button onClick={() => setTab("users")} className={`flex flex-col items-center justify-center gap-0.5 px-2 py-1.5 min-w-[64px] rounded-lg transition-colors ${tab === "users" || tab === "owners" ? "text-[#fafafa]" : "text-[#52525b]"}`}>
+            <Users className="w-5 h-5" />
+            <span className="text-[10px] font-medium">Owners</span>
+          </button>
+          <button onClick={() => setTab("audit")} className={`flex flex-col items-center justify-center gap-0.5 px-2 py-1.5 min-w-[64px] rounded-lg transition-colors ${tab === "audit" ? "text-[#fafafa]" : "text-[#52525b]"}`}>
             <ClipboardList className="w-5 h-5" />
             <span className="text-[10px] font-medium">Audit</span>
           </button>
@@ -635,7 +639,7 @@ export function AdminPanelView() {
       )}
 
       {/* Server Owners Tab */}
-      {(tab === "users" || tab === "owners") && (() => {
+      {tab === "users" && (() => {
         const { owners, moderators } = serverRoles;
         const filteredUsers = users.filter((u: any) => {
           // Search filter
@@ -774,7 +778,7 @@ export function AdminPanelView() {
       })()}
 
       {/* Audit Log Tab */}
-      {(tab === "audit" || tab === "owners") && (() => {
+      {tab === "audit" && (() => {
         const serverMap: Record<string, string> = {};
         for (const s of servers) {
           serverMap[s.id] = s.name;
