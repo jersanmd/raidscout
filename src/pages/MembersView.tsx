@@ -54,8 +54,15 @@ export function MembersView() {
   const [guilds, setGuilds] = useState<Guild[]>([]);
   const [guildsLoading, setGuildsLoading] = useState(true);
 
-  // Classes — managed per server
-  const [classes, setClasses] = useState<string[]>([]);
+  // Classes — stored in localStorage per server (like guild order and icons)
+  const classesKey = `member-classes-${serverId ?? "global"}`;
+  const [classes, setClasses] = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem(classesKey) || "[]"); } catch { return []; }
+  });
+  const saveClasses = (arr: string[]) => {
+    setClasses(arr);
+    localStorage.setItem(classesKey, JSON.stringify(arr));
+  };
   const [newClassName, setNewClassName] = useState("");
   const [newClassIcon, setNewClassIcon] = useState<string>("Sword");
   const [classSearch, setClassSearch] = useState("");
@@ -306,12 +313,6 @@ export function MembersView() {
       .catch(() => setGuilds([]))
       .finally(() => setGuildsLoading(false));
     if (serverId) {
-      supabase.from("member_classes")
-        .select("name")
-        .eq("server_id", serverId)
-        .order("name")
-        .then(({ data }) => setClasses(data?.map((r: any) => r.name) ?? []))
-        .catch(() => setClasses([]));
       fetchStaticParties(serverId).then(setParties).catch(() => setParties([]));
     }
   }, [serverId]);
@@ -323,35 +324,21 @@ export function MembersView() {
     }
   }, [guilds]);
 
-  const handleAddClass = async () => {
+  const handleAddClass = () => {
     const name = newClassName.trim();
-    if (!name || !serverId) return;
-    if (classes.includes(name)) return;
-    // Optimistically update UI
-    setClasses(prev => [...prev, name]);
+    if (!name || classes.includes(name)) return;
+    saveClasses([...classes, name]);
     setNewClassName("");
     const icons = { ...classIcons, [name]: newClassIcon };
     saveClassIcons(icons);
     setNewClassIcon("Sword");
-    // Persist to database
-    const { error } = await supabase.from("member_classes").insert({ server_id: serverId, name });
-    if (error) {
-      setClasses(prev => prev.filter(c => c !== name));
-      console.error("Failed to add class:", error);
-    }
   };
 
-  const handleRemoveClass = async (name: string) => {
-    if (!serverId) return;
-    setClasses(prev => prev.filter(c => c !== name));
+  const handleRemoveClass = (name: string) => {
+    saveClasses(classes.filter(c => c !== name));
     const icons = { ...classIcons };
     delete icons[name];
     saveClassIcons(icons);
-    const { error } = await supabase.from("member_classes").delete().eq("server_id", serverId).eq("name", name);
-    if (error) {
-      setClasses(prev => [...prev, name]);
-      console.error("Failed to remove class:", error);
-    }
   };
 
   // Guild selection for add / bulk
