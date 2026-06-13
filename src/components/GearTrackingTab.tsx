@@ -686,9 +686,9 @@ export function GearTrackingTab() {
                         <div className="mt-2 pt-2 border-t border-[#27272a] flex items-center gap-2 shrink-0">
                           <span className="text-[10px] text-[#71717a]">Enhance:</span>
                           <input
-                            type="number" min={0} max={20} value={currentEnh}
+                            type="number" value={currentEnh}
                             onChange={e => setSlotEdit(slotId, currentItemId, parseInt(e.target.value) || 0)}
-                            className="w-16 px-2 py-1 bg-[#09090b] border border-[#27272a] rounded text-xs text-[#fafafa] text-center"
+                            className="w-16 px-2 py-1 bg-[#09090b] border border-[#27272a] rounded text-xs text-[#fafafa] text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                           />
                         </div>
                       )}
