@@ -96,7 +96,7 @@ export async function handleMessage(msg: any) {
   }
 
   // ✅ reaction
-  const validCmds = new Set(["list","nextspawn","spawn","killed","kill","editkilltime","forcespawn","forcespawnall","spawnall","commands","help","notifhere","cmdhere","threadhere","progresshere","party","updatestats","ping"]);
+  const validCmds = new Set(["list","nextspawn","spawn","killed","kill","editkilltime","forcespawn","forcespawnall","spawnall","commands","help","notifhere","cmdhere","threadhere","progresshere","party","updatestats","editstats","ping"]);
   if (validCmds.has(cmd)) {
     discordFetch(`https://discord.com/api/v10/channels/${channelId}/messages/${msg.id}/reactions/${encodeURIComponent("✅")}/@me`, {
       method: "PUT", headers: { Authorization: `Bot ${TOKEN}` },
@@ -109,12 +109,12 @@ export async function handleMessage(msg: any) {
     const cmdChannel = cfgRows?.[0]?.command_channel_id;
     if (cmdChannel && channelId !== cmdChannel && cmd !== "cmdhere" && cmd !== "notifhere" && cmd !== "threadhere" && cmd !== "progresshere" && cmd !== "forcespawn" && cmd !== "forcespawnall" && cmd !== "spawnall") {
       // Also allow progress-related commands in the progress channel
-      const progressCmds = new Set(["updatestats"]);
+      const progressCmds = new Set(["updatestats", "editstats"]);
       if (progressCmds.has(cmd)) {
         const progRows = await supabaseQuerySafe(`discord_configs?discord_guild_id=eq.${guildId}&command_prefix=eq.${encodeURIComponent(matchedPrefix)}&select=progress_channel_id`);
         const progChannel = progRows?.[0]?.progress_channel_id;
         if (!progChannel) {
-          return reply("⚠️ No progress channel configured. Use `!progresshere` in a channel to set it, then `!updatestats` will work there.");
+          return reply("⚠️ No progress channel configured. Use `!progresshere` in a channel to set it, then `!updatestats` and `!editstats` will work there.");
         }
         if (channelId !== progChannel) {
           // Check if this is a thread inside the progress channel
@@ -220,7 +220,7 @@ export async function handleMessage(msg: any) {
         body: JSON.stringify({ progress_channel_id: msg.channel_id }),
       });
     }
-    return reply("✅ Progress reports and `!updatestats` commands will now work in this channel. Use the **Demand Update** button on RaidScout to create progress threads here.");
+      return reply("✅ Progress reports, `!updatestats` and `!editstats` commands will now work in this channel. Use the **Demand Update** button on RaidScout to create progress threads here.");
   }
 
   // ── threadhere ──
@@ -357,7 +357,9 @@ export async function handleMessage(msg: any) {
       { name: `${p}commands${aliasNote("commands")}`, value: "Show this help", inline: false },
       { name: `${p}notifhere${aliasNote("notifhere")}`, value: "Set notification channel", inline: false },
       { name: `${p}cmdhere${aliasNote("cmdhere")}`, value: "Restrict commands to this channel", inline: false },
-      { name: `${p}progresshere${aliasNote("progresshere")}`, value: "Set progress report & !updatestats channel", inline: false },
+      { name: `${p}progresshere${aliasNote("progresshere")}`, value: "Set progress report, !updatestats & !editstats channel", inline: false },
+      { name: `${p}updatestats <Player> <CP>`, value: "Submit a CP update with screenshot", inline: false },
+      { name: `${p}editstats <Player> <CP>`, value: "Edit your last CP entry (requires new screenshot)", inline: false },
       { name: `${p}threadhere${aliasNote("threadhere")}`, value: "Set auto-thread channel", inline: false },
       { name: `${p}forcespawn <boss>`, value: "Force a boss to spawn", inline: false },
       { name: `${p}party <boss/activity>`, value: "Show party members for a boss/activity", inline: false },
@@ -991,6 +993,131 @@ export async function handleMessage(msg: any) {
       console.error("[bot] updatestats error:", err);
       await cmdLog(cmd, "fail", err.message);
       return reply(`❌ Error updating **${playerName}**: ${err.message}`);
+    }
+  }
+
+  // ── editstats <PlayerName> <CP> ──
+  if (cmd === "editstats") {
+    if (!serverId) { await cmdLog(cmd, "fail", "not linked"); return reply("⚠️ Not linked to RaidScout."); }
+    const remaining = args.slice(1);
+    const maybeCp = remaining[remaining.length - 1];
+    const rawCp = maybeCp.replace(/,/g, "").trim();
+    let cpValue: number;
+    if (/^\d+k$/i.test(rawCp)) {
+      cpValue = parseInt(rawCp.replace(/k/i, ""), 10) * 1000;
+    } else {
+      cpValue = parseInt(rawCp, 10);
+    }
+    if (isNaN(cpValue) || cpValue <= 0) {
+      await cmdLog(cmd, "fail", "invalid CP");
+      return reply("Usage: `!editstats PlayerName CP`\nExample: `!editstats PressX 120000`\n⚠️ You must attach a new screenshot as proof.");
+    }
+    remaining.pop();
+    const playerName = remaining.join(" ").trim();
+    if (!playerName) {
+      await cmdLog(cmd, "fail", "no player name");
+      return reply("Usage: `!editstats PlayerName CP`\nExample: `!editstats PressX 120000`");
+    }
+
+    // Require screenshot attachment
+    const editScreenshotUrl = msg.attachments?.length > 0 ? msg.attachments[0].url : null;
+    if (!editScreenshotUrl) {
+      await cmdLog(cmd, "fail", "no screenshot");
+      return reply("⚠️ You must attach a screenshot as proof when editing stats.\nUsage: `!editstats PlayerName CP` + attach image");
+    }
+
+    try {
+      let memberId: string | null = null;
+      let resolvedName = playerName;
+
+      // Fuzzy find member (same as updatestats)
+      let memberRows = await supabaseQuerySafe(
+        `members?server_id=eq.${serverId}&name=ilike.${encodeURIComponent(playerName)}&select=id,name,combat_power`
+      );
+      if (!memberRows?.length) {
+        memberRows = await supabaseQuerySafe(
+          `members?server_id=eq.${serverId}&name=ilike.${encodeURIComponent("%" + playerName + "%")}&select=id,name,combat_power&order=name&limit=26`
+        );
+      }
+
+      if (memberRows?.length === 1) {
+        memberId = memberRows[0].id;
+        resolvedName = memberRows[0].name;
+      } else if (memberRows && memberRows.length > 1 && memberRows.length <= 25) {
+        const names = memberRows.map((r: any) => `• **${r.name}**`).join("\n");
+        await cmdLog(cmd, "fail", "ambiguous name");
+        return reply(`⚠️ Multiple members match **"${playerName}"**:\n${names}\n\nPlease be more specific.`);
+      } else if (memberRows && memberRows.length > 25) {
+        await cmdLog(cmd, "fail", "too many matches");
+        return reply(`⚠️ Too many members match **"${playerName}"** (${memberRows.length} found). Please be more specific.`);
+      } else {
+        await cmdLog(cmd, "fail", "member not found");
+        return reply(`❌ Member **${playerName}** not found. Use \`!updatestats\` to create a new entry.`);
+      }
+
+      if (!memberId) {
+        await cmdLog(cmd, "fail", "could not find member");
+        return reply(`❌ Could not find member **${playerName}**.`);
+      }
+
+      // Find the most recent CP update for this member
+      const lastUpdate = await supabaseQuerySafe(
+        `cp_updates?member_id=eq.${memberId}&status=eq.approved&order=submitted_at.desc&limit=1&select=id,new_cp,submitted_at`
+      );
+
+      if (!lastUpdate?.length) {
+        await cmdLog(cmd, "fail", "no previous update");
+        return reply(`❌ No previous CP update found for **${resolvedName}**. Use \`!updatestats\` to submit a new one.`);
+      }
+
+      const updateId = lastUpdate[0].id;
+      const oldCpValue = lastUpdate[0].new_cp;
+
+      // Update the last CP entry with new value and screenshot
+      const patchBody: any = {
+        new_cp: cpValue,
+        old_cp: oldCpValue,
+        screenshot_url: editScreenshotUrl,
+        submitted_at: msg.timestamp || new Date().toISOString(),
+      };
+
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/cp_updates?id=eq.${updateId}`, {
+        method: "PATCH",
+        headers: {
+          apikey: SUPABASE_KEY!,
+          Authorization: `Bearer ${SUPABASE_KEY!}`,
+          "Content-Type": "application/json",
+          Prefer: "return=representation",
+        },
+        body: JSON.stringify(patchBody),
+      });
+
+      if (!res.ok) {
+        const errText = await res.text().catch(() => "");
+        console.error("[bot] editstats patch failed:", res.status, errText);
+        await cmdLog(cmd, "fail", `DB error ${res.status}`);
+        return reply(`❌ Failed to edit stats for **${resolvedName}**. Please try again.`);
+      }
+
+      // Also update member's combat_power
+      await fetch(`${SUPABASE_URL}/rest/v1/members?id=eq.${memberId}`, {
+        method: "PATCH",
+        headers: {
+          apikey: SUPABASE_KEY!,
+          Authorization: `Bearer ${SUPABASE_KEY!}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ combat_power: cpValue }),
+      });
+
+      const diff = cpValue - oldCpValue;
+      const diffStr = diff >= 0 ? `+${diff.toLocaleString()}` : diff.toLocaleString();
+      await cmdLog(cmd, "ok", `${resolvedName}: ${oldCpValue.toLocaleString()} → ${cpValue.toLocaleString()} (${diffStr})`);
+      return reply(`✅ **${resolvedName}** last CP entry edited: **${oldCpValue.toLocaleString()}** → **${cpValue.toLocaleString()}** (${diffStr})\n📸 New screenshot saved.`);
+    } catch (err: any) {
+      console.error("[bot] editstats error:", err);
+      await cmdLog(cmd, "fail", err.message);
+      return reply(`❌ Error editing **${playerName}**: ${err.message}`);
     }
   }
 }

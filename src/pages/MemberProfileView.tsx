@@ -164,6 +164,31 @@ export function MemberProfileView() {
     const acts = (profile.activity_attendance || []).filter((a: any) => new Date(a.created_at).getTime() >= cutoff).length;
     return hunts + acts;
   })();
+  const loot14d = (() => {
+    if (!profile) return 0;
+    const cutoff = Date.now() - 14 * 86400000;
+    return (profile.loot_history || []).filter((l: any) => new Date(l.distributed_at).getTime() >= cutoff).length;
+  })();
+  const loot3mo = (() => {
+    if (!profile) return 0;
+    const cutoff = Date.now() - 90 * 86400000;
+    return (profile.loot_history || []).filter((l: any) => new Date(l.distributed_at).getTime() >= cutoff).length;
+  })();
+  const loot6mo = (() => {
+    if (!profile) return 0;
+    const cutoff = Date.now() - 180 * 86400000;
+    return (profile.loot_history || []).filter((l: any) => new Date(l.distributed_at).getTime() >= cutoff).length;
+  })();
+  const loot1yr = (() => {
+    if (!profile) return 0;
+    const cutoff = Date.now() - 365 * 86400000;
+    return (profile.loot_history || []).filter((l: any) => new Date(l.distributed_at).getTime() >= cutoff).length;
+  })();
+  const loot2yr = (() => {
+    if (!profile) return 0;
+    const cutoff = Date.now() - 730 * 86400000;
+    return (profile.loot_history || []).filter((l: any) => new Date(l.distributed_at).getTime() >= cutoff).length;
+  })();
   const risks: string[] = useMemo(() => {
     if (!profile) return [];
     const r: string[] = [];
@@ -441,10 +466,16 @@ export function MemberProfileView() {
               <span className="text-[10px] text-[#52525b]">30d: <span className="text-[#a1a1aa]">{events30d}</span></span>
             </div>
           </div>
-          <div className="bg-[#09090b] rounded-lg p-3">
+          <div className="bg-[#09090b] rounded-lg p-3 col-span-2 sm:col-span-1">
             <p className="text-[10px] text-[#71717a] uppercase tracking-wider">Items Received</p>
             <p className="text-lg font-bold text-[#fafafa] mt-0.5">{profile.loot_count}</p>
-            {lastAttended && <p className="text-[10px] text-[#52525b]">{timeAgo(lastAttended)}</p>}
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-1">
+              <span className="text-[10px] text-[#52525b]">14d: <span className="text-[#a1a1aa]">{loot14d}</span></span>
+              <span className="text-[10px] text-[#52525b]">3mo: <span className="text-[#a1a1aa]">{loot3mo}</span></span>
+              <span className="text-[10px] text-[#52525b]">6mo: <span className="text-[#a1a1aa]">{loot6mo}</span></span>
+              <span className="text-[10px] text-[#52525b]">1yr: <span className="text-[#a1a1aa]">{loot1yr}</span></span>
+              <span className="text-[10px] text-[#52525b]">2yr: <span className="text-[#a1a1aa]">{loot2yr}</span></span>
+            </div>
           </div>
         </div>
 

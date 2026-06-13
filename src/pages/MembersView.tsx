@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useSearchParams, Link } from "react-router-dom";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { useMembers } from "@/hooks/useMembers";
 import { useAuth } from "@/contexts/AuthContext";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
@@ -64,11 +64,6 @@ export function MembersView() {
   const [cpModalSaving, setCpModalSaving] = useState(false);
   const [cpModalFocused, setCpModalFocused] = useState(false);
 
-  // Inline CP edit on Progress tab
-  const [editingCpId, setEditingCpId] = useState<string | null>(null);
-  const [editingCpValue, setEditingCpValue] = useState("");
-  const cpEditInputRef = useRef<HTMLInputElement>(null);
-
   // CP History modal
   const [historyMember, setHistoryMember] = useState<Member | null>(null);
   const [historyData, setHistoryData] = useState<CpUpdate[]>([]);
@@ -76,14 +71,6 @@ export function MembersView() {
   const [editingHistoryId, setEditingHistoryId] = useState<string | null>(null);
   const [editingHistoryCp, setEditingHistoryCp] = useState("");
   const [deletingHistoryId, setDeletingHistoryId] = useState<string | null>(null);
-
-  // Focus & select the inline CP input once when editing starts
-  useEffect(() => {
-    if (editingCpId && cpEditInputRef.current) {
-      cpEditInputRef.current.focus();
-      cpEditInputRef.current.select();
-    }
-  }, [editingCpId]);
 
   // Guilds
   const [guilds, setGuilds] = useState<Guild[]>([]);
@@ -99,18 +86,52 @@ export function MembersView() {
   const [progressSearch, setProgressSearch] = useState("");
   const [showClassCreator, setShowClassCreator] = useState(false);
 
-  // Sort state for guild member tables
-  const [sortColumn, setSortColumn] = useState<"name" | "cp" | "status">("name");
-  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  // Sort state for guild member tables (persisted in localStorage)
+  const sortKey = `members-sort-${serverId ?? "global"}`;
+  const [sortColumn, setSortColumn] = useState<"name" | "cp" | "growth" | "score" | "status">(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(sortKey) || "{}");
+      return saved.col || "name";
+    } catch { return "name"; }
+  });
+  const [sortDir, setSortDir] = useState<"asc" | "desc">(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(sortKey) || "{}");
+      return saved.dir || "asc";
+    } catch { return "asc"; }
+  });
 
-  const toggleSort = (col: "name" | "cp" | "status") => {
+  const toggleSort = (col: "name" | "cp" | "growth" | "score" | "status") => {
     if (sortColumn === col) {
-      setSortDir(d => d === "asc" ? "desc" : "asc");
+      setSortDir(d => {
+        const next = d === "asc" ? "desc" : "asc";
+        localStorage.setItem(sortKey, JSON.stringify({ col, dir: next }));
+        return next;
+      });
     } else {
+      const nextDir: "asc" | "desc" = col === "cp" || col === "growth" || col === "score" ? "desc" : "asc";
       setSortColumn(col);
-      setSortDir(col === "cp" ? "desc" : "asc");
+      setSortDir(nextDir);
+      localStorage.setItem(sortKey, JSON.stringify({ col, dir: nextDir }));
     }
   };
+
+  // Fetch member scores & growth from RPC
+  const { data: memberStats = {} } = useQuery<Record<string, { score: number; growth: number }>>({
+    queryKey: ["memberStats", serverId],
+    queryFn: async () => {
+      if (!serverId || !configured) return {};
+      const { data, error } = await supabase.rpc("get_member_scores", { p_server_id: serverId });
+      if (error || !data) return {};
+      const map: Record<string, { score: number; growth: number }> = {};
+      (data as { member_id: string; score: number; cp_growth_30d: number }[]).forEach(r => {
+        map[r.member_id] = { score: r.score, growth: r.cp_growth_30d ?? 0 };
+      });
+      return map;
+    },
+    staleTime: 120_000,
+    enabled: !!serverId && configured,
+  });
 
   // Fetch classes from DB
   useEffect(() => {
@@ -181,9 +202,20 @@ export function MembersView() {
   const [allPartyBoxes, setAllPartyBoxes] = useState<Record<string, string[][]>>({});
   const [unassignedSearch, setUnassignedSearch] = useState("");
   const [savingParties, setSavingParties] = useState(false);
-  const [membersTab, setMembersTab] = useState<"members" | "progress" | "parties" | "classes">(
-    isViewer ? "progress" : "members"
-  );
+  const tabParam = searchParams.get("tab");
+  const [membersTab, setMembersTabState] = useState<"members" | "progress" | "parties" | "classes">(() => {
+    if (tabParam === "members" || tabParam === "progress" || tabParam === "parties" || tabParam === "classes") {
+      return tabParam;
+    }
+    return isViewer ? "progress" : "members";
+  });
+
+  const setMembersTab = (tab: "members" | "progress" | "parties" | "classes") => {
+    setMembersTabState(tab);
+    const params = new URLSearchParams(searchParams);
+    params.set("tab", tab);
+    window.history.replaceState(null, "", `?${params.toString()}`);
+  };
 
   // Guild order for Progress tab (persisted in localStorage per server)
   const guildOrderKey = `guild-order-${serverId ?? "global"}`;
@@ -549,35 +581,6 @@ export function MembersView() {
       setCpModalError(e instanceof Error ? e.message : "Failed to update CP");
     } finally {
       setCpModalSaving(false);
-    }
-  };
-
-  // ── Inline CP Edit ────────────────────────────────────────
-  const startInlineCpEdit = (member: Member) => {
-    setEditingCpId(member.id);
-    setEditingCpValue(member.combat_power?.toString() ?? "");
-  };
-
-  const handleInlineCpSave = async (member: Member) => {
-    if (!serverId || editingCpId !== member.id) return;
-    const cp = parseInt(editingCpValue, 10);
-    if (!editingCpValue.trim() || isNaN(cp) || cp < 1) {
-      showToast("error", "Invalid CP value");
-      return;
-    }
-    setEditingCpId(null);
-    try {
-      await addBackdatedCpUpdate({
-        server_id: serverId,
-        member_id: member.id,
-        player_name: member.name,
-        new_cp: cp,
-        submitted_at: new Date().toISOString(),
-      });
-      showToast("success", `${member.name} CP → ${cp.toLocaleString()}`);
-      invalidate();
-    } catch (e) {
-      showToast("error", e instanceof Error ? e.message : "Failed to update CP");
     }
   };
 
@@ -1273,7 +1276,7 @@ export function MembersView() {
                   <thead>
                     <tr className="text-[10px] text-[#71717a] uppercase tracking-wider border-b border-[#27272a]/50">
                       <th className="text-left py-2.5 px-3 w-8"></th>
-                      <th className="text-left py-2.5 px-2 w-[60%] cursor-pointer select-none hover:text-[#a1a1aa] transition" onClick={() => toggleSort("name")}>
+                      <th className="text-left py-2.5 px-2 w-[47%] cursor-pointer select-none hover:text-[#a1a1aa] transition" onClick={() => toggleSort("name")}>
                         <span className="inline-flex items-center gap-1">
                           Member
                           {sortColumn === "name" && (
@@ -1281,7 +1284,7 @@ export function MembersView() {
                           )}
                         </span>
                       </th>
-                      <th className="text-right py-2.5 px-3 w-[13%] cursor-pointer select-none hover:text-[#a1a1aa] transition" onClick={() => toggleSort("cp")}>
+                      <th className="text-right py-2.5 px-2 w-[9%] cursor-pointer select-none hover:text-[#a1a1aa] transition" onClick={() => toggleSort("cp")}>
                         <span className="inline-flex items-center gap-1 justify-end">
                           <span className={sortColumn === "cp" ? "text-[#fafafa]" : ""}>Current CP</span>
                           {sortColumn === "cp" && (
@@ -1289,7 +1292,23 @@ export function MembersView() {
                           )}
                         </span>
                       </th>
-                      <th className="text-center py-2.5 px-2 w-[7%] cursor-pointer select-none hover:text-[#a1a1aa] transition" onClick={() => toggleSort("status")} title="Sort by CP status">
+                      <th className="text-right py-2.5 px-2 w-[7%] cursor-pointer select-none hover:text-[#a1a1aa] transition" onClick={() => toggleSort("growth")} title="30d CP growth">
+                        <span className="inline-flex items-center gap-1 justify-end">
+                          <span className={sortColumn === "growth" ? "text-[#fafafa]" : ""}>30d Growth</span>
+                          {sortColumn === "growth" && (
+                            sortDir === "asc" ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />
+                          )}
+                        </span>
+                      </th>
+                      <th className="text-center py-2.5 px-1 w-[7%] cursor-pointer select-none hover:text-[#a1a1aa] transition" onClick={() => toggleSort("score")} title="Sort by performance score">
+                        <span className="inline-flex items-center gap-1 justify-center">
+                          Score
+                          {sortColumn === "score" && (
+                            sortDir === "asc" ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />
+                          )}
+                        </span>
+                      </th>
+                      <th className="text-center py-2.5 px-2 w-[5%] cursor-pointer select-none hover:text-[#a1a1aa] transition" onClick={() => toggleSort("status")} title="Sort by CP status">
                         <span className="inline-flex items-center gap-1 justify-center">
                           Status
                           {sortColumn === "status" && (
@@ -1297,7 +1316,7 @@ export function MembersView() {
                           )}
                         </span>
                       </th>
-                      {canManageRaidMembers && <th className="text-right py-2.5 px-3 w-[10%]"></th>}
+                      {canManageRaidMembers && <th className="text-right py-2.5 px-3 w-[8%]"></th>}
                     </tr>
                   </thead>
                   <tbody>
@@ -1311,6 +1330,18 @@ export function MembersView() {
                           if (a.combat_power == null) return 1;
                           if (b.combat_power == null) return -1;
                           return dir * ((a.combat_power ?? 0) - (b.combat_power ?? 0));
+                        }
+                        if (sortColumn === "growth") {
+                          const aG = memberStats[a.id]?.growth ?? -999999;
+                          const bG = memberStats[b.id]?.growth ?? -999999;
+                          if (aG !== bG) return dir * (aG - bG);
+                          return a.name.localeCompare(b.name);
+                        }
+                        if (sortColumn === "score") {
+                          const aScore = memberStats[a.id]?.score ?? -1;
+                          const bScore = memberStats[b.id]?.score ?? -1;
+                          if (aScore !== bScore) return dir * (aScore - bScore);
+                          return a.name.localeCompare(b.name);
                         }
                         if (sortColumn === "status") {
                           const aHas = a.combat_power != null ? 1 : 0;
@@ -1330,37 +1361,31 @@ export function MembersView() {
                           </Link>
                         </td>
                         <td className="py-2.5 px-3 text-right font-mono text-sm align-middle">
-                          {canManageRaidMembers && editingCpId === m.id ? (
-                            <div className="flex items-center gap-1 justify-end">
-                              <input
-                                ref={cpEditInputRef}
-                                type="text"
-                                inputMode="numeric"
-                                value={editingCpValue}
-                                onChange={(e) => setEditingCpValue(e.target.value)}
-                                onKeyDown={(e) => { if (e.key === "Enter") handleInlineCpSave(m); if (e.key === "Escape") setEditingCpId(null); }}
-                                onBlur={() => handleInlineCpSave(m)}
-                                placeholder="e.g. 12500"
-                                className="w-24 px-2 py-1 bg-[#09090b] border border-[#a1a1aa] rounded text-sm text-[#fafafa] text-right focus:outline-none focus:border-[#fafafa] placeholder-[#52525b]"
-                              />
-                              <span className="text-[10px] text-[#52525b] shrink-0">Enter ↵</span>
-                            </div>
+                          <span className={m.combat_power != null ? "text-[#a1a1aa]" : "text-[#52525b]"}>
+                            {m.combat_power != null ? m.combat_power.toLocaleString() : "—"}
+                          </span>
+                        </td>
+                        <td className="py-2.5 px-3 text-right font-mono text-xs align-middle">
+                          {memberStats[m.id]?.growth != null && memberStats[m.id].growth !== 0 && m.combat_power != null ? (() => {
+                            const base = m.combat_power - memberStats[m.id].growth;
+                            if (base <= 0) return <span className="text-[#3f3f46]">—</span>;
+                            const pct = (memberStats[m.id].growth / base) * 100;
+                            const positive = memberStats[m.id].growth > 0;
+                            return (
+                              <span className={positive ? "text-green-400" : "text-red-400"}>
+                                {positive ? "+" : ""}{memberStats[m.id].growth.toLocaleString()}
+                                <span className="text-[#52525b] ml-0.5">({positive ? "+" : ""}{pct.toFixed(1)}%)</span>
+                              </span>
+                            );
+                          })() : (
+                            <span className="text-[#3f3f46]">—</span>
+                          )}
+                        </td>
+                        <td className="py-2.5 px-1 text-center font-mono text-xs align-middle">
+                          {memberStats[m.id]?.score != null ? (
+                            <span className={`font-bold ${memberStats[m.id].score >= 75 ? "text-green-400" : memberStats[m.id].score >= 50 ? "text-amber-400" : memberStats[m.id].score > 0 ? "text-red-400" : "text-[#52525b]"}`}>{memberStats[m.id].score}</span>
                           ) : (
-                            <div className="flex items-center gap-1.5 justify-end">
-                              <button
-                                type="button"
-                                onClick={() => canManageRaidMembers && startInlineCpEdit(m)}
-                                className={`group flex items-center gap-1 ${canManageRaidMembers ? "cursor-pointer" : ""}`}
-                                title={canManageRaidMembers ? "Click to edit CP" : undefined}
-                              >
-                                <span className={`${m.combat_power != null ? "text-[#a1a1aa]" : "text-[#52525b]"} group-hover:text-[#fafafa] border-b border-dashed border-[#52525b]/40 group-hover:border-[#a1a1aa] transition`}>
-                                  {m.combat_power != null ? m.combat_power.toLocaleString() : "—"}
-                                </span>
-                                {canManageRaidMembers && (
-                                  <Pencil className="w-3 h-3 text-[#52525b] group-hover:text-[#a1a1aa] transition shrink-0" />
-                                )}
-                              </button>
-                            </div>
+                            <span className="text-[#3f3f46]">—</span>
                           )}
                         </td>
                         <td className="py-2.5 px-2 text-center align-middle">
