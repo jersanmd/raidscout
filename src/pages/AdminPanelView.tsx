@@ -292,7 +292,7 @@ export function AdminPanelView() {
       {/* Tabs — desktop: all tabs inline; mobile: top-level + subtabs */}
 
       {/* Mobile: top-level tabs as bottom nav */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-[#09090b] border-t border-[#27272a] safe-area-bottom">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-[#09090b] border-t border-[#27272a]">
         <div className="flex items-center justify-around h-14 max-w-lg mx-auto">
           <button onClick={() => setTab("infra")} className={`flex flex-col items-center justify-center gap-0.5 px-2 py-1.5 min-w-[64px] rounded-lg transition-colors ${tab === "infra" ? "text-[#fafafa]" : "text-[#52525b]"}`}>
             <Radio className="w-5 h-5" />
