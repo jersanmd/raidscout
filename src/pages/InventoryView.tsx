@@ -11,7 +11,7 @@ import { useEscapeKey } from "@/hooks/useEscapeKey";
 import type { Item, Distribution, ItemRarity } from "@/types";
 import {
   Package, Plus, Trash2, Loader2, Search, Gift, History, BarChart3,
-  X, ChevronRight, ArrowLeft, Image, Star,
+  X, ChevronRight, ArrowLeft, Image, Star, Upload,
 } from "lucide-react";
 
 const RARITY_COLORS: Record<ItemRarity, string> = {
@@ -65,21 +65,64 @@ export function InventoryView() {
   const [newItemName, setNewItemName] = useState("");
   const [newItemDesc, setNewItemDesc] = useState("");
   const [newItemRarity, setNewItemRarity] = useState<ItemRarity>("common");
-  useEscapeKey(() => setShowCreateItem(false), showCreateItem);
+  const [newItemImage, setNewItemImage] = useState<File | null>(null);
+  const [newItemImagePreview, setNewItemImagePreview] = useState<string | null>(null);
+  const [imageDragOver, setImageDragOver] = useState(false);
+  useEscapeKey(() => { setShowCreateItem(false); resetCreateForm(); }, showCreateItem);
+
+  const resetCreateForm = () => {
+    setNewItemName("");
+    setNewItemDesc("");
+    setNewItemRarity("common");
+    setNewItemImage(null);
+    setNewItemImagePreview(null);
+  };
+
+  const handleImageFile = (file: File) => {
+    if (!file.type.startsWith("image/")) return;
+    setNewItemImage(file);
+    const reader = new FileReader();
+    reader.onload = () => setNewItemImagePreview(reader.result as string);
+    reader.readAsDataURL(file);
+  };
+
+  const handlePaste = async () => {
+    try {
+      const items = await navigator.clipboard.read();
+      for (const item of items) {
+        for (const type of item.types) {
+          if (type.startsWith("image/")) {
+            const blob = await item.getType(type);
+            const file = new File([blob], `pasted-image.${type.split("/")[1] || "png"}`, { type });
+            handleImageFile(file);
+            return;
+          }
+        }
+      }
+    } catch {
+      // Clipboard API not supported — user can use upload button instead
+    }
+  };
 
   const createItemMutation = useMutation({
-    mutationFn: () => createItem({
-      server_id: serverId!,
-      name: newItemName,
-      description: newItemDesc || undefined,
-      rarity: newItemRarity,
-    }),
+    mutationFn: async () => {
+      let imageUrl: string | undefined;
+      if (newItemImage && serverId) {
+        const { uploadItemImage: uploadItemImg } = await import("@/lib/supabase");
+        imageUrl = await uploadItemImg(serverId, newItemName || "item", newItemImage);
+      }
+      return createItem({
+        server_id: serverId!,
+        name: newItemName,
+        description: newItemDesc || undefined,
+        rarity: newItemRarity,
+        image_url: imageUrl,
+      });
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["items", serverId] });
       setShowCreateItem(false);
-      setNewItemName("");
-      setNewItemDesc("");
-      setNewItemRarity("common");
+      resetCreateForm();
     },
   });
 
@@ -343,11 +386,13 @@ export function InventoryView() {
 
       {/* ── Create Item Modal ── */}
       {showCreateItem && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setShowCreateItem(false)}>
-          <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-5 w-full max-w-sm mx-4" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => { setShowCreateItem(false); resetCreateForm(); }}>
+          <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-5 w-full max-w-sm mx-4" onClick={(e) => e.stopPropagation()}
+            onPaste={handlePaste}
+          >
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-sm font-semibold text-[#fafafa]">Create Item</h3>
-              <button onClick={() => setShowCreateItem(false)} className="text-[#52525b] hover:text-[#fafafa]"><X className="w-4 h-4" /></button>
+              <button onClick={() => { setShowCreateItem(false); resetCreateForm(); }} className="text-[#52525b] hover:text-[#fafafa]"><X className="w-4 h-4" /></button>
             </div>
             <div className="space-y-3">
               <div>
@@ -369,6 +414,55 @@ export function InventoryView() {
                   className="w-full mt-1 px-3 py-2 bg-[#09090b] border border-[#27272a] rounded-lg text-sm text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#52525b]"
                 />
               </div>
+
+              {/* Image Upload */}
+              <div>
+                <label className="text-[10px] text-[#71717a] uppercase tracking-wider">Image (optional)</label>
+                {newItemImagePreview ? (
+                  <div className="mt-1 relative rounded-lg overflow-hidden bg-[#09090b] border border-[#27272a]">
+                    <img src={newItemImagePreview} alt="Preview" className="w-full h-32 object-contain" />
+                    <button
+                      onClick={() => { setNewItemImage(null); setNewItemImagePreview(null); }}
+                      className="absolute top-1 right-1 p-1 rounded-full bg-black/60 text-[#fafafa] hover:bg-black/80 transition"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ) : (
+                  <div
+                    className={`mt-1 border-2 border-dashed rounded-lg p-4 text-center transition cursor-pointer ${
+                      imageDragOver ? "border-[#52525b] bg-[#27272a]/50" : "border-[#27272a] hover:border-[#3f3f46]"
+                    }`}
+                    onDragOver={(e) => { e.preventDefault(); setImageDragOver(true); }}
+                    onDragLeave={() => setImageDragOver(false)}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      setImageDragOver(false);
+                      const file = e.dataTransfer.files[0];
+                      if (file) handleImageFile(file);
+                    }}
+                    onClick={() => document.getElementById("item-image-upload")?.click()}
+                  >
+                    <Upload className="w-5 h-5 text-[#52525b] mx-auto mb-1" />
+                    <p className="text-[10px] text-[#52525b]">
+                      <span className="text-[#71717a] font-medium">Click to upload</span> or drag & drop
+                    </p>
+                    <p className="text-[9px] text-[#52525b]/50 mt-0.5">or <kbd className="px-1 py-0.5 rounded bg-[#27272a] text-[#71717a] text-[9px]">Ctrl+V</kbd> paste from clipboard</p>
+                  </div>
+                )}
+                <input
+                  id="item-image-upload"
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleImageFile(file);
+                    e.target.value = "";
+                  }}
+                />
+              </div>
+
               <div>
                 <label className="text-[10px] text-[#71717a] uppercase tracking-wider">Rarity</label>
                 <div className="flex gap-1.5 mt-1">

@@ -41,6 +41,7 @@ export {
   deleteGameIcon,
   uploadBossImage,
   uploadActivityImage,
+  uploadItemImage,
 } from "./api/games";
 
 // Templates

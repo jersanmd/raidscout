@@ -63,3 +63,14 @@ export async function uploadActivityImage(gameSlug: string, activityName: string
   const { data: { publicUrl } } = supabase.storage.from("game-icons").getPublicUrl(path);
   return publicUrl;
 }
+
+// ── Item Image Uploads ──────────────────────────────────────
+
+export async function uploadItemImage(serverId: string, itemName: string, file: File): Promise<string> {
+  const ext = file.name.split(".").pop() || "png";
+  const path = `items/${serverId}/${itemName.replace(/[^a-zA-Z0-9]/g, "_")}-${Date.now()}.${ext}`;
+  const { error } = await supabase.storage.from("game-icons").upload(path, file, { upsert: true });
+  if (error) throw error;
+  const { data: { publicUrl } } = supabase.storage.from("game-icons").getPublicUrl(path);
+  return publicUrl;
+}
