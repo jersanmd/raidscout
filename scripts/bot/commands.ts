@@ -974,7 +974,7 @@ export async function handleMessage(msg: any) {
 
       const screenshotNote = screenshotUrl ? " 📸 Screenshot saved." : "";
       const profileUrl = memberSlug ? `${SITE_URL}/m/${memberSlug}` : `${SITE_URL}/members/${memberId}`;
-      const profileLink = `🔗 [Click here to check your member page on RaidScout](${profileUrl})`;
+      const profileLink = `🔗 Click here to check your member page on RaidScout: <${profileUrl}>`;
       await cmdLog(cmd, "ok", `${resolvedName} → ${cpValue.toLocaleString()} CP`);
       return reply(`✅ **${resolvedName}** CP updated to **${cpValue.toLocaleString()}**.${screenshotNote}\n${profileLink}`);
     } catch (err: any) {
