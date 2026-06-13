@@ -245,8 +245,9 @@ export function useServerId(): string | null {
 export function useHasPermission(permission: keyof ModeratorPermissions): boolean {
   const { currentServer, permissions } = useServer();
   const { userRole } = useAuth();
+  if (userRole === "admin") return true;
   if (!currentServer) return false;
-  if (currentServer.role === "owner" || userRole === "admin") return true;
+  if (currentServer.role === "owner") return true;
   if (!permissions) return false;
   return permissions[permission] === true;
 }
