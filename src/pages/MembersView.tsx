@@ -306,8 +306,23 @@ export function MembersView() {
       .catch(() => setGuilds([]))
       .finally(() => setGuildsLoading(false));
     if (serverId) {
-      supabase.rpc("get_member_classes", { p_server_id: serverId })
-        .then(({ data }) => { if (data) setClasses(data as string[]); }, () => setClasses([]));
+      // Fetch classes from app_settings table directly (no RPC)
+      supabase.from("app_settings")
+        .select("value")
+        .eq("server_id", serverId)
+        .eq("key", "member_classes")
+        .maybeSingle()
+        .then(({ data }) => {
+          if (data?.value) {
+            try {
+              const parsed = typeof data.value === "string" ? JSON.parse(data.value) : data.value;
+              setClasses(parsed.classes || []);
+            } catch { setClasses([]); }
+          } else {
+            setClasses([]);
+          }
+        })
+        .catch(() => setClasses([]));
       fetchStaticParties(serverId).then(setParties).catch(() => setParties([]));
     }
   }, [serverId]);
@@ -319,31 +334,41 @@ export function MembersView() {
     }
   }, [guilds]);
 
+  // Helper: persist classes to app_settings table
+  const saveClassesToDb = async (classesArr: string[]) => {
+    if (!serverId) return;
+    try {
+      // Try upsert via delete + insert (avoids ON CONFLICT issues)
+      await supabase.from("app_settings").delete().eq("server_id", serverId).eq("key", "member_classes");
+      await supabase.from("app_settings").insert({
+        server_id: serverId,
+        key: "member_classes",
+        value: JSON.stringify({ classes: classesArr }),
+      });
+    } catch (err) {
+      console.error("Failed to save classes:", err);
+    }
+  };
+
   const handleAddClass = async () => {
     const name = newClassName.trim();
     if (!name || classes.includes(name)) return;
     const updated = [...classes, name];
     setClasses(updated);
     setNewClassName("");
-    // Save icon assignment
     const icons = { ...classIcons, [name]: newClassIcon };
     saveClassIcons(icons);
     setNewClassIcon("Sword");
-    if (serverId) {
-      await supabase.rpc("set_member_classes", { p_server_id: serverId, p_classes: updated });
-    }
+    saveClassesToDb(updated);
   };
 
   const handleRemoveClass = async (name: string) => {
     const updated = classes.filter(c => c !== name);
     setClasses(updated);
-    // Clean up icon
     const icons = { ...classIcons };
     delete icons[name];
     saveClassIcons(icons);
-    if (serverId) {
-      await supabase.rpc("set_member_classes", { p_server_id: serverId, p_classes: updated });
-    }
+    saveClassesToDb(updated);
   };
 
   // Guild selection for add / bulk
@@ -1074,7 +1099,7 @@ export function MembersView() {
                                 onChange={async (e) => {
                                   const cls = e.target.value || null;
                                   try {
-                                    await supabase.rpc("update_member_stats", { p_member_id: m.id, p_combat_power: m.combat_power ?? null, p_class: cls });
+                                    await supabase.from("members").update({ class: cls }).eq("id", m.id);
                                     invalidate();
                                   } catch {}
                                 }}
@@ -1200,7 +1225,7 @@ export function MembersView() {
                               onChange={async (e) => {
                                 const cls = e.target.value || null;
                                 try {
-                                  await supabase.rpc("update_member_stats", { p_member_id: member.id, p_combat_power: member.combat_power ?? null, p_class: cls });
+                                  await supabase.from("members").update({ class: cls }).eq("id", member.id);
                                   invalidate();
                                 } catch {}
                               }}
