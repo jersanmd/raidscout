@@ -65,17 +65,16 @@ export function MembersView() {
   };
   const [newClassName, setNewClassName] = useState("");
   const [newClassIcon, setNewClassIcon] = useState<string>("Sword");
-  const [newClassColor, setNewClassColor] = useState<string>("#a1a1aa");
   const [classSearch, setClassSearch] = useState("");
 
-  // Class icons — persisted in localStorage per server
-  const classIconsKey = `class-icons-${serverId ?? "global"}`;
-  const [classIcons, setClassIcons] = useState<Record<string, string>>(() => {
-    try { return JSON.parse(localStorage.getItem(classIconsKey) || "{}"); } catch { return {}; }
+  // Class colors — persisted in localStorage per server
+  const classColorsKey = `class-colors-${serverId ?? "global"}`;
+  const [classColors, setClassColors] = useState<Record<string, string>>(() => {
+    try { return JSON.parse(localStorage.getItem(classColorsKey) || "{}"); } catch { return {}; }
   });
-  const saveClassIcons = (icons: Record<string, string>) => {
-    setClassIcons(icons);
-    localStorage.setItem(classIconsKey, JSON.stringify(icons));
+  const saveClassColors = (colors: Record<string, string>) => {
+    setClassColors(colors);
+    localStorage.setItem(classColorsKey, JSON.stringify(colors));
   };
 
   // Class colors — persisted in localStorage per server
@@ -88,12 +87,28 @@ export function MembersView() {
     localStorage.setItem(classColorsKey, JSON.stringify(colors));
   };
 
-  // Color palette for class icons
+  // Auto-pick first unused color
   const CLASS_COLORS = [
     "#f87171", "#fb923c", "#fbbf24", "#a3e635", "#34d399",
     "#22d3ee", "#60a5fa", "#818cf8", "#c084fc", "#e879f9",
     "#f472b6", "#a1a1aa", "#fafafa", "#f59e0b", "#ef4444",
   ];
+  const nextColor = useMemo(() => {
+    const used = new Set(Object.values(classColors));
+    return CLASS_COLORS.find(c => !used.has(c)) || CLASS_COLORS[0];
+  }, [classColors]);
+  const [newClassColor, setNewClassColor] = useState<string>(nextColor);
+  useEffect(() => { setNewClassColor(nextColor); }, [nextColor]);
+
+  // Class icons — persisted in localStorage per server
+  const classIconsKey = `class-icons-${serverId ?? "global"}`;
+  const [classIcons, setClassIcons] = useState<Record<string, string>>(() => {
+    try { return JSON.parse(localStorage.getItem(classIconsKey) || "{}"); } catch { return {}; }
+  });
+  const saveClassIcons = (icons: Record<string, string>) => {
+    setClassIcons(icons);
+    localStorage.setItem(classIconsKey, JSON.stringify(icons));
+  };
 
   // Icon palette for classes
   const CLASS_ICONS: { name: string; icon: React.ElementType; label: string }[] = [
@@ -352,7 +367,6 @@ export function MembersView() {
     const colors = { ...classColors, [name]: newClassColor };
     saveClassColors(colors);
     setNewClassIcon("Sword");
-    setNewClassColor("#a1a1aa");
   };
 
   const handleRemoveClass = (name: string) => {
