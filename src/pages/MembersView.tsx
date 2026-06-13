@@ -7,7 +7,7 @@ import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { updateMemberName, deleteMember, upsertMember, isSupabaseConfigured, fetchGuilds, setMemberGuild, bulkAddMembers, supabase, fetchStaticParties, createParty, deleteParty, addMemberToParty, removeMemberFromParty, type StaticParty } from "@/lib/supabase";
 import { useServerId, useHasPermission } from "@/contexts/ServerContext";
 import type { Guild } from "@/types";
-import { Users, Plus, Pencil, Trash2, Loader2, X, Check, UserPlus, CheckCircle, AlertTriangle, Image, Upload, Copy, Shield, Search, ChevronLeft, ChevronRight, TrendingUp, ChevronUp, ChevronDown, Tag } from "lucide-react";
+import { Users, Plus, Pencil, Trash2, Loader2, X, Check, UserPlus, CheckCircle, AlertTriangle, Image, Upload, Copy, Shield, Search, ChevronLeft, ChevronRight, TrendingUp, ChevronUp, ChevronDown, Tag, Sword, Crosshair, Wand, Heart, Zap, Flame, Snowflake, Skull, Star, Crown, Anchor } from "lucide-react";
 import type { Member } from "@/types";
 import { guildColor } from "@/lib/constants";
 
@@ -57,6 +57,37 @@ export function MembersView() {
   // Classes — managed per server
   const [classes, setClasses] = useState<string[]>([]);
   const [newClassName, setNewClassName] = useState("");
+  const [newClassIcon, setNewClassIcon] = useState<string>("Sword");
+
+  // Class icons — persisted in localStorage per server
+  const classIconsKey = `class-icons-${serverId ?? "global"}`;
+  const [classIcons, setClassIcons] = useState<Record<string, string>>(() => {
+    try { return JSON.parse(localStorage.getItem(classIconsKey) || "{}"); } catch { return {}; }
+  });
+  const saveClassIcons = (icons: Record<string, string>) => {
+    setClassIcons(icons);
+    localStorage.setItem(classIconsKey, JSON.stringify(icons));
+  };
+
+  // Icon palette for classes
+  const CLASS_ICONS: { name: string; icon: React.ElementType; label: string }[] = [
+    { name: "Sword", icon: Sword, label: "Melee / Warrior" },
+    { name: "ShieldIcon", icon: Shield, label: "Tank / Defense" },
+    { name: "Crosshair", icon: Crosshair, label: "Ranger / Archer" },
+    { name: "Wand", icon: Wand, label: "Mage / Caster" },
+    { name: "Heart", icon: Heart, label: "Healer / Support" },
+    { name: "Zap", icon: Zap, label: "Elemental / Lightning" },
+    { name: "Flame", icon: Flame, label: "Fire / DPS" },
+    { name: "Snowflake", icon: Snowflake, label: "Ice / Control" },
+    { name: "SkullIcon", icon: Skull, label: "Dark / Necromancer" },
+    { name: "Star", icon: Star, label: "Rare / Special" },
+    { name: "Crown", icon: Crown, label: "Leader / Officer" },
+    { name: "Anchor", icon: Anchor, label: "Defense / Anchor" },
+  ];
+  const getClassIcon = (iconName: string) => {
+    const entry = CLASS_ICONS.find(c => c.name === iconName);
+    return entry ? entry.icon : Tag;
+  };
 
   // Static parties — drag & drop UI
   const [parties, setParties] = useState<StaticParty[]>([]);
@@ -285,6 +316,10 @@ export function MembersView() {
     const updated = [...classes, name];
     setClasses(updated);
     setNewClassName("");
+    // Save icon assignment
+    const icons = { ...classIcons, [name]: newClassIcon };
+    saveClassIcons(icons);
+    setNewClassIcon("Sword");
     if (serverId) {
       await supabase.rpc("set_member_classes", { p_server_id: serverId, p_classes: updated });
     }
@@ -293,6 +328,10 @@ export function MembersView() {
   const handleRemoveClass = async (name: string) => {
     const updated = classes.filter(c => c !== name);
     setClasses(updated);
+    // Clean up icon
+    const icons = { ...classIcons };
+    delete icons[name];
+    saveClassIcons(icons);
     if (serverId) {
       await supabase.rpc("set_member_classes", { p_server_id: serverId, p_classes: updated });
     }
@@ -923,13 +962,36 @@ export function MembersView() {
             {classes.length === 0 ? (
               <p className="text-sm text-[#52525b]">No classes defined yet. Add classes like Tank, Healer, DPS to organize members.</p>
             ) : (
-              classes.map(c => (
+              classes.map(c => {
+                const IconComp = getClassIcon(classIcons[c] || "Sword");
+                return (
                 <span key={c} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs bg-[#09090b] text-[#d4d4d8] border border-[#27272a]">
+                  <IconComp className="w-3 h-3 text-[#a1a1aa]" />
                   {c}
                   <button onClick={() => handleRemoveClass(c)} className="text-[#52525b] hover:text-[#f87171] transition"><X className="w-3 h-3" /></button>
                 </span>
-              ))
+                );
+              })
             )}
+          </div>
+          <div className="flex items-center gap-2 mb-3">
+            <div className="relative">
+              <button className="px-2.5 py-2 bg-[#09090b] border border-[#27272a] rounded-lg text-[#a1a1aa] hover:border-[#52525b] transition" title="Pick icon">
+                {(() => { const IIcon = getClassIcon(newClassIcon); return <IIcon className="w-4 h-4" />; })()}
+              </button>
+            </div>
+            <div className="flex flex-wrap gap-1">
+              {CLASS_ICONS.map(({ name, icon: IconComp, label }) => (
+                <button
+                  key={name}
+                  onClick={() => setNewClassIcon(name)}
+                  className={`p-1.5 rounded-md transition border ${newClassIcon === name ? "border-[#52525b] bg-[#27272a]" : "border-[#27272a] hover:border-[#3f3f46]"}`}
+                  title={label}
+                >
+                  <IconComp className={`w-3.5 h-3.5 ${newClassIcon === name ? "text-[#fafafa]" : "text-[#52525b]"}`} />
+                </button>
+              ))}
+            </div>
           </div>
           <div className="flex items-center gap-2">
             <input
@@ -1103,6 +1165,7 @@ export function MembersView() {
                         {/* Class selector */}
                         {editingId !== member.id && classes.length > 0 && (
                           <div className="flex items-center gap-1 sm:gap-1.5 text-[10px] sm:text-xs shrink-0">
+                            {member.class && classIcons[member.class] && (() => { const CIcon = getClassIcon(classIcons[member.class]); return <CIcon className="w-3 h-3 text-[#a1a1aa]" />; })()}
                             <select
                               value={member.class ?? ""}
                               onChange={async (e) => {
