@@ -51,8 +51,10 @@ export function MembersView() {
 
   // CP Reminder
   const [cpReminding, setCpReminding] = useState(false);
-  const [demandConfirming, setDemandConfirming] = useState(false);
+  const [demandModalOpen, setDemandModalOpen] = useState(false);
   const [demandConfirmText, setDemandConfirmText] = useState("");
+  const [discordConfigs, setDiscordConfigs] = useState<any[]>([]);
+  const [dcLoading, setDcLoading] = useState(false);
 
   // Backdated CP Update modal
   const [cpModalMember, setCpModalMember] = useState<Member | null>(null);
@@ -439,18 +441,33 @@ export function MembersView() {
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ["members", serverId] });
 
   // ── Demand CP Update ──────────────────────────────────────
-  const startDemandConfirm = () => {
-    setDemandConfirming(true);
+  const startDemandConfirm = async () => {
+    setDemandModalOpen(true);
     setDemandConfirmText("");
+    setDcLoading(true);
+    try {
+      // Fetch discord configs to check which ones have progress_channel_id
+      const { data } = await supabase
+        .from("discord_configs")
+        .select("id,label,discord_guild_id,progress_channel_id,notification_prefix")
+        .eq("raidscout_server_id", serverId);
+      setDiscordConfigs(data || []);
+    } catch {
+      setDiscordConfigs([]);
+    } finally {
+      setDcLoading(false);
+    }
   };
   const cancelDemandConfirm = () => {
-    setDemandConfirming(false);
+    setDemandModalOpen(false);
     setDemandConfirmText("");
+    setDiscordConfigs([]);
   };
   const executeDemandCpUpdate = async () => {
     if (!serverId || cpReminding) return;
-    setDemandConfirming(false);
+    setDemandModalOpen(false);
     setDemandConfirmText("");
+    setDiscordConfigs([]);
     setCpReminding(true);
     try {
       // First try creating a progress thread
@@ -1199,7 +1216,7 @@ export function MembersView() {
               className="w-full pl-8 pr-3 py-1.5 bg-[#18181b] border border-[#27272a] rounded-lg text-xs text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#52525b]"
             />
           </div>
-          {canManageRaidMembers && members.length > 0 && !demandConfirming && (
+          {canManageRaidMembers && members.length > 0 && (
             <button
               type="button"
               onClick={startDemandConfirm}
@@ -1213,39 +1230,6 @@ export function MembersView() {
               )}
               Demand Combat Power Update Now
             </button>
-          )}
-          {demandConfirming && (
-            <div className="flex items-center gap-2">
-              <input
-                type="text"
-                value={demandConfirmText}
-                onChange={(e) => setDemandConfirmText(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter" && demandConfirmText.toLowerCase() === "confirm") executeDemandCpUpdate(); if (e.key === "Escape") cancelDemandConfirm(); }}
-                placeholder="Type 'confirm' to proceed"
-                autoFocus
-                className="px-3 py-1.5 bg-[#09090b] border border-[#27272a] rounded-lg text-xs text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#fafafa] w-48"
-              />
-              <button
-                type="button"
-                onClick={executeDemandCpUpdate}
-                disabled={demandConfirmText.toLowerCase() !== "confirm" || cpReminding}
-                className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-green-600/20 border border-green-600/30 text-green-400 text-xs font-medium hover:bg-green-600/30 disabled:opacity-30 transition shrink-0"
-              >
-                {cpReminding ? (
-                  <span className="w-3 h-3 border-2 border-green-400/30 border-t-green-400 rounded-full animate-spin" />
-                ) : (
-                  <Megaphone className="w-3.5 h-3.5" />
-                )}
-                Confirm
-              </button>
-              <button
-                type="button"
-                onClick={cancelDemandConfirm}
-                className="px-3 py-1.5 rounded-lg text-xs text-[#a1a1aa] hover:text-[#fafafa] transition shrink-0"
-              >
-                Cancel
-              </button>
-            </div>
           )}
         </div>
 
@@ -1571,6 +1555,88 @@ export function MembersView() {
           </div>
         )}
       </div>
+      )}
+
+      {/* ── Demand CP Update Confirmation Modal ── */}
+      {demandModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={cancelDemandConfirm}>
+          <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-5 w-full max-w-md mx-4" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center gap-2 mb-4">
+              <Megaphone className="w-4 h-4 text-green-400" />
+              <h3 className="text-sm font-semibold text-[#fafafa]">Demand Combat Power Update</h3>
+              <button onClick={cancelDemandConfirm} className="ml-auto p-1 rounded text-[#52525b] hover:text-[#fafafa] transition">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {dcLoading ? (
+              <div className="flex items-center justify-center py-6">
+                <Loader2 className="w-5 h-5 text-[#52525b] animate-spin" />
+              </div>
+            ) : (
+              <>
+                {/* Discord servers with progress channel */}
+                {discordConfigs.filter((c: any) => c.progress_channel_id).length > 0 && (
+                  <div className="mb-3">
+                    <p className="text-[10px] text-[#71717a] uppercase tracking-wider mb-1.5">Will create threads in:</p>
+                    {discordConfigs.filter((c: any) => c.progress_channel_id).map((c: any) => (
+                      <div key={c.id} className="flex items-center gap-2 text-xs text-[#a1a1aa] py-1">
+                        <CheckCircle className="w-3.5 h-3.5 text-green-400 shrink-0" />
+                        <span className="text-[#fafafa]">{c.label || "Unknown"}</span>
+                        {c.notification_prefix && <span className="text-[10px] text-[#52525b]">({c.notification_prefix})</span>}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Discord servers WITHOUT progress channel — warning */}
+                {discordConfigs.filter((c: any) => !c.progress_channel_id).length > 0 && (
+                  <div className="mb-3 bg-amber-500/10 border border-amber-500/20 rounded-lg p-3">
+                    <p className="text-[10px] text-amber-400 font-medium uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                      <AlertTriangle className="w-3.5 h-3.5" />
+                      Will NOT receive threads:
+                    </p>
+                    {discordConfigs.filter((c: any) => !c.progress_channel_id).map((c: any) => (
+                      <div key={c.id} className="text-xs text-amber-300/80 py-0.5">
+                        • {c.label || "Unknown Discord server"} — use <code className="px-1 py-0.5 bg-amber-500/10 rounded text-[10px] text-amber-300">!progresshere</code> in their Discord
+                      </div>
+                    ))}
+                    <p className="text-[10px] text-amber-400/60 mt-1.5">Only servers with a progress channel configured will receive the update thread.</p>
+                  </div>
+                )}
+
+                {discordConfigs.length === 0 && (
+                  <p className="text-sm text-[#52525b] py-3 text-center">No Discord servers linked to this RaidScout server.</p>
+                )}
+
+                <div className="flex items-center gap-2 mt-3">
+                  <input
+                    type="text"
+                    value={demandConfirmText}
+                    onChange={(e) => setDemandConfirmText(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter" && demandConfirmText.toLowerCase() === "confirm") executeDemandCpUpdate(); if (e.key === "Escape") cancelDemandConfirm(); }}
+                    placeholder="Type 'confirm' to proceed"
+                    autoFocus
+                    className="flex-1 px-3 py-1.5 bg-[#09090b] border border-[#27272a] rounded-lg text-xs text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#fafafa]"
+                  />
+                  <button
+                    type="button"
+                    onClick={executeDemandCpUpdate}
+                    disabled={demandConfirmText.toLowerCase() !== "confirm" || cpReminding}
+                    className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-green-600/20 border border-green-600/30 text-green-400 text-xs font-medium hover:bg-green-600/30 disabled:opacity-30 transition shrink-0"
+                  >
+                    {cpReminding ? (
+                      <span className="w-3 h-3 border-2 border-green-400/30 border-t-green-400 rounded-full animate-spin" />
+                    ) : (
+                      <Megaphone className="w-3.5 h-3.5" />
+                    )}
+                    Confirm
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
       )}
 
       {/* Classes Tab — manage classes and assign to members */}
