@@ -7,13 +7,12 @@ ALTER TABLE public.members ADD COLUMN IF NOT EXISTS class TEXT;
 -- RPC: set member class list for a server
 CREATE OR REPLACE FUNCTION public.set_member_classes(
   p_server_id UUID,
-  p_classes TEXT[]
+  p_classes JSONB
 ) RETURNS void LANGUAGE plpgsql SECURITY DEFINER AS $$
 BEGIN
+  DELETE FROM public.app_settings WHERE server_id = p_server_id AND key = 'member_classes';
   INSERT INTO public.app_settings (server_id, key, value)
-  VALUES (p_server_id, 'member_classes', jsonb_build_object('classes', p_classes))
-  ON CONFLICT (server_id, key)
-  DO UPDATE SET value = jsonb_build_object('classes', p_classes);
+  VALUES (p_server_id, 'member_classes', jsonb_build_object('classes', p_classes));
 END; $$;
 
 -- RPC: get member class list for a server
