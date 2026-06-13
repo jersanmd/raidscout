@@ -278,7 +278,7 @@ export function AdminPanelView() {
         </div>
       </div>
 
-      <div className="w-full max-w-7xl mx-auto px-3 sm:px-4 py-4 sm:py-6 space-y-4 sm:space-y-6 flex-1 overflow-x-hidden min-w-0">
+      <div className="w-full max-w-7xl mx-auto px-3 sm:px-4 py-4 sm:py-6 space-y-4 sm:space-y-6 flex-1 overflow-x-hidden min-w-0 pb-16 md:pb-0">
       <div className="flex items-center gap-3">
         <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-[#18181b] border border-[#27272a]">
           <Shield className="w-5 h-5 text-[#fafafa]" />
@@ -291,25 +291,31 @@ export function AdminPanelView() {
 
       {/* Tabs — desktop: all tabs inline; mobile: top-level + subtabs */}
 
-      {/* Mobile: top-level tabs */}
-      <div className="flex md:hidden flex-wrap bg-[#18181b] rounded-lg p-0.5 gap-0.5">
-        <button onClick={() => setTab("infra")} className={`flex items-center justify-center gap-1.5 px-2.5 py-2 rounded-md text-xs font-medium transition whitespace-nowrap shrink-0 ${tab === "infra" ? "bg-[#27272a] text-[#fafafa]" : "text-[#a1a1aa] hover:text-[#e4e4e7]"}`}>
-          <Radio className="w-3.5 h-3.5" /> Infra
-        </button>
-        <button onClick={() => setTab("games")} className={`flex items-center justify-center gap-1.5 px-2.5 py-2 rounded-md text-xs font-medium transition whitespace-nowrap shrink-0 ${tab === "games" ? "bg-[#27272a] text-[#fafafa]" : "text-[#a1a1aa] hover:text-[#e4e4e7]"}`}>
-          <Gamepad2 className="w-3.5 h-3.5" /> Games
-        </button>
-        <button onClick={() => { setTab("servers"); setServerSubtab("servers"); }} className={`flex items-center justify-center gap-1.5 px-2.5 py-2 rounded-md text-xs font-medium transition whitespace-nowrap shrink-0 ${tab === "servers" || tab === "database" || tab === "cron" || tab === "deleted" ? "bg-[#27272a] text-[#fafafa]" : "text-[#a1a1aa] hover:text-[#e4e4e7]"}`}>
-          <Server className="w-3.5 h-3.5" /> Servers
-        </button>
-        <button onClick={() => setTab("owners")} className={`flex items-center justify-center gap-1.5 px-2.5 py-2 rounded-md text-xs font-medium transition whitespace-nowrap shrink-0 ${tab === "owners" || tab === "users" || tab === "audit" ? "bg-[#27272a] text-[#fafafa]" : "text-[#a1a1aa] hover:text-[#e4e4e7]"}`}>
-          <ClipboardList className="w-3.5 h-3.5" /> Owners Audit
-        </button>
-      </div>
+      {/* Mobile: top-level tabs as bottom nav */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-[#09090b]/95 backdrop-blur-xl border-t border-[#27272a] safe-area-bottom">
+        <div className="flex items-center justify-around h-14 max-w-lg mx-auto">
+          <button onClick={() => setTab("infra")} className={`flex flex-col items-center justify-center gap-0.5 px-2 py-1.5 min-w-[64px] rounded-lg transition-colors ${tab === "infra" ? "text-[#fafafa]" : "text-[#52525b]"}`}>
+            <Radio className="w-5 h-5" />
+            <span className="text-[10px] font-medium">Infra</span>
+          </button>
+          <button onClick={() => setTab("games")} className={`flex flex-col items-center justify-center gap-0.5 px-2 py-1.5 min-w-[64px] rounded-lg transition-colors ${tab === "games" ? "text-[#fafafa]" : "text-[#52525b]"}`}>
+            <Gamepad2 className="w-5 h-5" />
+            <span className="text-[10px] font-medium">Games</span>
+          </button>
+          <button onClick={() => { setTab("servers"); setServerSubtab("servers"); }} className={`flex flex-col items-center justify-center gap-0.5 px-2 py-1.5 min-w-[64px] rounded-lg transition-colors ${tab === "servers" || tab === "database" || tab === "cron" || tab === "deleted" ? "text-[#fafafa]" : "text-[#52525b]"}`}>
+            <Server className="w-5 h-5" />
+            <span className="text-[10px] font-medium">Servers</span>
+          </button>
+          <button onClick={() => setTab("owners")} className={`flex flex-col items-center justify-center gap-0.5 px-2 py-1.5 min-w-[64px] rounded-lg transition-colors ${tab === "owners" || tab === "users" || tab === "audit" ? "text-[#fafafa]" : "text-[#52525b]"}`}>
+            <ClipboardList className="w-5 h-5" />
+            <span className="text-[10px] font-medium">Audit</span>
+          </button>
+        </div>
+      </nav>
 
-      {/* Mobile: Servers subtabs */}
+      {/* Mobile: Servers subtabs (shown above content when Servers is active) */}
       {(tab === "servers" || tab === "database" || tab === "cron" || tab === "deleted") && (
-        <div className="flex md:hidden flex-wrap bg-[#18181b]/50 rounded-lg p-0.5 gap-0.5 -mt-1">
+        <div className="flex md:hidden flex-wrap bg-[#18181b]/50 rounded-lg p-0.5 gap-0.5 mb-3">
           <button onClick={() => { setTab("servers"); setServerSubtab("servers"); }} className={`px-2.5 py-1.5 rounded-md text-[10px] font-medium transition whitespace-nowrap ${tab === "servers" ? "bg-[#27272a] text-[#fafafa]" : "text-[#71717a] hover:text-[#d4d4d8]"}`}>
             Servers ({servers.length})
           </button>
