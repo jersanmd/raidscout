@@ -9,6 +9,8 @@ import {
   fetchItemCatalog, createItemCatalogItem, deleteItemCatalogItem, updateItemCatalogItem, uploadItemCatalogImage,
   fetchItemCategories, createItemCategory, deleteItemCategory, updateItemCategory,
   fetchItemRarities, createItemRarity, deleteItemRarity, updateItemRarity,
+  fetchGearSlots, createGearSlot, deleteGearSlot, updateGearSlot,
+  fetchGearSlotCategories, assignGearSlotCategory, removeGearSlotCategory,
 } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
@@ -20,7 +22,7 @@ import { BossImage } from "@/components/BossImage";
 import {
   Loader2, Plus, Trash2, Pencil, ChevronDown, ChevronUp,
   Gamepad2, Skull, Calendar, Package, Save, X, Image, Search,
-  Tags, Palette, Upload,
+  Tags, Palette, Upload, Shield,
 } from "lucide-react";
 
 type Game = { id: string; name: string; slug: string; icon_url?: string | null; supported_spawn_types: string[]; created_at: string };
@@ -36,6 +38,7 @@ const TABS = [
   { key: "categories", icon: Tags, label: "Categories" },
   { key: "rarities", icon: Palette, label: "Rarities" },
   { key: "items", icon: Package, label: "Items" },
+  { key: "gear", icon: Shield, label: "Gear Template" },
 ] as const;
 
 export function AdminGamesTab() {
@@ -76,6 +79,17 @@ export function AdminGamesTab() {
   const [showAddRar, setShowAddRar] = useState(false);
   const [editingRar, setEditingRar] = useState<Partial<ItemRarity> | null>(null);
 
+  // ── Gear Template ──
+  const [gearSlots, setGearSlots] = useState<Record<string, any[]>>({});
+  const [gearSlotCats, setGearSlotCats] = useState<Record<string, any[]>>({});
+  const [newSlot, setNewSlot] = useState({ name: "" });
+  const [editingSlot, setEditingSlot] = useState<any | null>(null);
+  const [assignCatForSlot, setAssignCatForSlot] = useState<string | null>(null);
+  const [assignCatId, setAssignCatId] = useState("");
+  const [showAddSlot, setShowAddSlot] = useState(false);
+  const [dragSlotId, setDragSlotId] = useState<string | null>(null);
+  const [dragOverSlotId, setDragOverSlotId] = useState<string | null>(null);
+
   const { data: games = [], isLoading } = useQuery({ queryKey: ["admin", "games"], queryFn: fetchGames, staleTime: 10_000, enabled: userRole === "admin" });
   const [bossTemplates, setBossTemplates] = useState<Record<string, BossTemplate[]>>({});
   const [activityTemplates, setActivityTemplates] = useState<Record<string, ActivityTemplate[]>>({});
@@ -91,12 +105,21 @@ export function AdminGamesTab() {
         gameSlug ? fetchItemCatalog(gameSlug).catch(() => []) : Promise.resolve([]),
         gameSlug ? fetchItemCategories(gameSlug).catch(() => []) : Promise.resolve([]),
         gameSlug ? fetchItemRarities(gameSlug).catch(() => []) : Promise.resolve([]),
-      ]).then(([bosses, activities, items, cats, rars]) => {
+        gameSlug ? fetchGearSlots(gameSlug).catch(() => []) : Promise.resolve([]),
+      ]).then(([bosses, activities, items, cats, rars, slots]) => {
         setBossTemplates(p => ({ ...p, [expandedGame]: bosses }));
         setActivityTemplates(p => ({ ...p, [expandedGame]: activities }));
         setItemCatalog(p => ({ ...p, [expandedGame]: items }));
         setCategories(p => ({ ...p, [expandedGame]: cats }));
         setRarities(p => ({ ...p, [expandedGame]: rars }));
+        setGearSlots(p => ({ ...p, [expandedGame]: slots }));
+        // Fetch assigned categories for each slot
+        Promise.all(slots.map((s: any) => fetchGearSlotCategories(s.id).catch(() => [])))
+          .then(cats => {
+            const catMap: Record<string, any[]> = {};
+            slots.forEach((s: any, i: number) => { catMap[s.id] = cats[i] || []; });
+            setGearSlotCats(catMap);
+          });
         setLoadingTemplates(false);
       });
     }
@@ -114,12 +137,21 @@ export function AdminGamesTab() {
       s ? fetchItemCatalog(s).catch(() => []) : Promise.resolve([]),
       s ? fetchItemCategories(s).catch(() => []) : Promise.resolve([]),
       s ? fetchItemRarities(s).catch(() => []) : Promise.resolve([]),
-    ]).then(([bosses, activities, items, cats, rars]) => {
+      s ? fetchGearSlots(s).catch(() => []) : Promise.resolve([]),
+    ]).then(([bosses, activities, items, cats, rars, slots]) => {
       setBossTemplates(p => ({ ...p, [expandedGame]: bosses }));
       setActivityTemplates(p => ({ ...p, [expandedGame]: activities }));
       setItemCatalog(p => ({ ...p, [expandedGame]: items }));
       setCategories(p => ({ ...p, [expandedGame]: cats }));
       setRarities(p => ({ ...p, [expandedGame]: rars }));
+      setGearSlots(p => ({ ...p, [expandedGame]: slots }));
+      // Re-fetch categories for each slot
+      Promise.all(slots.map((sl: any) => fetchGearSlotCategories(sl.id).catch(() => [])))
+        .then(catsArr => {
+          const catMap: Record<string, any[]> = {};
+          slots.forEach((sl: any, i: number) => { catMap[sl.id] = catsArr[i] || []; });
+          setGearSlotCats(catMap);
+        });
     });
   };
 
@@ -181,6 +213,45 @@ export function AdminGamesTab() {
     if (!editingRar?.id || !editingRar.name?.trim()) return;
     await updateItemRarity(editingRar.id, { name: editingRar.name.trim(), color: editingRar.color, sort_order: editingRar.sort_order });
     setEditingRar(null); refreshTemplates();
+  };
+
+  // ── Gear Slot Handlers ──
+  const handleCreateSlot = async (e: React.FormEvent) => {
+    e.preventDefault(); if (!newSlot.name.trim() || !expandedGame) return;
+    const maxOrder = (gearSlots[expandedGame] || []).reduce((max, s) => Math.max(max, s.sort_order), 0);
+    await createGearSlot({ game: slug(), name: newSlot.name.trim(), sort_order: maxOrder + 1 });
+    setNewSlot({ name: "" }); refreshTemplates();
+  };
+  const handleUpdateSlot = async () => {
+    if (!editingSlot?.id || !editingSlot.name?.trim()) return;
+    await updateGearSlot(editingSlot.id, { name: editingSlot.name.trim(), sort_order: editingSlot.sort_order });
+    setEditingSlot(null); refreshTemplates();
+  };
+  const handleCreateSubclass = async (slotId: string) => {
+    if (!assignCatId) return;
+    try {
+      await assignGearSlotCategory(slotId, assignCatId);
+      setAssignCatForSlot(null); setAssignCatId(""); refreshTemplates();
+    } catch (err: any) {
+      if (err?.message?.includes("duplicate") || err?.code === "23505") {
+        alert("This category is already assigned to this slot.");
+      }
+    }
+  };
+  const moveSlot = async (fromId: string, toId: string) => {
+    const slots = [...(gearSlots[expandedGame!] || [])].sort((a: any, b: any) => a.sort_order - b.sort_order);
+    const fromIdx = slots.findIndex((s: any) => s.id === fromId);
+    const toIdx = slots.findIndex((s: any) => s.id === toId);
+    if (fromIdx < 0 || toIdx < 0 || fromIdx === toIdx) return;
+
+    // Remove from old position, insert at new position
+    const [moved] = slots.splice(fromIdx, 1);
+    slots.splice(toIdx, 0, moved);
+
+    // Reassign sort_order sequentially
+    const updates = slots.map((s: any, i: number) => updateGearSlot(s.id, { sort_order: i + 1 }));
+    await Promise.all(updates);
+    refreshTemplates();
   };
 
   if (isLoading) return <div className="flex justify-center py-10"><Loader2 className="w-6 h-6 animate-spin text-[#a1a1aa]" /></div>;
@@ -249,6 +320,7 @@ export function AdminGamesTab() {
                           categories: categories[game.id]?.length || 0,
                           rarities: rarities[game.id]?.length || 0,
                           items: itemCatalog[game.id]?.length || 0,
+                          gear: gearSlots[game.id]?.length || 0,
                         };
                         return (
                           <button key={t.key} onClick={() => setExpandedTab(t.key)}
@@ -337,6 +409,111 @@ export function AdminGamesTab() {
                           )}
                           <div className="space-y-1">{(itemCatalog[game.id]||[]).filter(it=>!itemSearch||it.name.toLowerCase().includes(itemSearch.toLowerCase())).map((it:ItemCatalogItem)=>{const isEditing=editingItem?.id===it.id;const rarityObj=(rarities[game.id]||[]).find(r=>r.name===it.rarity);const rarityColor=rarityObj?.color||"#71717a";const cat=(categories[game.id]||[]).find(c=>c.id===it.category_id);const catParent=cat?.parent_id?(categories[game.id]||[]).find(c=>c.id===cat.parent_id):null;const catLabel=cat?(catParent?`${catParent.name} → ${cat.name}`:cat.name):null;return(<div key={it.id} className="bg-[#18181b]/30 rounded overflow-hidden"><div className="flex items-center justify-between px-3 py-2 text-sm"><div className="flex items-center gap-2 min-w-0">{it.image_url?<img src={it.image_url} alt={it.name} className="w-5 h-5 rounded object-cover border border-[#27272a]" style={{backgroundColor:rarityColor+"20"}}/>:<Package className="w-4 h-4 text-[#52525b]"/>}<span className="text-[#fafafa] truncate">{it.name}</span><span className="text-[10px] px-1.5 py-0.5 rounded font-medium shrink-0" style={{backgroundColor:rarityColor+"20",color:rarityColor,border:`1px solid ${rarityColor}40`}}>{it.rarity}</span>{catLabel&&<span className="text-[10px] text-[#52525b] truncate hidden sm:inline">{catLabel}</span>}</div><div className="flex items-center gap-1 shrink-0"><button onClick={()=>setEditingItem(isEditing?null:{id:it.id,name:it.name,rarity:it.rarity,description:it.description,image_url:it.image_url,category_id:it.category_id})} className="p-1 text-[#52525b] hover:text-[#d4d4d8]"><Pencil className="w-3 h-3"/></button><button onClick={()=>setDeleteConfirm({type:"item",id:it.id,name:it.name,gameName:game.name})} className="p-1 text-[#52525b] hover:text-[#f87171]"><Trash2 className="w-3 h-3"/></button></div></div><div className={`transition-all duration-300 ease-in-out ${isEditing?"max-h-[500px] opacity-100":"max-h-0 opacity-0"}`}>{isEditing&&editingItem&&(<div className="bg-[#18181b] border-t border-[#27272a] p-3 space-y-2"><div className="grid grid-cols-2 gap-2"><div className="col-span-2"><label className="block text-[10px] text-[#a1a1aa] mb-1">Name</label><input value={editingItem.name||""} onChange={e=>setEditingItem(p=>({...p,name:e.target.value}))} className="w-full px-2.5 py-1.5 bg-[#18181b] border border-[#27272a] rounded text-xs text-[#fafafa] focus:outline-none focus:border-[#52525b]"/></div><div><label className="block text-[10px] text-[#a1a1aa] mb-1">Category</label><select value={editingItem.category_id||""} onChange={e=>setEditingItem(p=>({...p,category_id:e.target.value||undefined}))} className="w-full px-2 py-1.5 bg-[#18181b] border border-[#27272a] rounded text-xs text-[#fafafa] focus:outline-none focus:border-[#52525b]"><option value="">None</option>{(categories[game.id]||[]).filter(c=>!c.parent_id).map(cat=>(<option key={cat.id} value={cat.id}>{cat.name}</option>))}</select>{(categories[game.id]||[]).filter(c=>c.parent_id&&c.parent_id===editingItem.category_id).length>0&&<select value={editingItem.category_id||""} onChange={e=>setEditingItem(p=>({...p,category_id:e.target.value||undefined}))} className="w-full mt-1 px-2 py-1.5 bg-[#18181b] border border-[#27272a] rounded text-xs text-[#fafafa] focus:outline-none focus:border-[#52525b]"><option value={editingItem.category_id||""}>-- Select --</option>{(categories[game.id]||[]).filter(c=>c.parent_id===editingItem.category_id).map(sub=><option key={sub.id} value={sub.id}>{sub.name}</option>)}</select>}</div><div><label className="block text-[10px] text-[#a1a1aa] mb-1">Rarity</label><select value={editingItem.rarity||"common"} onChange={e=>setEditingItem(p=>({...p,rarity:e.target.value}))} className="w-full px-2 py-1.5 bg-[#18181b] border border-[#27272a] rounded text-xs text-[#fafafa] focus:outline-none focus:border-[#52525b]">{(rarities[game.id]||[]).map(r=><option key={r.id} value={r.name}>{r.name}</option>)}{(rarities[game.id]||[]).length===0&&<option value="common">Common</option>}</select></div><div><label className="block text-[10px] text-[#a1a1aa] mb-1">Image URL</label><input value={editingItem.image_url||""} onChange={e=>setEditingItem(p=>({...p,image_url:e.target.value}))} placeholder="https://…" className="w-full px-2.5 py-1.5 bg-[#18181b] border border-[#27272a] rounded text-xs text-[#fafafa] placeholder-[#52525b] focus:outline-none focus:border-[#52525b]"/></div><div className="col-span-2"><label className="block text-[10px] text-[#a1a1aa] mb-1">Description</label><input value={editingItem.description||""} onChange={e=>setEditingItem(p=>({...p,description:e.target.value}))} className="w-full px-2.5 py-1.5 bg-[#18181b] border border-[#27272a] rounded text-xs text-[#fafafa] focus:outline-none focus:border-[#52525b]"/></div></div><div className="flex items-center gap-2"><button onClick={handleUpdateItem} className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded bg-[#fafafa] hover:bg-[#e4e4e7] text-[#09090b] transition"><Save className="w-3 h-3"/> Save</button><button onClick={()=>setEditingItem(null)} className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded bg-[#27272a] hover:bg-[#3f3f46] text-[#d4d4d8] transition"><X className="w-3 h-3"/> Cancel</button></div></div>)}</div></div>)})}
                             {(!itemCatalog[game.id]||itemCatalog[game.id].length===0)&&<p className="text-xs text-[#52525b] py-2">No items in catalog yet.</p>}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* === GEAR TEMPLATE TAB === */}
+                      {expandedTab === "gear" && (
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between gap-2">
+                            <h4 className="text-xs font-semibold text-[#d4d4d8]">Gear Slots ({(gearSlots[game.id]||[]).length})</h4>
+                            <button onClick={() => { setShowAddSlot(true); setNewSlot({ name: "" }); }} className="flex items-center gap-1 px-2 py-1 text-xs font-medium rounded bg-[#27272a] hover:bg-[#3f3f46] text-[#d4d4d8] transition shrink-0"><Plus className="w-3 h-3"/> Add Slot</button>
+                          </div>
+                          {/* Add Slot Form */}
+                          {showAddSlot && (
+                            <form onSubmit={e => { e.preventDefault(); handleCreateSlot(e); setShowAddSlot(false); }} className="bg-[#18181b]/50 border border-[#27272a] rounded-lg p-3 space-y-2">
+                              <div className="flex items-center justify-between"><span className="text-xs font-medium text-[#fafafa]">New Slot</span><button type="button" onClick={() => setShowAddSlot(false)} className="text-[#71717a] hover:text-[#fafafa]"><X className="w-3.5 h-3.5"/></button></div>
+                              <div className="flex gap-2">
+                                <input value={newSlot.name} onChange={e => setNewSlot({ name: e.target.value })} required placeholder="Slot name (e.g. Helm)" className="flex-1 px-2.5 py-1.5 bg-[#18181b] border border-[#27272a] rounded text-xs text-[#fafafa] placeholder-[#52525b] focus:outline-none focus:border-[#52525b]" autoFocus />
+                                <button type="submit" disabled={!newSlot.name.trim()} className="px-3 py-1.5 text-xs font-medium rounded bg-[#fafafa] hover:bg-[#e4e4e7] text-[#09090b] transition disabled:opacity-50"><Save className="w-3 h-3"/></button>
+                              </div>
+                            </form>
+                          )}
+                          <div className="space-y-1">
+                            {(gearSlots[game.id]||[]).sort((a:any,b:any)=>a.sort_order-b.sort_order).map((slot: any) => {
+                              const cats = (gearSlotCats[slot.id] || []).map((gc: any) => gc.category);
+                              const isEditing = editingSlot?.id === slot.id;
+                              const isDragOver = dragOverSlotId === slot.id;
+                              const slotIdx = (gearSlots[game.id]||[]).sort((a:any,b:any)=>a.sort_order-b.sort_order).findIndex((s:any)=>s.id===slot.id);
+                              const totalSlots = (gearSlots[game.id]||[]).length;
+                              return (
+                                <div
+                                  key={slot.id}
+                                  draggable
+                                  onDragStart={() => setDragSlotId(slot.id)}
+                                  onDragOver={e => { e.preventDefault(); setDragOverSlotId(slot.id); }}
+                                  onDragLeave={() => setDragOverSlotId(p => p === slot.id ? null : p)}
+                                  onDrop={() => { if (dragSlotId && dragSlotId !== slot.id) moveSlot(dragSlotId, slot.id); setDragSlotId(null); setDragOverSlotId(null); }}
+                                  onDragEnd={() => { setDragSlotId(null); setDragOverSlotId(null); }}
+                                  className={`bg-[#18181b]/30 rounded overflow-hidden transition cursor-grab active:cursor-grabbing ${isDragOver ? 'ring-1 ring-[#fafafa]/30' : ''} ${dragSlotId === slot.id ? 'opacity-40' : ''}`}
+                                >
+                                  <div className="flex items-center justify-between px-3 py-2 text-sm">
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-[10px] text-[#52525b] w-4 text-right tabular-nums">{slot.sort_order}</span>
+                                      <Shield className="w-3.5 h-3.5 text-[#52525b]" />
+                                      <span className="text-[#fafafa]">{slot.name}</span>
+                                      <span className="text-[10px] text-[#52525b]">({cats.length} categories)</span>
+                                    </div>
+                                    <div className="flex items-center gap-1">
+                                      <div className="flex flex-col -space-y-px mr-1">
+                                        {slotIdx > 0 && <button onClick={() => { const prev = (gearSlots[game.id]||[]).sort((a:any,b:any)=>a.sort_order-b.sort_order)[slotIdx-1]; if (prev) moveSlot(slot.id, prev.id); }} className="p-0.5 text-[#52525b] hover:text-[#d4d4d8] leading-none" title="Move up"><ChevronUp className="w-3 h-3"/></button>}
+                                        {slotIdx < totalSlots - 1 && <button onClick={() => { const next = (gearSlots[game.id]||[]).sort((a:any,b:any)=>a.sort_order-b.sort_order)[slotIdx+1]; if (next) moveSlot(slot.id, next.id); }} className="p-0.5 text-[#52525b] hover:text-[#d4d4d8] leading-none" title="Move down"><ChevronDown className="w-3 h-3"/></button>}
+                                      </div>
+                                      <button onClick={() => { setAssignCatForSlot(assignCatForSlot === slot.id ? null : slot.id); setAssignCatId(""); }} className="p-1 text-[#52525b] hover:text-emerald-400 transition" title="Assign category"><Plus className="w-3 h-3"/></button>
+                                      <button onClick={() => setEditingSlot(isEditing ? null : { id: slot.id, name: slot.name, sort_order: slot.sort_order })} className="p-1 text-[#52525b] hover:text-[#d4d4d8]"><Pencil className="w-3 h-3"/></button>
+                                      <button onClick={async () => { if (confirm(`Delete "${slot.name}" and all its assignments?`)) { await deleteGearSlot(slot.id); refreshTemplates(); } }} className="p-1 text-[#52525b] hover:text-[#f87171]"><Trash2 className="w-3 h-3"/></button>
+                                    </div>
+                                  </div>
+                                  {/* Edit Slot */}
+                                  {isEditing && editingSlot && (
+                                    <div className="bg-[#18181b] border-t border-[#27272a] p-3 space-y-2">
+                                      <div className="flex gap-2">
+                                        <input value={editingSlot.name || ""} onChange={e => setEditingSlot((p: any) => ({ ...p, name: e.target.value }))} className="flex-1 px-2.5 py-1.5 bg-[#18181b] border border-[#27272a] rounded text-xs text-[#fafafa] focus:outline-none focus:border-[#52525b]"/>
+                                        <button onClick={handleUpdateSlot} className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded bg-[#fafafa] hover:bg-[#e4e4e7] text-[#09090b] transition"><Save className="w-3 h-3"/> Save</button>
+                                      </div>
+                                    </div>
+                                  )}
+                                  {/* Assigned Categories */}
+                                  {cats.length > 0 && (
+                                    <div className="border-t border-[#27272a] px-3 py-1.5 flex items-center gap-1.5 flex-wrap">
+                                      {cats.map((cat: any) => (
+                                        <span key={cat.id} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-[#27272a] text-[10px] text-[#d4d4d8]">
+                                          {cat.parent_id ? <><span className="text-[#52525b]">{cat.parent?.name} →</span> </> : null}
+                                          {cat.name}
+                                          <button onClick={async () => {
+                                            const gc = (gearSlotCats[slot.id] || []).find((g: any) => g.category_id === cat.id);
+                                            if (gc) { await removeGearSlotCategory(gc.id); refreshTemplates(); }
+                                          }} className="text-[#52525b] hover:text-[#f87171]"><X className="w-2.5 h-2.5"/></button>
+                                        </span>
+                                      ))}
+                                    </div>
+                                  )}
+                                  {/* Assign Category Form */}
+                                  {assignCatForSlot === slot.id && (
+                                    <div className="bg-[#18181b] border-t border-[#27272a] p-2 flex gap-2">
+                                      <select value={assignCatId} onChange={e => setAssignCatId(e.target.value)} className="flex-1 px-2 py-1 bg-[#18181b] border border-[#27272a] rounded text-xs text-[#fafafa] focus:outline-none focus:border-[#52525b]">
+                                        <option value="">-- Select category --</option>
+                                        {(categories[game.id]||[]).filter(c => !c.parent_id).map(cat => {
+                                          const subs = (categories[game.id]||[]).filter(c => c.parent_id === cat.id && !cats.some((ac:any) => ac.id === c.id));
+                                          if (subs.length === 0) return null;
+                                          return (
+                                          <optgroup key={cat.id} label={cat.name}>
+                                            {subs.map(sub => (
+                                              <option key={sub.id} value={sub.id}>{sub.name}</option>
+                                            ))}
+                                          </optgroup>
+                                        )})}
+                                      </select>
+                                      <button onClick={() => handleCreateSubclass(slot.id)} disabled={!assignCatId} className="px-2 py-1 text-xs font-medium rounded bg-[#fafafa] hover:bg-[#e4e4e7] text-[#09090b] transition disabled:opacity-50"><Plus className="w-3 h-3"/></button>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                            {(!gearSlots[game.id] || gearSlots[game.id].length === 0) && (
+                              <p className="text-xs text-[#52525b] py-2">No gear slots defined. Add a slot like "Helm" or "Weapon" to get started.</p>
+                            )}
                           </div>
                         </div>
                       )}

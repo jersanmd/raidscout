@@ -55,6 +55,13 @@ export {
   createItemRarity,
   deleteItemRarity,
   updateItemRarity,
+  fetchGearSlots,
+  createGearSlot,
+  deleteGearSlot,
+  updateGearSlot,
+  fetchGearSlotCategories,
+  assignGearSlotCategory,
+  removeGearSlotCategory,
 } from "./api/games";
 
 // Templates

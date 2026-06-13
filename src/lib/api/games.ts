@@ -236,3 +236,65 @@ export async function updateItemRarity(rarityId: string, updates: {
     .eq("id", rarityId);
   if (error) throw error;
 }
+
+// ── Gear Slots (Admin — game-level) ──────────────────────
+
+export async function fetchGearSlots(gameSlug: string): Promise<any[]> {
+  const { data, error } = await supabase
+    .from("gear_slots")
+    .select("*")
+    .eq("game", gameSlug)
+    .order("sort_order");
+  if (error) throw error;
+  return data || [];
+}
+
+export async function createGearSlot(slot: { game: string; name: string; sort_order?: number }): Promise<any> {
+  const { data, error } = await supabase
+    .from("gear_slots")
+    .insert({ game: slot.game, name: slot.name.trim(), sort_order: slot.sort_order ?? 0 })
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function deleteGearSlot(slotId: string): Promise<void> {
+  const { error } = await supabase.from("gear_slots").delete().eq("id", slotId);
+  if (error) throw error;
+}
+
+export async function updateGearSlot(slotId: string, updates: { name?: string; sort_order?: number }): Promise<void> {
+  const { error } = await supabase
+    .from("gear_slots")
+    .update(updates)
+    .eq("id", slotId);
+  if (error) throw error;
+}
+
+// ── Gear Slot Categories (junction: slot ↔ item_categories) ──
+
+export async function fetchGearSlotCategories(slotId: string): Promise<any[]> {
+  const { data, error } = await supabase
+    .from("gear_slot_categories")
+    .select("id, slot_id, category_id, created_at, category:category_id(id, name, parent_id, parent:parent_id(name))")
+    .eq("slot_id", slotId)
+    .order("created_at");
+  if (error) throw error;
+  return data || [];
+}
+
+export async function assignGearSlotCategory(slotId: string, categoryId: string): Promise<any> {
+  const { data, error } = await supabase
+    .from("gear_slot_categories")
+    .insert({ slot_id: slotId, category_id: categoryId })
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function removeGearSlotCategory(assignmentId: string): Promise<void> {
+  const { error } = await supabase.from("gear_slot_categories").delete().eq("id", assignmentId);
+  if (error) throw error;
+}

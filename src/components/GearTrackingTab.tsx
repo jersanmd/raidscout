@@ -8,6 +8,9 @@ import type { Member, Guild } from "@/types";
 import {
   Package, Plus, Pencil, Trash2, X, Check, Loader2, Search,
   ChevronDown, Shield, Tag, Star, TrendingUp, ChevronUp,
+  Sword, Swords, HandMetal, ShieldHalf, ShieldCheck, Gavel, Axe,
+  Crosshair, Target, Wand, Heart, Zap, Flame, Snowflake, Skull,
+  Crown, Anchor, Footprints,
 } from "lucide-react";
 import { guildColor } from "@/lib/constants";
 // ── Default T&L Template ──
@@ -33,6 +36,34 @@ const RARITY_SCORE: Record<string, number> = {
   common: 1,
 };
 
+const CLASS_ICONS: { name: string; icon: React.ElementType }[] = [
+  { name: "Sword", icon: Sword },
+  { name: "Swords", icon: Swords },
+  { name: "HandMetal", icon: HandMetal },
+  { name: "ShieldIcon", icon: Shield },
+  { name: "ShieldHalf", icon: ShieldHalf },
+  { name: "ShieldCheck", icon: ShieldCheck },
+  { name: "Gavel", icon: Gavel },
+  { name: "Axe", icon: Axe },
+  { name: "Crosshair", icon: Crosshair },
+  { name: "Target", icon: Target },
+  { name: "Wand", icon: Wand },
+  { name: "Heart", icon: Heart },
+  { name: "Zap", icon: Zap },
+  { name: "Flame", icon: Flame },
+  { name: "Snowflake", icon: Snowflake },
+  { name: "SkullIcon", icon: Skull },
+  { name: "Star", icon: Star },
+  { name: "Crown", icon: Crown },
+  { name: "Anchor", icon: Anchor },
+  { name: "Footprints", icon: Footprints },
+];
+
+const getClassIcon = (iconName: string): React.ElementType => {
+  const entry = CLASS_ICONS.find(c => c.name === iconName);
+  return entry ? entry.icon : Tag;
+};
+
 type GearSlot = { category: string; slots: string[] };
 type CatalogItem = { id: string; guild_id: string; name: string; category: string; rarity: string; image_url?: string; description?: string };
 type MemberGear = { id: string; member_id: string; slot_id: string; catalog_item_id: string | null; enhancement_level: number; catalog_item?: CatalogItem };
@@ -54,6 +85,64 @@ export function GearTrackingTab() {
   const [savingGear, setSavingGear] = useState(false);
   const [toast, setToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const [memberSearch, setMemberSearch] = useState("");
+  const [openSlotPicker, setOpenSlotPicker] = useState<string | null>(null);
+  const [pickerSearch, setPickerSearch] = useState("");
+  const [classIcons, setClassIcons] = useState<Record<string, string>>({});
+  const [classColors, setClassColors] = useState<Record<string, string>>({});
+  const [sortCol, setSortCol] = useState<string | null>(null);
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+
+  const toggleSort = (col: string) => {
+    if (sortCol === col) {
+      setSortDir(d => d === "asc" ? "desc" : "asc");
+    } else {
+      setSortCol(col);
+      setSortDir("asc");
+    }
+  };
+
+  // Sort members by current column
+  const sortMembers = (membersArr: Member[]): Member[] => {
+    if (!sortCol) return membersArr;
+    const dir = sortDir === "asc" ? 1 : -1;
+    return [...membersArr].sort((a, b) => {
+      if (sortCol === "name") {
+        return dir * a.name.localeCompare(b.name);
+      }
+      if (sortCol === "cp") {
+        const acp = a.combat_power ?? 0;
+        const bcp = b.combat_power ?? 0;
+        return dir * (acp - bcp);
+      }
+      // Gear slot sort: filled first, then by enhancement + rarity score
+      const ga = gearForMember(a.id)[sortCol];
+      const gb = gearForMember(b.id)[sortCol];
+      const ia = ga?.catalog_item_id ? 1 : 0;
+      const ib = gb?.catalog_item_id ? 1 : 0;
+      if (ia !== ib) return dir * (ib - ia); // filled first
+      if (!ia && !ib) return 0;
+      const scoreA = (ga?.enhancement_level ?? 0) + (RARITY_SCORE[itemCatalogItems.find((c: any) => c.id === ga?.catalog_item_id)?.rarity?.toLowerCase()] || catalog.find(c => c.id === ga?.catalog_item_id)?.rarity ? RARITY_SCORE[(catalog.find(c => c.id === ga?.catalog_item_id)?.rarity || "common").toLowerCase()] : 0);
+      const scoreB = (gb?.enhancement_level ?? 0) + (RARITY_SCORE[itemCatalogItems.find((c: any) => c.id === gb?.catalog_item_id)?.rarity?.toLowerCase()] || catalog.find(c => c.id === gb?.catalog_item_id)?.rarity ? RARITY_SCORE[(catalog.find(c => c.id === gb?.catalog_item_id)?.rarity || "common").toLowerCase()] : 0);
+      return dir * (scoreB - scoreA);
+    });
+  };
+
+  // Fetch class data for icons & colors
+  useEffect(() => {
+    if (!serverId) return;
+    supabase.from("server_classes")
+      .select("name, icon, color")
+      .eq("server_id", serverId)
+      .then(({ data }) => {
+        if (data) {
+          const icons: Record<string, string> = {};
+          const colors: Record<string, string> = {};
+          data.forEach((r: any) => { icons[r.name] = r.icon; colors[r.name] = r.color; });
+          setClassIcons(icons);
+          setClassColors(colors);
+        }
+      });
+  }, [serverId]);
 
   // ── Queries ──
   const { data: guilds = [] } = useQuery<Guild[]>({
@@ -95,16 +184,28 @@ export function GearTrackingTab() {
   const { data: template } = useQuery<{ slots: GearSlot[] } | null>({
     queryKey: ["gearTemplate", serverId],
     queryFn: async () => {
-      const { data } = await supabase.from("gear_templates").select("slots").eq("server_id", serverId).order("created_at").limit(1).single();
-      if (!data) {
-        // Auto-create default T&L template
-        if (canManage) {
-          await supabase.from("gear_templates").insert({ server_id: serverId, name: "Throne & Liberty", slots: DEFAULT_TL_TEMPLATE });
-          return { slots: DEFAULT_TL_TEMPLATE };
+      // Get server's game slug
+      const { data: server } = await supabase.from("servers").select("game, game_id").eq("id", serverId).single();
+      const gameSlug = server?.game;
+
+      if (gameSlug) {
+        // Fetch game-level gear slots from admin config
+        const { data: gearSlots } = await supabase
+          .from("gear_slots")
+          .select("*")
+          .eq("game", gameSlug)
+          .order("sort_order");
+
+        if (gearSlots && gearSlots.length > 0) {
+          // Convert flat slots to categorized GearSlot[] format
+          return {
+            slots: [{ category: "Equipment", slots: gearSlots.map((s: any) => s.name) }],
+          };
         }
-        return null;
       }
-      return data;
+
+      // Fallback: default T&L template
+      return { slots: DEFAULT_TL_TEMPLATE };
     },
     enabled: !!serverId && configured,
   });
@@ -156,6 +257,63 @@ export function GearTrackingTab() {
     });
     return map;
   }, [catalog]);
+
+  // ── Item Catalog items for gear slots (game-level) ──
+  const { data: itemCatalogItems = [] } = useQuery<any[]>({
+    queryKey: ["itemCatalogForGear", serverId],
+    queryFn: async () => {
+      const { data: server } = await supabase.from("servers").select("game, game_id").eq("id", serverId).single();
+      const gameSlug = server?.game;
+      if (!gameSlug) return [];
+      const { data } = await supabase.from("items").select("*").eq("game", gameSlug).order("name");
+      return data || [];
+    },
+    enabled: !!serverId && configured,
+  });
+
+  const { data: slotCategoryMap = {} } = useQuery<Record<string, string[]>>({
+    queryKey: ["gearSlotCategories", serverId],
+    queryFn: async () => {
+      const { data: server } = await supabase.from("servers").select("game, game_id").eq("id", serverId).single();
+      const gameSlug = server?.game;
+      if (!gameSlug) return {};
+      // Get all gear slots for this game
+      const { data: slots } = await supabase.from("gear_slots").select("id, name").eq("game", gameSlug);
+      if (!slots?.length) return {};
+      // Get all category assignments
+      const { data: assignments } = await supabase
+        .from("gear_slot_categories")
+        .select("slot_id, category_id")
+        .in("slot_id", slots.map((s: any) => s.id));
+      // Build map: slot_name → category_id[]
+      const map: Record<string, string[]> = {};
+      const slotNameById: Record<string, string> = {};
+      slots.forEach((s: any) => { slotNameById[s.id] = s.name; });
+      (assignments || []).forEach((a: any) => {
+        const name = slotNameById[a.slot_id];
+        if (name) {
+          if (!map[name]) map[name] = [];
+          map[name].push(a.category_id);
+        }
+      });
+      return map;
+    },
+    enabled: !!serverId && configured,
+  });
+
+  // Items available per slot based on assigned categories
+  const itemsBySlot = useMemo(() => {
+    const map: Record<string, any[]> = {};
+    allSlotIds.forEach(slotName => {
+      const catIds = slotCategoryMap[slotName];
+      if (catIds?.length) {
+        map[slotName] = itemCatalogItems.filter((item: any) => catIds.includes(item.category_id));
+      } else {
+        map[slotName] = [];
+      }
+    });
+    return map;
+  }, [allSlotIds, slotCategoryMap, itemCatalogItems]);
 
   const filteredCatalog = useMemo(() => {
     if (!searchCatalog.trim()) return catalog;
@@ -253,20 +411,46 @@ export function GearTrackingTab() {
     const gear = gearForMember(m.id);
     const summary = gearSummaries[m.id];
     return (
-      <tr key={m.id} className="border-b border-[#27272a]/30 hover:bg-[#09090b]/30 transition">
-        <td className="py-2 px-3 sticky left-0 bg-[#18181b] z-10 font-medium text-[#fafafa]">{m.name}</td>
+      <tr key={m.id} className="group border-b border-[#27272a]/30 hover:bg-[#09090b]/30 transition">
+        <td className="py-2 px-3 sticky left-0 bg-[#18181b] group-hover:bg-[#131316] z-10 transition-colors">
+          <div className="flex items-center gap-1.5">
+            {m.class && classIcons[m.class] ? (() => {
+              const CIcon = getClassIcon(classIcons[m.class]);
+              const cc = classColors[m.class] || "#a1a1aa";
+              return <CIcon className="w-3.5 h-3.5 shrink-0" style={{ color: cc }} />;
+            })() : null}
+            <span className="font-medium text-[#fafafa]">{m.name}</span>
+          </div>
+          {m.class && (
+            <span className="block text-[10px] ml-[22px] -mt-0.5" style={{ color: classColors[m.class] || "#71717a" }}>{m.class}</span>
+          )}
+        </td>
+        <td className="py-1.5 px-2 text-center text-xs text-[#a1a1aa] font-mono tabular-nums">
+          {m.combat_power ? m.combat_power.toLocaleString() : <span className="text-[#3f3f46]">—</span>}
+        </td>
         {allSlotIds.map(slotId => {
           const g = gear[slotId];
-          const item = g?.catalog_item;
-          const rarityColor = item ? RARITY_COLORS[item.rarity] || "#a1a1aa" : undefined;
+          // Prefer FK-embedded catalog_item, fallback to itemCatalogItems lookup
+          let item = g?.catalog_item;
+          if (!item && g?.catalog_item_id) {
+            item = itemCatalogItems.find((c: any) => c.id === g.catalog_item_id) || catalog.find(c => c.id === g.catalog_item_id);
+          }
+          const rarityColor = item ? RARITY_COLORS[item.rarity?.toLowerCase()] || "#a1a1aa" : undefined;
+          const enh = g?.enhancement_level ?? 0;
           return (
             <td key={slotId} className="py-1.5 px-2 text-center">
               {item ? (
-                <div className="flex flex-col items-center">
-                  <span className="text-[11px] font-medium" style={{ color: rarityColor }}>{item.name}</span>
-                  {(g?.enhancement_level ?? 0) > 0 && (
-                    <span className="text-[10px] text-[#a1a1aa]">+{g.enhancement_level}</span>
-                  )}
+                <div className="flex items-center justify-center">
+                  <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 relative" style={{ backgroundColor: `${rarityColor}18` }}>
+                    {item.image_url ? (
+                      <img src={item.image_url} alt={item.name} className="w-8 h-8 rounded object-cover" />
+                    ) : (
+                      <Star className="w-5 h-5" style={{ color: rarityColor }} />
+                    )}
+                    {enh > 0 && (
+                      <span className="absolute right-0 bottom-1.5 text-[9px] font-black text-white bg-gradient-to-t from-black/20 to-transparent rounded-bl-lg rounded-tr-lg pl-1.5 pr-1 pt-1 pb-0.5 leading-none drop-shadow-[0_1px_1px_rgba(0,0,0,0.5)]">+{enh}</span>
+                    )}
+                  </div>
                 </div>
               ) : (
                 <span className="text-[10px] text-[#3f3f46]">—</span>
@@ -274,23 +458,6 @@ export function GearTrackingTab() {
             </td>
           );
         })}
-        <td className="py-2 px-2 text-center font-mono text-xs">
-          <span className={summary ? "text-[#a1a1aa]" : "text-[#3f3f46]"}>
-            {summary?.gear_score ?? "—"}
-          </span>
-        </td>
-        <td className="py-2 px-2 text-center">
-          {summary ? (
-            <div className="flex items-center gap-1 justify-center">
-              <div className="w-12 h-1.5 bg-[#27272a] rounded-full overflow-hidden">
-                <div className="h-full bg-green-500 rounded-full" style={{ width: `${summary.completion_pct}%` }} />
-              </div>
-              <span className="text-[10px] text-[#a1a1aa]">{summary.completion_pct}%</span>
-            </div>
-          ) : (
-            <span className="text-[10px] text-[#3f3f46]">—</span>
-          )}
-        </td>
       </tr>
     );
   };
@@ -317,62 +484,6 @@ export function GearTrackingTab() {
         </div>
       )}
 
-      {/* ── Gear Catalog Management ── */}
-      {canManage && (
-        <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-4">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-semibold text-[#fafafa] flex items-center gap-2">
-              <Package className="w-4 h-4 text-[#a1a1aa]" />
-              Gear Catalog
-            </h3>
-            <button
-              onClick={() => setShowAddItem(!showAddItem)}
-              className="flex items-center gap-1 px-2.5 py-1 rounded-md bg-[#27272a] text-[#a1a1aa] text-xs hover:bg-[#3f3f46] hover:text-[#fafafa] transition"
-            >
-              <Plus className="w-3 h-3" />
-              Add Item
-            </button>
-          </div>
-
-          {showAddItem && (
-            <div className="flex flex-wrap gap-2 mb-3 p-3 bg-[#09090b] rounded-lg">
-              <input value={newItem.name} onChange={e => setNewItem(p => ({ ...p, name: e.target.value }))} placeholder="Item name" className="flex-1 min-w-[140px] px-2 py-1.5 bg-[#18181b] border border-[#27272a] rounded text-xs text-[#fafafa] placeholder-[#52525b]" />
-              <select value={newItem.category} onChange={e => setNewItem(p => ({ ...p, category: e.target.value }))} className="px-2 py-1.5 bg-[#18181b] border border-[#27272a] rounded text-xs text-[#a1a1aa]">
-                <option value="">Category</option>
-                {allSlotIds.map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
-              <select value={newItem.rarity} onChange={e => setNewItem(p => ({ ...p, rarity: e.target.value }))} className="px-2 py-1.5 bg-[#18181b] border border-[#27272a] rounded text-xs text-[#a1a1aa]">
-                <option value="legendary">Legendary (10pts)</option>
-                <option value="epic">Epic (5pts)</option>
-                <option value="rare">Rare (3pts)</option>
-                <option value="uncommon">Uncommon (2pts)</option>
-                <option value="common">Common (1pt)</option>
-              </select>
-              <button onClick={addCatalogItem} disabled={!newItem.name.trim() || !newItem.category.trim()} className="px-3 py-1.5 bg-green-600 text-white text-xs rounded hover:bg-green-500 disabled:opacity-40 transition">Add</button>
-            </div>
-          )}
-
-          <div className="relative mb-2">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#71717a]" />
-            <input value={searchCatalog} onChange={e => setSearchCatalog(e.target.value)} placeholder="Search catalog..." className="w-full pl-8 pr-3 py-1.5 bg-[#09090b] border border-[#27272a] rounded text-xs text-[#fafafa] placeholder-[#52525b]" />
-          </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 max-h-64 overflow-y-auto">
-            {filteredCatalog.map(item => (
-              <div key={item.id} className="flex items-center justify-between bg-[#09090b] rounded-lg px-2.5 py-1.5 group">
-                <div className="min-w-0">
-                  <span className="text-xs font-medium truncate block" style={{ color: RARITY_COLORS[item.rarity] || "#a1a1aa" }}>{item.name}</span>
-                  <span className="text-[9px] text-[#52525b]">{item.category}</span>
-                </div>
-                <button onClick={() => deleteCatalogItem(item.id)} className="opacity-0 group-hover:opacity-100 text-[#52525b] hover:text-red-400 transition shrink-0 ml-1">
-                  <X className="w-3 h-3" />
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
       {/* ── Member Gear Editor ── */}
       {canManage && (
         <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-4">
@@ -380,34 +491,63 @@ export function GearTrackingTab() {
             <Shield className="w-4 h-4 text-[#a1a1aa]" />
             Edit Member Gear
           </h3>
-          <div className="relative mb-3">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#71717a]" />
-            <input
-              value={memberSearch}
-              onChange={e => setMemberSearch(e.target.value)}
-              placeholder="Search member..."
-              className="w-full pl-8 pr-3 py-1.5 bg-[#09090b] border border-[#27272a] rounded text-xs text-[#fafafa] placeholder-[#52525b]"
-            />
-            {memberSearch.trim() && (
-              <div className="absolute top-full left-0 right-0 mt-1 bg-[#18181b] border border-[#27272a] rounded-lg max-h-48 overflow-y-auto z-10 shadow-xl">
-                {members.filter(m => m.name.toLowerCase().includes(memberSearch.toLowerCase())).slice(0, 15).map(m => (
-                  <button
-                    key={m.id}
-                    onClick={() => { setSelectedMember(m.id); setMemberSearch(""); }}
-                    className={`w-full text-left px-3 py-1.5 text-xs transition ${selectedMember === m.id ? "bg-[#fafafa] text-[#09090b]" : "text-[#a1a1aa] hover:bg-[#27272a] hover:text-[#fafafa]"}`}
-                  >
-                    {m.name}
-                  </button>
-                ))}
-                {members.filter(m => m.name.toLowerCase().includes(memberSearch.toLowerCase())).length === 0 && (
-                  <p className="px-3 py-1.5 text-xs text-[#52525b]">No members found</p>
-                )}
+          <div className="mb-4">
+            {/* Selected member pill or search input */}
+            {selectedMember ? (
+              <div className="flex items-center gap-2">
+                <div className="flex-1 flex items-center gap-2 bg-[#09090b] border border-[#27272a] rounded-lg px-3 py-2">
+                  {(() => {
+                    const m = members.find(x => x.id === selectedMember);
+                    if (!m) return null;
+                    const iconName = m.class && classIcons[m.class] ? classIcons[m.class] : null;
+                    const CIcon = iconName ? getClassIcon(iconName) : null;
+                    const cc = (m.class && classColors[m.class]) || "#a1a1aa";
+                    return (
+                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                        {CIcon && <CIcon className="w-4 h-4 shrink-0" style={{ color: cc }} />}
+                        <span className="text-sm font-semibold text-[#fafafa] truncate">{m.name}</span>
+                        {m.class && <span className="text-[11px] px-1.5 py-0.5 rounded font-medium" style={{ color: cc, backgroundColor: `${cc}18` }}>{m.class}</span>}
+                        {m.combat_power ? <span className="text-[11px] text-[#71717a] font-mono tabular-nums ml-auto">{m.combat_power.toLocaleString()} CP</span> : null}
+                      </div>
+                    );
+                  })()}
+                  <button onClick={() => { setSelectedMember(null); setEditingGear(prev => { const next = { ...prev }; delete next[selectedMember]; return next; }); }} className="text-[#52525b] hover:text-[#fafafa] transition shrink-0"><X className="w-4 h-4" /></button>
+                </div>
               </div>
-            )}
-            {!memberSearch.trim() && selectedMember && (
-              <div className="flex items-center gap-2 mt-2">
-                <span className="text-xs text-[#a1a1aa]">{members.find(m => m.id === selectedMember)?.name}</span>
-                <button onClick={() => setSelectedMember(null)} className="text-[#52525b] hover:text-[#fafafa]"><X className="w-3 h-3" /></button>
+            ) : (
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#71717a]" />
+                <input
+                  value={memberSearch}
+                  onChange={e => setMemberSearch(e.target.value)}
+                  placeholder="Search for a member to edit their gear..."
+                  className="w-full pl-9 pr-4 py-2.5 bg-[#09090b] border border-[#27272a] rounded-lg text-sm text-[#fafafa] placeholder-[#52525b] focus:outline-none focus:border-[#3f3f46] transition"
+                  autoFocus
+                />
+                {memberSearch.trim() && (
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-[#18181b] border border-[#27272a] rounded-lg max-h-64 overflow-y-auto z-10 shadow-xl">
+                    {members.filter(m => m.name.toLowerCase().includes(memberSearch.toLowerCase())).slice(0, 15).map(m => {
+                      const iconName = m.class && classIcons[m.class] ? classIcons[m.class] : null;
+                      const CIcon = iconName ? getClassIcon(iconName) : null;
+                      const cc = (m.class && classColors[m.class]) || "#a1a1aa";
+                      return (
+                        <button
+                          key={m.id}
+                          onClick={() => { setSelectedMember(m.id); setMemberSearch(""); }}
+                          className={`w-full text-left px-3 py-2 text-xs flex items-center gap-2 transition ${selectedMember === m.id ? "bg-[#fafafa] text-[#09090b]" : "text-[#a1a1aa] hover:bg-[#27272a] hover:text-[#fafafa]"}`}
+                        >
+                          {CIcon && <CIcon className="w-3.5 h-3.5 shrink-0" style={{ color: cc }} />}
+                          <span className="font-medium flex-1">{m.name}</span>
+                          {m.class && <span className="text-[10px] opacity-60">{m.class}</span>}
+                          {m.combat_power ? <span className="text-[10px] font-mono tabular-nums opacity-60">{m.combat_power.toLocaleString()}</span> : null}
+                        </button>
+                      );
+                    })}
+                    {members.filter(m => m.name.toLowerCase().includes(memberSearch.toLowerCase())).length === 0 && (
+                      <p className="px-3 py-2 text-xs text-[#52525b]">No members found</p>
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -432,73 +572,142 @@ export function GearTrackingTab() {
               }
             };
 
-            return (
-              <div className="space-y-3">
-                {slots.map(cat => (
-                  <div key={cat.category}>
-                    <h4 className="text-[10px] text-[#71717a] uppercase tracking-wider mb-1.5">{cat.category}</h4>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
-                      {cat.slots.map(slotId => {
-                        const existing = gear[slotId];
-                        const edit = edits[slotId];
-                        const currentItemId = edit?.itemId ?? existing?.catalog_item_id ?? "";
-                        const currentEnh = edit?.enh ?? existing?.enhancement_level ?? 0;
-                        const currentItem = catalog.find(c => c.id === currentItemId);
-                        const categoryItems = catalogByCategory[slotId] || [];
+            const flatSlots = allSlotIds;
 
-                        return (
-                          <div key={slotId} className="bg-[#09090b] rounded-lg p-2.5" onClick={() => initEditFromExisting(slotId)}>
-                            <p className="text-[10px] text-[#71717a] mb-1">{slotId}</p>
-                            <select
-                              value={currentItemId}
-                              onChange={e => setSlotEdit(slotId, e.target.value, currentEnh)}
-                              className="w-full px-2 py-1 bg-[#18181b] border border-[#27272a] rounded text-xs text-[#fafafa] mb-1"
-                            >
-                              <option value="">— Empty —</option>
-                              {categoryItems.map(item => (
-                                <option key={item.id} value={item.id}>{item.name}</option>
-                              ))}
-                            </select>
-                            {currentItemId && (
-                              <div className="flex items-center gap-1.5">
-                                <span className="text-[10px] text-[#52525b]">+</span>
-                                <input
-                                  type="number"
-                                  min={0}
-                                  max={20}
-                                  value={currentEnh}
-                                  onChange={e => setSlotEdit(slotId, currentItemId, parseInt(e.target.value) || 0)}
-                                  className="w-14 px-1.5 py-0.5 bg-[#18181b] border border-[#27272a] rounded text-xs text-[#fafafa] text-center"
-                                />
-                              </div>
-                            )}
-                            {currentItem && (
-                              <span className="text-[9px] mt-1 block" style={{ color: RARITY_COLORS[currentItem.rarity] }}>
-                                {currentItem.rarity} ({RARITY_SCORE[currentItem.rarity] + currentEnh}pts)
-                              </span>
-                            )}
+            return (
+              <div className="flex gap-4">
+                {/* Left: Equipment slots */}
+                <div className="flex-1 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                  {flatSlots.map(slotId => {
+                    const existing = gear[slotId];
+                    const edit = edits[slotId];
+                    const currentItemId = edit?.itemId ?? existing?.catalog_item_id ?? "";
+                    const currentEnh = edit?.enh ?? existing?.enhancement_level ?? 0;
+                    const currentItem = itemCatalogItems.find((c: any) => c.id === currentItemId) || catalog.find(c => c.id === currentItemId);
+                    const rc = currentItem ? (RARITY_COLORS[currentItem.rarity?.toLowerCase()] || "#a1a1aa") : null;
+                    const isActive = openSlotPicker === slotId;
+
+                    return (
+                      <button
+                        key={slotId}
+                        onClick={() => { initEditFromExisting(slotId); setOpenSlotPicker(isActive ? null : slotId); setPickerSearch(""); }}
+                        className={`text-left rounded-xl p-3 border transition-all duration-200 ${
+                          currentItem
+                            ? 'bg-[#18181b] border-[#27272a] hover:border-[#3f3f46]'
+                            : 'bg-[#18181b]/40 border-dashed border-[#27272a] hover:border-[#3f3f46] hover:bg-[#18181b]/60'
+                        } ${isActive ? 'ring-1 ring-[#fafafa]/30 border-[#52525b]' : ''}`}
+                      >
+                        <p className="text-[10px] text-[#71717a] uppercase tracking-wider mb-2">{slotId}</p>
+                        {currentItem ? (
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-12 h-12 rounded-lg flex items-center justify-center shrink-0 relative" style={{ backgroundColor: `${rc}18` }}>
+                              {currentItem.image_url ? (
+                                <img src={currentItem.image_url} alt="" className="w-9 h-9 rounded object-cover" />
+                              ) : (
+                                <Star className="w-6 h-6" style={{ color: rc }} />
+                              )}
+                              <span className="absolute right-0 bottom-2 text-[10px] font-black text-white bg-gradient-to-t from-black/20 to-transparent rounded-bl-lg rounded-tr-lg pl-1.5 pr-1 pt-1 pb-0.5 leading-none drop-shadow-[0_1px_1px_rgba(0,0,0,0.5)]">+{currentEnh}</span>
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-xs font-medium truncate" style={{ color: rc }}>{currentItem.name}</p>
+                            </div>
                           </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                ))}
-                <div className="flex items-center justify-between pt-2 border-t border-[#27272a]">
-                  <div className="text-xs text-[#a1a1aa]">
-                    {summary && <>Score: <span className="font-bold text-[#fafafa]">{summary.gear_score}</span> · {summary.slots_filled}/{summary.total_slots} slots · <span className="text-green-400">{summary.completion_pct}%</span></>}
-                  </div>
-                  <button
-                    onClick={() => saveMemberGear(selectedMember)}
-                    disabled={savingGear || !edits[selectedMember]}
-                    className="px-4 py-1.5 bg-green-600 text-white text-xs rounded-lg hover:bg-green-500 disabled:opacity-40 transition flex items-center gap-1"
-                  >
-                    {savingGear ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
-                    Save Gear
-                  </button>
+                        ) : (
+                          <div className="flex items-center justify-center h-14 text-[#3f3f46] text-[10px]">
+                            Empty
+                          </div>
+                        )}
+                      </button>
+                    );
+                  })}
                 </div>
+
+                {/* Right: Item picker panel */}
+                {openSlotPicker && (() => {
+                  const slotId = openSlotPicker;
+                  const existing = gear[slotId];
+                  const edit = edits[slotId];
+                  const currentItemId = edit?.itemId ?? existing?.catalog_item_id ?? "";
+                  const currentEnh = edit?.enh ?? existing?.enhancement_level ?? 0;
+                  const currentItem = itemCatalogItems.find((c: any) => c.id === currentItemId) || catalog.find(c => c.id === currentItemId);
+                  const categoryItems = itemsBySlot[slotId] || [];
+                  const filtered = categoryItems.filter((item: any) => !pickerSearch || item.name.toLowerCase().includes(pickerSearch.toLowerCase()));
+
+                  return (
+                    <div className="w-64 shrink-0 bg-[#18181b] border border-[#27272a] rounded-xl p-3 flex flex-col max-h-[400px]">
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="text-xs font-semibold text-[#fafafa]">{slotId}</h4>
+                        <button onClick={() => { setOpenSlotPicker(null); setPickerSearch(""); }} className="text-[#52525b] hover:text-[#fafafa]"><X className="w-3.5 h-3.5" /></button>
+                      </div>
+                      <input
+                        value={pickerSearch}
+                        onChange={e => setPickerSearch(e.target.value)}
+                        placeholder="Search items..."
+                        className="w-full px-2 py-1.5 bg-[#09090b] border border-[#27272a] rounded text-[10px] text-[#fafafa] placeholder-[#52525b] focus:outline-none mb-2 shrink-0"
+                        autoFocus
+                      />
+                      <div className="overflow-y-auto flex-1 space-y-0.5">
+                        <button
+                          onClick={() => { setSlotEdit(slotId, "", currentEnh); }}
+                          className={`w-full px-2 py-1.5 rounded text-left text-xs transition ${!currentItemId ? 'bg-[#27272a] text-[#fafafa]' : 'text-[#52525b] hover:bg-[#27272a]'}`}
+                        >
+                          — Empty —
+                        </button>
+                        {filtered.map((item: any) => {
+                          const rc = RARITY_COLORS[item.rarity?.toLowerCase()] || "#a1a1aa";
+                          const isSelected = item.id === currentItemId;
+                          return (
+                            <button
+                              key={item.id}
+                              onClick={() => { setSlotEdit(slotId, item.id, currentEnh); }}
+                              className={`w-full px-2 py-1.5 rounded text-left text-xs flex items-center gap-2 transition ${isSelected ? 'bg-[#27272a]' : 'hover:bg-[#27272a]'}`}
+                            >
+                              <div className="w-7 h-7 rounded flex items-center justify-center shrink-0" style={{ backgroundColor: `${rc}18` }}>
+                                {item.image_url ? (
+                                  <img src={item.image_url} alt="" className="w-5 h-5 rounded object-cover" />
+                                ) : (
+                                  <Star className="w-4 h-4" style={{ color: rc }} />
+                                )}
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <p className="truncate" style={{ color: rc }}>{item.name}</p>
+                                <p className="text-[9px] text-[#52525b] capitalize">{item.rarity}</p>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                      {currentItemId && (
+                        <div className="mt-2 pt-2 border-t border-[#27272a] flex items-center gap-2 shrink-0">
+                          <span className="text-[10px] text-[#71717a]">Enhance:</span>
+                          <input
+                            type="number" min={0} max={20} value={currentEnh}
+                            onChange={e => setSlotEdit(slotId, currentItemId, parseInt(e.target.value) || 0)}
+                            className="w-16 px-2 py-1 bg-[#09090b] border border-[#27272a] rounded text-xs text-[#fafafa] text-center"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
               </div>
             );
           })()}
+          {selectedMember && (
+            <div className="flex items-center justify-between pt-3 border-t border-[#27272a]">
+              <div className="text-xs text-[#a1a1aa]">
+                {gearSummaries[selectedMember] && <>{gearSummaries[selectedMember].slots_filled}/{gearSummaries[selectedMember].total_slots} slots</>}
+              </div>
+              <button
+                onClick={() => saveMemberGear(selectedMember)}
+                disabled={savingGear || !editingGear[selectedMember]}
+                className="px-4 py-1.5 bg-green-600 text-white text-xs rounded-lg hover:bg-green-500 disabled:opacity-40 transition flex items-center gap-1"
+              >
+                {savingGear ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
+                Save Gear
+              </button>
+            </div>
+          )}
         </div>
       )}
 
@@ -526,16 +735,16 @@ export function GearTrackingTab() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="text-[10px] text-[#71717a] uppercase tracking-wider border-b border-[#27272a]">
-                    <th className="text-left py-2 px-3 sticky left-0 bg-[#18181b] z-10">Player</th>
+                    <th onClick={() => toggleSort("name")} className="text-left py-2 px-3 sticky left-0 bg-[#18181b] z-10 cursor-pointer hover:text-[#fafafa] transition select-none">Player{sortCol === "name" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</th>
+                    <th onClick={() => toggleSort("cp")} className="text-center py-2 px-2 min-w-[60px] cursor-pointer hover:text-[#fafafa] transition select-none">CP{sortCol === "cp" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</th>
                     {allSlotIds.map(slot => (
-                      <th key={slot} className="text-center py-2 px-2 min-w-[80px]">{slot}</th>
+                      <th key={slot} onClick={() => toggleSort(slot)} className="text-center py-2 px-2 min-w-[80px] cursor-pointer hover:text-[#fafafa] transition select-none">{slot}{sortCol === slot ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</th>
                     ))}
-                    <th className="text-center py-2 px-2">Score</th>
-                    <th className="text-center py-2 px-2">%</th>
                   </tr>
                 </thead>
-                <tbody>
-                  {gMembers.map(m => renderGearRow(m))}
+
+              <tbody>
+                  {sortMembers(gMembers).map(m => renderGearRow(m))}
                 </tbody>
               </table>
             </div>
@@ -554,16 +763,15 @@ export function GearTrackingTab() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-[10px] text-[#71717a] uppercase tracking-wider border-b border-[#27272a]">
-                  <th className="text-left py-2 px-3 sticky left-0 bg-[#18181b] z-10">Player</th>
+                  <th onClick={() => toggleSort("name")} className="text-left py-2 px-3 sticky left-0 bg-[#18181b] z-10 cursor-pointer hover:text-[#fafafa] transition select-none">Player{sortCol === "name" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</th>
+                  <th onClick={() => toggleSort("cp")} className="text-center py-2 px-2 min-w-[60px] cursor-pointer hover:text-[#fafafa] transition select-none">CP{sortCol === "cp" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</th>
                   {allSlotIds.map(slot => (
-                    <th key={slot} className="text-center py-2 px-2 min-w-[80px]">{slot}</th>
+                    <th key={slot} onClick={() => toggleSort(slot)} className="text-center py-2 px-2 min-w-[80px] cursor-pointer hover:text-[#fafafa] transition select-none">{slot}{sortCol === slot ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</th>
                   ))}
-                  <th className="text-center py-2 px-2">Score</th>
-                  <th className="text-center py-2 px-2">%</th>
                 </tr>
               </thead>
               <tbody>
-                {guildMembers.get(null)!.map(m => renderGearRow(m))}
+                {sortMembers(guildMembers.get(null)!).map(m => renderGearRow(m))}
               </tbody>
             </table>
           </div>
