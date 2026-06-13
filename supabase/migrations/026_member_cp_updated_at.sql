@@ -13,6 +13,7 @@ WHERE EXISTS (
 );
 
 -- Update RPC to return cp_updated_at
+DROP FUNCTION IF EXISTS public.get_member_scores(UUID);
 CREATE OR REPLACE FUNCTION public.get_member_scores(p_server_id UUID)
 RETURNS TABLE(
   member_id UUID,
