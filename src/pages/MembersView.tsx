@@ -932,12 +932,14 @@ export function MembersView() {
                           </div>
                         )}
 
-                        {editingId !== member.id && guilds.length > 0 && (
+                        {editingId !== member.id && guilds.length > 0 && canManageRaidMembers && (
                           <select
                             value={member.guild_id ?? ""}
                             onChange={async (e) => {
                               const gid = e.target.value || null;
-                              try { await setMemberGuild(member.id, gid); invalidate(); } catch {}
+                              try { await setMemberGuild(member.id, gid); invalidate(); } catch (err: any) {
+                                setToast({ type: "error", message: err?.message || "Failed to change guild" });
+                              }
                             }}
                             className="bg-[#18181b] border border-[#27272a] rounded px-1.5 py-1 text-[10px] sm:text-xs text-[#a1a1aa] outline-none focus:border-[#52525b] transition max-w-[100px] truncate shrink-0"
                           >
