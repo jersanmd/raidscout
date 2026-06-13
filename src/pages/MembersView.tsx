@@ -930,7 +930,7 @@ export function MembersView() {
                         )}
 
                         {editingId !== member.id && canManageRaidMembers && (
-                          <button onClick={() => setDeleteId(member.id)} className="p-1.5 text-[#71717a] hover:text-red-400 transition rounded shrink-0 sm:opacity-0 group-hover:opacity-100" title="Delete"><Trash2 className="w-3.5 h-3.5" /></button>
+                          <button onClick={() => setDeleteId(member.id)} className="p-1.5 text-[#71717a] hover:text-red-400 transition rounded shrink-0" title="Delete"><Trash2 className="w-3.5 h-3.5" /></button>
                         )}
                       </div>
                             ))}
