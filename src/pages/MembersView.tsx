@@ -906,7 +906,6 @@ export function MembersView() {
                                 <option value="">—</option>
                                 {classes.map(c => <option key={c} value={c}>{c}</option>)}
                               </select>
-                            )}
                           </div>
                         )}
 
