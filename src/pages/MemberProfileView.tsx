@@ -277,6 +277,19 @@ export function MemberProfileView() {
     return items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [profile]);
 
+  // CP change per entry — computed chronologically (by date), not by entry order
+  const cpChronoChange = useMemo(() => {
+    const map = new Map<string, number | null>(); // cpUpdate.id → delta
+    const approved = (profile?.cp_history || [])
+      .filter(u => u.status === "approved")
+      .sort((a, b) => new Date(a.submitted_at).getTime() - new Date(b.submitted_at).getTime()); // oldest first
+    for (let i = 0; i < approved.length; i++) {
+      const prev = i > 0 ? approved[i - 1].new_cp : null;
+      map.set(approved[i].id, prev != null ? approved[i].new_cp - prev : null);
+    }
+    return map;
+  }, [profile]);
+
   if (isLoading) return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 text-[#71717a] animate-spin"/></div>;
   if (!profile) return <div className="text-center py-20"><p className="text-[#71717a]">Member not found.</p><button onClick={() => navigate(-1)} className="mt-4 text-[#a1a1aa] hover:text-[#fafafa] text-sm">← Go back</button></div>;
 
@@ -501,13 +514,15 @@ export function MemberProfileView() {
                           <span className="text-[10px] font-medium text-[#71717a] uppercase">{cfg.label}</span>
                           <span className="text-[10px] text-[#52525b]">{fmtDateTime(entry.date)}</span>
                         </div>
-                        {entry.type === "cp" && (
+                        {entry.type === "cp" && (() => {
+                          const change = cpChronoChange.get(entry.data.id) ?? null;
+                          return (
                           <>
                             <p className="text-sm text-[#fafafa] mt-0.5">
                               CP: {fmtCp(entry.data.new_cp)}
-                              {entry.data.old_cp != null && (
-                                <span className={`ml-1.5 text-xs ${entry.data.new_cp > entry.data.old_cp ? "text-green-400" : "text-red-400"}`}>
-                                  {entry.data.new_cp >= entry.data.old_cp ? "+" : ""}{(entry.data.new_cp - entry.data.old_cp).toLocaleString()}
+                              {change != null && (
+                                <span className={`ml-1.5 text-xs ${change > 0 ? "text-green-400" : change < 0 ? "text-red-400" : "text-[#a1a1aa]"}`}>
+                                  {change > 0 ? "+" : ""}{change.toLocaleString()}
                                 </span>
                               )}
                               <span className={`ml-2 text-[10px] px-1.5 py-0.5 rounded ${entry.data.status === "approved" ? "bg-green-500/10 text-green-400" : entry.data.status === "rejected" ? "bg-red-500/10 text-red-400" : "bg-yellow-500/10 text-yellow-400"}`}>
@@ -521,7 +536,8 @@ export function MemberProfileView() {
                               />
                             )}
                           </>
-                        )}
+                        );
+                        })()}
                         {entry.type === "attendance" && (
                           <div className="flex items-center gap-2 mt-0.5">
                             {entry.data.death_records ? (
@@ -599,6 +615,9 @@ export function MemberProfileView() {
             ) : (
               <p className="text-sm text-[#52525b] py-4 text-center">Collecting data for performance tracking</p>
             )}
+            <p className="text-[10px] text-[#52525b] mt-2 leading-relaxed border-t border-[#27272a] pt-2">
+              <span className="text-[#a1a1aa] font-medium">How it works:</span> Your score is based on <span className="text-blue-400">attendance (40%)</span>, <span className="text-purple-400">CP growth (40%)</span>, and <span className="text-amber-400">activity (20%)</span> each week. Score increases as you attend more events, grow your combat power, and stay active.
+            </p>
           </div>
         ) : (
           <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-4 sm:p-5">
@@ -656,6 +675,9 @@ export function MemberProfileView() {
         ) : (
           <p className="text-sm text-[#52525b] py-4 text-center">Collecting data for performance tracking</p>
         )}
+        <p className="text-[10px] text-[#52525b] mt-2 leading-relaxed border-t border-[#27272a] pt-2">
+          <span className="text-[#a1a1aa] font-medium">How it works:</span> Your score is based on <span className="text-blue-400">attendance (40%)</span>, <span className="text-purple-400">CP growth (40%)</span>, and <span className="text-amber-400">activity (20%)</span> each week. Score increases as you attend more events, grow your combat power, and stay active.
+        </p>
       </div>
       )}
 
