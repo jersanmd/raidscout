@@ -1380,7 +1380,7 @@ export function MembersView() {
                             if (!updatedAt && m.combat_power != null) {
                               return <span className="inline-block w-2.5 h-2.5 rounded-full bg-[#52525b]" title="CP set but never updated" />;
                             }
-                            const daysAgo = (Date.now() - new Date(updatedAt).getTime()) / (1000 * 60 * 60 * 24);
+                            const daysAgo = (Date.now() - new Date(updatedAt!).getTime()) / (1000 * 60 * 60 * 24);
                             if (daysAgo <= 7) {
                               return <span className="inline-block w-2.5 h-2.5 rounded-full bg-green-500 shadow-[0_0_6px_rgba(34,197,94,0.5)]" title={`Updated ${Math.round(daysAgo)}d ago`} />;
                             }
