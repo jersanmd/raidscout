@@ -215,7 +215,9 @@ export function HistoryView() {
       {/* Header */}
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-2 shrink-0">
-          <Clock className="w-5 h-5 text-[#71717a]" />
+          <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-[#18181b] border border-[#27272a]">
+            <Clock className="w-5 h-5 text-[#fafafa]" />
+          </div>
           <h2 className="text-xl font-semibold text-[#fafafa]">History</h2>
         </div>
         <div className="flex items-center gap-2 order-3 sm:order-none w-full sm:w-auto mt-2 sm:mt-0">
