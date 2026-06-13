@@ -481,21 +481,6 @@ export function MemberProfileView() {
         })()}
       </div>
 
-      {/* ── Account Status Summary ── */}
-      {accountSummary && accountSummary.length > 0 && (
-        <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-4 sm:p-5">
-          <div className="flex items-center gap-2 mb-3">
-            <MessageSquare className="w-4 h-4 text-blue-400"/>
-            <h2 className="text-xs font-semibold text-[#a1a1aa] uppercase tracking-wider">Account Status</h2>
-          </div>
-          <div className="space-y-1.5">
-            {accountSummary.map((line, i) => (
-              <p key={i} className="text-sm" style={{ color: line.color }}>{line.text}</p>
-            ))}
-          </div>
-        </div>
-      )}
-
       {/* ── Daily Activity ── */}
       <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-4 sm:p-5">
         <div className="flex items-center gap-2 mb-3 flex-wrap">
@@ -680,6 +665,13 @@ export function MemberProfileView() {
             <p className="text-[10px] text-[#52525b] mt-2 leading-relaxed border-t border-[#27272a] pt-2">
               <span className="text-[#a1a1aa] font-medium">How it works:</span> Your score is based on <span className="text-blue-400">attendance (40%)</span>, <span className="text-purple-400">CP growth (40%)</span>, and <span className="text-amber-400">activity (20%)</span> each week. Score increases as you attend more events, grow your combat power, and stay active.
             </p>
+            {accountSummary && accountSummary.length > 0 && (
+              <div className="border-t border-[#27272a] pt-2 mt-2 space-y-1">
+                {accountSummary.map((line, i) => (
+                  <p key={i} className="text-xs" style={{ color: line.color }}>{line.text}</p>
+                ))}
+              </div>
+            )}
           </div>
         ) : (
           <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-4 sm:p-5">
@@ -740,6 +732,13 @@ export function MemberProfileView() {
         <p className="text-[10px] text-[#52525b] mt-2 leading-relaxed border-t border-[#27272a] pt-2">
           <span className="text-[#a1a1aa] font-medium">How it works:</span> Your score is based on <span className="text-blue-400">attendance (40%)</span>, <span className="text-purple-400">CP growth (40%)</span>, and <span className="text-amber-400">activity (20%)</span> each week. Score increases as you attend more events, grow your combat power, and stay active.
         </p>
+        {accountSummary && accountSummary.length > 0 && (
+          <div className="border-t border-[#27272a] pt-2 mt-2 space-y-1">
+            {accountSummary.map((line, i) => (
+              <p key={i} className="text-xs" style={{ color: line.color }}>{line.text}</p>
+            ))}
+          </div>
+        )}
       </div>
       )}
 
