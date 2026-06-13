@@ -278,7 +278,7 @@ export function MembersView() {
     setToast({ type, message });
   }, []);
 
-  const invalidate = () => queryClient.invalidateQueries({ queryKey: ["members"] });
+  const invalidate = () => queryClient.invalidateQueries({ queryKey: ["members", serverId] });
 
   // Sort members by guild, then by name
   const sortedMembers = useMemo(() => {

@@ -24,5 +24,6 @@ export function useMembers() {
 
 export function useInvalidateMembers() {
   const queryClient = useQueryClient();
-  return () => queryClient.invalidateQueries({ queryKey: ["members"] });
+  const serverId = useServerId();
+  return () => queryClient.invalidateQueries({ queryKey: ["members", serverId] });
 }
