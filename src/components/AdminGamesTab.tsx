@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   fetchGames, createGame, updateGame, deleteGame,
@@ -6,6 +6,9 @@ import {
   deleteBossTemplate,
   deleteActivityTemplate,
   uploadGameIcon,
+  fetchItemCatalog, createItemCatalogItem, deleteItemCatalogItem, updateItemCatalogItem, uploadItemCatalogImage,
+  fetchItemCategories, createItemCategory, deleteItemCategory, updateItemCategory,
+  fetchItemRarities, createItemRarity, deleteItemRarity, updateItemRarity,
 } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
@@ -16,507 +19,346 @@ import { EditActivityForm } from "@/components/EditActivityForm";
 import { BossImage } from "@/components/BossImage";
 import {
   Loader2, Plus, Trash2, Pencil, ChevronDown, ChevronUp,
-  Gamepad2, Skull, Calendar, Save, X, Image, Search,
+  Gamepad2, Skull, Calendar, Package, Save, X, Image, Search,
+  Tags, Palette, Upload,
 } from "lucide-react";
 
 type Game = { id: string; name: string; slug: string; icon_url?: string | null; supported_spawn_types: string[]; created_at: string };
 type BossTemplate = { id: string; game_id: string; name: string; spawn_type: string; respawn_hours?: number | null; schedule?: any; is_recurring: boolean; category?: string | null; tags?: string[]; points: number; image_url?: string | null };
 type ActivityTemplate = { id: string; game_id: string; name: string; schedule_type: string; schedule?: any; duration_minutes?: number | null; points_per_participant: number; party_size?: number | null; category?: string | null; tags?: string[]; image_url?: string | null };
+type ItemCatalogItem = { id: string; game: string; name: string; rarity: string; description?: string | null; image_url?: string | null; category_id?: string | null; created_by_username?: string | null };
+type ItemCategory = { id: string; game: string; name: string; parent_id: string | null };
+type ItemRarity = { id: string; game: string; name: string; color: string; sort_order: number };
+
+const TABS = [
+  { key: "bosses", icon: Skull, label: "Bosses" },
+  { key: "activities", icon: Calendar, label: "Activities" },
+  { key: "categories", icon: Tags, label: "Categories" },
+  { key: "rarities", icon: Palette, label: "Rarities" },
+  { key: "items", icon: Package, label: "Items" },
+] as const;
 
 export function AdminGamesTab() {
   const queryClient = useQueryClient();
   const { userRole } = useAuth();
   const [expandedGame, setExpandedGame] = useState<string | null>(null);
+  const [expandedTab, setExpandedTab] = useState<string>("bosses");
   const [editingGame, setEditingGame] = useState<Partial<Game> | null>(null);
   const [showAddGame, setShowAddGame] = useState(false);
   const [newGame, setNewGame] = useState({ name: "", slug: "", supported_spawn_types: ["fixed_hours", "fixed_schedule"] as string[] });
   const [iconFile, setIconFile] = useState<File | null>(null);
   const [iconPreview, setIconPreview] = useState<string | null>(null);
-  const [deleteConfirm, setDeleteConfirm] = useState<{ type: "game" | "boss" | "activity"; id: string; name: string; gameName?: string } | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ type: "game" | "boss" | "activity" | "item" | "category" | "rarity"; id: string; name: string; gameName?: string } | null>(null);
   const [loadingTemplates, setLoadingTemplates] = useState(false);
-
-  // Boss template editor state
   const [editingBoss, setEditingBoss] = useState<Partial<BossTemplate> | null>(null);
   const [showAddBoss, setShowAddBoss] = useState(false);
-
-  // Activity template editor state
   const [editingActivity, setEditingActivity] = useState<Partial<ActivityTemplate> | null>(null);
   const [showAddActivity, setShowAddActivity] = useState(false);
-
-  // Boss search
   const [bossSearch, setBossSearch] = useState("");
 
-  // Collapse toggles for boss/activity template sections
-  const [bossesExpanded, setBossesExpanded] = useState(true);
-  const [activitiesExpanded, setActivitiesExpanded] = useState(true);
+  const [itemCatalog, setItemCatalog] = useState<Record<string, ItemCatalogItem[]>>({});
+  const [itemSearch, setItemSearch] = useState("");
+  const [showAddItem, setShowAddItem] = useState(false);
+  const [newItem, setNewItem] = useState({ name: "", rarity: "", description: "", category_id: "" as string | undefined });
+  const [newItemParent, setNewItemParent] = useState(""); // tracks top-level category for two-step selector
+  const [itemImage, setItemImage] = useState<File | null>(null);
+  const [itemImagePreview, setItemImagePreview] = useState<string | null>(null);
+  const [editingItem, setEditingItem] = useState<Partial<ItemCatalogItem> | null>(null);
+  const [submittingItem, setSubmittingItem] = useState(false);
+  const [imageDragOver, setImageDragOver] = useState(false);
 
-  const { data: games = [], isLoading } = useQuery({
-    queryKey: ["admin", "games"],
-    queryFn: fetchGames,
-    staleTime: 10_000,
-    enabled: userRole === "admin",
-  });
+  const [categories, setCategories] = useState<Record<string, ItemCategory[]>>({});
+  const [rarities, setRarities] = useState<Record<string, ItemRarity[]>>({});
+  const [newCategory, setNewCategory] = useState({ name: "", parent_id: "" });
+  const [addSubFor, setAddSubFor] = useState<string | null>(null);
+  const [editingCat, setEditingCat] = useState<Partial<ItemCategory> | null>(null);
+  const [newRarity, setNewRarity] = useState({ name: "", color: "#71717a" });
+  const [showAddRar, setShowAddRar] = useState(false);
+  const [editingRar, setEditingRar] = useState<Partial<ItemRarity> | null>(null);
 
+  const { data: games = [], isLoading } = useQuery({ queryKey: ["admin", "games"], queryFn: fetchGames, staleTime: 10_000, enabled: userRole === "admin" });
   const [bossTemplates, setBossTemplates] = useState<Record<string, BossTemplate[]>>({});
   const [activityTemplates, setActivityTemplates] = useState<Record<string, ActivityTemplate[]>>({});
 
   useEffect(() => {
-    if (expandedGame && !bossTemplates[expandedGame]) {
+    if (expandedGame) {
       setLoadingTemplates(true);
+      const game = games.find(g => g.id === expandedGame);
+      const gameSlug = game?.slug || "";
       Promise.all([
         fetchBossTemplates(expandedGame).catch(() => []),
         fetchActivityTemplates(expandedGame).catch(() => []),
-      ]).then(([bosses, activities]) => {
-        setBossTemplates(prev => ({ ...prev, [expandedGame]: bosses }));
-        setActivityTemplates(prev => ({ ...prev, [expandedGame]: activities }));
+        gameSlug ? fetchItemCatalog(gameSlug).catch(() => []) : Promise.resolve([]),
+        gameSlug ? fetchItemCategories(gameSlug).catch(() => []) : Promise.resolve([]),
+        gameSlug ? fetchItemRarities(gameSlug).catch(() => []) : Promise.resolve([]),
+      ]).then(([bosses, activities, items, cats, rars]) => {
+        setBossTemplates(p => ({ ...p, [expandedGame]: bosses }));
+        setActivityTemplates(p => ({ ...p, [expandedGame]: activities }));
+        setItemCatalog(p => ({ ...p, [expandedGame]: items }));
+        setCategories(p => ({ ...p, [expandedGame]: cats }));
+        setRarities(p => ({ ...p, [expandedGame]: rars }));
         setLoadingTemplates(false);
       });
     }
-  }, [expandedGame]);
+  }, [expandedGame, games]);
 
-  const toggleGame = (id: string) => setExpandedGame(prev => prev === id ? null : id);
-
-  const handleCreateGame = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newGame.name.trim() || !newGame.slug.trim()) return;
-    const slug = newGame.slug.trim().toLowerCase();
-
-    // Upload icon first if provided
-    let iconUrl: string | undefined;
-    if (iconFile) {
-      try {
-        iconUrl = await uploadGameIcon(slug, iconFile);
-      } catch (err) { console.error("Icon upload failed:", err); }
-    }
-
-    await createGame(newGame.name.trim(), slug, newGame.supported_spawn_types, iconUrl);
-    setShowAddGame(false);
-    setNewGame({ name: "", slug: "", supported_spawn_types: ["fixed_hours", "fixed_schedule"] });
-    setIconFile(null);
-    setIconPreview(null);
-    queryClient.invalidateQueries({ queryKey: ["admin", "games"] });
-  };
-
-  const handleUpdateGame = async () => {
-    if (!editingGame?.id || !editingGame.name?.trim()) return;
-    const types = Array.isArray(editingGame.supported_spawn_types) ? editingGame.supported_spawn_types : typeof editingGame.supported_spawn_types === "string" ? (editingGame.supported_spawn_types as string).split(",").map(s => s.trim()).filter(Boolean) : [];
-    await updateGame(editingGame.id, {
-      name: editingGame.name.trim(),
-      slug: editingGame.slug?.trim().toLowerCase(),
-      supported_spawn_types: types,
-      icon_url: editingGame.icon_url?.trim() || null,
-    });
-    setEditingGame(null);
-    queryClient.invalidateQueries({ queryKey: ["admin", "games"] });
-  };
-
-  const handleDeleteGame = async () => {
-    if (!deleteConfirm || deleteConfirm.type !== "game") return;
-    await deleteGame(deleteConfirm.id);
-    setDeleteConfirm(null);
-    setExpandedGame(null);
-    queryClient.invalidateQueries({ queryKey: ["admin", "games"] });
-  };
-
-  // Boss template handlers
-  const handleDeleteBoss = async () => {
-    if (!deleteConfirm || deleteConfirm.type !== "boss") return;
-    await deleteBossTemplate(deleteConfirm.id);
-    setDeleteConfirm(null);
-    refreshTemplates();
-  };
-
-  // Activity template handlers
-  const handleDeleteActivity = async () => {
-    if (!deleteConfirm || deleteConfirm.type !== "activity") return;
-    await deleteActivityTemplate(deleteConfirm.id);
-    setDeleteConfirm(null);
-    refreshTemplates();
-  };
+  const toggleGame = (id: string) => setExpandedGame(p => p === id ? null : id);
+  const slug = () => { const g = games.find(g => g.id === expandedGame); return g?.slug || ""; };
 
   const refreshTemplates = () => {
     if (!expandedGame) return;
+    const s = slug();
     Promise.all([
       fetchBossTemplates(expandedGame).catch(() => []),
       fetchActivityTemplates(expandedGame).catch(() => []),
-    ]).then(([bosses, activities]) => {
-      setBossTemplates(prev => ({ ...prev, [expandedGame]: bosses }));
-      setActivityTemplates(prev => ({ ...prev, [expandedGame]: activities }));
+      s ? fetchItemCatalog(s).catch(() => []) : Promise.resolve([]),
+      s ? fetchItemCategories(s).catch(() => []) : Promise.resolve([]),
+      s ? fetchItemRarities(s).catch(() => []) : Promise.resolve([]),
+    ]).then(([bosses, activities, items, cats, rars]) => {
+      setBossTemplates(p => ({ ...p, [expandedGame]: bosses }));
+      setActivityTemplates(p => ({ ...p, [expandedGame]: activities }));
+      setItemCatalog(p => ({ ...p, [expandedGame]: items }));
+      setCategories(p => ({ ...p, [expandedGame]: cats }));
+      setRarities(p => ({ ...p, [expandedGame]: rars }));
     });
+  };
+
+  const handleCreateGame = async (e: React.FormEvent) => {
+    e.preventDefault(); if (!newGame.name.trim() || !newGame.slug.trim()) return;
+    const s = newGame.slug.trim().toLowerCase();
+    let iconUrl: string | undefined;
+    if (iconFile) { try { iconUrl = await uploadGameIcon(s, iconFile); } catch {} }
+    await createGame(newGame.name.trim(), s, newGame.supported_spawn_types, iconUrl);
+    setShowAddGame(false); setNewGame({ name: "", slug: "", supported_spawn_types: ["fixed_hours", "fixed_schedule"] }); setIconFile(null); setIconPreview(null);
+    queryClient.invalidateQueries({ queryKey: ["admin", "games"] });
+  };
+  const handleUpdateGame = async () => {
+    if (!editingGame?.id || !editingGame.name?.trim()) return;
+    const types = Array.isArray(editingGame.supported_spawn_types) ? editingGame.supported_spawn_types : [];
+    await updateGame(editingGame.id, { name: editingGame.name.trim(), slug: editingGame.slug?.trim().toLowerCase(), supported_spawn_types: types, icon_url: editingGame.icon_url?.trim() || null });
+    setEditingGame(null); queryClient.invalidateQueries({ queryKey: ["admin", "games"] });
+  };
+  const handleDeleteGame = async () => { if (!deleteConfirm || deleteConfirm.type !== "game") return; await deleteGame(deleteConfirm.id); setDeleteConfirm(null); setExpandedGame(null); queryClient.invalidateQueries({ queryKey: ["admin", "games"] }); };
+  const handleDeleteBoss = async () => { if (!deleteConfirm || deleteConfirm.type !== "boss") return; await deleteBossTemplate(deleteConfirm.id); setDeleteConfirm(null); refreshTemplates(); };
+  const handleDeleteActivity = async () => { if (!deleteConfirm || deleteConfirm.type !== "activity") return; await deleteActivityTemplate(deleteConfirm.id); setDeleteConfirm(null); refreshTemplates(); };
+  const handleDeleteItem = async () => { if (!deleteConfirm || deleteConfirm.type !== "item") return; await deleteItemCatalogItem(deleteConfirm.id); setDeleteConfirm(null); refreshTemplates(); };
+  const handleDeleteCategory = async () => { if (!deleteConfirm || deleteConfirm.type !== "category") return; await deleteItemCategory(deleteConfirm.id); setDeleteConfirm(null); refreshTemplates(); };
+  const handleDeleteRarity = async () => { if (!deleteConfirm || deleteConfirm.type !== "rarity") return; await deleteItemRarity(deleteConfirm.id); setDeleteConfirm(null); refreshTemplates(); };
+
+  const handleCreateItem = async (e?: React.FormEvent | React.MouseEvent) => {
+    e?.preventDefault(); if (!newItem.name.trim() || !expandedGame) return;
+    setSubmittingItem(true);
+    try {
+      let imageUrl: string | undefined;
+      if (itemImage) imageUrl = await uploadItemCatalogImage(slug(), newItem.name.trim(), itemImage);
+      await createItemCatalogItem({ game: slug(), name: newItem.name.trim(), rarity: newItem.rarity, description: newItem.description, image_url: imageUrl, category_id: newItem.category_id || undefined });
+      setShowAddItem(false); setNewItem({ name: "", rarity: "", description: "", category_id: "" }); setNewItemParent(""); setItemImage(null); setItemImagePreview(null);
+      refreshTemplates();
+    } catch (err: any) { console.error("Failed to create catalog item:", err); alert(err?.message || "Failed to create item"); } finally { setSubmittingItem(false); }
+  };
+  const handleUpdateItem = async () => {
+    if (!editingItem?.id || !editingItem.name?.trim()) return;
+    await updateItemCatalogItem(editingItem.id, { name: editingItem.name.trim(), rarity: editingItem.rarity, description: editingItem.description ?? undefined, image_url: editingItem.image_url ?? undefined, category_id: editingItem.category_id ?? undefined });
+    setEditingItem(null); refreshTemplates();
+  };
+  const handleCreateCategory = async (e: React.FormEvent) => {
+    e.preventDefault(); if (!newCategory.name.trim() || !expandedGame) return;
+    await createItemCategory({ game: slug(), name: newCategory.name.trim(), parent_id: newCategory.parent_id || null });
+    setAddSubFor(null); setNewCategory({ name: "", parent_id: "" }); refreshTemplates();
+  };
+  const handleUpdateCategory = async () => {
+    if (!editingCat?.id || !editingCat.name?.trim()) return;
+    await updateItemCategory(editingCat.id, { name: editingCat.name.trim(), parent_id: editingCat.parent_id || null });
+    setEditingCat(null); refreshTemplates();
+  };
+  const handleCreateRarity = async (e: React.FormEvent) => {
+    e.preventDefault(); if (!newRarity.name.trim() || !expandedGame) return;
+    const maxOrder = (rarities[expandedGame] || []).reduce((max, r) => Math.max(max, r.sort_order), 0);
+    await createItemRarity({ game: slug(), name: newRarity.name.trim(), color: newRarity.color, sort_order: maxOrder + 1 });
+    setShowAddRar(false); setNewRarity({ name: "", color: "#71717a" }); refreshTemplates();
+  };
+  const handleUpdateRarity = async () => {
+    if (!editingRar?.id || !editingRar.name?.trim()) return;
+    await updateItemRarity(editingRar.id, { name: editingRar.name.trim(), color: editingRar.color, sort_order: editingRar.sort_order });
+    setEditingRar(null); refreshTemplates();
   };
 
   if (isLoading) return <div className="flex justify-center py-10"><Loader2 className="w-6 h-6 animate-spin text-[#a1a1aa]" /></div>;
 
   return (
     <div className="space-y-4 text-sm">
-      {/* Header */}
       <div className="flex items-center justify-between">
-        <div>
-          <h3 className="text-base font-semibold text-[#fafafa]">Games ({games.length})</h3>
-          <p className="text-sm text-[#71717a]">Manage supported games and their boss/activity seeds</p>
-        </div>
-        <button onClick={() => setShowAddGame(true)} className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg bg-[#fafafa] hover:bg-[#e4e4e7] text-[#09090b] transition">
-          <Plus className="w-4 h-4" /> Add Game
-        </button>
+        <div><h3 className="text-base font-semibold text-[#fafafa]">Games ({games.length})</h3><p className="text-sm text-[#71717a]">Manage supported games and their templates</p></div>
+        <button onClick={() => setShowAddGame(true)} className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg bg-[#fafafa] hover:bg-[#e4e4e7] text-[#09090b] transition"><Plus className="w-4 h-4" /> Add Game</button>
       </div>
 
-      {/* Add Game Form */}
       {showAddGame && (
         <form onSubmit={handleCreateGame} className="bg-[#18181b] border border-[#27272a] rounded-lg p-4 space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-[#fafafa]">New Game</span>
-            <button type="button" onClick={() => setShowAddGame(false)} className="text-[#71717a] hover:text-[#fafafa]"><X className="w-4 h-4" /></button>
-          </div>
+          <div className="flex items-center justify-between"><span className="text-sm font-medium text-[#fafafa]">New Game</span><button type="button" onClick={() => setShowAddGame(false)} className="text-[#71717a] hover:text-[#fafafa]"><X className="w-4 h-4" /></button></div>
           <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs text-[#a1a1aa] mb-1">Name</label>
-              <input value={newGame.name} onChange={e => setNewGame(p => ({ ...p, name: e.target.value }))} required placeholder="LordNine: Infinite Class" className="w-full px-2.5 py-1.5 bg-[#18181b] border border-[#27272a] rounded text-sm text-[#fafafa] placeholder-[#52525b] focus:outline-none focus:ring-1 focus:ring-[#52525b]" />
-            </div>
-            <div>
-              <label className="block text-xs text-[#a1a1aa] mb-1">Slug</label>
-              <input value={newGame.slug} onChange={e => setNewGame(p => ({ ...p, slug: e.target.value }))} required placeholder="lordnine" className="w-full px-2.5 py-1.5 bg-[#18181b] border border-[#27272a] rounded text-sm text-[#fafafa] placeholder-[#52525b] focus:outline-none focus:ring-1 focus:ring-[#52525b]" />
-            </div>
-            <div className="col-span-2">
-              <label className="block text-xs text-[#a1a1aa] mb-1">Game Icon</label>
-              <div className="flex items-center gap-3">
-                <label className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-[#27272a] hover:bg-[#3f3f46] text-[#d4d4d8] cursor-pointer transition">
-                  <Image className="w-3.5 h-3.5" /> Choose Image
-                  <input
-                    type="file"
-                    accept="image/png,image/jpeg,image/webp,image/gif"
-                    onChange={e => {
-                      const file = e.target.files?.[0] || null;
-                      setIconFile(file);
-                      setIconPreview(file ? URL.createObjectURL(file) : null);
-                    }}
-                    className="hidden"
-                  />
-                </label>
-                {iconPreview && (
-                  <div className="relative">
-                    <img src={iconPreview} alt="Preview" className="w-8 h-8 rounded object-cover border border-[#3f3f46]" />
-                    <button onClick={() => { setIconFile(null); setIconPreview(null); }} className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-[#3f3f46] text-[#fafafa] flex items-center justify-center hover:bg-[#52525b] transition">
-                      <X className="w-2.5 h-2.5" />
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-            <div className="col-span-2">
-              <label className="block text-xs text-[#a1a1aa] mb-1.5">Spawn Types</label>
-              <div className="flex gap-3">
-                {["fixed_hours", "fixed_schedule"].map(t => (
-                  <label key={t} className="flex items-center gap-1.5 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={newGame.supported_spawn_types.includes(t)}
-                      onChange={e => setNewGame(p => ({
-                        ...p,
-                        supported_spawn_types: e.target.checked
-                          ? [...p.supported_spawn_types, t]
-                          : p.supported_spawn_types.filter(x => x !== t),
-                      }))}
-                      className="w-3.5 h-3.5 rounded border-[#3f3f46] bg-[#18181b] text-[#a1a1aa] focus:ring-[#52525b] focus:ring-offset-0"
-                    />
-                    <span className="text-xs text-[#d4d4d8]">{t === "fixed_hours" ? "Fixed Hours" : "Fixed Schedule"}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
+            <div><label className="block text-xs text-[#a1a1aa] mb-1">Name</label><input value={newGame.name} onChange={e => setNewGame(p => ({ ...p, name: e.target.value }))} required placeholder="LordNine: Infinite Class" className="w-full px-2.5 py-1.5 bg-[#18181b] border border-[#27272a] rounded text-sm text-[#fafafa] placeholder-[#52525b] focus:outline-none focus:ring-1 focus:ring-[#52525b]" /></div>
+            <div><label className="block text-xs text-[#a1a1aa] mb-1">Slug</label><input value={newGame.slug} onChange={e => setNewGame(p => ({ ...p, slug: e.target.value }))} required placeholder="lordnine" className="w-full px-2.5 py-1.5 bg-[#18181b] border border-[#27272a] rounded text-sm text-[#fafafa] placeholder-[#52525b] focus:outline-none focus:ring-1 focus:ring-[#52525b]" /></div>
+            <div className="col-span-2"><label className="block text-xs text-[#a1a1aa] mb-1">Game Icon</label><div className="flex items-center gap-3"><label className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-[#27272a] hover:bg-[#3f3f46] text-[#d4d4d8] cursor-pointer transition"><Image className="w-3.5 h-3.5" /> Choose Image<input type="file" accept="image/png,image/jpeg,image/webp,image/gif" onChange={e => { const f = e.target.files?.[0] || null; setIconFile(f); setIconPreview(f ? URL.createObjectURL(f) : null); }} className="hidden" /></label>{iconPreview && <div className="relative"><img src={iconPreview} alt="Preview" className="w-8 h-8 rounded object-cover border border-[#3f3f46]" /><button onClick={() => { setIconFile(null); setIconPreview(null); }} className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-[#3f3f46] text-[#fafafa] flex items-center justify-center hover:bg-[#52525b] transition"><X className="w-2.5 h-2.5" /></button></div>}</div></div>
+            <div className="col-span-2"><label className="block text-xs text-[#a1a1aa] mb-1.5">Spawn Types</label><div className="flex gap-3">{["fixed_hours", "fixed_schedule"].map(t => (<label key={t} className="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" checked={newGame.supported_spawn_types.includes(t)} onChange={e => setNewGame(p => ({ ...p, supported_spawn_types: e.target.checked ? [...p.supported_spawn_types, t] : p.supported_spawn_types.filter(x => x !== t) }))} className="w-3.5 h-3.5 rounded border-[#3f3f46] bg-[#18181b] text-[#a1a1aa] focus:ring-[#52525b] focus:ring-offset-0" /><span className="text-xs text-[#d4d4d8]">{t === "fixed_hours" ? "Fixed Hours" : "Fixed Schedule"}</span></label>))}</div></div>
           </div>
-          <button type="submit" className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-[#fafafa] hover:bg-[#e4e4e7] text-[#09090b] transition">
-            <Save className="w-3.5 h-3.5" /> Create Game
-          </button>
+          <button type="submit" className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-[#fafafa] hover:bg-[#e4e4e7] text-[#09090b] transition"><Save className="w-3.5 h-3.5" /> Create Game</button>
         </form>
       )}
 
-      {/* Game List */}
       <div className="space-y-2">
         {games.map((game: Game) => (
           <div key={game.id} className="bg-[#18181b] border border-[#27272a] rounded-lg overflow-hidden">
-            {/* Game Row */}
             <div className="flex items-center justify-between px-4 py-3">
               <button onClick={() => toggleGame(game.id)} className="flex items-center gap-3 flex-1 text-left">
-                <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-[#18181b] overflow-hidden">
-                  {game.icon_url ? (
-                    <img src={game.icon_url} alt={game.name} className="w-full h-full object-cover" />
-                  ) : (
-                    <Gamepad2 className="w-4 h-4 text-[#a1a1aa]" />
-                  )}
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-[#fafafa]">{game.name}</span>
-                    <span className="text-xs px-1.5 py-0.5 rounded bg-[#27272a] text-[#a1a1aa] font-mono">{game.slug}</span>
-                  </div>
-                  <div className="flex items-center gap-2 mt-0.5">
-                    {(Array.isArray(game.supported_spawn_types) ? game.supported_spawn_types : []).map((t: string) => (
-                      <span key={t} className="text-xs px-1.5 py-0.5 rounded bg-[#27272a] text-[#a1a1aa]">{t}</span>
-                    ))}
-                  </div>
-                </div>
+                <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-[#18181b] overflow-hidden">{game.icon_url ? <img src={game.icon_url} alt={game.name} className="w-full h-full object-cover" /> : <Gamepad2 className="w-4 h-4 text-[#a1a1aa]" />}</div>
+                <div><div className="flex items-center gap-2"><span className="text-sm font-medium text-[#fafafa]">{game.name}</span><span className="text-xs px-1.5 py-0.5 rounded bg-[#27272a] text-[#a1a1aa] font-mono">{game.slug}</span></div><div className="flex items-center gap-2 mt-0.5">{(Array.isArray(game.supported_spawn_types) ? game.supported_spawn_types : []).map((t: string) => (<span key={t} className="text-xs px-1.5 py-0.5 rounded bg-[#27272a] text-[#a1a1aa]">{t}</span>))}</div></div>
               </button>
               <div className="flex items-center gap-1">
-                <button onClick={() => setEditingGame({ id: game.id, name: game.name, slug: game.slug, icon_url: game.icon_url, supported_spawn_types: Array.isArray(game.supported_spawn_types) ? game.supported_spawn_types : [] })} className="p-1.5 text-[#71717a] hover:text-[#d4d4d8] transition">
-                  <Pencil className="w-3.5 h-3.5" />
-                </button>
-                <button onClick={() => setDeleteConfirm({ type: "game", id: game.id, name: game.name })} className="p-1.5 text-[#71717a] hover:text-[#f87171] transition">
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
+                <button onClick={() => setEditingGame({ id: game.id, name: game.name, slug: game.slug, icon_url: game.icon_url, supported_spawn_types: Array.isArray(game.supported_spawn_types) ? game.supported_spawn_types : [] })} className="p-1.5 text-[#71717a] hover:text-[#d4d4d8] transition"><Pencil className="w-3.5 h-3.5" /></button>
+                <button onClick={() => setDeleteConfirm({ type: "game", id: game.id, name: game.name })} className="p-1.5 text-[#71717a] hover:text-[#f87171] transition"><Trash2 className="w-3.5 h-3.5" /></button>
                 {expandedGame === game.id ? <ChevronUp className="w-4 h-4 text-[#71717a]" /> : <ChevronDown className="w-4 h-4 text-[#71717a]" />}
               </div>
             </div>
 
-            {/* Edit Game Form */}
             {editingGame?.id === game.id && (
               <div className="px-4 pb-3 border-t border-[#27272a] pt-3 space-y-3">
                 <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs text-[#a1a1aa] mb-1">Name</label>
-                    <input value={editingGame.name || ""} onChange={e => setEditingGame(p => ({ ...p, name: e.target.value }))} className="w-full px-2.5 py-1.5 bg-[#18181b] border border-[#27272a] rounded text-sm text-[#fafafa] focus:outline-none focus:ring-1 focus:ring-[#52525b]" />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-[#a1a1aa] mb-1">Slug</label>
-                    <input value={editingGame.slug || ""} onChange={e => setEditingGame(p => ({ ...p, slug: e.target.value }))} className="w-full px-2.5 py-1.5 bg-[#18181b] border border-[#27272a] rounded text-sm text-[#fafafa] focus:outline-none focus:ring-1 focus:ring-[#52525b]" />
-                  </div>
-                  <div className="col-span-2">
-                    <label className="block text-xs text-[#a1a1aa] mb-1">Game Icon</label>
-                    <div className="flex items-center gap-3">
-                      <label className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-[#27272a] hover:bg-[#3f3f46] text-[#d4d4d8] cursor-pointer transition">
-                        <Image className="w-3.5 h-3.5" /> {editingGame.icon_url ? "Replace" : "Choose Image"}
-                        <input
-                          type="file"
-                          accept="image/png,image/jpeg,image/webp,image/gif"
-                          onChange={e => {
-                            const file = e.target.files?.[0] || null;
-                            if (file) {
-                              const slug = editingGame.slug || "";
-                              uploadGameIcon(slug, file).then(url => setEditingGame(p => ({ ...p, icon_url: url }))).catch(() => {});
-                            }
-                          }}
-                          className="hidden"
-                        />
-                      </label>
-                      {editingGame.icon_url && (
-                        <div className="relative">
-                          <img src={editingGame.icon_url} alt="Icon" className="w-8 h-8 rounded object-cover border border-[#3f3f46]" />
-                          <button onClick={() => setEditingGame(p => ({ ...p, icon_url: null }))} className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-[#3f3f46] text-[#fafafa] flex items-center justify-center hover:bg-[#52525b] transition">
-                            <X className="w-2.5 h-2.5" />
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  <div className="col-span-2">
-                    <label className="block text-xs text-[#a1a1aa] mb-1.5">Spawn Types</label>
-                    <div className="flex gap-3">
-                      {["fixed_hours", "fixed_schedule"].map(t => {
-                        const current = Array.isArray(editingGame.supported_spawn_types) ? editingGame.supported_spawn_types : typeof editingGame.supported_spawn_types === "string" ? (editingGame.supported_spawn_types as string).split(",").map(s => s.trim()) : [];
-                        return (
-                          <label key={t} className="flex items-center gap-1.5 cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={current.includes(t)}
-                              onChange={e => setEditingGame(p => ({
-                                ...p,
-                                supported_spawn_types: e.target.checked
-                                  ? [...current, t]
-                                  : current.filter(x => x !== t),
-                              }))}
-                              className="w-3.5 h-3.5 rounded border-[#3f3f46] bg-[#18181b] text-[#a1a1aa] focus:ring-[#52525b] focus:ring-offset-0"
-                            />
-                            <span className="text-xs text-[#d4d4d8]">{t === "fixed_hours" ? "Fixed Hours" : "Fixed Schedule"}</span>
-                          </label>
-                        );
-                      })}
-                    </div>
-                  </div>
+                  <div><label className="block text-xs text-[#a1a1aa] mb-1">Name</label><input value={editingGame.name || ""} onChange={e => setEditingGame(p => ({ ...p, name: e.target.value }))} className="w-full px-2.5 py-1.5 bg-[#18181b] border border-[#27272a] rounded text-sm text-[#fafafa] focus:outline-none focus:ring-1 focus:ring-[#52525b]" /></div>
+                  <div><label className="block text-xs text-[#a1a1aa] mb-1">Slug</label><input value={editingGame.slug || ""} onChange={e => setEditingGame(p => ({ ...p, slug: e.target.value }))} className="w-full px-2.5 py-1.5 bg-[#18181b] border border-[#27272a] rounded text-sm text-[#fafafa] focus:outline-none focus:ring-1 focus:ring-[#52525b]" /></div>
+                  <div className="col-span-2"><label className="block text-xs text-[#a1a1aa] mb-1">Game Icon</label><div className="flex items-center gap-3"><label className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-[#27272a] hover:bg-[#3f3f46] text-[#d4d4d8] cursor-pointer transition"><Image className="w-3.5 h-3.5" /> {editingGame.icon_url ? "Replace" : "Choose Image"}<input type="file" accept="image/png,image/jpeg,image/webp,image/gif" onChange={e => { const f = e.target.files?.[0] || null; if (f) { uploadGameIcon(editingGame.slug || "", f).then(url => setEditingGame(p => ({ ...p, icon_url: url }))).catch(() => {}); } }} className="hidden" /></label>{editingGame.icon_url && <div className="relative"><img src={editingGame.icon_url} alt="Icon" className="w-8 h-8 rounded object-cover border border-[#3f3f46]" /><button onClick={() => setEditingGame(p => ({ ...p, icon_url: null }))} className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-[#3f3f46] text-[#fafafa] flex items-center justify-center hover:bg-[#52525b] transition"><X className="w-2.5 h-2.5" /></button></div>}</div></div>
+                  <div className="col-span-2"><label className="block text-xs text-[#a1a1aa] mb-1.5">Spawn Types</label><div className="flex gap-3">{["fixed_hours", "fixed_schedule"].map(t => { const current = Array.isArray(editingGame.supported_spawn_types) ? editingGame.supported_spawn_types : []; return (<label key={t} className="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" checked={current.includes(t)} onChange={e => setEditingGame(p => ({ ...p, supported_spawn_types: e.target.checked ? [...current, t] : current.filter(x => x !== t) }))} className="w-3.5 h-3.5 rounded border-[#3f3f46] bg-[#18181b] text-[#a1a1aa] focus:ring-[#52525b] focus:ring-offset-0" /><span className="text-xs text-[#d4d4d8]">{t === "fixed_hours" ? "Fixed Hours" : "Fixed Schedule"}</span></label>); })}</div></div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <button onClick={handleUpdateGame} className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded bg-[#fafafa] hover:bg-[#e4e4e7] text-[#09090b] transition"><Save className="w-3 h-3" /> Save</button>
-                  <button onClick={() => setEditingGame(null)} className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded bg-[#27272a] hover:bg-[#3f3f46] text-[#d4d4d8] transition"><X className="w-3 h-3" /> Cancel</button>
-                </div>
+                <div className="flex items-center gap-2"><button onClick={handleUpdateGame} className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded bg-[#fafafa] hover:bg-[#e4e4e7] text-[#09090b] transition"><Save className="w-3 h-3" /> Save</button><button onClick={() => setEditingGame(null)} className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded bg-[#27272a] hover:bg-[#3f3f46] text-[#d4d4d8] transition"><X className="w-3 h-3" /> Cancel</button></div>
               </div>
             )}
 
-            {/* Templates Section (expanded) */}
             <div className={`transition-all duration-300 ease-in-out overflow-hidden ${expandedGame === game.id ? "max-h-[5000px] opacity-100" : "max-h-0 opacity-0"}`}>
             {expandedGame === game.id && (
-              <div className="border-t border-[#27272a] px-4 py-3 space-y-4">
+              <div className="border-t border-[#27272a]">
                 {loadingTemplates ? (
-                  <div className="flex flex-col items-center justify-center py-10 gap-2">
-                    <Loader2 className="w-6 h-6 animate-spin text-[#a1a1aa]" />
-                    <span className="text-xs text-[#71717a]">Loading templates...</span>
-                  </div>
+                  <div className="flex flex-col items-center justify-center py-10 gap-2"><Loader2 className="w-6 h-6 animate-spin text-[#a1a1aa]" /><span className="text-xs text-[#71717a]">Loading...</span></div>
                 ) : (
                   <>
-                    {/* Boss Templates */}
-                    <div>
-                      <div className="flex items-center justify-between mb-2 gap-2">
-                        <button
-                          onClick={() => setBossesExpanded(p => !p)}
-                          className="flex items-center gap-1.5 shrink-0 hover:opacity-80 transition"
-                        >
-                          {bossesExpanded ? <ChevronUp className="w-3.5 h-3.5 text-[#71717a]" /> : <ChevronDown className="w-3.5 h-3.5 text-[#71717a]" />}
-                          <h4 className="text-xs font-semibold text-[#d4d4d8] flex items-center gap-1.5"><Skull className="w-3.5 h-3.5 text-red-400" /> Boss Templates ({(bossTemplates[game.id] || []).filter(bt => !bossSearch || bt.name.toLowerCase().includes(bossSearch.toLowerCase())).length})</h4>
-                        </button>
-                        <div className="flex items-center gap-2 flex-1 justify-end">
-                          <div className="relative flex-1 max-w-[200px]">
-                            <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-[#52525b]" />
-                            <input
-                              type="text"
-                              placeholder="Search bosses…"
-                              value={bossSearch}
-                              onChange={e => setBossSearch(e.target.value)}
-                              className="w-full pl-7 pr-2 py-1.5 text-xs bg-[#18181b] border border-[#27272a] rounded text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#52525b]"
-                            />
-                          </div>
-                          <button onClick={() => setShowAddBoss(true)} className="flex items-center gap-1 px-2 py-1 text-xs font-medium rounded bg-[#27272a] hover:bg-[#3f3f46] text-[#d4d4d8] transition shrink-0">
-                            <Plus className="w-3 h-3" /> Add Boss
+                    <div className="flex items-center gap-0.5 px-4 pt-3 pb-0 border-b border-[#27272a] overflow-x-auto">
+                      {TABS.map(t => {
+                        const isActive = expandedTab === t.key;
+                        const Icon = t.icon;
+                        const counts: Record<string, number> = {
+                          bosses: bossTemplates[game.id]?.length || 0,
+                          activities: activityTemplates[game.id]?.length || 0,
+                          categories: categories[game.id]?.length || 0,
+                          rarities: rarities[game.id]?.length || 0,
+                          items: itemCatalog[game.id]?.length || 0,
+                        };
+                        return (
+                          <button key={t.key} onClick={() => setExpandedTab(t.key)}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-t-lg transition border-b-2 -mb-[1px] ${isActive ? "bg-[#18181b] border-[#fafafa] text-[#fafafa]" : "border-transparent text-[#71717a] hover:text-[#d4d4d8] hover:bg-[#18181b]/50"}`}>
+                            <Icon className="w-3.5 h-3.5" />{t.label}<span className={`text-[10px] ml-0.5 ${isActive ? "text-[#a1a1aa]" : "text-[#52525b]"}`}>({counts[t.key]})</span>
                           </button>
-                        </div>
-                      </div>
-
-                      {/* Add Boss Form */}
-                      <div className={`transition-all duration-300 ease-in-out overflow-hidden ${bossesExpanded ? "max-h-[5000px] opacity-100" : "max-h-0 opacity-0"}`}>
-                      {showAddBoss && (
-                        <AddBossForm
-                          gameId={game.id}
-                          gameSlug={game.slug}
-                          onCreated={() => { setShowAddBoss(false); refreshTemplates(); }}
-                          onCancel={() => setShowAddBoss(false)}
-                        />
-                      )}
-
-                      {/* Boss List */}
-                      <div className="space-y-1">
-                        {(bossTemplates[game.id] || []).filter(bt => !bossSearch || bt.name.toLowerCase().includes(bossSearch.toLowerCase())).map((bt: BossTemplate) => {
-                          const isEditing = editingBoss?.id === bt.id;
-                          return (
-                          <div key={bt.id} className="bg-[#18181b]/30 rounded overflow-hidden">
-                            <div className="flex items-center justify-between px-3 py-2 text-sm">
-                            <div className="flex items-center gap-2">
-                              {bt.image_url ? (
-                                <img src={bt.image_url} alt={bt.name} className="w-5 h-5 rounded object-cover border border-[#27272a]" />
-                              ) : (
-                                <BossImage bossName={bt.name} size="sm" />
-                              )}
-                              <span className="text-[#fafafa]">{bt.name}</span>
-                              <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${bt.spawn_type === 'fixed_schedule' ? 'bg-violet-600 text-white' : bt.spawn_type === 'fixed_hours' ? 'bg-sky-600 text-white' : 'bg-[#27272a] text-[#a1a1aa]'}`}>{bt.spawn_type === 'fixed_schedule' ? 'schedule' : bt.spawn_type === 'fixed_hours' ? 'hours' : bt.spawn_type}</span>
-                              {bt.spawn_type === "fixed_hours" && bt.respawn_hours != null && <span className="text-xs text-[#71717a]">{bt.respawn_hours}h</span>}
-                              <span className="text-xs text-[#71717a]">{bt.points}pt{bt.points !== 1 ? "s" : ""}</span>
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <button onClick={() => setEditingBoss(isEditing ? null : { id: bt.id, name: bt.name, spawn_type: bt.spawn_type, respawn_hours: bt.respawn_hours, schedule: bt.schedule, is_recurring: bt.is_recurring, points: bt.points, category: bt.category, tags: bt.tags, image_url: bt.image_url })} className="p-1 text-[#52525b] hover:text-[#d4d4d8]"><Pencil className="w-3 h-3" /></button>
-                              <button onClick={() => setDeleteConfirm({ type: "boss", id: bt.id, name: bt.name, gameName: game.name })} className="p-1 text-[#52525b] hover:text-[#f87171]"><Trash2 className="w-3 h-3" /></button>
-                            </div>
-                          </div>
-                          {/* Edit form slides down */}
-                          <div className={`transition-all duration-300 ease-in-out ${isEditing ? "max-h-[600px] opacity-100" : "max-h-0 opacity-0"}`}>
-                            {isEditing && editingBoss && (
-                              <EditBossForm
-                                boss={editingBoss as any}
-                                gameSlug={game.slug}
-                                onSaved={() => { setEditingBoss(null); refreshTemplates(); }}
-                                onCancel={() => setEditingBoss(null)}
-                              />
-                            )}
-                          </div>
-                        </div>
                         );
                       })}
-                        {(!bossTemplates[game.id] || bossTemplates[game.id].length === 0) && <p className="text-xs text-[#52525b] py-2">No boss templates yet.</p>}
-                        {bossTemplates[game.id]?.length > 0 && (bossTemplates[game.id] || []).filter(bt => !bossSearch || bt.name.toLowerCase().includes(bossSearch.toLowerCase())).length === 0 && <p className="text-xs text-[#52525b] py-2">No bosses match "{bossSearch}".</p>}
-                      </div>
-                      </div>
                     </div>
+                    <div className="px-4 py-3">
 
-                    {/* Activity Templates */}
-                    <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <button
-                          onClick={() => setActivitiesExpanded(p => !p)}
-                          className="flex items-center gap-1.5 shrink-0 hover:opacity-80 transition"
-                        >
-                          {activitiesExpanded ? <ChevronUp className="w-3.5 h-3.5 text-[#71717a]" /> : <ChevronDown className="w-3.5 h-3.5 text-[#71717a]" />}
-                          <h4 className="text-xs font-semibold text-[#d4d4d8] flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5 text-[#a1a1aa]" /> Activity Templates ({activityTemplates[game.id]?.length || 0})</h4>
-                        </button>
-                        <button onClick={() => setShowAddActivity(true)} className="flex items-center gap-1 px-2 py-1 text-xs font-medium rounded bg-[#27272a] hover:bg-[#3f3f46] text-[#d4d4d8] transition">
-                          <Plus className="w-3 h-3" /> Add Activity
-                        </button>
-                      </div>
-
-                      <div className={`transition-all duration-300 ease-in-out overflow-hidden ${activitiesExpanded ? "max-h-[5000px] opacity-100" : "max-h-0 opacity-0"}`}>
-                      {/* Add Activity Form */}
-                      {showAddActivity && (
-                        <AddActivityForm
-                          gameId={game.id}
-                          gameSlug={game.slug}
-                          onCreated={() => { setShowAddActivity(false); refreshTemplates(); }}
-                          onCancel={() => setShowAddActivity(false)}
-                        />
-                      )}
-
-                      {/* Activity List */}
-                      <div className="space-y-1">
-                        {(activityTemplates[game.id] || []).map((at: ActivityTemplate) => {
-                          const isEditing = editingActivity?.id === at.id;
-                          return (
-                          <div key={at.id} className="bg-[#18181b]/30 rounded overflow-hidden">
-                            <div className="flex items-center justify-between px-3 py-2 text-sm">
-                            <div className="flex items-center gap-2">
-                              {at.image_url ? (
-                                <img src={at.image_url} alt={at.name} className="w-5 h-5 rounded object-cover border border-[#27272a]" />
-                              ) : (
-                                <Calendar className="w-4 h-4 text-[#52525b]" />
-                              )}
-                              <span className="text-[#fafafa]">{at.name}</span>
-                              <span className="text-xs px-1.5 py-0.5 rounded bg-[#27272a] text-[#a1a1aa]">{at.schedule_type === "fixed_schedule" ? "Fixed Schedule" : at.schedule_type === "fixed_hours" ? "Fixed Hours" : "One Time"}</span>
-                              <span className="text-xs text-[#71717a]">{at.points_per_participant}pt/p</span>
-                              {at.party_size != null && <span className="text-xs text-[#71717a]">{at.party_size}p</span>}
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <button onClick={() => setEditingActivity(isEditing ? null : { id: at.id, name: at.name, schedule_type: at.schedule_type, schedule: at.schedule, duration_minutes: at.duration_minutes, points_per_participant: at.points_per_participant, party_size: at.party_size, category: at.category, tags: at.tags, image_url: at.image_url })} className="p-1 text-[#52525b] hover:text-[#d4d4d8]"><Pencil className="w-3 h-3" /></button>
-                              <button onClick={() => setDeleteConfirm({ type: "activity", id: at.id, name: at.name, gameName: game.name })} className="p-1 text-[#52525b] hover:text-[#f87171]"><Trash2 className="w-3 h-3" /></button>
-                            </div>
+                      {/* === BOSSES TAB === */}
+                      {expandedTab === "bosses" && (
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between gap-2">
+                            <h4 className="text-xs font-semibold text-[#d4d4d8]">Boss Templates ({(bossTemplates[game.id] || []).filter(bt => !bossSearch || bt.name.toLowerCase().includes(bossSearch.toLowerCase())).length})</h4>
+                            <div className="flex items-center gap-2"><div className="relative w-48"><Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-[#52525b]" /><input placeholder="Search bosses…" value={bossSearch} onChange={e => setBossSearch(e.target.value)} className="w-full pl-7 pr-2 py-1.5 text-xs bg-[#18181b] border border-[#27272a] rounded text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#52525b]" /></div><button onClick={() => setShowAddBoss(true)} className="flex items-center gap-1 px-2 py-1 text-xs font-medium rounded bg-[#27272a] hover:bg-[#3f3f46] text-[#d4d4d8] transition shrink-0"><Plus className="w-3 h-3" /> Add Boss</button></div>
                           </div>
-                          {/* Edit form slides down */}
-                          <div className={`transition-all duration-300 ease-in-out ${isEditing ? "max-h-[600px] opacity-100" : "max-h-0 opacity-0"}`}>
-                            {isEditing && editingActivity && (
-                              <EditActivityForm
-                                activity={editingActivity as any}
-                                gameSlug={game.slug}
-                                onSaved={() => { setEditingActivity(null); refreshTemplates(); }}
-                                onCancel={() => setEditingActivity(null)}
-                              />
-                            )}
+                          {showAddBoss && <AddBossForm gameId={game.id} gameSlug={game.slug} onCreated={() => { setShowAddBoss(false); refreshTemplates(); }} onCancel={() => setShowAddBoss(false)} />}
+                          <div className="space-y-1">
+                            {(bossTemplates[game.id] || []).filter(bt => !bossSearch || bt.name.toLowerCase().includes(bossSearch.toLowerCase())).map((bt: BossTemplate) => {
+                              const isEditing = editingBoss?.id === bt.id;
+                              return (<div key={bt.id} className="bg-[#18181b]/30 rounded overflow-hidden"><div className="flex items-center justify-between px-3 py-2 text-sm"><div className="flex items-center gap-2">{bt.image_url ? <img src={bt.image_url} alt={bt.name} className="w-5 h-5 rounded object-cover border border-[#27272a]" /> : <BossImage bossName={bt.name} size="sm" />}<span className="text-[#fafafa]">{bt.name}</span><span className={`text-xs px-1.5 py-0.5 rounded font-medium ${bt.spawn_type==='fixed_schedule'?'bg-violet-600 text-white':bt.spawn_type==='fixed_hours'?'bg-sky-600 text-white':'bg-[#27272a] text-[#a1a1aa]'}`}>{bt.spawn_type==='fixed_schedule'?'schedule':bt.spawn_type==='fixed_hours'?'hours':bt.spawn_type}</span>{bt.spawn_type==="fixed_hours"&&bt.respawn_hours!=null&&<span className="text-xs text-[#71717a]">{bt.respawn_hours}h</span>}<span className="text-xs text-[#71717a]">{bt.points}pt{bt.points!==1?"s":""}</span></div><div className="flex items-center gap-1"><button onClick={()=>setEditingBoss(isEditing?null:{id:bt.id,name:bt.name,spawn_type:bt.spawn_type,respawn_hours:bt.respawn_hours,schedule:bt.schedule,is_recurring:bt.is_recurring,points:bt.points,category:bt.category,tags:bt.tags,image_url:bt.image_url})} className="p-1 text-[#52525b] hover:text-[#d4d4d8]"><Pencil className="w-3 h-3"/></button><button onClick={()=>setDeleteConfirm({type:"boss",id:bt.id,name:bt.name,gameName:game.name})} className="p-1 text-[#52525b] hover:text-[#f87171]"><Trash2 className="w-3 h-3"/></button></div></div><div className={`transition-all duration-300 ease-in-out ${isEditing?"max-h-[600px] opacity-100":"max-h-0 opacity-0"}`}>{isEditing&&editingBoss&&<EditBossForm boss={editingBoss as any} gameSlug={game.slug} onSaved={()=>{setEditingBoss(null);refreshTemplates()}} onCancel={()=>setEditingBoss(null)}/>}</div></div>);
+                            })}
+                            {(!bossTemplates[game.id] || bossTemplates[game.id].length===0) && <p className="text-xs text-[#52525b] py-2">No boss templates yet.</p>}
                           </div>
                         </div>
-                        );
-                      })}
-                        {(!activityTemplates[game.id] || activityTemplates[game.id].length === 0) && <p className="text-xs text-[#52525b] py-2">No activity templates yet.</p>}
-                      </div>
-                      </div>
+                      )}
+
+                      {/* === ACTIVITIES TAB === */}
+                      {expandedTab === "activities" && (
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between gap-2"><h4 className="text-xs font-semibold text-[#d4d4d8]">Activity Templates ({activityTemplates[game.id]?.length||0})</h4><button onClick={()=>setShowAddActivity(true)} className="flex items-center gap-1 px-2 py-1 text-xs font-medium rounded bg-[#27272a] hover:bg-[#3f3f46] text-[#d4d4d8] transition"><Plus className="w-3 h-3"/> Add Activity</button></div>
+                          {showAddActivity && <AddActivityForm gameId={game.id} gameSlug={game.slug} onCreated={()=>{setShowAddActivity(false);refreshTemplates()}} onCancel={()=>setShowAddActivity(false)}/>}
+                          <div className="space-y-1">
+                            {(activityTemplates[game.id]||[]).map((at:ActivityTemplate)=>{const isEditing=editingActivity?.id===at.id;return(<div key={at.id} className="bg-[#18181b]/30 rounded overflow-hidden"><div className="flex items-center justify-between px-3 py-2 text-sm"><div className="flex items-center gap-2">{at.image_url?<img src={at.image_url} alt={at.name} className="w-5 h-5 rounded object-cover border border-[#27272a]"/>:<Calendar className="w-4 h-4 text-[#52525b]"/>}<span className="text-[#fafafa]">{at.name}</span><span className="text-xs px-1.5 py-0.5 rounded bg-[#27272a] text-[#a1a1aa]">{at.schedule_type==="fixed_schedule"?"Fixed Schedule":at.schedule_type==="fixed_hours"?"Fixed Hours":"One Time"}</span><span className="text-xs text-[#71717a]">{at.points_per_participant}pt/p</span>{at.party_size!=null&&<span className="text-xs text-[#71717a]">{at.party_size}p</span>}</div><div className="flex items-center gap-1"><button onClick={()=>setEditingActivity(isEditing?null:{id:at.id,name:at.name,schedule_type:at.schedule_type,schedule:at.schedule,duration_minutes:at.duration_minutes,points_per_participant:at.points_per_participant,party_size:at.party_size,category:at.category,tags:at.tags,image_url:at.image_url})} className="p-1 text-[#52525b] hover:text-[#d4d4d8]"><Pencil className="w-3 h-3"/></button><button onClick={()=>setDeleteConfirm({type:"activity",id:at.id,name:at.name,gameName:game.name})} className="p-1 text-[#52525b] hover:text-[#f87171]"><Trash2 className="w-3 h-3"/></button></div></div><div className={`transition-all duration-300 ease-in-out ${isEditing?"max-h-[600px] opacity-100":"max-h-0 opacity-0"}`}>{isEditing&&editingActivity&&<EditActivityForm activity={editingActivity as any} gameSlug={game.slug} onSaved={()=>{setEditingActivity(null);refreshTemplates()}} onCancel={()=>setEditingActivity(null)}/>}</div></div>)})}
+                            {(!activityTemplates[game.id]||activityTemplates[game.id].length===0)&&<p className="text-xs text-[#52525b] py-2">No activity templates yet.</p>}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* === CATEGORIES TAB === */}
+                      {expandedTab === "categories" && (
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between gap-2"><h4 className="text-xs font-semibold text-[#d4d4d8]">Categories ({(categories[game.id]||[]).length})</h4><button onClick={()=>{setAddSubFor("__top__");setNewCategory({name:"",parent_id:""})}} className="flex items-center gap-1 px-2 py-1 text-xs font-medium rounded bg-[#27272a] hover:bg-[#3f3f46] text-[#d4d4d8] transition shrink-0"><Plus className="w-3 h-3"/> Add Category</button></div>
+                          <div className={`transition-all duration-300 ease-in-out overflow-hidden ${addSubFor==="__top__"?"max-h-[200px] opacity-100 mb-2":"max-h-0 opacity-0"}`}>
+                            <form onSubmit={handleCreateCategory} className="bg-[#18181b]/50 border border-[#27272a] rounded-lg p-3 space-y-2"><div className="flex items-center justify-between"><span className="text-xs font-medium text-[#fafafa]">New Category</span><button type="button" onClick={()=>setAddSubFor(null)} className="text-[#71717a] hover:text-[#fafafa]"><X className="w-3.5 h-3.5"/></button></div><div className="flex gap-2"><input value={newCategory.name} onChange={e=>setNewCategory(p=>({...p,name:e.target.value}))} required placeholder="Category name" className="flex-1 px-2.5 py-1.5 bg-[#18181b] border border-[#27272a] rounded text-xs text-[#fafafa] placeholder-[#52525b] focus:outline-none focus:border-[#52525b]"/><select value={newCategory.parent_id} onChange={e=>setNewCategory(p=>({...p,parent_id:e.target.value}))} className="w-40 px-2 py-1.5 bg-[#18181b] border border-[#27272a] rounded text-xs text-[#fafafa] focus:outline-none focus:border-[#52525b]"><option value="">Top-level</option>{(categories[game.id]||[]).filter(c=>!c.parent_id).map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></div><button type="submit" disabled={!newCategory.name.trim()} className="flex items-center gap-1.5 w-full px-3 py-1.5 text-xs font-medium rounded bg-[#fafafa] hover:bg-[#e4e4e7] text-[#09090b] transition disabled:opacity-50"><Save className="w-3 h-3"/> Create</button></form>
+                          </div>
+                          <div className="space-y-1">
+                            {(categories[game.id]||[]).filter(c=>!c.parent_id).map(cat=>{const subs=(categories[game.id]||[]).filter(c=>c.parent_id===cat.id);const isEditing=editingCat?.id===cat.id;return(<div key={cat.id} className="bg-[#18181b]/30 rounded overflow-hidden"><div className="flex items-center justify-between px-3 py-2 text-sm"><span className="text-[#fafafa]">{cat.name}</span><div className="flex items-center gap-0.5"><button onClick={()=>{setAddSubFor(cat.id);setNewCategory({name:"",parent_id:cat.id})}} className="p-1 text-[#52525b] hover:text-emerald-400 transition" title="Add subcategory"><Plus className="w-3 h-3"/></button><button onClick={()=>setEditingCat(isEditing?null:{id:cat.id,name:cat.name,parent_id:cat.parent_id})} className="p-1 text-[#52525b] hover:text-[#d4d4d8]"><Pencil className="w-3 h-3"/></button><button onClick={()=>setDeleteConfirm({type:"category",id:cat.id,name:cat.name,gameName:game.name})} className="p-1 text-[#52525b] hover:text-[#f87171]"><Trash2 className="w-3 h-3"/></button></div></div>{isEditing&&editingCat&&(<div className="bg-[#18181b] border-t border-[#27272a] p-3 space-y-2"><div className="flex gap-2"><input value={editingCat.name||""} onChange={e=>setEditingCat(p=>({...p,name:e.target.value}))} className="flex-1 px-2.5 py-1.5 bg-[#18181b] border border-[#27272a] rounded text-xs text-[#fafafa] focus:outline-none focus:border-[#52525b]"/><select value={editingCat.parent_id||""} onChange={e=>setEditingCat(p=>({...p,parent_id:e.target.value||null}))} className="w-40 px-2 py-1.5 bg-[#18181b] border border-[#27272a] rounded text-xs text-[#fafafa] focus:outline-none focus:border-[#52525b]"><option value="">Top-level</option>{(categories[game.id]||[]).filter(c=>!c.parent_id&&c.id!==cat.id).map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></div><div className="flex items-center gap-2"><button onClick={handleUpdateCategory} className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded bg-[#fafafa] hover:bg-[#e4e4e7] text-[#09090b] transition"><Save className="w-3 h-3"/> Save</button><button onClick={()=>setEditingCat(null)} className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded bg-[#27272a] hover:bg-[#3f3f46] text-[#d4d4d8] transition"><X className="w-3 h-3"/> Cancel</button></div></div>)}<div className={`transition-all duration-300 ease-in-out overflow-hidden ${addSubFor===cat.id?"max-h-[150px] opacity-100":"max-h-0 opacity-0"}`}><form onSubmit={handleCreateCategory} className="bg-[#18181b]/50 border-t border-[#27272a] p-3 space-y-2"><div className="flex items-center justify-between"><span className="text-[10px] text-[#71717a]">New subcategory under <span className="text-[#fafafa]">{cat.name}</span></span><button type="button" onClick={()=>setAddSubFor(null)} className="text-[#71717a] hover:text-[#fafafa]"><X className="w-3 h-3"/></button></div><div className="flex gap-2"><input value={newCategory.name} onChange={e=>setNewCategory(p=>({...p,name:e.target.value}))} required placeholder="Subcategory name" className="flex-1 px-2.5 py-1.5 bg-[#18181b] border border-[#27272a] rounded text-xs text-[#fafafa] placeholder-[#52525b] focus:outline-none focus:border-[#52525b]" autoFocus/></div><button type="submit" disabled={!newCategory.name.trim()} className="flex items-center gap-1.5 w-full px-3 py-1.5 text-xs font-medium rounded bg-[#fafafa] hover:bg-[#e4e4e7] text-[#09090b] transition disabled:opacity-50"><Save className="w-3 h-3"/> Create Subcategory</button></form></div>{subs.length>0&&(<div className="ml-4 border-l border-[#27272a] space-y-1 pb-1">{subs.map(sub=>(<div key={sub.id} className="flex items-center justify-between px-3 py-1.5 text-sm ml-1"><span className="text-[#a1a1aa] text-xs">{sub.name}</span><div className="flex items-center gap-1"><button onClick={()=>setEditingCat(editingCat?.id===sub.id?null:{id:sub.id,name:sub.name,parent_id:sub.parent_id})} className="p-0.5 text-[#52525b] hover:text-[#d4d4d8]"><Pencil className="w-2.5 h-2.5"/></button><button onClick={()=>setDeleteConfirm({type:"category",id:sub.id,name:sub.name,gameName:game.name})} className="p-0.5 text-[#52525b] hover:text-[#f87171]"><Trash2 className="w-2.5 h-2.5"/></button></div></div>))}</div>)}</div>)})}
+                            {(!categories[game.id]||categories[game.id].length===0)&&<p className="text-xs text-[#52525b] py-2">No categories yet.</p>}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* === RARITIES TAB === */}
+                      {expandedTab === "rarities" && (
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between gap-2"><h4 className="text-xs font-semibold text-[#d4d4d8]">Rarities ({(rarities[game.id]||[]).length})</h4><button onClick={()=>{setShowAddRar(true);setNewRarity({name:"",color:"#71717a"})}} className="flex items-center gap-1 px-2 py-1 text-xs font-medium rounded bg-[#27272a] hover:bg-[#3f3f46] text-[#d4d4d8] transition shrink-0"><Plus className="w-3 h-3"/> Add Rarity</button></div>
+                          {showAddRar&&(<form onSubmit={handleCreateRarity} className="bg-[#18181b]/50 border border-[#27272a] rounded-lg p-3 space-y-2"><div className="flex items-center justify-between"><span className="text-xs font-medium text-[#fafafa]">New Rarity</span><button type="button" onClick={()=>setShowAddRar(false)} className="text-[#71717a] hover:text-[#fafafa]"><X className="w-3.5 h-3.5"/></button></div><div className="flex gap-2"><input value={newRarity.name} onChange={e=>setNewRarity(p=>({...p,name:e.target.value}))} required placeholder="Rarity name" className="flex-1 px-2.5 py-1.5 bg-[#18181b] border border-[#27272a] rounded text-xs text-[#fafafa] placeholder-[#52525b] focus:outline-none focus:border-[#52525b]"/><input type="color" value={newRarity.color} onChange={e=>setNewRarity(p=>({...p,color:e.target.value}))} className="w-10 h-8 rounded bg-[#18181b] border border-[#27272a] cursor-pointer"/></div><button type="submit" disabled={!newRarity.name.trim()} className="flex items-center gap-1.5 w-full px-3 py-1.5 text-xs font-medium rounded bg-[#fafafa] hover:bg-[#e4e4e7] text-[#09090b] transition disabled:opacity-50"><Save className="w-3 h-3"/> Create</button></form>)}
+                          <div className="flex flex-wrap gap-1.5">{(rarities[game.id]||[]).map(rar=>{const isEditing=editingRar?.id===rar.id;return(<div key={rar.id} className="inline-flex items-center gap-1.5 px-2 py-1 rounded text-xs font-medium bg-[#18181b]/30 border border-[#27272a]">{isEditing?(<div className="flex items-center gap-1"><input value={editingRar?.name||""} onChange={e=>setEditingRar(p=>({...p,name:e.target.value}))} className="w-20 px-1.5 py-0.5 bg-[#18181b] border border-[#3f3f46] rounded text-xs text-[#fafafa] focus:outline-none"/><input type="color" value={editingRar?.color||"#71717a"} onChange={e=>setEditingRar(p=>({...p,color:e.target.value}))} className="w-5 h-5 rounded border border-[#3f3f46] cursor-pointer"/><button onClick={handleUpdateRarity} className="p-0.5 text-emerald-400 hover:text-emerald-300"><Save className="w-2.5 h-2.5"/></button><button onClick={()=>setEditingRar(null)} className="p-0.5 text-[#71717a] hover:text-[#fafafa]"><X className="w-2.5 h-2.5"/></button></div>):(<><span className="w-2.5 h-2.5 rounded-full shrink-0" style={{backgroundColor:rar.color}}/><span style={{color:rar.color}}>{rar.name}</span><button onClick={()=>setEditingRar({id:rar.id,name:rar.name,color:rar.color,sort_order:rar.sort_order})} className="p-0.5 text-[#52525b] hover:text-[#d4d4d8]"><Pencil className="w-2.5 h-2.5"/></button><button onClick={()=>setDeleteConfirm({type:"rarity",id:rar.id,name:rar.name,gameName:game.name})} className="p-0.5 text-[#52525b] hover:text-[#f87171]"><Trash2 className="w-2.5 h-2.5"/></button></>)}</div>)})}
+                            {(!rarities[game.id]||rarities[game.id].length===0)&&<p className="text-xs text-[#52525b] py-2">No rarities defined.</p>}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* === ITEMS TAB === */}
+                      {expandedTab === "items" && (
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between gap-2"><h4 className="text-xs font-semibold text-[#d4d4d8]">Item Catalog ({(itemCatalog[game.id]||[]).filter(it=>!itemSearch||it.name.toLowerCase().includes(itemSearch.toLowerCase())).length})</h4><div className="flex items-center gap-2"><div className="relative w-48"><Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-[#52525b]"/><input placeholder="Search items…" value={itemSearch} onChange={e=>setItemSearch(e.target.value)} className="w-full pl-7 pr-2 py-1.5 text-xs bg-[#18181b] border border-[#27272a] rounded text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#52525b]"/></div><button onClick={()=>{const gameRarities=rarities[game.id]||[];setShowAddItem(true);setNewItem({name:"",rarity:gameRarities[0]?.name||"",description:"",category_id:""});setNewItemParent("");setItemImage(null);setItemImagePreview(null)}} className="flex items-center gap-1 px-2 py-1 text-xs font-medium rounded bg-[#27272a] hover:bg-[#3f3f46] text-[#d4d4d8] transition shrink-0"><Plus className="w-3 h-3"/> Add Item</button></div></div>
+                                                    {showAddItem && (
+                            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => { setShowAddItem(false); setItemImage(null); setItemImagePreview(null); setNewItemParent(""); }}>
+                              <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-5 w-full max-w-sm mx-4" onClick={e => e.stopPropagation()} onPaste={async () => { try { const items = await navigator.clipboard.read(); for (const item of items) { const imageType = item.types.find(t => t.startsWith('image/')); if (imageType) { const blob = await item.getType(imageType); const file = new File([blob], 'pasted-image.png', { type: blob.type }); setItemImage(file); setItemImagePreview(URL.createObjectURL(file)); break; } } } catch {} }}>
+                                <div className="flex items-center justify-between mb-4"><h3 className="text-sm font-semibold text-[#fafafa]">Add Item</h3><button onClick={() => { setShowAddItem(false); setItemImage(null); setItemImagePreview(null); setNewItemParent(""); }} className="text-[#52525b] hover:text-[#fafafa]"><X className="w-4 h-4" /></button></div>
+                                <div className="space-y-3">
+                                  <div><label className="text-[10px] text-[#71717a] uppercase tracking-wider">Name</label><input value={newItem.name} onChange={e => setNewItem(p => ({...p, name: e.target.value}))} placeholder="e.g. Dragon Heart" className="w-full mt-1 px-3 py-2 bg-[#09090b] border border-[#27272a] rounded-lg text-sm text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#52525b]" autoFocus /></div>
+                                  <div><label className="text-[10px] text-[#71717a] uppercase tracking-wider">Description (optional)</label><input value={newItem.description} onChange={e => setNewItem(p => ({...p, description: e.target.value}))} placeholder="Brief description" className="w-full mt-1 px-3 py-2 bg-[#09090b] border border-[#27272a] rounded-lg text-sm text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#52525b]" /></div>
+                                  <div><label className="text-[10px] text-[#71717a] uppercase tracking-wider">Category</label><select value={newItemParent} onChange={e => { const pid = e.target.value; setNewItemParent(pid); const hasSubs = (categories[game.id]||[]).some(c=>c.parent_id===pid); setNewItem(p=>({...p, category_id: pid&&!hasSubs?pid:undefined})); }} className="w-full mt-1 px-3 py-2 bg-[#09090b] border border-[#27272a] rounded-lg text-sm text-[#fafafa] focus:outline-none focus:border-[#52525b]"><option value="">None</option>{(categories[game.id]||[]).filter(c=>!c.parent_id).map(cat=>(<option key={cat.id} value={cat.id}>{cat.name}</option>))}</select></div>
+                                  {newItemParent&&(categories[game.id]||[]).some(c=>c.parent_id===newItemParent)&&(<div><label className="text-[10px] text-[#71717a] uppercase tracking-wider">Subcategory</label><select value={newItem.category_id||''} onChange={e => setNewItem(p => ({...p, category_id: e.target.value || undefined}))} className="w-full mt-1 px-3 py-2 bg-[#09090b] border border-[#27272a] rounded-lg text-sm text-[#fafafa] focus:outline-none focus:border-[#52525b]"><option value="">-- Select --</option>{(categories[game.id]||[]).filter(c=>c.parent_id===newItemParent).map(sub=><option key={sub.id} value={sub.id}>{sub.name}</option>)}</select></div>)}
+                                  <div><label className="text-[10px] text-[#71717a] uppercase tracking-wider">Image (optional)</label>{itemImagePreview ? (<div className="mt-1 relative rounded-lg overflow-hidden bg-[#09090b] border border-[#27272a]"><img src={itemImagePreview} alt="Preview" className="w-full h-32 object-contain" /><button onClick={() => { setItemImage(null); setItemImagePreview(null); }} className="absolute top-1 right-1 p-1 rounded-full bg-black/60 text-[#fafafa] hover:bg-black/80 transition"><X className="w-3.5 h-3.5" /></button></div>) : (<div className={`mt-1 border-2 border-dashed rounded-lg p-4 text-center transition cursor-pointer ${imageDragOver ? 'border-[#52525b] bg-[#27272a]/50' : 'border-[#27272a] hover:border-[#3f3f46]'}`} onDragOver={e => { e.preventDefault(); setImageDragOver(true); }} onDragLeave={() => setImageDragOver(false)} onDrop={e => { e.preventDefault(); setImageDragOver(false); const f = e.dataTransfer.files[0]; if (f) { setItemImage(f); setItemImagePreview(URL.createObjectURL(f)); } }} onClick={() => document.getElementById('admin-item-image')?.click()}><Upload className="w-5 h-5 text-[#52525b] mx-auto mb-1" /><p className="text-[10px] text-[#52525b]"><span className="text-[#71717a] font-medium">Click to upload</span> or drag &amp; drop</p><p className="text-[9px] text-[#52525b]/50 mt-0.5">or <kbd className="px-1 py-0.5 rounded bg-[#27272a] text-[#71717a] text-[9px]">Ctrl+V</kbd> paste from clipboard</p></div>)}<input id="admin-item-image" type="file" accept="image/*" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) { setItemImage(f); setItemImagePreview(URL.createObjectURL(f)); } e.target.value = ''; }} /></div>
+                                  <div><label className="text-[10px] text-[#71717a] uppercase tracking-wider">Rarity</label><div className="flex gap-1.5 mt-1">{(rarities[game.id]||[]).map(r => (<button key={r.id} onClick={() => setNewItem(p => ({...p, rarity: r.name}))} className="flex-1 py-1.5 rounded-md text-[10px] font-medium capitalize transition border" style={{ borderColor: newItem.rarity===r.name ? r.color : '#27272a', color: newItem.rarity===r.name ? r.color : '#52525b', backgroundColor: newItem.rarity===r.name ? r.color+'15' : 'transparent' }}>{r.name}</button>))}{(rarities[game.id]||[]).length===0 && <span className="text-[10px] text-[#52525b] py-1">No rarities defined</span>}</div></div>
+                                  <button onClick={handleCreateItem} disabled={submittingItem || !newItem.name.trim()} className="w-full py-2 bg-[#fafafa] text-[#09090b] rounded-lg text-sm font-medium hover:bg-[#e4e4e7] transition disabled:opacity-50">{submittingItem ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : 'Add Item'}</button>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                          <div className="space-y-1">{(itemCatalog[game.id]||[]).filter(it=>!itemSearch||it.name.toLowerCase().includes(itemSearch.toLowerCase())).map((it:ItemCatalogItem)=>{const isEditing=editingItem?.id===it.id;const rarityObj=(rarities[game.id]||[]).find(r=>r.name===it.rarity);const rarityColor=rarityObj?.color||"#71717a";const cat=(categories[game.id]||[]).find(c=>c.id===it.category_id);const catParent=cat?.parent_id?(categories[game.id]||[]).find(c=>c.id===cat.parent_id):null;const catLabel=cat?(catParent?`${catParent.name} → ${cat.name}`:cat.name):null;return(<div key={it.id} className="bg-[#18181b]/30 rounded overflow-hidden"><div className="flex items-center justify-between px-3 py-2 text-sm"><div className="flex items-center gap-2 min-w-0">{it.image_url?<img src={it.image_url} alt={it.name} className="w-5 h-5 rounded object-cover border border-[#27272a]" style={{backgroundColor:rarityColor+"20"}}/>:<Package className="w-4 h-4 text-[#52525b]"/>}<span className="text-[#fafafa] truncate">{it.name}</span><span className="text-[10px] px-1.5 py-0.5 rounded font-medium shrink-0" style={{backgroundColor:rarityColor+"20",color:rarityColor,border:`1px solid ${rarityColor}40`}}>{it.rarity}</span>{catLabel&&<span className="text-[10px] text-[#52525b] truncate hidden sm:inline">{catLabel}</span>}</div><div className="flex items-center gap-1 shrink-0"><button onClick={()=>setEditingItem(isEditing?null:{id:it.id,name:it.name,rarity:it.rarity,description:it.description,image_url:it.image_url,category_id:it.category_id})} className="p-1 text-[#52525b] hover:text-[#d4d4d8]"><Pencil className="w-3 h-3"/></button><button onClick={()=>setDeleteConfirm({type:"item",id:it.id,name:it.name,gameName:game.name})} className="p-1 text-[#52525b] hover:text-[#f87171]"><Trash2 className="w-3 h-3"/></button></div></div><div className={`transition-all duration-300 ease-in-out ${isEditing?"max-h-[500px] opacity-100":"max-h-0 opacity-0"}`}>{isEditing&&editingItem&&(<div className="bg-[#18181b] border-t border-[#27272a] p-3 space-y-2"><div className="grid grid-cols-2 gap-2"><div className="col-span-2"><label className="block text-[10px] text-[#a1a1aa] mb-1">Name</label><input value={editingItem.name||""} onChange={e=>setEditingItem(p=>({...p,name:e.target.value}))} className="w-full px-2.5 py-1.5 bg-[#18181b] border border-[#27272a] rounded text-xs text-[#fafafa] focus:outline-none focus:border-[#52525b]"/></div><div><label className="block text-[10px] text-[#a1a1aa] mb-1">Category</label><select value={editingItem.category_id||""} onChange={e=>setEditingItem(p=>({...p,category_id:e.target.value||undefined}))} className="w-full px-2 py-1.5 bg-[#18181b] border border-[#27272a] rounded text-xs text-[#fafafa] focus:outline-none focus:border-[#52525b]"><option value="">None</option>{(categories[game.id]||[]).filter(c=>!c.parent_id).map(cat=>(<option key={cat.id} value={cat.id}>{cat.name}</option>))}</select>{(categories[game.id]||[]).filter(c=>c.parent_id&&c.parent_id===editingItem.category_id).length>0&&<select value={editingItem.category_id||""} onChange={e=>setEditingItem(p=>({...p,category_id:e.target.value||undefined}))} className="w-full mt-1 px-2 py-1.5 bg-[#18181b] border border-[#27272a] rounded text-xs text-[#fafafa] focus:outline-none focus:border-[#52525b]"><option value={editingItem.category_id||""}>-- Select --</option>{(categories[game.id]||[]).filter(c=>c.parent_id===editingItem.category_id).map(sub=><option key={sub.id} value={sub.id}>{sub.name}</option>)}</select>}</div><div><label className="block text-[10px] text-[#a1a1aa] mb-1">Rarity</label><select value={editingItem.rarity||"common"} onChange={e=>setEditingItem(p=>({...p,rarity:e.target.value}))} className="w-full px-2 py-1.5 bg-[#18181b] border border-[#27272a] rounded text-xs text-[#fafafa] focus:outline-none focus:border-[#52525b]">{(rarities[game.id]||[]).map(r=><option key={r.id} value={r.name}>{r.name}</option>)}{(rarities[game.id]||[]).length===0&&<option value="common">Common</option>}</select></div><div><label className="block text-[10px] text-[#a1a1aa] mb-1">Image URL</label><input value={editingItem.image_url||""} onChange={e=>setEditingItem(p=>({...p,image_url:e.target.value}))} placeholder="https://…" className="w-full px-2.5 py-1.5 bg-[#18181b] border border-[#27272a] rounded text-xs text-[#fafafa] placeholder-[#52525b] focus:outline-none focus:border-[#52525b]"/></div><div className="col-span-2"><label className="block text-[10px] text-[#a1a1aa] mb-1">Description</label><input value={editingItem.description||""} onChange={e=>setEditingItem(p=>({...p,description:e.target.value}))} className="w-full px-2.5 py-1.5 bg-[#18181b] border border-[#27272a] rounded text-xs text-[#fafafa] focus:outline-none focus:border-[#52525b]"/></div></div><div className="flex items-center gap-2"><button onClick={handleUpdateItem} className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded bg-[#fafafa] hover:bg-[#e4e4e7] text-[#09090b] transition"><Save className="w-3 h-3"/> Save</button><button onClick={()=>setEditingItem(null)} className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded bg-[#27272a] hover:bg-[#3f3f46] text-[#d4d4d8] transition"><X className="w-3 h-3"/> Cancel</button></div></div>)}</div></div>)})}
+                            {(!itemCatalog[game.id]||itemCatalog[game.id].length===0)&&<p className="text-xs text-[#52525b] py-2">No items in catalog yet.</p>}
+                          </div>
+                        </div>
+                      )}
+
                     </div>
                   </>
                 )}
               </div>
             )}
-            </div>          </div>        ))}
+            </div>
+          </div>
+        ))}
         {games.length === 0 && <p className="text-center text-sm text-[#71717a] py-8">No games configured yet. Add your first game above.</p>}
       </div>
 
-      {/* Delete Confirmations */}
       {deleteConfirm && (
         <ConfirmDialog
           open={true}
-          title={`Delete ${deleteConfirm.type === "game" ? "Game" : deleteConfirm.type === "boss" ? "Boss Template" : "Activity Template"}`}
-          message={deleteConfirm.type === "game"
-            ? `Are you sure you want to delete "${deleteConfirm.name}"? This will also remove all associated templates and servers.`
-            : `Delete "${deleteConfirm.name}"${deleteConfirm.gameName ? ` from ${deleteConfirm.gameName}` : ""}? This will sync-delete it from all servers.`
-          }
+          title={`Delete ${deleteConfirm.type === "game" ? "Game" : deleteConfirm.type === "boss" ? "Boss Template" : deleteConfirm.type === "item" ? "Item" : deleteConfirm.type === "category" ? "Category" : deleteConfirm.type === "rarity" ? "Rarity" : "Activity Template"}`}
+          message={deleteConfirm.type === "game" ? `Are you sure you want to delete "${deleteConfirm.name}"? This will also remove all associated templates and servers.` : `Delete "${deleteConfirm.name}"${deleteConfirm.gameName ? ` from ${deleteConfirm.gameName}` : ""}?`}
           confirmLabel="Delete"
-          onConfirm={deleteConfirm.type === "game" ? handleDeleteGame : deleteConfirm.type === "boss" ? handleDeleteBoss : handleDeleteActivity}
+          onConfirm={deleteConfirm.type === "game" ? handleDeleteGame : deleteConfirm.type === "boss" ? handleDeleteBoss : deleteConfirm.type === "item" ? handleDeleteItem : deleteConfirm.type === "category" ? handleDeleteCategory : deleteConfirm.type === "rarity" ? handleDeleteRarity : handleDeleteActivity}
           onCancel={() => setDeleteConfirm(null)}
         />
       )}

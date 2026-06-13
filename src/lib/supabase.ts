@@ -42,6 +42,19 @@ export {
   uploadBossImage,
   uploadActivityImage,
   uploadItemImage,
+  fetchItemCatalog,
+  createItemCatalogItem,
+  deleteItemCatalogItem,
+  updateItemCatalogItem,
+  uploadItemCatalogImage,
+  fetchItemCategories,
+  createItemCategory,
+  deleteItemCategory,
+  updateItemCategory,
+  fetchItemRarities,
+  createItemRarity,
+  deleteItemRarity,
+  updateItemRarity,
 } from "./api/games";
 
 // Templates

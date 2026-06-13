@@ -244,10 +244,16 @@ export function InventoryView() {
   });
 
   const [itemSearch, setItemSearch] = useState("");
+  const [rarityFilter, setRarityFilter] = useState<string | null>(null);
 
-  const filteredItems = items.filter(i =>
-    !itemSearch || i.name.toLowerCase().includes(itemSearch.toLowerCase())
-  );
+  const filteredItems = items.filter(i => {
+    if (itemSearch && !i.name.toLowerCase().includes(itemSearch.toLowerCase())) return false;
+    if (rarityFilter && i.rarity?.toLowerCase() !== rarityFilter) return false;
+    return true;
+  });
+
+  // Get unique rarities from current items for filter chips
+  const availableRarities = [...new Set(items.map(i => i.rarity?.toLowerCase()).filter(Boolean))] as string[];
 
   const formatDate = (d: string) =>
     new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
@@ -294,89 +300,145 @@ export function InventoryView() {
       {/* ── Catalog Tab ── */}
       {tab === "catalog" && (
         <div className="space-y-4">
-          <div className="flex items-center gap-3">
-            <div className="flex-1 relative">
+          {/* Search + Rarity Filters */}
+          <div className="space-y-3">
+            <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#52525b]" />
               <input
                 value={itemSearch}
                 onChange={(e) => setItemSearch(e.target.value)}
                 placeholder="Search items..."
-                className="w-full pl-9 pr-3 py-2 bg-[#18181b] border border-[#27272a] rounded-lg text-sm text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#52525b]"
+                className="w-full pl-9 pr-3 py-2.5 bg-[#18181b] border border-[#27272a] rounded-xl text-sm text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#52525b]"
               />
             </div>
-            <button
-              onClick={() => setShowCreateItem(true)}
-              className="flex items-center gap-1.5 px-3 py-2 bg-[#fafafa] text-[#09090b] rounded-lg text-sm font-medium hover:bg-[#e4e4e7] transition shrink-0"
-            >
-              <Plus className="w-4 h-4" />
-              New Item
-            </button>
+            {availableRarities.length > 0 && (
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <button
+                  onClick={() => setRarityFilter(null)}
+                  className={`px-2.5 py-1 rounded-md text-[10px] font-medium transition ${
+                    !rarityFilter ? "bg-[#fafafa] text-[#09090b]" : "bg-[#27272a] text-[#a1a1aa] hover:text-[#e4e4e7]"
+                  }`}
+                >
+                  All
+                </button>
+                {availableRarities.map(r => {
+                  const color = RARITY_COLORS[r as ItemRarity] || "#71717a";
+                  return (
+                    <button
+                      key={r}
+                      onClick={() => setRarityFilter(rarityFilter === r ? null : r)}
+                      className="px-2.5 py-1 rounded-md text-[10px] font-medium capitalize transition"
+                      style={{
+                        backgroundColor: rarityFilter === r ? `${color}20` : "#27272a",
+                        color: rarityFilter === r ? color : "#a1a1aa",
+                        border: `1px solid ${rarityFilter === r ? `${color}40` : "transparent"}`,
+                      }}
+                    >
+                      {r}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           {itemsLoading ? (
             <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 text-[#71717a] animate-spin" /></div>
           ) : filteredItems.length === 0 ? (
-            <p className="text-sm text-[#52525b] text-center py-12">
-              {itemSearch ? "No items match your search." : "No items in catalog yet. Create your first item!"}
-            </p>
+            <div className="text-center py-16">
+              <Package className="w-10 h-10 text-[#27272a] mx-auto mb-3" />
+              <p className="text-sm text-[#52525b]">
+                {itemSearch || rarityFilter ? "No items match your filters." : "No items in catalog yet."}
+              </p>
+            </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {filteredItems.map(item => (
-                <div key={item.id} className="bg-[#18181b] border border-[#27272a] rounded-xl p-4 flex items-center gap-3 group">
-                  <div
-                    className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0"
-                    style={{ backgroundColor: `${RARITY_COLORS[item.rarity]}15` }}
-                  >
-                    {item.image_url ? (
-                      <img src={item.image_url} alt="" className="w-8 h-8 rounded object-cover" />
-                    ) : (
-                      <Star className="w-5 h-5" style={{ color: RARITY_COLORS[item.rarity] }} />
-                    )}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-[#fafafa] truncate">{item.name}</p>
-                    {item.description && (
-                      <p className="text-[11px] text-[#71717a] truncate">{item.description}</p>
-                    )}
-                    <div className="flex items-center gap-2 mt-0.5">
-                      <span className="text-[10px] capitalize font-medium" style={{ color: RARITY_COLORS[item.rarity] }}>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {filteredItems.map(item => {
+                const rarityColor = RARITY_COLORS[item.rarity?.toLowerCase() as ItemRarity] || "#71717a";
+                const isCatalog = !item.server_id;
+                return (
+                <div
+                  key={item.id}
+                  className="group relative bg-[#18181b] border border-[#27272a] rounded-xl overflow-hidden hover:border-[#3f3f46] transition-all duration-200"
+                >
+                  {/* Rarity accent bar */}
+                  <div className="absolute top-0 left-0 right-0 h-0.5" style={{ backgroundColor: rarityColor }} />
+
+                  <div className="p-4">
+                    {/* Image */}
+                    <div className="flex items-start gap-3">
+                      <div
+                        className="w-14 h-14 rounded-xl flex items-center justify-center shrink-0 border"
+                        style={{ backgroundColor: `${rarityColor}12`, borderColor: `${rarityColor}25` }}
+                      >
+                        {item.image_url ? (
+                          <img src={item.image_url} alt="" className="w-11 h-11 rounded-lg object-cover" />
+                        ) : (
+                          <Star className="w-6 h-6" style={{ color: rarityColor }} />
+                        )}
+                      </div>
+
+                      <div className="min-w-0 flex-1 pt-0.5">
+                        <p className="text-sm font-semibold text-[#fafafa] truncate leading-tight">{item.name}</p>
+                        {item.description && (
+                          <p className="text-[11px] text-[#71717a] truncate mt-0.5 leading-tight">{item.description}</p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Meta row */}
+                    <div className="flex items-center gap-2 mt-3 pt-3 border-t border-[#27272a]">
+                      <span
+                        className="text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded"
+                        style={{ color: rarityColor, backgroundColor: `${rarityColor}15` }}
+                      >
                         {item.rarity}
                       </span>
-                      {item.server_id !== serverId && (
-                        <span className="text-[9px] text-[#3b82f6]/70 bg-[#3b82f6]/10 px-1 rounded" title="Item shared from another server">🌐 Shared</span>
-                      )}
-                      {item.created_by_username && (
-                        <span className="text-[9px] text-[#52525b]" title={`Added by ${item.created_by_username}`}>
-                          by {item.created_by_username}
+                      {isCatalog ? (
+                        <span className="text-[9px] text-[#8b5cf6]/80 bg-[#8b5cf6]/8 px-1.5 py-0.5 rounded font-medium" title="Official game catalog item">
+                          📦 Catalog
                         </span>
-                      )}
+                      ) : item.server_id !== serverId ? (
+                        <span className="text-[9px] text-[#3b82f6]/80 bg-[#3b82f6]/8 px-1.5 py-0.5 rounded font-medium" title="Item shared from another server">
+                          🌐 Shared
+                        </span>
+                      ) : null}
+                      <span className="text-[9px] text-[#52525b] ml-auto">
+                        {isCatalog ? 'admin' : item.created_by_username}
+                      </span>
                     </div>
                   </div>
-                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition">
+
+                  {/* Hover actions */}
+                  <div className="absolute inset-0 bg-[#09090b]/0 group-hover:bg-[#09090b]/40 rounded-xl flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-all duration-200">
                     <button
                       onClick={() => { setDistItemId(item.id); setShowDistribute(true); }}
-                      className="p-1.5 rounded-md hover:bg-[#27272a] text-[#a1a1aa] hover:text-[#fafafa] transition"
+                      className="p-2.5 rounded-xl bg-[#18181b]/90 border border-[#27272a] text-[#fafafa] hover:bg-[#27272a] hover:scale-105 transition-all shadow-lg"
                       title="Distribute"
                     >
                       <Gift className="w-4 h-4" />
                     </button>
-                    <button
-                      onClick={() => startEdit(item)}
-                      className="p-1.5 rounded-md hover:bg-[#27272a] text-[#a1a1aa] hover:text-[#fafafa] transition"
-                      title="Edit"
-                    >
-                      <Pencil className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => { if (confirm(`Delete "${item.name}"?`)) deleteItem(item.id).then(() => queryClient.invalidateQueries({ queryKey: ["items", serverId] })); }}
-                      className="p-1.5 rounded-md hover:bg-[#27272a] text-[#a1a1aa] hover:text-red-400 transition"
-                      title="Delete"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                    {item.server_id === serverId && (
+                      <>
+                        <button
+                          onClick={() => startEdit(item)}
+                          className="p-2.5 rounded-xl bg-[#18181b]/90 border border-[#27272a] text-[#fafafa] hover:bg-[#27272a] hover:scale-105 transition-all shadow-lg"
+                          title="Edit"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => { if (confirm(`Delete "${item.name}"?`)) deleteItem(item.id).then(() => queryClient.invalidateQueries({ queryKey: ["items", serverId] })); }}
+                          className="p-2.5 rounded-xl bg-[#18181b]/90 border border-[#27272a] text-[#fafafa] hover:bg-[#ef4444]/20 hover:border-[#ef4444]/40 hover:text-red-400 hover:scale-105 transition-all shadow-lg"
+                          title="Delete"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </>
+                    )}
                   </div>
                 </div>
-              ))}
+              );})}
             </div>
           )}
         </div>

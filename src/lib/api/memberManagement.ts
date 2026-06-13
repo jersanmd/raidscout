@@ -376,19 +376,29 @@ export async function fetchItems(serverId?: string | null): Promise<Item[]> {
   const sid = serverId ?? getCurrentServerId();
   if (!sid) return [];
 
-  // Get the server's game for cross-server item sharing
+  // Get the server's game slug (or resolve from game_id)
   const { data: server } = await supabase
     .from("servers")
-    .select("game")
+    .select("game, game_id")
     .eq("id", sid)
     .single();
 
-  const game = server?.game;
+  let gameSlug: string | undefined = server?.game ?? undefined;
+
+  // Fallback: resolve game_id UUID → slug if game column is null
+  if (!gameSlug && server?.game_id) {
+    const { data: gameData } = await supabase
+      .from("games")
+      .select("slug")
+      .eq("id", server.game_id)
+      .single();
+    gameSlug = gameData?.slug ?? undefined;
+  }
 
   const { data, error } = await supabase
     .from("items")
     .select("*")
-    .or(game ? `game.eq.${game},server_id.eq.${sid}` : `server_id.eq.${sid}`)
+    .or(gameSlug ? `game.eq.${gameSlug},server_id.eq.${sid}` : `server_id.eq.${sid}`)
     .order("name");
   if (error) throw error;
   return data as Item[];

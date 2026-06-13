@@ -50,7 +50,7 @@ export function GearTrackingTab() {
   const [searchCatalog, setSearchCatalog] = useState("");
   const [showAddItem, setShowAddItem] = useState(false);
   const [newItem, setNewItem] = useState({ name: "", category: "", rarity: "legendary", description: "" });
-  const [editingGear, setEditingGear] = useState<Record<string, { itemId: string; enh: number }>>({});
+  const [editingGear, setEditingGear] = useState<Record<string, Record<string, { itemId: string; enh: number }>>>({});
   const [savingGear, setSavingGear] = useState(false);
   const [toast, setToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const [memberSearch, setMemberSearch] = useState("");

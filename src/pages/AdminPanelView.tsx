@@ -430,7 +430,19 @@ export function AdminPanelView() {
                   className="w-full p-3 sm:p-4 flex items-center justify-between hover:bg-[#18181b]/50 transition text-left"
                 >
                   <div className="min-w-0 flex-1 mr-2">
-                    <h4 className="text-sm font-semibold text-[#fafafa] truncate">{s.name}</h4>
+                    <div className="flex items-center gap-2">
+                      <h4 className="text-sm font-semibold text-[#fafafa] truncate">{s.name}</h4>
+                      {s.game_name && (
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] text-[#a1a1aa] bg-[#27272a] shrink-0">
+                          {s.game_icon_url ? (
+                            <img src={s.game_icon_url} alt="" className="w-3 h-3 rounded object-cover" />
+                          ) : (
+                            <Gamepad2 className="w-3 h-3" />
+                          )}
+                          {s.game_name}
+                        </span>
+                      )}
+                    </div>
                     <p className="text-[10px] text-[#71717a] font-mono">{s.id?.substring(0, 12)}...</p>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
