@@ -31,7 +31,7 @@ serve(async (req: Request) => {
 
     // Fetch ALL progress channel configs for this server (with per-config prefixes)
     const dcRes = await fetch(
-      `${supabaseUrl}/rest/v1/discord_configs?select=progress_channel_id,label,notification_prefix,webhook_url,raidscout_server_id&raidscout_server_id=eq.${server_id}`,
+      `${supabaseUrl}/rest/v1/discord_configs?select=progress_channel_id,label,notification_prefix,command_prefix,webhook_url,raidscout_server_id&raidscout_server_id=eq.${server_id}`,
       { headers }
     );
     const configs = await dcRes.json();
@@ -68,6 +68,7 @@ serve(async (req: Request) => {
       try {
         const ping = config.notification_prefix || "@everyone";
         const guildLabel = config.label || "Unknown Guild";
+        const cmdPrefix = config.command_prefix || "!";
 
         const instructionMessage = [
           `${ping}`,
@@ -77,12 +78,12 @@ serve(async (req: Request) => {
           `Please update your Combat Power using the following format:`,
           ``,
           `\`\`\``,
-          `!updatestats <YourName> <CP>`,
+          `${cmdPrefix}updatestats <YourName> <CP>`,
           `\`\`\``,
           ``,
           `**Examples:**`,
-          `• \`!updatestats PressX 120,000\``,
-          `• \`!updatestats PressX 120k\`  (k = thousand)`,
+          `• \`${cmdPrefix}updatestats PressX 120,000\``,
+          `• \`${cmdPrefix}updatestats PressX 120k\`  (k = thousand)`,
           ``,
           `**Rules:**`,
           `1. You **must** attach a screenshot as proof along with your message`,
