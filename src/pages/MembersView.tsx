@@ -617,17 +617,6 @@ export function MembersView() {
           Members
         </button>
         <button
-          onClick={() => setMembersTab("parties")}
-          className={`px-3 py-1.5 rounded-t-md text-xs font-medium transition ${
-            membersTab === "parties"
-              ? "bg-[#18181b] text-[#fafafa] border border-[#27272a] border-b-transparent"
-              : "text-[#71717a] hover:text-[#d4d4d8]"
-          }`}
-        >
-          <Shield className="w-3.5 h-3.5 inline mr-1" />
-          Parties {parties.length > 0 && `(${parties.length})`}
-        </button>
-        <button
           onClick={() => setMembersTab("progress")}
           className={`px-3 py-1.5 rounded-t-md text-xs font-medium transition ${
             membersTab === "progress"
@@ -637,6 +626,17 @@ export function MembersView() {
         >
           <TrendingUp className="w-3.5 h-3.5 inline mr-1" />
           Progress
+        </button>
+        <button
+          onClick={() => setMembersTab("parties")}
+          className={`px-3 py-1.5 rounded-t-md text-xs font-medium transition ${
+            membersTab === "parties"
+              ? "bg-[#18181b] text-[#fafafa] border border-[#27272a] border-b-transparent"
+              : "text-[#71717a] hover:text-[#d4d4d8]"
+          }`}
+        >
+          <Shield className="w-3.5 h-3.5 inline mr-1" />
+          Parties {parties.length > 0 && `(${parties.length})`}
         </button>
 
         {/* Classes — inline in tab bar */}
