@@ -89,16 +89,21 @@ export function GearTrackingTab() {
   const [pickerSearch, setPickerSearch] = useState("");
   const [classIcons, setClassIcons] = useState<Record<string, string>>({});
   const [classColors, setClassColors] = useState<Record<string, string>>({});
-  const [sortCol, setSortCol] = useState<string | null>(null);
-  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const gearSortKey = `gear-sort-${serverId}`;
+  const [sortCol, setSortCol] = useState<string | null>(() => {
+    if (!serverId) return null;
+    try { const s = JSON.parse(localStorage.getItem(gearSortKey) || "null"); return s?.col || null; } catch { return null; }
+  });
+  const [sortDir, setSortDir] = useState<"asc" | "desc">(() => {
+    if (!serverId) return "asc";
+    try { const s = JSON.parse(localStorage.getItem(gearSortKey) || "null"); return s?.dir || "asc"; } catch { return "asc"; }
+  });
 
   const toggleSort = (col: string) => {
-    if (sortCol === col) {
-      setSortDir(d => d === "asc" ? "desc" : "asc");
-    } else {
-      setSortCol(col);
-      setSortDir("asc");
-    }
+    const newDir = sortCol === col ? (sortDir === "asc" ? "desc" : "asc") : "asc";
+    setSortCol(col);
+    setSortDir(newDir);
+    try { localStorage.setItem(gearSortKey, JSON.stringify({ col, dir: newDir })); } catch {}
   };
 
   // Sort members by current column
