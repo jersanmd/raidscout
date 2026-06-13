@@ -202,45 +202,45 @@ export function MemberProfileView() {
   // Account status summary — natural language commentary
   const accountSummary = useMemo(() => {
     if (!profile) return null;
-    const lines: { text: string; color: string }[] = [];
+    const lines: { text: string; colorClass: string }[] = [];
 
     // CP progress commentary
     if (cpTrend === "up" && cpPctChange != null) {
-      lines.push({ text: `📈 CP is trending up +${cpPctChange.toFixed(1)}% over your last ${cpSparkData.length} updates — great progress!`, color: "#22c55e" });
+      lines.push({ text: `CP is trending up +${cpPctChange.toFixed(1)}% over your last ${cpSparkData.length} updates — great progress!`, colorClass: "text-green-400" });
     } else if (cpTrend === "down" && cpPctChange != null) {
-      lines.push({ text: `📉 CP is down ${cpPctChange.toFixed(1)}% — time to gear up and catch up!`, color: "#ef4444" });
+      lines.push({ text: `CP is down ${cpPctChange.toFixed(1)}% — time to gear up and catch up!`, colorClass: "text-red-400" });
     } else if (cpTrend === "flat") {
-      lines.push({ text: `➡️ CP has been steady — keep pushing to grow stronger.`, color: "#a1a1aa" });
+      lines.push({ text: `CP has been steady — keep pushing to grow stronger.`, colorClass: "text-[#a1a1aa]" });
     }
 
     // Attendance commentary
     if (totalEvents >= 20) {
-      lines.push({ text: `🎯 Very active — ${totalEvents} events attended. Keep it up!`, color: "#22c55e" });
+      lines.push({ text: `Very active — ${totalEvents} events attended. Keep it up!`, colorClass: "text-green-400" });
     } else if (totalEvents >= 5) {
-      lines.push({ text: `👍 Moderately active with ${totalEvents} events attended.`, color: "#f59e0b" });
+      lines.push({ text: `Moderately active with ${totalEvents} events attended.`, colorClass: "text-amber-400" });
     } else if (totalEvents > 0) {
-      lines.push({ text: `👋 Just getting started — ${totalEvents} event${totalEvents !== 1 ? "s" : ""} attended so far.`, color: "#a1a1aa" });
+      lines.push({ text: `Just getting started — ${totalEvents} event${totalEvents !== 1 ? "s" : ""} attended so far.`, colorClass: "text-[#a1a1aa]" });
     }
 
     if (daysSinceActive >= 7 && daysSinceActive < 999) {
-      lines.push({ text: `⏳ Last seen ${daysSinceActive} days ago — time to check in!`, color: "#ef4444" });
+      lines.push({ text: `Last seen ${daysSinceActive} days ago — time to check in!`, colorClass: "text-red-400" });
     }
 
     // Score commentary
     if (score >= 75) {
-      lines.push({ text: `🏆 Excellent performance score of ${score}/100.`, color: "#22c55e" });
+      lines.push({ text: `Excellent performance score of ${score}/100.`, colorClass: "text-green-400" });
     } else if (score >= 50) {
-      lines.push({ text: `📊 Decent score of ${score}/100 — room to grow.`, color: "#f59e0b" });
+      lines.push({ text: `Decent score of ${score}/100 — room to grow.`, colorClass: "text-amber-400" });
     } else if (score > 0) {
-      lines.push({ text: `🔻 Low score of ${score}/100 — focus on attendance and CP growth.`, color: "#ef4444" });
+      lines.push({ text: `Low score of ${score}/100 — focus on attendance and CP growth.`, colorClass: "text-red-400" });
     }
 
     if (risks.length > 0) {
-      lines.push({ text: `⚠️ ${risks.join(" · ")}`, color: "#ef4444" });
+      lines.push({ text: risks.join(" · "), colorClass: "text-red-400" });
     }
 
     if (lines.length === 0) {
-      lines.push({ text: "Not enough data yet — start attending events and updating CP to see your summary.", color: "#a1a1aa" });
+      lines.push({ text: "Not enough data yet — start attending events and updating CP to see your summary.", colorClass: "text-[#a1a1aa]" });
     }
 
     return lines;
@@ -668,7 +668,10 @@ export function MemberProfileView() {
             {accountSummary && accountSummary.length > 0 && (
               <div className="border-t border-[#27272a] pt-2 mt-2 space-y-1">
                 {accountSummary.map((line, i) => (
-                  <p key={i} className="text-xs" style={{ color: line.color }}>{line.text}</p>
+                  <p key={i} className={`text-xs flex items-start gap-1.5 ${line.colorClass}`}>
+                    <span className="mt-0.5 w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: "currentColor" }} />
+                    {line.text}
+                  </p>
                 ))}
               </div>
             )}
@@ -735,7 +738,10 @@ export function MemberProfileView() {
         {accountSummary && accountSummary.length > 0 && (
           <div className="border-t border-[#27272a] pt-2 mt-2 space-y-1">
             {accountSummary.map((line, i) => (
-              <p key={i} className="text-xs" style={{ color: line.color }}>{line.text}</p>
+              <p key={i} className={`text-xs flex items-start gap-1.5 ${line.colorClass}`}>
+                <span className="mt-0.5 w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: "currentColor" }} />
+                {line.text}
+              </p>
             ))}
           </div>
         )}
