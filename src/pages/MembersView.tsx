@@ -1108,8 +1108,6 @@ export function MembersView() {
       })()}
     </div>
   );
-    </div>
-  );
 }
 
 /** Auto-dismissing toast notification */
