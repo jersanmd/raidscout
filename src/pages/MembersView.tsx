@@ -832,7 +832,7 @@ export function MembersView() {
               <ChevronRight className="w-6 h-6 text-[#d4d4d8]" />
             </button>
           </>)}
-          <div className="overflow-hidden px-10"
+          <div className="overflow-x-hidden px-10"
             onTouchStart={e => handleSwipeStart(e.touches[0].clientX)}
             onTouchMove={e => handleSwipeMove(e.touches[0].clientX)}
             onTouchEnd={() => handleSwipeEnd(carouselPages.length)}
