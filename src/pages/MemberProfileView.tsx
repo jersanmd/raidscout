@@ -146,6 +146,41 @@ export function MemberProfileView() {
     return dates.length > 0 ? new Date(Math.max(...dates)).toISOString() : null;
   }, [profile]);
   const totalEvents = profile ? (profile.attendance_history?.length || 0) + (profile.activity_attendance?.length || 0) : 0;
+
+  // 7-day and 30-day event counts
+  const now = Date.now();
+  const events7d = useMemo(() => {
+    if (!profile) return 0;
+    const cutoff = now - 7 * 86400000;
+    const hunts = (profile.attendance_history || []).filter((a: any) => new Date(a.created_at).getTime() >= cutoff).length;
+    const acts = (profile.activity_attendance || []).filter((a: any) => new Date(a.created_at).getTime() >= cutoff).length;
+    return hunts + acts;
+  }, [profile]);
+  const events30d = useMemo(() => {
+    if (!profile) return 0;
+    const cutoff = now - 30 * 86400000;
+    const hunts = (profile.attendance_history || []).filter((a: any) => new Date(a.created_at).getTime() >= cutoff).length;
+    const acts = (profile.activity_attendance || []).filter((a: any) => new Date(a.created_at).getTime() >= cutoff).length;
+    return hunts + acts;
+  }, [profile]);
+
+  // Activity indicator: what % of weeks in the last 12 had at least 1 event?
+  const activityPct = useMemo(() => {
+    if (!profile) return 0;
+    let activeWeeks = 0;
+    for (let w = 0; w < 12; w++) {
+      const start = now - (w + 1) * 7 * 86400000;
+      const end = now - w * 7 * 86400000;
+      const hasHunt = (profile.attendance_history || []).some((a: any) => {
+        const t = new Date(a.created_at).getTime(); return t >= start && t < end;
+      });
+      const hasAct = (profile.activity_attendance || []).some((a: any) => {
+        const t = new Date(a.created_at).getTime(); return t >= start && t < end;
+      });
+      if (hasHunt || hasAct) activeWeeks++;
+    }
+    return Math.round((activeWeeks / 12) * 100);
+  }, [profile]);
   const risks: string[] = useMemo(() => {
     if (!profile) return [];
     const r: string[] = [];
@@ -400,7 +435,7 @@ export function MemberProfileView() {
         </div>
 
         {/* KPI Row */}
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mt-5">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mt-5">
           <div className="bg-[#09090b] rounded-lg p-3 flex items-center gap-3">
             <ScoreGauge score={score}/>
             <div><p className="text-[10px] text-[#71717a] uppercase tracking-wider">Score</p><p className="text-xs text-[#52525b]">/100</p></div>
@@ -418,6 +453,19 @@ export function MemberProfileView() {
           <div className="bg-[#09090b] rounded-lg p-3">
             <p className="text-[10px] text-[#71717a] uppercase tracking-wider">Events Attended</p>
             <p className="text-lg font-bold text-[#fafafa] mt-0.5">{totalEvents}</p>
+            <div className="flex items-center gap-2 mt-1">
+              <span className="text-[10px] text-[#52525b]">7d: <span className="text-[#a1a1aa]">{events7d}</span></span>
+              <span className="text-[10px] text-[#52525b]">30d: <span className="text-[#a1a1aa]">{events30d}</span></span>
+            </div>
+          </div>
+          <div className="bg-[#09090b] rounded-lg p-3">
+            <p className="text-[10px] text-[#71717a] uppercase tracking-wider">Activity</p>
+            <p className={`text-lg font-bold mt-0.5 ${activityPct >= 75 ? "text-green-400" : activityPct >= 50 ? "text-amber-400" : activityPct > 0 ? "text-red-400" : "text-[#a1a1aa]"}`}>
+              {activityPct}%
+            </p>
+            <p className="text-[10px] text-[#52525b] mt-0.5">
+              {activityPct >= 75 ? "Very active" : activityPct >= 50 ? "Moderate" : activityPct > 0 ? "Low activity" : "No recent activity"}
+            </p>
           </div>
           <div className="bg-[#09090b] rounded-lg p-3">
             <p className="text-[10px] text-[#71717a] uppercase tracking-wider">Items Received</p>
