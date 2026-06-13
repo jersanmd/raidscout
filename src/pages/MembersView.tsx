@@ -76,17 +76,27 @@ export function MembersView() {
     setGuildOrder(order);
     localStorage.setItem(guildOrderKey, JSON.stringify(order));
   };
+  // Auto-populate order from current guilds if not yet saved
+  const ensureGuildOrder = (): string[] => {
+    if (guildOrder.length > 0) return guildOrder;
+    const ids = guilds.map(g => g.id);
+    if (ids.length === 0) return [];
+    saveGuildOrder(ids);
+    return ids;
+  };
   const moveGuildUp = (guildId: string) => {
-    const idx = guildOrder.indexOf(guildId);
+    const order = ensureGuildOrder();
+    const idx = order.indexOf(guildId);
     if (idx <= 0) return;
-    const next = [...guildOrder];
+    const next = [...order];
     [next[idx - 1], next[idx]] = [next[idx], next[idx - 1]];
     saveGuildOrder(next);
   };
   const moveGuildDown = (guildId: string) => {
-    const idx = guildOrder.indexOf(guildId);
-    if (idx < 0 || idx >= guildOrder.length - 1) return;
-    const next = [...guildOrder];
+    const order = ensureGuildOrder();
+    const idx = order.indexOf(guildId);
+    if (idx < 0 || idx >= order.length - 1) return;
+    const next = [...order];
     [next[idx], next[idx + 1]] = [next[idx + 1], next[idx]];
     saveGuildOrder(next);
   };
