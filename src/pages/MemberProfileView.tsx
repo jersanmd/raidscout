@@ -199,6 +199,53 @@ export function MemberProfileView() {
     return first > 0 ? ((last - first) / first * 100) : null;
   }, [cpSparkData]);
 
+  // Account status summary — natural language commentary
+  const accountSummary = useMemo(() => {
+    if (!profile) return null;
+    const lines: { text: string; color: string }[] = [];
+
+    // CP progress commentary
+    if (cpTrend === "up" && cpPctChange != null) {
+      lines.push({ text: `📈 CP is trending up +${cpPctChange.toFixed(1)}% over your last ${cpSparkData.length} updates — great progress!`, color: "#22c55e" });
+    } else if (cpTrend === "down" && cpPctChange != null) {
+      lines.push({ text: `📉 CP is down ${cpPctChange.toFixed(1)}% — time to gear up and catch up!`, color: "#ef4444" });
+    } else if (cpTrend === "flat") {
+      lines.push({ text: `➡️ CP has been steady — keep pushing to grow stronger.`, color: "#a1a1aa" });
+    }
+
+    // Attendance commentary
+    if (totalEvents >= 20) {
+      lines.push({ text: `🎯 Very active — ${totalEvents} events attended. Keep it up!`, color: "#22c55e" });
+    } else if (totalEvents >= 5) {
+      lines.push({ text: `👍 Moderately active with ${totalEvents} events attended.`, color: "#f59e0b" });
+    } else if (totalEvents > 0) {
+      lines.push({ text: `👋 Just getting started — ${totalEvents} event${totalEvents !== 1 ? "s" : ""} attended so far.`, color: "#a1a1aa" });
+    }
+
+    if (daysSinceActive >= 7 && daysSinceActive < 999) {
+      lines.push({ text: `⏳ Last seen ${daysSinceActive} days ago — time to check in!`, color: "#ef4444" });
+    }
+
+    // Score commentary
+    if (score >= 75) {
+      lines.push({ text: `🏆 Excellent performance score of ${score}/100.`, color: "#22c55e" });
+    } else if (score >= 50) {
+      lines.push({ text: `📊 Decent score of ${score}/100 — room to grow.`, color: "#f59e0b" });
+    } else if (score > 0) {
+      lines.push({ text: `🔻 Low score of ${score}/100 — focus on attendance and CP growth.`, color: "#ef4444" });
+    }
+
+    if (risks.length > 0) {
+      lines.push({ text: `⚠️ ${risks.join(" · ")}`, color: "#ef4444" });
+    }
+
+    if (lines.length === 0) {
+      lines.push({ text: "Not enough data yet — start attending events and updating CP to see your summary.", color: "#a1a1aa" });
+    }
+
+    return lines;
+  }, [profile, cpTrend, cpPctChange, cpSparkData.length, totalEvents, daysSinceActive, score, risks]);
+
   const [isMobile, setIsMobile] = useState(false);
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 640);
@@ -433,6 +480,21 @@ export function MemberProfileView() {
           );
         })()}
       </div>
+
+      {/* ── Account Status Summary ── */}
+      {accountSummary && accountSummary.length > 0 && (
+        <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-4 sm:p-5">
+          <div className="flex items-center gap-2 mb-3">
+            <MessageSquare className="w-4 h-4 text-blue-400"/>
+            <h2 className="text-xs font-semibold text-[#a1a1aa] uppercase tracking-wider">Account Status</h2>
+          </div>
+          <div className="space-y-1.5">
+            {accountSummary.map((line, i) => (
+              <p key={i} className="text-sm" style={{ color: line.color }}>{line.text}</p>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* ── Daily Activity ── */}
       <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-4 sm:p-5">
