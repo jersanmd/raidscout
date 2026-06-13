@@ -170,6 +170,19 @@ serve(async (req: Request) => {
         timestamp: new Date().toISOString(),
         footer: { text: "Powered by RaidScout" },
       };
+    } else if (event === "cp_reminder") {
+      content = `${ping} ⚔️ **Daily CP Update Reminder!**\n\nIt's time to update your Combat Power! Use \`!updatestats <YourName> <CP>\` in the server to log your stats.\n\n📊 Stay competitive — track your growth on the leaderboard!`;
+      embed = {
+        title: "⚔️ CP Update Reminder",
+        description: "All members are requested to update their Combat Power today. Use `!updatestats` to submit your CP.",
+        color: 0x22c55e, // green
+        fields: [
+          { name: "Server", value: serverName, inline: true },
+          { name: "Command", value: "`!updatestats <name> <cp>`", inline: true },
+        ],
+        timestamp: new Date().toISOString(),
+        footer: { text: "Powered by RaidScout" },
+      };
     } else {
       return new Response(
         JSON.stringify({ ok: false, reason: "Unknown event" }),

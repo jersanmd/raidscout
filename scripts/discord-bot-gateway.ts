@@ -14,6 +14,7 @@ import { handleMessage } from "./bot/commands";
 import { startSpawnCron } from "./bot/spawn-cron";
 import { getCronStats } from "./bot/spawn-cron";
 import { withCommandTracking, getActiveCommandCount } from "./bot/concurrency";
+import { createThreadInChannel } from "./bot/threads";
 
 // -- Crash resilience --------------------------------------
 process.on("uncaughtException", (err: any) => {
@@ -118,7 +119,7 @@ const startTime = Date.now();
 function corsHeaders(): Record<string, string> {
   return {
     "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "GET, OPTIONS",
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type",
   };
 }
@@ -166,6 +167,33 @@ http.createServer((req, res) => {
   if (req.method === "GET" && (url.pathname === "/health")) {
     res.writeHead(200, { "Content-Type": "text/plain", ...corsHeaders() });
     res.end(`OK — Discord ${discordConnected ? "connected" : "disconnected"}`);
+    return;
+  }
+
+  // POST /create-thread — called by create-progress-thread edge function
+  if (req.method === "POST" && url.pathname === "/create-thread") {
+    let body = "";
+    req.on("data", (chunk: string) => { body += chunk; });
+    req.on("end", async () => {
+      try {
+        const { channel_id, thread_name, message } = JSON.parse(body);
+        if (!channel_id || !thread_name || !message) {
+          res.writeHead(400, headers);
+          return res.end(JSON.stringify({ ok: false, error: "Missing channel_id, thread_name, or message" }));
+        }
+        const threadId = await createThreadInChannel(channel_id, thread_name, message, undefined);
+        if (threadId) {
+          res.writeHead(200, headers);
+          res.end(JSON.stringify({ ok: true, thread_id: threadId }));
+        } else {
+          res.writeHead(500, headers);
+          res.end(JSON.stringify({ ok: false, error: "Failed to create thread" }));
+        }
+      } catch (e: any) {
+        res.writeHead(500, headers);
+        res.end(JSON.stringify({ ok: false, error: e.message }));
+      }
+    });
     return;
   }
 

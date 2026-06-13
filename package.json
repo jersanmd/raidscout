@@ -12,7 +12,7 @@
         "test:watch": "vitest",
         "test:coverage": "vitest run --coverage",
         "start:bot": "node dist/bot.js",
-    "build:bot": "esbuild scripts/discord-bot-gateway.ts --bundle --platform=node --target=node22 --format=cjs --outfile=dist/bot.cjs --external:ws"
+        "build:bot": "esbuild scripts/discord-bot-gateway.ts --bundle --platform=node --target=node22 --format=cjs --outfile=dist/bot.cjs --external:ws"
     },
     "dependencies": {
         "@supabase/supabase-js": "^2.49.1",
@@ -24,6 +24,7 @@
         "react-dom": "^19.0.0",
         "react-helmet-async": "^3.0.0",
         "react-router-dom": "^7.1.1",
+        "recharts": "^3.8.1",
         "ws": "^8.21.0",
         "xlsx": "^0.18.5"
     },

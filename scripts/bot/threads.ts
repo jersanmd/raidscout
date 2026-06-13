@@ -9,7 +9,7 @@ import { resolveServerTimezone } from "./server-cache";
 const threadCache = new Map<string, { threadId: string; createdAt: number }>();
 const THREAD_CACHE_TTL = 30 * 60_000; // 30 minutes
 
-async function createThreadInChannel(
+export async function createThreadInChannel(
   channelId: string,
   threadName: string,
   firstMessage: string,

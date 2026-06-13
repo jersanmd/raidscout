@@ -164,7 +164,7 @@ export function ServerSettingsView() {
   const [viewerKey, setViewerKey] = useState("");
   const [showInviteCode, setShowInviteCode] = useState(false);
   const [showViewerKey, setShowViewerKey] = useState(false);
-  const [discordLinks, setDiscordLinks] = useState<{ id: string; discord_guild_id: string; label?: string; webhook_url?: string; command_prefix?: string; notification_channel_id?: string; command_channel_id?: string; thread_channel_id?: string; thread_guilds?: string[]; notification_prefix?: string }[]>([]);
+  const [discordLinks, setDiscordLinks] = useState<{ id: string; discord_guild_id: string; label?: string; webhook_url?: string; command_prefix?: string; notification_channel_id?: string; command_channel_id?: string; progress_channel_id?: string; thread_channel_id?: string; thread_guilds?: string[]; notification_prefix?: string }[]>([]);
   const [newDiscordId, setNewDiscordId] = useState("");
   const [newDiscordLabel, setNewDiscordLabel] = useState("");
   const [newDiscordPrefix, setNewDiscordPrefix] = useState("!");
@@ -172,7 +172,7 @@ export function ServerSettingsView() {
   const [usedPrefixes, setUsedPrefixes] = useState(new Set());
   const [editAliasLinkId, setEditAliasLinkId] = useState<string | null>(null);
   const [editAliases, setEditAliases] = useState<Record<string, string>>({});
-  const [channelValues, setChannelValues] = useState<Record<string, { notif: string; cmd: string }>>({});
+  const [channelValues, setChannelValues] = useState<Record<string, { notif: string; cmd: string; progress?: string }>>({});
   const [pingValues, setPingValues] = useState<Record<string, string>>({});
   const [threadValues, setThreadValues] = useState<Record<string, { channelId: string; guilds: string[] }>>({});
   const [testingDiscord, setTestingDiscord] = useState<Set<string>>(new Set());
@@ -2207,7 +2207,7 @@ export function ServerSettingsView() {
                               <Bell className="w-3.5 h-3.5" /> Notification & Command Channels
                             </h4>
                             {!isEditingChannels ? (
-                              <button onClick={() => setChannelValues(prev => ({ ...prev, [link.id]: { notif: link.notification_channel_id || "", cmd: link.command_channel_id || "" } }))}
+                              <button onClick={() => setChannelValues(prev => ({ ...prev, [link.id]: { notif: link.notification_channel_id || "", cmd: link.command_channel_id || "", progress: link.progress_channel_id || "" } }))}
                                 className="text-xs px-2.5 py-1 rounded bg-[#27272a] text-[#d4d4d8] hover:text-[#fafafa] hover:bg-[#3f3f46] transition font-medium">
                                 <Pencil className="w-3 h-3 inline mr-1" />Edit
                               </button>
@@ -2215,8 +2215,8 @@ export function ServerSettingsView() {
                               <div className="flex gap-1">
                                 <button onClick={async () => {
                                   const vals = channelValues[link.id]; if (!vals) return;
-                                  await supabase.from("discord_configs").update({ notification_channel_id: vals.notif.trim() || undefined, command_channel_id: vals.cmd.trim() || undefined }).eq("id", link.id);
-                                  setDiscordLinks(prev => prev.map(d => d.id === link.id ? { ...d, notification_channel_id: vals.notif.trim() || undefined, command_channel_id: vals.cmd.trim() || undefined } : d));
+                                  await supabase.from("discord_configs").update({ notification_channel_id: vals.notif.trim() || undefined, command_channel_id: vals.cmd.trim() || undefined, progress_channel_id: vals.progress?.trim() || undefined }).eq("id", link.id);
+                                  setDiscordLinks(prev => prev.map(d => d.id === link.id ? { ...d, notification_channel_id: vals.notif.trim() || undefined, command_channel_id: vals.cmd.trim() || undefined, progress_channel_id: vals.progress?.trim() || undefined } : d));
                                   setChannelValues(prev => { const n = { ...prev }; delete n[link.id]; return n; });
                                 }} className="text-xs px-2 py-1 rounded bg-green-600 text-[#fafafa] hover:bg-green-500 transition font-medium flex items-center gap-1">
                                   <Check className="w-3 h-3" />Save
@@ -2227,7 +2227,7 @@ export function ServerSettingsView() {
                             )}
                           </div>
                           {isEditingChannels ? (
-                            <div className="grid grid-cols-2 gap-2">
+                            <div className="grid grid-cols-3 gap-2">
                               <div>
                                 <label className="text-[11px] text-[#71717a] block mb-1">Alert Channel ID</label>
                                 <input type="text" value={channelValues[link.id].notif} onChange={(e) => setChannelValues(prev => ({ ...prev, [link.id]: { ...prev[link.id], notif: e.target.value }}))}
@@ -2240,11 +2240,18 @@ export function ServerSettingsView() {
                                   placeholder="e.g. 1507015001091608729"
                                   className="w-full bg-[#27272a] rounded px-2.5 py-1.5 text-xs text-[#e4e4e7] font-mono outline-none focus:ring-1 focus:ring-[#52525b]" />
                               </div>
+                              <div>
+                                <label className="text-[11px] text-[#71717a] block mb-1">Progress Channel ID</label>
+                                <input type="text" value={channelValues[link.id].progress ?? ""} onChange={(e) => setChannelValues(prev => ({ ...prev, [link.id]: { ...prev[link.id], progress: e.target.value }}))}
+                                  placeholder="e.g. 1510221200259940442"
+                                  className="w-full bg-[#27272a] rounded px-2.5 py-1.5 text-xs text-[#e4e4e7] font-mono outline-none focus:ring-1 focus:ring-[#52525b]" />
+                              </div>
                             </div>
                           ) : (
-                            <div className="flex gap-4 text-xs">
+                            <div className="flex gap-4 text-xs flex-wrap">
                               <span className="text-[#71717a]">Alerts: {link.notification_channel_id ? <code className="text-[#d4d4d8] font-mono">{link.notification_channel_id}</code> : <span className="italic text-[#52525b]">not set</span>}</span>
                               <span className="text-[#71717a]">Commands: {link.command_channel_id ? <code className="text-[#d4d4d8] font-mono">{link.command_channel_id}</code> : <span className="italic text-[#52525b]">not set</span>}</span>
+                              <span className="text-[#71717a]">Progress: {link.progress_channel_id ? <code className="text-[#d4d4d8] font-mono">{link.progress_channel_id}</code> : <span className="italic text-[#52525b]">not set</span>}</span>
                             </div>
                           )}
                         </div>

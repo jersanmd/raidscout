@@ -1,7 +1,7 @@
 // @ts-nocheck
 // Command handler -- all Discord chat commands
 
-import { TOKEN, SUPABASE_URL, SUPABASE_KEY, botUserId } from "./config";
+import { TOKEN, SUPABASE_URL, SUPABASE_KEY, SITE_URL, botUserId } from "./config";
 import { discordFetch } from "./discord-api";
 import { supabaseQuery, supabaseQuerySafe } from "./supabase";
 import { getGuildPrefixes, resolveServerId, resolveServerTimezone, bustPrefixCache } from "./server-cache";
@@ -96,7 +96,7 @@ export async function handleMessage(msg: any) {
   }
 
   // ✅ reaction
-  const validCmds = new Set(["list","nextspawn","spawn","killed","kill","editkilltime","forcespawn","forcespawnall","spawnall","commands","help","notifhere","cmdhere","threadhere","party","updatestats"]);
+  const validCmds = new Set(["list","nextspawn","spawn","killed","kill","editkilltime","forcespawn","forcespawnall","spawnall","commands","help","notifhere","cmdhere","threadhere","progresshere","party","updatestats","ping"]);
   if (validCmds.has(cmd)) {
     discordFetch(`https://discord.com/api/v10/channels/${channelId}/messages/${msg.id}/reactions/${encodeURIComponent("✅")}/@me`, {
       method: "PUT", headers: { Authorization: `Bot ${TOKEN}` },
@@ -107,7 +107,35 @@ export async function handleMessage(msg: any) {
   if (matchedPrefix) {
     const cfgRows = await supabaseQuerySafe(`discord_configs?discord_guild_id=eq.${guildId}&command_prefix=eq.${encodeURIComponent(matchedPrefix)}&select=command_channel_id`);
     const cmdChannel = cfgRows?.[0]?.command_channel_id;
-    if (cmdChannel && channelId !== cmdChannel && cmd !== "cmdhere" && cmd !== "notifhere" && cmd !== "threadhere" && cmd !== "forcespawn" && cmd !== "forcespawnall" && cmd !== "spawnall") return;
+    if (cmdChannel && channelId !== cmdChannel && cmd !== "cmdhere" && cmd !== "notifhere" && cmd !== "threadhere" && cmd !== "progresshere" && cmd !== "forcespawn" && cmd !== "forcespawnall" && cmd !== "spawnall") {
+      // Also allow progress-related commands in the progress channel
+      const progressCmds = new Set(["updatestats"]);
+      if (progressCmds.has(cmd)) {
+        const progRows = await supabaseQuerySafe(`discord_configs?discord_guild_id=eq.${guildId}&command_prefix=eq.${encodeURIComponent(matchedPrefix)}&select=progress_channel_id`);
+        const progChannel = progRows?.[0]?.progress_channel_id;
+        if (!progChannel) {
+          return reply("⚠️ No progress channel configured. Use `!progresshere` in a channel to set it, then `!updatestats` will work there.");
+        }
+        if (channelId !== progChannel) {
+          // Check if this is a thread inside the progress channel
+          const chanRes = await discordFetch(`https://discord.com/api/v10/channels/${channelId}`, {
+            headers: { Authorization: `Bot ${TOKEN}` },
+          }).catch(() => null);
+          if (chanRes?.ok) {
+            const chanInfo = await chanRes.json() as any;
+            if (chanInfo.parent_id === progChannel) {
+              // It's a thread under the progress channel — allow it
+            } else {
+              return reply(`⚠️ This command only works in the progress channel (<#${progChannel}>) or its threads, or the command channel.`);
+            }
+          } else {
+            return reply(`⚠️ This command only works in the progress channel (<#${progChannel}>) or the command channel.`);
+          }
+        }
+      } else {
+        return reply(`⚠️ This command only works in the designated command channel.`);
+      }
+    }
   }
 
   async function reply(text: string) {
@@ -180,6 +208,19 @@ export async function handleMessage(msg: any) {
       bustPrefixCache(guildId);
     }
     return reply("✅ Bot commands will now only work in this channel.");
+  }
+
+  // ── progresshere ──
+  if (cmd === "progresshere") {
+    if (!serverId) { await cmdLog(cmd, "fail", "not linked"); return reply("⚠️ Not linked to RaidScout."); }
+    const existing = await supabaseQuerySafe(`discord_configs?discord_guild_id=eq.${guildId}&command_prefix=eq.${encodeURIComponent(matchedPrefix)}&select=id`);
+    if (existing?.length) {
+      await fetch(`${SUPABASE_URL}/rest/v1/discord_configs?id=eq.${existing[0].id}`, {
+        method: "PATCH", headers: { apikey: SUPABASE_KEY!, Authorization: `Bearer ${SUPABASE_KEY!}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ progress_channel_id: msg.channel_id }),
+      });
+    }
+    return reply("✅ Progress reports and `!updatestats` commands will now work in this channel. Use the **Demand Update** button on RaidScout to create progress threads here.");
   }
 
   // ── threadhere ──
@@ -316,6 +357,7 @@ export async function handleMessage(msg: any) {
       { name: `${p}commands${aliasNote("commands")}`, value: "Show this help", inline: false },
       { name: `${p}notifhere${aliasNote("notifhere")}`, value: "Set notification channel", inline: false },
       { name: `${p}cmdhere${aliasNote("cmdhere")}`, value: "Restrict commands to this channel", inline: false },
+      { name: `${p}progresshere${aliasNote("progresshere")}`, value: "Set progress report & !updatestats channel", inline: false },
       { name: `${p}threadhere${aliasNote("threadhere")}`, value: "Set auto-thread channel", inline: false },
       { name: `${p}forcespawn <boss>`, value: "Force a boss to spawn", inline: false },
       { name: `${p}party <boss/activity>`, value: "Show party members for a boss/activity", inline: false },
@@ -784,13 +826,24 @@ export async function handleMessage(msg: any) {
     return replyEmbed(`✏️ ${act.name} Time Updated`, `Time changed to **${timeStr}**`, 0x3b82f6, []);
   }
 
+  // ── ping (debug) ──
+  if (cmd === "ping") {
+    return reply(`🏓 Pong! Server: ${serverId || "not linked"}, Guild: ${guildId}, Prefix: ${matchedPrefix}, Channel: ${channelId}, Bot v0.14.2-debug`);
+  }
+
   // ── updatestats <PlayerName> <CP> ──
   if (cmd === "updatestats") {
     if (!serverId) { await cmdLog(cmd, "fail", "not linked"); return reply("⚠️ Not linked to RaidScout."); }
     const remaining = args.slice(1);
-    // Last arg should be a number (CP value)
+    // Last arg should be a number (CP value) — strip commas and support k suffix
     const maybeCp = remaining[remaining.length - 1];
-    const cpValue = parseInt(maybeCp, 10);
+    const rawCp = maybeCp.replace(/,/g, "").trim();
+    let cpValue: number;
+    if (/^\d+k$/i.test(rawCp)) {
+      cpValue = parseInt(rawCp.replace(/k/i, ""), 10) * 1000;
+    } else {
+      cpValue = parseInt(rawCp, 10);
+    }
     if (isNaN(cpValue) || cpValue <= 0) {
       await cmdLog(cmd, "fail", "invalid CP");
       return reply("Usage: `!updatestats PlayerName CP`\nExample: `!updatestats PressX 113021`\nAttach a screenshot as proof.");
@@ -806,14 +859,91 @@ export async function handleMessage(msg: any) {
     const screenshotUrl = msg.attachments?.length > 0 ? msg.attachments[0].url : null;
 
     try {
-      // Submit CP update via REST API (service_role)
+      // Find or create member first to get member_id
+      let memberId: string | null = null;
+      let oldCp: number | null = null;
+      let resolvedName = playerName;
+
+      // Try exact match first (case-insensitive)
+      let memberRows = await supabaseQuerySafe(
+        `members?server_id=eq.${serverId}&name=ilike.${encodeURIComponent(playerName)}&select=id,name,combat_power`
+      );
+      console.log(`[bot] updatestats exact lookup: serverId=${serverId}, name=${playerName}, found=${memberRows?.length || 0}`);
+
+      // If no exact match, try partial match
+      if (!memberRows?.length) {
+        memberRows = await supabaseQuerySafe(
+          `members?server_id=eq.${serverId}&name=ilike.${encodeURIComponent("%" + playerName + "%")}&select=id,name,combat_power&order=name&limit=26`
+        );
+        console.log(`[bot] updatestats partial lookup: serverId=${serverId}, name=${playerName}, found=${memberRows?.length || 0}`);
+      }
+
+      if (memberRows?.length === 1) {
+        memberId = memberRows[0].id;
+        oldCp = memberRows[0].combat_power ?? null;
+        resolvedName = memberRows[0].name;
+        // Update member's combat_power
+        await fetch(`${SUPABASE_URL}/rest/v1/members?id=eq.${memberId}`, {
+          method: "PATCH",
+          headers: {
+            apikey: SUPABASE_KEY!,
+            Authorization: `Bearer ${SUPABASE_KEY!}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            combat_power: cpValue,
+            discord_user_id: msg.author?.id || null,
+          }),
+        });
+      } else if (memberRows && memberRows.length > 1 && memberRows.length <= 25) {
+        // Multiple matches — ask user to clarify
+        const names = memberRows.map((r: any) => `• **${r.name}** (${r.combat_power != null ? r.combat_power.toLocaleString() + " CP" : "no CP"})`).join("\n");
+        await cmdLog(cmd, "fail", "ambiguous name");
+        return reply(`⚠️ Multiple members match **"${playerName}"**:\n${names}\n\nPlease be more specific, e.g. \`!updatestats ${memberRows[0].name} ${cpValue.toLocaleString()}\``);
+      } else if (memberRows && memberRows.length > 25) {
+        await cmdLog(cmd, "fail", "too many matches");
+        return reply(`⚠️ Too many members match **"${playerName}"** (${memberRows.length} found). Please be more specific.`);
+      } else {
+        // No match — auto-create member with the given name
+        const createRes = await fetch(`${SUPABASE_URL}/rest/v1/members`, {
+          method: "POST",
+          headers: {
+            apikey: SUPABASE_KEY!,
+            Authorization: `Bearer ${SUPABASE_KEY!}`,
+            "Content-Type": "application/json",
+            Prefer: "return=representation",
+          },
+          body: JSON.stringify({
+            name: playerName,
+            server_id: serverId,
+            combat_power: cpValue,
+            discord_user_id: msg.author?.id || null,
+          }),
+        });
+        if (createRes.ok) {
+          const created = await createRes.json() as any[];
+          if (created?.length) { memberId = created[0].id; resolvedName = created[0].name; }
+        } else {
+          console.error("[bot] updatestats auto-create failed:", createRes.status, await createRes.text().catch(() => ""));
+        }
+      }
+
+      if (!memberId) {
+        await cmdLog(cmd, "fail", "could not find/create member");
+        return reply(`❌ Could not find or create member **${playerName}**.`);
+      }
+
+      // Submit CP update via REST API (service_role) with member_id
       const body: any = {
         server_id: serverId,
-        player_name: playerName,
+        member_id: memberId,
+        player_name: resolvedName,
+        old_cp: oldCp,
         new_cp: cpValue,
         discord_user_id: msg.author?.id || null,
         discord_username: msg.author?.username || author,
         discord_message_id: msg.id,
+        submitted_at: msg.timestamp || new Date().toISOString(), // Discord timestamp is UTC
         status: "approved",
       };
       if (screenshotUrl) body.screenshot_url = screenshotUrl;
@@ -828,6 +958,7 @@ export async function handleMessage(msg: any) {
         },
         body: JSON.stringify(body),
       });
+      console.log(`[bot] updatestats cp_updates insert: memberId=${memberId}, cp=${cpValue}, status=${res.status}`);
 
       if (!res.ok) {
         const errText = await res.text().catch(() => "");
@@ -836,47 +967,13 @@ export async function handleMessage(msg: any) {
         discordFetch(`https://discord.com/api/v10/channels/${channelId}/messages/${msg.id}/reactions/${encodeURIComponent("❌")}/@me`, {
           method: "PUT", headers: { Authorization: `Bot ${TOKEN}` },
         }).catch(() => {});
-        return reply(`❌ Failed to update stats for **${playerName}**. Please try again.`);
-      }
-
-      // Also update member's combat_power
-      const memberRows = await supabaseQuerySafe(
-        `members?server_id=eq.${serverId}&name=eq.${encodeURIComponent(playerName)}&select=id,combat_power`
-      );
-      if (memberRows?.length) {
-        await fetch(`${SUPABASE_URL}/rest/v1/members?id=eq.${memberRows[0].id}`, {
-          method: "PATCH",
-          headers: {
-            apikey: SUPABASE_KEY!,
-            Authorization: `Bearer ${SUPABASE_KEY!}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            combat_power: cpValue,
-            discord_user_id: msg.author?.id || null,
-          }),
-        });
-      } else {
-        // Auto-create member
-        await fetch(`${SUPABASE_URL}/rest/v1/members`, {
-          method: "POST",
-          headers: {
-            apikey: SUPABASE_KEY!,
-            Authorization: `Bearer ${SUPABASE_KEY!}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            name: playerName,
-            server_id: serverId,
-            combat_power: cpValue,
-            discord_user_id: msg.author?.id || null,
-          }),
-        });
+        return reply(`❌ Failed to update stats for **${resolvedName}**. Please try again.`);
       }
 
       const screenshotNote = screenshotUrl ? " 📸 Screenshot saved." : "";
-      await cmdLog(cmd, "ok", `${playerName} → ${cpValue.toLocaleString()} CP`);
-      return reply(`✅ **${playerName}** CP updated to **${cpValue.toLocaleString()}**.${screenshotNote}`);
+      const profileLink = `🔗 [Click here to check your member page on RaidScout](${SITE_URL}/members/${memberId})`;
+      await cmdLog(cmd, "ok", `${resolvedName} → ${cpValue.toLocaleString()} CP`);
+      return reply(`✅ **${resolvedName}** CP updated to **${cpValue.toLocaleString()}**.${screenshotNote}\n${profileLink}`);
     } catch (err: any) {
       console.error("[bot] updatestats error:", err);
       await cmdLog(cmd, "fail", err.message);

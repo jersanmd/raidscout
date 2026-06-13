@@ -170,6 +170,8 @@ export { fetchHistoryFromSupabase } from "./api/history";
 // Discord
 export {
   notifyDiscord,
+  sendCpReminder,
+  createProgressThread,
   updateThreadConfig,
   announceSpawns,
 } from "./api/discord";
@@ -236,6 +238,9 @@ export {
   fetchPendingCpUpdates,
   submitCpUpdate,
   updateCpStatus,
+  addBackdatedCpUpdate,
+  editCpUpdate,
+  deleteCpUpdate,
   fetchMemberNotes,
   addMemberNote,
   deleteMemberNote,
@@ -243,6 +248,7 @@ export {
   fetchItems,
   createItem,
   deleteItem,
+  updateItem,
   fetchDistributions,
   createDistribution,
   deleteDistribution,

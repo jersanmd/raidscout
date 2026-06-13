@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  fetchItems, createItem, deleteItem,
+  fetchItems, createItem, deleteItem, updateItem,
   fetchDistributions, createDistribution, deleteDistribution,
   fetchItemDistributionStats, fetchTopRecipients,
   fetchMembers, isSupabaseConfigured,
@@ -11,7 +11,7 @@ import { useEscapeKey } from "@/hooks/useEscapeKey";
 import type { Item, Distribution, ItemRarity } from "@/types";
 import {
   Package, Plus, Trash2, Loader2, Search, Gift, History, BarChart3,
-  X, ChevronRight, ArrowLeft, Image, Star, Upload,
+  X, ChevronRight, ArrowLeft, Image, Star, Upload, Minus, Pencil,
 } from "lucide-react";
 
 const RARITY_COLORS: Record<ItemRarity, string> = {
@@ -20,9 +20,10 @@ const RARITY_COLORS: Record<ItemRarity, string> = {
   rare: "#3b82f6",
   epic: "#a855f7",
   legendary: "#f59e0b",
+  mythic: "#ef4444",
 };
 
-const RARITY_ORDER: ItemRarity[] = ["legendary", "epic", "rare", "uncommon", "common"];
+const RARITY_ORDER: ItemRarity[] = ["mythic", "legendary", "epic", "rare", "uncommon", "common"];
 
 export function InventoryView() {
   const serverId = useServerId();
@@ -70,6 +71,46 @@ export function InventoryView() {
   const [imageDragOver, setImageDragOver] = useState(false);
   useEscapeKey(() => { setShowCreateItem(false); resetCreateForm(); }, showCreateItem);
 
+  // ── Edit Item Modal ──
+  const [editingItem, setEditingItem] = useState<Item | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editDesc, setEditDesc] = useState("");
+  const [editRarity, setEditRarity] = useState<ItemRarity>("common");
+  const [editImage, setEditImage] = useState<File | null>(null);
+  const [editImagePreview, setEditImagePreview] = useState<string | null>(null);
+  const [editDragOver, setEditDragOver] = useState(false);
+  useEscapeKey(() => setEditingItem(null), !!editingItem);
+
+  const startEdit = (item: Item) => {
+    setEditingItem(item);
+    setEditName(item.name);
+    setEditDesc(item.description || "");
+    setEditRarity(item.rarity);
+    setEditImage(null);
+    setEditImagePreview(item.image_url || null);
+  };
+
+  const editMutation = useMutation({
+    mutationFn: async () => {
+      if (!editingItem) return;
+      let imageUrl = editingItem.image_url;
+      if (editImage && serverId) {
+        const { uploadItemImage: uploadItemImg } = await import("@/lib/supabase");
+        imageUrl = await uploadItemImg(serverId, editName || editingItem.name, editImage);
+      }
+      return updateItem(editingItem.id, {
+        name: editName.trim(),
+        description: editDesc.trim() || undefined,
+        rarity: editRarity,
+        ...(imageUrl !== editingItem.image_url ? { image_url: imageUrl } : {}),
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["items", serverId] });
+      setEditingItem(null);
+    },
+  });
+
   const resetCreateForm = () => {
     setNewItemName("");
     setNewItemDesc("");
@@ -83,6 +124,14 @@ export function InventoryView() {
     setNewItemImage(file);
     const reader = new FileReader();
     reader.onload = () => setNewItemImagePreview(reader.result as string);
+    reader.readAsDataURL(file);
+  };
+
+  const handleImageFileForEdit = (file: File) => {
+    if (!file.type.startsWith("image/")) return;
+    setEditImage(file);
+    const reader = new FileReader();
+    reader.onload = () => setEditImagePreview(reader.result as string);
     reader.readAsDataURL(file);
   };
 
@@ -132,7 +181,25 @@ export function InventoryView() {
   const [distMemberId, setDistMemberId] = useState("");
   const [distQuantity, setDistQuantity] = useState(1);
   const [distReason, setDistReason] = useState("");
+  const [distMemberSearch, setDistMemberSearch] = useState("");
+  const [distItemSearch, setDistItemSearch] = useState("");
   useEscapeKey(() => setShowDistribute(false), showDistribute);
+
+  // Distribution counts (computed before filteredDistItems which depends on them)
+  const memberDistCounts: Record<string, number> = {};
+  const itemDistCounts: Record<string, number> = {};
+  distributions.forEach(d => {
+    memberDistCounts[d.member_id] = (memberDistCounts[d.member_id] || 0) + d.quantity;
+    itemDistCounts[d.item_id] = (itemDistCounts[d.item_id] || 0) + d.quantity;
+  });
+
+  const distItem = items.find(i => i.id === distItemId);
+  const filteredDistItems = items.filter(i =>
+    !distItemSearch || i.name.toLowerCase().includes(distItemSearch.toLowerCase())
+  ).sort((a, b) => (itemDistCounts[b.id] || 0) - (itemDistCounts[a.id] || 0));
+  const filteredDistMembers = members.filter(m =>
+    !distMemberSearch || m.name.toLowerCase().includes(distMemberSearch.toLowerCase())
+  );
 
   const distributeMutation = useMutation({
     mutationFn: () => {
@@ -263,9 +330,11 @@ export function InventoryView() {
                     {item.description && (
                       <p className="text-[11px] text-[#71717a] truncate">{item.description}</p>
                     )}
-                    <span className="text-[10px] capitalize" style={{ color: RARITY_COLORS[item.rarity] }}>
-                      {item.rarity}
-                    </span>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span className="text-[10px] capitalize font-medium" style={{ color: RARITY_COLORS[item.rarity] }}>
+                        {item.rarity}
+                      </span>
+                    </div>
                   </div>
                   <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition">
                     <button
@@ -274,6 +343,13 @@ export function InventoryView() {
                       title="Distribute"
                     >
                       <Gift className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => startEdit(item)}
+                      className="p-1.5 rounded-md hover:bg-[#27272a] text-[#a1a1aa] hover:text-[#fafafa] transition"
+                      title="Edit"
+                    >
+                      <Pencil className="w-4 h-4" />
                     </button>
                     <button
                       onClick={() => { if (confirm(`Delete "${item.name}"?`)) deleteItem(item.id).then(() => queryClient.invalidateQueries({ queryKey: ["items", serverId] })); }}
@@ -494,62 +570,177 @@ export function InventoryView() {
         </div>
       )}
 
-      {/* ── Distribute Modal ── */}
-      {showDistribute && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setShowDistribute(false)}>
+      {/* ── Edit Item Modal ── */}
+      {editingItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setEditingItem(null)}>
           <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-5 w-full max-w-sm mx-4" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-semibold text-[#fafafa]">Distribute Item</h3>
-              <button onClick={() => setShowDistribute(false)} className="text-[#52525b] hover:text-[#fafafa]"><X className="w-4 h-4" /></button>
+              <h3 className="text-sm font-semibold text-[#fafafa]">Edit Item</h3>
+              <button onClick={() => setEditingItem(null)} className="text-[#52525b] hover:text-[#fafafa]"><X className="w-4 h-4" /></button>
             </div>
             <div className="space-y-3">
               <div>
-                <label className="text-[10px] text-[#71717a] uppercase tracking-wider">Item</label>
-                <select
-                  value={distItemId}
-                  onChange={(e) => setDistItemId(e.target.value)}
-                  className="w-full mt-1 px-3 py-2 bg-[#09090b] border border-[#27272a] rounded-lg text-sm text-[#fafafa] focus:outline-none focus:border-[#52525b]"
-                >
-                  <option value="">Select item...</option>
-                  {items.map(i => <option key={i.id} value={i.id}>{i.name}</option>)}
-                </select>
+                <label className="text-[10px] text-[#71717a] uppercase tracking-wider">Name</label>
+                <input value={editName} onChange={(e) => setEditName(e.target.value)}
+                  className="w-full mt-1 px-3 py-2 bg-[#09090b] border border-[#27272a] rounded-lg text-sm text-[#fafafa] focus:outline-none focus:border-[#52525b]" autoFocus />
               </div>
+              <div>
+                <label className="text-[10px] text-[#71717a] uppercase tracking-wider">Description</label>
+                <input value={editDesc} onChange={(e) => setEditDesc(e.target.value)}
+                  className="w-full mt-1 px-3 py-2 bg-[#09090b] border border-[#27272a] rounded-lg text-sm text-[#fafafa] focus:outline-none focus:border-[#52525b]" />
+              </div>
+              <div>
+                <label className="text-[10px] text-[#71717a] uppercase tracking-wider">Rarity</label>
+                <div className="flex gap-1.5 mt-1">
+                  {RARITY_ORDER.map(r => (
+                    <button key={r} onClick={() => setEditRarity(r)}
+                      className="flex-1 py-1.5 rounded-md text-[10px] font-medium capitalize transition border"
+                      style={{
+                        borderColor: editRarity === r ? RARITY_COLORS[r] : "#27272a",
+                        color: editRarity === r ? RARITY_COLORS[r] : "#52525b",
+                        backgroundColor: editRarity === r ? `${RARITY_COLORS[r]}15` : "transparent",
+                      }}>{r}</button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="text-[10px] text-[#71717a] uppercase tracking-wider">Image</label>
+                {editImagePreview ? (
+                  <div className="mt-1 relative rounded-lg overflow-hidden bg-[#09090b] border border-[#27272a]">
+                    <img src={editImagePreview} alt="Preview" className="w-full h-32 object-contain" />
+                    <button onClick={() => { setEditImage(null); setEditImagePreview(null); }}
+                      className="absolute top-1 right-1 p-1 rounded-full bg-black/60 text-[#fafafa] hover:bg-black/80 transition"><X className="w-3.5 h-3.5" /></button>
+                  </div>
+                ) : (
+                  <div className={`mt-1 border-2 border-dashed rounded-lg p-4 text-center transition cursor-pointer ${editDragOver ? "border-[#52525b] bg-[#27272a]/50" : "border-[#27272a] hover:border-[#3f3f46]"}`}
+                    onDragOver={(e) => { e.preventDefault(); setEditDragOver(true); }}
+                    onDragLeave={() => setEditDragOver(false)}
+                    onDrop={(e) => { e.preventDefault(); setEditDragOver(false); const f = e.dataTransfer.files[0]; if (f) handleImageFileForEdit(f); }}
+                    onClick={() => document.getElementById("edit-image-upload")?.click()}>
+                    <Upload className="w-5 h-5 text-[#52525b] mx-auto mb-1" />
+                    <p className="text-[10px] text-[#52525b]"><span className="text-[#71717a] font-medium">Click to upload</span> or drag & drop</p>
+                  </div>
+                )}
+                <input id="edit-image-upload" type="file" accept="image/*" className="hidden"
+                  onChange={(e) => { const f = e.target.files?.[0]; if (f) handleImageFileForEdit(f); e.target.value = ""; }} />
+              </div>
+              <button onClick={() => editMutation.mutate()} disabled={!editName.trim() || editMutation.isPending}
+                className="w-full py-2 bg-[#fafafa] text-[#09090b] rounded-lg text-sm font-medium hover:bg-[#e4e4e7] transition disabled:opacity-50">
+                {editMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : "Save Changes"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Distribute Modal ── */}
+      {showDistribute && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setShowDistribute(false)}>
+          <div className="bg-[#18181b] border border-[#27272a] rounded-t-xl sm:rounded-xl p-5 w-full max-w-md mx-0 sm:mx-4 animate-slide-up" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-sm font-semibold text-[#fafafa]">Distribute Item</h3>
+                {distItem && (
+                  <p className="text-[11px] text-[#a1a1aa] mt-0.5 flex items-center gap-1.5">
+                    <span className="capitalize font-medium" style={{ color: RARITY_COLORS[distItem.rarity] }}>{distItem.rarity}</span>
+                    <span>·</span>
+                    <span>{distItem.name}</span>
+                  </p>
+                )}
+              </div>
+              <button onClick={() => setShowDistribute(false)} className="text-[#52525b] hover:text-[#fafafa]"><X className="w-4 h-4" /></button>
+            </div>
+
+            <div className="space-y-3">
+              {/* Item search + select */}
+              <div>
+                <label className="text-[10px] text-[#71717a] uppercase tracking-wider">Item</label>
+                <div className="relative mt-1">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#52525b]" />
+                  <input
+                    value={distItemSearch}
+                    onChange={(e) => setDistItemSearch(e.target.value)}
+                    placeholder="Search item..."
+                    className="w-full pl-8 pr-3 py-2 bg-[#09090b] border border-[#27272a] rounded-lg text-sm text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#52525b]"
+                  />
+                </div>
+                <div className="mt-1.5 max-h-28 overflow-y-auto space-y-0.5">
+                  {filteredDistItems.slice(0, 20).map(i => {
+                    const distCount = itemDistCounts[i.id] || 0;
+                    return (
+                    <button key={i.id}
+                      onClick={() => { setDistItemId(i.id); setDistItemSearch(i.name); }}
+                      className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs transition text-left ${distItemId === i.id ? "bg-[#fafafa]/10 text-[#fafafa] border border-[#fafafa]/20" : "text-[#a1a1aa] hover:bg-[#09090b] hover:text-[#d4d4d8]"}`}>
+                      <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: RARITY_COLORS[i.rarity] }} />
+                      <span className="flex-1 truncate">{i.name}</span>
+                      {distCount > 0 && <span className="text-[10px] text-[#52525b] font-mono">{distCount}</span>}
+                      <span className="text-[10px] capitalize text-[#52525b]">{i.rarity}</span>
+                    </button>
+                    );
+                  })}
+                  {filteredDistItems.length === 0 && (
+                    <p className="text-[10px] text-[#52525b] text-center py-2">No items match</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Member search + select */}
               <div>
                 <label className="text-[10px] text-[#71717a] uppercase tracking-wider">Recipient</label>
-                <select
-                  value={distMemberId}
-                  onChange={(e) => setDistMemberId(e.target.value)}
-                  className="w-full mt-1 px-3 py-2 bg-[#09090b] border border-[#27272a] rounded-lg text-sm text-[#fafafa] focus:outline-none focus:border-[#52525b]"
-                >
-                  <option value="">Select member...</option>
-                  {members.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-                </select>
+                <div className="relative mt-1">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#52525b]" />
+                  <input
+                    value={distMemberSearch}
+                    onChange={(e) => setDistMemberSearch(e.target.value)}
+                    placeholder="Search member..."
+                    className="w-full pl-8 pr-3 py-2 bg-[#09090b] border border-[#27272a] rounded-lg text-sm text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#52525b]"
+                  />
+                </div>
+                <div className="mt-1.5 max-h-32 overflow-y-auto space-y-0.5">
+                  {filteredDistMembers.slice(0, 20).map(m => {
+                    const distCount = memberDistCounts[m.id] || 0;
+                    return (
+                      <button key={m.id}
+                        onClick={() => { setDistMemberId(m.id); setDistMemberSearch(m.name); }}
+                        className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs transition text-left ${distMemberId === m.id ? "bg-[#fafafa]/10 text-[#fafafa] border border-[#fafafa]/20" : "text-[#a1a1aa] hover:bg-[#09090b] hover:text-[#d4d4d8]"}`}>
+                        <span className="flex-1 truncate">{m.name}</span>
+                        <span className="text-[10px] text-[#52525b] font-mono">{distCount} items</span>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
-              <div>
-                <label className="text-[10px] text-[#71717a] uppercase tracking-wider">Quantity</label>
-                <input
-                  type="number"
-                  min={1}
-                  value={distQuantity}
-                  onChange={(e) => setDistQuantity(Math.max(1, parseInt(e.target.value) || 1))}
-                  className="w-full mt-1 px-3 py-2 bg-[#09090b] border border-[#27272a] rounded-lg text-sm text-[#fafafa] focus:outline-none focus:border-[#52525b]"
-                />
+
+              <div className="space-y-3">
+                <div>
+                  <label className="text-[10px] text-[#71717a] uppercase tracking-wider">Quantity</label>
+                  <div className="flex items-center gap-1 mt-1">
+                    <button onClick={() => setDistQuantity(q => Math.max(1, q - 1))}
+                      className="p-2 rounded-lg bg-[#09090b] border border-[#27272a] text-[#a1a1aa] hover:text-[#fafafa] transition">
+                      <Minus className="w-3.5 h-3.5" />
+                    </button>
+                    <input type="number" min={1} value={distQuantity}
+                      onChange={(e) => setDistQuantity(Math.max(1, parseInt(e.target.value) || 1))}
+                      className="flex-1 px-2 py-2 bg-[#09090b] border border-[#27272a] rounded-lg text-sm text-[#fafafa] text-center focus:outline-none focus:border-[#52525b]" />
+                    <button onClick={() => setDistQuantity(q => q + 1)}
+                      className="p-2 rounded-lg bg-[#09090b] border border-[#27272a] text-[#a1a1aa] hover:text-[#fafafa] transition">
+                      <Plus className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+                <div>
+                  <label className="text-[10px] text-[#71717a] uppercase tracking-wider">Reason</label>
+                  <input value={distReason} onChange={(e) => setDistReason(e.target.value)}
+                    placeholder="e.g. Guild Boss"
+                    className="w-full mt-1 px-3 py-2 bg-[#09090b] border border-[#27272a] rounded-lg text-sm text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#52525b]" />
+                </div>
               </div>
-              <div>
-                <label className="text-[10px] text-[#71717a] uppercase tracking-wider">Reason</label>
-                <input
-                  value={distReason}
-                  onChange={(e) => setDistReason(e.target.value)}
-                  placeholder="e.g. Guild Boss Reward"
-                  className="w-full mt-1 px-3 py-2 bg-[#09090b] border border-[#27272a] rounded-lg text-sm text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#52525b]"
-                />
-              </div>
-              <button
-                onClick={() => distributeMutation.mutate()}
+
+              <button onClick={() => distributeMutation.mutate()}
                 disabled={!distItemId || !distMemberId || distributeMutation.isPending}
-                className="w-full py-2 bg-[#fafafa] text-[#09090b] rounded-lg text-sm font-medium hover:bg-[#e4e4e7] transition disabled:opacity-50"
-              >
-                {distributeMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : "Distribute"}
+                className="w-full py-2.5 bg-[#fafafa] text-[#09090b] rounded-lg text-sm font-semibold hover:bg-[#e4e4e7] transition disabled:opacity-40 flex items-center justify-center gap-2">
+                {distributeMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Gift className="w-4 h-4" />}
+                {distributeMutation.isPending ? "Distributing..." : "Distribute"}
               </button>
             </div>
           </div>

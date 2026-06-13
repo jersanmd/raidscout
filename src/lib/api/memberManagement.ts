@@ -136,6 +136,131 @@ export async function updateCpStatus(
   }
 }
 
+// ── Backdated CP Update (moderator only) ────────────────────
+
+export async function addBackdatedCpUpdate(update: {
+  server_id: string;
+  member_id: string;
+  player_name: string;
+  new_cp: number;
+  submitted_at: string; // ISO date
+}): Promise<CpUpdate> {
+  const sid = update.server_id || getCurrentServerId();
+  if (!sid) throw new Error("No server selected");
+
+  // Get old_cp from member's current combat_power
+  const { data: member } = await supabase
+    .from("members")
+    .select("combat_power")
+    .eq("id", update.member_id)
+    .single();
+
+  const oldCp = member?.combat_power ?? null;
+
+  const user = (await supabase.auth.getUser()).data.user;
+
+  const { data, error } = await supabase
+    .from("cp_updates")
+    .insert({
+      server_id: sid,
+      member_id: update.member_id,
+      player_name: update.player_name,
+      old_cp: oldCp,
+      new_cp: update.new_cp,
+      status: "approved",
+      submitted_at: update.submitted_at,
+      approved_by: user?.id,
+      approved_at: new Date().toISOString(),
+      reviewed_by: user?.id,
+      reviewed_at: new Date().toISOString(),
+    })
+    .select()
+    .single();
+  if (error) throw error;
+
+  // Update member's combat_power to the latest approved CP by submitted_at date
+  const { data: latestEntry } = await supabase
+    .from("cp_updates")
+    .select("new_cp")
+    .eq("member_id", update.member_id)
+    .eq("status", "approved")
+    .order("submitted_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  await supabase
+    .from("members")
+    .update({ combat_power: latestEntry?.new_cp ?? update.new_cp })
+    .eq("id", update.member_id);
+
+  return data as CpUpdate;
+}
+
+// ── Edit CP Update Entry ────────────────────────────────────
+
+export async function editCpUpdate(
+  updateId: string,
+  newCp: number,
+  memberId: string
+): Promise<void> {
+  // Get the current cp_update to find old_cp
+  const { data: existing } = await supabase
+    .from("cp_updates")
+    .select("old_cp")
+    .eq("id", updateId)
+    .single();
+
+  const { error } = await supabase
+    .from("cp_updates")
+    .update({
+      new_cp: newCp,
+      old_cp: existing?.old_cp, // keep original old_cp
+      reviewed_by: (await supabase.auth.getUser()).data.user?.id,
+      reviewed_at: new Date().toISOString(),
+    })
+    .eq("id", updateId);
+  if (error) throw error;
+
+  // Also update the member's current combat_power if this was their latest
+  const { data: latest } = await supabase
+    .from("cp_updates")
+    .select("id")
+    .eq("member_id", memberId)
+    .eq("status", "approved")
+    .order("submitted_at", { ascending: false })
+    .limit(1)
+    .single();
+
+  if (latest?.id === updateId) {
+    await supabase.from("members").update({ combat_power: newCp }).eq("id", memberId);
+  }
+}
+
+// ── Delete CP Update Entry ──────────────────────────────────
+
+export async function deleteCpUpdate(updateId: string, memberId: string): Promise<void> {
+  const { error } = await supabase
+    .from("cp_updates")
+    .delete()
+    .eq("id", updateId);
+  if (error) throw error;
+
+  // Recalculate member's combat_power from the latest remaining entry
+  const { data: latest } = await supabase
+    .from("cp_updates")
+    .select("new_cp")
+    .eq("member_id", memberId)
+    .eq("status", "approved")
+    .order("submitted_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  await supabase
+    .from("members")
+    .update({ combat_power: latest?.new_cp ?? null })
+    .eq("id", memberId);
+}
+
 // ── Member Notes ────────────────────────────────────────────
 
 export async function fetchMemberNotes(memberId: string): Promise<MemberNote[]> {
@@ -191,19 +316,42 @@ export async function fetchMemberProfile(memberId: string): Promise<MemberWithPr
   const approvedUpdates = updates.filter(u => u.status === "approved");
   const latestCp = approvedUpdates.length > 0 ? approvedUpdates[0].new_cp : null;
 
-  // 7-day growth
+  // 7-day growth (latest - oldest in period)
   const sevenDaysAgo = new Date(Date.now() - 7 * 86400_000);
   const recent7d = approvedUpdates.filter(u => new Date(u.submitted_at) >= sevenDaysAgo);
   const growth7d = recent7d.length >= 2
-    ? Math.max(...recent7d.map(u => u.new_cp)) - Math.min(...recent7d.map(u => u.new_cp))
+    ? recent7d[0].new_cp - recent7d[recent7d.length - 1].new_cp
     : null;
 
-  // 30-day growth
+  // 30-day growth (latest - oldest in period)
   const thirtyDaysAgo = new Date(Date.now() - 30 * 86400_000);
   const recent30d = approvedUpdates.filter(u => new Date(u.submitted_at) >= thirtyDaysAgo);
   const growth30d = recent30d.length >= 2
-    ? Math.max(...recent30d.map(u => u.new_cp)) - Math.min(...recent30d.map(u => u.new_cp))
+    ? recent30d[0].new_cp - recent30d[recent30d.length - 1].new_cp
     : null;
+
+  // Fetch attendance history with boss names
+  const { data: attendance } = await supabase
+    .from("attendance_records")
+    .select("death_record_id, created_at, death_records!inner(death_time, boss_id, bosses!inner(name, image_url))")
+    .eq("member_id", memberId)
+    .order("created_at", { ascending: false })
+    .limit(200);
+
+  const { data: activityAttendance } = await supabase
+    .from("activity_attendance")
+    .select("activity_instance_id, created_at, present, activity_instances!inner(end_time, activity_id, activities!inner(name, image_url))")
+    .eq("member_id", memberId)
+    .order("created_at", { ascending: false })
+    .limit(100);
+
+  // Fetch loot history
+  const { data: lootHistory } = await supabase
+    .from("distributions")
+    .select("*, items:item_id(name, rarity, image_url)")
+    .eq("member_id", memberId)
+    .order("distributed_at", { ascending: false })
+    .limit(50);
 
   return {
     ...member,
@@ -215,6 +363,10 @@ export async function fetchMemberProfile(memberId: string): Promise<MemberWithPr
     notes: (notes || []) as MemberNote[],
     cp_history: updates,
     loot_count: lootCount ?? 0,
+    attendance_count: (attendance?.length ?? 0) + (activityAttendance?.length ?? 0),
+    loot_history: (lootHistory || []) as any[],
+    attendance_history: (attendance || []) as any[],
+    activity_attendance: (activityAttendance || []) as any[],
   } as unknown as MemberWithProfile;
 }
 
@@ -258,6 +410,19 @@ export async function createItem(item: {
 
 export async function deleteItem(itemId: string): Promise<void> {
   const { error } = await supabase.from("items").delete().eq("id", itemId);
+  if (error) throw error;
+}
+
+export async function updateItem(itemId: string, updates: {
+  name?: string;
+  description?: string;
+  rarity?: ItemRarity;
+  image_url?: string;
+}): Promise<void> {
+  const { error } = await supabase
+    .from("items")
+    .update(updates)
+    .eq("id", itemId);
   if (error) throw error;
 }
 

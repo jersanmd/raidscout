@@ -3,6 +3,7 @@
 export const TOKEN = process.env.DISCORD_BOT_TOKEN!;
 export const SUPABASE_URL = process.env.SUPABASE_URL;
 export const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+export const SITE_URL = process.env.SITE_URL || "https://www.raidscout.com";
 
 export let botUserId = "";
 export function setBotUserId(id: string) { botUserId = id; }

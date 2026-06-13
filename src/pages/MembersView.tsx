@@ -4,11 +4,10 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useMembers } from "@/hooks/useMembers";
 import { useAuth } from "@/contexts/AuthContext";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
-import { updateMemberName, deleteMember, upsertMember, isSupabaseConfigured, fetchGuilds, setMemberGuild, bulkAddMembers, supabase, fetchStaticParties, createParty, deleteParty, addMemberToParty, removeMemberFromParty, type StaticParty } from "@/lib/supabase";
+import { updateMemberName, deleteMember, upsertMember, isSupabaseConfigured, fetchGuilds, setMemberGuild, bulkAddMembers, supabase, fetchStaticParties, createParty, deleteParty, addMemberToParty, removeMemberFromParty, type StaticParty, sendCpReminder, createProgressThread, addBackdatedCpUpdate, fetchMemberCpHistory, editCpUpdate, deleteCpUpdate } from "@/lib/supabase";
 import { useServerId, useHasPermission } from "@/contexts/ServerContext";
-import type { Guild } from "@/types";
-import { Users, Plus, Pencil, Trash2, Loader2, X, Check, UserPlus, CheckCircle, AlertTriangle, Image, Upload, Copy, Shield, Search, ChevronLeft, ChevronRight, TrendingUp, ChevronUp, ChevronDown, Tag, Sword, Swords, ShieldHalf, ShieldCheck, Crosshair, Wand, Heart, Zap, Flame, Snowflake, Skull, Star, Crown, Anchor, Gavel, Axe, Target, Footprints, HandMetal } from "lucide-react";
-import type { Member } from "@/types";
+import type { Guild, Member, CpUpdate } from "@/types";
+import { Users, Plus, Pencil, Trash2, Loader2, X, Check, UserPlus, CheckCircle, AlertTriangle, Image, Upload, Copy, Shield, Search, ChevronLeft, ChevronRight, TrendingUp, ChevronUp, ChevronDown, Tag, Sword, Swords, ShieldHalf, ShieldCheck, Crosshair, Wand, Heart, Zap, Flame, Snowflake, Skull, Star, Crown, Anchor, Gavel, Axe, Target, Footprints, HandMetal, Megaphone, Calendar, Clock, Eye } from "lucide-react";
 import { guildColor } from "@/lib/constants";
 
 export function MembersView() {
@@ -50,6 +49,40 @@ export function MembersView() {
   const [deleting, setDeleting] = useState(false);
   const [toast, setToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
+  // CP Reminder
+  const [cpReminding, setCpReminding] = useState(false);
+  const [demandConfirming, setDemandConfirming] = useState(false);
+  const [demandConfirmText, setDemandConfirmText] = useState("");
+
+  // Backdated CP Update modal
+  const [cpModalMember, setCpModalMember] = useState<Member | null>(null);
+  const [cpModalCp, setCpModalCp] = useState("");
+  const [cpModalDate, setCpModalDate] = useState("");
+  const [cpModalError, setCpModalError] = useState("");
+  const [cpModalSaving, setCpModalSaving] = useState(false);
+  const [cpModalFocused, setCpModalFocused] = useState(false);
+
+  // Inline CP edit on Progress tab
+  const [editingCpId, setEditingCpId] = useState<string | null>(null);
+  const [editingCpValue, setEditingCpValue] = useState("");
+  const cpEditInputRef = useRef<HTMLInputElement>(null);
+
+  // CP History modal
+  const [historyMember, setHistoryMember] = useState<Member | null>(null);
+  const [historyData, setHistoryData] = useState<CpUpdate[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [editingHistoryId, setEditingHistoryId] = useState<string | null>(null);
+  const [editingHistoryCp, setEditingHistoryCp] = useState("");
+  const [deletingHistoryId, setDeletingHistoryId] = useState<string | null>(null);
+
+  // Focus & select the inline CP input once when editing starts
+  useEffect(() => {
+    if (editingCpId && cpEditInputRef.current) {
+      cpEditInputRef.current.focus();
+      cpEditInputRef.current.select();
+    }
+  }, [editingCpId]);
+
   // Guilds
   const [guilds, setGuilds] = useState<Guild[]>([]);
   const [guildsLoading, setGuildsLoading] = useState(true);
@@ -62,6 +95,19 @@ export function MembersView() {
   const [newClassIcon, setNewClassIcon] = useState<string>("Sword");
   const [classSearch, setClassSearch] = useState("");
   const [progressSearch, setProgressSearch] = useState("");
+
+  // Sort state for guild member tables
+  const [sortColumn, setSortColumn] = useState<"name" | "cp" | "status">("name");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+
+  const toggleSort = (col: "name" | "cp" | "status") => {
+    if (sortColumn === col) {
+      setSortDir(d => d === "asc" ? "desc" : "asc");
+    } else {
+      setSortColumn(col);
+      setSortDir(col === "cp" ? "desc" : "asc");
+    }
+  };
 
   // Fetch classes from DB
   useEffect(() => {
@@ -132,7 +178,9 @@ export function MembersView() {
   const [allPartyBoxes, setAllPartyBoxes] = useState<Record<string, string[][]>>({});
   const [unassignedSearch, setUnassignedSearch] = useState("");
   const [savingParties, setSavingParties] = useState(false);
-  const [membersTab, setMembersTab] = useState<"members" | "progress" | "parties" | "classes">("members");
+  const [membersTab, setMembersTab] = useState<"members" | "progress" | "parties" | "classes">(
+    isViewer ? "progress" : "members"
+  );
 
   // Guild order for Progress tab (persisted in localStorage per server)
   const guildOrderKey = `guild-order-${serverId ?? "global"}`;
@@ -375,6 +423,9 @@ export function MembersView() {
   // Bulk add
   const [showBulkModal, setShowBulkModal] = useState(false);
   useEscapeKey(() => { setShowBulkModal(false); setBulkNames(""); setDeleteId(null); setDeleteConfirmName(""); });
+
+  useEscapeKey(() => { setCpModalMember(null); setCpModalFocused(false); }, !!cpModalMember);
+  useEscapeKey(() => { setHistoryMember(null); setEditingHistoryId(null); setDeletingHistoryId(null); }, !!historyMember);
   const [bulkNames, setBulkNames] = useState("");
   const [bulkAdding, setBulkAdding] = useState(false);
   const [bulkGuild, setBulkGuild] = useState<string>("");
@@ -386,6 +437,176 @@ export function MembersView() {
   }, []);
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ["members", serverId] });
+
+  // ── Demand CP Update ──────────────────────────────────────
+  const startDemandConfirm = () => {
+    setDemandConfirming(true);
+    setDemandConfirmText("");
+  };
+  const cancelDemandConfirm = () => {
+    setDemandConfirming(false);
+    setDemandConfirmText("");
+  };
+  const executeDemandCpUpdate = async () => {
+    if (!serverId || cpReminding) return;
+    setDemandConfirming(false);
+    setDemandConfirmText("");
+    setCpReminding(true);
+    try {
+      // First try creating a progress thread
+      const threadResult = await createProgressThread(serverId);
+      if (threadResult.ok) {
+        const s = threadResult.succeeded ?? 1;
+        const f = threadResult.failed ?? 0;
+        showToast("success", `Thread${s > 1 ? "s" : ""} created in ${s} server${s > 1 ? "s" : ""}${f > 0 ? ` (${f} failed)` : ""}`);
+      } else if (threadResult.reason === "No progress channel configured") {
+        // Fall back to sending a general reminder via Discord notify
+        const r = await sendCpReminder(serverId);
+        if (r.ok) {
+          showToast("success", "CP update reminder sent to Discord!");
+        } else {
+          showToast("error", r.reason || "Failed to send reminder");
+        }
+      } else {
+        showToast("error", threadResult.reason || "Failed to create thread");
+      }
+    } catch (e) {
+      showToast("error", "Failed to send reminder");
+    } finally {
+      setCpReminding(false);
+    }
+  };
+
+  // ── Backdated CP Update Modal ─────────────────────────────
+  const openCpModal = (member: Member) => {
+    setCpModalMember(member);
+    setCpModalCp(member.combat_power?.toString() ?? "");
+    setCpModalDate(new Date().toISOString().slice(0, 10)); // today
+    setCpModalError("");
+    setCpModalFocused(false);
+  };
+
+  const handleBackdatedCpSubmit = async () => {
+    if (!cpModalMember || !serverId) return;
+    const cp = parseInt(cpModalCp, 10);
+    if (!cpModalCp.trim() || isNaN(cp) || cp < 1) {
+      setCpModalError("Please enter a valid CP value.");
+      return;
+    }
+    if (!cpModalDate) {
+      setCpModalError("Please select a date.");
+      return;
+    }
+    const selectedDate = new Date(cpModalDate + "T12:00:00");
+    if (selectedDate > new Date()) {
+      setCpModalError("Date cannot be in the future.");
+      return;
+    }
+    setCpModalSaving(true);
+    setCpModalError("");
+    try {
+      await addBackdatedCpUpdate({
+        server_id: serverId,
+        member_id: cpModalMember.id,
+        player_name: cpModalMember.name,
+        new_cp: cp,
+        submitted_at: selectedDate.toISOString(),
+      });
+      showToast("success", `CP updated for ${cpModalMember.name}`);
+      setCpModalMember(null);
+      invalidate();
+    } catch (e) {
+      setCpModalError(e instanceof Error ? e.message : "Failed to update CP");
+    } finally {
+      setCpModalSaving(false);
+    }
+  };
+
+  // ── Inline CP Edit ────────────────────────────────────────
+  const startInlineCpEdit = (member: Member) => {
+    setEditingCpId(member.id);
+    setEditingCpValue(member.combat_power?.toString() ?? "");
+  };
+
+  const handleInlineCpSave = async (member: Member) => {
+    if (!serverId || editingCpId !== member.id) return;
+    const cp = parseInt(editingCpValue, 10);
+    if (!editingCpValue.trim() || isNaN(cp) || cp < 1) {
+      showToast("error", "Invalid CP value");
+      return;
+    }
+    setEditingCpId(null);
+    try {
+      await addBackdatedCpUpdate({
+        server_id: serverId,
+        member_id: member.id,
+        player_name: member.name,
+        new_cp: cp,
+        submitted_at: new Date().toISOString(),
+      });
+      showToast("success", `${member.name} CP → ${cp.toLocaleString()}`);
+      invalidate();
+    } catch (e) {
+      showToast("error", e instanceof Error ? e.message : "Failed to update CP");
+    }
+  };
+
+  // ── CP History Modal ──────────────────────────────────────
+  const openHistory = async (member: Member) => {
+    setHistoryMember(member);
+    setHistoryLoading(true);
+    setEditingHistoryId(null);
+    setDeletingHistoryId(null);
+    try {
+      const data = await fetchMemberCpHistory(member.id);
+      setHistoryData(data);
+    } catch {
+      setHistoryData([]);
+      showToast("error", "Failed to load CP history");
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
+  const handleHistoryEdit = async (updateId: string) => {
+    if (!historyMember) return;
+    const cp = parseInt(editingHistoryCp, 10);
+    if (!editingHistoryCp.trim() || isNaN(cp) || cp < 1) {
+      showToast("error", "Invalid CP value");
+      return;
+    }
+    try {
+      await editCpUpdate(updateId, cp, historyMember.id);
+      showToast("success", "CP entry updated");
+      setEditingHistoryId(null);
+      // Refresh history
+      const data = await fetchMemberCpHistory(historyMember.id);
+      setHistoryData(data);
+      invalidate();
+    } catch (e) {
+      showToast("error", e instanceof Error ? e.message : "Failed to edit entry");
+    }
+  };
+
+  const handleHistoryDelete = async (updateId: string) => {
+    if (!historyMember) return;
+    try {
+      await deleteCpUpdate(updateId, historyMember.id);
+      showToast("success", "CP entry deleted");
+      setDeletingHistoryId(null);
+      // Refresh history
+      const data = await fetchMemberCpHistory(historyMember.id);
+      setHistoryData(data);
+      invalidate();
+    } catch (e) {
+      showToast("error", e instanceof Error ? e.message : "Failed to delete entry");
+    }
+  };
+
+  const fmtDate = (d: string) => {
+    const date = new Date(d);
+    return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  };
 
   // Sort members by guild, then by name
   const sortedMembers = useMemo(() => {
@@ -709,17 +930,19 @@ export function MembersView() {
 
       {/* Tab bar */}
       <div className="flex items-center gap-1 border-b border-[#27272a] pb-2">
-        <button
-          onClick={() => setMembersTab("members")}
-          className={`px-3 py-1.5 rounded-t-md text-xs font-medium transition ${
-            membersTab === "members"
-              ? "bg-[#18181b] text-[#fafafa] border border-[#27272a] border-b-transparent"
-              : "text-[#71717a] hover:text-[#d4d4d8]"
-          }`}
-        >
-          <Users className="w-3.5 h-3.5 inline mr-1" />
-          Members
-        </button>
+        {!isViewer && (
+          <button
+            onClick={() => setMembersTab("members")}
+            className={`px-3 py-1.5 rounded-t-md text-xs font-medium transition ${
+              membersTab === "members"
+                ? "bg-[#18181b] text-[#fafafa] border border-[#27272a] border-b-transparent"
+                : "text-[#71717a] hover:text-[#d4d4d8]"
+            }`}
+          >
+            <Users className="w-3.5 h-3.5 inline mr-1" />
+            Members
+          </button>
+        )}
         <button
           onClick={() => setMembersTab("progress")}
           className={`px-3 py-1.5 rounded-t-md text-xs font-medium transition ${
@@ -729,11 +952,12 @@ export function MembersView() {
           }`}
         >
           <TrendingUp className="w-3.5 h-3.5 inline mr-1" />
-          Progress
+          Progress{isViewer ? " (View Only)" : ""}
         </button>
-        <button
-          onClick={() => setMembersTab("parties")}
-          className={`px-3 py-1.5 rounded-t-md text-xs font-medium transition ${
+        {!isViewer && canManageRaidMembers && (
+          <button
+            onClick={() => setMembersTab("parties")}
+            className={`px-3 py-1.5 rounded-t-md text-xs font-medium transition ${
             membersTab === "parties"
               ? "bg-[#18181b] text-[#fafafa] border border-[#27272a] border-b-transparent"
               : "text-[#71717a] hover:text-[#d4d4d8]"
@@ -742,6 +966,8 @@ export function MembersView() {
           <Shield className="w-3.5 h-3.5 inline mr-1" />
           Parties {parties.length > 0 && `(${parties.length})`}
         </button>
+        )}
+        {!isViewer && canManageRaidMembers && (
         <button
           onClick={() => setMembersTab("classes")}
           className={`px-3 py-1.5 rounded-t-md text-xs font-medium transition ${
@@ -753,6 +979,7 @@ export function MembersView() {
           <Tag className="w-3.5 h-3.5 inline mr-1" />
           Classes {classes.length > 0 && `(${classes.length})`}
         </button>
+        )}
       </div>
 
       {/* Parties Tab — Drag & Drop */}
@@ -952,6 +1179,12 @@ export function MembersView() {
       {/* Progress Tab — member CP & growth overview */}
       {membersTab === "progress" && (
       <div className="space-y-4">
+        {isViewer && (
+          <div className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-blue-500/10 border border-blue-500/20 text-xs text-blue-400">
+            <Eye className="w-3.5 h-3.5 shrink-0" />
+            <span>View Only — CP updates are submitted via Discord using <code className="px-1 py-0.5 bg-blue-500/10 rounded text-blue-300">!updatestats</code> in the progress channel.</span>
+          </div>
+        )}
         <div className="flex items-center gap-3 flex-wrap">
           <p className="text-sm text-[#a1a1aa] flex-1">
             Track member combat power growth and manage profiles.
@@ -966,6 +1199,54 @@ export function MembersView() {
               className="w-full pl-8 pr-3 py-1.5 bg-[#18181b] border border-[#27272a] rounded-lg text-xs text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#52525b]"
             />
           </div>
+          {canManageRaidMembers && members.length > 0 && !demandConfirming && (
+            <button
+              type="button"
+              onClick={startDemandConfirm}
+              disabled={cpReminding}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-600/20 border border-green-600/30 text-green-400 text-xs font-medium hover:bg-green-600/30 disabled:opacity-50 transition shrink-0"
+            >
+              {cpReminding ? (
+                <span className="w-3 h-3 border-2 border-green-400/30 border-t-green-400 rounded-full animate-spin" />
+              ) : (
+                <Megaphone className="w-3.5 h-3.5" />
+              )}
+              Demand Combat Power Update Now
+            </button>
+          )}
+          {demandConfirming && (
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={demandConfirmText}
+                onChange={(e) => setDemandConfirmText(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter" && demandConfirmText.toLowerCase() === "confirm") executeDemandCpUpdate(); if (e.key === "Escape") cancelDemandConfirm(); }}
+                placeholder="Type 'confirm' to proceed"
+                autoFocus
+                className="px-3 py-1.5 bg-[#09090b] border border-[#27272a] rounded-lg text-xs text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#fafafa] w-48"
+              />
+              <button
+                type="button"
+                onClick={executeDemandCpUpdate}
+                disabled={demandConfirmText.toLowerCase() !== "confirm" || cpReminding}
+                className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-green-600/20 border border-green-600/30 text-green-400 text-xs font-medium hover:bg-green-600/30 disabled:opacity-30 transition shrink-0"
+              >
+                {cpReminding ? (
+                  <span className="w-3 h-3 border-2 border-green-400/30 border-t-green-400 rounded-full animate-spin" />
+                ) : (
+                  <Megaphone className="w-3.5 h-3.5" />
+                )}
+                Confirm
+              </button>
+              <button
+                type="button"
+                onClick={cancelDemandConfirm}
+                className="px-3 py-1.5 rounded-lg text-xs text-[#a1a1aa] hover:text-[#fafafa] transition shrink-0"
+              >
+                Cancel
+              </button>
+            </div>
+          )}
         </div>
 
         {sortedGuildGroups.length === 0 ? (
@@ -994,26 +1275,126 @@ export function MembersView() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="text-[10px] text-[#71717a] uppercase tracking-wider border-b border-[#27272a]/50">
-                      <th className="text-left py-2 px-3 w-8"></th>
-                      <th className="text-left py-2 px-2">Member</th>
-                      <th className="text-right py-2 px-3">Current CP</th>
+                      <th className="text-left py-2.5 px-3 w-8"></th>
+                      <th className="text-left py-2.5 px-2 w-[60%] cursor-pointer select-none hover:text-[#a1a1aa] transition" onClick={() => toggleSort("name")}>
+                        <span className="inline-flex items-center gap-1">
+                          Member
+                          {sortColumn === "name" && (
+                            sortDir === "asc" ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />
+                          )}
+                        </span>
+                      </th>
+                      <th className="text-right py-2.5 px-3 w-[13%] cursor-pointer select-none hover:text-[#a1a1aa] transition" onClick={() => toggleSort("cp")}>
+                        <span className="inline-flex items-center gap-1 justify-end">
+                          <span className={sortColumn === "cp" ? "text-[#fafafa]" : ""}>Current CP</span>
+                          {sortColumn === "cp" && (
+                            sortDir === "asc" ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />
+                          )}
+                        </span>
+                      </th>
+                      <th className="text-center py-2.5 px-2 w-[7%] cursor-pointer select-none hover:text-[#a1a1aa] transition" onClick={() => toggleSort("status")} title="Sort by CP status">
+                        <span className="inline-flex items-center gap-1 justify-center">
+                          Status
+                          {sortColumn === "status" && (
+                            sortDir === "asc" ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />
+                          )}
+                        </span>
+                      </th>
+                      {canManageRaidMembers && <th className="text-right py-2.5 px-3 w-[10%]"></th>}
                     </tr>
                   </thead>
                   <tbody>
-                    {group.members.filter(m => !progressSearch.trim() || m.name.toLowerCase().includes(progressSearch.toLowerCase())).map((m, i) => (
+                    {(() => {
+                      const filtered = group.members.filter(m => !progressSearch.trim() || m.name.toLowerCase().includes(progressSearch.toLowerCase()));
+                      const sorted = [...filtered].sort((a, b) => {
+                        const dir = sortDir === "asc" ? 1 : -1;
+                        if (sortColumn === "name") return dir * a.name.localeCompare(b.name);
+                        if (sortColumn === "cp") {
+                          if (a.combat_power == null && b.combat_power == null) return 0;
+                          if (a.combat_power == null) return 1;
+                          if (b.combat_power == null) return -1;
+                          return dir * ((a.combat_power ?? 0) - (b.combat_power ?? 0));
+                        }
+                        if (sortColumn === "status") {
+                          const aHas = a.combat_power != null ? 1 : 0;
+                          const bHas = b.combat_power != null ? 1 : 0;
+                          if (aHas !== bHas) return dir * (bHas - aHas);
+                          return a.name.localeCompare(b.name);
+                        }
+                        return 0;
+                      });
+                      return sorted.map((m, i) => (
                       <tr key={m.id} className="border-b border-[#27272a]/30 hover:bg-[#09090b]/30 transition">
-                        <td className="py-2 px-3 text-[10px] text-[#52525b] font-mono">{i + 1}</td>
-                        <td className="py-2 px-2">
-                          {m.class && classIcons[m.class] && (() => { const CIcon = getClassIcon(classIcons[m.class]); const color = classColors[m.class] || "#a1a1aa"; return <CIcon className="w-3.5 h-3.5 inline mr-1.5" style={{ color }} />; })()}
-                          <Link to={`/members/${m.id}`} className="text-[#fafafa] hover:text-[#e4e4e7] transition text-sm">
-                            {m.name}
+                        <td className="py-2.5 px-3 text-[10px] text-[#52525b] font-mono align-middle">{i + 1}</td>
+                        <td className="py-2.5 px-2 align-middle">
+                          <Link to={`/members/${m.id}`} className="flex items-center gap-2 text-[#fafafa] hover:text-[#e4e4e7] transition text-sm -m-2 p-2 rounded">
+                            {m.class && classIcons[m.class] && (() => { const CIcon = getClassIcon(classIcons[m.class]); const color = classColors[m.class] || "#a1a1aa"; return <CIcon className="w-3.5 h-3.5 shrink-0" style={{ color }} />; })()}
+                            <span>{m.name}</span>
                           </Link>
                         </td>
-                        <td className="py-2 px-3 text-right text-[#a1a1aa] font-mono text-sm">
-                          {m.combat_power != null ? m.combat_power.toLocaleString() : "—"}
+                        <td className="py-2.5 px-3 text-right font-mono text-sm align-middle">
+                          {canManageRaidMembers && editingCpId === m.id ? (
+                            <div className="flex items-center gap-1 justify-end">
+                              <input
+                                ref={cpEditInputRef}
+                                type="text"
+                                inputMode="numeric"
+                                value={editingCpValue}
+                                onChange={(e) => setEditingCpValue(e.target.value)}
+                                onKeyDown={(e) => { if (e.key === "Enter") handleInlineCpSave(m); if (e.key === "Escape") setEditingCpId(null); }}
+                                onBlur={() => handleInlineCpSave(m)}
+                                placeholder="e.g. 12500"
+                                className="w-24 px-2 py-1 bg-[#09090b] border border-[#a1a1aa] rounded text-sm text-[#fafafa] text-right focus:outline-none focus:border-[#fafafa] placeholder-[#52525b]"
+                              />
+                              <span className="text-[10px] text-[#52525b] shrink-0">Enter ↵</span>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-1.5 justify-end">
+                              <button
+                                type="button"
+                                onClick={() => canManageRaidMembers && startInlineCpEdit(m)}
+                                className={`group flex items-center gap-1 ${canManageRaidMembers ? "cursor-pointer" : ""}`}
+                                title={canManageRaidMembers ? "Click to edit CP" : undefined}
+                              >
+                                <span className={`${m.combat_power != null ? "text-[#a1a1aa]" : "text-[#52525b]"} group-hover:text-[#fafafa] border-b border-dashed border-[#52525b]/40 group-hover:border-[#a1a1aa] transition`}>
+                                  {m.combat_power != null ? m.combat_power.toLocaleString() : "—"}
+                                </span>
+                                {canManageRaidMembers && (
+                                  <Pencil className="w-3 h-3 text-[#52525b] group-hover:text-[#a1a1aa] transition shrink-0" />
+                                )}
+                              </button>
+                            </div>
+                          )}
                         </td>
+                        <td className="py-2.5 px-2 text-center align-middle">
+                          <span className={`inline-block w-2.5 h-2.5 rounded-full ${m.combat_power != null ? "bg-green-500 shadow-[0_0_6px_rgba(34,197,94,0.5)]" : "bg-[#3f3f46]"}`} title={m.combat_power != null ? "CP updated" : "CP not set"} />
+                        </td>
+                        {canManageRaidMembers && (
+                          <td className="py-2 px-3 text-right">
+                            <div className="flex items-center gap-1 justify-end">
+                              <button
+                                type="button"
+                                onClick={() => openHistory(m)}
+                                className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium bg-[#09090b] border border-[#27272a] text-[#a1a1aa] hover:text-[#fafafa] hover:border-[#52525b] transition whitespace-nowrap"
+                                title="View CP history & profile"
+                              >
+                                <Clock className="w-3 h-3 shrink-0" />
+                                History
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => openCpModal(m)}
+                                className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium bg-[#09090b] border border-[#27272a] text-[#a1a1aa] hover:text-[#fafafa] hover:border-[#52525b] transition whitespace-nowrap"
+                              >
+                                <Calendar className="w-3 h-3 shrink-0" />
+                                Add CP
+                              </button>
+                            </div>
+                          </td>
+                        )}
                       </tr>
-                    ))}
+                    ));
+                    })()}
                   </tbody>
                 </table>
               </div>
@@ -1024,6 +1405,171 @@ export function MembersView() {
         <p className="text-[10px] text-[#52525b] text-center">
           Members update their CP via Discord using <code className="px-1 py-0.5 bg-[#18181b] rounded text-[#a1a1aa]">!updatestats PlayerName CP</code>
         </p>
+
+        {/* ── Backdated CP Update Modal ── */}
+        {cpModalMember && canManageRaidMembers && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={() => setCpModalMember(null)}>
+            <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-5 w-full max-w-sm mx-4" onClick={e => e.stopPropagation()}>
+              <div className="flex items-center gap-2 mb-4">
+                <Clock className="w-4 h-4 text-amber-400" />
+                <h3 className="text-sm font-semibold text-[#fafafa]">Backdated CP Update</h3>
+                <button onClick={() => setCpModalMember(null)} className="ml-auto p-1 rounded text-[#52525b] hover:text-[#fafafa] transition">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="space-y-3">
+                <div>
+                  <label className="text-[10px] text-[#71717a] uppercase tracking-wider block mb-1">Member</label>
+                  <p className="text-sm text-[#fafafa] font-medium">{cpModalMember.name}</p>
+                </div>
+
+                <div>
+                  <label className="text-[10px] text-[#71717a] uppercase tracking-wider block mb-1">Combat Power</label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={cpModalFocused ? cpModalCp : (cpModalCp && !isNaN(parseInt(cpModalCp, 10)) ? parseInt(cpModalCp, 10).toLocaleString() : cpModalCp)}
+                    onChange={(e) => { setCpModalCp(e.target.value.replace(/[,\s]/g, "")); setCpModalError(""); }}
+                    onKeyDown={(e) => { if (e.key === "Enter") handleBackdatedCpSubmit(); }}
+                    onFocus={() => setCpModalFocused(true)}
+                    onBlur={() => setCpModalFocused(false)}
+                    placeholder="e.g. 12,500"
+                    className="w-full px-3 py-2 bg-[#09090b] border border-[#27272a] rounded-lg text-sm text-[#fafafa] placeholder-[#52525b] focus:outline-none focus:border-[#52525b]"
+                    autoFocus
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] text-[#71717a] uppercase tracking-wider block mb-1">Date (past week)</label>
+                  <input
+                    type="date"
+                    value={cpModalDate}
+                    onChange={(e) => { setCpModalDate(e.target.value); setCpModalError(""); }}
+                    onKeyDown={(e) => { if (e.key === "Enter") handleBackdatedCpSubmit(); }}
+                    max={new Date().toISOString().slice(0, 10)}
+                    className="w-full px-3 py-2 bg-[#09090b] border border-[#27272a] rounded-lg text-sm text-[#fafafa] focus:outline-none focus:border-[#52525b] [color-scheme:dark]"
+                  />
+                  <p className="text-[9px] text-[#52525b] mt-1">You can update CP anytime — no weekly limit.</p>
+                </div>
+
+                {cpModalError && (
+                  <p className="text-xs text-red-400 bg-red-500/10 rounded-lg px-3 py-2">{cpModalError}</p>
+                )}
+
+                <div className="flex gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setCpModalMember(null)}
+                    className="flex-1 px-3 py-2 rounded-lg bg-[#27272a] text-[#a1a1aa] text-xs font-medium hover:bg-[#3f3f46] transition"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleBackdatedCpSubmit}
+                    disabled={cpModalSaving}
+                    className="flex-1 px-3 py-2 rounded-lg bg-amber-600 text-white text-xs font-medium hover:bg-amber-500 disabled:opacity-50 transition flex items-center justify-center gap-1.5"
+                  >
+                    {cpModalSaving ? (
+                      <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    ) : (
+                      <Check className="w-3.5 h-3.5" />
+                    )}
+                    Save Update
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── CP History Modal ── */}
+        {historyMember && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={() => { setHistoryMember(null); setEditingHistoryId(null); setDeletingHistoryId(null); }}>
+            <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-5 w-full max-w-md mx-4 max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
+              <div className="flex items-center gap-2 mb-4 shrink-0">
+                <Clock className="w-4 h-4 text-blue-400" />
+                <h3 className="text-sm font-semibold text-[#fafafa]">{historyMember.name} — CP History</h3>
+                <button onClick={() => { setHistoryMember(null); setEditingHistoryId(null); setDeletingHistoryId(null); }} className="ml-auto p-1 rounded text-[#52525b] hover:text-[#fafafa] transition">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {historyLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="w-5 h-5 text-[#52525b] animate-spin" />
+                </div>
+              ) : historyData.length === 0 ? (
+                <p className="text-sm text-[#52525b] text-center py-8">No CP history yet.</p>
+              ) : (
+                <div className="overflow-y-auto flex-1 -mx-2 px-2 space-y-1">
+                  {historyData.map((entry) => (
+                    <div key={entry.id} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[#09090b] border border-[#27272a]/40 group">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] text-[#52525b] font-mono">{fmtDate(entry.submitted_at)}</span>
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded ${entry.status === "approved" ? "bg-green-500/10 text-green-400" : entry.status === "rejected" ? "bg-red-500/10 text-red-400" : "bg-yellow-500/10 text-yellow-400"}`}>
+                            {entry.status}
+                          </span>
+                        </div>
+                        {editingHistoryId === entry.id ? (
+                          <div className="flex items-center gap-1 mt-1">
+                            <input
+                              type="text"
+                              inputMode="numeric"
+                              value={editingHistoryCp}
+                              onChange={(e) => setEditingHistoryCp(e.target.value)}
+                              onKeyDown={(e) => { if (e.key === "Enter") handleHistoryEdit(entry.id); if (e.key === "Escape") setEditingHistoryId(null); }}
+                              className="w-24 px-2 py-1 bg-[#18181b] border border-[#52525b] rounded text-xs text-[#fafafa] text-right focus:outline-none focus:border-[#a1a1aa]"
+                              autoFocus
+                            />
+                            <button onClick={() => handleHistoryEdit(entry.id)} className="px-2 py-1 rounded text-[10px] bg-green-600 text-white hover:bg-green-500 transition">Save</button>
+                            <button onClick={() => setEditingHistoryId(null)} className="px-2 py-1 rounded text-[10px] bg-[#27272a] text-[#a1a1aa] hover:text-[#fafafa] transition">Cancel</button>
+                          </div>
+                        ) : (
+                          <p className="text-sm text-[#fafafa] mt-0.5">
+                            {entry.old_cp != null ? (
+                              <>
+                                <span className="text-[#52525b]">{entry.old_cp.toLocaleString()}</span>
+                                <span className="mx-1 text-[#52525b]">→</span>
+                              </>
+                            ) : null}
+                            <span className="font-medium">{entry.new_cp.toLocaleString()}</span>
+                          </p>
+                        )}
+                      </div>
+                      {deletingHistoryId === entry.id ? (
+                        <div className="flex items-center gap-1 shrink-0">
+                          <span className="text-[10px] text-red-400">Delete?</span>
+                          <button onClick={() => handleHistoryDelete(entry.id)} className="px-1.5 py-0.5 rounded text-[10px] bg-red-600 text-white hover:bg-red-500 transition">Yes</button>
+                          <button onClick={() => setDeletingHistoryId(null)} className="px-1.5 py-0.5 rounded text-[10px] bg-[#27272a] text-[#a1a1aa] hover:text-[#fafafa] transition">No</button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition">
+                          <button
+                            onClick={() => { setEditingHistoryId(entry.id); setEditingHistoryCp(entry.new_cp.toString()); }}
+                            className="p-1 rounded text-[#52525b] hover:text-[#fafafa] hover:bg-[#27272a] transition"
+                            title="Edit CP"
+                          >
+                            <Pencil className="w-3 h-3" />
+                          </button>
+                          <button
+                            onClick={() => setDeletingHistoryId(entry.id)}
+                            className="p-1 rounded text-[#52525b] hover:text-red-400 hover:bg-[#27272a] transition"
+                            title="Delete entry"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
       )}
 
@@ -1150,9 +1696,9 @@ export function MembersView() {
                         {filtered.map(m => (
                           <tr key={m.id} className="border-t border-[#27272a]/30 hover:bg-[#09090b]/30 transition">
                             <td className="py-1.5 px-3">
-                              {m.class && classIcons[m.class] && (() => { const CIcon = getClassIcon(classIcons[m.class]); const color = classColors[m.class] || "#a1a1aa"; return <CIcon className="w-3.5 h-3.5 inline mr-2" style={{ color }} />; })()}
-                              <Link to={`/members/${m.id}`} className="text-[#fafafa] hover:text-[#e4e4e7] transition text-sm">
-                                {m.name}
+                              <Link to={`/members/${m.id}`} className="flex items-center text-[#fafafa] hover:text-[#e4e4e7] transition text-sm -m-1.5 p-1.5 rounded">
+                                {m.class && classIcons[m.class] && (() => { const CIcon = getClassIcon(classIcons[m.class]); const color = classColors[m.class] || "#a1a1aa"; return <CIcon className="w-3.5 h-3.5 mr-2 shrink-0" style={{ color }} />; })()}
+                                <span>{m.name}</span>
                               </Link>
                             </td>
                             <td className="py-1.5 px-3 text-right w-40">

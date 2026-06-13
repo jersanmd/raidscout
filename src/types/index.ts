@@ -343,9 +343,13 @@ export interface MemberWithProfile extends Member {
   notes: MemberNote[];
   cp_history: CpUpdate[];
   loot_count: number;
+  attendance_count: number;
+  loot_history: any[];
+  attendance_history: any[];
+  activity_attendance: any[];
 }
 
-export type ItemRarity = "common" | "uncommon" | "rare" | "epic" | "legendary";
+export type ItemRarity = "common" | "uncommon" | "rare" | "epic" | "legendary" | "mythic";
 
 export interface Item {
   id: string;

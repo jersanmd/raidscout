@@ -93,3 +93,59 @@ export async function announceSpawns(
   }
   return { success: failed === 0, skipped, failed };
 }
+
+// ── CP Reminder ─────────────────────────────────────────────
+
+export async function sendCpReminder(serverId: string): Promise<{ ok: boolean; reason?: string }> {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session?.access_token) return { ok: false, reason: "Not authenticated" };
+
+  try {
+    const fnUrl = `${supabaseUrl}/functions/v1/discord-notify`;
+    const res = await fetch(fnUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${session.access_token}`,
+        "apikey": supabaseKey,
+      },
+      body: JSON.stringify({ server_id: serverId, event: "cp_reminder" }),
+    });
+    if (!res.ok) {
+      const err = await res.text().catch(() => "");
+      return { ok: false, reason: `HTTP ${res.status}: ${err}` };
+    }
+    const body = await res.json().catch(() => ({}));
+    return { ok: body.ok !== false, reason: body.reason };
+  } catch (e) {
+    return { ok: false, reason: String(e) };
+  }
+}
+
+// ── Progress Thread ─────────────────────────────────────────
+
+export async function createProgressThread(serverId: string): Promise<{ ok: boolean; reason?: string; thread_name?: string; succeeded?: number; failed?: number }> {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session?.access_token) return { ok: false, reason: "Not authenticated" };
+
+  try {
+    const fnUrl = `${supabaseUrl}/functions/v1/create-progress-thread`;
+    const res = await fetch(fnUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${session.access_token}`,
+        "apikey": supabaseKey,
+      },
+      body: JSON.stringify({ server_id: serverId }),
+    });
+    if (!res.ok) {
+      const err = await res.text().catch(() => "");
+      return { ok: false, reason: `HTTP ${res.status}: ${err}` };
+    }
+    const body = await res.json().catch(() => ({}));
+    return { ok: body.ok !== false, reason: body.reason, thread_name: body.thread_name, succeeded: body.succeeded, failed: body.failed };
+  } catch (e) {
+    return { ok: false, reason: String(e) };
+  }
+}
