@@ -402,35 +402,60 @@ export function InventoryView() {
 
       {/* ── History Tab ── */}
       {tab === "history" && (
-        <div className="space-y-4">
+        <div className="space-y-6">
           {distLoading ? (
             <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 text-[#71717a] animate-spin" /></div>
           ) : Object.keys(groupedDistributions).length === 0 ? (
-            <p className="text-sm text-[#52525b] text-center py-12">No distributions yet.</p>
+            <div className="text-center py-16">
+              <History className="w-12 h-12 text-[#27272a] mx-auto mb-3" />
+              <p className="text-sm text-[#52525b]">No distributions yet.</p>
+              <p className="text-xs text-[#3f3f46] mt-1">Items given to players will appear here.</p>
+            </div>
           ) : (
             Object.entries(groupedDistributions).map(([date, dists]) => (
               <div key={date}>
-                <p className="text-[10px] text-[#52525b] uppercase tracking-wider mb-2">{date}</p>
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="h-px flex-1 bg-[#27272a]" />
+                  <span className="text-[11px] text-[#52525b] font-medium uppercase tracking-wider shrink-0">{date}</span>
+                  <span className="text-[10px] text-[#3f3f46]">{dists.length} distribution{dists.length !== 1 ? "s" : ""}</span>
+                  <div className="h-px flex-1 bg-[#27272a]" />
+                </div>
                 <div className="space-y-1.5">
                   {dists.map(d => {
                     const item = items.find(i => i.id === d.item_id);
+                    const rc = item ? RARITY_COLORS[item.rarity] || "#a1a1aa" : "#71717a";
                     return (
-                      <div key={d.id} className="bg-[#18181b] border border-[#27272a] rounded-lg px-3 py-2 flex items-center gap-3 group">
-                        <Gift className="w-4 h-4 text-[#71717a] shrink-0" />
+                      <div key={d.id} className="bg-[#18181b] border border-[#27272a] rounded-lg px-3 py-2.5 flex items-center gap-3 group hover:border-[#3f3f46] transition-all">
+                        {/* Item thumbnail */}
+                        <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: `${rc}18` }}>
+                          {item?.image_url ? (
+                            <img src={item.image_url} alt="" className="w-7 h-7 rounded object-cover" />
+                          ) : (
+                            <Gift className="w-4 h-4" style={{ color: rc }} />
+                          )}
+                        </div>
                         <div className="min-w-0 flex-1">
-                          <p className="text-sm text-[#fafafa]">
-                            <span className="font-medium">{item?.name ?? "Unknown Item"}</span>
-                            <span className="text-[#71717a]"> ×{d.quantity}</span>
-                            <span className="text-[#71717a]"> → </span>
-                            <span>{d.player_name}</span>
-                          </p>
-                          {d.reason && <p className="text-[10px] text-[#52525b]">{d.reason}</p>}
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-medium truncate" style={{ color: rc }}>{item?.name ?? "Unknown Item"}</p>
+                            {item && (
+                              <span className="text-[9px] px-1.5 py-px rounded font-medium uppercase shrink-0" style={{ color: rc, backgroundColor: `${rc}18` }}>{item.rarity}</span>
+                            )}
+                            <span className="text-[11px] text-[#52525b] font-mono shrink-0">×{d.quantity}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            <span className="text-[11px] text-[#71717a]">→</span>
+                            <span className="text-[11px] text-[#a1a1aa] font-medium">{d.player_name}</span>
+                            {d.reason && (
+                              <span className="text-[10px] text-[#52525b] truncate">· {d.reason}</span>
+                            )}
+                          </div>
                         </div>
                         <button
                           onClick={() => deleteDistMutation.mutate(d.id)}
-                          className="opacity-0 group-hover:opacity-100 p-1 rounded text-[#52525b] hover:text-red-400 transition"
+                          className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-[#52525b] hover:text-red-400 hover:bg-red-400/10 transition-all shrink-0"
+                          title="Delete distribution"
                         >
-                          <Trash2 className="w-3 h-3" />
+                          <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       </div>
                     );
@@ -444,52 +469,110 @@ export function InventoryView() {
 
       {/* ── Analytics Tab ── */}
       {tab === "analytics" && (
-        <div className="space-y-6">
-          {/* Top Items */}
-          <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-4">
-            <h3 className="text-sm font-semibold text-[#fafafa] mb-3 flex items-center gap-2">
-              <Package className="w-4 h-4 text-[#a1a1aa]" />
-              Most Distributed Items
-            </h3>
-            {itemStats.length === 0 ? (
-              <p className="text-sm text-[#52525b] text-center py-6">No distribution data yet.</p>
-            ) : (
-              <div className="space-y-2">
-                {itemStats.map(stat => (
-                  <div key={stat.item_id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-[#27272a]/50 transition">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm text-[#fafafa] truncate">{stat.item_name}</p>
-                      <p className="text-[10px] text-[#52525b]">{stat.recipient_count} recipient{stat.recipient_count !== 1 ? "s" : ""}</p>
-                    </div>
-                    <span className="text-sm font-mono font-bold text-[#fafafa]">×{stat.total_quantity}</span>
-                  </div>
-                ))}
-              </div>
-            )}
+        <div className="space-y-4">
+          {/* Summary cards */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-3.5">
+              <p className="text-[10px] text-[#71717a] uppercase tracking-wider">Total Gifts</p>
+              <p className="text-xl font-bold text-[#fafafa] mt-1 font-mono tabular-nums">{distributions.length}</p>
+            </div>
+            <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-3.5">
+              <p className="text-[10px] text-[#71717a] uppercase tracking-wider">Unique Items</p>
+              <p className="text-xl font-bold text-[#fafafa] mt-1 font-mono tabular-nums">{itemStats.length}</p>
+            </div>
+            <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-3.5">
+              <p className="text-[10px] text-[#71717a] uppercase tracking-wider">Recipients</p>
+              <p className="text-xl font-bold text-[#fafafa] mt-1 font-mono tabular-nums">{topRecipients.length}</p>
+            </div>
+            <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-3.5">
+              <p className="text-[10px] text-[#71717a] uppercase tracking-wider">Total Quantity</p>
+              <p className="text-xl font-bold text-[#fafafa] mt-1 font-mono tabular-nums">{itemStats.reduce((s, x) => s + (x.total_quantity || 0), 0)}</p>
+            </div>
           </div>
 
-          {/* Top Recipients */}
-          <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-4">
-            <h3 className="text-sm font-semibold text-[#fafafa] mb-3 flex items-center gap-2">
-              <Gift className="w-4 h-4 text-[#a1a1aa]" />
-              Top Recipients
-            </h3>
-            {topRecipients.length === 0 ? (
-              <p className="text-sm text-[#52525b] text-center py-6">No distribution data yet.</p>
-            ) : (
-              <div className="space-y-2">
-                {topRecipients.map((r, i) => (
-                  <div key={r.member_id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-[#27272a]/50 transition">
-                    <span className="text-xs font-mono text-[#52525b] w-5">#{i + 1}</span>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm text-[#fafafa]">{r.player_name}</p>
-                      <p className="text-[10px] text-[#52525b]">{r.unique_items} unique items</p>
-                    </div>
-                    <span className="text-sm font-mono font-bold text-[#fafafa]">{r.total_items}</span>
-                  </div>
-                ))}
-              </div>
-            )}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* Top Items */}
+            <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-4">
+              <h3 className="text-sm font-semibold text-[#fafafa] mb-4 flex items-center gap-2">
+                <Package className="w-4 h-4 text-[#a1a1aa]" />
+                Most Distributed Items
+              </h3>
+              {itemStats.length === 0 ? (
+                <p className="text-sm text-[#52525b] text-center py-8">No data yet.</p>
+              ) : (
+                <div className="space-y-1">
+                  {itemStats.map((stat, i) => {
+                    const item = items.find(x => x.id === stat.item_id);
+                    const rc = item ? RARITY_COLORS[item.rarity] || "#a1a1aa" : "#71717a";
+                    const maxQty = itemStats[0]?.total_quantity || 1;
+                    const pct = Math.max(4, (stat.total_quantity / maxQty) * 100);
+                    return (
+                      <div key={stat.item_id} className="flex items-center gap-3 py-1.5 group">
+                        <span className="text-[10px] font-mono text-[#3f3f46] w-4 shrink-0 text-right">{i + 1}</span>
+                        <div className="w-7 h-7 rounded flex items-center justify-center shrink-0" style={{ backgroundColor: `${rc}18` }}>
+                          {item?.image_url ? (
+                            <img src={item.image_url} alt="" className="w-5 h-5 rounded object-cover" />
+                          ) : (
+                            <Package className="w-3.5 h-3.5" style={{ color: rc }} />
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between mb-0.5">
+                            <p className="text-xs text-[#fafafa] truncate">{stat.item_name}</p>
+                            <span className="text-xs font-mono font-semibold text-[#a1a1aa] shrink-0 ml-2">×{stat.total_quantity}</span>
+                          </div>
+                          <div className="h-1 bg-[#27272a] rounded-full overflow-hidden">
+                            <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: rc }} />
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Top Recipients */}
+            <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-4">
+              <h3 className="text-sm font-semibold text-[#fafafa] mb-4 flex items-center gap-2">
+                <Gift className="w-4 h-4 text-[#a1a1aa]" />
+                Top Recipients
+              </h3>
+              {topRecipients.length === 0 ? (
+                <p className="text-sm text-[#52525b] text-center py-8">No data yet.</p>
+              ) : (
+                <div className="space-y-1">
+                  {topRecipients.map((r, i) => {
+                    const maxItems = topRecipients[0]?.total_items || 1;
+                    const pct = Math.max(4, (r.total_items / maxItems) * 100);
+                    return (
+                      <div key={r.member_id} className="flex items-center gap-3 py-1.5 group">
+                        <span className="text-[10px] font-mono text-[#3f3f46] w-4 shrink-0 text-right">{i + 1}</span>
+                        <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 text-[10px] font-bold ${
+                          i === 0 ? 'bg-amber-500/20 text-amber-400' :
+                          i === 1 ? 'bg-slate-400/20 text-slate-300' :
+                          i === 2 ? 'bg-orange-600/20 text-orange-400' :
+                          'bg-[#27272a] text-[#71717a]'
+                        }`}>
+                          {i < 3 ? ["🥇","🥈","🥉"][i] : i + 1}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between mb-0.5">
+                            <p className="text-xs text-[#fafafa] truncate">{r.player_name}</p>
+                            <span className="text-xs font-mono font-semibold text-[#a1a1aa] shrink-0 ml-2">{r.total_items}</span>
+                          </div>
+                          <div className="h-1 bg-[#27272a] rounded-full overflow-hidden">
+                            <div className={`h-full rounded-full transition-all ${
+                              i === 0 ? 'bg-amber-500' : i === 1 ? 'bg-slate-400' : i === 2 ? 'bg-orange-600' : 'bg-[#52525b]'
+                            }`} style={{ width: `${pct}%` }} />
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
