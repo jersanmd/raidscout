@@ -56,6 +56,7 @@ export interface Member {
   guild_id?: string | null;
   combat_power?: number | null;
   class?: string | null;
+  is_active?: boolean;
   created_at: string;
 }
 

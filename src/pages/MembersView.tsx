@@ -7,7 +7,7 @@ import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { updateMemberName, deleteMember, upsertMember, isSupabaseConfigured, fetchGuilds, setMemberGuild, bulkAddMembers, supabase, fetchStaticParties, createParty, deleteParty, addMemberToParty, removeMemberFromParty, type StaticParty, sendCpReminder, createProgressThread, addBackdatedCpUpdate, fetchMemberCpHistory, editCpUpdate, deleteCpUpdate } from "@/lib/supabase";
 import { useServerId, useHasPermission } from "@/contexts/ServerContext";
 import type { Guild, Member, CpUpdate } from "@/types";
-import { Users, Plus, Pencil, Trash2, Loader2, X, Check, UserPlus, CheckCircle, AlertTriangle, Image, Upload, Copy, Shield, Search, ChevronLeft, ChevronRight, TrendingUp, ChevronUp, ChevronDown, Tag, Sword, Swords, ShieldHalf, ShieldCheck, Crosshair, Wand, Heart, Zap, Flame, Snowflake, Skull, Star, Crown, Anchor, Gavel, Axe, Target, Footprints, HandMetal, Megaphone, Calendar, Clock, Eye, Package } from "lucide-react";
+import { Users, Plus, Pencil, Trash2, Loader2, X, Check, UserPlus, CheckCircle, AlertTriangle, Image, Upload, Copy, Shield, Search, ChevronLeft, ChevronRight, TrendingUp, ChevronUp, ChevronDown, Tag, Sword, Swords, ShieldHalf, ShieldCheck, Crosshair, Wand, Heart, Zap, Flame, Snowflake, Skull, Star, Crown, Anchor, Gavel, Axe, Target, Footprints, HandMetal, Megaphone, Calendar, Clock, Eye, EyeOff, Package } from "lucide-react";
 import { guildColor } from "@/lib/constants";
 import { GearTrackingTab } from "@/components/GearTrackingTab";
 
@@ -17,7 +17,7 @@ export function MembersView() {
   const canManageRaidMembers = useHasPermission("can_manage_members");
   const queryClient = useQueryClient();
   const configured = isSupabaseConfigured();
-  const { data: members = [], isLoading } = useMembers();
+  const { data: members = [], isLoading } = useMembers({ includeInactive: true });
 
   const [searchParams] = useSearchParams();
 
@@ -1954,7 +1954,11 @@ export function MembersView() {
                             {members.map((member, idx) => (
                       <div
                         key={member.id}
-                        className="flex flex-wrap items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2.5 rounded-lg bg-[#09090b]/50 border border-[#27272a]/50 group"
+                        className={`flex flex-wrap items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2.5 rounded-lg border group transition ${
+                          member.is_active === false
+                            ? 'bg-[#09090b]/30 border-[#27272a]/30 opacity-60'
+                            : 'bg-[#09090b]/50 border-[#27272a]/50'
+                        }`}
                       >
                         <span className="text-[10px] font-mono text-[#52525b] w-5 shrink-0">{(idx + 1).toString().padStart(2, "\u00A0")}</span>
                         <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-[#18181b] text-[#a1a1aa] font-bold text-sm shrink-0">
@@ -2000,6 +2004,24 @@ export function MembersView() {
                             <option value="">No guild</option>
                             {guilds.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
                           </select>
+                        )}
+
+                        {editingId !== member.id && canManageRaidMembers && (
+                          <button
+                            onClick={async () => {
+                              const newActive = !(member.is_active !== false);
+                              try {
+                                await supabase.from("members").update({ is_active: newActive }).eq("id", member.id);
+                                invalidate();
+                              } catch (err: any) {
+                                setToast({ type: "error", message: err?.message || "Failed to update member" });
+                              }
+                            }}
+                            className={`p-1.5 transition rounded shrink-0 sm:opacity-0 group-hover:opacity-100 ${member.is_active === false ? 'text-amber-400 hover:text-amber-300 hover:bg-amber-400/10' : 'text-[#52525b] hover:text-[#a1a1aa]'}`}
+                            title={member.is_active === false ? "Enable member" : "Disable member"}
+                          >
+                            {member.is_active === false ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                          </button>
                         )}
 
                         {editingId !== member.id && canManageRaidMembers && (

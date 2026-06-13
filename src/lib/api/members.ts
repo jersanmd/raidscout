@@ -3,11 +3,12 @@ import type { Member } from "@/types";
 
 // ── Members ─────────────────────────────────────────────────
 
-export async function fetchMembers(serverId?: string | null): Promise<Member[]> {
+export async function fetchMembers(serverId?: string | null, opts?: { includeInactive?: boolean }): Promise<Member[]> {
   const sid = serverId ?? getCurrentServerId();
   if (!sid) return [];
   let query = supabase.from("members").select("*").order("name");
   if (sid) query = query.eq("server_id", sid);
+  if (!opts?.includeInactive) query = query.eq("is_active", true);
   const { data, error } = await query;
   if (error) throw error;
   return data as Member[];

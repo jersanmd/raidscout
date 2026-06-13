@@ -4,17 +4,17 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useServerId } from "@/contexts/ServerContext";
 import type { Member } from "@/types";
 
-/** Fetch members for the current server. */
-export function useMembers() {
+/** Fetch members for the current server. Pass includeInactive:true to include disabled members. */
+export function useMembers(opts?: { includeInactive?: boolean }) {
   const { user, isViewer } = useAuth();
   const serverId = useServerId();
   const configured = isSupabaseConfigured();
 
   return useQuery<Member[]>({
-    queryKey: ["members", serverId],
+    queryKey: ["members", serverId, opts?.includeInactive],
     queryFn: async () => {
       if (!configured || (!user && !isViewer)) return [];
-      return await fetchMembers(serverId);
+      return await fetchMembers(serverId, opts);
     },
     staleTime: 60_000,
     retry: 2,
