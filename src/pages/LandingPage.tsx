@@ -421,11 +421,8 @@ export function LandingPage() {
             <div className="flex flex-col items-center gap-2.5 pt-6">
               <div className="flex items-center">
                 {TESTERS.map((tester, i) => (
-                  <a
+                  <div
                     key={i}
-                    href={`https://discord.com/users/${tester.discord}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
                     className="group relative hover:z-10 transition-all duration-300"
                     style={{ marginLeft: i === 0 ? 0 : "-10px", zIndex: TESTERS.length - i }}
                   >
@@ -434,7 +431,7 @@ export function LandingPage() {
                       alt={tester.name}
                       className="w-9 h-9 rounded-full object-cover ring-2 ring-[#09090b] group-hover:ring-amber-400/40 group-hover:scale-110 transition-all duration-300"
                     />
-                  </a>
+                  </div>
                 ))}
               </div>
               <span className="text-[10px] tracking-wide text-[#52525b]">trusted by guild leaders and guild managers worldwide</span>

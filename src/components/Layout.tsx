@@ -9,7 +9,7 @@ import { DiscordWebhookBanner } from "@/components/DiscordWebhookBanner";
 import { NoMembersBanner } from "@/components/NoMembersBanner";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { useSpawnAlerts } from "@/hooks/useSpawnAlerts";
-import { Skull, List, Calendar, LogOut, Clock, Trophy, Users, BarChart3, Server, Settings, Plus, Shield, ExternalLink, Eye, Bell, Volume2, ChevronDown, Globe, Loader2, Package } from "lucide-react";
+import { Skull, List, Calendar, LogOut, Clock, Trophy, Users, BarChart3, Server, Settings, Plus, Shield, ExternalLink, Eye, Bell, Volume2, ChevronDown, Globe, Loader2, Package, User } from "lucide-react";
 import { version } from "../../package.json";
 import { useUserTimezone, detectTimezone, formatInTimezone } from "@/hooks/useUserTimezone";
 import { TIMEZONES } from "@/lib/timezones";
@@ -282,9 +282,10 @@ export function Layout() {
                   }
                   setShowUserMenu(!showUserMenu);
                 }}
-                className="flex items-center gap-1 text-[#fafafa]/50 hover:text-[#d4d4d8] text-sm transition p-1.5 rounded-md hover:bg-[#18181b]" title="Menu"
+                className="flex items-center gap-1.5 text-[#fafafa]/70 hover:text-[#fafafa] text-sm transition p-1.5 rounded-md hover:bg-[#18181b]" title="Account menu"
               >
-                <span className="text-xs hidden md:block">{user?.email?.split("@")[0]}</span>
+                <User className="w-3.5 h-3.5" />
+                <span className="text-xs hidden sm:block max-w-[100px] truncate">{user?.email?.split("@")[0]}</span>
                 <ChevronDown className={`w-3 h-3 transition ${showUserMenu ? "rotate-180" : ""}`} />
               </button>
               {showUserMenu && createPortal(
