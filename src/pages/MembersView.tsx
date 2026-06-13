@@ -97,6 +97,7 @@ export function MembersView() {
   const [newClassIcon, setNewClassIcon] = useState<string>("Sword");
   const [classSearch, setClassSearch] = useState("");
   const [progressSearch, setProgressSearch] = useState("");
+  const [showClassCreator, setShowClassCreator] = useState(false);
 
   // Sort state for guild member tables
   const [sortColumn, setSortColumn] = useState<"name" | "cp" | "status">("name");
@@ -1659,6 +1660,15 @@ export function MembersView() {
           <h3 className="text-sm font-semibold text-[#fafafa] flex items-center gap-2 mb-3">
             <Tag className="w-4 h-4 text-[#a1a1aa]" />
             Class List
+            {classes.length > 0 && (
+              <button
+                onClick={() => setShowClassCreator(v => !v)}
+                className="ml-auto text-[10px] text-[#52525b] hover:text-[#a1a1aa] transition flex items-center gap-1"
+              >
+                {showClassCreator ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                {showClassCreator ? "Hide creator" : "Add class"}
+              </button>
+            )}
           </h3>
           <div className="flex flex-wrap items-center gap-2 mb-3">
             {classes.length === 0 ? (
@@ -1677,6 +1687,8 @@ export function MembersView() {
               })
             )}
           </div>
+          {(classes.length === 0 || showClassCreator) && (
+          <>
           <div className="flex items-center gap-2 mb-3">
             <div className="relative">
               <button className="px-2.5 py-2 bg-[#09090b] border border-[#27272a] rounded-lg hover:border-[#52525b] transition" title="Pick icon" style={{ color: newClassColor }}>
@@ -1725,6 +1737,8 @@ export function MembersView() {
               <Plus className="w-4 h-4" />
             </button>
           </div>
+          </>
+          )}
         </div>
 
         {/* Member class assignment */}
