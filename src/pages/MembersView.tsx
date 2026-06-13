@@ -2148,13 +2148,12 @@ export function MembersView() {
       {/* Delete class confirmation */}
       {deleteClassName && (() => {
         const name = deleteClassName!;
-        const confirmed = deleteClassConfirmText.trim().toLowerCase() === name.toLowerCase();
         return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/60" onClick={() => { setDeleteClassName(null); setDeleteClassConfirmText(""); }} />
           <div className="relative bg-[#09090b] border border-[#27272a] rounded-xl w-full max-w-xs shadow-2xl p-4 space-y-4">
             <p className="text-[#fafafa] text-sm text-center">
-              Delete class <span className="font-bold">{deleteClassName}</span>?
+              Delete class <span className="font-bold">{name}</span>?
             </p>
             <p className="text-[10px] text-[#71717a] text-center -mt-2">This will unassign this class from all members.</p>
             <div>
@@ -2162,10 +2161,10 @@ export function MembersView() {
                 type="text"
                 value={deleteClassConfirmText}
                 onChange={(e) => setDeleteClassConfirmText(e.target.value)}
-                placeholder={`Type "${deleteClassName}" to confirm`}
+                placeholder={`Type "${name}" to confirm`}
                 autoFocus
                 className="w-full px-3 py-2 bg-[#18181b] border border-[#27272a] rounded-lg text-sm text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-red-500/50 text-center"
-                onKeyDown={(e) => { if (e.key === "Enter" && confirmed) confirmDeleteClass(); }}
+                onKeyDown={(e) => { if (e.key === "Enter" && deleteClassConfirmText.trim().toLowerCase() === name.toLowerCase()) confirmDeleteClass(); }}
               />
             </div>
             <div className="flex gap-2">
@@ -2177,7 +2176,7 @@ export function MembersView() {
               </button>
               <button
                 onClick={confirmDeleteClass}
-                disabled={!confirmed}
+                disabled={deleteClassConfirmText.trim().toLowerCase() !== name.toLowerCase()}
                 className="flex-1 py-2 rounded-lg bg-red-600 text-white text-sm flex items-center justify-center gap-1.5 disabled:opacity-40 transition"
               >
                 Delete
