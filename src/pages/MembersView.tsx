@@ -65,6 +65,7 @@ export function MembersView() {
   };
   const [newClassName, setNewClassName] = useState("");
   const [newClassIcon, setNewClassIcon] = useState<string>("Sword");
+  const [newClassColor, setNewClassColor] = useState<string>("#a1a1aa");
   const [classSearch, setClassSearch] = useState("");
 
   // Class icons — persisted in localStorage per server
@@ -76,6 +77,23 @@ export function MembersView() {
     setClassIcons(icons);
     localStorage.setItem(classIconsKey, JSON.stringify(icons));
   };
+
+  // Class colors — persisted in localStorage per server
+  const classColorsKey = `class-colors-${serverId ?? "global"}`;
+  const [classColors, setClassColors] = useState<Record<string, string>>(() => {
+    try { return JSON.parse(localStorage.getItem(classColorsKey) || "{}"); } catch { return {}; }
+  });
+  const saveClassColors = (colors: Record<string, string>) => {
+    setClassColors(colors);
+    localStorage.setItem(classColorsKey, JSON.stringify(colors));
+  };
+
+  // Color palette for class icons
+  const CLASS_COLORS = [
+    "#f87171", "#fb923c", "#fbbf24", "#a3e635", "#34d399",
+    "#22d3ee", "#60a5fa", "#818cf8", "#c084fc", "#e879f9",
+    "#f472b6", "#a1a1aa", "#fafafa", "#f59e0b", "#ef4444",
+  ];
 
   // Icon palette for classes
   const CLASS_ICONS: { name: string; icon: React.ElementType; label: string }[] = [
@@ -331,7 +349,10 @@ export function MembersView() {
     setNewClassName("");
     const icons = { ...classIcons, [name]: newClassIcon };
     saveClassIcons(icons);
+    const colors = { ...classColors, [name]: newClassColor };
+    saveClassColors(colors);
     setNewClassIcon("Sword");
+    setNewClassColor("#a1a1aa");
   };
 
   const handleRemoveClass = (name: string) => {
@@ -339,6 +360,9 @@ export function MembersView() {
     const icons = { ...classIcons };
     delete icons[name];
     saveClassIcons(icons);
+    const colors = { ...classColors };
+    delete colors[name];
+    saveClassColors(colors);
   };
 
   // Guild selection for add / bulk
@@ -968,9 +992,10 @@ export function MembersView() {
             ) : (
               classes.map(c => {
                 const IconComp = getClassIcon(classIcons[c] || "Sword");
+                const color = classColors[c] || "#a1a1aa";
                 return (
                 <span key={c} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs bg-[#09090b] text-[#d4d4d8] border border-[#27272a]">
-                  <IconComp className="w-3 h-3 text-[#a1a1aa]" />
+                  <IconComp className="w-3 h-3" style={{ color }} />
                   {c}
                   <button onClick={() => handleRemoveClass(c)} className="text-[#52525b] hover:text-[#f87171] transition"><X className="w-3 h-3" /></button>
                 </span>
@@ -980,7 +1005,7 @@ export function MembersView() {
           </div>
           <div className="flex items-center gap-2 mb-3">
             <div className="relative">
-              <button className="px-2.5 py-2 bg-[#09090b] border border-[#27272a] rounded-lg text-[#a1a1aa] hover:border-[#52525b] transition" title="Pick icon">
+              <button className="px-2.5 py-2 bg-[#09090b] border border-[#27272a] rounded-lg hover:border-[#52525b] transition" title="Pick icon" style={{ color: newClassColor }}>
                 {(() => { const IIcon = getClassIcon(newClassIcon); return <IIcon className="w-4 h-4" />; })()}
               </button>
             </div>
@@ -996,6 +1021,18 @@ export function MembersView() {
                 </button>
               ))}
             </div>
+          </div>
+          <div className="flex items-center gap-1.5 mb-3">
+            <span className="text-[10px] text-[#52525b]">Color:</span>
+            {CLASS_COLORS.map(color => (
+              <button
+                key={color}
+                onClick={() => setNewClassColor(color)}
+                className={`w-5 h-5 rounded-full border-2 transition ${newClassColor === color ? "border-[#fafafa] scale-110" : "border-transparent hover:scale-105"}`}
+                style={{ backgroundColor: color }}
+                title={color}
+              />
+            ))}
           </div>
           <div className="flex items-center gap-2">
             <input
@@ -1189,7 +1226,7 @@ export function MembersView() {
                         {/* Class selector */}
                         {editingId !== member.id && classes.length > 0 && (
                           <div className="flex items-center gap-1 sm:gap-1.5 text-[10px] sm:text-xs shrink-0">
-                            {member.class && classIcons[member.class] && (() => { const CIcon = getClassIcon(classIcons[member.class]); return <CIcon className="w-3 h-3 text-[#a1a1aa]" />; })()}
+                            {member.class && classIcons[member.class] && (() => { const CIcon = getClassIcon(classIcons[member.class]); const color = classColors[member.class] || "#a1a1aa"; return <CIcon className="w-3 h-3" style={{ color }} />; })()}
                             <select
                               value={member.class ?? ""}
                               onChange={async (e) => {
