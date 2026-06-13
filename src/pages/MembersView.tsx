@@ -838,7 +838,7 @@ export function MembersView() {
             onTouchStart={e => handleSwipeStart(e.touches[0].clientX)}
             onTouchMove={e => handleSwipeMove(e.touches[0].clientX)}
             onTouchEnd={() => handleSwipeEnd(carouselPages.length)}
-            onMouseDown={e => { e.preventDefault(); handleSwipeStart(e.clientX); }}
+            onMouseDown={e => { const tag = (e.target as HTMLElement).tagName; if (tag !== "SELECT" && tag !== "INPUT" && tag !== "BUTTON") e.preventDefault(); handleSwipeStart(e.clientX); }}
             onMouseMove={e => handleSwipeMove(e.clientX)}
             onMouseUp={() => handleSwipeEnd(carouselPages.length)}
             onMouseLeave={() => handleSwipeEnd(carouselPages.length)}
