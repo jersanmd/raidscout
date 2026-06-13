@@ -58,6 +58,7 @@ export function MembersView() {
   const [classes, setClasses] = useState<string[]>([]);
   const [newClassName, setNewClassName] = useState("");
   const [newClassIcon, setNewClassIcon] = useState<string>("Sword");
+  const [classSearch, setClassSearch] = useState("");
 
   // Class icons — persisted in localStorage per server
   const classIconsKey = `class-icons-${serverId ?? "global"}`;
@@ -1018,58 +1019,78 @@ export function MembersView() {
 
         {/* Member class assignment */}
         <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-4">
-          <h3 className="text-sm font-semibold text-[#fafafa] flex items-center gap-2 mb-3">
-            <Users className="w-4 h-4 text-[#a1a1aa]" />
-            Assign Classes to Members
-          </h3>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold text-[#fafafa] flex items-center gap-2">
+              <Users className="w-4 h-4 text-[#a1a1aa]" />
+              Assign Classes to Members
+            </h3>
+            <div className="relative w-48">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#52525b]" />
+              <input
+                type="text"
+                value={classSearch}
+                onChange={(e) => setClassSearch(e.target.value)}
+                placeholder="Search members..."
+                className="w-full pl-8 pr-3 py-1.5 bg-[#09090b] border border-[#27272a] rounded-lg text-xs text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#52525b]"
+              />
+            </div>
+          </div>
           {members.length === 0 ? (
             <p className="text-sm text-[#52525b] text-center py-6">No members yet. Add members first, then assign classes here.</p>
           ) : classes.length === 0 ? (
             <p className="text-sm text-[#52525b] text-center py-6">Add classes above first, then assign them to members here.</p>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-[10px] text-[#71717a] uppercase tracking-wider border-b border-[#27272a]">
-                    <th className="text-left py-2 px-2">Member</th>
-                    <th className="text-left py-2 px-2 hidden sm:table-cell">Guild</th>
-                    <th className="text-right py-2 px-2">Class</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {members.map(m => {
-                    const g = guilds.find(g => g.id === m.guild_id);
-                    return (
-                      <tr key={m.id} className="border-b border-[#27272a]/30 hover:bg-[#09090b]/30 transition">
-                        <td className="py-2 px-2">
-                          <Link to={`/members/${m.id}`} className="text-[#fafafa] hover:text-[#e4e4e7] transition text-sm">
-                            {m.name}
-                          </Link>
-                        </td>
-                        <td className="py-2 px-2 hidden sm:table-cell">
-                          {g ? <span className="text-[#a1a1aa] text-xs">{g.name}</span> : <span className="text-[#52525b] text-xs">—</span>}
-                        </td>
-                        <td className="py-2 px-2 text-right">
-                          <select
-                            value={m.class ?? ""}
-                            onChange={async (e) => {
-                              const cls = e.target.value || null;
-                              try {
-                                await supabase.rpc("update_member_stats", { p_member_id: m.id, p_combat_power: m.combat_power ?? null, p_class: cls });
-                                invalidate();
-                              } catch {}
-                            }}
-                            className="bg-[#09090b] border border-[#27272a] rounded px-2 py-1 text-xs text-[#a1a1aa] outline-none focus:border-[#52525b]"
-                          >
-                            <option value="">—</option>
-                            {classes.map(c => <option key={c} value={c}>{c}</option>)}
-                          </select>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+            <div className="space-y-3">
+              {guildGroups.map(group => {
+                const filtered = classSearch.trim()
+                  ? group.members.filter(m => m.name.toLowerCase().includes(classSearch.toLowerCase()))
+                  : group.members;
+                if (filtered.length === 0) return null;
+                return (
+                  <div key={group.guild?.id ?? "__noguild__"} className="rounded-lg overflow-hidden border border-[#27272a]/50">
+                    <div className="px-3 py-1.5 bg-[#09090b]/50 flex items-center gap-2">
+                      {group.guild ? (
+                        <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium ${(() => { const c = guildColor(group.guild!.name); return `${c.bg} ${c.text} ${c.border}`; })()}`}>
+                          <Shield className="w-2.5 h-2.5" />
+                          {group.guild.name}
+                        </span>
+                      ) : (
+                        <span className="text-[10px] text-[#52525b] font-medium">No Guild</span>
+                      )}
+                      <span className="text-[9px] text-[#52525b]">{filtered.length} member{filtered.length !== 1 ? "s" : ""}</span>
+                    </div>
+                    <table className="w-full text-sm">
+                      <tbody>
+                        {filtered.map(m => (
+                          <tr key={m.id} className="border-t border-[#27272a]/30 hover:bg-[#09090b]/30 transition">
+                            <td className="py-1.5 px-3">
+                              <Link to={`/members/${m.id}`} className="text-[#fafafa] hover:text-[#e4e4e7] transition text-sm">
+                                {m.name}
+                              </Link>
+                            </td>
+                            <td className="py-1.5 px-3 text-right w-40">
+                              <select
+                                value={m.class ?? ""}
+                                onChange={async (e) => {
+                                  const cls = e.target.value || null;
+                                  try {
+                                    await supabase.rpc("update_member_stats", { p_member_id: m.id, p_combat_power: m.combat_power ?? null, p_class: cls });
+                                    invalidate();
+                                  } catch {}
+                                }}
+                                className="bg-[#09090b] border border-[#27272a] rounded px-2 py-1 text-xs text-[#a1a1aa] outline-none focus:border-[#52525b]"
+                              >
+                                <option value="">—</option>
+                                {classes.map(c => <option key={c} value={c}>{c}</option>)}
+                              </select>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
