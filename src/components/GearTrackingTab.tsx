@@ -584,7 +584,7 @@ export function GearTrackingTab() {
                     const currentItemId = edit?.itemId ?? existing?.catalog_item_id ?? "";
                     const currentEnh = edit?.enh ?? existing?.enhancement_level ?? 0;
                     const currentItem = itemCatalogItems.find((c: any) => c.id === currentItemId) || catalog.find(c => c.id === currentItemId);
-                    const rc = currentItem ? (RARITY_COLORS[currentItem.rarity?.toLowerCase()] || "#a1a1aa") : null;
+                    const rc = currentItem ? (RARITY_COLORS[currentItem.rarity?.toLowerCase()] || "#a1a1aa") : undefined;
                     const isActive = openSlotPicker === slotId;
 
                     return (
