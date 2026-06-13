@@ -338,13 +338,12 @@ export function MembersView() {
   const saveClassesToDb = async (classesArr: string[]) => {
     if (!serverId) return;
     try {
-      // Try upsert via delete + insert (avoids ON CONFLICT issues)
-      await supabase.from("app_settings").delete().eq("server_id", serverId).eq("key", "member_classes");
-      await supabase.from("app_settings").insert({
+      const { error } = await supabase.from("app_settings").upsert({
         server_id: serverId,
         key: "member_classes",
         value: JSON.stringify({ classes: classesArr }),
-      });
+      }, { onConflict: "server_id,key" });
+      if (error) console.error("Failed to save classes:", error);
     } catch (err) {
       console.error("Failed to save classes:", err);
     }
