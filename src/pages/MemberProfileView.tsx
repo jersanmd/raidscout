@@ -148,9 +148,9 @@ export function MemberProfileView() {
   const totalEvents = profile ? (profile.attendance_history?.length || 0) + (profile.activity_attendance?.length || 0) : 0;
 
   // 7-day and 30-day event counts
-  const now = Date.now();
   const events7d = useMemo(() => {
     if (!profile) return 0;
+    const now = Date.now();
     const cutoff = now - 7 * 86400000;
     const hunts = (profile.attendance_history || []).filter((a: any) => new Date(a.created_at).getTime() >= cutoff).length;
     const acts = (profile.activity_attendance || []).filter((a: any) => new Date(a.created_at).getTime() >= cutoff).length;
@@ -158,6 +158,7 @@ export function MemberProfileView() {
   }, [profile]);
   const events30d = useMemo(() => {
     if (!profile) return 0;
+    const now = Date.now();
     const cutoff = now - 30 * 86400000;
     const hunts = (profile.attendance_history || []).filter((a: any) => new Date(a.created_at).getTime() >= cutoff).length;
     const acts = (profile.activity_attendance || []).filter((a: any) => new Date(a.created_at).getTime() >= cutoff).length;
@@ -167,6 +168,7 @@ export function MemberProfileView() {
   // Activity indicator: what % of weeks in the last 12 had at least 1 event?
   const activityPct = useMemo(() => {
     if (!profile) return 0;
+    const now = Date.now();
     let activeWeeks = 0;
     for (let w = 0; w < 12; w++) {
       const start = now - (w + 1) * 7 * 86400000;
