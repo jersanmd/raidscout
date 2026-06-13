@@ -164,26 +164,6 @@ export function MemberProfileView() {
     const acts = (profile.activity_attendance || []).filter((a: any) => new Date(a.created_at).getTime() >= cutoff).length;
     return hunts + acts;
   })();
-
-  // Activity indicator: what % of weeks in the last 12 had at least 1 event?
-  const activityPct = (() => {
-    if (!profile) return 0;
-    const now = Date.now();
-    let activeWeeks = 0;
-    for (let w = 0; w < 12; w++) {
-      const start = now - (w + 1) * 7 * 86400000;
-      const end = now - w * 7 * 86400000;
-      const hasHunt = (profile.attendance_history || []).some((a: any) => {
-        const t = new Date(a.created_at).getTime(); return t >= start && t < end;
-      });
-      const hasAct = (profile.activity_attendance || []).some((a: any) => {
-        const t = new Date(a.created_at).getTime(); return t >= start && t < end;
-      });
-      if (hasHunt || hasAct) activeWeeks++;
-    }
-    console.log("[activityPct]", { activeWeeks, totalHunts: profile.attendance_history?.length, totalActs: profile.activity_attendance?.length });
-    return Math.round((activeWeeks / 12) * 100);
-  })();
   const risks: string[] = useMemo(() => {
     if (!profile) return [];
     const r: string[] = [];
@@ -438,7 +418,7 @@ export function MemberProfileView() {
         </div>
 
         {/* KPI Row */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mt-5">
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mt-5">
           <div className="bg-[#09090b] rounded-lg p-3 flex items-center gap-3">
             <ScoreGauge score={score}/>
             <div><p className="text-[10px] text-[#71717a] uppercase tracking-wider">Score</p><p className="text-xs text-[#52525b]">/100</p></div>
@@ -460,15 +440,6 @@ export function MemberProfileView() {
               <span className="text-[10px] text-[#52525b]">7d: <span className="text-[#a1a1aa]">{events7d}</span></span>
               <span className="text-[10px] text-[#52525b]">30d: <span className="text-[#a1a1aa]">{events30d}</span></span>
             </div>
-          </div>
-          <div className="bg-[#09090b] rounded-lg p-3">
-            <p className="text-[10px] text-[#71717a] uppercase tracking-wider">Activity</p>
-            <p className={`text-lg font-bold mt-0.5 ${activityPct >= 75 ? "text-green-400" : activityPct >= 50 ? "text-amber-400" : activityPct > 0 ? "text-red-400" : "text-[#a1a1aa]"}`}>
-              {activityPct}%
-            </p>
-            <p className="text-[10px] text-[#52525b] mt-0.5">
-              {activityPct >= 75 ? "Very active" : activityPct >= 50 ? "Moderate" : activityPct > 0 ? "Low activity" : "No recent activity"}
-            </p>
           </div>
           <div className="bg-[#09090b] rounded-lg p-3">
             <p className="text-[10px] text-[#71717a] uppercase tracking-wider">Items Received</p>
