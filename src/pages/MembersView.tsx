@@ -7,7 +7,7 @@ import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { updateMemberName, deleteMember, upsertMember, isSupabaseConfigured, fetchGuilds, setMemberGuild, bulkAddMembers, supabase, fetchStaticParties, createParty, deleteParty, addMemberToParty, removeMemberFromParty, type StaticParty } from "@/lib/supabase";
 import { useServerId, useHasPermission } from "@/contexts/ServerContext";
 import type { Guild } from "@/types";
-import { Users, Plus, Pencil, Trash2, Loader2, X, Check, UserPlus, CheckCircle, AlertTriangle, Image, Upload, Copy, Shield, Search, ChevronLeft, ChevronRight, TrendingUp, ChevronUp, ChevronDown, Tag, Sword, Swords, ShieldHalf, ShieldCheck, Crosshair, Wand, Heart, Zap, Flame, Snowflake, Skull, Star, Crown, Anchor, Gavel, Axe, Target, Footprints } from "lucide-react";
+import { Users, Plus, Pencil, Trash2, Loader2, X, Check, UserPlus, CheckCircle, AlertTriangle, Image, Upload, Copy, Shield, Search, ChevronLeft, ChevronRight, TrendingUp, ChevronUp, ChevronDown, Tag, Sword, Swords, ShieldHalf, ShieldCheck, Crosshair, Wand, Heart, Zap, Flame, Snowflake, Skull, Star, Crown, Anchor, Gavel, Axe, Target, Footprints, HandMetal } from "lucide-react";
 import type { Member } from "@/types";
 import { guildColor } from "@/lib/constants";
 
@@ -71,16 +71,17 @@ export function MembersView() {
 
   // Icon palette for classes
   const CLASS_ICONS: { name: string; icon: React.ElementType; label: string }[] = [
-    { name: "Sword", icon: Sword, label: "Sword / Melee" },
-    { name: "Swords", icon: Swords, label: "Dual Wield / Blades" },
+    { name: "Sword", icon: Sword, label: "Sword / Greatsword" },
+    { name: "Swords", icon: Swords, label: "Dual Daggers / Blades" },
+    { name: "HandMetal", icon: HandMetal, label: "Knuckles / Fist" },
     { name: "ShieldIcon", icon: Shield, label: "Tank / Defense" },
     { name: "ShieldHalf", icon: ShieldHalf, label: "Sword & Shield" },
     { name: "ShieldCheck", icon: ShieldCheck, label: "Battle Shield / Paladin" },
     { name: "Gavel", icon: Gavel, label: "Hammer / Warhammer" },
     { name: "Axe", icon: Axe, label: "Axe / Great Axe" },
-    { name: "Crosshair", icon: Crosshair, label: "Ranger / Archer" },
-    { name: "Target", icon: Target, label: "Marksman / Sniper" },
-    { name: "Wand", icon: Wand, label: "Mage / Caster" },
+    { name: "Crosshair", icon: Crosshair, label: "Ranger / Crossbow" },
+    { name: "Target", icon: Target, label: "Bow / Marksman" },
+    { name: "Wand", icon: Wand, label: "Staff / Battlestaff" },
     { name: "Heart", icon: Heart, label: "Healer / Support" },
     { name: "Zap", icon: Zap, label: "Lightning / Elemental" },
     { name: "Flame", icon: Flame, label: "Fire Mage / Pyro" },
