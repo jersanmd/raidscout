@@ -889,35 +889,20 @@ export function MembersView() {
                           <Link to={`/members/${member.id}`} className="flex-1 min-w-0 text-[#fafafa] text-sm font-medium truncate hover:text-[#e4e4e7] transition">{member.name}</Link>
                         )}
 
-                        {/* Combat Power & Class — wrap on mobile */}
-                        {editingId !== member.id && (
+                        {/* Class selector */}
+                        {editingId !== member.id && classes.length > 0 && (
                           <div className="flex items-center gap-1 sm:gap-1.5 text-[10px] sm:text-xs shrink-0">
-                            <input
-                              type="number"
-                              defaultValue={member.combat_power ?? ""}
-                              placeholder="CP"
-                              onBlur={async (e) => {
-                                const val = e.target.value ? Number(e.target.value) : null;
-                                if (val === (member.combat_power ?? null)) return;
+                            <select
+                              value={member.class ?? ""}
+                              onChange={async (e) => {
+                                const cls = e.target.value || null;
                                 try {
-                                  await supabase.rpc("update_member_stats", { p_member_id: member.id, p_combat_power: val, p_class: member.class ?? null });
+                                  await supabase.rpc("update_member_stats", { p_member_id: member.id, p_combat_power: member.combat_power ?? null, p_class: cls });
                                   invalidate();
                                 } catch {}
                               }}
-                              className="w-20 px-1.5 py-1 bg-[#18181b] border border-[#27272a] rounded text-xs text-[#fafafa] placeholder-[#52525b] focus:outline-none focus:border-[#52525b]"
-                            />
-                            {classes.length > 0 && (
-                              <select
-                                value={member.class ?? ""}
-                                onChange={async (e) => {
-                                  const cls = e.target.value || null;
-                                  try {
-                                    await supabase.rpc("update_member_stats", { p_member_id: member.id, p_combat_power: member.combat_power ?? null, p_class: cls });
-                                    invalidate();
-                                  } catch {}
-                                }}
-                                className="bg-[#18181b] border border-[#27272a] rounded px-1.5 py-1 text-xs text-[#a1a1aa] outline-none focus:border-[#52525b] max-w-[90px] truncate"
-                              >
+                              className="bg-[#18181b] border border-[#27272a] rounded px-1.5 py-1 text-xs text-[#a1a1aa] outline-none focus:border-[#52525b] max-w-[90px] truncate"
+                            >
                                 <option value="">—</option>
                                 {classes.map(c => <option key={c} value={c}>{c}</option>)}
                               </select>
