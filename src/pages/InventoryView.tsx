@@ -102,7 +102,7 @@ export function InventoryView() {
         name: editName.trim(),
         description: editDesc.trim() || undefined,
         rarity: editRarity,
-        ...(imageUrl !== editingItem.image_url ? { image_url: imageUrl } : {}),
+        ...(imageUrl !== editingItem.image_url ? { image_url: imageUrl || undefined } : {}),
       });
     },
     onSuccess: () => {

@@ -394,8 +394,8 @@ export function MemberProfileView() {
                   <Tooltip
                     contentStyle={{ background: "#18181b", border: "1px solid #27272a", borderRadius: 6, fontSize: 11, padding: "4px 8px" }}
                     labelStyle={{ color: "#52525b" }}
-                    formatter={(v: number) => [v.toLocaleString(), "CP"]}
-                    labelFormatter={(idx: number) => cpSparkData[idx]?.date ?? ""}
+                    formatter={(v: any) => [Number(v).toLocaleString(), "CP"]}
+                    labelFormatter={(label: any) => label ?? ""}
                   />
                   <Line type="monotone" dataKey="cp" stroke={cpTrendColor} strokeWidth={1.5} dot={{ r: isMobile ? 3 : 4, fill: "#18181b", stroke: cpTrendColor, strokeWidth: 2 }}
                     label={!isMobile ? ({ x, y, value, index }: any) => {
@@ -590,10 +590,10 @@ export function MemberProfileView() {
                     <Tooltip
                       contentStyle={{ background: "#18181b", border: "1px solid #27272a", borderRadius: 8, fontSize: 12 }}
                       labelStyle={{ color: "#a1a1aa" }}
-                      formatter={(v: number) => [`${v}/100`, "Score"]}
+                      formatter={(v: any) => [`${v}/100`, "Score"]}
                     />
                     <Area type="monotone" dataKey="score" stroke="#a855f7" strokeWidth={2.5} fill="url(#perfGrad2)" dot={{ r: 5, fill: "#18181b", stroke: "#a855f7", strokeWidth: 2 }}
-                      label={{ position: "top", fontSize: 10, fontWeight: "bold", fill: "#c084fc", formatter: (v: number) => v > 0 ? v : "" }}
+                      label={{ position: "top", fontSize: 10, fontWeight: "bold", fill: "#c084fc", formatter: (v: any) => v > 0 ? v : "" }}
                     />
                   </AreaChart>
                 </ResponsiveContainer>
@@ -647,10 +647,10 @@ export function MemberProfileView() {
                 <Tooltip
                   contentStyle={{ background: "#18181b", border: "1px solid #27272a", borderRadius: 8, fontSize: 12 }}
                   labelStyle={{ color: "#a1a1aa" }}
-                  formatter={(v: number) => [`${v}/100`, "Score"]}
+                  formatter={(v: any) => [`${v}/100`, "Score"]}
                 />
                 <Area type="monotone" dataKey="score" stroke="#a855f7" strokeWidth={2.5} fill="url(#perfGrad)" dot={{ r: 5, fill: "#18181b", stroke: "#a855f7", strokeWidth: 2 }}
-                  label={{ position: "top", fontSize: 10, fontWeight: "bold", fill: "#c084fc", formatter: (v: number) => v > 0 ? v : "" }}
+                  label={{ position: "top", fontSize: 10, fontWeight: "bold", fill: "#c084fc", formatter: (v: any) => v > 0 ? v : "" }}
                 />
               </AreaChart>
             </ResponsiveContainer>
