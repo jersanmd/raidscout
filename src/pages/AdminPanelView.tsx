@@ -294,17 +294,17 @@ export function AdminPanelView() {
       {/* Mobile: Servers subtabs (shown above content when Servers is active) */}
       {(tab === "servers" || tab === "database" || tab === "cron" || tab === "deleted") && (
         <div className="flex md:hidden flex-wrap bg-[#18181b]/50 rounded-lg p-0.5 gap-0.5 mb-3">
-          <button onClick={() => { setTab("servers"); setServerSubtab("servers"); }} className={`px-2.5 py-1.5 rounded-md text-[10px] font-medium transition whitespace-nowrap ${tab === "servers" ? "bg-[#27272a] text-[#fafafa]" : "text-[#71717a] hover:text-[#d4d4d8]"}`}>
+          <button onClick={() => { setTab("servers"); setServerSubtab("servers"); }} className={`px-3 py-2 rounded-md text-xs font-medium transition whitespace-nowrap ${tab === "servers" ? "bg-[#27272a] text-[#fafafa]" : "text-[#71717a] hover:text-[#d4d4d8]"}`}>
             Servers ({servers.length})
           </button>
-          <button onClick={() => { setTab("database"); setServerSubtab("database"); }} className={`px-2.5 py-1.5 rounded-md text-[10px] font-medium transition whitespace-nowrap ${tab === "database" ? "bg-[#27272a] text-[#fafafa]" : "text-[#71717a] hover:text-[#d4d4d8]"}`}>
-            <HardDrive className="w-3 h-3 inline mr-1" /> Database
+          <button onClick={() => { setTab("database"); setServerSubtab("database"); }} className={`px-3 py-2 rounded-md text-xs font-medium transition whitespace-nowrap ${tab === "database" ? "bg-[#27272a] text-[#fafafa]" : "text-[#71717a] hover:text-[#d4d4d8]"}`}>
+            <HardDrive className="w-3.5 h-3.5 inline mr-1" /> Database
           </button>
-          <button onClick={() => { setTab("cron"); setServerSubtab("cron"); }} className={`px-2.5 py-1.5 rounded-md text-[10px] font-medium transition whitespace-nowrap ${tab === "cron" ? "bg-[#27272a] text-[#fafafa]" : "text-[#71717a] hover:text-[#d4d4d8]"}`}>
-            <Clock className="w-3 h-3 inline mr-1" /> Test Cron
+          <button onClick={() => { setTab("cron"); setServerSubtab("cron"); }} className={`px-3 py-2 rounded-md text-xs font-medium transition whitespace-nowrap ${tab === "cron" ? "bg-[#27272a] text-[#fafafa]" : "text-[#71717a] hover:text-[#d4d4d8]"}`}>
+            <Clock className="w-3.5 h-3.5 inline mr-1" /> Test Cron
           </button>
-          <button onClick={() => { setTab("deleted"); setServerSubtab("deleted"); }} className={`px-2.5 py-1.5 rounded-md text-[10px] font-medium transition whitespace-nowrap ${tab === "deleted" ? "bg-[#27272a] text-[#fafafa]" : "text-[#71717a] hover:text-[#d4d4d8]"}`}>
-            <Trash2 className="w-3 h-3 inline mr-1" /> Deleted
+          <button onClick={() => { setTab("deleted"); setServerSubtab("deleted"); }} className={`px-3 py-2 rounded-md text-xs font-medium transition whitespace-nowrap ${tab === "deleted" ? "bg-[#27272a] text-[#fafafa]" : "text-[#71717a] hover:text-[#d4d4d8]"}`}>
+            <Trash2 className="w-3.5 h-3.5 inline mr-1" /> Deleted
           </button>
         </div>
       )}
