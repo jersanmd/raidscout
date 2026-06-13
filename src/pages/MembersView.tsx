@@ -46,6 +46,7 @@ export function MembersView() {
   const [editName, setEditName] = useState("");
   const [saving, setSaving] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [deleteConfirmName, setDeleteConfirmName] = useState("");
   const [deleting, setDeleting] = useState(false);
   const [toast, setToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
@@ -268,7 +269,7 @@ export function MembersView() {
 
   // Bulk add
   const [showBulkModal, setShowBulkModal] = useState(false);
-  useEscapeKey(() => { setShowBulkModal(false); setBulkNames(""); setDeleteId(null); });
+  useEscapeKey(() => { setShowBulkModal(false); setBulkNames(""); setDeleteId(null); setDeleteConfirmName(""); });
   const [bulkNames, setBulkNames] = useState("");
   const [bulkAdding, setBulkAdding] = useState(false);
   const [bulkGuild, setBulkGuild] = useState<string>("");
@@ -414,6 +415,7 @@ export function MembersView() {
     try {
       await deleteMember(id);
       setDeleteId(null);
+      setDeleteConfirmName("");
       invalidate();
       showToast("success", `"${memberName}" removed`);
     } catch (err) {
@@ -930,7 +932,7 @@ export function MembersView() {
                         )}
 
                         {editingId !== member.id && canManageRaidMembers && (
-                          <button onClick={() => setDeleteId(member.id)} className="p-1.5 text-[#71717a] hover:text-red-400 transition rounded shrink-0" title="Delete"><Trash2 className="w-3.5 h-3.5" /></button>
+                          <button onClick={() => { setDeleteId(member.id); setDeleteConfirmName(""); }} className="p-1.5 text-[#71717a] hover:text-red-400 transition rounded shrink-0" title="Delete"><Trash2 className="w-3.5 h-3.5" /></button>
                         )}
                       </div>
                             ))}
@@ -1059,18 +1061,30 @@ export function MembersView() {
       )}
 
       {/* Delete confirmation */}
-      {deleteId && (
+      {deleteId && (() => {
+        const targetName = members.find((m) => m.id === deleteId)?.name ?? "";
+        const confirmed = deleteConfirmName.trim().toLowerCase() === targetName.toLowerCase();
+        return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/60" onClick={() => setDeleteId(null)} />
+          <div className="absolute inset-0 bg-black/60" onClick={() => { setDeleteId(null); setDeleteConfirmName(""); }} />
           <div className="relative bg-[#09090b] border border-[#27272a] rounded-xl w-full max-w-xs shadow-2xl p-4 space-y-4">
             <p className="text-[#fafafa] text-sm text-center">
-              Delete{" "}
-              <span className="font-bold">{members.find((m) => m.id === deleteId)?.name}</span>?
-              This will also remove their attendance records.
+              Delete <span className="font-bold">{targetName}</span>? This will also remove their attendance records.
             </p>
+            <div>
+              <p className="text-[10px] text-[#71717a] mb-1.5 text-center">Type <span className="text-[#fafafa] font-mono">{targetName}</span> to confirm:</p>
+              <input
+                value={deleteConfirmName}
+                onChange={(e) => setDeleteConfirmName(e.target.value)}
+                placeholder={targetName}
+                autoFocus
+                className="w-full px-3 py-2 bg-[#18181b] border border-[#27272a] rounded-lg text-sm text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-red-500/50 text-center"
+                onKeyDown={(e) => { if (e.key === "Enter" && confirmed) handleDelete(deleteId); }}
+              />
+            </div>
             <div className="flex gap-2">
               <button
-                onClick={() => setDeleteId(null)}
+                onClick={() => { setDeleteId(null); setDeleteConfirmName(""); }}
                 disabled={deleting}
                 className="flex-1 py-2 rounded-lg bg-[#18181b] text-[#d4d4d8] text-sm"
               >
@@ -1078,11 +1092,11 @@ export function MembersView() {
               </button>
               <button
                 onClick={() => handleDelete(deleteId)}
-                disabled={deleting}
-                className="flex-1 py-2 rounded-lg bg-[#18181b] border border-[#27272a] text-[#f87171] text-sm flex items-center justify-center gap-1.5"
+                disabled={deleting || !confirmed}
+                className="flex-1 py-2 rounded-lg bg-red-600 text-white text-sm flex items-center justify-center gap-1.5 disabled:opacity-40 transition"
               >
                 {deleting ? (
-                  <span className="w-4 h-4 border-2 border-[#3f3f46] border-t-[#fafafa] rounded-full animate-spin" />
+                  <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                 ) : (
                   "Delete"
                 )}
@@ -1090,7 +1104,10 @@ export function MembersView() {
             </div>
           </div>
         </div>
-      )}
+        );
+      })()}
+    </div>
+  );
     </div>
   );
 }
