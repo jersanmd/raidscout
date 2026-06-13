@@ -1676,6 +1676,7 @@ export function MembersView() {
                 );
               })
             )}
+            {deleteClassName && <p className="text-red-400 text-xs mt-1">Delete modal should be visible for: {deleteClassName}</p>}
           </div>
           <div className="flex items-center gap-2 mb-3">
             <div className="relative">
