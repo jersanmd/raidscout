@@ -1330,7 +1330,7 @@ export function AdminPanelView() {
     </div>
 
       {/* Footer — same as main Layout */}
-      <footer className="border-t border-[#27272a] bg-[#09090b]">
+      <footer className="border-t border-[#27272a] bg-[#09090b] pb-16 md:pb-0">
         <div className="max-w-[90rem] mx-auto px-4 py-5 space-y-3">
           <div className="flex items-center gap-2 text-xs text-[#71717a]">
             <img src="/logo.png" alt="" className="w-4 h-4 rounded opacity-40" />
