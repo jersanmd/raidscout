@@ -601,7 +601,7 @@ export function MemberProfileView() {
               {gearSlotDefs.filter((s: any) => gearMap[s.name]?.catalog_item_id).length}/{gearSlotDefs.length} slots equipped
             </span>
           </div>
-          <div className="flex flex-wrap gap-1">
+          <div className="flex flex-wrap gap-1 justify-center">
             {gearSlotDefs.map((slot: any) => {
               const gear = gearMap[slot.name];
               const item = gear?.catalog_item_id ? gearItemMap[gear.catalog_item_id] : null;

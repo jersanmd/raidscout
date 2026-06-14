@@ -7,7 +7,7 @@ import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { updateMemberName, deleteMember, upsertMember, isSupabaseConfigured, fetchGuilds, setMemberGuild, bulkAddMembers, supabase, fetchStaticParties, createParty, deleteParty, addMemberToParty, removeMemberFromParty, type StaticParty, sendCpReminder, createProgressThread, addBackdatedCpUpdate, fetchMemberCpHistory, editCpUpdate, deleteCpUpdate } from "@/lib/supabase";
 import { useServerId, useHasPermission } from "@/contexts/ServerContext";
 import type { Guild, Member, CpUpdate } from "@/types";
-import { Users, Plus, Pencil, Trash2, Loader2, X, Check, UserPlus, CheckCircle, AlertTriangle, Image, Upload, Copy, Shield, Search, ChevronLeft, ChevronRight, TrendingUp, ChevronUp, ChevronDown, Tag, Sword, Swords, ShieldHalf, ShieldCheck, Crosshair, Wand, Heart, Zap, Flame, Snowflake, Skull, Star, Crown, Anchor, Gavel, Axe, Target, Footprints, HandMetal, Megaphone, Calendar, Clock, Eye, EyeOff, Package } from "lucide-react";
+import { Users, Plus, Pencil, Trash2, Loader2, X, Check, UserPlus, CheckCircle, AlertTriangle, Image, Upload, Copy, Shield, Search, ChevronLeft, ChevronRight, TrendingUp, ChevronUp, ChevronDown, Tag, Sword, Swords, ShieldHalf, ShieldCheck, Crosshair, Wand, Heart, Zap, Flame, Snowflake, Skull, Star, Crown, Anchor, Gavel, Axe, Target, Footprints, HandMetal, Megaphone, Calendar, Clock, Eye, EyeOff, Package, MoreHorizontal } from "lucide-react";
 import { guildColor } from "@/lib/constants";
 import { GearTrackingTab } from "@/components/GearTrackingTab";
 
@@ -44,6 +44,7 @@ export function MembersView() {
   const [adding, setAdding] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [actionMenuMember, setActionMenuMember] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [saving, setSaving] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -2004,7 +2005,54 @@ export function MembersView() {
                         )}
 
                         {editingId !== member.id && canManageRaidMembers && (
-                          <button onClick={() => startEdit(member)} className="p-1.5 text-[#71717a] hover:text-[#fafafa] transition rounded shrink-0 sm:opacity-0 group-hover:opacity-100" title="Edit"><Pencil className="w-3.5 h-3.5" /></button>
+                          <>
+                            {/* Desktop: inline buttons */}
+                            <button onClick={() => startEdit(member)} className="hidden sm:inline-flex p-1.5 text-[#71717a] hover:text-[#fafafa] transition rounded shrink-0 sm:opacity-0 group-hover:opacity-100" title="Edit"><Pencil className="w-3.5 h-3.5" /></button>
+                            {/* Mobile: more button → dropdown */}
+                            <div className="relative sm:hidden shrink-0">
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setActionMenuMember(actionMenuMember === member.id ? null : member.id); }}
+                                className="p-1.5 text-[#71717a] hover:text-[#fafafa] transition rounded"
+                                title="Actions"
+                              >
+                                <MoreHorizontal className="w-3.5 h-3.5" />
+                              </button>
+                              {actionMenuMember === member.id && (
+                                <>
+                                  <div className="fixed inset-0 z-40" onClick={() => setActionMenuMember(null)} />
+                                  <div className="absolute right-0 top-full mt-1 z-50 bg-[#18181b] border border-[#27272a] rounded-lg shadow-xl py-1 min-w-[130px]">
+                                    <button
+                                      onClick={() => { setActionMenuMember(null); startEdit(member); }}
+                                      className="flex items-center gap-2 w-full px-3 py-2 text-xs text-[#d4d4d8] hover:bg-[#09090b] transition"
+                                    >
+                                      <Pencil className="w-3.5 h-3.5" /> Edit Name
+                                    </button>
+                                    <button
+                                      onClick={async () => {
+                                        setActionMenuMember(null);
+                                        const newActive = !(member.is_active !== false);
+                                        try {
+                                          await supabase.from("members").update({ is_active: newActive }).eq("id", member.id);
+                                          invalidate();
+                                        } catch (err: any) {
+                                          setToast({ type: "error", message: err?.message || "Failed to update member" });
+                                        }
+                                      }}
+                                      className="flex items-center gap-2 w-full px-3 py-2 text-xs text-[#d4d4d8] hover:bg-[#09090b] transition"
+                                    >
+                                      <EyeOff className="w-3.5 h-3.5" /> {member.is_active === false ? "Enable" : "Disable"}
+                                    </button>
+                                    <button
+                                      onClick={() => { setActionMenuMember(null); setDeleteId(member.id); setDeleteConfirmName(""); }}
+                                      className="flex items-center gap-2 w-full px-3 py-2 text-xs text-red-400 hover:bg-[#09090b] transition"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" /> Delete
+                                    </button>
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                          </>
                         )}
 
                         {editingId !== member.id && guilds.length > 0 && !isViewer && (
@@ -2034,7 +2082,7 @@ export function MembersView() {
                                 setToast({ type: "error", message: err?.message || "Failed to update member" });
                               }
                             }}
-                            className="shrink-0 sm:opacity-0 group-hover:opacity-100 transition-opacity"
+                            className="hidden sm:inline-flex shrink-0 sm:opacity-0 group-hover:opacity-100 transition-opacity"
                             title={member.is_active === false ? "Enable member" : "Disable member"}
                           >
                             <div className={`w-8 h-4.5 rounded-full relative transition-colors ${member.is_active === false ? 'bg-[#27272a]' : 'bg-green-500/60'}`}>
@@ -2044,7 +2092,7 @@ export function MembersView() {
                         )}
 
                         {editingId !== member.id && canManageRaidMembers && (
-                          <button onClick={() => { setDeleteId(member.id); setDeleteConfirmName(""); }} className="p-1.5 text-[#71717a] hover:text-red-400 transition rounded shrink-0" title="Delete"><Trash2 className="w-3.5 h-3.5" /></button>
+                          <button onClick={() => { setDeleteId(member.id); setDeleteConfirmName(""); }} className="hidden sm:inline-flex p-1.5 text-[#71717a] hover:text-red-400 transition rounded shrink-0" title="Delete"><Trash2 className="w-3.5 h-3.5" /></button>
                         )}
                       </div>
                             ))}
