@@ -15,6 +15,7 @@ import type { Item, Distribution, ItemRarity } from "@/types";
 import {
   Package, Plus, Trash2, Loader2, Search, Gift, History, BarChart3,
   X, ChevronRight, ArrowLeft, Image, Star, Upload, Minus, Pencil,
+  Sword, Shield, Wand, Skull, Flame, Sparkles, Zap, Heart, Eye, Anchor, Footprints, Tag,
 } from "lucide-react";
 
 const RARITY_COLORS: Record<ItemRarity, string> = {
@@ -27,6 +28,25 @@ const RARITY_COLORS: Record<ItemRarity, string> = {
 };
 
 const RARITY_ORDER: ItemRarity[] = ["mythic", "legendary", "epic", "rare", "uncommon", "common"];
+
+const CLASS_ICONS = [
+  { name: "Sword", icon: Sword, label: "Combat / DPS" },
+  { name: "Shield", icon: Shield, label: "Defense / Tank" },
+  { name: "Wand", icon: Wand, label: "Magic / Caster" },
+  { name: "Skull", icon: Skull, label: "Dark / Necromancer" },
+  { name: "Flame", icon: Flame, label: "Fire / Pyro" },
+  { name: "Sparkles", icon: Sparkles, label: "Light / Healer" },
+  { name: "Zap", icon: Zap, label: "Lightning / Storm" },
+  { name: "Heart", icon: Heart, label: "Support / Healer" },
+  { name: "Eye", icon: Eye, label: "Mystic / Seer" },
+  { name: "Anchor", icon: Anchor, label: "Defense / Anchor" },
+  { name: "Footprints", icon: Footprints, label: "Scout / Rogue" },
+];
+
+const getClassIcon = (iconName: string) => {
+  const entry = CLASS_ICONS.find(c => c.name === iconName);
+  return entry ? entry.icon : Tag;
+};
 
 export function InventoryView() {
   const serverId = useServerId();
@@ -66,6 +86,26 @@ export function InventoryView() {
     queryFn: () => fetchTopRecipients(serverId),
     enabled: configured && tab === "analytics",
   });
+
+  // Class icons & colors for history tab
+  const [classIcons, setClassIcons] = useState<Record<string, string>>({});
+  const [classColors, setClassColors] = useState<Record<string, string>>({});
+  useEffect(() => {
+    if (!serverId) return;
+    supabaseClient.from("server_classes")
+      .select("name, icon, color")
+      .eq("server_id", serverId)
+      .order("name")
+      .then(({ data }) => {
+        if (data) {
+          const icons: Record<string, string> = {};
+          const colors: Record<string, string> = {};
+          data.forEach((r: any) => { icons[r.name] = r.icon; colors[r.name] = r.color; });
+          setClassIcons(icons);
+          setClassColors(colors);
+        }
+      });
+  }, [serverId]);
 
   // ── Create Item Modal ──
   const [showCreateItem, setShowCreateItem] = useState(false);
@@ -549,7 +589,17 @@ export function InventoryView() {
                           </div>
                           <div className="flex items-center gap-1.5 mt-0.5">
                             <span className="text-[11px] text-[#71717a]">→</span>
-                            <span className="text-[11px] text-[#a1a1aa] font-medium">{d.player_name}</span>
+                            {(() => {
+                              const m = members.find(m => m.name === d.player_name);
+                              const cc = (m?.class && classColors[m.class]) || "#a1a1aa";
+                              const ci = m?.class && classIcons[m.class];
+                              return (
+                                <span className="text-[11px] font-medium flex items-center gap-1" style={{ color: cc }}>
+                                  {ci && (() => { const CIcon = getClassIcon(ci); return <CIcon className="w-3 h-3" />; })()}
+                                  {d.player_name}
+                                </span>
+                              );
+                            })()}
                             {d.reason && (
                               <span className="text-[10px] text-[#52525b] truncate">· {d.reason}</span>
                             )}
