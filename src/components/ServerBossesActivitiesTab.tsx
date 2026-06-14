@@ -387,7 +387,7 @@ export function ServerBossesActivitiesTab({ mode = "all" }: { mode?: "all" | "bo
               const renderRow = (boss: Boss) => (
                 <Fragment key={boss.id}>
               <div className="flex items-center gap-3 px-3 py-2 rounded-lg bg-[#18181b] border border-[#27272a]">
-                <BossImage bossName={boss.name} size="sm" />
+                <BossImage bossName={boss.name} imageUrl={boss.image_url} size="sm" />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-medium text-[#fafafa] truncate">{boss.name}</span>
