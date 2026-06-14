@@ -528,7 +528,7 @@ export function MemberProfileView() {
                     title={item ? `${item.name}${enh > 0 ? ` +${enh}` : ""}` : `${slot.name} — Not Equipped`}
                   >
                     <div
-                      className={`w-[68px] rounded-lg flex flex-col items-center justify-center py-1.5 px-1 transition-all duration-200 ${
+                      className={`w-[80px] rounded-lg flex flex-col items-center justify-center py-1.5 px-1 transition-all duration-200 ${
                         item
                           ? "hover:scale-[1.03] cursor-default"
                           : "border border-dashed border-[#27272a]"
@@ -548,7 +548,7 @@ export function MemberProfileView() {
                               <span className="absolute -right-1 -bottom-1 text-[6px] font-black text-white bg-black/60 rounded-full px-1 leading-none py-px">+{enh}</span>
                             )}
                           </div>
-                          <p className="text-[7px] font-medium mt-0.5 text-center truncate w-full" style={{ color: rc }}>{item.name.length > 10 ? item.name.slice(0, 9) + "…" : item.name}</p>
+                          <p className="text-[7px] font-medium mt-0.5 text-center w-full leading-tight" style={{ color: rc }}>{item.name}</p>
                         </>
                       ) : (
                         <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-transparent">
