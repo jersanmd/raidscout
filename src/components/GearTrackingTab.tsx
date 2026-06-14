@@ -89,6 +89,7 @@ export function GearTrackingTab() {
   const [openSlotPicker, setOpenSlotPicker] = useState<string | null>(null);
   const [pickerSearch, setPickerSearch] = useState("");
   const [guildFilter, setGuildFilter] = useState<string>("all");
+  const [guildFilterOpen, setGuildFilterOpen] = useState(false);
   const [classIcons, setClassIcons] = useState<Record<string, string>>({});
   const [classColors, setClassColors] = useState<Record<string, string>>({});
   const gearSortKey = `gear-sort-${serverId}`;
@@ -121,15 +122,19 @@ export function GearTrackingTab() {
         const bcp = b.combat_power ?? 0;
         return dir * (acp - bcp);
       }
-      // Gear slot sort: filled first, then by enhancement + rarity score
+      // Gear slot sort: filled first, then by rarity (Legendary > Epic > Rare > Uncommon > Common)
       const ga = gearForMember(a.id)[sortCol];
       const gb = gearForMember(b.id)[sortCol];
       const ia = ga?.catalog_item_id ? 1 : 0;
       const ib = gb?.catalog_item_id ? 1 : 0;
       if (ia !== ib) return dir * (ib - ia); // filled first
       if (!ia && !ib) return 0;
-      const scoreA = (ga?.enhancement_level ?? 0) + (RARITY_SCORE[itemCatalogItems.find((c: any) => c.id === ga?.catalog_item_id)?.rarity?.toLowerCase()] || catalog.find(c => c.id === ga?.catalog_item_id)?.rarity ? RARITY_SCORE[(catalog.find(c => c.id === ga?.catalog_item_id)?.rarity || "common").toLowerCase()] : 0);
-      const scoreB = (gb?.enhancement_level ?? 0) + (RARITY_SCORE[itemCatalogItems.find((c: any) => c.id === gb?.catalog_item_id)?.rarity?.toLowerCase()] || catalog.find(c => c.id === gb?.catalog_item_id)?.rarity ? RARITY_SCORE[(catalog.find(c => c.id === gb?.catalog_item_id)?.rarity || "common").toLowerCase()] : 0);
+      const resolveRarity = (g: any) => {
+        const item = g?.catalog_item || itemCatalogItems.find((c: any) => c.id === g?.catalog_item_id) || catalog.find(c => c.id === g?.catalog_item_id);
+        return (item?.rarity || "common").toLowerCase();
+      };
+      const scoreA = RARITY_SCORE[resolveRarity(ga)] || 0;
+      const scoreB = RARITY_SCORE[resolveRarity(gb)] || 0;
       return dir * (scoreB - scoreA);
     });
   };
@@ -743,19 +748,67 @@ export function GearTrackingTab() {
       {/* ── Gear Matrix — per-guild tables ── */}
       {/* Guild filter */}
       {orderedGuilds.length > 1 && (
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 justify-end">
           <label className="text-[10px] text-[#71717a] uppercase tracking-wider">Filter by Guild:</label>
-          <select
-            value={guildFilter}
-            onChange={e => setGuildFilter(e.target.value)}
-            className="bg-[#18181b] border border-[#27272a] rounded px-2 py-1 text-xs text-[#a1a1aa] outline-none focus:border-[#52525b] transition"
-          >
-            <option value="all">All Guilds</option>
-            {orderedGuilds.map(g => (
-              <option key={g.id} value={g.id}>{g.name}</option>
-            ))}
-            {(guildMembers.get(null) || []).length > 0 && <option value="__noguild__">No Guild</option>}
-          </select>
+          <div className="relative">
+            <button
+              onClick={() => setGuildFilterOpen(!guildFilterOpen)}
+              className="flex items-center gap-1.5 bg-[#18181b] border border-[#27272a] rounded px-2 py-1 text-xs text-[#a1a1aa] hover:border-[#52525b] transition min-w-[110px]"
+            >
+              {guildFilter === "all" ? (
+                <span>All Guilds</span>
+              ) : guildFilter === "__noguild__" ? (
+                <span>No Guild</span>
+              ) : (() => {
+                const g = guilds.find(x => x.id === guildFilter);
+                if (!g) return <span>All Guilds</span>;
+                const c = guildColor(g.name);
+                return (
+                  <span className="flex items-center gap-1.5">
+                    <Shield className={`w-3 h-3 ${c.text}`} />
+                    <span className={c.text}>{g.name}</span>
+                  </span>
+                );
+              })()}
+              <ChevronDown className="w-3 h-3 ml-auto" />
+            </button>
+            {guildFilterOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setGuildFilterOpen(false)} />
+                <div className="absolute right-0 top-full mt-1 z-50 bg-[#18181b] border border-[#27272a] rounded-lg shadow-xl py-1 min-w-[140px]">
+                  <button
+                    onClick={() => { setGuildFilter("all"); setGuildFilterOpen(false); }}
+                    className={`flex items-center gap-2 w-full px-3 py-1.5 text-xs transition ${guildFilter === "all" ? "bg-[#09090b] text-[#fafafa]" : "text-[#a1a1aa] hover:bg-[#09090b]"}`}
+                  >
+                    <span className="w-3 h-3 rounded-full border border-[#3f3f46]" />
+                    All Guilds
+                  </button>
+                  {orderedGuilds.map(g => {
+                    const c = guildColor(g.name);
+                    return (
+                      <button
+                        key={g.id}
+                        onClick={() => { setGuildFilter(g.id); setGuildFilterOpen(false); }}
+                        className={`flex items-center gap-2 w-full px-3 py-1.5 text-xs transition ${guildFilter === g.id ? "bg-[#09090b] text-[#fafafa]" : "text-[#a1a1aa] hover:bg-[#09090b]"}`}
+                      >
+                        <Shield className={`w-3 h-3 ${c.text}`} />
+                        {g.name}
+                      </button>
+                    );
+                  })}
+                  {(guildMembers.get(null) || []).length > 0 && (
+                    <button
+                      onClick={() => { setGuildFilter("__noguild__"); setGuildFilterOpen(false); }}
+                      className={`flex items-center gap-2 w-full px-3 py-1.5 text-xs transition ${guildFilter === "__noguild__" ? "bg-[#09090b] text-[#fafafa]" : "text-[#a1a1aa] hover:bg-[#09090b]"}`}
+                    >
+                      <div className="w-3 h-3 rounded-full bg-[#3f3f46]" />
+                      No Guild
+                    </button>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
         </div>
       )}
       {orderedGuilds.map((g, gi) => {
