@@ -404,6 +404,59 @@ export async function fetchItems(serverId?: string | null): Promise<Item[]> {
   return data as Item[];
 }
 
+export async function fetchItemsPaginated(
+  serverId: string | undefined | null,
+  limit: number,
+  offset: number,
+  search?: string,
+): Promise<{ items: Item[]; total: number }> {
+  const sid = serverId ?? getCurrentServerId();
+  if (!sid) return { items: [], total: 0 };
+
+  const { data: server } = await supabase
+    .from("servers")
+    .select("game, game_id")
+    .eq("id", sid)
+    .single();
+
+  let gameSlug: string | undefined = server?.game ?? undefined;
+  if (!gameSlug && server?.game_id) {
+    const { data: gameData } = await supabase
+      .from("games")
+      .select("slug")
+      .eq("id", server.game_id)
+      .single();
+    gameSlug = gameData?.slug ?? undefined;
+  }
+
+  let baseCondition = gameSlug
+    ? `game.eq.${gameSlug},server_id.eq.${sid}`
+    : `server_id.eq.${sid}`;
+
+  let dataQuery = supabase
+    .from("items")
+    .select("*")
+    .or(baseCondition)
+    .order("name");
+  let countQuery = supabase
+    .from("items")
+    .select("*", { count: "exact", head: true })
+    .or(baseCondition);
+
+  if (search && search.trim()) {
+    const term = `%${search.trim()}%`;
+    dataQuery = dataQuery.ilike("name", term);
+    countQuery = countQuery.ilike("name", term);
+  }
+
+  const [{ data, error }, { count }] = await Promise.all([
+    dataQuery.range(offset, offset + limit - 1),
+    countQuery,
+  ]);
+  if (error) throw error;
+  return { items: (data || []) as Item[], total: count || 0 };
+}
+
 export async function searchItemsByGame(game: string, query?: string): Promise<Item[]> {
   const { data, error } = await supabase.rpc("search_items_by_game", {
     p_game: game,

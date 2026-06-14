@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  fetchItems, createItem, deleteItem, updateItem, searchItemsByGame,
+  fetchItemsPaginated, fetchItems, createItem, deleteItem, updateItem, searchItemsByGame,
   fetchDistributions, createDistribution, deleteDistribution,
   fetchItemDistributionStats, fetchTopRecipients,
   fetchMembers, isSupabaseConfigured,
@@ -34,8 +34,62 @@ export function InventoryView() {
   const { data: items = [], isLoading: itemsLoading } = useQuery({
     queryKey: ["items", serverId],
     queryFn: () => fetchItems(serverId),
-    enabled: configured,
+    enabled: configured && (tab !== "catalog" || showDistribute),
   });
+
+  // Lazy-loading state for catalog
+  const [catalogItems, setCatalogItems] = useState<Item[]>([]);
+  const [catalogTotal, setCatalogTotal] = useState(0);
+  const [catalogLoaded, setCatalogLoaded] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const ITEMS_PER_PAGE = 50;
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const prevSearchRef = useRef(itemSearch);
+
+  // Load first page on mount / server change
+  useEffect(() => {
+    if (!configured || !serverId) return;
+    setCatalogItems([]);
+    setCatalogTotal(0);
+    setCatalogLoaded(false);
+    loadCatalogPage(0);
+  }, [serverId, configured]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Debounced server-side search
+  useEffect(() => {
+    if (!catalogLoaded) return;
+    if (itemSearch === prevSearchRef.current) return;
+    prevSearchRef.current = itemSearch;
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    searchTimerRef.current = setTimeout(() => {
+      loadCatalogPage(0, itemSearch.trim() || undefined);
+    }, 300);
+    return () => { if (searchTimerRef.current) clearTimeout(searchTimerRef.current); };
+  }, [itemSearch]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const loadCatalogPage = async (offset: number, search?: string) => {
+    if (!serverId) return;
+    const isSearch = !!(search && search.trim());
+    setLoadingMore(true);
+    try {
+      const { items: newItems, total } = await fetchItemsPaginated(serverId, ITEMS_PER_PAGE, offset, search);
+      setCatalogItems(prev => offset === 0 ? newItems : [...prev, ...newItems]);
+      setCatalogTotal(total);
+      if (!isSearch) setCatalogLoaded(true);
+    } catch (err) {
+      console.error("Failed to load catalog items:", err);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
+
+  // Refresh catalog after mutations
+  const refreshCatalog = () => {
+    setCatalogItems([]);
+    setCatalogTotal(0);
+    setCatalogLoaded(false);
+    loadCatalogPage(0, itemSearch.trim() || undefined);
+  };
 
   const { data: members = [] } = useQuery({
     queryKey: ["members", serverId],
@@ -107,6 +161,7 @@ export function InventoryView() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["items", serverId] });
+      refreshCatalog();
       setEditingItem(null);
     },
   });
@@ -170,6 +225,7 @@ export function InventoryView() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["items", serverId] });
+      refreshCatalog();
       setShowCreateItem(false);
       resetCreateForm();
     },
@@ -246,13 +302,13 @@ export function InventoryView() {
   const [itemSearch, setItemSearch] = useState("");
   const [rarityFilter, setRarityFilter] = useState<string | null>(null);
 
-  const filteredItems = items.filter(i => {
-    if (itemSearch && !i.name.toLowerCase().includes(itemSearch.toLowerCase())) return false;
+  // Use lazy-loaded catalog items for display (server-side search handled in loadCatalogPage)
+  const displayItems = catalogItems.filter(i => {
     if (rarityFilter && i.rarity?.toLowerCase() !== rarityFilter) return false;
     return true;
   });
 
-  // Get unique rarities from current items for filter chips
+  // Get unique rarities from all items (from useQuery) for filter chips
   const availableRarities = [...new Set(items.map(i => i.rarity?.toLowerCase()).filter(Boolean))] as string[];
 
   const formatDate = (d: string) =>
@@ -342,9 +398,9 @@ export function InventoryView() {
             )}
           </div>
 
-          {itemsLoading ? (
+          {!catalogLoaded ? (
             <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 text-[#71717a] animate-spin" /></div>
-          ) : filteredItems.length === 0 ? (
+          ) : displayItems.length === 0 ? (
             <div className="text-center py-16">
               <Package className="w-10 h-10 text-[#27272a] mx-auto mb-3" />
               <p className="text-sm text-[#52525b]">
@@ -352,8 +408,9 @@ export function InventoryView() {
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-              {filteredItems.map(item => {
+            <div className="space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                {displayItems.map(item => {
                 const rarityColor = RARITY_COLORS[item.rarity?.toLowerCase() as ItemRarity] || "#71717a";
                 const isCatalog = !item.server_id;
                 return (
@@ -395,6 +452,17 @@ export function InventoryView() {
                   </button>
                 </div>
               );})}
+              </div>
+              {!itemSearch.trim() && catalogLoaded && displayItems.length > 0 && displayItems.length < catalogTotal && (
+                <button onClick={() => loadCatalogPage(catalogItems.length)} disabled={loadingMore} className="w-full py-2.5 text-xs text-[#71717a] hover:text-[#d4d4d8] bg-[#18181b] hover:bg-[#222] border border-[#27272a] rounded-xl transition disabled:opacity-50">
+                  {loadingMore ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : `Load More (${catalogItems.length} of ${catalogTotal})`}
+                </button>
+              )}
+              {!!itemSearch.trim() && displayItems.length > 0 && displayItems.length < catalogTotal && (
+                <button onClick={() => loadCatalogPage(catalogItems.length, itemSearch)} disabled={loadingMore} className="w-full py-2.5 text-xs text-[#71717a] hover:text-[#d4d4d8] bg-[#18181b] hover:bg-[#222] border border-[#27272a] rounded-xl transition disabled:opacity-50">
+                  {loadingMore ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : `Load More (${catalogItems.length} of ${catalogTotal})`}
+                </button>
+              )}
             </div>
           )}
         </div>
