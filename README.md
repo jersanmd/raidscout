@@ -179,6 +179,17 @@ Every kill records who participated:
 - **Bulk add** — Paste a list of names to add dozens of members at once.
 - **Attendance counts toward leaderboard scoring** — more kills attended = more points.
 
+### ⚔️ Gear & Equipment Tracking
+
+Track every member's gear across all equipment slots:
+
+- **Gear tab** — Sortable table of all members with icons, class badges, CP, and per-slot gear cells.
+- **Click-to-equip** — Click any gear slot cell to directly open the item picker and change equipment.
+- **Enhancement levels** — Gold enhancement badges (+8, +15) on every equipped item.
+- **Member profiles** — Per-member pages with CP trends, loot history, attendance stats, and equipped gear grid.
+- **Gear score summary** — See completion percentage and total gear score per member at a glance.
+- **Mobile-friendly** — Action buttons hidden on small screens; tap `⋯` for a dropdown menu.
+
 ### 📅 Weekly Schedule View
 
 A 7-day calendar grid showing **every boss, every day, with guild ownership**:
@@ -244,7 +255,7 @@ and in the `docs/` folder of the repository.
 | **Backend** | Supabase — Postgres, Auth, Realtime, Edge Functions, Storage | Managed Postgres with built-in auth, real-time subscriptions, and serverless functions |
 | **State** | TanStack React Query 5 · React Context | Automatic caching, background refetching, and optimistic updates |
 | **Routing** | React Router 7 | Code-split, lazy-loaded pages for fast initial load |
-| **Testing** | Vitest 4 · React Testing Library 16 | 155 unit tests across 10 test files — spawn logic, rotation math, bot queries, UI components |
+| **Testing** | Vitest 4 · React Testing Library 16 | 180+ unit tests across 10+ test files — spawn logic, rotation math, bot queries, UI components |
 | **Icons** | Lucide React | Lightweight, tree-shakeable icon library |
 | **Dates** | date-fns 4 | Timezone-aware date formatting with minimal bundle size |
 | **SEO** | react-helmet-async · JSON-LD structured data · sitemap.xml · OG/Twitter cards | Full social media preview support and search engine indexing |
