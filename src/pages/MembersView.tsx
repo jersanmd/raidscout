@@ -1335,11 +1335,14 @@ export function MembersView() {
                           </Link>
                         </td>
                         <td className="py-2.5 px-3 text-right font-mono text-sm align-middle">
+                          <Link to={`/members/${m.id}`} className="block -m-2 p-2 rounded hover:bg-[#09090b]/50 transition">
                           <span className={m.combat_power != null ? "text-[#a1a1aa]" : "text-[#52525b]"}>
                             {m.combat_power != null ? m.combat_power.toLocaleString() : "—"}
                           </span>
+                          </Link>
                         </td>
                         <td className="py-2.5 px-3 text-right font-mono text-xs align-middle">
+                          <Link to={`/members/${m.id}`} className="block -m-2 p-2 rounded hover:bg-[#09090b]/50 transition">
                           {memberStats[m.id]?.growth != null && memberStats[m.id].growth !== 0 && m.combat_power != null ? (() => {
                             const base = m.combat_power - memberStats[m.id].growth;
                             if (base <= 0) return <span className="text-[#3f3f46]">—</span>;
@@ -1354,15 +1357,19 @@ export function MembersView() {
                           })() : (
                             <span className="text-[#3f3f46]">—</span>
                           )}
+                          </Link>
                         </td>
                         <td className="py-2.5 px-1 text-center font-mono text-xs align-middle">
+                          <Link to={`/members/${m.id}`} className="block -m-2 p-2 rounded hover:bg-[#09090b]/50 transition">
                           {memberStats[m.id]?.score != null ? (
                             <span className={`font-bold ${memberStats[m.id].score >= 75 ? "text-green-400" : memberStats[m.id].score >= 50 ? "text-amber-400" : memberStats[m.id].score > 0 ? "text-red-400" : "text-[#52525b]"}`}>{memberStats[m.id].score}</span>
                           ) : (
                             <span className="text-[#3f3f46]">—</span>
                           )}
+                          </Link>
                         </td>
                         <td className="py-2.5 px-2 text-center align-middle">
+                          <Link to={`/members/${m.id}`} className="block -m-2 p-2 rounded hover:bg-[#09090b]/50 transition">
                           {(() => {
                             const updatedAt = memberStats[m.id]?.cpUpdatedAt;
                             if (!updatedAt && m.combat_power == null) {
@@ -1380,6 +1387,7 @@ export function MembersView() {
                             }
                             return <span className="inline-block w-2.5 h-2.5 rounded-full bg-red-500 shadow-[0_0_6px_rgba(239,68,68,0.5)]" title={`Updated ${Math.round(daysAgo)}d ago`} />;
                           })()}
+                          </Link>
                         </td>
                         {canManageRaidMembers && (
                           <td className="py-2 px-3 text-right">
