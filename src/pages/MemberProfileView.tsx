@@ -7,6 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { guildColor } from "@/lib/constants";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { BossImage } from "@/components/BossImage";
+import { GearPlanner } from "@/components/GearPlanner";
 import { AreaChart, Area, ResponsiveContainer, Tooltip, XAxis, YAxis, LineChart, Line, BarChart, Bar, Legend } from "recharts";
 import type { CpUpdate } from "@/types";
 import {
@@ -800,6 +801,9 @@ export function MemberProfileView() {
         )}
       </div>
       )}
+
+      {/* ── Gear Planner ── */}
+      <GearPlanner memberId={memberId!} />
 
       {/* ── Notes ── */}
       <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-4 sm:p-5">
