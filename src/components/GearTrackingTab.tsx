@@ -442,8 +442,23 @@ export function GearTrackingTab() {
           }
           const rarityColor = item ? RARITY_COLORS[item.rarity?.toLowerCase()] || "#a1a1aa" : undefined;
           const enh = g?.enhancement_level ?? 0;
+
+          const handleSlotClick = () => {
+            if (!canManage) return;
+            setSelectedMember(m.id);
+            // Initialize edit state from existing gear
+            if (g?.catalog_item_id) {
+              setEditingGear(prev => ({
+                ...prev,
+                [m.id]: { ...(prev[m.id] || {}), [slotId]: { itemId: g.catalog_item_id!, enh: g.enhancement_level || 0 } },
+              }));
+            }
+            setOpenSlotPicker(slotId);
+            setPickerSearch("");
+          };
+
           return (
-            <td key={slotId} className="py-1.5 px-2 text-center">
+            <td key={slotId} className={`py-1.5 px-2 text-center ${canManage ? "cursor-pointer hover:bg-[#09090b]/50 transition" : ""}`} onClick={handleSlotClick} title={canManage ? "Click to change item" : undefined}>
               {item ? (
                 <div className="flex items-center justify-center">
                   <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 relative" style={{ backgroundColor: `${rarityColor}18` }}>
