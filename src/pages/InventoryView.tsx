@@ -330,6 +330,10 @@ export function InventoryView() {
   const [analyticsItemSearch, setAnalyticsItemSearch] = useState("");
   const [analyticsRecipientSearch, setAnalyticsRecipientSearch] = useState("");
 
+  // Delete confirmation
+  const [deleteConfirm, setDeleteConfirm] = useState<{ distId: string; itemName: string } | null>(null);
+  const [deleteConfirmName, setDeleteConfirmName] = useState("");
+
   // Lazy-loading state for catalog
   const [catalogItems, setCatalogItems] = useState<Item[]>([]);
   const [catalogTotal, setCatalogTotal] = useState(0);
@@ -458,8 +462,13 @@ export function InventoryView() {
                   value={itemSearch}
                   onChange={(e) => setItemSearch(e.target.value)}
                   placeholder="Search items..."
-                  className="w-full pl-9 pr-3 py-2.5 bg-[#18181b] border border-[#27272a] rounded-xl text-sm text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#52525b]"
+                  className="w-full pl-9 pr-9 py-2.5 bg-[#18181b] border border-[#27272a] rounded-xl text-sm text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#52525b]"
                 />
+                {itemSearch && (
+                  <button onClick={() => setItemSearch("")} className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded text-[#52525b] hover:text-[#a1a1aa]">
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
               </div>
               <button
                 onClick={() => setShowCreateItem(true)}
@@ -591,8 +600,13 @@ export function InventoryView() {
                 value={histSearch}
                 onChange={(e) => setHistSearch(e.target.value)}
                 placeholder="Search by item or player name..."
-                className="w-full pl-9 pr-3 py-2.5 bg-[#18181b] border border-[#27272a] rounded-xl text-sm text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#52525b]"
+                className="w-full pl-9 pr-9 py-2.5 bg-[#18181b] border border-[#27272a] rounded-xl text-sm text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#52525b]"
               />
+              {histSearch && (
+                <button onClick={() => setHistSearch("")} className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded text-[#52525b] hover:text-[#a1a1aa]">
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
             </div>
             {availableRarities.length > 0 && (
               <div className="flex items-center gap-1.5 flex-wrap">
@@ -680,7 +694,7 @@ export function InventoryView() {
                           </div>
                         </div>
                         <button
-                          onClick={() => deleteDistMutation.mutate(d.id)}
+                          onClick={() => { setDeleteConfirm({ distId: d.id, itemName: item?.name ?? "Unknown" }); setDeleteConfirmName(""); }}
                           className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-[#52525b] hover:text-red-400 hover:bg-red-400/10 transition-all shrink-0"
                           title="Delete distribution"
                         >
@@ -780,8 +794,13 @@ export function InventoryView() {
                     value={analyticsItemSearch}
                     onChange={(e) => setAnalyticsItemSearch(e.target.value)}
                     placeholder="Search..."
-                    className="w-28 pl-6 pr-2 py-1 text-[11px] bg-[#09090b] border border-[#27272a] rounded-lg text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#3f3f46]"
+                    className="w-28 pl-6 pr-6 py-1 text-[11px] bg-[#09090b] border border-[#27272a] rounded-lg text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#3f3f46]"
                   />
+                  {analyticsItemSearch && (
+                    <button onClick={() => setAnalyticsItemSearch("")} className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[#52525b] hover:text-[#a1a1aa]">
+                      <X className="w-3 h-3" />
+                    </button>
+                  )}
                 </div>
               </div>
               {(() => {
@@ -838,8 +857,13 @@ export function InventoryView() {
                     value={analyticsRecipientSearch}
                     onChange={(e) => setAnalyticsRecipientSearch(e.target.value)}
                     placeholder="Search..."
-                    className="w-28 pl-6 pr-2 py-1 text-[11px] bg-[#09090b] border border-[#27272a] rounded-lg text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#3f3f46]"
+                    className="w-28 pl-6 pr-6 py-1 text-[11px] bg-[#09090b] border border-[#27272a] rounded-lg text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#3f3f46]"
                   />
+                  {analyticsRecipientSearch && (
+                    <button onClick={() => setAnalyticsRecipientSearch("")} className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[#52525b] hover:text-[#a1a1aa]">
+                      <X className="w-3 h-3" />
+                    </button>
+                  )}
                 </div>
               </div>
               {(() => {
@@ -857,6 +881,8 @@ export function InventoryView() {
                     const m = members.find(m => m.id === r.member_id || m.name === r.player_name);
                     const cc = (m?.class && classColors[m.class]) || "#a1a1aa";
                     const ci = m?.class && classIcons[m.class];
+                    const g = m?.guild_id ? guilds.find(g => g.id === m.guild_id) : null;
+                    const gc = g ? guildColor(g.name) : null;
                     return (
                       <button key={r.member_id} onClick={() => setSelectedRecipient(r)} className="w-full flex items-center gap-3 py-1.5 group hover:bg-[#27272a]/30 rounded px-1 -mx-1 transition">
                         <span className="text-[10px] font-mono text-[#3f3f46] w-4 shrink-0 text-right">{i + 1}</span>
@@ -870,10 +896,18 @@ export function InventoryView() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between mb-0.5">
-                            <p className="text-xs truncate flex items-center gap-1" style={{ color: cc }}>
-                              {ci && getClassIcon(ci) && (() => { const CIcon = getClassIcon(ci)!; return <CIcon className="w-3 h-3 shrink-0" />; })()}
-                              {r.player_name}
-                            </p>
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <p className="text-xs truncate flex items-center gap-1" style={{ color: cc }}>
+                                {ci && getClassIcon(ci) && (() => { const CIcon = getClassIcon(ci)!; return <CIcon className="w-3 h-3 shrink-0" />; })()}
+                                {r.player_name}
+                              </p>
+                              {gc && g && (
+                                <span className={`flex items-center gap-0.5 text-[9px] font-medium px-1 py-0.5 rounded border shrink-0 ${gc.bg} ${gc.text} ${gc.border}`}>
+                                  <Shield className="w-2 h-2" />
+                                  {g.name}
+                                </span>
+                              )}
+                            </div>
                             <span className="text-xs font-mono font-semibold text-[#a1a1aa] shrink-0 ml-2">{r.total_items}</span>
                           </div>
                           <div className="h-1 bg-[#27272a] rounded-full overflow-hidden">
@@ -896,7 +930,7 @@ export function InventoryView() {
       {/* â”€â”€ Create Item Modal â”€â”€ */}
       {showCreateItem && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => { setShowCreateItem(false); resetCreateForm(); }}>
-          <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-5 w-full max-w-sm mx-4" onClick={(e) => e.stopPropagation()}
+          <div className="bg-[#09090b] border border-[#27272a] rounded-xl p-5 w-full max-w-sm mx-4" onClick={(e) => e.stopPropagation()}
             onPaste={async () => {
               try {
                 const items = await navigator.clipboard.read();
@@ -919,11 +953,11 @@ export function InventoryView() {
             <div className="space-y-3">
               <div>
                 <label className="text-[10px] text-[#71717a] uppercase tracking-wider">Name</label>
-                <input value={newItemName} onChange={e => setNewItemName(e.target.value)} placeholder="e.g. Dragon Heart" className="w-full mt-1 px-3 py-2 bg-[#09090b] border border-[#27272a] rounded-lg text-sm text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#52525b]" autoFocus />
+                <input value={newItemName} onChange={e => setNewItemName(e.target.value)} placeholder="e.g. Dragon Heart" className="w-full mt-1 px-3 py-2 bg-[#18181b] border border-[#27272a] rounded-lg text-sm text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#52525b]" autoFocus />
               </div>
               <div>
                 <label className="text-[10px] text-[#71717a] uppercase tracking-wider">Description (optional)</label>
-                <input value={newItemDesc} onChange={e => setNewItemDesc(e.target.value)} placeholder="Brief description" className="w-full mt-1 px-3 py-2 bg-[#09090b] border border-[#27272a] rounded-lg text-sm text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#52525b]" />
+                <input value={newItemDesc} onChange={e => setNewItemDesc(e.target.value)} placeholder="Brief description" className="w-full mt-1 px-3 py-2 bg-[#18181b] border border-[#27272a] rounded-lg text-sm text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#52525b]" />
               </div>
 
               {/* Category */}
@@ -937,7 +971,7 @@ export function InventoryView() {
                     const hasSubs = (gameCategories as any[]).some((c: any) => c.parent_id === pid);
                     setNewItemCategory(pid && !hasSubs ? pid : "");
                   }}
-                  className="w-full mt-1 px-3 py-2 bg-[#09090b] border border-[#27272a] rounded-lg text-sm text-[#fafafa] focus:outline-none focus:border-[#52525b]"
+                  className="w-full mt-1 px-3 py-2 bg-[#18181b] border border-[#27272a] rounded-lg text-sm text-[#fafafa] focus:outline-none focus:border-[#52525b]"
                 >
                   <option value="">None</option>
                   {(gameCategories as any[]).filter((c: any) => !c.parent_id).map((cat: any) => (
@@ -951,7 +985,7 @@ export function InventoryView() {
                   <select
                     value={newItemCategory}
                     onChange={e => setNewItemCategory(e.target.value || "")}
-                    className="w-full mt-1 px-3 py-2 bg-[#09090b] border border-[#27272a] rounded-lg text-sm text-[#fafafa] focus:outline-none focus:border-[#52525b]"
+                    className="w-full mt-1 px-3 py-2 bg-[#18181b] border border-[#27272a] rounded-lg text-sm text-[#fafafa] focus:outline-none focus:border-[#52525b]"
                   >
                     <option value="">-- Select --</option>
                     {(gameCategories as any[]).filter((c: any) => c.parent_id === newItemParent).map((sub: any) => (
@@ -965,7 +999,7 @@ export function InventoryView() {
               <div>
                 <label className="text-[10px] text-[#71717a] uppercase tracking-wider">Image (optional)</label>
                 {newItemImagePreview ? (
-                  <div className="mt-1 relative rounded-lg overflow-hidden bg-[#09090b] border border-[#27272a]">
+                  <div className="mt-1 relative rounded-lg overflow-hidden bg-[#18181b] border border-[#27272a]">
                     <img src={newItemImagePreview} alt="Preview" className="w-full h-32 object-contain" />
                     <button onClick={() => { setNewItemImage(null); setNewItemImagePreview(null); }} className="absolute top-1 right-1 p-1 rounded-full bg-black/60 text-[#fafafa] hover:bg-black/80 transition">
                       <X className="w-3.5 h-3.5" />
@@ -1048,7 +1082,7 @@ export function InventoryView() {
       {/* â”€â”€ Edit Item Modal â”€â”€ */}
       {editingItem && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setEditingItem(null)}>
-          <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-5 w-full max-w-sm mx-4" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-[#09090b] border border-[#27272a] rounded-xl p-5 w-full max-w-sm mx-4" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-sm font-semibold text-[#fafafa]">Edit Item</h3>
               <button onClick={() => setEditingItem(null)} className="text-[#52525b] hover:text-[#fafafa]"><X className="w-4 h-4" /></button>
@@ -1057,12 +1091,12 @@ export function InventoryView() {
               <div>
                 <label className="text-[10px] text-[#71717a] uppercase tracking-wider">Name</label>
                 <input value={editName} onChange={(e) => setEditName(e.target.value)}
-                  className="w-full mt-1 px-3 py-2 bg-[#09090b] border border-[#27272a] rounded-lg text-sm text-[#fafafa] focus:outline-none focus:border-[#52525b]" autoFocus />
+                  className="w-full mt-1 px-3 py-2 bg-[#18181b] border border-[#27272a] rounded-lg text-sm text-[#fafafa] focus:outline-none focus:border-[#52525b]" autoFocus />
               </div>
               <div>
                 <label className="text-[10px] text-[#71717a] uppercase tracking-wider">Description</label>
                 <input value={editDesc} onChange={(e) => setEditDesc(e.target.value)}
-                  className="w-full mt-1 px-3 py-2 bg-[#09090b] border border-[#27272a] rounded-lg text-sm text-[#fafafa] focus:outline-none focus:border-[#52525b]" />
+                  className="w-full mt-1 px-3 py-2 bg-[#18181b] border border-[#27272a] rounded-lg text-sm text-[#fafafa] focus:outline-none focus:border-[#52525b]" />
               </div>
               <div>
                 <label className="text-[10px] text-[#71717a] uppercase tracking-wider">Rarity</label>
@@ -1081,7 +1115,7 @@ export function InventoryView() {
               <div>
                 <label className="text-[10px] text-[#71717a] uppercase tracking-wider">Image</label>
                 {editImagePreview ? (
-                  <div className="mt-1 relative rounded-lg overflow-hidden bg-[#09090b] border border-[#27272a]">
+                  <div className="mt-1 relative rounded-lg overflow-hidden bg-[#18181b] border border-[#27272a]">
                     <img src={editImagePreview} alt="Preview" className="w-full h-32 object-contain" />
                     <button onClick={() => { setEditImage(null); setEditImagePreview(null); }}
                       className="absolute top-1 right-1 p-1 rounded-full bg-black/60 text-[#fafafa] hover:bg-black/80 transition"><X className="w-3.5 h-3.5" /></button>
@@ -1111,7 +1145,7 @@ export function InventoryView() {
       {/* â”€â”€ Distribute Modal â”€â”€ */}
       {showDistribute && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setShowDistribute(false)}>
-          <div className="bg-[#18181b] border border-[#27272a] rounded-t-xl sm:rounded-xl p-5 w-full max-w-md mx-0 sm:mx-4 animate-slide-up" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-[#09090b] border border-[#27272a] rounded-t-xl sm:rounded-xl p-5 w-full max-w-md mx-0 sm:mx-4 animate-slide-up" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h3 className="text-sm font-semibold text-[#fafafa]">Distribute Item</h3>
@@ -1136,8 +1170,13 @@ export function InventoryView() {
                     value={distMemberSearch}
                     onChange={(e) => setDistMemberSearch(e.target.value)}
                     placeholder="Search member..."
-                    className="w-full pl-8 pr-3 py-2 bg-[#09090b] border border-[#27272a] rounded-lg text-sm text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#52525b]"
+                    className="w-full pl-8 pr-8 py-2 bg-[#18181b] border border-[#27272a] rounded-lg text-sm text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#52525b]"
                   />
+                  {distMemberSearch && (
+                    <button onClick={() => setDistMemberSearch("")} className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded text-[#52525b] hover:text-[#a1a1aa]">
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                 </div>
                 <div className="mt-1.5 max-h-32 overflow-y-auto space-y-0.5">
                   {filteredDistMembers.slice(0, 20).map(m => {
@@ -1145,9 +1184,9 @@ export function InventoryView() {
                     return (
                       <button key={m.id}
                         onClick={() => { setDistMemberId(m.id); setDistMemberSearch(m.name); }}
-                        className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs transition text-left ${distMemberId === m.id ? "bg-[#fafafa]/10 text-[#fafafa] border border-[#fafafa]/20" : "text-[#a1a1aa] hover:bg-[#09090b] hover:text-[#d4d4d8]"}`}>
+                        className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition text-left ${distMemberId === m.id ? "bg-[#fafafa]/10 text-[#fafafa] border border-[#fafafa]/20" : "text-[#d4d4d8] hover:bg-[#18181b] hover:text-[#fafafa]"}`}>
                         <span className="flex-1 truncate">{m.name}</span>
-                        <span className="text-[10px] text-[#52525b] font-mono">{distCount} items</span>
+                        <span className="text-[11px] text-[#52525b] font-mono">{distCount} items</span>
                       </button>
                     );
                   })}
@@ -1159,14 +1198,14 @@ export function InventoryView() {
                   <label className="text-[10px] text-[#71717a] uppercase tracking-wider">Quantity</label>
                   <div className="flex items-center gap-1 mt-1">
                     <button onClick={() => setDistQuantity(q => Math.max(1, q - 1))}
-                      className="p-2 rounded-lg bg-[#09090b] border border-[#27272a] text-[#a1a1aa] hover:text-[#fafafa] transition">
+                      className="p-2 rounded-lg bg-[#18181b] border border-[#27272a] text-[#a1a1aa] hover:text-[#fafafa] transition">
                       <Minus className="w-3.5 h-3.5" />
                     </button>
                     <input type="number" min={1} value={distQuantity}
                       onChange={(e) => setDistQuantity(Math.max(1, parseInt(e.target.value) || 1))}
-                      className="flex-1 px-2 py-2 bg-[#09090b] border border-[#27272a] rounded-lg text-sm text-[#fafafa] text-center focus:outline-none focus:border-[#52525b]" />
+                      className="flex-1 px-2 py-2 bg-[#18181b] border border-[#27272a] rounded-lg text-sm text-[#fafafa] text-center focus:outline-none focus:border-[#52525b]" />
                     <button onClick={() => setDistQuantity(q => q + 1)}
-                      className="p-2 rounded-lg bg-[#09090b] border border-[#27272a] text-[#a1a1aa] hover:text-[#fafafa] transition">
+                      className="p-2 rounded-lg bg-[#18181b] border border-[#27272a] text-[#a1a1aa] hover:text-[#fafafa] transition">
                       <Plus className="w-3.5 h-3.5" />
                     </button>
                   </div>
@@ -1175,7 +1214,7 @@ export function InventoryView() {
                   <label className="text-[10px] text-[#71717a] uppercase tracking-wider">Reason</label>
                   <input value={distReason} onChange={(e) => setDistReason(e.target.value)}
                     placeholder="e.g. Guild Boss"
-                    className="w-full mt-1 px-3 py-2 bg-[#09090b] border border-[#27272a] rounded-lg text-sm text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#52525b]" />
+                    className="w-full mt-1 px-3 py-2 bg-[#18181b] border border-[#27272a] rounded-lg text-sm text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#52525b]" />
                 </div>
               </div>
 
@@ -1304,6 +1343,52 @@ export function InventoryView() {
           </div>
         );
       })()}
+
+      {/* ── Delete Confirmation Modal ── */}
+      {deleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setDeleteConfirm(null)}>
+          <div className="bg-[#09090b] border border-[#27272a] rounded-xl p-5 w-full max-w-sm mx-4" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-semibold text-red-400 flex items-center gap-2">
+                <Trash2 className="w-4 h-4" />
+                Delete Distribution
+              </h3>
+              <button onClick={() => setDeleteConfirm(null)} className="text-[#52525b] hover:text-[#fafafa]"><X className="w-4 h-4" /></button>
+            </div>
+            <p className="text-xs text-[#a1a1aa] mb-3">
+              This will permanently remove the distribution record for <span className="text-[#fafafa] font-medium">{deleteConfirm.itemName}</span>.
+            </p>
+            <div className="bg-red-400/10 border border-red-400/20 rounded-lg p-3 mb-4">
+              <p className="text-[11px] text-red-300/80 leading-relaxed">
+                Make sure this item has been properly distributed to the recipient before deleting. This action cannot be undone.
+              </p>
+            </div>
+            <div className="mb-4">
+              <label className="text-[10px] text-[#71717a] uppercase tracking-wider">Type the item name to confirm</label>
+              <input
+                value={deleteConfirmName}
+                onChange={(e) => setDeleteConfirmName(e.target.value)}
+                placeholder={deleteConfirm.itemName}
+                className="w-full mt-1 px-3 py-2 bg-[#18181b] border border-[#27272a] rounded-lg text-sm text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-red-400/50"
+                autoFocus
+              />
+            </div>
+            <button
+              onClick={() => {
+                if (deleteConfirmName.toLowerCase() === deleteConfirm.itemName.toLowerCase()) {
+                  deleteDistMutation.mutate(deleteConfirm.distId);
+                  setDeleteConfirm(null);
+                }
+              }}
+              disabled={deleteConfirmName.toLowerCase() !== deleteConfirm.itemName.toLowerCase() || deleteDistMutation.isPending}
+              className="w-full py-2 bg-red-500 text-white rounded-lg text-sm font-semibold hover:bg-red-600 transition disabled:opacity-30 flex items-center justify-center gap-2"
+            >
+              {deleteDistMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+              {deleteDistMutation.isPending ? "Deleting..." : "Delete Distribution"}
+            </button>
+          </div>
+        </div>
+      )}
 
     </div>
   );

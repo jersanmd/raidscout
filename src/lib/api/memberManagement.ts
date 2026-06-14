@@ -613,7 +613,7 @@ export async function fetchItemDistributionStats(serverId?: string | null): Prom
 
 export async function fetchTopRecipients(
   serverId?: string | null,
-  limit: number = 10
+  limit: number = 200
 ): Promise<TopRecipient[]> {
   const sid = serverId ?? getCurrentServerId();
   if (!sid) return [];
