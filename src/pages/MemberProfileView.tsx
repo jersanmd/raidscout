@@ -514,7 +514,7 @@ export function MemberProfileView() {
                 {gearSlotDefs.filter((s: any) => gearMap[s.name]?.catalog_item_id).length}/{gearSlotDefs.length} equipped
               </span>
             </div>
-            <div className="grid grid-cols-[repeat(auto-fill,minmax(84px,1fr))] gap-1.5">
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(110px,1fr))] gap-1.5">
               {gearSlotDefs.map((slot: any) => {
                 const gear = gearMap[slot.name];
                 const item = gear?.catalog_item_id ? gearItemMap[gear.catalog_item_id] : null;
@@ -528,7 +528,7 @@ export function MemberProfileView() {
                     title={item ? `${item.name}${enh > 0 ? ` +${enh}` : ""}` : `${slot.name} — Not Equipped`}
                   >
                     <div
-                      className={`w-[96px] rounded-lg flex flex-col items-center justify-center py-2 px-1 transition-all duration-200 ${
+                      className={`min-w-[110px] rounded-lg flex flex-col items-center justify-center py-2.5 px-1.5 transition-all duration-200 ${
                         item
                           ? "hover:scale-[1.03] cursor-default"
                           : "border border-dashed border-[#27272a]"
@@ -538,21 +538,21 @@ export function MemberProfileView() {
                       <p className="text-[7px] text-[#52525b] uppercase tracking-wider mb-0.5">{slot.name}</p>
                       {item ? (
                         <>
-                          <div className="w-10 h-10 rounded-lg flex items-center justify-center relative" style={{ backgroundColor: `${rc}14` }}>
+                          <div className="w-14 h-14 rounded-xl flex items-center justify-center relative" style={{ backgroundColor: `${rc}14` }}>
                             {item.image_url ? (
-                              <img src={item.image_url} alt="" className="w-8 h-8 rounded object-cover" />
+                              <img src={item.image_url} alt="" className="w-12 h-12 rounded-lg object-cover" />
                             ) : (
-                              <Star className="w-5 h-5" style={{ color: rc }} />
+                              <Star className="w-7 h-7" style={{ color: rc }} />
                             )}
                             {enh > 0 && (
-                              <span className="absolute -right-1 -bottom-1 text-[6px] font-black text-white bg-black/60 rounded-full px-1 leading-none py-px">+{enh}</span>
+                              <span className="absolute -right-1 -bottom-1 text-[9px] font-black text-white bg-black/60 rounded-full px-1.5 leading-none py-0.5">+{enh}</span>
                             )}
                           </div>
                           <p className="text-[7px] font-medium mt-0.5 text-center w-full leading-tight" style={{ color: rc }}>{item.name}</p>
                         </>
                       ) : (
-                        <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-transparent">
-                          <Shield className="w-5 h-5 text-[#27272a]" />
+                        <div className="w-14 h-14 rounded-xl flex items-center justify-center bg-transparent">
+                          <Shield className="w-6 h-6 text-[#27272a]" />
                         </div>
                       )}
                     </div>
