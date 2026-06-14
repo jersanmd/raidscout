@@ -745,12 +745,6 @@ export function MemberProfileView() {
                             </p>
                           </div>
                         )}
-                        {entry.type === "loot" && (
-                          <p className="text-sm text-[#d4d4d8] mt-0.5">
-                            {entry.data.items?.name || "Item"} ×{entry.data.quantity}
-                            {entry.data.reason && <span className="text-[#52525b] ml-1">— {entry.data.reason}</span>}
-                          </p>
-                        )}
                         {entry.type === "note" && (
                           <p className="text-sm text-[#d4d4d8] mt-0.5">{entry.data.note}</p>
                         )}
