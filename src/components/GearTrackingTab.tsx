@@ -835,10 +835,19 @@ export function GearTrackingTab() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="text-[10px] text-[#71717a] uppercase tracking-wider border-b border-[#27272a]">
-                    <th onClick={() => toggleSort("name")} className="text-left py-2 px-3 sticky left-0 bg-[#18181b] z-10 cursor-pointer hover:text-[#fafafa] transition select-none">Player{sortCol === "name" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</th>
-                    <th onClick={() => toggleSort("cp")} className="text-center py-2 px-2 min-w-[60px] cursor-pointer hover:text-[#fafafa] transition select-none">CP{sortCol === "cp" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</th>
+                    <th onClick={() => toggleSort("name")} className="text-left py-2 px-3 sticky left-0 bg-[#18181b] z-10 cursor-pointer hover:bg-[#27272a]/30 transition select-none group">
+                      <span className={sortCol === "name" ? "text-[#fafafa]" : "group-hover:text-[#a1a1aa]"}>Player</span>
+                      <span className="ml-1 inline-block w-3 text-center">{sortCol === "name" ? (sortDir === "asc" ? "▲" : "▼") : "⇅"}</span>
+                    </th>
+                    <th onClick={() => toggleSort("cp")} className="text-center py-2 px-2 min-w-[60px] cursor-pointer hover:bg-[#27272a]/30 transition select-none group">
+                      <span className={sortCol === "cp" ? "text-[#fafafa]" : "group-hover:text-[#a1a1aa]"}>CP</span>
+                      <span className="ml-1 inline-block w-3 text-center">{sortCol === "cp" ? (sortDir === "asc" ? "▲" : "▼") : "⇅"}</span>
+                    </th>
                     {allSlotIds.map(slot => (
-                      <th key={slot} onClick={() => toggleSort(slot)} className="text-center py-2 px-2 min-w-[80px] cursor-pointer hover:text-[#fafafa] transition select-none">{slot}{sortCol === slot ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</th>
+                      <th key={slot} onClick={() => toggleSort(slot)} className="text-center py-2 px-2 min-w-[80px] cursor-pointer hover:bg-[#27272a]/30 transition select-none group">
+                        <span className={sortCol === slot ? "text-[#fafafa]" : "group-hover:text-[#a1a1aa]"}>{slot}</span>
+                        <span className="ml-1 inline-block w-3 text-center">{sortCol === slot ? (sortDir === "asc" ? "▲" : "▼") : "⇅"}</span>
+                      </th>
                     ))}
                   </tr>
                 </thead>
@@ -863,10 +872,19 @@ export function GearTrackingTab() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-[10px] text-[#71717a] uppercase tracking-wider border-b border-[#27272a]">
-                  <th onClick={() => toggleSort("name")} className="text-left py-2 px-3 sticky left-0 bg-[#18181b] z-10 cursor-pointer hover:text-[#fafafa] transition select-none">Player{sortCol === "name" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</th>
-                  <th onClick={() => toggleSort("cp")} className="text-center py-2 px-2 min-w-[60px] cursor-pointer hover:text-[#fafafa] transition select-none">CP{sortCol === "cp" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</th>
+                  <th onClick={() => toggleSort("name")} className="text-left py-2 px-3 sticky left-0 bg-[#18181b] z-10 cursor-pointer hover:bg-[#27272a]/30 transition select-none group">
+                    <span className={sortCol === "name" ? "text-[#fafafa]" : "group-hover:text-[#a1a1aa]"}>Player</span>
+                    <span className="ml-1 inline-block w-3 text-center">{sortCol === "name" ? (sortDir === "asc" ? "▲" : "▼") : "⇅"}</span>
+                  </th>
+                  <th onClick={() => toggleSort("cp")} className="text-center py-2 px-2 min-w-[60px] cursor-pointer hover:bg-[#27272a]/30 transition select-none group">
+                    <span className={sortCol === "cp" ? "text-[#fafafa]" : "group-hover:text-[#a1a1aa]"}>CP</span>
+                    <span className="ml-1 inline-block w-3 text-center">{sortCol === "cp" ? (sortDir === "asc" ? "▲" : "▼") : "⇅"}</span>
+                  </th>
                   {allSlotIds.map(slot => (
-                    <th key={slot} onClick={() => toggleSort(slot)} className="text-center py-2 px-2 min-w-[80px] cursor-pointer hover:text-[#fafafa] transition select-none">{slot}{sortCol === slot ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</th>
+                    <th key={slot} onClick={() => toggleSort(slot)} className="text-center py-2 px-2 min-w-[80px] cursor-pointer hover:bg-[#27272a]/30 transition select-none group">
+                      <span className={sortCol === slot ? "text-[#fafafa]" : "group-hover:text-[#a1a1aa]"}>{slot}</span>
+                      <span className="ml-1 inline-block w-3 text-center">{sortCol === slot ? (sortDir === "asc" ? "▲" : "▼") : "⇅"}</span>
+                    </th>
                   ))}
                 </tr>
               </thead>
