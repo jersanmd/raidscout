@@ -172,6 +172,8 @@ export function ServerSettingsView() {
   const [usedPrefixes, setUsedPrefixes] = useState(new Set());
   const [editAliasLinkId, setEditAliasLinkId] = useState<string | null>(null);
   const [editAliases, setEditAliases] = useState<Record<string, string>>({});
+  const [editingLinkId, setEditingLinkId] = useState<string | null>(null);
+  const [editLinkValues, setEditLinkValues] = useState<{ discord_guild_id: string; label: string; command_prefix: string }>({ discord_guild_id: "", label: "", command_prefix: "!" });
   const [channelValues, setChannelValues] = useState<Record<string, { notif: string; cmd: string; progress?: string }>>({});
   const [pingValues, setPingValues] = useState<Record<string, string>>({});
   const [threadValues, setThreadValues] = useState<Record<string, { channelId: string; guilds: string[] }>>({});
@@ -2188,14 +2190,81 @@ export function ServerSettingsView() {
                     <div key={link.id} className="bg-[#18181b]/40 border border-[#27272a]/50 rounded-lg overflow-hidden">
                       {/* Header */}
                       <div className="flex items-center gap-3 px-4 py-3 bg-[#18181b]/60">
-                        <span className="text-xs font-bold font-mono text-[#a1a1aa] bg-[#27272a] px-2 py-1 rounded">{link.command_prefix || "!"}</span>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm text-[#fafafa] font-mono truncate">{link.discord_guild_id}</p>
-                          {link.label && <p className="text-[11px] text-[#71717a] truncate">{link.label}</p>}
-                        </div>
-                        <button onClick={() => handleRemoveDiscordLink(link.id)} className="p-1.5 rounded hover:bg-[#18181b] text-[#a1a1aa] hover:text-[#f87171] transition" title="Remove link">
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        {editingLinkId === link.id ? (
+                          <>
+                            {/* Edit mode: prefix dropdown */}
+                            <select
+                              value={editLinkValues.command_prefix}
+                              onChange={(e) => setEditLinkValues(prev => ({ ...prev, command_prefix: e.target.value }))}
+                              className="text-xs font-bold font-mono text-[#fafafa] bg-[#27272a] px-2 py-1 rounded border-none outline-none cursor-pointer"
+                            >
+                              {(() => {
+                                const allPrefixes = ["!",";","$",".","~","?","%","&","-","+","=",":","rs!","rs;","rs.","rb!","rb;","boss!","boss;"];
+                                const taken = new Set(discordLinks.filter(d => d.id !== link.id).map(d => d.command_prefix));
+                                return allPrefixes.map(p => (
+                                  <option key={p} value={p} disabled={taken.has(p)}>
+                                    {p}{taken.has(p) ? " (used)" : ""}
+                                  </option>
+                                ));
+                              })()}
+                            </select>
+                            <div className="flex-1 min-w-0 space-y-1.5">
+                              <input
+                                type="text"
+                                value={editLinkValues.discord_guild_id}
+                                onChange={(e) => setEditLinkValues(prev => ({ ...prev, discord_guild_id: e.target.value }))}
+                                placeholder="Discord Server ID"
+                                className="w-full bg-[#27272a] rounded px-2.5 py-1 text-sm text-[#e4e4e7] font-mono outline-none focus:ring-1 focus:ring-[#52525b]"
+                              />
+                              <input
+                                type="text"
+                                value={editLinkValues.label}
+                                onChange={(e) => setEditLinkValues(prev => ({ ...prev, label: e.target.value }))}
+                                placeholder="Label (optional)"
+                                className="w-full bg-[#27272a] rounded px-2.5 py-1 text-[11px] text-[#e4e4e7] outline-none focus:ring-1 focus:ring-[#52525b]"
+                              />
+                            </div>
+                            <div className="flex gap-1 shrink-0">
+                              <button
+                                onClick={async () => {
+                                  const vals = editLinkValues;
+                                  await supabase.from("discord_configs").update({
+                                    discord_guild_id: vals.discord_guild_id.trim(),
+                                    label: vals.label.trim() || null,
+                                    command_prefix: vals.command_prefix,
+                                  }).eq("id", link.id);
+                                  setDiscordLinks(prev => prev.map(d => d.id === link.id ? { ...d, discord_guild_id: vals.discord_guild_id.trim(), label: vals.label.trim() || null, command_prefix: vals.command_prefix } : d));
+                                  setEditingLinkId(null);
+                                }}
+                                className="text-xs px-2 py-1 rounded bg-green-600 text-[#fafafa] hover:bg-green-500 transition font-medium flex items-center gap-1"
+                              >
+                                <Check className="w-3 h-3" />Save
+                              </button>
+                              <button onClick={() => setEditingLinkId(null)} className="text-xs px-2 py-1 rounded bg-[#27272a] text-[#a1a1aa] hover:text-[#fafafa] transition">Cancel</button>
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <span className="text-xs font-bold font-mono text-[#a1a1aa] bg-[#27272a] px-2 py-1 rounded">{link.command_prefix || "!"}</span>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm text-[#fafafa] font-mono truncate">{link.discord_guild_id}</p>
+                              {link.label && <p className="text-[11px] text-[#71717a] truncate">{link.label}</p>}
+                            </div>
+                            <button
+                              onClick={() => {
+                                setEditingLinkId(link.id);
+                                setEditLinkValues({ discord_guild_id: link.discord_guild_id, label: link.label || "", command_prefix: link.command_prefix || "!" });
+                              }}
+                              className="p-1.5 rounded hover:bg-[#18181b] text-[#a1a1aa] hover:text-[#fafafa] transition"
+                              title="Edit link"
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                            </button>
+                            <button onClick={() => handleRemoveDiscordLink(link.id)} className="p-1.5 rounded hover:bg-[#18181b] text-[#a1a1aa] hover:text-[#f87171] transition" title="Remove link">
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </>
+                        )}
                       </div>
 
                       {/* Body */}
