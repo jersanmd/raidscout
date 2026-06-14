@@ -108,6 +108,18 @@ export async function handleMessage(msg: any) {
     const cfgRows = await supabaseQuerySafe(`discord_configs?discord_guild_id=eq.${guildId}&command_prefix=eq.${encodeURIComponent(matchedPrefix)}&select=command_channel_id`);
     const cmdChannel = cfgRows?.[0]?.command_channel_id;
     if (cmdChannel && channelId !== cmdChannel && cmd !== "cmdhere" && cmd !== "notifhere" && cmd !== "threadhere" && cmd !== "progresshere" && cmd !== "forcespawn" && cmd !== "forcespawnall" && cmd !== "spawnall") {
+      // Check if this is a thread inside the command channel
+      let isCmdThread = false;
+      try {
+        const chanRes = await discordFetch(`https://discord.com/api/v10/channels/${channelId}`, {
+          headers: { Authorization: `Bot ${TOKEN}` },
+        });
+        if (chanRes?.ok) {
+          const chanInfo = await chanRes.json() as any;
+          if (chanInfo.parent_id === cmdChannel) isCmdThread = true;
+        }
+      } catch {}
+      if (!isCmdThread) {
       // Also allow progress-related commands in the progress channel
       const progressCmds = new Set(["updatestats", "editstats"]);
       if (progressCmds.has(cmd)) {
@@ -135,6 +147,7 @@ export async function handleMessage(msg: any) {
       } else {
         return reply(`⚠️ This command only works in the designated command channel.`);
       }
+      } // close if (!isCmdThread)
     }
   }
 

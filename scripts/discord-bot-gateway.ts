@@ -6,7 +6,7 @@
 // Requires: DISCORD_BOT_TOKEN, SUPABASE_SERVICE_ROLE_KEY
 import { WebSocket } from "ws";
 import * as http from "http";
-import { TOKEN, setBotUserId } from "./bot/config";
+import { TOKEN, setBotUserId, botUserId } from "./bot/config";
 import { installLogging } from "./bot/logging";
 import { LOG_BUFFER } from "./bot/logging";
 import { handleGuildJoin } from "./bot/guild-join";
@@ -84,6 +84,8 @@ async function connect() {
     if (t === "GUILD_CREATE") { handleGuildJoin(d).catch(console.error); }
     if (t === "READY") { setBotUserId(d.user.id); discordConnected = true; }
     if (t === "MESSAGE_CREATE") {
+      // Ignore the bot's own messages to prevent self-reaction loops
+      if (d.author?.id === botUserId) return;
       withCommandTracking(
         () => handleMessage(d),
         15_000,

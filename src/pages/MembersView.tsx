@@ -1259,8 +1259,7 @@ export function MembersView() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="text-[10px] text-[#71717a] uppercase tracking-wider border-b border-[#27272a]/50">
-                      <th className="text-left py-2.5 px-3 w-8"></th>
-                      <th className="text-left py-2.5 px-2 w-[47%] cursor-pointer select-none hover:bg-[#27272a]/30 transition group" onClick={() => toggleSort("name")}>
+                      <th className="text-left py-2.5 px-2 w-[50%] cursor-pointer select-none hover:bg-[#27272a]/30 transition group" onClick={() => toggleSort("name")}>
                         <span className="inline-flex items-center gap-1">
                           <span className={sortColumn === "name" ? "text-[#fafafa]" : "group-hover:text-[#a1a1aa]"}>Member</span>
                           <span className="inline-block w-3 text-center">{sortColumn === "name" ? (sortDir === "asc" ? "▲" : "▼") : "⇅"}</span>
@@ -1327,9 +1326,9 @@ export function MembersView() {
                       });
                       return sorted.map((m, i) => (
                       <tr key={m.id} className="border-b border-[#27272a]/30 hover:bg-[#09090b]/30 transition">
-                        <td className="py-2.5 px-3 text-[10px] text-[#52525b] font-mono align-middle">{i + 1}</td>
                         <td className="py-2.5 px-2 align-middle">
                           <Link to={`/members/${m.id}`} className="flex items-center gap-2 text-[#fafafa] hover:text-[#e4e4e7] transition text-sm -m-2 p-2 rounded">
+                            <span className="text-[10px] text-[#52525b] font-mono w-4 shrink-0 text-right">{i + 1}</span>
                             {m.class && classIcons[m.class] && (() => { const CIcon = getClassIcon(classIcons[m.class]); const color = classColors[m.class] || "#a1a1aa"; return <CIcon className="w-3.5 h-3.5 shrink-0" style={{ color }} />; })()}
                             <span>{m.name}</span>
                           </Link>
