@@ -568,7 +568,7 @@ export function InventoryView() {
                 <div className="space-y-1.5">
                   {dists.map(d => {
                     const item = items.find(i => i.id === d.item_id);
-                    const rc = item ? RARITY_COLORS[item.rarity] || "#a1a1aa" : "#71717a";
+                    const rc = item ? RARITY_COLORS[item.rarity?.toLowerCase() as ItemRarity] || "#a1a1aa" : "#71717a";
                     return (
                       <div key={d.id} className="bg-[#18181b] border border-[#27272a] rounded-lg px-3 py-2.5 flex items-center gap-3 group hover:border-[#3f3f46] transition-all">
                         {/* Item thumbnail */}
@@ -655,7 +655,7 @@ export function InventoryView() {
                 <div className="space-y-1">
                   {itemStats.map((stat, i) => {
                     const item = items.find(x => x.id === stat.item_id);
-                    const rc = item ? RARITY_COLORS[item.rarity] || "#a1a1aa" : "#71717a";
+                    const rc = item ? RARITY_COLORS[item.rarity?.toLowerCase() as ItemRarity] || "#a1a1aa" : "#71717a";
                     const maxQty = itemStats[0]?.total_quantity || 1;
                     const pct = Math.max(4, (stat.total_quantity / maxQty) * 100);
                     return (
@@ -953,7 +953,7 @@ export function InventoryView() {
                 <h3 className="text-sm font-semibold text-[#fafafa]">Distribute Item</h3>
                 {distItem && (
                   <p className="text-[11px] text-[#a1a1aa] mt-0.5 flex items-center gap-1.5">
-                    <span className="capitalize font-medium" style={{ color: RARITY_COLORS[distItem.rarity] }}>{distItem.rarity}</span>
+                    <span className="capitalize font-medium" style={{ color: RARITY_COLORS[distItem.rarity?.toLowerCase() as ItemRarity] }}>{distItem.rarity}</span>
                     <span>·</span>
                     <span>{distItem.name}</span>
                   </p>
