@@ -2071,55 +2071,105 @@ export function MembersView() {
                             {(() => [...members].sort((a, b) => (a.is_active === false ? 1 : 0) - (b.is_active === false ? 1 : 0)))().map((member, idx) => (
                       <div
                         key={member.id}
-                        className={`flex flex-wrap items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2.5 rounded-lg border group transition ${
+                        className={`flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-3 px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg border group transition ${
                           member.is_active === false
                             ? 'bg-[#09090b]/30 border-[#27272a]/30 opacity-60'
                             : 'bg-[#09090b]/50 border-[#27272a]/50'
                         }`}
                       >
-                        <span className="text-[10px] font-mono text-[#52525b] w-5 shrink-0">{(idx + 1).toString().padStart(2, "\u00A0")}</span>
-                        <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-[#18181b] text-[#a1a1aa] font-bold text-sm shrink-0">
-                          {member.class && classIcons[member.class] ? (() => {
-                            const CIcon = getClassIcon(classIcons[member.class]);
-                            const color = classColors[member.class] || "#a1a1aa";
-                            return <CIcon className="w-4 h-4" style={{ color }} />;
-                          })() : member.name.charAt(0).toUpperCase()}
+                        {/* Top row: rank + avatar + name + actions */}
+                        <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
+                          <span className="text-[10px] font-mono text-[#52525b] w-4 shrink-0 text-right">{(idx + 1).toString()}</span>
+                          <div className="flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-[#18181b] text-[#a1a1aa] font-bold text-xs sm:text-sm shrink-0">
+                            {member.class && classIcons[member.class] ? (() => {
+                              const CIcon = getClassIcon(classIcons[member.class]);
+                              const color = classColors[member.class] || "#a1a1aa";
+                              return <CIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4" style={{ color }} />;
+                            })() : member.name.charAt(0).toUpperCase()}
+                          </div>
+
+                          {editingId === member.id ? (
+                            <div className="flex-1 min-w-0 flex gap-2">
+                              <input
+                                type="text"
+                                value={editName}
+                                onChange={(e) => setEditName(e.target.value)}
+                                onKeyDown={(e) => e.key === "Enter" && handleEdit(member.id)}
+                                autoFocus
+                                className="flex-1 px-2 py-1 bg-[#18181b] border border-[#3f3f46] rounded text-[#fafafa] text-sm focus:outline-none focus:ring-1 focus:ring-[#52525b]"
+                              />
+                              <button onClick={() => handleEdit(member.id)} disabled={saving} className="p-1 text-[#a1a1aa] hover:text-[#fafafa] transition"><Check className="w-4 h-4" /></button>
+                              <button onClick={() => setEditingId(null)} className="p-1 text-[#a1a1aa] hover:text-[#fafafa] transition"><X className="w-4 h-4" /></button>
+                            </div>
+                          ) : (
+                            <Link to={`/members/${member.id}`} className="flex-1 min-w-0 text-[#fafafa] text-sm font-medium truncate hover:text-[#e4e4e7] transition">{member.name}</Link>
+                          )}
+
+                          {/* Desktop actions */}
+                          {editingId !== member.id && canManageRaidMembers && (
+                            <button onClick={() => startEdit(member)} className="hidden sm:inline-flex p-1.5 text-[#71717a] hover:text-[#fafafa] transition rounded shrink-0 sm:opacity-0 group-hover:opacity-100" title="Edit"><Pencil className="w-3.5 h-3.5" /></button>
+                          )}
                         </div>
 
-                        {editingId === member.id ? (
-                          <div className="flex-1 min-w-0 flex gap-2">
-                            <input
-                              type="text"
-                              value={editName}
-                              onChange={(e) => setEditName(e.target.value)}
-                              onKeyDown={(e) => e.key === "Enter" && handleEdit(member.id)}
-                              autoFocus
-                              className="flex-1 px-2 py-1 bg-[#18181b] border border-[#3f3f46] rounded text-[#fafafa] text-sm focus:outline-none focus:ring-1 focus:ring-[#52525b]"
-                            />
-                            <button onClick={() => handleEdit(member.id)} disabled={saving} className="p-1 text-[#a1a1aa] hover:text-[#fafafa] transition"><Check className="w-4 h-4" /></button>
-                            <button onClick={() => setEditingId(null)} className="p-1 text-[#a1a1aa] hover:text-[#fafafa] transition"><X className="w-4 h-4" /></button>
-                          </div>
-                        ) : (
-                          <Link to={`/members/${member.id}`} className="flex-1 min-w-0 text-[#fafafa] text-sm font-medium truncate hover:text-[#e4e4e7] transition">{member.name}</Link>
-                        )}
+                        {/* Bottom row: guild + CP (mobile) / inline actions (desktop) */}
+                        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+                          {editingId !== member.id && guilds.length > 0 && !isViewer && (
+                            <select
+                              value={member.guild_id ?? ""}
+                              onChange={async (e) => {
+                                const gid = e.target.value || null;
+                                try { await setMemberGuild(member.id, gid); invalidate(); } catch (err: any) {
+                                  setToast({ type: "error", message: err?.message || "Failed to change guild" });
+                                }
+                              }}
+                              className="bg-[#18181b] border border-[#27272a] rounded px-1.5 py-1 text-[10px] sm:text-xs text-[#a1a1aa] outline-none focus:border-[#52525b] transition max-w-[100px] truncate"
+                            >
+                              <option value="">No guild</option>
+                              {guilds.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+                            </select>
+                          )}
+                          {member.combat_power != null && (
+                            <span className="text-[10px] sm:text-xs font-mono text-[#52525b] tabular-nums">{member.combat_power.toLocaleString()}</span>
+                          )}
 
-                        {editingId !== member.id && canManageRaidMembers && (
-                          <>
-                            {/* Desktop: inline buttons */}
-                            <button onClick={() => startEdit(member)} className="hidden sm:inline-flex p-1.5 text-[#71717a] hover:text-[#fafafa] transition rounded shrink-0 sm:opacity-0 group-hover:opacity-100" title="Edit"><Pencil className="w-3.5 h-3.5" /></button>
-                            {/* Mobile: more button → dropdown */}
+                          {/* Desktop: disable + delete */}
+                          {editingId !== member.id && canManageRaidMembers && (
+                            <>
+                              <button
+                                onClick={async () => {
+                                  const newActive = !(member.is_active !== false);
+                                  try {
+                                    await supabase.from("members").update({ is_active: newActive }).eq("id", member.id);
+                                    invalidate();
+                                  } catch (err: any) {
+                                    setToast({ type: "error", message: err?.message || "Failed to update member" });
+                                  }
+                                }}
+                                className="hidden sm:inline-flex shrink-0 sm:opacity-0 group-hover:opacity-100 transition-opacity"
+                                title={member.is_active === false ? "Enable member" : "Disable member"}
+                              >
+                                <div className={`w-8 h-4.5 rounded-full relative transition-colors ${member.is_active === false ? 'bg-[#27272a]' : 'bg-green-500/60'}`}>
+                                  <div className={`absolute top-0.5 w-3.5 h-3.5 rounded-full bg-white shadow transition-all ${member.is_active === false ? 'left-0.5' : 'left-4'}`} />
+                                </div>
+                              </button>
+                              <button onClick={() => { setDeleteId(member.id); setDeleteConfirmName(""); }} className="hidden sm:inline-flex p-1.5 text-[#71717a] hover:text-red-400 transition rounded shrink-0" title="Delete"><Trash2 className="w-3.5 h-3.5" /></button>
+                            </>
+                          )}
+
+                          {/* Mobile: more button */}
+                          {editingId !== member.id && canManageRaidMembers && (
                             <div className="relative sm:hidden shrink-0">
                               <button
                                 onClick={(e) => { e.stopPropagation(); setActionMenuMember(actionMenuMember === member.id ? null : member.id); }}
-                                className="p-1.5 text-[#71717a] hover:text-[#fafafa] transition rounded"
+                                className="p-1 text-[#71717a] hover:text-[#fafafa] transition rounded"
                                 title="Actions"
                               >
-                                <MoreHorizontal className="w-3.5 h-3.5" />
+                                <MoreHorizontal className="w-4 h-4" />
                               </button>
                               {actionMenuMember === member.id && (
                                 <>
                                   <div className="fixed inset-0 z-40" onClick={() => setActionMenuMember(null)} />
-                                  <div className="absolute right-0 top-full mt-1 z-50 bg-[#18181b] border border-[#27272a] rounded-lg shadow-xl py-1 min-w-[130px]">
+                                  <div className="absolute right-0 top-full mt-1 z-50 bg-[#18181b] border border-[#27272a] rounded-lg shadow-xl py-1 min-w-[140px]">
                                     <button
                                       onClick={() => { setActionMenuMember(null); startEdit(member); }}
                                       className="flex items-center gap-2 w-full px-3 py-2 text-xs text-[#d4d4d8] hover:bg-[#09090b] transition"
@@ -2151,49 +2201,8 @@ export function MembersView() {
                                 </>
                               )}
                             </div>
-                          </>
-                        )}
-
-                        {editingId !== member.id && guilds.length > 0 && !isViewer && (
-                          <select
-                            value={member.guild_id ?? ""}
-                            onChange={async (e) => {
-                              const gid = e.target.value || null;
-                              try { await setMemberGuild(member.id, gid); invalidate(); } catch (err: any) {
-                                setToast({ type: "error", message: err?.message || "Failed to change guild" });
-                              }
-                            }}
-                            className="bg-[#18181b] border border-[#27272a] rounded px-1.5 py-1 text-[10px] sm:text-xs text-[#a1a1aa] outline-none focus:border-[#52525b] transition max-w-[100px] truncate shrink-0"
-                          >
-                            <option value="">No guild</option>
-                            {guilds.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
-                          </select>
-                        )}
-
-                        {editingId !== member.id && canManageRaidMembers && (
-                          <button
-                            onClick={async () => {
-                              const newActive = !(member.is_active !== false);
-                              try {
-                                await supabase.from("members").update({ is_active: newActive }).eq("id", member.id);
-                                invalidate();
-                              } catch (err: any) {
-                                setToast({ type: "error", message: err?.message || "Failed to update member" });
-                              }
-                            }}
-                            className="hidden sm:inline-flex shrink-0 sm:opacity-0 group-hover:opacity-100 transition-opacity"
-                            title={member.is_active === false ? "Enable member" : "Disable member"}
-                          >
-                            <div className={`w-8 h-4.5 rounded-full relative transition-colors ${member.is_active === false ? 'bg-[#27272a]' : 'bg-green-500/60'}`}>
-                              <div className={`absolute top-0.5 w-3.5 h-3.5 rounded-full bg-white shadow transition-all ${member.is_active === false ? 'left-0.5' : 'left-4'}`} />
-                            </div>
-                          </button>
-                        )}
-
-                        {editingId !== member.id && canManageRaidMembers && (
-                          <button onClick={() => { setDeleteId(member.id); setDeleteConfirmName(""); }} className="hidden sm:inline-flex p-1.5 text-[#71717a] hover:text-red-400 transition rounded shrink-0" title="Delete"><Trash2 className="w-3.5 h-3.5" /></button>
-                        )}
-                      </div>
+                          )}
+                        </div>
                             ))}
                           </div>
                         </div>
