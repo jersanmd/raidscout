@@ -88,6 +88,7 @@ export function GearTrackingTab() {
   const [memberSearch, setMemberSearch] = useState("");
   const [openSlotPicker, setOpenSlotPicker] = useState<string | null>(null);
   const [pickerSearch, setPickerSearch] = useState("");
+  const [guildFilter, setGuildFilter] = useState<string>("all");
   const [classIcons, setClassIcons] = useState<Record<string, string>>({});
   const [classColors, setClassColors] = useState<Record<string, string>>({});
   const gearSortKey = `gear-sort-${serverId}`;
@@ -740,7 +741,25 @@ export function GearTrackingTab() {
       )}
 
       {/* ── Gear Matrix — per-guild tables ── */}
+      {/* Guild filter */}
+      {orderedGuilds.length > 1 && (
+        <div className="flex items-center gap-2">
+          <label className="text-[10px] text-[#71717a] uppercase tracking-wider">Filter by Guild:</label>
+          <select
+            value={guildFilter}
+            onChange={e => setGuildFilter(e.target.value)}
+            className="bg-[#18181b] border border-[#27272a] rounded px-2 py-1 text-xs text-[#a1a1aa] outline-none focus:border-[#52525b] transition"
+          >
+            <option value="all">All Guilds</option>
+            {orderedGuilds.map(g => (
+              <option key={g.id} value={g.id}>{g.name}</option>
+            ))}
+            {(guildMembers.get(null) || []).length > 0 && <option value="__noguild__">No Guild</option>}
+          </select>
+        </div>
+      )}
       {orderedGuilds.map((g, gi) => {
+        if (guildFilter !== "all" && guildFilter !== g.id) return null;
         const gMembers = guildMembers.get(g.id) || [];
         if (!gMembers.length) return null;
         const color = guildColor(g.name);
@@ -780,7 +799,7 @@ export function GearTrackingTab() {
         );
       })}
       {/* No-guild members */}
-      {(guildMembers.get(null) || []).length > 0 && (
+      {(guildFilter === "all" || guildFilter === "__noguild__") && (guildMembers.get(null) || []).length > 0 && (
         <div className="bg-[#18181b] border border-[#27272a] rounded-xl overflow-hidden">
           <div className="px-4 py-2 border-b border-[#27272a] flex items-center gap-2">
             <div className="w-2 h-2 rounded-full shrink-0 bg-[#3f3f46]" />
