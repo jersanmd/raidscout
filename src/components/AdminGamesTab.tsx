@@ -39,8 +39,8 @@ const TABS = [
   { key: "activities", icon: Calendar, label: "Activities" },
   { key: "categories", icon: Tags, label: "Categories" },
   { key: "rarities", icon: Palette, label: "Rarities" },
-  { key: "items", icon: Package, label: "Items" },
   { key: "gear", icon: Shield, label: "Gear Template" },
+  { key: "items", icon: Package, label: "Items" },
   { key: "review", icon: ClipboardCheck, label: "Item Review" },
   { key: "approved", icon: Check, label: "Approved Items" },
 ] as const;
