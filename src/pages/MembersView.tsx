@@ -2203,11 +2203,9 @@ export function MembersView() {
                             </div>
                           )}
                         </div>
+                      </div>
                             ))}
                           </div>
-                        </div>
-                      );
-                    })}
                   </div>
                 </div>
               ))}
