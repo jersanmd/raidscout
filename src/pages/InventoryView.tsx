@@ -9,6 +9,7 @@ import {
   fetchItemCategories, fetchItemRarities,
 } from "@/lib/supabase";
 import { useServerId } from "@/contexts/ServerContext";
+import { useToast } from "@/contexts/ToastContext";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
 import type { Item, Distribution, ItemRarity } from "@/types";
 import {
@@ -29,6 +30,7 @@ const RARITY_ORDER: ItemRarity[] = ["mythic", "legendary", "epic", "rare", "unco
 
 export function InventoryView() {
   const serverId = useServerId();
+  const { toast } = useToast();
   const queryClient = useQueryClient();
   const configured = isSupabaseConfigured();
   const [tab, setTab] = useState<"catalog" | "history" | "analytics">("catalog");
@@ -242,6 +244,8 @@ export function InventoryView() {
       queryClient.invalidateQueries({ queryKey: ["distributions", serverId] });
       queryClient.invalidateQueries({ queryKey: ["itemDistributionStats", serverId] });
       queryClient.invalidateQueries({ queryKey: ["topRecipients", serverId] });
+      const member = members.find(m => m.id === distMemberId);
+      toast("success", `${distItem?.name ?? "Item"} sent to ${member?.name ?? "member"}!`);
       setShowDistribute(false);
       setDistItemId("");
       setDistMemberId("");
