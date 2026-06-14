@@ -208,7 +208,15 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
             </div>
             )
           ) : (
+            boss.image_url ? (
+              <img
+                src={boss.image_url}
+                alt={boss.name}
+                className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl object-cover border border-[#27272a] shrink-0"
+              />
+            ) : (
             <BossImage bossName={boss.name} size="lg" />
+            )
           )}
 
           {/* Right side: all info */}
