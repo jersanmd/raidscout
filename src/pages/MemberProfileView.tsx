@@ -7,7 +7,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { guildColor } from "@/lib/constants";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { BossImage } from "@/components/BossImage";
-import { GearPlanner } from "@/components/GearPlanner";
 import { AreaChart, Area, ResponsiveContainer, Tooltip, XAxis, YAxis, LineChart, Line, BarChart, Bar, Legend } from "recharts";
 import type { CpUpdate } from "@/types";
 import {
@@ -54,6 +53,31 @@ export function MemberProfileView() {
     staleTime: 60000,
     enabled: !!serverId && configured,
   });
+
+  // ── Gear Planner data ──
+  const { data: gameSlug } = useQuery({
+    queryKey: ["serverGame", serverId],
+    queryFn: async () => { const { data } = await supabase.from("servers").select("game").eq("id", serverId).single(); return data?.game || null; },
+    enabled: !!serverId && configured,
+  });
+  const { data: gearSlotDefs = [] } = useQuery<any[]>({
+    queryKey: ["gearSlots", gameSlug],
+    queryFn: async () => { const { data } = await supabase.from("gear_slots").select("id, name, sort_order").eq("game", gameSlug).order("sort_order"); return data || []; },
+    enabled: !!gameSlug && configured,
+  });
+  const { data: memberGear = [] } = useQuery<any[]>({
+    queryKey: ["memberGearProfile", memberId],
+    queryFn: async () => { const { data } = await supabase.from("member_gear").select("id, member_id, slot_id, catalog_item_id, enhancement_level").eq("member_id", memberId); return data || []; },
+    enabled: !!memberId && configured && !!gameSlug,
+  });
+  const { data: gearItems = [] } = useQuery<any[]>({
+    queryKey: ["gameItems", gameSlug],
+    queryFn: async () => { if (!gameSlug) return []; const { data } = await supabase.from("items").select("*").eq("game", gameSlug).order("name"); return data || []; },
+    enabled: !!gameSlug && configured,
+  });
+
+  const gearMap = useMemo(() => { const m: Record<string, any> = {}; memberGear.forEach((g: any) => { m[g.slot_id] = g; }); return m; }, [memberGear]);
+  const gearItemMap = useMemo(() => { const m: Record<string, any> = {}; gearItems.forEach((i: any) => { m[i.id] = i; }); return m; }, [gearItems]);
 
   // Class icons & colors from server_classes
   const [classIcons, setClassIcons] = useState<Record<string, string>>({});
@@ -480,6 +504,65 @@ export function MemberProfileView() {
           </div>
         </div>
 
+        {/* Gear Equipment Row */}
+        {gearSlotDefs.length > 0 && (
+          <div className="mt-3">
+            <div className="flex items-center gap-2 mb-2">
+              <Package className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+              <span className="text-[10px] text-[#71717a] uppercase tracking-wider">Equipment</span>
+              <span className="text-[10px] text-[#52525b]">
+                {gearSlotDefs.filter((s: any) => gearMap[s.name]?.catalog_item_id).length}/{gearSlotDefs.length} equipped
+              </span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {gearSlotDefs.map((slot: any) => {
+                const gear = gearMap[slot.name];
+                const item = gear?.catalog_item_id ? gearItemMap[gear.catalog_item_id] : null;
+                const rarity = item?.rarity?.toLowerCase() || "";
+                const rc: string = ({"legendary":"#f59e0b","epic":"#a855f7","rare":"#3b82f6","uncommon":"#22c55e","common":"#a1a1aa","mythic":"#ef4444"} as any)[rarity] || "#3f3f46";
+                const enh = gear?.enhancement_level || 0;
+                return (
+                  <div
+                    key={slot.name}
+                    className="group relative"
+                    title={item ? `${item.name}${enh > 0 ? ` +${enh}` : ""}` : `${slot.name} — Not Equipped`}
+                  >
+                    <div
+                      className={`w-[68px] rounded-lg flex flex-col items-center justify-center py-1.5 px-1 transition-all duration-200 ${
+                        item
+                          ? "bg-[#09090b] border hover:scale-[1.03] cursor-default"
+                          : "bg-[#09090b] border border-dashed border-[#27272a]"
+                      }`}
+                      style={item ? { borderColor: `${rc}40`, borderWidth: 1, borderStyle: "solid" } : {}}
+                    >
+                      <p className="text-[7px] text-[#52525b] uppercase tracking-wider mb-0.5">{slot.name}</p>
+                      {item ? (
+                        <>
+                          <div className="w-8 h-8 rounded-lg flex items-center justify-center relative" style={{ backgroundColor: `${rc}18` }}>
+                            {item.image_url ? (
+                              <img src={item.image_url} alt="" className="w-6 h-6 rounded object-cover" />
+                            ) : (
+                              <Star className="w-3.5 h-3.5" style={{ color: rc }} />
+                            )}
+                            {enh > 0 && (
+                              <span className="absolute -right-1 -bottom-1 text-[6px] font-black text-white bg-black/60 rounded-full px-1 leading-none py-px">+{enh}</span>
+                            )}
+                          </div>
+                          <p className="text-[7px] font-medium mt-0.5 text-center truncate w-full" style={{ color: rc }}>{item.name.length > 10 ? item.name.slice(0, 9) + "…" : item.name}</p>
+                        </>
+                      ) : (
+                        <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-[#18181b]">
+                          <Shield className="w-3.5 h-3.5 text-[#27272a]" />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {/* CP Trend Sparkline */}
         {cpSparkData.length > 0 && (() => {
           const lastCp = cpSparkData[cpSparkData.length - 1].cp;
@@ -801,9 +884,6 @@ export function MemberProfileView() {
         )}
       </div>
       )}
-
-      {/* ── Gear Planner ── */}
-      <GearPlanner memberId={memberId!} />
 
       {/* ── Notes ── */}
       <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-4 sm:p-5">
