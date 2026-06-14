@@ -830,7 +830,7 @@ export async function handleMessage(msg: any) {
 
   // ── ping (debug) ──
   if (cmd === "ping") {
-    return reply(`🏓 Pong! Server: ${serverId || "not linked"}, Guild: ${guildId}, Prefix: ${matchedPrefix}, Channel: ${channelId}, Bot v0.14.2-debug`);
+    return reply(`🏓 Pong! Server: ${serverId || "not linked"}, Guild: ${guildId}, Prefix: ${matchedPrefix}, Channel: ${channelId}, Bot v0.14.3-debug`);
   }
 
   // ── updatestats <PlayerName> <CP> ──
