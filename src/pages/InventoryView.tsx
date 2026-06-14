@@ -5,6 +5,8 @@ import {
   fetchDistributions, createDistribution, deleteDistribution,
   fetchItemDistributionStats, fetchTopRecipients,
   fetchMembers, isSupabaseConfigured,
+  supabase as supabaseClient,
+  fetchItemCategories, fetchItemRarities,
 } from "@/lib/supabase";
 import { useServerId } from "@/contexts/ServerContext";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
@@ -71,7 +73,31 @@ export function InventoryView() {
   const [newItemImage, setNewItemImage] = useState<File | null>(null);
   const [newItemImagePreview, setNewItemImagePreview] = useState<string | null>(null);
   const [imageDragOver, setImageDragOver] = useState(false);
+  const [newItemCategory, setNewItemCategory] = useState("");
+  const [newItemParent, setNewItemParent] = useState("");
   useEscapeKey(() => { setShowCreateItem(false); resetCreateForm(); }, showCreateItem);
+
+  // Fetch categories & rarities for the create modal
+  const { data: gameCategories = [] } = useQuery({
+    queryKey: ["itemCategories", serverId],
+    queryFn: async () => {
+      if (!serverId) return [];
+      const { data: srv } = await supabaseClient.from("servers").select("game").eq("id", serverId).single();
+      if (!srv?.game) return [];
+      return fetchItemCategories(srv.game).catch(() => []);
+    },
+    enabled: showCreateItem,
+  });
+  const { data: gameRarities = [] } = useQuery({
+    queryKey: ["itemRarities", serverId],
+    queryFn: async () => {
+      if (!serverId) return [];
+      const { data: srv } = await supabaseClient.from("servers").select("game").eq("id", serverId).single();
+      if (!srv?.game) return [];
+      return fetchItemRarities(srv.game).catch(() => []);
+    },
+    enabled: showCreateItem,
+  });
 
   // ── Edit Item Modal ──
   const [editingItem, setEditingItem] = useState<Item | null>(null);
@@ -120,6 +146,8 @@ export function InventoryView() {
     setNewItemRarity("common");
     setNewItemImage(null);
     setNewItemImagePreview(null);
+    setNewItemCategory("");
+    setNewItemParent("");
   };
 
   const handleImageFile = (file: File) => {
@@ -138,24 +166,6 @@ export function InventoryView() {
     reader.readAsDataURL(file);
   };
 
-  const handlePaste = async () => {
-    try {
-      const items = await navigator.clipboard.read();
-      for (const item of items) {
-        for (const type of item.types) {
-          if (type.startsWith("image/")) {
-            const blob = await item.getType(type);
-            const file = new File([blob], `pasted-image.${type.split("/")[1] || "png"}`, { type });
-            handleImageFile(file);
-            return;
-          }
-        }
-      }
-    } catch {
-      // Clipboard API not supported — user can use upload button instead
-    }
-  };
-
   const createItemMutation = useMutation({
     mutationFn: async () => {
       let imageUrl: string | undefined;
@@ -169,6 +179,7 @@ export function InventoryView() {
         description: newItemDesc || undefined,
         rarity: newItemRarity,
         image_url: imageUrl,
+        category_id: newItemCategory || undefined,
       });
     },
     onSuccess: () => {
@@ -672,32 +683,69 @@ export function InventoryView() {
       {showCreateItem && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => { setShowCreateItem(false); resetCreateForm(); }}>
           <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-5 w-full max-w-sm mx-4" onClick={(e) => e.stopPropagation()}
-            onPaste={handlePaste}
+            onPaste={async () => {
+              try {
+                const items = await navigator.clipboard.read();
+                for (const item of items) {
+                  const imageType = item.types.find(t => t.startsWith("image/"));
+                  if (imageType) {
+                    const blob = await item.getType(imageType);
+                    const file = new File([blob], "pasted-image.png", { type: blob.type });
+                    handleImageFile(file);
+                    break;
+                  }
+                }
+              } catch {}
+            }}
           >
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-semibold text-[#fafafa]">Create Item</h3>
+              <h3 className="text-sm font-semibold text-[#fafafa]">Add Item</h3>
               <button onClick={() => { setShowCreateItem(false); resetCreateForm(); }} className="text-[#52525b] hover:text-[#fafafa]"><X className="w-4 h-4" /></button>
             </div>
             <div className="space-y-3">
               <div>
                 <label className="text-[10px] text-[#71717a] uppercase tracking-wider">Name</label>
-                <input
-                  value={newItemName}
-                  onChange={(e) => setNewItemName(e.target.value)}
-                  placeholder="e.g. Dragon Heart"
-                  className="w-full mt-1 px-3 py-2 bg-[#09090b] border border-[#27272a] rounded-lg text-sm text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#52525b]"
-                  autoFocus
-                />
+                <input value={newItemName} onChange={e => setNewItemName(e.target.value)} placeholder="e.g. Dragon Heart" className="w-full mt-1 px-3 py-2 bg-[#09090b] border border-[#27272a] rounded-lg text-sm text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#52525b]" autoFocus />
               </div>
               <div>
                 <label className="text-[10px] text-[#71717a] uppercase tracking-wider">Description (optional)</label>
-                <input
-                  value={newItemDesc}
-                  onChange={(e) => setNewItemDesc(e.target.value)}
-                  placeholder="Brief description"
-                  className="w-full mt-1 px-3 py-2 bg-[#09090b] border border-[#27272a] rounded-lg text-sm text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#52525b]"
-                />
+                <input value={newItemDesc} onChange={e => setNewItemDesc(e.target.value)} placeholder="Brief description" className="w-full mt-1 px-3 py-2 bg-[#09090b] border border-[#27272a] rounded-lg text-sm text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#52525b]" />
               </div>
+
+              {/* Category */}
+              <div>
+                <label className="text-[10px] text-[#71717a] uppercase tracking-wider">Category</label>
+                <select
+                  value={newItemParent}
+                  onChange={e => {
+                    const pid = e.target.value;
+                    setNewItemParent(pid);
+                    const hasSubs = (gameCategories as any[]).some((c: any) => c.parent_id === pid);
+                    setNewItemCategory(pid && !hasSubs ? pid : "");
+                  }}
+                  className="w-full mt-1 px-3 py-2 bg-[#09090b] border border-[#27272a] rounded-lg text-sm text-[#fafafa] focus:outline-none focus:border-[#52525b]"
+                >
+                  <option value="">None</option>
+                  {(gameCategories as any[]).filter((c: any) => !c.parent_id).map((cat: any) => (
+                    <option key={cat.id} value={cat.id}>{cat.name}</option>
+                  ))}
+                </select>
+              </div>
+              {newItemParent && (gameCategories as any[]).some((c: any) => c.parent_id === newItemParent) && (
+                <div>
+                  <label className="text-[10px] text-[#71717a] uppercase tracking-wider">Subcategory</label>
+                  <select
+                    value={newItemCategory}
+                    onChange={e => setNewItemCategory(e.target.value || "")}
+                    className="w-full mt-1 px-3 py-2 bg-[#09090b] border border-[#27272a] rounded-lg text-sm text-[#fafafa] focus:outline-none focus:border-[#52525b]"
+                  >
+                    <option value="">-- Select --</option>
+                    {(gameCategories as any[]).filter((c: any) => c.parent_id === newItemParent).map((sub: any) => (
+                      <option key={sub.id} value={sub.id}>{sub.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               {/* Image Upload */}
               <div>
@@ -705,65 +753,70 @@ export function InventoryView() {
                 {newItemImagePreview ? (
                   <div className="mt-1 relative rounded-lg overflow-hidden bg-[#09090b] border border-[#27272a]">
                     <img src={newItemImagePreview} alt="Preview" className="w-full h-32 object-contain" />
-                    <button
-                      onClick={() => { setNewItemImage(null); setNewItemImagePreview(null); }}
-                      className="absolute top-1 right-1 p-1 rounded-full bg-black/60 text-[#fafafa] hover:bg-black/80 transition"
-                    >
+                    <button onClick={() => { setNewItemImage(null); setNewItemImagePreview(null); }} className="absolute top-1 right-1 p-1 rounded-full bg-black/60 text-[#fafafa] hover:bg-black/80 transition">
                       <X className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 ) : (
                   <div
-                    className={`mt-1 border-2 border-dashed rounded-lg p-4 text-center transition cursor-pointer ${
-                      imageDragOver ? "border-[#52525b] bg-[#27272a]/50" : "border-[#27272a] hover:border-[#3f3f46]"
-                    }`}
-                    onDragOver={(e) => { e.preventDefault(); setImageDragOver(true); }}
+                    className={`mt-1 border-2 border-dashed rounded-lg p-4 text-center transition cursor-pointer ${imageDragOver ? "border-[#52525b] bg-[#27272a]/50" : "border-[#27272a] hover:border-[#3f3f46]"}`}
+                    onDragOver={e => { e.preventDefault(); setImageDragOver(true); }}
                     onDragLeave={() => setImageDragOver(false)}
-                    onDrop={(e) => {
+                    onDrop={e => {
                       e.preventDefault();
                       setImageDragOver(false);
-                      const file = e.dataTransfer.files[0];
-                      if (file) handleImageFile(file);
+                      const f = e.dataTransfer.files[0];
+                      if (f) handleImageFile(f);
                     }}
                     onClick={() => document.getElementById("item-image-upload")?.click()}
                   >
                     <Upload className="w-5 h-5 text-[#52525b] mx-auto mb-1" />
-                    <p className="text-[10px] text-[#52525b]">
-                      <span className="text-[#71717a] font-medium">Click to upload</span> or drag & drop
-                    </p>
+                    <p className="text-[10px] text-[#52525b]"><span className="text-[#71717a] font-medium">Click to upload</span> or drag &amp; drop</p>
                     <p className="text-[9px] text-[#52525b]/50 mt-0.5">or <kbd className="px-1 py-0.5 rounded bg-[#27272a] text-[#71717a] text-[9px]">Ctrl+V</kbd> paste from clipboard</p>
                   </div>
                 )}
-                <input
-                  id="item-image-upload"
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) handleImageFile(file);
-                    e.target.value = "";
-                  }}
-                />
+                <input id="item-image-upload" type="file" accept="image/*" className="hidden" onChange={e => {
+                  const f = e.target.files?.[0];
+                  if (f) handleImageFile(f);
+                  e.target.value = "";
+                }} />
               </div>
 
+              {/* Rarity */}
               <div>
                 <label className="text-[10px] text-[#71717a] uppercase tracking-wider">Rarity</label>
                 <div className="flex gap-1.5 mt-1">
-                  {RARITY_ORDER.map(r => (
-                    <button
-                      key={r}
-                      onClick={() => setNewItemRarity(r)}
-                      className="flex-1 py-1.5 rounded-md text-[10px] font-medium capitalize transition border"
-                      style={{
-                        borderColor: newItemRarity === r ? RARITY_COLORS[r] : "#27272a",
-                        color: newItemRarity === r ? RARITY_COLORS[r] : "#52525b",
-                        backgroundColor: newItemRarity === r ? `${RARITY_COLORS[r]}15` : "transparent",
-                      }}
-                    >
-                      {r}
-                    </button>
-                  ))}
+                  {(gameRarities as any[]).length > 0 ? (
+                    (gameRarities as any[]).sort((a: any, b: any) => a.sort_order - b.sort_order).map((r: any) => (
+                      <button
+                        key={r.id}
+                        onClick={() => setNewItemRarity(r.name as ItemRarity)}
+                        className="flex-1 py-1.5 rounded-md text-[10px] font-medium capitalize transition border"
+                        style={{
+                          borderColor: newItemRarity === r.name ? r.color : "#27272a",
+                          color: newItemRarity === r.name ? r.color : "#52525b",
+                          backgroundColor: newItemRarity === r.name ? r.color + "15" : "transparent",
+                        }}
+                      >
+                        {r.name}
+                      </button>
+                    ))
+                  ) : (
+                    RARITY_ORDER.map(r => (
+                      <button
+                        key={r}
+                        onClick={() => setNewItemRarity(r)}
+                        className="flex-1 py-1.5 rounded-md text-[10px] font-medium capitalize transition border"
+                        style={{
+                          borderColor: newItemRarity === r ? RARITY_COLORS[r] : "#27272a",
+                          color: newItemRarity === r ? RARITY_COLORS[r] : "#52525b",
+                          backgroundColor: newItemRarity === r ? `${RARITY_COLORS[r]}15` : "transparent",
+                        }}
+                      >
+                        {r}
+                      </button>
+                    ))
+                  )}
                 </div>
               </div>
               <button
@@ -771,7 +824,7 @@ export function InventoryView() {
                 disabled={!newItemName.trim() || createItemMutation.isPending}
                 className="w-full py-2 bg-[#fafafa] text-[#09090b] rounded-lg text-sm font-medium hover:bg-[#e4e4e7] transition disabled:opacity-50"
               >
-                {createItemMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : "Create Item"}
+                {createItemMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : "Add Item"}
               </button>
             </div>
           </div>

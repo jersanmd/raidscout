@@ -475,6 +475,7 @@ export async function createItem(item: {
   image_url?: string;
   description?: string;
   rarity?: ItemRarity;
+  category_id?: string;
 }): Promise<Item> {
   const { data: userData } = await supabase.auth.getUser();
   const username = userData.user?.email?.split("@")[0] || userData.user?.id?.slice(0, 8) || "unknown";
@@ -505,6 +506,7 @@ export async function createItem(item: {
       image_url: item.image_url || null,
       description: item.description || null,
       rarity: item.rarity || "common",
+      category_id: item.category_id || null,
       created_by: userData.user?.id,
       created_by_username: username,
       status: isAdmin ? "approved" : "pending",
