@@ -528,7 +528,7 @@ export function MemberProfileView() {
                     title={item ? `${item.name}${enh > 0 ? ` +${enh}` : ""}` : `${slot.name} — Not Equipped`}
                   >
                     <div
-                      className={`min-w-[110px] rounded-lg flex flex-col items-center justify-center py-2.5 px-1.5 transition-all duration-200 ${
+                      className={`min-w-[110px] rounded-lg flex flex-col items-center justify-center py-1 px-0.5 transition-all duration-200 ${
                         item
                           ? "hover:scale-[1.03] cursor-default"
                           : "border border-dashed border-[#27272a]"
