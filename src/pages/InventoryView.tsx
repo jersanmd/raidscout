@@ -565,7 +565,7 @@ export function InventoryView() {
 
       {/* ── History Tab ── */}
       {tab === "history" && (
-        <div className="space-y-4">
+        <div className="space-y-6">
           {/* Search + Rarity Filters */}
           <div className="space-y-3">
             <div className="relative">
@@ -676,6 +676,7 @@ export function InventoryView() {
               </div>
             ))
           )}
+        </div>
         </div>
       )}
 
