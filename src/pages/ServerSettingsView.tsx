@@ -2230,10 +2230,10 @@ export function ServerSettingsView() {
                                   const vals = editLinkValues;
                                   await supabase.from("discord_configs").update({
                                     discord_guild_id: vals.discord_guild_id.trim(),
-                                    label: vals.label.trim() || null,
+                                    label: vals.label.trim() || undefined,
                                     command_prefix: vals.command_prefix,
                                   }).eq("id", link.id);
-                                  setDiscordLinks(prev => prev.map(d => d.id === link.id ? { ...d, discord_guild_id: vals.discord_guild_id.trim(), label: vals.label.trim() || null, command_prefix: vals.command_prefix } : d));
+                                  setDiscordLinks(prev => prev.map(d => d.id === link.id ? { ...d, discord_guild_id: vals.discord_guild_id.trim(), label: vals.label.trim() || undefined, command_prefix: vals.command_prefix } : d));
                                   setEditingLinkId(null);
                                 }}
                                 className="text-xs px-2 py-1 rounded bg-green-600 text-[#fafafa] hover:bg-green-500 transition font-medium flex items-center gap-1"
