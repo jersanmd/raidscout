@@ -310,6 +310,9 @@ export function InventoryView() {
   const prevSearchRef = useRef(itemSearch);
   const [rarityFilter, setRarityFilter] = useState<string | null>(null);
 
+  const [histSearch, setHistSearch] = useState("");
+  const [histRarityFilter, setHistRarityFilter] = useState<string | null>(null);
+
   // Lazy-loading state for catalog
   const [catalogItems, setCatalogItems] = useState<Item[]>([]);
   const [catalogTotal, setCatalogTotal] = useState(0);
@@ -376,7 +379,19 @@ export function InventoryView() {
     new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
 
   // Group distributions by date for history view
-  const groupedDistributions = distributions.reduce<Record<string, Distribution[]>>((acc, d) => {
+  const groupedDistributions = distributions
+    .filter(d => {
+      if (histSearch || histRarityFilter) {
+        const item = items.find(i => i.id === d.item_id);
+        if (histSearch) {
+          const q = histSearch.toLowerCase();
+          if (!item?.name.toLowerCase().includes(q) && !d.player_name.toLowerCase().includes(q)) return false;
+        }
+        if (histRarityFilter && item?.rarity?.toLowerCase() !== histRarityFilter) return false;
+      }
+      return true;
+    })
+    .reduce<Record<string, Distribution[]>>((acc, d) => {
     const date = new Date(d.distributed_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
     if (!acc[date]) acc[date] = [];
     acc[date].push(d);
@@ -550,7 +565,49 @@ export function InventoryView() {
 
       {/* ── History Tab ── */}
       {tab === "history" && (
-        <div className="space-y-6">
+        <div className="space-y-4">
+          {/* Search + Rarity Filters */}
+          <div className="space-y-3">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#52525b]" />
+              <input
+                value={histSearch}
+                onChange={(e) => setHistSearch(e.target.value)}
+                placeholder="Search by item or player name..."
+                className="w-full pl-9 pr-3 py-2.5 bg-[#18181b] border border-[#27272a] rounded-xl text-sm text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#52525b]"
+              />
+            </div>
+            {availableRarities.length > 0 && (
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <button
+                  onClick={() => setHistRarityFilter(null)}
+                  className={`px-2.5 py-1 rounded-md text-[10px] font-medium transition ${
+                    !histRarityFilter ? "bg-[#fafafa] text-[#09090b]" : "bg-[#27272a] text-[#a1a1aa] hover:text-[#e4e4e7]"
+                  }`}
+                >
+                  All
+                </button>
+                {availableRarities.map(r => {
+                  const color = RARITY_COLORS[r as ItemRarity] || "#71717a";
+                  return (
+                    <button
+                      key={r}
+                      onClick={() => setHistRarityFilter(histRarityFilter === r ? null : r)}
+                      className="px-2.5 py-1 rounded-md text-[10px] font-medium capitalize transition"
+                      style={{
+                        backgroundColor: histRarityFilter === r ? `${color}20` : "#27272a",
+                        color: histRarityFilter === r ? color : "#a1a1aa",
+                        border: `1px solid ${histRarityFilter === r ? `${color}40` : "transparent"}`,
+                      }}
+                    >
+                      {r}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+          <div className="space-y-4">
           {distLoading ? (
             <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 text-[#71717a] animate-spin" /></div>
           ) : Object.keys(groupedDistributions).length === 0 ? (
