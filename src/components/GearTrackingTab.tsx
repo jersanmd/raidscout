@@ -453,7 +453,7 @@ export function GearTrackingTab() {
                       <Star className="w-5 h-5" style={{ color: rarityColor }} />
                     )}
                     {enh > 0 && (
-                      <span className="absolute right-0 bottom-1.5 text-[9px] font-black text-white bg-gradient-to-t from-black/20 to-transparent rounded-bl-lg rounded-tr-lg pl-1.5 pr-1 pt-1 pb-0.5 leading-none drop-shadow-[0_1px_1px_rgba(0,0,0,0.5)]">+{enh}</span>
+                      <span className="absolute right-0 bottom-1.5 text-[9px] font-black text-amber-400 bg-gradient-to-t from-black/20 to-transparent rounded-bl-lg rounded-tr-lg pl-1.5 pr-1 pt-1 pb-0.5 leading-none drop-shadow-[0_1px_1px_rgba(0,0,0,0.5)]">+{enh}</span>
                     )}
                   </div>
                 </div>
@@ -611,7 +611,7 @@ export function GearTrackingTab() {
                               ) : (
                                 <Star className="w-6 h-6" style={{ color: rc }} />
                               )}
-                              <span className="absolute right-0 bottom-2 text-[10px] font-black text-white bg-gradient-to-t from-black/20 to-transparent rounded-bl-lg rounded-tr-lg pl-1.5 pr-1 pt-1 pb-0.5 leading-none drop-shadow-[0_1px_1px_rgba(0,0,0,0.5)]">+{currentEnh}</span>
+                              <span className="absolute right-0 bottom-2 text-[10px] font-black text-amber-400 bg-gradient-to-t from-black/20 to-transparent rounded-bl-lg rounded-tr-lg pl-1.5 pr-1 pt-1 pb-0.5 leading-none drop-shadow-[0_1px_1px_rgba(0,0,0,0.5)]">+{currentEnh}</span>
                             </div>
                             <div className="min-w-0">
                               <p className="text-xs font-medium truncate" style={{ color: rc }}>{currentItem.name}</p>
