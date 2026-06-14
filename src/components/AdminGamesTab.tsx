@@ -65,6 +65,7 @@ export function AdminGamesTab() {
   const [itemTotal, setItemTotal] = useState<Record<string, number>>({});
   const [itemLoadedGames, setItemLoadedGames] = useState<Set<string>>(new Set());
   const [loadingMoreItems, setLoadingMoreItems] = useState(false);
+  const [pendingCounts, setPendingCounts] = useState<Record<string, number>>({});
   const ITEMS_PER_PAGE = 50;
   const [itemSearch, setItemSearch] = useState("");
   const [showAddItem, setShowAddItem] = useState(false);
@@ -130,6 +131,12 @@ export function AdminGamesTab() {
           });
         setLoadingTemplates(false);
       });
+      // Fetch pending item count for the review tab
+      if (gameSlug) {
+        fetchPendingItems(gameSlug)
+          .then(items => setPendingCounts(p => ({ ...p, [expandedGame]: items.length })))
+          .catch(() => {});
+      }
     } else {
       // Clear item loaded state when no game is expanded
       setItemLoadedGames(new Set());
@@ -362,13 +369,14 @@ export function AdminGamesTab() {
                       {TABS.map(t => {
                         const isActive = expandedTab === t.key;
                         const Icon = t.icon;
-                        const counts: Record<string, number> = {
+                          const counts: Record<string, number> = {
                           bosses: bossTemplates[game.id]?.length || 0,
                           activities: activityTemplates[game.id]?.length || 0,
                           categories: categories[game.id]?.length || 0,
                           rarities: rarities[game.id]?.length || 0,
-                          items: itemCatalog[game.id]?.length || 0,
+                          items: itemTotal[game.id] || 0,
                           gear: gearSlots[game.id]?.length || 0,
+                          review: pendingCounts[game.id] || 0,
                         };
                         return (
                           <button key={t.key} onClick={() => setExpandedTab(t.key)}
@@ -583,7 +591,7 @@ export function AdminGamesTab() {
 
                       {/* === ITEM REVIEW TAB === */}
                       {expandedTab === "review" && (
-                        <ItemReviewTab gameSlug={game.slug || ""} />
+                        <ItemReviewTab gameSlug={game.slug || ""} onCountChange={(count) => setPendingCounts(p => ({ ...p, [game.id]: count }))} />
                       )}
 
                     </div>

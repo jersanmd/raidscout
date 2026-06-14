@@ -14,25 +14,34 @@ type PendingItem = {
   created_at: string;
 };
 
-export function ItemReviewTab({ gameSlug }: { gameSlug: string }) {
+export function ItemReviewTab({ gameSlug, onCountChange }: { gameSlug: string; onCountChange?: (count: number) => void }) {
   const [items, setItems] = useState<PendingItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState<Set<string>>(new Set());
 
-  useEffect(() => {
+  const loadItems = () => {
     if (!gameSlug) return;
     setLoading(true);
     fetchPendingItems(gameSlug)
-      .then(setItems)
-      .catch(() => setItems([]))
+      .then(data => {
+        setItems(data);
+        onCountChange?.(data.length);
+      })
+      .catch(() => { setItems([]); onCountChange?.(0); })
       .finally(() => setLoading(false));
-  }, [gameSlug]);
+  };
+
+  useEffect(() => {
+    loadItems();
+  }, [gameSlug]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleApprove = async (id: string) => {
     setProcessing(prev => new Set(prev).add(id));
     try {
       await approveItem(id);
-      setItems(prev => prev.filter(i => i.id !== id));
+      const remaining = items.filter(i => i.id !== id);
+      setItems(remaining);
+      onCountChange?.(remaining.length);
     } catch (err) {
       console.error("Failed to approve item:", err);
     } finally {
@@ -44,7 +53,9 @@ export function ItemReviewTab({ gameSlug }: { gameSlug: string }) {
     setProcessing(prev => new Set(prev).add(id));
     try {
       await rejectItem(id);
-      setItems(prev => prev.filter(i => i.id !== id));
+      const remaining = items.filter(i => i.id !== id);
+      setItems(remaining);
+      onCountChange?.(remaining.length);
     } catch (err) {
       console.error("Failed to reject item:", err);
     } finally {
@@ -58,6 +69,7 @@ export function ItemReviewTab({ gameSlug }: { gameSlug: string }) {
       try { await approveItem(item.id); } catch {}
     }
     setItems([]);
+    onCountChange?.(0);
     setProcessing(new Set());
   };
 
