@@ -3,7 +3,7 @@ import { useBossSpawns } from "@/hooks/useBossSpawns";
 import { useTimer } from "@/hooks/useTimer";
 import { CountdownTimer } from "./CountdownTimer";
 import { BossImage } from "./BossImage";
-import { Clock } from "lucide-react";
+import { Clock, Shield } from "lucide-react";
 import { guildColor } from "@/lib/constants";
 import type { BossWithSpawn } from "@/types";
 
@@ -107,7 +107,8 @@ function UpcomingSlot({
             {spawn.boss.name}
           </span>
           {guildName && (() => { const c = guildColor(guildName); return (
-            <span className={`text-[11px] font-medium shrink-0 ${c.text}`}>
+            <span className={`flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded border shrink-0 ${c.bg} ${c.text} ${c.border}`}>
+              <Shield className="w-2.5 h-2.5" />
               {guildName}
             </span>
           ); })()}
