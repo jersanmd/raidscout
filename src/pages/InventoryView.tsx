@@ -468,6 +468,9 @@ export function InventoryView() {
                         {item.rarity}
                         {isCatalog && <span className="ml-1 text-[#8b5cf6]/70 font-normal normal-case tracking-normal">· catalog</span>}
                       </span>
+                      {!isCatalog && item.created_by_username && (
+                        <span className="text-[9px] text-[#52525b] truncate">by {item.created_by_username}</span>
+                      )}
                       {item.status === "pending" && (
                         <span className="text-[9px] px-1.5 py-0.5 rounded font-medium bg-amber-500/15 text-amber-400 border border-amber-500/30">
                           Pending
