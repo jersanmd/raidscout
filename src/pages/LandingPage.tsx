@@ -6,7 +6,7 @@ import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { SEOHead } from "@/components/SEOHead";
 import { version } from "../../package.json";
 import {
-  Timer, Shield, BarChart3, Sparkles, MessageSquare, Calendar, Skull, Eye, Trophy, Server, Clock, Lock, Image,
+  Timer, Shield, BarChart3, Sparkles, MessageSquare, Calendar, Skull, Eye, Trophy, Server, Clock, Lock, Image, Package,
   LogIn, UserPlus, Mail, CheckCircle, AlertTriangle, Key, ChevronDown, Bot,
   Crosshair, Radio, Activity, Wifi, Copy, Terminal, Check, Hash, AtSign, Play, X, Gamepad2, Globe, EyeOff
 } from "lucide-react";
