@@ -514,7 +514,7 @@ export function MemberProfileView() {
                 {gearSlotDefs.filter((s: any) => gearMap[s.name]?.catalog_item_id).length}/{gearSlotDefs.length} equipped
               </span>
             </div>
-            <div className="flex flex-wrap gap-2">
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(84px,1fr))] gap-1.5">
               {gearSlotDefs.map((slot: any) => {
                 const gear = gearMap[slot.name];
                 const item = gear?.catalog_item_id ? gearItemMap[gear.catalog_item_id] : null;
@@ -528,7 +528,7 @@ export function MemberProfileView() {
                     title={item ? `${item.name}${enh > 0 ? ` +${enh}` : ""}` : `${slot.name} — Not Equipped`}
                   >
                     <div
-                      className={`w-[80px] rounded-lg flex flex-col items-center justify-center py-1.5 px-1 transition-all duration-200 ${
+                      className={`w-[84px] rounded-lg flex flex-col items-center justify-center py-1.5 px-1 transition-all duration-200 ${
                         item
                           ? "hover:scale-[1.03] cursor-default"
                           : "border border-dashed border-[#27272a]"
