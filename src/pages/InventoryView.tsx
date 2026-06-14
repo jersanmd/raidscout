@@ -459,7 +459,7 @@ export function InventoryView() {
 
                   {/* Name + Rarity */}
                   <div className="min-w-0 flex-1">
-                    <p className="text-[13px] font-medium text-[#fafafa] truncate leading-tight">{item.name}</p>
+                    <p className="text-[13px] font-medium truncate leading-tight" style={{ color: rarityColor }}>{item.name}</p>
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <span
                         className="text-[10px] font-semibold uppercase tracking-wider"
