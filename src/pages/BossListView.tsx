@@ -383,9 +383,9 @@ export function BossListView() {
 
           await queryClient.refetchQueries({ queryKey: ["death_records"] });
           debouncedInvalidateLeaderboard();
-        } catch (err) {
+        } catch (err: any) {
           console.error("Failed to record death:", err);
-          setToast({ type: "error", message: "Failed to save death record. Check the console for details." });
+          setToast({ type: "error", message: err?.message || err?.details || "Failed to save death record. Check the console for details." });
         }
       } else {
         setToast({ type: "error", message: "Supabase not configured. Cannot record death." });

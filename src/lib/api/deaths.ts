@@ -35,7 +35,17 @@ export async function insertDeathRecord(
       })
       .select()
       .single();
-    if (error) throw error;
+    if (error) {
+      console.error("[insertDeathRecord] Supabase error:", {
+        code: (error as any).code,
+        message: error.message,
+        details: (error as any).details,
+        hint: (error as any).hint,
+        bossId,
+        serverId: sid,
+      });
+      throw error;
+    }
     return data as DeathRecord;
   }
 
