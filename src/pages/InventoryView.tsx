@@ -6,15 +6,16 @@ import {
   fetchItemDistributionStats, fetchTopRecipients,
   fetchMembers, isSupabaseConfigured,
   supabase as supabaseClient,
-  fetchItemCategories, fetchItemRarities,
+  fetchItemCategories, fetchItemRarities, fetchGuilds,
 } from "@/lib/supabase";
 import { useServerId } from "@/contexts/ServerContext";
 import { useToast } from "@/contexts/ToastContext";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
+import { guildColor } from "@/lib/constants";
 import type { Item, Distribution, ItemRarity } from "@/types";
 import {
   Package, Plus, Trash2, Loader2, Search, Gift, History, BarChart3,
-  X, ChevronRight, ArrowLeft, Image, Star, Upload, Minus, Pencil,
+  X, ChevronRight, ArrowLeft, Image, Star, Upload, Minus, Pencil, Box,
   Sword, Shield, Wand, Skull, Flame, Sparkles, Zap, Heart, Eye, Anchor, Footprints, Swords, Crosshair, Bone,
 } from "lucide-react";
 
@@ -72,6 +73,12 @@ export function InventoryView() {
     enabled: configured,
   });
 
+  const { data: guilds = [] } = useQuery({
+    queryKey: ["guilds", serverId],
+    queryFn: () => fetchGuilds(serverId),
+    enabled: configured,
+  });
+
   const { data: distributions = [], isLoading: distLoading } = useQuery({
     queryKey: ["distributions", serverId],
     queryFn: () => fetchDistributions(serverId),
@@ -110,7 +117,7 @@ export function InventoryView() {
       });
   }, [serverId]);
 
-  // ── Create Item Modal ──
+  // â”€â”€ Create Item Modal â”€â”€
   const [showCreateItem, setShowCreateItem] = useState(false);
   const [newItemName, setNewItemName] = useState("");
   const [newItemDesc, setNewItemDesc] = useState("");
@@ -131,7 +138,7 @@ export function InventoryView() {
       if (!srv?.game) return [];
       return fetchItemCategories(srv.game).catch(() => []);
     },
-    enabled: showCreateItem,
+    enabled: showCreateItem || tab === "analytics",
   });
   const { data: gameRarities = [] } = useQuery({
     queryKey: ["itemRarities", serverId],
@@ -144,7 +151,7 @@ export function InventoryView() {
     enabled: showCreateItem,
   });
 
-  // ── Edit Item Modal ──
+  // â”€â”€ Edit Item Modal â”€â”€
   const [editingItem, setEditingItem] = useState<Item | null>(null);
   const [editName, setEditName] = useState("");
   const [editDesc, setEditDesc] = useState("");
@@ -243,7 +250,7 @@ export function InventoryView() {
     },
   });
 
-  // ── Distribute Modal ──
+  // â”€â”€ Distribute Modal â”€â”€
   const [showDistribute, setShowDistribute] = useState(false);
   const [distItemId, setDistItemId] = useState("");
   const [distMemberId, setDistMemberId] = useState("");
@@ -312,6 +319,16 @@ export function InventoryView() {
 
   const [histSearch, setHistSearch] = useState("");
   const [histRarityFilter, setHistRarityFilter] = useState<string | null>(null);
+
+  // Analytics: selected recipient for detail modal
+  const [selectedRecipient, setSelectedRecipient] = useState<{ member_id: string; player_name: string } | null>(null);
+
+  // Analytics: selected item for recipients modal
+  const [selectedDistItem, setSelectedDistItem] = useState<{ item_id: string; item_name: string } | null>(null);
+
+  // Analytics: search filters
+  const [analyticsItemSearch, setAnalyticsItemSearch] = useState("");
+  const [analyticsRecipientSearch, setAnalyticsRecipientSearch] = useState("");
 
   // Lazy-loading state for catalog
   const [catalogItems, setCatalogItems] = useState<Item[]>([]);
@@ -429,7 +446,7 @@ export function InventoryView() {
         ))}
       </div>
 
-      {/* ── Catalog Tab ── */}
+      {/* â”€â”€ Catalog Tab â”€â”€ */}
       {tab === "catalog" && (
         <div className="space-y-4">
           {/* Search + Rarity Filters */}
@@ -524,7 +541,7 @@ export function InventoryView() {
                         style={{ color: rarityColor }}
                       >
                         {item.rarity}
-                        {isCatalog && <span className="ml-1 text-[#8b5cf6]/70 font-normal normal-case tracking-normal">· catalog</span>}
+                        {isCatalog && <span className="ml-1 text-[#8b5cf6]/70 font-normal normal-case tracking-normal">{"\u00B7"} catalog</span>}
                       </span>
                       {!isCatalog && item.created_by_username && (
                         <span className="text-[9px] text-[#52525b] truncate">by {item.created_by_username}</span>
@@ -563,7 +580,7 @@ export function InventoryView() {
         </div>
       )}
 
-      {/* ── History Tab ── */}
+      {/* â”€â”€ History Tab â”€â”€ */}
       {tab === "history" && (
         <div className="space-y-6">
           {/* Search + Rarity Filters */}
@@ -642,10 +659,10 @@ export function InventoryView() {
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2">
                             <p className="text-sm font-medium truncate" style={{ color: rc }}>{item?.name ?? "Unknown Item"}</p>
-                            <span className="text-[11px] text-[#52525b] font-mono shrink-0">×{d.quantity}</span>
+                            <span className="text-[11px] text-[#52525b] font-mono shrink-0">x{d.quantity}</span>
                           </div>
                           <div className="flex items-center gap-1.5 mt-0.5">
-                            <span className="text-[11px] text-[#71717a]">→</span>
+                            <span className="text-[11px] text-[#71717a]">â†’</span>
                             {(() => {
                               const m = members.find(m => m.name === d.player_name);
                               const cc = (m?.class && classColors[m.class]) || "#a1a1aa";
@@ -658,7 +675,7 @@ export function InventoryView() {
                               );
                             })()}
                             {d.reason && (
-                              <span className="text-[10px] text-[#52525b] truncate">· {d.reason}</span>
+                              <span className="text-[10px] text-[#52525b] truncate">{"\u00B7"} {d.reason}</span>
                             )}
                           </div>
                         </div>
@@ -680,47 +697,109 @@ export function InventoryView() {
         </div>
       )}
 
-      {/* ── Analytics Tab ── */}
+      {/* â”€â”€ Analytics Tab â”€â”€ */}
       {tab === "analytics" && (
         <div className="space-y-4">
-          {/* Summary cards */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-3.5">
-              <p className="text-[10px] text-[#71717a] uppercase tracking-wider">Total Gifts</p>
-              <p className="text-xl font-bold text-[#fafafa] mt-1 font-mono tabular-nums">{distributions.length}</p>
-            </div>
-            <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-3.5">
-              <p className="text-[10px] text-[#71717a] uppercase tracking-wider">Unique Items</p>
-              <p className="text-xl font-bold text-[#fafafa] mt-1 font-mono tabular-nums">{itemStats.length}</p>
-            </div>
-            <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-3.5">
-              <p className="text-[10px] text-[#71717a] uppercase tracking-wider">Recipients</p>
-              <p className="text-xl font-bold text-[#fafafa] mt-1 font-mono tabular-nums">{topRecipients.length}</p>
-            </div>
-            <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-3.5">
-              <p className="text-[10px] text-[#71717a] uppercase tracking-wider">Total Quantity</p>
-              <p className="text-xl font-bold text-[#fafafa] mt-1 font-mono tabular-nums">{itemStats.reduce((s, x) => s + (x.total_quantity || 0), 0)}</p>
-            </div>
+          {/* Category Distribution Chart */}
+          <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-4">
+            <h3 className="text-sm font-semibold text-[#fafafa] mb-4 flex items-center gap-2">
+              <BarChart3 className="w-4 h-4 text-[#a1a1aa]" />
+              Items by Category
+            </h3>
+            {(() => {
+              // Group by category, tracking rarity breakdown
+              const catMap = new Map<string, { name: string; rarities: Record<string, number>; total: number }>();
+              distributions.forEach(d => {
+                const item = items.find(i => i.id === d.item_id);
+                const rarity = (item?.rarity?.toLowerCase() || "common") as ItemRarity;
+                const catId = item?.category_id;
+                let label: string;
+                if (catId) {
+                  const cat = (gameCategories as any[]).find((c: any) => c.id === catId);
+                  label = cat ? (cat.parent_id ? `${(gameCategories as any[]).find((p: any) => p.id === cat.parent_id)?.name ?? ""} / ${cat.name}` : cat.name) : "Unknown";
+                } else {
+                  label = "Uncategorized";
+                }
+                let entry = catMap.get(label);
+                if (!entry) { entry = { name: label, rarities: {}, total: 0 }; catMap.set(label, entry); }
+                entry.rarities[rarity] = (entry.rarities[rarity] || 0) + d.quantity;
+                entry.total += d.quantity;
+              });
+              const catBars = Array.from(catMap.values()).sort((a, b) => b.total - a.total);
+              const globalMax = catBars[0]?.total || 1;
+              return catBars.length === 0 ? (
+                <p className="text-sm text-[#52525b] text-center py-8">No data yet.</p>
+              ) : (
+                <div className="space-y-2.5">
+                  {catBars.map(cat => {
+                    const pct = Math.max(4, (cat.total / globalMax) * 100);
+                    // Build sorted rarity segments (highest rarity first for visual)
+                    const segments = RARITY_ORDER
+                      .filter(r => cat.rarities[r])
+                      .map(r => ({ rarity: r, count: cat.rarities[r], color: RARITY_COLORS[r] }));
+                    return (
+                      <div key={cat.name} className="flex items-center gap-3">
+                        <p className="text-xs text-[#fafafa] w-32 shrink-0 truncate">{cat.name}</p>
+                        <div className="flex-1 min-w-0">
+                          <div className="h-6 bg-[#09090b] rounded-full overflow-hidden flex">
+                            {segments.map((seg, j) => {
+                              const segPct = (seg.count / cat.total) * pct;
+                              const showLabel = segPct > 8;
+                              return (
+                                <div key={seg.rarity} className="h-full transition-all flex items-center justify-center" style={{ width: `${segPct}%`, backgroundColor: seg.color + "30" }}>
+                                  {showLabel && (
+                                    <span className="text-[10px] font-medium capitalize truncate px-1" style={{ color: seg.color }}>
+                                      {seg.rarity} ({seg.count})
+                                    </span>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                        <span className="text-[10px] font-mono font-semibold text-[#a1a1aa] w-8 text-right shrink-0">{cat.total}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {/* Top Items */}
             <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-4">
-              <h3 className="text-sm font-semibold text-[#fafafa] mb-4 flex items-center gap-2">
-                <Package className="w-4 h-4 text-[#a1a1aa]" />
-                Most Distributed Items
-              </h3>
-              {itemStats.length === 0 ? (
-                <p className="text-sm text-[#52525b] text-center py-8">No data yet.</p>
-              ) : (
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-semibold text-[#fafafa] flex items-center gap-2">
+                  <Package className="w-4 h-4 text-[#a1a1aa]" />
+                  Most Distributed Items
+                </h3>
+                <div className="relative">
+                  <Search className="w-3 h-3 text-[#52525b] absolute left-2 top-1/2 -translate-y-1/2" />
+                  <input
+                    value={analyticsItemSearch}
+                    onChange={(e) => setAnalyticsItemSearch(e.target.value)}
+                    placeholder="Search..."
+                    className="w-28 pl-6 pr-2 py-1 text-[11px] bg-[#09090b] border border-[#27272a] rounded-lg text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#3f3f46]"
+                  />
+                </div>
+              </div>
+              {(() => {
+                const list = analyticsItemSearch
+                  ? itemStats.filter(s => s.item_name.toLowerCase().includes(analyticsItemSearch.toLowerCase()))
+                  : itemStats;
+                if (list.length === 0) {
+                  return <p className="text-sm text-[#52525b] text-center py-8">{analyticsItemSearch ? "No items match." : "No data yet."}</p>;
+                }
+                const maxQty = list[0]?.total_quantity || 1;
+                return (
                 <div className="space-y-1">
-                  {itemStats.map((stat, i) => {
+                  {list.map((stat, i) => {
                     const item = items.find(x => x.id === stat.item_id);
                     const rc = item ? RARITY_COLORS[item.rarity?.toLowerCase() as ItemRarity] || "#a1a1aa" : "#71717a";
-                    const maxQty = itemStats[0]?.total_quantity || 1;
                     const pct = Math.max(4, (stat.total_quantity / maxQty) * 100);
                     return (
-                      <div key={stat.item_id} className="flex items-center gap-3 py-1.5 group">
+                      <button key={stat.item_id} onClick={() => setSelectedDistItem({ item_id: stat.item_id, item_name: stat.item_name })} className="w-full flex items-center gap-3 py-1.5 group hover:bg-[#27272a]/30 rounded px-1 -mx-1 transition text-left">
                         <span className="text-[10px] font-mono text-[#3f3f46] w-4 shrink-0 text-right">{i + 1}</span>
                         <div className="w-7 h-7 rounded flex items-center justify-center shrink-0" style={{ backgroundColor: `${rc}18` }}>
                           {item?.image_url ? (
@@ -731,35 +810,55 @@ export function InventoryView() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between mb-0.5">
-                            <p className="text-xs text-[#fafafa] truncate">{stat.item_name}</p>
-                            <span className="text-xs font-mono font-semibold text-[#a1a1aa] shrink-0 ml-2">×{stat.total_quantity}</span>
+                            <p className="text-xs truncate" style={{ color: rc }}>{stat.item_name}</p>
+                            <span className="text-xs font-mono font-semibold text-[#a1a1aa] shrink-0 ml-2">x{stat.total_quantity}</span>
                           </div>
                           <div className="h-1 bg-[#27272a] rounded-full overflow-hidden">
                             <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: rc }} />
                           </div>
                         </div>
-                      </div>
+                      </button>
                     );
                   })}
                 </div>
-              )}
+                );
+              })()}
             </div>
 
             {/* Top Recipients */}
             <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-4">
-              <h3 className="text-sm font-semibold text-[#fafafa] mb-4 flex items-center gap-2">
-                <Gift className="w-4 h-4 text-[#a1a1aa]" />
-                Top Recipients
-              </h3>
-              {topRecipients.length === 0 ? (
-                <p className="text-sm text-[#52525b] text-center py-8">No data yet.</p>
-              ) : (
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-semibold text-[#fafafa] flex items-center gap-2">
+                  <Gift className="w-4 h-4 text-[#a1a1aa]" />
+                  Top Recipients
+                </h3>
+                <div className="relative">
+                  <Search className="w-3 h-3 text-[#52525b] absolute left-2 top-1/2 -translate-y-1/2" />
+                  <input
+                    value={analyticsRecipientSearch}
+                    onChange={(e) => setAnalyticsRecipientSearch(e.target.value)}
+                    placeholder="Search..."
+                    className="w-28 pl-6 pr-2 py-1 text-[11px] bg-[#09090b] border border-[#27272a] rounded-lg text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#3f3f46]"
+                  />
+                </div>
+              </div>
+              {(() => {
+                const list = analyticsRecipientSearch
+                  ? topRecipients.filter(r => r.player_name.toLowerCase().includes(analyticsRecipientSearch.toLowerCase()))
+                  : topRecipients;
+                if (list.length === 0) {
+                  return <p className="text-sm text-[#52525b] text-center py-8">{analyticsRecipientSearch ? "No matches." : "No data yet."}</p>;
+                }
+                const maxItems = list[0]?.total_items || 1;
+                return (
                 <div className="space-y-1">
-                  {topRecipients.map((r, i) => {
-                    const maxItems = topRecipients[0]?.total_items || 1;
+                  {list.map((r, i) => {
                     const pct = Math.max(4, (r.total_items / maxItems) * 100);
+                    const m = members.find(m => m.id === r.member_id || m.name === r.player_name);
+                    const cc = (m?.class && classColors[m.class]) || "#a1a1aa";
+                    const ci = m?.class && classIcons[m.class];
                     return (
-                      <div key={r.member_id} className="flex items-center gap-3 py-1.5 group">
+                      <button key={r.member_id} onClick={() => setSelectedRecipient(r)} className="w-full flex items-center gap-3 py-1.5 group hover:bg-[#27272a]/30 rounded px-1 -mx-1 transition">
                         <span className="text-[10px] font-mono text-[#3f3f46] w-4 shrink-0 text-right">{i + 1}</span>
                         <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 text-[10px] font-bold ${
                           i === 0 ? 'bg-amber-500/20 text-amber-400' :
@@ -767,11 +866,14 @@ export function InventoryView() {
                           i === 2 ? 'bg-orange-600/20 text-orange-400' :
                           'bg-[#27272a] text-[#71717a]'
                         }`}>
-                          {i < 3 ? ["🥇","🥈","🥉"][i] : i + 1}
+                          {i + 1}
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between mb-0.5">
-                            <p className="text-xs text-[#fafafa] truncate">{r.player_name}</p>
+                            <p className="text-xs truncate flex items-center gap-1" style={{ color: cc }}>
+                              {ci && getClassIcon(ci) && (() => { const CIcon = getClassIcon(ci)!; return <CIcon className="w-3 h-3 shrink-0" />; })()}
+                              {r.player_name}
+                            </p>
                             <span className="text-xs font-mono font-semibold text-[#a1a1aa] shrink-0 ml-2">{r.total_items}</span>
                           </div>
                           <div className="h-1 bg-[#27272a] rounded-full overflow-hidden">
@@ -780,17 +882,18 @@ export function InventoryView() {
                             }`} style={{ width: `${pct}%` }} />
                           </div>
                         </div>
-                      </div>
+                      </button>
                     );
                   })}
                 </div>
-              )}
+                );
+              })()}
             </div>
           </div>
         </div>
       )}
 
-      {/* ── Create Item Modal ── */}
+      {/* â”€â”€ Create Item Modal â”€â”€ */}
       {showCreateItem && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => { setShowCreateItem(false); resetCreateForm(); }}>
           <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-5 w-full max-w-sm mx-4" onClick={(e) => e.stopPropagation()}
@@ -942,7 +1045,7 @@ export function InventoryView() {
         </div>
       )}
 
-      {/* ── Edit Item Modal ── */}
+      {/* â”€â”€ Edit Item Modal â”€â”€ */}
       {editingItem && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setEditingItem(null)}>
           <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-5 w-full max-w-sm mx-4" onClick={(e) => e.stopPropagation()}>
@@ -1005,7 +1108,7 @@ export function InventoryView() {
         </div>
       )}
 
-      {/* ── Distribute Modal ── */}
+      {/* â”€â”€ Distribute Modal â”€â”€ */}
       {showDistribute && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setShowDistribute(false)}>
           <div className="bg-[#18181b] border border-[#27272a] rounded-t-xl sm:rounded-xl p-5 w-full max-w-md mx-0 sm:mx-4 animate-slide-up" onClick={(e) => e.stopPropagation()}>
@@ -1015,7 +1118,7 @@ export function InventoryView() {
                 {distItem && (
                   <p className="text-[11px] text-[#a1a1aa] mt-0.5 flex items-center gap-1.5">
                     <span className="capitalize font-medium" style={{ color: RARITY_COLORS[distItem.rarity?.toLowerCase() as ItemRarity] }}>{distItem.rarity}</span>
-                    <span>·</span>
+                    <span>{"\u00B7"}</span>
                     <span>{distItem.name}</span>
                   </p>
                 )}
@@ -1086,6 +1189,122 @@ export function InventoryView() {
           </div>
         </div>
       )}
+
+      {/* ── Recipient Detail Modal (Analytics) ── */}
+      {selectedRecipient && (() => {
+        const memberItems = distributions.filter(d => d.member_id === selectedRecipient.member_id);
+        const m = members.find(m => m.id === selectedRecipient.member_id || m.name === selectedRecipient.player_name);
+        const cc = (m?.class && classColors[m.class]) || "#a1a1aa";
+        const ci = m?.class && classIcons[m.class];
+        const CIcon = ci ? getClassIcon(ci) : null;
+        return (
+          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setSelectedRecipient(null)}>
+            <div className="bg-[#09090b] border border-[#27272a] rounded-t-xl sm:rounded-xl p-5 w-full max-w-sm mx-0 sm:mx-4 max-h-[70vh] overflow-y-auto animate-slide-up" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  {CIcon && <CIcon className="w-5 h-5" style={{ color: cc }} />}
+                  <h3 className="text-sm font-semibold" style={{ color: cc }}>{selectedRecipient.player_name}</h3>
+                  {m?.class && <span className="text-[10px] px-1.5 py-0.5 rounded font-medium capitalize" style={{ backgroundColor: cc + "20", color: cc }}>{m.class}</span>}
+                </div>
+                <button onClick={() => setSelectedRecipient(null)} className="text-[#52525b] hover:text-[#fafafa]"><X className="w-4 h-4" /></button>
+              </div>
+              {memberItems.length === 0 ? (
+                <p className="text-xs text-[#71717a] text-center py-6">No items found for this member.</p>
+              ) : (
+                <div className="space-y-2">
+                  {memberItems.map(d => {
+                    const item = items.find(i => i.id === d.item_id);
+                    const rc = item?.rarity ? RARITY_COLORS[item.rarity.toLowerCase() as ItemRarity] : "#a1a1aa";
+                    return (
+                      <div key={d.id} className="flex items-center gap-3 p-2 rounded-lg bg-[#18181b] border border-[#27272a]">
+                        <div className="w-8 h-8 rounded flex items-center justify-center shrink-0 overflow-hidden" style={{ backgroundColor: rc + "25" }}>
+                          {item?.image_url ? (
+                            <img src={item.image_url} alt="" className="w-8 h-8 object-contain" />
+                          ) : (
+                            <Box className="w-4 h-4 text-[#3f3f46]" />
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs truncate capitalize font-medium" style={{ color: rc }}>{item?.name ?? "Unknown"}</p>
+                          <p className="text-[10px]">
+                            {item?.rarity && <span className="capitalize" style={{ color: rc }}>{item.rarity}</span>}
+                            {item?.rarity && d.reason ? " · " : ""}
+                            <span className="text-[#71717a]">{d.reason || ""}</span>
+                          </p>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <p className="text-xs font-mono font-semibold text-[#fafafa]">x{d.quantity}</p>
+                          <p className="text-[10px] text-[#52525b]">{new Date(d.distributed_at).toLocaleDateString()}</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ── Item Recipients Modal (Analytics) ── */}
+      {selectedDistItem && (() => {
+        const itemDists = distributions.filter(d => d.item_id === selectedDistItem.item_id);
+        // Aggregate by member
+        const byMember = new Map<string, { player_name: string; quantity: number }>();
+        itemDists.forEach(d => {
+          const existing = byMember.get(d.member_id);
+          if (existing) existing.quantity += d.quantity;
+          else byMember.set(d.member_id, { player_name: d.player_name, quantity: d.quantity });
+        });
+        const recipients = Array.from(byMember.entries()).map(([member_id, v]) => ({ member_id, ...v }));
+        const item = items.find(i => i.id === selectedDistItem.item_id);
+        const rc = item?.rarity ? RARITY_COLORS[item.rarity.toLowerCase() as ItemRarity] : "#a1a1aa";
+        return (
+          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setSelectedDistItem(null)}>
+            <div className="bg-[#09090b] border border-[#27272a] rounded-t-xl sm:rounded-xl p-5 w-full max-w-sm mx-0 sm:mx-4 max-h-[70vh] overflow-y-auto animate-slide-up" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm font-semibold" style={{ color: rc }}>{selectedDistItem.item_name}</h3>
+                </div>
+                <button onClick={() => setSelectedDistItem(null)} className="text-[#52525b] hover:text-[#fafafa]"><X className="w-4 h-4" /></button>
+              </div>
+              {recipients.length === 0 ? (
+                <p className="text-xs text-[#71717a] text-center py-6">No recipients found.</p>
+              ) : (
+                <div className="space-y-1.5">
+                  {recipients.map(r => {
+                    const m = members.find(m => m.id === r.member_id || m.name === r.player_name);
+                    const cc = (m?.class && classColors[m.class]) || "#a1a1aa";
+                    const ci = m?.class && classIcons[m.class];
+                    const CIcon = ci ? getClassIcon(ci) : null;
+                    const g = m?.guild_id ? guilds.find(g => g.id === m.guild_id) : null;
+                    const gc = g ? guildColor(g.name) : null;
+                    return (
+                      <div key={r.member_id} className="flex items-center gap-3 p-2 rounded-lg bg-[#18181b] border border-[#27272a]">
+                        <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 text-[10px] font-bold" style={{ backgroundColor: cc + "20" }}>
+                          {CIcon ? <CIcon className="w-3.5 h-3.5" style={{ color: cc }} /> : <span style={{ color: cc }}>{r.player_name[0]}</span>}
+                        </div>
+                        <div className="flex-1 min-w-0 flex items-center gap-2">
+                          <p className="text-xs truncate" style={{ color: cc }}>{r.player_name}</p>
+                          {m?.class && <span className="text-[10px] px-1.5 py-0.5 rounded font-medium capitalize shrink-0" style={{ backgroundColor: cc + "18", color: cc }}>{m.class}</span>}
+                          {gc && g && (
+                            <span className={`flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded border shrink-0 ${gc.bg} ${gc.text} ${gc.border}`}>
+                              <Shield className="w-2.5 h-2.5" />
+                              {g.name}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs font-mono font-semibold text-[#fafafa] shrink-0">x{r.quantity}</p>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
+
     </div>
   );
 }
