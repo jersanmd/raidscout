@@ -42,7 +42,9 @@ export function ServerBossesActivitiesTab({ mode = "all" }: { mode?: "all" | "bo
   const [deleteTarget, setDeleteTarget] = useState<{ type: "boss" | "activity"; id: string; name: string } | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [activitySearch, setActivitySearch] = useState("");
+  const [activityFilter, setActivityFilter] = useState<"all" | "seeded" | "custom">("all");
   const [bossSearch, setBossSearch] = useState("");
+  const [bossFilter, setBossFilter] = useState<"all" | "seeded" | "custom">("all");
   const { toast } = useToast();
 
   // Guild assignment state for Add Boss form
@@ -204,7 +206,22 @@ export function ServerBossesActivitiesTab({ mode = "all" }: { mode?: "all" | "bo
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <Skull className="w-4 h-4 text-[#a1a1aa]" />
-            <h3 className="text-sm font-semibold text-[#fafafa]">Bosses ({bosses.length})</h3>
+            <h3 className="text-sm font-semibold text-[#fafafa]">Bosses ({(() => {
+              let c = bosses;
+              if (bossFilter === "seeded") c = c.filter(b => !b.is_custom);
+              if (bossFilter === "custom") c = c.filter(b => b.is_custom);
+              if (bossSearch.trim()) c = c.filter(b => b.name.toLowerCase().includes(bossSearch.toLowerCase()));
+              return c.length;
+            })()}{bossFilter !== "all" || bossSearch.trim() ? ` of ${bosses.length}` : ""})</h3>
+            <select
+              value={bossFilter}
+              onChange={e => setBossFilter(e.target.value as typeof bossFilter)}
+              className="px-2 py-1 rounded-md text-[11px] bg-[#18181b] border border-[#27272a] text-[#a1a1aa] focus:outline-none focus:border-[#52525b] cursor-pointer ml-1"
+            >
+              <option value="all">All</option>
+              <option value="seeded">Seeded</option>
+              <option value="custom">Custom</option>
+            </select>
           </div>
           <div className="flex items-center gap-2">
             {canManage && (
@@ -381,7 +398,12 @@ export function ServerBossesActivitiesTab({ mode = "all" }: { mode?: "all" | "bo
             </div>
           <div className="space-y-1">
             {(() => {
-              const searchFilter = (b: Boss) => !bossSearch.trim() || b.name.toLowerCase().includes(bossSearch.toLowerCase());
+              const searchFilter = (b: Boss) => {
+                if (bossSearch.trim() && !b.name.toLowerCase().includes(bossSearch.toLowerCase())) return false;
+                if (bossFilter === "seeded" && b.is_custom) return false;
+                if (bossFilter === "custom" && !b.is_custom) return false;
+                return true;
+              };
               const active = bosses.filter(b => b.is_enabled && searchFilter(b));
               const disabled = bosses.filter(b => !b.is_enabled && searchFilter(b));
               const renderRow = (boss: Boss) => (
@@ -490,7 +512,22 @@ export function ServerBossesActivitiesTab({ mode = "all" }: { mode?: "all" | "bo
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <Calendar className="w-4 h-4 text-[#a1a1aa]" />
-            <h3 className="text-sm font-semibold text-[#fafafa]">Activities ({activities.length})</h3>
+            <h3 className="text-sm font-semibold text-[#fafafa]">Activities ({(() => {
+              let c = activities;
+              if (activityFilter === "seeded") c = c.filter(a => !a.is_custom);
+              if (activityFilter === "custom") c = c.filter(a => a.is_custom);
+              if (activitySearch.trim()) c = c.filter(a => a.name.toLowerCase().includes(activitySearch.toLowerCase()));
+              return c.length;
+            })()}{activityFilter !== "all" || activitySearch.trim() ? ` of ${activities.length}` : ""})</h3>
+            <select
+              value={activityFilter}
+              onChange={e => setActivityFilter(e.target.value as typeof activityFilter)}
+              className="px-2 py-1 rounded-md text-[11px] bg-[#18181b] border border-[#27272a] text-[#a1a1aa] focus:outline-none focus:border-[#52525b] cursor-pointer ml-1"
+            >
+              <option value="all">All</option>
+              <option value="seeded">Seeded</option>
+              <option value="custom">Custom</option>
+            </select>
           </div>
           {canManage && (
             <button
@@ -644,7 +681,12 @@ export function ServerBossesActivitiesTab({ mode = "all" }: { mode?: "all" | "bo
             </div>
           <div className="space-y-1">
             {(() => {
-              const searchFilter = (a: Activity) => !activitySearch.trim() || a.name.toLowerCase().includes(activitySearch.toLowerCase());
+              const searchFilter = (a: Activity) => {
+                if (activitySearch.trim() && !a.name.toLowerCase().includes(activitySearch.toLowerCase())) return false;
+                if (activityFilter === "seeded" && a.is_custom) return false;
+                if (activityFilter === "custom" && !a.is_custom) return false;
+                return true;
+              };
               const active = activities.filter(a => a.is_enabled && searchFilter(a));
               const disabled = activities.filter(a => !a.is_enabled && searchFilter(a));
               const renderRow = (activity: Activity) => (
