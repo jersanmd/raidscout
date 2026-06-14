@@ -33,6 +33,38 @@ function ScoreGauge({ score }: { score: number }) {
   );
 }
 
+// ── Gear Slot Card ──
+function GearSlot({ slotName, item, enh, rc }: { slotName: string; item: any; enh: number; rc: string }) {
+  return (
+    <div className="group relative" title={item ? `${item.name}${enh > 0 ? ` +${enh}` : ""}` : `${slotName} — Not Equipped`}>
+      <div className={`rounded-lg flex flex-col items-center justify-center py-1 px-0.5 transition-all duration-200 ${
+        item ? "hover:scale-[1.03] cursor-default" : "border border-dashed border-[#27272a]"
+      }`}>
+        <p className="text-[7px] text-[#52525b] uppercase tracking-wider mb-0.5">{slotName}</p>
+        {item ? (
+          <>
+            <div className="w-14 h-14 rounded-xl flex items-center justify-center relative" style={{ backgroundColor: `${rc}14` }}>
+              {item.image_url ? (
+                <img src={item.image_url} alt="" className="w-12 h-12 rounded-lg object-cover" />
+              ) : (
+                <Star className="w-7 h-7" style={{ color: rc }} />
+              )}
+              {enh > 0 && (
+                <span className="absolute -right-1 -bottom-1 text-[9px] font-black text-white bg-black/60 rounded-full px-1.5 leading-none py-0.5">+{enh}</span>
+              )}
+            </div>
+            <p className="text-[7px] font-medium mt-0.5 text-center w-full leading-tight" style={{ color: rc }}>{item.name}</p>
+          </>
+        ) : (
+          <div className="w-14 h-14 rounded-xl flex items-center justify-center bg-transparent">
+            <Shield className="w-6 h-6 text-[#27272a]" />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function MemberProfileView() {
   const { memberId } = useParams<{ memberId: string }>();
   const navigate = useNavigate();
@@ -514,51 +546,25 @@ export function MemberProfileView() {
                 {gearSlotDefs.filter((s: any) => gearMap[s.name]?.catalog_item_id).length}/{gearSlotDefs.length} equipped
               </span>
             </div>
-            <div className="grid grid-cols-[repeat(auto-fill,minmax(110px,1fr))] gap-0.5">
-              {gearSlotDefs.map((slot: any) => {
-                const gear = gearMap[slot.name];
-                const item = gear?.catalog_item_id ? gearItemMap[gear.catalog_item_id] : null;
-                const rarity = item?.rarity?.toLowerCase() || "";
-                const rc: string = ({"legendary":"#f59e0b","epic":"#a855f7","rare":"#3b82f6","uncommon":"#22c55e","common":"#a1a1aa","mythic":"#ef4444"} as any)[rarity] || "#3f3f46";
-                const enh = gear?.enhancement_level || 0;
-                return (
-                  <div
-                    key={slot.name}
-                    className="group relative"
-                    title={item ? `${item.name}${enh > 0 ? ` +${enh}` : ""}` : `${slot.name} — Not Equipped`}
-                  >
-                    <div
-                      className={`min-w-[110px] rounded-lg flex flex-col items-center justify-center py-1 px-0.5 transition-all duration-200 ${
-                        item
-                          ? "hover:scale-[1.03] cursor-default"
-                          : "border border-dashed border-[#27272a]"
-                      }`}
-                      style={undefined}
-                    >
-                      <p className="text-[7px] text-[#52525b] uppercase tracking-wider mb-0.5">{slot.name}</p>
-                      {item ? (
-                        <>
-                          <div className="w-14 h-14 rounded-xl flex items-center justify-center relative" style={{ backgroundColor: `${rc}14` }}>
-                            {item.image_url ? (
-                              <img src={item.image_url} alt="" className="w-12 h-12 rounded-lg object-cover" />
-                            ) : (
-                              <Star className="w-7 h-7" style={{ color: rc }} />
-                            )}
-                            {enh > 0 && (
-                              <span className="absolute -right-1 -bottom-1 text-[9px] font-black text-white bg-black/60 rounded-full px-1.5 leading-none py-0.5">+{enh}</span>
-                            )}
-                          </div>
-                          <p className="text-[7px] font-medium mt-0.5 text-center w-full leading-tight" style={{ color: rc }}>{item.name}</p>
-                        </>
-                      ) : (
-                        <div className="w-14 h-14 rounded-xl flex items-center justify-center bg-transparent">
-                          <Shield className="w-6 h-6 text-[#27272a]" />
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
+            <div className="grid grid-cols-7 gap-0.5">
+              {(() => {
+                // Row 1: helm, chest, lower pants, weapon, necklace, earring, bracelet
+                // Row 2: empty, gloves, boots, cloak, ring, belt, gadget
+                const order = ["Helm","Chest","Lower Pants","Weapon","Necklace","Earring","Bracelet","_","Gloves","Boots","Cloak","Ring","Belt","Gadget"];
+                return order.map((slotName) => {
+                  if (slotName === "_") return <div key="_" />;
+                  const slot = gearSlotDefs.find((s: any) => s.name.toLowerCase() === slotName.toLowerCase());
+                  if (!slot) return <div key={slotName} />;
+                  const gear = gearMap[slot.name];
+                  const item = gear?.catalog_item_id ? gearItemMap[gear.catalog_item_id] : null;
+                  const rarity = item?.rarity?.toLowerCase() || "";
+                  const rc: string = ({"legendary":"#f59e0b","epic":"#a855f7","rare":"#3b82f6","uncommon":"#22c55e","common":"#a1a1aa","mythic":"#ef4444"} as any)[rarity] || "#3f3f46";
+                  const enh = gear?.enhancement_level || 0;
+                  return (
+                    <GearSlot key={slot.name} slotName={slot.name} item={item} enh={enh} rc={rc} />
+                  );
+                });
+              })()}
             </div>
           </div>
         )}
