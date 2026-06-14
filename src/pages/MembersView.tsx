@@ -91,6 +91,7 @@ export function MembersView() {
   const [progressGuildFilter, setProgressGuildFilter] = useState<string>(() => {
     try { return localStorage.getItem(progressGuildKey) || ""; } catch { return ""; }
   });
+  const [progressGuildOpen, setProgressGuildOpen] = useState(false);
   const [showClassCreator, setShowClassCreator] = useState(false);
 
   // Sort state for guild member tables (persisted in localStorage)
@@ -1203,14 +1204,52 @@ export function MembersView() {
             />
           </div>
           {guilds.length > 0 && (
-            <select
-              value={progressGuildFilter}
-              onChange={(e) => { setProgressGuildFilter(e.target.value); localStorage.setItem(progressGuildKey, e.target.value); }}
-              className="px-2.5 py-1.5 bg-[#18181b] border border-[#27272a] rounded-lg text-xs text-[#a1a1aa] outline-none focus:border-[#52525b] transition"
-            >
-              <option value="">All Guilds</option>
-              {guilds.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
-            </select>
+            <div className="relative">
+              <button
+                onClick={() => setProgressGuildOpen(!progressGuildOpen)}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 bg-[#18181b] border border-[#27272a] rounded-lg text-xs text-[#a1a1aa] hover:border-[#52525b] transition"
+              >
+                {progressGuildFilter ? (() => {
+                  const g = guilds.find(x => x.id === progressGuildFilter);
+                  if (!g) return <span>All Guilds</span>;
+                  const c = guildColor(g.name);
+                  return (
+                    <span className="flex items-center gap-1.5">
+                      <Shield className={`w-3 h-3 ${c.text}`} />
+                      <span className={c.text}>{g.name}</span>
+                    </span>
+                  );
+                })() : <span>All Guilds</span>}
+                <ChevronDown className="w-3 h-3 ml-auto" />
+              </button>
+              {progressGuildOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setProgressGuildOpen(false)} />
+                  <div className="absolute right-0 top-full mt-1 z-50 bg-[#18181b] border border-[#27272a] rounded-lg shadow-xl py-1 min-w-[140px]">
+                    <button
+                      onClick={() => { setProgressGuildFilter(""); setProgressGuildOpen(false); localStorage.setItem(progressGuildKey, ""); }}
+                      className={`flex items-center gap-2 w-full px-3 py-1.5 text-xs transition ${!progressGuildFilter ? "bg-[#09090b] text-[#fafafa]" : "text-[#a1a1aa] hover:bg-[#09090b]"}`}
+                    >
+                      <span className="w-3 h-3 rounded-full border border-[#3f3f46]" />
+                      All Guilds
+                    </button>
+                    {guilds.map(g => {
+                      const c = guildColor(g.name);
+                      return (
+                        <button
+                          key={g.id}
+                          onClick={() => { setProgressGuildFilter(g.id); setProgressGuildOpen(false); localStorage.setItem(progressGuildKey, g.id); }}
+                          className={`flex items-center gap-2 w-full px-3 py-1.5 text-xs transition ${progressGuildFilter === g.id ? "bg-[#09090b] text-[#fafafa]" : "text-[#a1a1aa] hover:bg-[#09090b]"}`}
+                        >
+                          <Shield className={`w-3 h-3 ${c.text}`} />
+                          {g.name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+            </div>
           )}
           {canManageRaidMembers && members.length > 0 && (
             <button
