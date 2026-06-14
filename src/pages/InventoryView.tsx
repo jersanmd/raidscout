@@ -15,7 +15,7 @@ import type { Item, Distribution, ItemRarity } from "@/types";
 import {
   Package, Plus, Trash2, Loader2, Search, Gift, History, BarChart3,
   X, ChevronRight, ArrowLeft, Image, Star, Upload, Minus, Pencil,
-  Sword, Shield, Wand, Skull, Flame, Sparkles, Zap, Heart, Eye, Anchor, Footprints, Tag, Swords, Crosshair, Bone,
+  Sword, Shield, Wand, Skull, Flame, Sparkles, Zap, Heart, Eye, Anchor, Footprints, Swords, Crosshair, Bone,
 } from "lucide-react";
 
 const RARITY_COLORS: Record<ItemRarity, string> = {
@@ -48,7 +48,7 @@ const CLASS_ICONS = [
 
 const getClassIcon = (iconName: string) => {
   const entry = CLASS_ICONS.find(c => c.name === iconName);
-  return entry ? entry.icon : Tag;
+  return entry ? entry.icon : null;
 };
 
 export function InventoryView() {
@@ -595,7 +595,7 @@ export function InventoryView() {
                               const ci = m?.class && classIcons[m.class];
                               return (
                                 <span className="text-[11px] font-medium flex items-center gap-1" style={{ color: cc }}>
-                                  {ci && (() => { const CIcon = getClassIcon(ci); return <CIcon className="w-3 h-3" />; })()}
+                                  {ci && getClassIcon(ci) && (() => { const CIcon = getClassIcon(ci)!; return <CIcon className="w-3 h-3" />; })()}
                                   {d.player_name}
                                 </span>
                               );
