@@ -37,8 +37,8 @@ type ItemRarity = { id: string; game: string; name: string; color: string; sort_
 const TABS = [
   { key: "bosses", icon: Skull, label: "Bosses" },
   { key: "activities", icon: Calendar, label: "Activities" },
-  { key: "categories", icon: Tags, label: "Categories" },
   { key: "gear", icon: Shield, label: "Gear Template" },
+  { key: "categories", icon: Tags, label: "Categories" },
   { key: "rarities", icon: Palette, label: "Rarities" },
   { key: "items", icon: Package, label: "Items" },
   { key: "review", icon: ClipboardCheck, label: "Item Review" },
