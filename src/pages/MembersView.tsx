@@ -2008,10 +2008,10 @@ export function MembersView() {
                             {(() => [...members].sort((a, b) => (a.is_active === false ? 1 : 0) - (b.is_active === false ? 1 : 0)))().map((member, idx) => (
                       <div
                         key={member.id}
-                        className={`flex flex-wrap items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2.5 rounded-lg border group transition ${
+                        className={`flex flex-wrap items-center gap-2 sm:gap-3 px-3 sm:px-4 py-1.5 rounded-lg border group transition ${
                           member.is_active === false
-                            ? 'bg-[#09090b]/30 border-[#27272a]/30 opacity-60'
-                            : 'bg-[#09090b]/50 border-[#27272a]/50'
+                            ? 'bg-[#18181b]/50 border-[#27272a]/30 opacity-60'
+                            : 'bg-[#18181b] border-[#27272a] hover:border-[#3f3f46]'
                         }`}
                       >
                         <span className="text-[10px] font-mono text-[#52525b] w-5 shrink-0">{(idx + 1).toString().padStart(2, "\u00A0")}</span>
