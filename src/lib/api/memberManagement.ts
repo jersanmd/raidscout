@@ -399,6 +399,7 @@ export async function fetchItems(serverId?: string | null): Promise<Item[]> {
     .from("items")
     .select("*")
     .or(gameSlug ? `game.eq.${gameSlug},server_id.eq.${sid}` : `server_id.eq.${sid}`)
+    .neq("status", "rejected")
     .order("name");
   if (error) throw error;
   return data as Item[];
@@ -437,11 +438,13 @@ export async function fetchItemsPaginated(
     .from("items")
     .select("*")
     .or(baseCondition)
+    .neq("status", "rejected")
     .order("name");
   let countQuery = supabase
     .from("items")
     .select("*", { count: "exact", head: true })
-    .or(baseCondition);
+    .or(baseCondition)
+    .neq("status", "rejected");
 
   if (search && search.trim()) {
     const term = `%${search.trim()}%`;
@@ -476,6 +479,14 @@ export async function createItem(item: {
   const { data: userData } = await supabase.auth.getUser();
   const username = userData.user?.email?.split("@")[0] || userData.user?.id?.slice(0, 8) || "unknown";
 
+  // Check if user is admin (admins create pre-approved items)
+  const { data: roleData } = await supabase
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", userData.user?.id)
+    .maybeSingle();
+  const isAdmin = roleData?.role === "admin";
+
   // Get server's game
   const { data: server } = await supabase
     .from("servers")
@@ -496,6 +507,7 @@ export async function createItem(item: {
       rarity: item.rarity || "common",
       created_by: userData.user?.id,
       created_by_username: username,
+      status: isAdmin ? "approved" : "pending",
     })
     .select()
     .single();

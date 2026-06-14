@@ -115,6 +115,26 @@ export async function fetchItemCatalogPaginated(
   return { items: data || [], total: count || 0 };
 }
 
+// ── Item Approval (Admin) ──
+
+export async function fetchPendingItems(gameSlug?: string): Promise<any[]> {
+  const { data, error } = await supabase.rpc("fetch_pending_items", {
+    p_game: gameSlug || null,
+  });
+  if (error) throw error;
+  return data || [];
+}
+
+export async function approveItem(itemId: string): Promise<void> {
+  const { error } = await supabase.rpc("approve_item", { p_item_id: itemId });
+  if (error) throw error;
+}
+
+export async function rejectItem(itemId: string): Promise<void> {
+  const { error } = await supabase.rpc("reject_item", { p_item_id: itemId });
+  if (error) throw error;
+}
+
 export async function createItemCatalogItem(item: {
   game: string;
   name: string;

@@ -365,14 +365,23 @@ export function InventoryView() {
         <div className="space-y-4">
           {/* Search + Rarity Filters */}
           <div className="space-y-3">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#52525b]" />
-              <input
-                value={itemSearch}
-                onChange={(e) => setItemSearch(e.target.value)}
-                placeholder="Search items..."
-                className="w-full pl-9 pr-3 py-2.5 bg-[#18181b] border border-[#27272a] rounded-xl text-sm text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#52525b]"
-              />
+            <div className="flex items-center gap-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#52525b]" />
+                <input
+                  value={itemSearch}
+                  onChange={(e) => setItemSearch(e.target.value)}
+                  placeholder="Search items..."
+                  className="w-full pl-9 pr-3 py-2.5 bg-[#18181b] border border-[#27272a] rounded-xl text-sm text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#52525b]"
+                />
+              </div>
+              <button
+                onClick={() => setShowCreateItem(true)}
+                className="flex items-center gap-1.5 px-3 py-2.5 bg-[#fafafa] hover:bg-[#e4e4e7] text-[#09090b] rounded-xl text-xs font-medium transition shrink-0"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Add Item</span>
+              </button>
             </div>
             {availableRarities.length > 0 && (
               <div className="flex items-center gap-1.5 flex-wrap">
@@ -440,13 +449,20 @@ export function InventoryView() {
                   {/* Name + Rarity */}
                   <div className="min-w-0 flex-1">
                     <p className="text-[13px] font-medium text-[#fafafa] truncate leading-tight">{item.name}</p>
-                    <span
-                      className="text-[10px] font-semibold uppercase tracking-wider"
-                      style={{ color: rarityColor }}
-                    >
-                      {item.rarity}
-                      {isCatalog && <span className="ml-1 text-[#8b5cf6]/70 font-normal normal-case tracking-normal">· catalog</span>}
-                    </span>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span
+                        className="text-[10px] font-semibold uppercase tracking-wider"
+                        style={{ color: rarityColor }}
+                      >
+                        {item.rarity}
+                        {isCatalog && <span className="ml-1 text-[#8b5cf6]/70 font-normal normal-case tracking-normal">· catalog</span>}
+                      </span>
+                      {item.status === "pending" && (
+                        <span className="text-[9px] px-1.5 py-0.5 rounded font-medium bg-amber-500/15 text-amber-400 border border-amber-500/30">
+                          Pending
+                        </span>
+                      )}
+                    </div>
                   </div>
 
                   {/* Gift button */}

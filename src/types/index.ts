@@ -364,6 +364,10 @@ export interface Item {
   created_by_username?: string | null;
   created_at: string;
   updated_at: string;
+  status?: "pending" | "approved" | "rejected";
+  approved_by?: string | null;
+  approved_at?: string | null;
+  category_id?: string | null;
 }
 
 export interface Distribution {

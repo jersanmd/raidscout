@@ -6,7 +6,7 @@ import {
   deleteBossTemplate,
   deleteActivityTemplate,
   uploadGameIcon,
-  fetchItemCatalog, fetchItemCatalogPaginated, createItemCatalogItem, deleteItemCatalogItem, updateItemCatalogItem, uploadItemCatalogImage,
+  fetchItemCatalog, fetchItemCatalogPaginated, fetchPendingItems, approveItem, rejectItem, createItemCatalogItem, deleteItemCatalogItem, updateItemCatalogItem, uploadItemCatalogImage,
   fetchItemCategories, createItemCategory, deleteItemCategory, updateItemCategory,
   fetchItemRarities, createItemRarity, deleteItemRarity, updateItemRarity,
   fetchGearSlots, createGearSlot, deleteGearSlot, updateGearSlot,
@@ -19,10 +19,11 @@ import { AddActivityForm } from "@/components/AddActivityForm";
 import { EditBossForm } from "@/components/EditBossForm";
 import { EditActivityForm } from "@/components/EditActivityForm";
 import { BossImage } from "@/components/BossImage";
+import { ItemReviewTab } from "@/components/ItemReviewTab";
 import {
   Loader2, Plus, Trash2, Pencil, ChevronDown, ChevronUp,
   Gamepad2, Skull, Calendar, Package, Save, X, Image, Search,
-  Tags, Palette, Upload, Shield,
+  Tags, Palette, Upload, Shield, ClipboardCheck,
 } from "lucide-react";
 
 type Game = { id: string; name: string; slug: string; icon_url?: string | null; supported_spawn_types: string[]; created_at: string };
@@ -39,6 +40,7 @@ const TABS = [
   { key: "rarities", icon: Palette, label: "Rarities" },
   { key: "items", icon: Package, label: "Items" },
   { key: "gear", icon: Shield, label: "Gear Template" },
+  { key: "review", icon: ClipboardCheck, label: "Item Review" },
 ] as const;
 
 export function AdminGamesTab() {
@@ -577,6 +579,11 @@ export function AdminGamesTab() {
                             )}
                           </div>
                         </div>
+                      )}
+
+                      {/* === ITEM REVIEW TAB === */}
+                      {expandedTab === "review" && (
+                        <ItemReviewTab gameSlug={game.slug || ""} />
                       )}
 
                     </div>
