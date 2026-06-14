@@ -547,7 +547,7 @@ export async function fetchDistributions(
   let query = supabase.from("distributions").select("*").eq("server_id", sid).order("distributed_at", { ascending: false });
   if (memberId) query = query.eq("member_id", memberId);
   if (itemId) query = query.eq("item_id", itemId);
-  const { data, error } = await query.limit(100);
+  const { data, error } = await query;
   if (error) throw error;
   return data as Distribution[];
 }

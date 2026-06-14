@@ -743,9 +743,14 @@ export async function handleMessage(msg: any) {
   if (cmd === "editkilltime") {
     if (!serverId) { await cmdLog(cmd, "fail", "not linked"); return reply("⚠️ Not linked to RaidScout."); }
     const remaining = args.slice(1);
-    const timeStr = remaining[remaining.length - 1];
-    if (!timeStr || !/^\d{1,2}:\d{2}$/.test(timeStr)) { await cmdLog(cmd, "fail", "no HH:MM"); return reply("Usage: `!editkilltime Boss/Activity HH:MM [YYYY-MM-DD]`"); }
-    remaining.pop();
+    // Find HH:MM anywhere in the remaining args (date may follow it)
+    let timeStr = "";
+    let timeIdx = -1;
+    for (let i = 0; i < remaining.length; i++) {
+      if (/^\d{1,2}:\d{2}$/.test(remaining[i])) { timeStr = remaining[i]; timeIdx = i; break; }
+    }
+    if (!timeStr) { await cmdLog(cmd, "fail", "no HH:MM"); return reply("Usage: `!editkilltime Boss/Activity HH:MM [YYYY-MM-DD]`"); }
+    remaining.splice(timeIdx, 1);
 
     let explicitDate: string | null = null;
     const maybeDate = remaining[remaining.length - 1];
@@ -762,11 +767,17 @@ export async function handleMessage(msg: any) {
     const now = new Date();
     const localDate = explicitDate || now.toLocaleDateString("en-CA", { timeZone: tz });
     const [y, mo, d] = localDate.split("-").map(Number);
-    const testUtc = Date.UTC(y, mo - 1, d, h, m);
-    const testLocal = new Intl.DateTimeFormat("en-US", { timeZone: tz, hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(testUtc));
-    const [tlH, tlM] = testLocal.split(":").map(Number);
-    const offsetMs = ((tlH - h) * 60 + (tlM - m)) * 60_000;
-    const newDeathTime = new Date(testUtc - offsetMs);
+
+    // Compute the timezone offset by comparing local noon to UTC noon
+    const noonUtc = Date.UTC(y, mo - 1, d, 12, 0, 0);
+    const noonLocal = new Intl.DateTimeFormat("en-US", { timeZone: tz, hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(noonUtc));
+    const [noonH] = noonLocal.split(":").map(Number);
+    let tzOffsetH = noonH - 12;
+    if (tzOffsetH > 12) tzOffsetH -= 24;
+    if (tzOffsetH < -12) tzOffsetH += 24;
+
+    // Convert local HH:MM to UTC: UTC hour = local hour - offset
+    const newDeathTime = new Date(Date.UTC(y, mo - 1, d, h - tzOffsetH, m));
     if (!explicitDate && newDeathTime > now) newDeathTime.setUTCDate(newDeathTime.getUTCDate() - 1);
 
     // Try bosses first
@@ -779,13 +790,14 @@ export async function handleMessage(msg: any) {
     if (!recentDeaths?.length) { await cmdLog(cmd, "fail", `no death record for ${boss.name}`); return reply(`No death record found for **${boss.name}**.`); }
     const deathRecord = recentDeaths[0];
 
-    // Recalculate owner guild with the new time (using top-level newDeathTime from lines 628-638)
+    // Recalculate owner guild: find the death just before the NEW time (not today's)
     const serverGuilds = await supabaseQuery(`guilds?server_id=eq.${serverId}`);
     const allBossGuilds = await supabaseQuery(`boss_guilds?select=boss_id,guild_id,sort_order,day_of_week,mode`);
     const sgIds = new Set(serverGuilds.map((g: any) => g.id));
     const serverBossGuilds = allBossGuilds.filter((bg: any) => sgIds.has(bg.guild_id));
-    const prevDeaths = await supabaseQuery(`death_records?server_id=eq.${serverId}&boss_id=eq.${boss.id}&order=death_time.desc&limit=2`);
-    const lastDeath = prevDeaths?.length > 1 ? prevDeaths[1] : null;
+    // Look up the death that occurred just before the new time (excluding the record being edited)
+    const prevDeaths = await supabaseQuery(`death_records?server_id=eq.${serverId}&boss_id=eq.${boss.id}&death_time=lt.${newDeathTime.toISOString()}&id=neq.${deathRecord.id}&order=death_time.desc&limit=1`);
+    const lastDeath = prevDeaths?.[0] ?? null;
     const gName = computeOwnerGuild(boss, serverBossGuilds, serverGuilds, lastDeath, newDeathTime, tz);
     const ownerGuildId = gName ? serverGuilds.find((g: any) => g.name === gName)?.id ?? null : null;
 

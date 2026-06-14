@@ -15,7 +15,7 @@ import { guildColor } from "@/lib/constants";
 import type { Item, Distribution, ItemRarity } from "@/types";
 import {
   Package, Plus, Trash2, Loader2, Search, Gift, History, BarChart3,
-  X, ChevronRight, ArrowLeft, Image, Star, Upload, Minus, Pencil, Box,
+  X, ChevronRight, ArrowLeft, Image, Star, Upload, Minus, Pencil, Box, Users,
   Sword, Shield, Wand, Skull, Flame, Sparkles, Zap, Heart, Eye, Anchor, Footprints, Swords, Crosshair, Bone,
 } from "lucide-react";
 
@@ -57,7 +57,7 @@ export function InventoryView() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const configured = isSupabaseConfigured();
-  const [tab, setTab] = useState<"catalog" | "history" | "analytics">("catalog");
+  const [tab, setTab] = useState<"catalog" | "history" | "analytics" | "recipients">("catalog");
 
   // Track whether we need the full items list (history/analytics tabs or distribute modal)
   const [needFullItems, setNeedFullItems] = useState(false);
@@ -330,6 +330,9 @@ export function InventoryView() {
   const [analyticsItemSearch, setAnalyticsItemSearch] = useState("");
   const [analyticsRecipientSearch, setAnalyticsRecipientSearch] = useState("");
 
+  // Recipients tab search
+  const [recipientSearch, setRecipientSearch] = useState("");
+
   // Delete confirmation
   const [deleteConfirm, setDeleteConfirm] = useState<{ distId: string; itemName: string } | null>(null);
   const [deleteConfirmName, setDeleteConfirmName] = useState("");
@@ -434,7 +437,7 @@ export function InventoryView() {
 
       {/* Tabs */}
       <div className="flex bg-[#18181b] rounded-lg p-0.5 gap-0.5">
-        {(["catalog", "history", "analytics"] as const).map(t => (
+        {(["catalog", "history", "recipients", "analytics"] as const).map(t => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -445,6 +448,7 @@ export function InventoryView() {
             {t === "catalog" && <Package className="w-3.5 h-3.5" />}
             {t === "history" && <History className="w-3.5 h-3.5" />}
             {t === "analytics" && <BarChart3 className="w-3.5 h-3.5" />}
+            {t === "recipients" && <Users className="w-3.5 h-3.5" />}
             <span className="capitalize">{t}</span>
           </button>
         ))}
@@ -710,6 +714,113 @@ export function InventoryView() {
         </div>
         </div>
       )}
+
+      {/* ── Recipients Tab ── */}
+      {tab === "recipients" && (() => {
+        // Group distributions by player
+        const playerMap = new Map<string, { player_name: string; member_id: string; dists: Distribution[] }>();
+        distributions.forEach(d => {
+          let entry = playerMap.get(d.player_name);
+          if (!entry) { entry = { player_name: d.player_name, member_id: d.member_id, dists: [] }; playerMap.set(d.player_name, entry); }
+          entry.dists.push(d);
+        });
+        const players = Array.from(playerMap.values()).sort((a, b) => b.dists.length - a.dists.length);
+        // Sort each player's items chronologically (earliest first, latest last)
+        players.forEach(p => p.dists.sort((a, b) => new Date(a.distributed_at).getTime() - new Date(b.distributed_at).getTime()));
+        const filteredPlayers = recipientSearch
+          ? players.filter(p => p.player_name.toLowerCase().includes(recipientSearch.toLowerCase()))
+          : players;
+        return (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-[#fafafa] flex items-center gap-2">
+              <Users className="w-4 h-4 text-[#a1a1aa]" />
+              All Recipients
+            </h3>
+            <div className="flex items-center gap-3">
+              <div className="relative">
+                <Search className="w-3 h-3 text-[#52525b] absolute left-2 top-1/2 -translate-y-1/2" />
+                <input
+                  value={recipientSearch}
+                  onChange={(e) => setRecipientSearch(e.target.value)}
+                  placeholder="Search player..."
+                  className="w-40 pl-6 pr-6 py-1 text-[11px] bg-[#09090b] border border-[#27272a] rounded-lg text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#3f3f46]"
+                />
+                {recipientSearch && (
+                  <button onClick={() => setRecipientSearch("")} className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[#52525b] hover:text-[#a1a1aa]">
+                    <X className="w-3 h-3" />
+                  </button>
+                )}
+              </div>
+              <span className="text-xs text-[#52525b] font-mono">{filteredPlayers.length} / {players.length} players</span>
+            </div>
+          </div>
+          {filteredPlayers.length === 0 ? (
+            <p className="text-sm text-[#52525b] text-center py-12">{recipientSearch ? "No players match." : "No distribution data yet."}</p>
+          ) : (
+            <div className="bg-[#18181b] border border-[#27272a] rounded-xl overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-[#27272a]">
+                      <th className="text-left px-4 py-2.5 text-[10px] text-[#71717a] uppercase tracking-wider font-medium w-36">Name</th>
+                      <th className="text-left px-4 py-2.5 text-[10px] text-[#71717a] uppercase tracking-wider font-medium">Items Received</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredPlayers.map(p => {
+                      const m = members.find(m => m.id === p.member_id || m.name === p.player_name);
+                      const cc = (m?.class && classColors[m.class]) || "#a1a1aa";
+                      const ci = m?.class && classIcons[m.class];
+                      const CIcon = ci ? getClassIcon(ci) : null;
+                      const g = m?.guild_id ? guilds.find(g => g.id === m.guild_id) : null;
+                      const gc = g ? guildColor(g.name) : null;
+                      return (
+                        <tr key={p.player_name} className="border-b border-[#27272a] last:border-b-0 hover:bg-[#09090b]/50 transition">
+                          <td className="px-4 py-2.5 align-top">
+                            <div className="flex items-center gap-2">
+                              <div className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 text-[9px] font-bold" style={{ backgroundColor: cc + "20", color: cc }}>
+                                {CIcon ? <CIcon className="w-3 h-3" /> : p.player_name[0]}
+                              </div>
+                              <div className="min-w-0">
+                                <p className="text-xs font-medium truncate" style={{ color: cc }}>{p.player_name}</p>
+                                <div className="flex items-center gap-1 mt-0.5 flex-wrap">
+                                  {gc && g && (
+                                    <span className={`flex items-center gap-0.5 text-[9px] font-medium px-1 py-0.5 rounded border ${gc.bg} ${gc.text} ${gc.border}`}>
+                                      <Shield className="w-2 h-2" />
+                                      {g.name}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-4 py-2.5">
+                            <div className="flex flex-wrap gap-1">
+                              {p.dists.map(d => {
+                                const item = items.find(i => i.id === d.item_id);
+                                const rc = item?.rarity ? RARITY_COLORS[item.rarity.toLowerCase() as ItemRarity] : "#a1a1aa";
+                                return (
+                                  <span key={d.id} className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded border" style={{ backgroundColor: rc + "15", borderColor: rc + "30", color: rc }}>
+                                    {item?.image_url && <img src={item.image_url} alt="" className="w-3.5 h-3.5 rounded object-cover" />}
+                                    <span className="capitalize truncate max-w-[120px]">{item?.name ?? "Unknown"}</span>
+                                    {d.quantity > 1 && <span className="font-mono opacity-70">x{d.quantity}</span>}
+                                  </span>
+                                );
+                              })}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </div>
+        );
+      })()}
 
       {/* â”€â”€ Analytics Tab â”€â”€ */}
       {tab === "analytics" && (
@@ -1231,7 +1342,7 @@ export function InventoryView() {
 
       {/* ── Recipient Detail Modal (Analytics) ── */}
       {selectedRecipient && (() => {
-        const memberItems = distributions.filter(d => d.member_id === selectedRecipient.member_id);
+        const memberItems = distributions.filter(d => d.member_id === selectedRecipient.member_id || d.player_name === selectedRecipient.player_name);
         const m = members.find(m => m.id === selectedRecipient.member_id || m.name === selectedRecipient.player_name);
         const cc = (m?.class && classColors[m.class]) || "#a1a1aa";
         const ci = m?.class && classIcons[m.class];
