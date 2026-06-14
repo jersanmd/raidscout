@@ -91,18 +91,25 @@ export async function fetchItemCatalogPaginated(
   gameSlug: string,
   limit: number,
   offset: number,
+  search?: string,
 ): Promise<{ items: any[]; total: number }> {
+  let query = supabase
+    .from("items")
+    .select("*")
+    .eq("game", gameSlug);
+  let countQuery = supabase
+    .from("items")
+    .select("*", { count: "exact", head: true })
+    .eq("game", gameSlug);
+
+  if (search && search.trim()) {
+    query = query.ilike("name", `%${search.trim()}%`);
+    countQuery = countQuery.ilike("name", `%${search.trim()}%`);
+  }
+
   const [{ data, error }, { count }] = await Promise.all([
-    supabase
-      .from("items")
-      .select("*")
-      .eq("game", gameSlug)
-      .order("name")
-      .range(offset, offset + limit - 1),
-    supabase
-      .from("items")
-      .select("*", { count: "exact", head: true })
-      .eq("game", gameSlug),
+    query.order("name").range(offset, offset + limit - 1),
+    countQuery,
   ]);
   if (error) throw error;
   return { items: data || [], total: count || 0 };
