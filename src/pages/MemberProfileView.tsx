@@ -514,7 +514,7 @@ export function MemberProfileView() {
                 {gearSlotDefs.filter((s: any) => gearMap[s.name]?.catalog_item_id).length}/{gearSlotDefs.length} equipped
               </span>
             </div>
-            <div className="grid grid-cols-[repeat(auto-fill,minmax(110px,1fr))] gap-1.5">
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(110px,1fr))] gap-0.5">
               {gearSlotDefs.map((slot: any) => {
                 const gear = gearMap[slot.name];
                 const item = gear?.catalog_item_id ? gearItemMap[gear.catalog_item_id] : null;
