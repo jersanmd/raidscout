@@ -205,7 +205,6 @@ export function InventoryView() {
   const [distQuantity, setDistQuantity] = useState(1);
   const [distReason, setDistReason] = useState("");
   const [distMemberSearch, setDistMemberSearch] = useState("");
-  const [distItemSearch, setDistItemSearch] = useState("");
   useEscapeKey(() => setShowDistribute(false), showDistribute);
 
   // Trigger full items load when distribution modal opens
@@ -222,9 +221,6 @@ export function InventoryView() {
   });
 
   const distItem = items.find(i => i.id === distItemId);
-  const filteredDistItems = items.filter(i =>
-    !distItemSearch || i.name.toLowerCase().includes(distItemSearch.toLowerCase())
-  ).sort((a, b) => (itemDistCounts[b.id] || 0) - (itemDistCounts[a.id] || 0));
   const filteredDistMembers = members.filter(m =>
     !distMemberSearch || m.name.toLowerCase().includes(distMemberSearch.toLowerCase())
   );
@@ -916,38 +912,6 @@ export function InventoryView() {
             </div>
 
             <div className="space-y-3">
-              {/* Item search + select */}
-              <div>
-                <label className="text-[10px] text-[#71717a] uppercase tracking-wider">Item</label>
-                <div className="relative mt-1">
-                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#52525b]" />
-                  <input
-                    value={distItemSearch}
-                    onChange={(e) => setDistItemSearch(e.target.value)}
-                    placeholder="Search item..."
-                    className="w-full pl-8 pr-3 py-2 bg-[#09090b] border border-[#27272a] rounded-lg text-sm text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#52525b]"
-                  />
-                </div>
-                <div className="mt-1.5 max-h-28 overflow-y-auto space-y-0.5">
-                  {filteredDistItems.slice(0, 20).map(i => {
-                    const distCount = itemDistCounts[i.id] || 0;
-                    return (
-                    <button key={i.id}
-                      onClick={() => { setDistItemId(i.id); setDistItemSearch(i.name); }}
-                      className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs transition text-left ${distItemId === i.id ? "bg-[#fafafa]/10 text-[#fafafa] border border-[#fafafa]/20" : "text-[#a1a1aa] hover:bg-[#09090b] hover:text-[#d4d4d8]"}`}>
-                      <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: RARITY_COLORS[i.rarity] }} />
-                      <span className="flex-1 truncate">{i.name}</span>
-                      {distCount > 0 && <span className="text-[10px] text-[#52525b] font-mono">{distCount}</span>}
-                      <span className="text-[10px] capitalize text-[#52525b]">{i.rarity}</span>
-                    </button>
-                    );
-                  })}
-                  {filteredDistItems.length === 0 && (
-                    <p className="text-[10px] text-[#52525b] text-center py-2">No items match</p>
-                  )}
-                </div>
-              </div>
-
               {/* Member search + select */}
               <div>
                 <label className="text-[10px] text-[#71717a] uppercase tracking-wider">Recipient</label>
