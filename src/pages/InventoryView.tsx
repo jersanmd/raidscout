@@ -582,9 +582,6 @@ export function InventoryView() {
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2">
                             <p className="text-sm font-medium truncate" style={{ color: rc }}>{item?.name ?? "Unknown Item"}</p>
-                            {item && (
-                              <span className="text-[9px] px-1.5 py-px rounded font-medium uppercase shrink-0" style={{ color: rc, backgroundColor: `${rc}18` }}>{item.rarity}</span>
-                            )}
                             <span className="text-[11px] text-[#52525b] font-mono shrink-0">×{d.quantity}</span>
                           </div>
                           <div className="flex items-center gap-1.5 mt-0.5">
