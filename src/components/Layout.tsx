@@ -76,14 +76,14 @@ export function Layout() {
   // Set page title based on route
   useEffect(() => {
     const titles: Record<string, string> = {
-      "/": "Bosses / Activities Ã¢â‚¬â€ RaidScout",
-      "/schedule": "Weekly Schedule Ã¢â‚¬â€ RaidScout",
-      "/leaderboard": "Leaderboard Ã¢â‚¬â€ RaidScout",
-      "/history": "Kill History Ã¢â‚¬â€ RaidScout",
-      "/members": "Members Ã¢â‚¬â€ RaidScout",
-      "/analytics": "Analytics Ã¢â‚¬â€ RaidScout",
-      "/server-settings": "Server Settings Ã¢â‚¬â€ RaidScout",
-      "/admin": "Admin Panel Ã¢â‚¬â€ RaidScout",
+      "/": "Bosses / Activities \u2014 RaidScout",
+      "/schedule": "Weekly Schedule \u2014 RaidScout",
+      "/leaderboard": "Leaderboard \u2014 RaidScout",
+      "/history": "Kill History \u2014 RaidScout",
+      "/members": "Members \u2014 RaidScout",
+      "/analytics": "Analytics \u2014 RaidScout",
+      "/server-settings": "Server Settings \u2014 RaidScout",
+      "/admin": "Admin Panel \u2014 RaidScout",
     };
     document.title = titles[location.pathname] ?? "RaidScout";
   }, [location.pathname]);
@@ -91,13 +91,13 @@ export function Layout() {
   // Admin without a server: show admin panel button, hide data nav + create
   const showDataNav = !isAdmin || hasServer;
 
-  // Spawn alerts Ã¢â‚¬â€ listen for boss spawns from other clients
+  // Spawn alerts — listen for boss spawns from other clients
   useSpawnAlerts((bossName) => {
-    // If the message already has a custom prefix (Ã¢Å¡Â Ã¯Â¸Â), use it as-is
-    if (bossName.startsWith("Ã¢Å¡Â Ã¯Â¸Â")) {
+    // If the message already has a custom prefix (⚠️), use it as-is
+    if (bossName.startsWith("\u26A0\uFE0F")) {
       setSpawnToast(bossName);
     } else {
-      setSpawnToast(`Ã¢Å¡Â¡ ${bossName} spawning in Ã¢â€°Â¤ 5 min!`);
+      setSpawnToast(`\u26A1 ${bossName} spawning in \u2264 5 min!`);
     }
     playAlertSound();
     setTimeout(() => setSpawnToast(null), 8000);
@@ -437,7 +437,7 @@ export function Layout() {
         <div className="max-w-[90rem] mx-auto px-4 py-5 space-y-3">
           <div className="flex items-center gap-2 text-xs text-[#71717a]">
             <img src="/logo.png" alt="" className="w-4 h-4 rounded opacity-40" />
-            <span>RaidScout Ã¢â‚¬â€ Track boss respawn timers across any game, schedule hunts, and monitor member performance across your guild. </span>
+            <span>RaidScout \u2014 Track boss respawn timers across any game, schedule hunts, and monitor member performance across your guild. </span>
           </div>
           <div>
             <span className="text-[11px] font-semibold text-[#52525b] uppercase tracking-wider">Resources</span>
