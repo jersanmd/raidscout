@@ -6,7 +6,7 @@ import {
   deleteBossTemplate,
   deleteActivityTemplate,
   uploadGameIcon,
-  fetchItemCatalog, createItemCatalogItem, deleteItemCatalogItem, updateItemCatalogItem, uploadItemCatalogImage,
+  fetchItemCatalog, fetchItemCatalogPaginated, createItemCatalogItem, deleteItemCatalogItem, updateItemCatalogItem, uploadItemCatalogImage,
   fetchItemCategories, createItemCategory, deleteItemCategory, updateItemCategory,
   fetchItemRarities, createItemRarity, deleteItemRarity, updateItemRarity,
   fetchGearSlots, createGearSlot, deleteGearSlot, updateGearSlot,
@@ -60,6 +60,10 @@ export function AdminGamesTab() {
   const [bossSearch, setBossSearch] = useState("");
 
   const [itemCatalog, setItemCatalog] = useState<Record<string, ItemCatalogItem[]>>({});
+  const [itemTotal, setItemTotal] = useState<Record<string, number>>({});
+  const [itemLoadedGames, setItemLoadedGames] = useState<Set<string>>(new Set());
+  const [loadingMoreItems, setLoadingMoreItems] = useState(false);
+  const ITEMS_PER_PAGE = 50;
   const [itemSearch, setItemSearch] = useState("");
   const [showAddItem, setShowAddItem] = useState(false);
   const [newItem, setNewItem] = useState({ name: "", rarity: "", description: "", category_id: "" as string | undefined });
@@ -102,17 +106,19 @@ export function AdminGamesTab() {
       Promise.all([
         fetchBossTemplates(expandedGame).catch(() => []),
         fetchActivityTemplates(expandedGame).catch(() => []),
-        gameSlug ? fetchItemCatalog(gameSlug).catch(() => []) : Promise.resolve([]),
         gameSlug ? fetchItemCategories(gameSlug).catch(() => []) : Promise.resolve([]),
         gameSlug ? fetchItemRarities(gameSlug).catch(() => []) : Promise.resolve([]),
         gameSlug ? fetchGearSlots(gameSlug).catch(() => []) : Promise.resolve([]),
-      ]).then(([bosses, activities, items, cats, rars, slots]) => {
+      ]).then(([bosses, activities, cats, rars, slots]) => {
         setBossTemplates(p => ({ ...p, [expandedGame]: bosses }));
         setActivityTemplates(p => ({ ...p, [expandedGame]: activities }));
-        setItemCatalog(p => ({ ...p, [expandedGame]: items }));
         setCategories(p => ({ ...p, [expandedGame]: cats }));
         setRarities(p => ({ ...p, [expandedGame]: rars }));
         setGearSlots(p => ({ ...p, [expandedGame]: slots }));
+        // Reset item catalog for this game (will be lazy-loaded when items tab opens)
+        setItemCatalog(p => ({ ...p, [expandedGame]: [] }));
+        setItemTotal(p => ({ ...p, [expandedGame]: 0 }));
+        setItemLoadedGames(prev => { const n = new Set(prev); n.delete(expandedGame); return n; });
         // Fetch assigned categories for each slot
         Promise.all(slots.map((s: any) => fetchGearSlotCategories(s.id).catch(() => [])))
           .then(cats => {
@@ -122,6 +128,9 @@ export function AdminGamesTab() {
           });
         setLoadingTemplates(false);
       });
+    } else {
+      // Clear item loaded state when no game is expanded
+      setItemLoadedGames(new Set());
     }
   }, [expandedGame, games]);
 
@@ -134,17 +143,19 @@ export function AdminGamesTab() {
     Promise.all([
       fetchBossTemplates(expandedGame).catch(() => []),
       fetchActivityTemplates(expandedGame).catch(() => []),
-      s ? fetchItemCatalog(s).catch(() => []) : Promise.resolve([]),
       s ? fetchItemCategories(s).catch(() => []) : Promise.resolve([]),
       s ? fetchItemRarities(s).catch(() => []) : Promise.resolve([]),
       s ? fetchGearSlots(s).catch(() => []) : Promise.resolve([]),
-    ]).then(([bosses, activities, items, cats, rars, slots]) => {
+    ]).then(([bosses, activities, cats, rars, slots]) => {
       setBossTemplates(p => ({ ...p, [expandedGame]: bosses }));
       setActivityTemplates(p => ({ ...p, [expandedGame]: activities }));
-      setItemCatalog(p => ({ ...p, [expandedGame]: items }));
       setCategories(p => ({ ...p, [expandedGame]: cats }));
       setRarities(p => ({ ...p, [expandedGame]: rars }));
       setGearSlots(p => ({ ...p, [expandedGame]: slots }));
+      // Reset item catalog so it reloads with fresh data
+      setItemCatalog(p => ({ ...p, [expandedGame]: [] }));
+      setItemTotal(p => ({ ...p, [expandedGame]: 0 }));
+      setItemLoadedGames(prev => { const n = new Set(prev); n.delete(expandedGame); return n; });
       // Re-fetch categories for each slot
       Promise.all(slots.map((sl: any) => fetchGearSlotCategories(sl.id).catch(() => [])))
         .then(catsArr => {
@@ -153,6 +164,23 @@ export function AdminGamesTab() {
           setGearSlotCats(catMap);
         });
     });
+  };
+
+  const loadMoreItems = async (gameId: string) => {
+    const s = games.find(g => g.id === gameId)?.slug;
+    if (!s) return;
+    setLoadingMoreItems(true);
+    try {
+      const currentItems = itemCatalog[gameId] || [];
+      const { items, total } = await fetchItemCatalogPaginated(s, ITEMS_PER_PAGE, currentItems.length);
+      setItemCatalog(p => ({ ...p, [gameId]: [...currentItems, ...items] }));
+      setItemTotal(p => ({ ...p, [gameId]: total }));
+      setItemLoadedGames(prev => new Set(prev).add(gameId));
+    } catch (err) {
+      console.error("Failed to load items:", err);
+    } finally {
+      setLoadingMoreItems(false);
+    }
   };
 
   const handleCreateGame = async (e: React.FormEvent) => {
@@ -390,7 +418,7 @@ export function AdminGamesTab() {
                       {/* === ITEMS TAB === */}
                       {expandedTab === "items" && (
                         <div className="space-y-2">
-                          <div className="flex items-center justify-between gap-2"><h4 className="text-xs font-semibold text-[#d4d4d8]">Item Catalog ({(itemCatalog[game.id]||[]).filter(it=>!itemSearch||it.name.toLowerCase().includes(itemSearch.toLowerCase())).length})</h4><div className="flex items-center gap-2"><div className="relative w-48"><Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-[#52525b]"/><input placeholder="Search items…" value={itemSearch} onChange={e=>setItemSearch(e.target.value)} className="w-full pl-7 pr-2 py-1.5 text-xs bg-[#18181b] border border-[#27272a] rounded text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#52525b]"/></div><button onClick={()=>{const gameRarities=rarities[game.id]||[];setShowAddItem(true);setNewItem({name:"",rarity:gameRarities[0]?.name||"",description:"",category_id:""});setNewItemParent("");setItemImage(null);setItemImagePreview(null)}} className="flex items-center gap-1 px-2 py-1 text-xs font-medium rounded bg-[#27272a] hover:bg-[#3f3f46] text-[#d4d4d8] transition shrink-0"><Plus className="w-3 h-3"/> Add Item</button></div></div>
+                          <div className="flex items-center justify-between gap-2"><h4 className="text-xs font-semibold text-[#d4d4d8]">Item Catalog ({itemTotal[game.id] ?? (itemCatalog[game.id]||[]).length})</h4><div className="flex items-center gap-2"><div className="relative w-48"><Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-[#52525b]"/><input placeholder="Search items…" value={itemSearch} onChange={e=>setItemSearch(e.target.value)} className="w-full pl-7 pr-2 py-1.5 text-xs bg-[#18181b] border border-[#27272a] rounded text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#52525b]"/></div><button onClick={()=>{const gameRarities=rarities[game.id]||[];setShowAddItem(true);setNewItem({name:"",rarity:gameRarities[0]?.name||"",description:"",category_id:""});setNewItemParent("");setItemImage(null);setItemImagePreview(null)}} className="flex items-center gap-1 px-2 py-1 text-xs font-medium rounded bg-[#27272a] hover:bg-[#3f3f46] text-[#d4d4d8] transition shrink-0"><Plus className="w-3 h-3"/> Add Item</button></div></div>
                                                     {showAddItem && (
                             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => { setShowAddItem(false); setItemImage(null); setItemImagePreview(null); setNewItemParent(""); }}>
                               <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-5 w-full max-w-sm mx-4" onClick={e => e.stopPropagation()} onPaste={async () => { try { const items = await navigator.clipboard.read(); for (const item of items) { const imageType = item.types.find(t => t.startsWith('image/')); if (imageType) { const blob = await item.getType(imageType); const file = new File([blob], 'pasted-image.png', { type: blob.type }); setItemImage(file); setItemImagePreview(URL.createObjectURL(file)); break; } } } catch {} }}>
@@ -408,7 +436,17 @@ export function AdminGamesTab() {
                             </div>
                           )}
                           <div className="space-y-1">{(itemCatalog[game.id]||[]).filter(it=>!itemSearch||it.name.toLowerCase().includes(itemSearch.toLowerCase())).map((it:ItemCatalogItem)=>{const isEditing=editingItem?.id===it.id;const rarityObj=(rarities[game.id]||[]).find(r=>r.name===it.rarity);const rarityColor=rarityObj?.color||"#71717a";const cat=(categories[game.id]||[]).find(c=>c.id===it.category_id);const catParent=cat?.parent_id?(categories[game.id]||[]).find(c=>c.id===cat.parent_id):null;const catLabel=cat?(catParent?`${catParent.name} → ${cat.name}`:cat.name):null;return(<div key={it.id} className="bg-[#18181b]/30 rounded overflow-hidden"><div className="flex items-center justify-between px-3 py-2 text-sm"><div className="flex items-center gap-2 min-w-0">{it.image_url?<img src={it.image_url} alt={it.name} className="w-5 h-5 rounded object-cover border border-[#27272a]" style={{backgroundColor:rarityColor+"20"}}/>:<Package className="w-4 h-4 text-[#52525b]"/>}<span className="text-[#fafafa] truncate">{it.name}</span><span className="text-[10px] px-1.5 py-0.5 rounded font-medium shrink-0" style={{backgroundColor:rarityColor+"20",color:rarityColor,border:`1px solid ${rarityColor}40`}}>{it.rarity}</span>{catLabel&&<span className="text-[10px] text-[#52525b] truncate hidden sm:inline">{catLabel}</span>}</div><div className="flex items-center gap-1 shrink-0"><button onClick={()=>setEditingItem(isEditing?null:{id:it.id,name:it.name,rarity:it.rarity,description:it.description,image_url:it.image_url,category_id:it.category_id})} className="p-1 text-[#52525b] hover:text-[#d4d4d8]"><Pencil className="w-3 h-3"/></button><button onClick={()=>setDeleteConfirm({type:"item",id:it.id,name:it.name,gameName:game.name})} className="p-1 text-[#52525b] hover:text-[#f87171]"><Trash2 className="w-3 h-3"/></button></div></div><div className={`transition-all duration-300 ease-in-out ${isEditing?"max-h-[500px] opacity-100":"max-h-0 opacity-0"}`}>{isEditing&&editingItem&&(<div className="bg-[#18181b] border-t border-[#27272a] p-3 space-y-2"><div className="grid grid-cols-2 gap-2"><div className="col-span-2"><label className="block text-[10px] text-[#a1a1aa] mb-1">Name</label><input value={editingItem.name||""} onChange={e=>setEditingItem(p=>({...p,name:e.target.value}))} className="w-full px-2.5 py-1.5 bg-[#18181b] border border-[#27272a] rounded text-xs text-[#fafafa] focus:outline-none focus:border-[#52525b]"/></div><div><label className="block text-[10px] text-[#a1a1aa] mb-1">Category</label><select value={editingItem.category_id||""} onChange={e=>setEditingItem(p=>({...p,category_id:e.target.value||undefined}))} className="w-full px-2 py-1.5 bg-[#18181b] border border-[#27272a] rounded text-xs text-[#fafafa] focus:outline-none focus:border-[#52525b]"><option value="">None</option>{(categories[game.id]||[]).filter(c=>!c.parent_id).map(cat=>(<option key={cat.id} value={cat.id}>{cat.name}</option>))}</select>{(categories[game.id]||[]).filter(c=>c.parent_id&&c.parent_id===editingItem.category_id).length>0&&<select value={editingItem.category_id||""} onChange={e=>setEditingItem(p=>({...p,category_id:e.target.value||undefined}))} className="w-full mt-1 px-2 py-1.5 bg-[#18181b] border border-[#27272a] rounded text-xs text-[#fafafa] focus:outline-none focus:border-[#52525b]"><option value={editingItem.category_id||""}>-- Select --</option>{(categories[game.id]||[]).filter(c=>c.parent_id===editingItem.category_id).map(sub=><option key={sub.id} value={sub.id}>{sub.name}</option>)}</select>}</div><div><label className="block text-[10px] text-[#a1a1aa] mb-1">Rarity</label><select value={editingItem.rarity||"common"} onChange={e=>setEditingItem(p=>({...p,rarity:e.target.value}))} className="w-full px-2 py-1.5 bg-[#18181b] border border-[#27272a] rounded text-xs text-[#fafafa] focus:outline-none focus:border-[#52525b]">{(rarities[game.id]||[]).map(r=><option key={r.id} value={r.name}>{r.name}</option>)}{(rarities[game.id]||[]).length===0&&<option value="common">Common</option>}</select></div><div><label className="block text-[10px] text-[#a1a1aa] mb-1">Image URL</label><input value={editingItem.image_url||""} onChange={e=>setEditingItem(p=>({...p,image_url:e.target.value}))} placeholder="https://…" className="w-full px-2.5 py-1.5 bg-[#18181b] border border-[#27272a] rounded text-xs text-[#fafafa] placeholder-[#52525b] focus:outline-none focus:border-[#52525b]"/></div><div className="col-span-2"><label className="block text-[10px] text-[#a1a1aa] mb-1">Description</label><input value={editingItem.description||""} onChange={e=>setEditingItem(p=>({...p,description:e.target.value}))} className="w-full px-2.5 py-1.5 bg-[#18181b] border border-[#27272a] rounded text-xs text-[#fafafa] focus:outline-none focus:border-[#52525b]"/></div></div><div className="flex items-center gap-2"><button onClick={handleUpdateItem} className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded bg-[#fafafa] hover:bg-[#e4e4e7] text-[#09090b] transition"><Save className="w-3 h-3"/> Save</button><button onClick={()=>setEditingItem(null)} className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded bg-[#27272a] hover:bg-[#3f3f46] text-[#d4d4d8] transition"><X className="w-3 h-3"/> Cancel</button></div></div>)}</div></div>)})}
-                            {(!itemCatalog[game.id]||itemCatalog[game.id].length===0)&&<p className="text-xs text-[#52525b] py-2">No items in catalog yet.</p>}
+                            {!itemLoadedGames.has(game.id) && (!itemCatalog[game.id] || itemCatalog[game.id].length === 0) && (
+                              <button onClick={() => loadMoreItems(game.id)} className="w-full py-2 text-xs text-[#71717a] hover:text-[#d4d4d8] bg-[#18181b]/30 hover:bg-[#18181b]/60 rounded transition">
+                                Load Items...
+                              </button>
+                            )}
+                            {itemLoadedGames.has(game.id) && (itemCatalog[game.id]||[]).length > 0 && (itemCatalog[game.id]||[]).length < (itemTotal[game.id] || 0) && (
+                              <button onClick={() => loadMoreItems(game.id)} disabled={loadingMoreItems} className="w-full py-2 text-xs text-[#71717a] hover:text-[#d4d4d8] bg-[#18181b]/30 hover:bg-[#18181b]/60 rounded transition disabled:opacity-50">
+                                {loadingMoreItems ? <Loader2 className="w-3 h-3 animate-spin mx-auto" /> : `Load More (${(itemCatalog[game.id]||[]).length} of ${itemTotal[game.id]})`}
+                              </button>
+                            )}
+                            {itemLoadedGames.has(game.id) && (!itemCatalog[game.id] || itemCatalog[game.id].length === 0) && <p className="text-xs text-[#52525b] py-2">No items in catalog yet.</p>}
                           </div>
                         </div>
                       )}

@@ -43,6 +43,7 @@ export {
   uploadActivityImage,
   uploadItemImage,
   fetchItemCatalog,
+  fetchItemCatalogPaginated,
   createItemCatalogItem,
   deleteItemCatalogItem,
   updateItemCatalogItem,

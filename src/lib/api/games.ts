@@ -87,6 +87,27 @@ export async function fetchItemCatalog(gameSlug: string): Promise<any[]> {
   return data || [];
 }
 
+export async function fetchItemCatalogPaginated(
+  gameSlug: string,
+  limit: number,
+  offset: number,
+): Promise<{ items: any[]; total: number }> {
+  const [{ data, error }, { count }] = await Promise.all([
+    supabase
+      .from("items")
+      .select("*")
+      .eq("game", gameSlug)
+      .order("name")
+      .range(offset, offset + limit - 1),
+    supabase
+      .from("items")
+      .select("*", { count: "exact", head: true })
+      .eq("game", gameSlug),
+  ]);
+  if (error) throw error;
+  return { items: data || [], total: count || 0 };
+}
+
 export async function createItemCatalogItem(item: {
   game: string;
   name: string;
