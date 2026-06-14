@@ -439,13 +439,14 @@ export function GearTrackingTab() {
     return map;
   }, [guilds]);
 
-  const renderGearRow = (m: Member) => {
+  const renderGearRow = (m: Member, idx?: number) => {
     const gear = gearForMember(m.id);
     const summary = gearSummaries[m.id];
     return (
       <tr key={m.id} className="group border-b border-[#27272a]/30 hover:bg-[#09090b]/30 transition">
         <td className="py-2 px-3 sticky left-0 bg-[#18181b] group-hover:bg-[#131316] z-10 transition-colors">
           <div className="flex items-center gap-1.5">
+            {idx != null && <span className="text-[10px] text-[#52525b] font-mono w-4 shrink-0 text-right">{idx + 1}</span>}
             {m.class && classIcons[m.class] ? (() => {
               const CIcon = getClassIcon(classIcons[m.class]);
               const cc = classColors[m.class] || "#a1a1aa";
@@ -873,7 +874,7 @@ export function GearTrackingTab() {
                 </thead>
 
               <tbody>
-                  {sortMembers(gMembers).map(m => renderGearRow(m))}
+                  {sortMembers(gMembers).map((m, i) => renderGearRow(m, i))}
                 </tbody>
               </table>
             </div>
@@ -909,7 +910,7 @@ export function GearTrackingTab() {
                 </tr>
               </thead>
               <tbody>
-                {sortMembers(guildMembers.get(null)!).map(m => renderGearRow(m))}
+                {sortMembers(guildMembers.get(null)!).map((m, i) => renderGearRow(m, i))}
               </tbody>
             </table>
           </div>
