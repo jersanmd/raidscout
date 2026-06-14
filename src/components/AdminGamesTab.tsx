@@ -68,6 +68,7 @@ export function AdminGamesTab() {
   const [itemLoadedGames, setItemLoadedGames] = useState<Set<string>>(new Set());
   const [loadingMoreItems, setLoadingMoreItems] = useState(false);
   const [pendingCounts, setPendingCounts] = useState<Record<string, number>>({});
+  const [approvedCounts, setApprovedCounts] = useState<Record<string, number>>({});
   const ITEMS_PER_PAGE = 50;
   const [itemSearch, setItemSearch] = useState("");
   const [showAddItem, setShowAddItem] = useState(false);
@@ -379,7 +380,7 @@ export function AdminGamesTab() {
                           items: itemTotal[game.id] || 0,
                           gear: gearSlots[game.id]?.length || 0,
                           review: pendingCounts[game.id] || 0,
-                          approved: itemTotal[game.id] || 0,
+                          approved: approvedCounts[game.id] || 0,
                         };
                         return (
                           <button key={t.key} onClick={() => setExpandedTab(t.key)}
@@ -599,7 +600,7 @@ export function AdminGamesTab() {
 
                       {/* === APPROVED ITEMS TAB === */}
                       {expandedTab === "approved" && (
-                        <ApprovedItemsTab gameSlug={game.slug || ""} />
+                        <ApprovedItemsTab gameSlug={game.slug || ""} onCountChange={(count) => setApprovedCounts(p => ({ ...p, [game.id]: count }))} />
                       )}
 
                     </div>

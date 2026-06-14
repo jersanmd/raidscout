@@ -14,7 +14,7 @@ type CatalogItem = {
   created_at?: string;
 };
 
-export function ApprovedItemsTab({ gameSlug }: { gameSlug: string }) {
+export function ApprovedItemsTab({ gameSlug, onCountChange }: { gameSlug: string; onCountChange?: (count: number) => void }) {
   const [items, setItems] = useState<CatalogItem[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -30,6 +30,7 @@ export function ApprovedItemsTab({ gameSlug }: { gameSlug: string }) {
       const { items: newItems, total: t } = await fetchApprovedCommunityItems(gameSlug, ITEMS_PER_PAGE, offset, s);
       setItems(prev => offset === 0 ? newItems : [...prev, ...newItems]);
       setTotal(t);
+      if (offset === 0) onCountChange?.(t);
     } catch {
       // ignore
     } finally {
@@ -53,8 +54,11 @@ export function ApprovedItemsTab({ gameSlug }: { gameSlug: string }) {
   const handleDelete = async (id: string) => {
     if (!confirm("Delete this item from the catalog?")) return;
     await deleteItemCatalogItem(id);
-    setItems(prev => prev.filter(i => i.id !== id));
-    setTotal(prev => prev - 1);
+    const remaining = items.filter(i => i.id !== id);
+    setItems(remaining);
+    const newTotal = total - 1;
+    setTotal(newTotal);
+    onCountChange?.(newTotal);
   };
 
   if (loading) {
