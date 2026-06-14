@@ -20,10 +20,11 @@ import { EditBossForm } from "@/components/EditBossForm";
 import { EditActivityForm } from "@/components/EditActivityForm";
 import { BossImage } from "@/components/BossImage";
 import { ItemReviewTab } from "@/components/ItemReviewTab";
+import { ApprovedItemsTab } from "@/components/ApprovedItemsTab";
 import {
   Loader2, Plus, Trash2, Pencil, ChevronDown, ChevronUp,
   Gamepad2, Skull, Calendar, Package, Save, X, Image, Search,
-  Tags, Palette, Upload, Shield, ClipboardCheck,
+  Tags, Palette, Upload, Shield, ClipboardCheck, Check,
 } from "lucide-react";
 
 type Game = { id: string; name: string; slug: string; icon_url?: string | null; supported_spawn_types: string[]; created_at: string };
@@ -41,6 +42,7 @@ const TABS = [
   { key: "items", icon: Package, label: "Items" },
   { key: "gear", icon: Shield, label: "Gear Template" },
   { key: "review", icon: ClipboardCheck, label: "Item Review" },
+  { key: "approved", icon: Check, label: "Approved Items" },
 ] as const;
 
 export function AdminGamesTab() {
@@ -377,6 +379,7 @@ export function AdminGamesTab() {
                           items: itemTotal[game.id] || 0,
                           gear: gearSlots[game.id]?.length || 0,
                           review: pendingCounts[game.id] || 0,
+                          approved: itemTotal[game.id] || 0,
                         };
                         return (
                           <button key={t.key} onClick={() => setExpandedTab(t.key)}
@@ -592,6 +595,11 @@ export function AdminGamesTab() {
                       {/* === ITEM REVIEW TAB === */}
                       {expandedTab === "review" && (
                         <ItemReviewTab gameSlug={game.slug || ""} onCountChange={(count) => setPendingCounts(p => ({ ...p, [game.id]: count }))} />
+                      )}
+
+                      {/* === APPROVED ITEMS TAB === */}
+                      {expandedTab === "approved" && (
+                        <ApprovedItemsTab gameSlug={game.slug || ""} />
                       )}
 
                     </div>
