@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useEffect, useRef } from "react";
+import { useState, useCallback, useMemo, useEffect, useRef, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { useBossSpawns } from "@/hooks/useBossSpawns";
@@ -44,6 +44,29 @@ import { Skull, Loader2, X, CheckCircle, AlertTriangle, CheckSquare, Megaphone, 
 import type { BossWithSpawn, BossGuild, Guild, DeathRecord, SpawnStatus, Activity, ActivityInstance, ActivityGuild } from "@/types";
 
 const sentAlerts = new Set<string>();
+
+// ── Lazy Card Wrapper ──
+function LazyCard({ children }: { children: ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) { setVisible(true); obs.disconnect(); } },
+      { rootMargin: "400px" },
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+
+  return (
+    <div ref={ref} className="min-h-[80px]">
+      {visible ? children : <div className="animate-pulse bg-[#18181b] rounded-xl h-24" />}
+    </div>
+  );
+}
 
 export function BossListView() {
   const navigate = useNavigate();
@@ -802,8 +825,8 @@ export function BossListView() {
                     const lastInst = (s as any)._lastInstance;
                     const hideScheduleTime = a.schedule_type === "fixed_hours" && lastInst?.end_time != null;
                     return (
+                      <LazyCard key={a.id}>
                       <BossCard
-                        key={a.id}
                         spawn={s}
                         activity={a}
                         onFinishActivity={handleFinishActivity}
@@ -822,12 +845,13 @@ export function BossListView() {
                         })()}
                         hideScheduleTime={hideScheduleTime}
                       />
+                      </LazyCard>
                     );
                   }
                   const rot = bossRotationInfo(s.boss.id);
                   return (
+                  <LazyCard key={s.boss.id}>
                   <BossCard
-                    key={s.boss.id}
                     spawn={s}
                     onRecordDeath={handleRecordDeath}
                     onSetSpawnDate={handleSetSpawnDate}
@@ -854,6 +878,7 @@ export function BossListView() {
                     justKilled={justKilledId === s.boss.id}
                     hasGuilds={bossGuilds.some(bg => bg.boss_id === s.boss.id)}
                   />
+                  </LazyCard>
                   );
                 })}
               </div>
