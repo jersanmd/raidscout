@@ -39,59 +39,6 @@ export function InventoryView() {
     enabled: configured && (tab !== "catalog" || needFullItems),
   });
 
-  // Lazy-loading state for catalog
-  const [catalogItems, setCatalogItems] = useState<Item[]>([]);
-  const [catalogTotal, setCatalogTotal] = useState(0);
-  const [catalogLoaded, setCatalogLoaded] = useState(false);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const ITEMS_PER_PAGE = 50;
-  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Load first page on mount / server change
-  useEffect(() => {
-    if (!configured || !serverId) return;
-    setCatalogItems([]);
-    setCatalogTotal(0);
-    setCatalogLoaded(false);
-    loadCatalogPage(0);
-  }, [serverId, configured]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Debounced server-side search
-  useEffect(() => {
-    if (!catalogLoaded) return;
-    if (itemSearch === prevSearchRef.current) return;
-    prevSearchRef.current = itemSearch;
-    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
-    searchTimerRef.current = setTimeout(() => {
-      loadCatalogPage(0, itemSearch.trim() || undefined);
-    }, 300);
-    return () => { if (searchTimerRef.current) clearTimeout(searchTimerRef.current); };
-  }, [itemSearch]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const loadCatalogPage = async (offset: number, search?: string) => {
-    if (!serverId) return;
-    const isSearch = !!(search && search.trim());
-    setLoadingMore(true);
-    try {
-      const { items: newItems, total } = await fetchItemsPaginated(serverId, ITEMS_PER_PAGE, offset, search);
-      setCatalogItems(prev => offset === 0 ? newItems : [...prev, ...newItems]);
-      setCatalogTotal(total);
-      if (!isSearch) setCatalogLoaded(true);
-    } catch (err) {
-      console.error("Failed to load catalog items:", err);
-    } finally {
-      setLoadingMore(false);
-    }
-  };
-
-  // Refresh catalog after mutations
-  const refreshCatalog = () => {
-    setCatalogItems([]);
-    setCatalogTotal(0);
-    setCatalogLoaded(false);
-    loadCatalogPage(0, itemSearch.trim() || undefined);
-  };
-
   const { data: members = [] } = useQuery({
     queryKey: ["members", serverId],
     queryFn: () => fetchMembers(serverId),
@@ -308,6 +255,59 @@ export function InventoryView() {
   const [itemSearch, setItemSearch] = useState("");
   const prevSearchRef = useRef(itemSearch);
   const [rarityFilter, setRarityFilter] = useState<string | null>(null);
+
+  // Lazy-loading state for catalog
+  const [catalogItems, setCatalogItems] = useState<Item[]>([]);
+  const [catalogTotal, setCatalogTotal] = useState(0);
+  const [catalogLoaded, setCatalogLoaded] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const ITEMS_PER_PAGE = 50;
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const loadCatalogPage = async (offset: number, search?: string) => {
+    if (!serverId) return;
+    const isSearch = !!(search && search.trim());
+    setLoadingMore(true);
+    try {
+      const { items: newItems, total } = await fetchItemsPaginated(serverId, ITEMS_PER_PAGE, offset, search);
+      setCatalogItems(prev => offset === 0 ? newItems : [...prev, ...newItems]);
+      setCatalogTotal(total);
+      if (!isSearch) setCatalogLoaded(true);
+    } catch (err) {
+      console.error("Failed to load catalog items:", err);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
+
+  // Load first page on mount / server change
+  useEffect(() => {
+    if (!configured || !serverId) return;
+    setCatalogItems([]);
+    setCatalogTotal(0);
+    setCatalogLoaded(false);
+    loadCatalogPage(0);
+  }, [serverId, configured]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Debounced server-side search
+  useEffect(() => {
+    if (!catalogLoaded) return;
+    if (itemSearch === prevSearchRef.current) return;
+    prevSearchRef.current = itemSearch;
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    searchTimerRef.current = setTimeout(() => {
+      loadCatalogPage(0, itemSearch.trim() || undefined);
+    }, 300);
+    return () => { if (searchTimerRef.current) clearTimeout(searchTimerRef.current); };
+  }, [itemSearch]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Refresh catalog after mutations
+  const refreshCatalog = () => {
+    setCatalogItems([]);
+    setCatalogTotal(0);
+    setCatalogLoaded(false);
+    loadCatalogPage(0, itemSearch.trim() || undefined);
+  };
 
   // Use lazy-loaded catalog items for display (server-side search handled in loadCatalogPage)
   const displayItems = catalogItems.filter(i => {
