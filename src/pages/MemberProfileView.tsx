@@ -533,7 +533,7 @@ export function MemberProfileView() {
                           ? "hover:scale-[1.03] cursor-default"
                           : "border border-dashed border-[#27272a]"
                       }`}
-                      style={item ? { backgroundColor: `${rc}0D` } : { backgroundColor: "transparent" }}
+                      style={undefined}
                     >
                       <p className="text-[7px] text-[#52525b] uppercase tracking-wider mb-0.5">{slot.name}</p>
                       {item ? (
