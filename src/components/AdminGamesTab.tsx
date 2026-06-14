@@ -178,6 +178,14 @@ export function AdminGamesTab() {
     });
   };
 
+  // Auto-load items when switching to the Items tab
+  useEffect(() => {
+    if (expandedTab === "items" && expandedGame && !itemLoadedGames.has(expandedGame)) {
+      const s = games.find(g => g.id === expandedGame)?.slug;
+      if (s) loadMoreItems(expandedGame);
+    }
+  }, [expandedTab, expandedGame]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const loadMoreItems = async (gameId: string, search?: string) => {
     const s = games.find(g => g.id === gameId)?.slug;
     if (!s) return;
