@@ -15,7 +15,7 @@ import type { Item, Distribution, ItemRarity } from "@/types";
 import {
   Package, Plus, Trash2, Loader2, Search, Gift, History, BarChart3,
   X, ChevronRight, ArrowLeft, Image, Star, Upload, Minus, Pencil,
-  Sword, Shield, Wand, Skull, Flame, Sparkles, Zap, Heart, Eye, Anchor, Footprints, Tag,
+  Sword, Shield, Wand, Skull, Flame, Sparkles, Zap, Heart, Eye, Anchor, Footprints, Tag, Swords, Crosshair, Bone,
 } from "lucide-react";
 
 const RARITY_COLORS: Record<ItemRarity, string> = {
@@ -41,6 +41,9 @@ const CLASS_ICONS = [
   { name: "Eye", icon: Eye, label: "Mystic / Seer" },
   { name: "Anchor", icon: Anchor, label: "Defense / Anchor" },
   { name: "Footprints", icon: Footprints, label: "Scout / Rogue" },
+  { name: "Swords", icon: Swords, label: "Dual Wield / Blades" },
+  { name: "Crosshair", icon: Crosshair, label: "Ranged / Archer" },
+  { name: "Bone", icon: Bone, label: "Necromancer / Dark" },
 ];
 
 const getClassIcon = (iconName: string) => {
