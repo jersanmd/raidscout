@@ -125,6 +125,38 @@ export async function fetchPendingItems(gameSlug?: string): Promise<any[]> {
   return data || [];
 }
 
+export async function fetchApprovedCommunityItems(
+  gameSlug: string,
+  limit: number,
+  offset: number,
+  search?: string,
+): Promise<{ items: any[]; total: number }> {
+  let query = supabase
+    .from("items")
+    .select("*")
+    .eq("game", gameSlug)
+    .eq("status", "approved")
+    .not("server_id", "is", null);  // community-created, not admin-created
+  let countQuery = supabase
+    .from("items")
+    .select("*", { count: "exact", head: true })
+    .eq("game", gameSlug)
+    .eq("status", "approved")
+    .not("server_id", "is", null);
+
+  if (search && search.trim()) {
+    query = query.ilike("name", `%${search.trim()}%`);
+    countQuery = countQuery.ilike("name", `%${search.trim()}%`);
+  }
+
+  const [{ data, error }, { count }] = await Promise.all([
+    query.order("name").range(offset, offset + limit - 1),
+    countQuery,
+  ]);
+  if (error) throw error;
+  return { items: data || [], total: count || 0 };
+}
+
 export async function approveItem(itemId: string): Promise<void> {
   const { error } = await supabase.rpc("approve_item", { p_item_id: itemId });
   if (error) throw error;

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { fetchItemCatalogPaginated, deleteItemCatalogItem } from "@/lib/supabase";
+import { fetchApprovedCommunityItems, deleteItemCatalogItem } from "@/lib/supabase";
 import { Loader2, Package, Trash2, Search } from "lucide-react";
 
 type CatalogItem = {
@@ -27,7 +27,7 @@ export function ApprovedItemsTab({ gameSlug }: { gameSlug: string }) {
     if (offset === 0) setLoading(true);
     else setLoadingMore(true);
     try {
-      const { items: newItems, total: t } = await fetchItemCatalogPaginated(gameSlug, ITEMS_PER_PAGE, offset, s);
+      const { items: newItems, total: t } = await fetchApprovedCommunityItems(gameSlug, ITEMS_PER_PAGE, offset, s);
       setItems(prev => offset === 0 ? newItems : [...prev, ...newItems]);
       setTotal(t);
     } catch {

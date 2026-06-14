@@ -45,6 +45,7 @@ export {
   fetchItemCatalog,
   fetchItemCatalogPaginated,
   fetchPendingItems,
+  fetchApprovedCommunityItems,
   approveItem,
   rejectItem,
   createItemCatalogItem,
