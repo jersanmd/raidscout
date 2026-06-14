@@ -92,11 +92,6 @@ export function MembersView() {
     try { return localStorage.getItem(progressGuildKey) || ""; } catch { return ""; }
   });
   const [progressGuildOpen, setProgressGuildOpen] = useState(false);
-  const classesGuildKey = `classes-guild-${serverId ?? "global"}`;
-  const [classesGuildFilter, setClassesGuildFilter] = useState<string>(() => {
-    try { return localStorage.getItem(classesGuildKey) || ""; } catch { return ""; }
-  });
-  const [classesGuildOpen, setClassesGuildOpen] = useState(false);
   const [showClassCreator, setShowClassCreator] = useState(false);
 
   // Sort state for guild member tables (persisted in localStorage)
@@ -439,13 +434,6 @@ export function MembersView() {
       setAddGuild(guilds[0].id);
     }
   }, [guilds]);
-
-  // Default classes guild filter to first guild on first visit
-  useEffect(() => {
-    if (!classesGuildFilter && guilds.length > 0 && !localStorage.getItem(classesGuildKey)) {
-      setClassesGuildFilter(guilds[0].id);
-    }
-  }, [guilds, classesGuildFilter, classesGuildKey]);
 
   const handleAddClass = async () => {
     const name = newClassName.trim();
@@ -1821,56 +1809,7 @@ export function MembersView() {
               <Users className="w-4 h-4 text-[#a1a1aa]" />
               Assign Classes to Members
             </h3>
-            <div className="flex items-center gap-2 ml-auto">
-              {guilds.length > 0 && (
-                <div className="relative">
-                  <button
-                    onClick={() => setClassesGuildOpen(!classesGuildOpen)}
-                    className="flex items-center gap-1.5 px-2.5 py-1.5 bg-[#18181b] border border-[#27272a] rounded-lg text-xs text-[#a1a1aa] hover:border-[#52525b] transition"
-                  >
-                    {classesGuildFilter ? (() => {
-                      const g = guilds.find(x => x.id === classesGuildFilter);
-                      if (!g) return <span>All Guilds</span>;
-                      const c = guildColor(g.name);
-                      return (
-                        <span className="flex items-center gap-1.5">
-                          <Shield className={`w-3 h-3 ${c.text}`} />
-                          <span className={c.text}>{g.name}</span>
-                        </span>
-                      );
-                    })() : <span>All Guilds</span>}
-                    <ChevronDown className="w-3 h-3 ml-auto" />
-                  </button>
-                  {classesGuildOpen && (
-                    <>
-                      <div className="fixed inset-0 z-40" onClick={() => setClassesGuildOpen(false)} />
-                      <div className="absolute right-0 top-full mt-1 z-50 bg-[#18181b] border border-[#27272a] rounded-lg shadow-xl py-1 min-w-[140px]">
-                        <button
-                          onClick={() => { setClassesGuildFilter(""); setClassesGuildOpen(false); localStorage.setItem(classesGuildKey, ""); }}
-                          className={`flex items-center gap-2 w-full px-3 py-1.5 text-xs transition ${!classesGuildFilter ? "bg-[#09090b] text-[#fafafa]" : "text-[#a1a1aa] hover:bg-[#09090b]"}`}
-                        >
-                          <span className="w-3 h-3 rounded-full border border-[#3f3f46]" />
-                          All Guilds
-                        </button>
-                        {guilds.map(g => {
-                          const c = guildColor(g.name);
-                          return (
-                            <button
-                              key={g.id}
-                              onClick={() => { setClassesGuildFilter(g.id); setClassesGuildOpen(false); localStorage.setItem(classesGuildKey, g.id); }}
-                              className={`flex items-center gap-2 w-full px-3 py-1.5 text-xs transition ${classesGuildFilter === g.id ? "bg-[#09090b] text-[#fafafa]" : "text-[#a1a1aa] hover:bg-[#09090b]"}`}
-                            >
-                              <Shield className={`w-3 h-3 ${c.text}`} />
-                              {g.name}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </>
-                  )}
-                </div>
-              )}
-              <div className="relative w-48">
+            <div className="relative w-48">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#52525b]" />
               <input
                 type="text"
@@ -1879,7 +1818,6 @@ export function MembersView() {
                 placeholder="Search members..."
                 className="w-full pl-8 pr-3 py-1.5 bg-[#09090b] border border-[#27272a] rounded-lg text-xs text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#52525b]"
               />
-              </div>
             </div>
           </div>
           {members.length === 0 ? (
@@ -1889,7 +1827,6 @@ export function MembersView() {
           ) : (
             <div className="space-y-3">
               {sortedGuildGroups.map((group, gi) => {
-                if (classesGuildFilter && group.guild?.id !== classesGuildFilter) return null;
                 const activeMembers = group.members.filter(m => m.is_active !== false);
                 const filtered = classSearch.trim()
                   ? activeMembers.filter(m => m.name.toLowerCase().includes(classSearch.toLowerCase()))
