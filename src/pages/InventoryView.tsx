@@ -46,7 +46,6 @@ export function InventoryView() {
   const [loadingMore, setLoadingMore] = useState(false);
   const ITEMS_PER_PAGE = 50;
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const prevSearchRef = useRef(itemSearch);
 
   // Load first page on mount / server change
   useEffect(() => {
@@ -307,6 +306,7 @@ export function InventoryView() {
   });
 
   const [itemSearch, setItemSearch] = useState("");
+  const prevSearchRef = useRef(itemSearch);
   const [rarityFilter, setRarityFilter] = useState<string | null>(null);
 
   // Use lazy-loaded catalog items for display (server-side search handled in loadCatalogPage)
