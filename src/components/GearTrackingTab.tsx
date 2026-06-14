@@ -88,7 +88,10 @@ export function GearTrackingTab() {
   const [memberSearch, setMemberSearch] = useState("");
   const [openSlotPicker, setOpenSlotPicker] = useState<string | null>(null);
   const [pickerSearch, setPickerSearch] = useState("");
-  const [guildFilter, setGuildFilter] = useState<string>("all");
+  const guildFilterKey = `gear-guild-filter-${serverId ?? "global"}`;
+  const [guildFilter, setGuildFilter] = useState<string>(() => {
+    try { return localStorage.getItem(guildFilterKey) || "all"; } catch { return "all"; }
+  });
   const [guildFilterOpen, setGuildFilterOpen] = useState(false);
   const [classIcons, setClassIcons] = useState<Record<string, string>>({});
   const [classColors, setClassColors] = useState<Record<string, string>>({});
@@ -172,6 +175,19 @@ export function GearTrackingTab() {
   const [guildOrder, setGuildOrder] = useState<string[]>(() => {
     try { return JSON.parse(localStorage.getItem(guildOrderKey) || "[]"); } catch { return []; }
   });
+
+  // Default guild filter to first guild on first visit
+  useEffect(() => {
+    if (guildFilter === "all" && orderedGuilds.length > 0 && !localStorage.getItem(guildFilterKey)) {
+      setGuildFilter(orderedGuilds[0].id);
+    }
+  }, [orderedGuilds, guildFilter, guildFilterKey]);
+
+  const handleGuildFilterChange = (value: string) => {
+    setGuildFilter(value);
+    setGuildFilterOpen(false);
+    try { localStorage.setItem(guildFilterKey, value); } catch {}
+  };
 
   const orderedGuilds = useMemo(() => {
     const guildIds = new Set(guilds.map(g => g.id));
@@ -781,7 +797,7 @@ export function GearTrackingTab() {
                 <div className="fixed inset-0 z-40" onClick={() => setGuildFilterOpen(false)} />
                 <div className="absolute right-0 top-full mt-1 z-50 bg-[#18181b] border border-[#27272a] rounded-lg shadow-xl py-1 min-w-[140px]">
                   <button
-                    onClick={() => { setGuildFilter("all"); setGuildFilterOpen(false); }}
+                    onClick={() => handleGuildFilterChange("all")}
                     className={`flex items-center gap-2 w-full px-3 py-1.5 text-xs transition ${guildFilter === "all" ? "bg-[#09090b] text-[#fafafa]" : "text-[#a1a1aa] hover:bg-[#09090b]"}`}
                   >
                     <span className="w-3 h-3 rounded-full border border-[#3f3f46]" />
@@ -792,7 +808,7 @@ export function GearTrackingTab() {
                     return (
                       <button
                         key={g.id}
-                        onClick={() => { setGuildFilter(g.id); setGuildFilterOpen(false); }}
+                        onClick={() => handleGuildFilterChange(g.id)}
                         className={`flex items-center gap-2 w-full px-3 py-1.5 text-xs transition ${guildFilter === g.id ? "bg-[#09090b] text-[#fafafa]" : "text-[#a1a1aa] hover:bg-[#09090b]"}`}
                       >
                         <Shield className={`w-3 h-3 ${c.text}`} />
@@ -802,7 +818,7 @@ export function GearTrackingTab() {
                   })}
                   {(guildMembers.get(null) || []).length > 0 && (
                     <button
-                      onClick={() => { setGuildFilter("__noguild__"); setGuildFilterOpen(false); }}
+                      onClick={() => handleGuildFilterChange("__noguild__")}
                       className={`flex items-center gap-2 w-full px-3 py-1.5 text-xs transition ${guildFilter === "__noguild__" ? "bg-[#09090b] text-[#fafafa]" : "text-[#a1a1aa] hover:bg-[#09090b]"}`}
                     >
                       <div className="w-3 h-3 rounded-full bg-[#3f3f46]" />
