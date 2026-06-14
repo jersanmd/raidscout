@@ -530,15 +530,15 @@ export function MemberProfileView() {
                     <div
                       className={`w-[68px] rounded-lg flex flex-col items-center justify-center py-1.5 px-1 transition-all duration-200 ${
                         item
-                          ? "bg-[#09090b] border hover:scale-[1.03] cursor-default"
-                          : "bg-[#09090b] border border-dashed border-[#27272a]"
+                          ? "hover:scale-[1.03] cursor-default"
+                          : "border border-dashed border-[#27272a]"
                       }`}
-                      style={item ? { borderColor: `${rc}40`, borderWidth: 1, borderStyle: "solid" } : {}}
+                      style={item ? { backgroundColor: `${rc}0D` } : { backgroundColor: "transparent" }}
                     >
                       <p className="text-[7px] text-[#52525b] uppercase tracking-wider mb-0.5">{slot.name}</p>
                       {item ? (
                         <>
-                          <div className="w-8 h-8 rounded-lg flex items-center justify-center relative" style={{ backgroundColor: `${rc}18` }}>
+                          <div className="w-8 h-8 rounded-lg flex items-center justify-center relative" style={{ backgroundColor: `${rc}14` }}>
                             {item.image_url ? (
                               <img src={item.image_url} alt="" className="w-6 h-6 rounded object-cover" />
                             ) : (
@@ -551,7 +551,7 @@ export function MemberProfileView() {
                           <p className="text-[7px] font-medium mt-0.5 text-center truncate w-full" style={{ color: rc }}>{item.name.length > 10 ? item.name.slice(0, 9) + "…" : item.name}</p>
                         </>
                       ) : (
-                        <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-[#18181b]">
+                        <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-transparent">
                           <Shield className="w-3.5 h-3.5 text-[#27272a]" />
                         </div>
                       )}
