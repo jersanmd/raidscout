@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { useServerId, useHasPermission } from "@/contexts/ServerContext";
@@ -74,6 +74,7 @@ export function GearTrackingTab() {
   const configured = isSupabaseConfigured();
   const canManage = useHasPermission("can_manage_members");
   const queryClient = useQueryClient();
+  const gearEditorRef = useRef<HTMLDivElement>(null);
   const { data: members = [] } = useMembers();
 
   // ── State ──
@@ -455,6 +456,10 @@ export function GearTrackingTab() {
             }
             setOpenSlotPicker(slotId);
             setPickerSearch("");
+            // Scroll to editor after a short delay to let the UI update
+            setTimeout(() => {
+              gearEditorRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+            }, 100);
           };
 
           return (
@@ -506,7 +511,7 @@ export function GearTrackingTab() {
 
       {/* ── Member Gear Editor ── */}
       {canManage && (
-        <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-4">
+        <div ref={gearEditorRef} className="bg-[#18181b] border border-[#27272a] rounded-xl p-4">
           <h3 className="text-sm font-semibold text-[#fafafa] flex items-center gap-2 mb-3">
             <Shield className="w-4 h-4 text-[#a1a1aa]" />
             Edit Member Gear
