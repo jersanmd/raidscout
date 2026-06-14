@@ -536,39 +536,6 @@ export function MemberProfileView() {
           </div>
         </div>
 
-        {/* Gear Equipment Row */}
-        {gearSlotDefs.length > 0 && (
-          <div className="mt-3">
-            <div className="flex items-center gap-2 mb-2">
-              <Package className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-              <span className="text-[10px] text-[#71717a] uppercase tracking-wider">Equipment</span>
-              <span className="text-[10px] text-[#52525b]">
-                {gearSlotDefs.filter((s: any) => gearMap[s.name]?.catalog_item_id).length}/{gearSlotDefs.length} equipped
-              </span>
-            </div>
-            <div className="grid grid-cols-7 gap-0.5">
-              {(() => {
-                // Row 1: helm, chest, lower pants, weapon, necklace, earring, bracelet
-                // Row 2: empty, gloves, boots, cloak, ring, belt, gadget
-                const order = ["Helm","Chest","Lower Pants","Weapon","Necklace","Earring","Bracelet","_","Gloves","Boots","Cloak","Ring","Belt","Gadget"];
-                return order.map((slotName) => {
-                  if (slotName === "_") return <div key="_" />;
-                  const slot = gearSlotDefs.find((s: any) => s.name.toLowerCase() === slotName.toLowerCase());
-                  if (!slot) return <div key={slotName} />;
-                  const gear = gearMap[slot.name];
-                  const item = gear?.catalog_item_id ? gearItemMap[gear.catalog_item_id] : null;
-                  const rarity = item?.rarity?.toLowerCase() || "";
-                  const rc: string = ({"legendary":"#f59e0b","epic":"#a855f7","rare":"#3b82f6","uncommon":"#22c55e","common":"#a1a1aa","mythic":"#ef4444"} as any)[rarity] || "#3f3f46";
-                  const enh = gear?.enhancement_level || 0;
-                  return (
-                    <GearSlot key={slot.name} slotName={slot.name} item={item} enh={enh} rc={rc} />
-                  );
-                });
-              })()}
-            </div>
-          </div>
-        )}
-
         {/* CP Trend Sparkline */}
         {cpSparkData.length > 0 && (() => {
           const lastCp = cpSparkData[cpSparkData.length - 1].cp;
@@ -623,6 +590,39 @@ export function MemberProfileView() {
           );
         })()}
       </div>
+
+      {/* ── Equipment ── */}
+      {gearSlotDefs.length > 0 && (
+        <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-4 sm:p-5">
+          <div className="flex items-center gap-2 mb-3">
+            <Package className="w-4 h-4 text-amber-400 shrink-0" />
+            <h2 className="text-xs font-semibold text-[#a1a1aa] uppercase tracking-wider">Equipment</h2>
+            <span className="text-[10px] text-[#52525b] ml-auto">
+              {gearSlotDefs.filter((s: any) => gearMap[s.name]?.catalog_item_id).length}/{gearSlotDefs.length} slots equipped
+            </span>
+          </div>
+          <div className="grid grid-cols-7 gap-0.5">
+            {(() => {
+              // Row 1: helm, chest, lower pants, weapon, necklace, earring, bracelet
+              // Row 2: empty, gloves, boots, cloak, ring, belt, gadget
+              const order = ["Helm","Chest","Lower Pants","Weapon","Necklace","Earring","Bracelet","_","Gloves","Boots","Cloak","Ring","Belt","Gadget"];
+              return order.map((slotName) => {
+                if (slotName === "_") return <div key="_" />;
+                const slot = gearSlotDefs.find((s: any) => s.name.toLowerCase() === slotName.toLowerCase());
+                if (!slot) return <div key={slotName} />;
+                const gear = gearMap[slot.name];
+                const item = gear?.catalog_item_id ? gearItemMap[gear.catalog_item_id] : null;
+                const rarity = item?.rarity?.toLowerCase() || "";
+                const rc: string = ({"legendary":"#f59e0b","epic":"#a855f7","rare":"#3b82f6","uncommon":"#22c55e","common":"#a1a1aa","mythic":"#ef4444"} as any)[rarity] || "#3f3f46";
+                const enh = gear?.enhancement_level || 0;
+                return (
+                  <GearSlot key={slot.name} slotName={slot.name} item={item} enh={enh} rc={rc} />
+                );
+              });
+            })()}
+          </div>
+        </div>
+      )}
 
       {/* ── Daily Activity ── */}
       <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-4 sm:p-5">
