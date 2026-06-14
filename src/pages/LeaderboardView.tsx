@@ -977,8 +977,10 @@ export function LeaderboardView() {
                                         <div className="flex items-center justify-center w-6 h-6 shrink-0">
                                           {style ? <span className="scale-75">{style.icon}</span> : <span className="text-xs font-bold text-[#71717a]">{rank}</span>}
                                         </div>
-                                        <span className="text-sm text-[#fafafa] flex-1 truncate">{entry.name}</span>
-                                        {renderClassBadge(entry.name)}
+                                        <span className="text-sm text-[#fafafa] flex-1 truncate flex items-center gap-1.5">
+                                          {(() => { const cls = memberClassMap[entry.name]; if (!cls) return null; const iconName = classIcons[cls]; const IconComp = iconName ? getClassIcon(iconName) : null; const color = classColors[cls]; return IconComp ? <IconComp className="w-3.5 h-3.5 shrink-0" style={{ color }} /> : null; })()}
+                                          {entry.name}
+                                        </span>
                                         <span className="text-xs font-mono text-[#a1a1aa]">
                                           {entry.points}pt
                                         </span>

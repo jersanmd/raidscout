@@ -332,6 +332,9 @@ export function InventoryView() {
 
   // Recipients tab search
   const [recipientSearch, setRecipientSearch] = useState("");
+  const [recipientGuildFilter, setRecipientGuildFilter] = useState<string>(() => {
+    try { return localStorage.getItem("raidscout-recipient-guild") || ""; } catch { return ""; }
+  });
 
   // Delete confirmation
   const [deleteConfirm, setDeleteConfirm] = useState<{ distId: string; itemName: string } | null>(null);
@@ -686,8 +689,8 @@ export function InventoryView() {
                               const cc = (m?.class && classColors[m.class]) || "#a1a1aa";
                               const ci = m?.class && classIcons[m.class];
                               return (
-                                <span className="text-[11px] font-medium flex items-center gap-1" style={{ color: cc }}>
-                                  {ci && getClassIcon(ci) && (() => { const CIcon = getClassIcon(ci)!; return <CIcon className="w-3 h-3" />; })()}
+                                <span className="text-[11px] font-medium flex items-center gap-1 text-[#fafafa]">
+                                  {ci && getClassIcon(ci) && (() => { const CIcon = getClassIcon(ci)!; return <CIcon className="w-3 h-3" style={{ color: cc }} />; })()}
                                   {d.player_name}
                                 </span>
                               );
@@ -727,9 +730,24 @@ export function InventoryView() {
         const players = Array.from(playerMap.values()).sort((a, b) => b.dists.length - a.dists.length);
         // Sort each player's items chronologically (earliest first, latest last)
         players.forEach(p => p.dists.sort((a, b) => new Date(a.distributed_at).getTime() - new Date(b.distributed_at).getTime()));
-        const filteredPlayers = recipientSearch
-          ? players.filter(p => p.player_name.toLowerCase().includes(recipientSearch.toLowerCase()))
-          : players;
+        const filteredPlayers = (() => {
+          let list = players;
+          if (recipientSearch) list = list.filter(p => p.player_name.toLowerCase().includes(recipientSearch.toLowerCase()));
+          if (recipientGuildFilter) {
+            list = list.filter(p => {
+              const m = members.find(m => m.id === p.member_id || m.name === p.player_name);
+              const g = m?.guild_id ? guilds.find(g => g.id === m.guild_id) : null;
+              return g?.name === recipientGuildFilter;
+            });
+          }
+          return list;
+        })();
+        // Build unique guild list for filter dropdown
+        const guildNames = [...new Set(players.map(p => {
+          const m = members.find(m => m.id === p.member_id || m.name === p.player_name);
+          const g = m?.guild_id ? guilds.find(g => g.id === m.guild_id) : null;
+          return g?.name ?? "";
+        }).filter(Boolean))].sort();
         return (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
@@ -752,11 +770,25 @@ export function InventoryView() {
                   </button>
                 )}
               </div>
+              <select
+                value={recipientGuildFilter}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setRecipientGuildFilter(val);
+                  try { localStorage.setItem("raidscout-recipient-guild", val); } catch {}
+                }}
+                className="text-[11px] bg-[#09090b] border border-[#27272a] rounded-lg text-[#fafafa] px-2 py-1 focus:outline-none focus:border-[#3f3f46]"
+              >
+                <option value="">All Guilds</option>
+                {guildNames.map(g => (
+                  <option key={g} value={g}>{g}</option>
+                ))}
+              </select>
               <span className="text-xs text-[#52525b] font-mono">{filteredPlayers.length} / {players.length} players</span>
             </div>
           </div>
           {filteredPlayers.length === 0 ? (
-            <p className="text-sm text-[#52525b] text-center py-12">{recipientSearch ? "No players match." : "No distribution data yet."}</p>
+            <p className="text-sm text-[#52525b] text-center py-12">{recipientSearch || recipientGuildFilter ? "No players match." : "No distribution data yet."}</p>
           ) : (
             <div className="bg-[#18181b] border border-[#27272a] rounded-xl overflow-hidden">
               <div className="overflow-x-auto">
@@ -783,7 +815,7 @@ export function InventoryView() {
                                 {CIcon ? <CIcon className="w-3 h-3" /> : p.player_name[0]}
                               </div>
                               <div className="min-w-0">
-                                <p className="text-xs font-medium truncate" style={{ color: cc }}>{p.player_name}</p>
+                                <p className="text-xs font-medium truncate text-[#fafafa]">{p.player_name}</p>
                                 <div className="flex items-center gap-1 mt-0.5 flex-wrap">
                                   {gc && g && (
                                     <span className={`flex items-center gap-0.5 text-[9px] font-medium px-1 py-0.5 rounded border ${gc.bg} ${gc.text} ${gc.border}`}>
@@ -1008,8 +1040,8 @@ export function InventoryView() {
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between mb-0.5">
                             <div className="flex items-center gap-1.5 min-w-0">
-                              <p className="text-xs truncate flex items-center gap-1" style={{ color: cc }}>
-                                {ci && getClassIcon(ci) && (() => { const CIcon = getClassIcon(ci)!; return <CIcon className="w-3 h-3 shrink-0" />; })()}
+                              <p className="text-xs truncate flex items-center gap-1 text-[#fafafa]">
+                                {ci && getClassIcon(ci) && (() => { const CIcon = getClassIcon(ci)!; return <CIcon className="w-3 h-3 shrink-0" style={{ color: cc }} />; })()}
                                 {r.player_name}
                               </p>
                               {gc && g && (
