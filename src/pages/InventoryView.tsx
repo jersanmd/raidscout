@@ -31,10 +31,12 @@ export function InventoryView() {
   const configured = isSupabaseConfigured();
   const [tab, setTab] = useState<"catalog" | "history" | "analytics">("catalog");
 
+  // Track whether we need the full items list (history/analytics tabs or distribute modal)
+  const [needFullItems, setNeedFullItems] = useState(false);
   const { data: items = [], isLoading: itemsLoading } = useQuery({
     queryKey: ["items", serverId],
     queryFn: () => fetchItems(serverId),
-    enabled: configured && (tab !== "catalog" || showDistribute),
+    enabled: configured && (tab !== "catalog" || needFullItems),
   });
 
   // Lazy-loading state for catalog
@@ -248,6 +250,11 @@ export function InventoryView() {
   const [distMemberSearch, setDistMemberSearch] = useState("");
   const [distItemSearch, setDistItemSearch] = useState("");
   useEscapeKey(() => setShowDistribute(false), showDistribute);
+
+  // Trigger full items load when distribution modal opens
+  useEffect(() => {
+    if (showDistribute) setNeedFullItems(true);
+  }, [showDistribute]);
 
   // Distribution counts (computed before filteredDistItems which depends on them)
   const memberDistCounts: Record<string, number> = {};
