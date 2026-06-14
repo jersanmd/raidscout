@@ -176,6 +176,13 @@ export function GearTrackingTab() {
     try { return JSON.parse(localStorage.getItem(guildOrderKey) || "[]"); } catch { return []; }
   });
 
+  const orderedGuilds = useMemo(() => {
+    const guildIds = new Set(guilds.map(g => g.id));
+    const ordered = guildOrder.filter(id => guildIds.has(id));
+    guilds.forEach(g => { if (!ordered.includes(g.id)) ordered.push(g.id); });
+    return ordered.map(id => guilds.find(g => g.id === id)!).filter(Boolean);
+  }, [guilds, guildOrder]);
+
   // Default guild filter to first guild on first visit
   useEffect(() => {
     if (guildFilter === "all" && orderedGuilds.length > 0 && !localStorage.getItem(guildFilterKey)) {
@@ -188,13 +195,6 @@ export function GearTrackingTab() {
     setGuildFilterOpen(false);
     try { localStorage.setItem(guildFilterKey, value); } catch {}
   };
-
-  const orderedGuilds = useMemo(() => {
-    const guildIds = new Set(guilds.map(g => g.id));
-    const ordered = guildOrder.filter(id => guildIds.has(id));
-    guilds.forEach(g => { if (!ordered.includes(g.id)) ordered.push(g.id); });
-    return ordered.map(id => guilds.find(g => g.id === id)!).filter(Boolean);
-  }, [guilds, guildOrder]);
 
   const moveGuild = (guildId: string, dir: -1 | 1) => {
     setGuildOrder(prev => {
