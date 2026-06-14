@@ -1260,44 +1260,34 @@ export function MembersView() {
                   <thead>
                     <tr className="text-[10px] text-[#71717a] uppercase tracking-wider border-b border-[#27272a]/50">
                       <th className="text-left py-2.5 px-3 w-8"></th>
-                      <th className="text-left py-2.5 px-2 w-[47%] cursor-pointer select-none hover:text-[#a1a1aa] transition" onClick={() => toggleSort("name")}>
+                      <th className="text-left py-2.5 px-2 w-[47%] cursor-pointer select-none hover:bg-[#27272a]/30 transition group" onClick={() => toggleSort("name")}>
                         <span className="inline-flex items-center gap-1">
-                          Member
-                          {sortColumn === "name" && (
-                            sortDir === "asc" ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />
-                          )}
+                          <span className={sortColumn === "name" ? "text-[#fafafa]" : "group-hover:text-[#a1a1aa]"}>Member</span>
+                          <span className="inline-block w-3 text-center">{sortColumn === "name" ? (sortDir === "asc" ? "▲" : "▼") : "⇅"}</span>
                         </span>
                       </th>
-                      <th className="text-right py-2.5 px-2 w-[9%] cursor-pointer select-none hover:text-[#a1a1aa] transition" onClick={() => toggleSort("cp")}>
+                      <th className="text-right py-2.5 px-2 w-[9%] cursor-pointer select-none hover:bg-[#27272a]/30 transition group" onClick={() => toggleSort("cp")}>
                         <span className="inline-flex items-center gap-1 justify-end">
-                          <span className={sortColumn === "cp" ? "text-[#fafafa]" : ""}>Current CP</span>
-                          {sortColumn === "cp" && (
-                            sortDir === "asc" ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />
-                          )}
+                          <span className={sortColumn === "cp" ? "text-[#fafafa]" : "group-hover:text-[#a1a1aa]"}>Current CP</span>
+                          <span className="inline-block w-3 text-center">{sortColumn === "cp" ? (sortDir === "asc" ? "▲" : "▼") : "⇅"}</span>
                         </span>
                       </th>
-                      <th className="text-right py-2.5 px-2 w-[7%] cursor-pointer select-none hover:text-[#a1a1aa] transition" onClick={() => toggleSort("growth")} title="30d CP growth">
+                      <th className="text-right py-2.5 px-2 w-[7%] cursor-pointer select-none hover:bg-[#27272a]/30 transition group" onClick={() => toggleSort("growth")} title="30d CP growth">
                         <span className="inline-flex items-center gap-1 justify-end">
-                          <span className={sortColumn === "growth" ? "text-[#fafafa]" : ""}>30d Growth</span>
-                          {sortColumn === "growth" && (
-                            sortDir === "asc" ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />
-                          )}
+                          <span className={sortColumn === "growth" ? "text-[#fafafa]" : "group-hover:text-[#a1a1aa]"}>30d Growth</span>
+                          <span className="inline-block w-3 text-center">{sortColumn === "growth" ? (sortDir === "asc" ? "▲" : "▼") : "⇅"}</span>
                         </span>
                       </th>
-                      <th className="text-center py-2.5 px-1 w-[7%] cursor-pointer select-none hover:text-[#a1a1aa] transition" onClick={() => toggleSort("score")} title="Sort by performance score">
+                      <th className="text-center py-2.5 px-1 w-[7%] cursor-pointer select-none hover:bg-[#27272a]/30 transition group" onClick={() => toggleSort("score")} title="Sort by performance score">
                         <span className="inline-flex items-center gap-1 justify-center">
-                          Score
-                          {sortColumn === "score" && (
-                            sortDir === "asc" ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />
-                          )}
+                          <span className={sortColumn === "score" ? "text-[#fafafa]" : "group-hover:text-[#a1a1aa]"}>Score</span>
+                          <span className="inline-block w-3 text-center">{sortColumn === "score" ? (sortDir === "asc" ? "▲" : "▼") : "⇅"}</span>
                         </span>
                       </th>
-                      <th className="text-center py-2.5 px-2 w-[5%] cursor-pointer select-none hover:text-[#a1a1aa] transition" onClick={() => toggleSort("status")} title="Sort by CP status">
+                      <th className="text-center py-2.5 px-2 w-[5%] cursor-pointer select-none hover:bg-[#27272a]/30 transition group" onClick={() => toggleSort("status")} title="Sort by CP status">
                         <span className="inline-flex items-center gap-1 justify-center">
-                          Status
-                          {sortColumn === "status" && (
-                            sortDir === "asc" ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />
-                          )}
+                          <span className={sortColumn === "status" ? "text-[#fafafa]" : "group-hover:text-[#a1a1aa]"}>Status</span>
+                          <span className="inline-block w-3 text-center">{sortColumn === "status" ? (sortDir === "asc" ? "▲" : "▼") : "⇅"}</span>
                         </span>
                       </th>
                       {canManageRaidMembers && <th className="text-right py-2.5 px-3 w-[8%]"></th>}

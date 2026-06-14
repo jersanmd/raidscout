@@ -135,7 +135,11 @@ export function GearTrackingTab() {
       };
       const scoreA = RARITY_SCORE[resolveRarity(ga)] || 0;
       const scoreB = RARITY_SCORE[resolveRarity(gb)] || 0;
-      return dir * (scoreB - scoreA);
+      if (scoreA !== scoreB) return dir * (scoreB - scoreA);
+      // Tiebreaker: higher CP first
+      const cpA = a.combat_power ?? 0;
+      const cpB = b.combat_power ?? 0;
+      return dir * (cpB - cpA);
     });
   };
 
