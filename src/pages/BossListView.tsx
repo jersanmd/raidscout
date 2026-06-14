@@ -366,12 +366,13 @@ export function BossListView() {
       if (user || isViewer) {
         try {
           const ownerGuildNameStr = ownerGuildName(boss.id);
+          const resolvedGuildId = ownerGuildNameStr ? guilds.find(g => g.name === ownerGuildNameStr)?.id ?? null : null;
           await recordDeath({
             bossId,
             bossName: boss.name,
             deathTime,
             attendeeIds,
-            ownerGuildName: ownerGuildNameStr || "",
+            ownerGuildName: resolvedGuildId || "",
             scanResults,
             rallyImages,
             notifyDiscordChannel: true,
