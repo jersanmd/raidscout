@@ -8,7 +8,7 @@ import { guildColor } from "@/lib/constants";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { BossImage } from "@/components/BossImage";
 import { AreaChart, Area, ResponsiveContainer, Tooltip, XAxis, YAxis, LineChart, Line, BarChart, Bar, Legend } from "recharts";
-import type { CpUpdate } from "@/types";
+import type { CpUpdate, ItemRarity } from "@/types";
 import {
   ArrowLeft, TrendingUp, ScrollText, Plus, Trash2, Loader2,
   User, MessageSquare, Clock, Package, Skull, Activity,
@@ -16,6 +16,15 @@ import {
   Sword, Swords, HandMetal, ShieldHalf, ShieldCheck, Gavel, Axe, Crosshair,
   Target, Wand, Heart, Zap, Flame, Snowflake, Anchor, Footprints, Crown, Tag, ExternalLink,
 } from "lucide-react";
+
+const RARITY_COLORS: Record<ItemRarity, string> = {
+  common: "#71717a",
+  uncommon: "#22c55e",
+  rare: "#3b82f6",
+  epic: "#a855f7",
+  legendary: "#f59e0b",
+  mythic: "#ef4444",
+};
 
 // ── Score Gauge ──
 function ScoreGauge({ score }: { score: number }) {
@@ -416,10 +425,9 @@ export function MemberProfileView() {
 
   const timeline = useMemo(() => {
     if (!profile) return [];
-    const items: { type: "cp"|"attendance"|"loot"|"note"; date: string; data: any }[] = [];
+    const items: { type: "cp"|"attendance"|"note"; date: string; data: any }[] = [];
     profile.cp_history.forEach((u: CpUpdate) => items.push({ type: "cp", date: u.submitted_at, data: u }));
     (profile.attendance_history || []).forEach((a: any) => items.push({ type: "attendance", date: a.created_at, data: a }));
-    (profile.loot_history || []).forEach((l: any) => items.push({ type: "loot", date: l.distributed_at, data: l }));
     profile.notes.forEach((n: any) => items.push({ type: "note", date: n.created_at, data: n }));
     return items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [profile]);
@@ -445,7 +453,6 @@ export function MemberProfileView() {
   const typeConfig: Record<string, { icon: React.ReactNode; dot: string; label: string }> = {
     cp: { icon: <TrendingUp className="w-3.5 h-3.5"/>, dot: "bg-green-500", label: "CP Update" },
     attendance: { icon: <Skull className="w-3.5 h-3.5"/>, dot: "bg-blue-500", label: "Attendance" },
-    loot: { icon: <Gift className="w-3.5 h-3.5"/>, dot: "bg-amber-500", label: "Loot" },
     note: { icon: <ScrollText className="w-3.5 h-3.5"/>, dot: "bg-purple-500", label: "Note" },
   };
 
@@ -673,7 +680,7 @@ export function MemberProfileView() {
             <Clock className="w-4 h-4 text-[#a1a1aa]"/>
             <h2 className="text-xs font-semibold text-[#a1a1aa] uppercase tracking-wider">Activity Timeline</h2>
             <div className="flex gap-1 ml-auto">
-              {["all","cp","attendance","loot","note"].map(f => (
+              {["all","cp","attendance","note"].map(f => (
                 <button key={f} onClick={() => setTimelineFilter(f)}
                   className={`px-2 py-1 rounded text-[10px] font-medium capitalize transition ${timelineFilter === f ? "bg-[#27272a] text-[#fafafa]" : "text-[#52525b] hover:text-[#a1a1aa]"}`}>
                   {f}
@@ -819,16 +826,29 @@ export function MemberProfileView() {
               <span className="text-[10px] text-[#52525b] ml-auto">{profile.loot_count} items</span>
             </div>
             <div className="space-y-1 max-h-96 overflow-y-auto">
-              {(profile.loot_history || []).map((loot: any, i: number) => (
+              {(profile.loot_history || []).map((loot: any, i: number) => {
+                const itemImage = loot.items?.image_url;
+                const rarity = loot.items?.rarity?.toLowerCase();
+                const rc = rarity ? RARITY_COLORS[rarity as ItemRarity] : "#a1a1aa";
+                return (
                 <div key={i} className="flex items-center gap-3 px-2 py-1.5 rounded-lg hover:bg-[#09090b]/50 transition">
-                  <Gift className="w-3.5 h-3.5 text-amber-400 shrink-0"/>
+                  {itemImage ? (
+                    <div className="w-8 h-8 rounded shrink-0 flex items-center justify-center border" style={{ backgroundColor: rc + "25", borderColor: rc + "40" }}>
+                      <img src={itemImage} alt="" className="w-6 h-6 rounded object-cover" />
+                    </div>
+                  ) : (
+                    <div className="w-8 h-8 rounded shrink-0 flex items-center justify-center border" style={{ backgroundColor: rc + "25", borderColor: rc + "40" }}>
+                      <Gift className="w-4 h-4" style={{ color: rc }} />
+                    </div>
+                  )}
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm text-[#fafafa] truncate">{loot.items?.name || "Unknown Item"}</p>
+                    <p className="text-sm truncate" style={{ color: rc }}>{loot.items?.name || "Unknown Item"}</p>
                     <p className="text-[10px] text-[#52525b]">{timeAgo(loot.distributed_at)}{loot.reason ? ` · ${loot.reason}` : ""}</p>
                   </div>
                   <span className="text-[10px] font-mono text-[#a1a1aa]">×{loot.quantity}</span>
                 </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}

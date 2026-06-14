@@ -27,7 +27,7 @@ function playAlertSound() {
     if (localStorage.getItem("raidscout-alert-muted") === "true") return;
     const vol = parseFloat(localStorage.getItem("raidscout-alert-volume") || "0.5");
     const ctx = getAudioContext();
-    const notes = [587, 784]; // D5, G5 — gentle two-note chime
+    const notes = [587, 784]; // D5, G5 Ã¢â‚¬â€ gentle two-note chime
     notes.forEach((freq, i) => {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
@@ -76,14 +76,14 @@ export function Layout() {
   // Set page title based on route
   useEffect(() => {
     const titles: Record<string, string> = {
-      "/": "Bosses / Activities — RaidScout",
-      "/schedule": "Weekly Schedule — RaidScout",
-      "/leaderboard": "Leaderboard — RaidScout",
-      "/history": "Kill History — RaidScout",
-      "/members": "Members — RaidScout",
-      "/analytics": "Analytics — RaidScout",
-      "/server-settings": "Server Settings — RaidScout",
-      "/admin": "Admin Panel — RaidScout",
+      "/": "Bosses / Activities Ã¢â‚¬â€ RaidScout",
+      "/schedule": "Weekly Schedule Ã¢â‚¬â€ RaidScout",
+      "/leaderboard": "Leaderboard Ã¢â‚¬â€ RaidScout",
+      "/history": "Kill History Ã¢â‚¬â€ RaidScout",
+      "/members": "Members Ã¢â‚¬â€ RaidScout",
+      "/analytics": "Analytics Ã¢â‚¬â€ RaidScout",
+      "/server-settings": "Server Settings Ã¢â‚¬â€ RaidScout",
+      "/admin": "Admin Panel Ã¢â‚¬â€ RaidScout",
     };
     document.title = titles[location.pathname] ?? "RaidScout";
   }, [location.pathname]);
@@ -91,13 +91,13 @@ export function Layout() {
   // Admin without a server: show admin panel button, hide data nav + create
   const showDataNav = !isAdmin || hasServer;
 
-  // Spawn alerts — listen for boss spawns from other clients
+  // Spawn alerts Ã¢â‚¬â€ listen for boss spawns from other clients
   useSpawnAlerts((bossName) => {
-    // If the message already has a custom prefix (⚠️), use it as-is
-    if (bossName.startsWith("⚠️")) {
+    // If the message already has a custom prefix (Ã¢Å¡Â Ã¯Â¸Â), use it as-is
+    if (bossName.startsWith("Ã¢Å¡Â Ã¯Â¸Â")) {
       setSpawnToast(bossName);
     } else {
-      setSpawnToast(`⚡ ${bossName} spawning in ≤ 5 min!`);
+      setSpawnToast(`Ã¢Å¡Â¡ ${bossName} spawning in Ã¢â€°Â¤ 5 min!`);
     }
     playAlertSound();
     setTimeout(() => setSpawnToast(null), 8000);
@@ -110,7 +110,7 @@ export function Layout() {
         <div className="fixed inset-0 z-[100] bg-[#09090b]/80 flex items-center justify-center">
           <div className="text-center space-y-3">
             <Loader2 className="w-8 h-8 text-[#a1a1aa] animate-spin mx-auto" />
-            <p className="text-sm text-[#a1a1aa]">Joining server as owner…</p>
+            <p className="text-sm text-[#a1a1aa]">Joining server as owner{"\u2026"}</p>
           </div>
         </div>
       )}
@@ -143,7 +143,7 @@ export function Layout() {
           </div>
 
           <div className="flex items-center gap-2 overflow-x-auto scrollbar-none touch-pan-x -mr-2 pr-2 min-w-0">
-            {/* Nav tabs — hidden for admin without a selected server */}
+            {/* Nav tabs Ã¢â‚¬â€ hidden for admin without a selected server */}
             {showDataNav && (
             <nav className="hidden md:flex bg-[#18181b] rounded-lg p-0.5 shrink-0">
               <NavLink
@@ -333,10 +333,10 @@ export function Layout() {
         </div>
       </header>
 
-      {/* Discord webhook warning — only visible to server owner when unconfigured */}
+      {/* Discord webhook warning Ã¢â‚¬â€ only visible to server owner when unconfigured */}
       <DiscordWebhookBanner />
 
-      {/* No members warning — only visible to server owner when no members exist */}
+      {/* No members warning Ã¢â‚¬â€ only visible to server owner when no members exist */}
       <NoMembersBanner />
 
       {/* Content */}
@@ -351,83 +351,83 @@ export function Layout() {
             to="/"
             end
             className={({ isActive }) =>
-              `flex flex-col items-center justify-center gap-0.5 px-3 py-1.5 min-w-[64px] rounded-lg transition-colors ${
+              `flex flex-col items-center justify-center gap-0.5 px-2 py-1.5 min-w-0 flex-1 rounded-lg transition-colors ${
                 isActive ? "text-[#fafafa]" : "text-[#52525b]"
               }`
             }
           >
             <List className="w-5 h-5" />
-            <span className="text-[10px] font-medium">Bosses</span>
+            <span className="text-[9px] font-medium">Bosses</span>
           </NavLink>
           <NavLink
             to="/schedule"
             className={({ isActive }) =>
-              `flex flex-col items-center justify-center gap-0.5 px-3 py-1.5 min-w-[64px] rounded-lg transition-colors ${
+              `flex flex-col items-center justify-center gap-0.5 px-2 py-1.5 min-w-0 flex-1 rounded-lg transition-colors ${
                 isActive ? "text-[#fafafa]" : "text-[#52525b]"
               }`
             }
           >
             <Calendar className="w-5 h-5" />
-            <span className="text-[10px] font-medium">Schedule</span>
+            <span className="text-[9px] font-medium">Schedule</span>
           </NavLink>
           <NavLink
             to="/history"
             className={({ isActive }) =>
-              `flex flex-col items-center justify-center gap-0.5 px-3 py-1.5 min-w-[64px] rounded-lg transition-colors ${
+              `flex flex-col items-center justify-center gap-0.5 px-2 py-1.5 min-w-0 flex-1 rounded-lg transition-colors ${
                 isActive ? "text-[#fafafa]" : "text-[#52525b]"
               }`
             }
           >
             <Clock className="w-5 h-5" />
-            <span className="text-[10px] font-medium">History</span>
+            <span className="text-[9px] font-medium">History</span>
           </NavLink>
           <NavLink
             to="/leaderboard"
             className={({ isActive }) =>
-              `flex flex-col items-center justify-center gap-0.5 px-3 py-1.5 min-w-[64px] rounded-lg transition-colors ${
+              `flex flex-col items-center justify-center gap-0.5 px-2 py-1.5 min-w-0 flex-1 rounded-lg transition-colors ${
                 isActive ? "text-[#fafafa]" : "text-[#52525b]"
               }`
             }
           >
             <Trophy className="w-5 h-5" />
-            <span className="text-[10px] font-medium">Ranks</span>
+            <span className="text-[9px] font-medium">Ranks</span>
           </NavLink>
           {!isViewer && (
           <NavLink
             to="/members"
             className={({ isActive }) =>
-              `flex flex-col items-center justify-center gap-0.5 px-3 py-1.5 min-w-[64px] rounded-lg transition-colors ${
+              `flex flex-col items-center justify-center gap-0.5 px-2 py-1.5 min-w-0 flex-1 rounded-lg transition-colors ${
                 isActive ? "text-[#fafafa]" : "text-[#52525b]"
               }`
             }
           >
             <Users className="w-5 h-5" />
-            <span className="text-[10px] font-medium">Members</span>
+            <span className="text-[9px] font-medium">Members</span>
           </NavLink>
           )}
           {!isViewer && (
           <NavLink
             to="/inventory"
             className={({ isActive }) =>
-              `flex flex-col items-center justify-center gap-0.5 px-3 py-1.5 min-w-[64px] rounded-lg transition-colors ${
+              `flex flex-col items-center justify-center gap-0.5 px-2 py-1.5 min-w-0 flex-1 rounded-lg transition-colors ${
                 isActive ? "text-[#fafafa]" : "text-[#52525b]"
               }`
             }
           >
             <Package className="w-5 h-5" />
-            <span className="text-[10px] font-medium">Items</span>
+            <span className="text-[9px] font-medium">Items</span>
           </NavLink>
           )}
           <NavLink
             to="/analytics"
             className={({ isActive }) =>
-              `flex flex-col items-center justify-center gap-0.5 px-3 py-1.5 min-w-[64px] rounded-lg transition-colors ${
+              `flex flex-col items-center justify-center gap-0.5 px-2 py-1.5 min-w-0 flex-1 rounded-lg transition-colors ${
                 isActive ? "text-[#fafafa]" : "text-[#52525b]"
               }`
             }
           >
             <BarChart3 className="w-5 h-5" />
-            <span className="text-[10px] font-medium">Stats</span>
+            <span className="text-[9px] font-medium">Stats</span>
           </NavLink>
         </div>
       </nav>
@@ -437,7 +437,7 @@ export function Layout() {
         <div className="max-w-[90rem] mx-auto px-4 py-5 space-y-3">
           <div className="flex items-center gap-2 text-xs text-[#71717a]">
             <img src="/logo.png" alt="" className="w-4 h-4 rounded opacity-40" />
-            <span>RaidScout — Track boss respawn timers across any game, schedule hunts, and monitor member performance across your guild. </span>
+            <span>RaidScout Ã¢â‚¬â€ Track boss respawn timers across any game, schedule hunts, and monitor member performance across your guild. </span>
           </div>
           <div>
             <span className="text-[11px] font-semibold text-[#52525b] uppercase tracking-wider">Resources</span>
@@ -457,7 +457,7 @@ export function Layout() {
           </div>
           <div className="flex items-center gap-4 text-xs text-[#fafafa]/20">
             <span>v{version}</span>
-            <span>© 2026 RaidScout. All rights reserved.</span>
+            <span>Ã‚Â© 2026 RaidScout. All rights reserved.</span>
           </div>
         </div>
       </footer>
