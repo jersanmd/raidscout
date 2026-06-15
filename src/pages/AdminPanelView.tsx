@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchAllServers, fetchAllUsers, fetchAuditLog, fetchServerStats, fetchDatabaseStats, fetchPlanUsage, fetchCronStatus, restoreServer, supabase } from "@/lib/supabase";
 import { useServer } from "@/contexts/ServerContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -27,6 +27,9 @@ export function AdminPanelView() {
   const [expandedServer, setExpandedServer] = useState<string | null>(null);
   const [forceSpawning, setForceSpawning] = useState<string | null>(null);
   const [forceSpawnConfirm, setForceSpawnConfirm] = useState<{ serverId: string; serverName: string } | null>(null);
+  const [extendConfirm, setExtendConfirm] = useState<{ serverId: string; serverName: string } | null>(null);
+  const [extending, setExtending] = useState(false);
+  const queryClient = useQueryClient();
   const [forceSpawnInput, setForceSpawnInput] = useState("");
   const [serverStats, setServerStats] = useState<Record<string, any>>({});
   const [auditServerFilter, setAuditServerFilter] = useState<string>("all");
@@ -575,19 +578,14 @@ export function AdminPanelView() {
                             Force Spawn All
                           </button>
                           <button
-                            onClick={async (e) => {
+                            onClick={(e) => {
                               e.stopPropagation();
-                              try {
-                                const { error } = await supabase.rpc("extend_server_subscription", { p_server_id: s.id, p_days: 30 });
-                                if (error) throw error;
-                                setToast({ type: "success", message: `Extended ${s.name} by 30 days` });
-                              } catch (err: any) {
-                                setToast({ type: "error", message: err?.message || "Failed to extend" });
-                              }
+                              setExtendConfirm({ serverId: s.id, serverName: s.name });
                             }}
-                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 hover:border-emerald-500/50 transition"
+                            disabled={extending}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 hover:border-emerald-500/50 transition disabled:opacity-50"
                           >
-                            <Clock className="w-3.5 h-3.5" />
+                            {extending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Clock className="w-3.5 h-3.5" />}
                             Extend +30d
                           </button>
                           <button
@@ -1430,6 +1428,30 @@ export function AdminPanelView() {
           </div>
         </div>
       </footer>
+
+      {/* Extend Subscription Confirm */}
+      <ConfirmDialog
+        open={!!extendConfirm}
+        title="Extend Subscription"
+        message={`Add 30 days to ${extendConfirm?.serverName || "this server"}'s subscription?`}
+        confirmLabel="Extend +30d"
+        onConfirm={async () => {
+          if (!extendConfirm) return;
+          setExtending(true);
+          try {
+            const { error } = await supabase.rpc("extend_server_subscription", { p_server_id: extendConfirm.serverId, p_days: 30 });
+            if (error) throw error;
+            setToast({ type: "success", message: `Extended ${extendConfirm.serverName} by 30 days` });
+            queryClient.invalidateQueries({ queryKey: ["admin", "servers"] });
+          } catch (err: any) {
+            setToast({ type: "error", message: err?.message || "Failed to extend" });
+          } finally {
+            setExtending(false);
+            setExtendConfirm(null);
+          }
+        }}
+        onCancel={() => setExtendConfirm(null)}
+      />
 
       {/* Logout Confirm */}
       <ConfirmDialog
