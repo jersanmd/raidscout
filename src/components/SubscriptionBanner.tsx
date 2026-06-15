@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useServer } from "@/contexts/ServerContext";
-import { CreditCard, X, AlertTriangle } from "lucide-react";
+import { CreditCard, X, AlertTriangle, Clock } from "lucide-react";
 
 /**
- * Banner shown when a server's trial has expired or subscription has ended.
- * Owners see a subscribe button. Moderators see a notice to contact the owner.
- * Viewers never see this — they get read-only access regardless.
+ * Banner showing subscription status for server owners (all states) and moderators (expired only).
+ * - Green: active subscription — owner only, no action needed
+ * - Amber: trial active — owner only, subscribe button shown
+ * - Red: expired — owner sees subscribe button, moderator sees contact-owner notice
  */
 export function SubscriptionBanner() {
   const { user } = useAuth();
@@ -14,61 +15,116 @@ export function SubscriptionBanner() {
   const [dismissed, setDismissed] = useState(false);
 
   if (!user || !currentServer) return null;
-  if (currentServer.role !== "owner" && currentServer.role !== "moderator") return null;
-  if (!currentServer.isExpired) return null;
-  if (dismissed) return null;
 
   const isOwner = currentServer.role === "owner";
-  const subEnd = currentServer.subscription_ends_at ? new Date(currentServer.subscription_ends_at) : null;
+  const isMod = currentServer.role === "moderator";
+
+  // Moderators only see the banner when expired
+  if (isMod && !currentServer.isExpired) return null;
+  // Only owners and moderators
+  if (!isOwner && !isMod) return null;
+
   const now = new Date();
+  const trialEnd = currentServer.trial_ends_at ? new Date(currentServer.trial_ends_at) : null;
+  const subEnd = currentServer.subscription_ends_at ? new Date(currentServer.subscription_ends_at) : null;
+
+  const trialDaysLeft = trialEnd && trialEnd > now
+    ? Math.ceil((trialEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+    : 0;
+
+  const subDaysLeft = subEnd && subEnd > now
+    ? Math.ceil((subEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+    : 0;
+
+  // Determine state for owner
+  const isSubActive = subDaysLeft > 0;
+  const isTrialActive = !isSubActive && trialDaysLeft > 0;
+  const isExpired = !isSubActive && !isTrialActive;
+
+  // Don't show active green banner if dismissed
+  if (isSubActive && dismissed) return null;
+
+  // Moderator expired state
+  if (isMod && isExpired && dismissed) return null;
+
+  const state = isSubActive ? "active" : isTrialActive ? "trial" : "expired";
+
+  const config = {
+    active: {
+      bg: "bg-emerald-950/40 border-emerald-800/40",
+      iconBg: "bg-emerald-900/50",
+      icon: <Clock className="w-4 h-4 text-emerald-400" />,
+      title: `Subscription active — ${subDaysLeft} day${subDaysLeft !== 1 ? "s" : ""} remaining`,
+      subtitle: `Until ${subEnd!.toLocaleDateString()}. Thank you for supporting RaidScout!`,
+      titleColor: "text-emerald-200",
+      subColor: "text-emerald-400/70",
+      btnBg: "",
+      showDismiss: dismissed ? false : true, // only shown when not dismissed
+    },
+    trial: {
+      bg: "bg-amber-950/40 border-amber-800/40",
+      iconBg: "bg-amber-900/50",
+      icon: <Clock className="w-4 h-4 text-amber-400" />,
+      title: `Free trial — ${trialDaysLeft} day${trialDaysLeft !== 1 ? "s" : ""} remaining`,
+      subtitle: `Until ${trialEnd!.toLocaleDateString()}. Subscribe now to keep your server active.`,
+      titleColor: "text-amber-200",
+      subColor: "text-amber-400/80",
+      btnBg: "bg-amber-600 hover:bg-amber-500",
+      showDismiss: true,
+    },
+    expired: {
+      bg: "bg-red-950/60 border-red-800/60",
+      iconBg: "bg-red-900/50",
+      icon: <AlertTriangle className="w-4 h-4 text-red-400" />,
+      title: isOwner
+        ? (subEnd && subEnd < now ? "Subscription expired" : "Free trial expired")
+        : "Subscription expired",
+      subtitle: isOwner
+        ? "Subscribe to restore full access — boss tracking, kill recording, inventory, and Discord notifications."
+        : "Contact the server owner to restore full access — kill recording is currently disabled.",
+      titleColor: "text-red-200",
+      subColor: "text-red-400/80",
+      btnBg: "bg-red-600 hover:bg-red-500",
+      showDismiss: true,
+    },
+  }[state];
+
+  if (isOwner && isExpired && dismissed) return null;
 
   return (
-    <div className="bg-red-950/60 border-b border-red-800/60">
+    <div className={`border-b ${config.bg}`}>
       <div className="max-w-[90rem] mx-auto px-4 py-2.5 flex items-center gap-3">
-        <div className="shrink-0 flex items-center justify-center w-8 h-8 rounded-lg bg-red-900/50">
-          <AlertTriangle className="w-4 h-4 text-red-400" />
+        <div className={`shrink-0 flex items-center justify-center w-8 h-8 rounded-lg ${config.iconBg}`}>
+          {config.icon}
         </div>
 
         <div className="flex-1 min-w-0">
-          {isOwner ? (
-            <>
-              <p className="text-sm text-red-200 font-medium">
-                {subEnd && subEnd < now ? "Subscription expired" : "Free trial expired"}
-              </p>
-              <p className="text-xs text-red-400/80">
-                Subscribe to restore full access — boss tracking, kill recording, inventory, and Discord notifications.
-              </p>
-            </>
-          ) : (
-            <>
-              <p className="text-sm text-red-200 font-medium">Subscription expired</p>
-              <p className="text-xs text-red-400/80">
-                Contact the server owner to restore full access — kill recording is currently disabled.
-              </p>
-            </>
-          )}
+          <p className={`text-sm font-medium ${config.titleColor}`}>{config.title}</p>
+          <p className={`text-xs ${config.subColor}`}>{config.subtitle}</p>
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
-          {/* PayPal subscribe button — owners only */}
-          {isOwner && (
+          {/* PayPal subscribe button — owners on trial or expired */}
+          {isOwner && (isTrialActive || isExpired) && (
             <a
               href={`https://www.paypal.com/cgi-bin/webscr?cmd=_xclick-subscriptions&business=ceo%40raidscout.com&item_name=RaidScout+Server+30+Days&a3=9.99&p3=1&t3=M&custom=${currentServer.id}&currency_code=USD&notify_url=https%3A%2F%2Fcjuacehmienztxrhwnlg.supabase.co%2Ffunctions%2Fv1%2Fpaypal-ipn&return=https://www.raidscout.com`}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-red-600 text-[#fafafa] hover:bg-red-500 transition"
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-[#fafafa] transition ${config.btnBg}`}
             >
               <CreditCard className="w-3 h-3" />
               Subscribe $9.99/mo
             </a>
           )}
-          <button
-            onClick={() => setDismissed(true)}
-            className="p-1.5 text-red-500 hover:text-red-300 hover:bg-red-900/40 rounded-md transition"
-            title="Dismiss"
-          >
-            <X className="w-4 h-4" />
-          </button>
+          {config.showDismiss && (
+            <button
+              onClick={() => setDismissed(true)}
+              className={`p-1.5 ${state === "active" ? "text-emerald-500 hover:text-emerald-300 hover:bg-emerald-900/40" : state === "trial" ? "text-amber-500 hover:text-amber-300 hover:bg-amber-900/40" : "text-red-500 hover:text-red-300 hover:bg-red-900/40"} rounded-md transition`}
+              title="Dismiss"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
         </div>
       </div>
     </div>
