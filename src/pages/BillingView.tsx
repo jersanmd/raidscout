@@ -135,7 +135,16 @@ export function BillingView() {
                 <div className="flex justify-center">
                   <PayPalSubscribeButton
                     serverId={currentServer.id}
-                    onSuccess={() => setPaymentResult({ success: true })}
+                    onSuccess={async () => {
+                      await refreshServers();
+                      supabase
+                        .from("payments")
+                        .select("*")
+                        .eq("server_id", currentServer.id)
+                        .order("created_at", { ascending: false })
+                        .then(({ data }) => { if (data) setPayments(data); });
+                      setPaymentResult({ success: true });
+                    }}
                     onError={(err) => setPaymentResult({ success: false, error: err.message })}
                   />
                 </div>
@@ -149,7 +158,16 @@ export function BillingView() {
                 <div className="flex justify-center">
                   <PayPalSubscribeButton
                     serverId={currentServer.id}
-                    onSuccess={() => setPaymentResult({ success: true })}
+                    onSuccess={async () => {
+                      await refreshServers();
+                      supabase
+                        .from("payments")
+                        .select("*")
+                        .eq("server_id", currentServer.id)
+                        .order("created_at", { ascending: false })
+                        .then(({ data }) => { if (data) setPayments(data); });
+                      setPaymentResult({ success: true });
+                    }}
                     onError={(err) => setPaymentResult({ success: false, error: err.message })}
                   />
                 </div>
@@ -262,16 +280,7 @@ export function BillingView() {
       {/* Payment Result Modal */}
       <PaymentSuccessModal
         open={!!paymentResult}
-        onClose={() => {
-          setPaymentResult(null);
-          refreshServers();
-          supabase
-            .from("payments")
-            .select("*")
-            .eq("server_id", currentServer.id)
-            .order("created_at", { ascending: false })
-            .then(({ data }) => { if (data) setPayments(data); });
-        }}
+        onClose={() => setPaymentResult(null)}
         error={paymentResult?.success === false ? paymentResult.error : undefined}
         daysExtended={30}
         newExpiryDate={

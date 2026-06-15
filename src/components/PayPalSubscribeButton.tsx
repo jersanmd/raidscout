@@ -191,7 +191,7 @@ export function PayPalSubscribeButton({
     <div className={`relative ${className}`} style={{ minWidth: "400px", maxWidth: "500px", width: "100%" }}>
       {/* Processing overlay */}
       {processing && (
-        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-white/90 backdrop-blur-sm rounded-xl">
+        <div className="absolute inset-0 z-[999] flex flex-col items-center justify-center gap-3 bg-white/95 backdrop-blur-sm rounded-xl">
           <Loader2 className="w-8 h-8 text-emerald-500 animate-spin" />
           <div className="text-center">
             <p className="text-sm font-semibold text-[#111827]">Processing payment...</p>
