@@ -64,46 +64,57 @@ export function PayPalSubscribeButton({
 
     containerRef.current.innerHTML = "";
 
-    window.paypal
-      .Buttons({
-        style: {
-          layout: "horizontal",
-          tagline: false,
-          height: 36,
-        },
-        createOrder: (_data: any, actions: any) => {
-          return actions.order.create({
-            intent: "CAPTURE",
-            purchase_units: [{
-              amount: { currency_code: "USD", value: "9.99" },
-              description: "RaidScout Server — 30 Days",
-              custom_id: serverId,
-            }],
-          });
-        },
-        onApprove: async (data: any, actions: any) => {
-          // Capture the payment
-          await actions.order.capture();
-          // Extend subscription in our DB
-          try {
-            await supabase.functions.invoke("paypal-ipn", {
-              body: {
-                server_id: serverId,
-                order_id: data.orderID,
-              },
-            });
-          } catch (err) {
-            console.error("Failed to activate subscription:", err);
-          }
-          onSuccess?.();
-        },
-        onError: (err: any) => {
-          console.error("PayPal button error:", err);
-          onError?.(err instanceof Error ? err : new Error(String(err)));
-        },
-        onCancel: () => {},
-      })
-      .render(containerRef.current);
+    // Shared order creation logic
+    const createOrder = (_data: any, actions: any) => {
+      return actions.order.create({
+        intent: "CAPTURE",
+        purchase_units: [{
+          amount: { currency_code: "USD", value: "9.99" },
+          description: "RaidScout Server — 30 Days",
+          custom_id: serverId,
+        }],
+      });
+    };
+
+    const onApprove = async (data: any, actions: any) => {
+      await actions.order.capture();
+      try {
+        await supabase.functions.invoke("paypal-ipn", {
+          body: { server_id: serverId, order_id: data.orderID },
+        });
+      } catch (err) {
+        console.error("Failed to activate subscription:", err);
+      }
+      onSuccess?.();
+    };
+
+    const onErr = (err: any) => {
+      console.error("PayPal button error:", err);
+      onError?.(err instanceof Error ? err : new Error(String(err)));
+    };
+
+    // Render PayPal button
+    window.paypal.Buttons({
+      style: { layout: "horizontal", tagline: false, height: 36 },
+      createOrder,
+      onApprove,
+      onError: onErr,
+      onCancel: () => {},
+    }).render(containerRef.current);
+
+    // Render separate Debit/Credit Card button
+    const cardContainer = document.createElement("div");
+    cardContainer.style.marginTop = "8px";
+    containerRef.current.appendChild(cardContainer);
+
+    window.paypal.Buttons({
+      style: { layout: "horizontal", tagline: false, height: 36 },
+      createOrder,
+      onApprove,
+      onError: onErr,
+      onCancel: () => {},
+      fundingSource: window.paypal.FUNDING.CARD,
+    }).render(cardContainer);
 
     return () => {
       if (containerRef.current) containerRef.current.innerHTML = "";
