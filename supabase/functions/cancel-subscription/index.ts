@@ -11,8 +11,8 @@ const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const PAYPAL_CLIENT_ID = Deno.env.get("PAYPAL_CLIENT_ID")!;
 const PAYPAL_SECRET = Deno.env.get("PAYPAL_SECRET")!;
 
-// Switch to sandbox for testing: "https://api-m.sandbox.paypal.com"
-const PAYPAL_API = "https://api-m.paypal.com";
+// Set PAYPAL_API_URL to sandbox for testing: "https://api-m.sandbox.paypal.com"
+const PAYPAL_API = Deno.env.get("PAYPAL_API_URL") || "https://api-m.paypal.com";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
