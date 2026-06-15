@@ -683,7 +683,7 @@ export function InventoryView() {
                             <span className="text-[11px] text-[#52525b] font-mono shrink-0">x{d.quantity}</span>
                           </div>
                           <div className="flex items-center gap-1.5 mt-0.5">
-                            <span className="text-[11px] text-[#71717a]">â†’</span>
+                            <span className="text-[11px] text-[#71717a]">→</span>
                             {(() => {
                               const m = members.find(m => m.name === d.player_name);
                               const cc = (m?.class && classColors[m.class]) || "#a1a1aa";
@@ -833,8 +833,8 @@ export function InventoryView() {
                                 const item = items.find(i => i.id === d.item_id);
                                 const rc = item?.rarity ? RARITY_COLORS[item.rarity.toLowerCase() as ItemRarity] : "#a1a1aa";
                                 return (
-                                  <span key={d.id} className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded border" style={{ backgroundColor: rc + "15", borderColor: rc + "30", color: rc }}>
-                                    {item?.image_url && <img src={item.image_url} alt="" className="w-3.5 h-3.5 rounded object-cover" />}
+                                  <span key={d.id} className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded border border-[#27272a]" style={{ color: rc }}>
+                                    {item?.image_url && <img src={item.image_url} alt="" className="w-3.5 h-3.5 rounded object-cover" style={{ backgroundColor: rc + "20" }} />}
                                     <span className="capitalize truncate max-w-[120px]">{item?.name ?? "Unknown"}</span>
                                     {d.quantity > 1 && <span className="font-mono opacity-70">x{d.quantity}</span>}
                                   </span>

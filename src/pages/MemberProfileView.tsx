@@ -532,7 +532,7 @@ export function MemberProfileView() {
           </div>
           <div className="bg-[#09090b] rounded-lg p-3 col-span-2 sm:col-span-1">
             <p className="text-[10px] text-[#71717a] uppercase tracking-wider">Items Received</p>
-            <p className="text-lg font-bold text-[#fafafa] mt-0.5">{profile.loot_count}</p>
+            <p className="text-lg font-bold text-[#fafafa] mt-0.5">{(profile.loot_history || []).length}</p>
             <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-1">
               <span className="text-[10px] text-[#52525b]">14d: <span className="text-[#a1a1aa]">{loot14d}</span></span>
               <span className="text-[10px] text-[#52525b]">3mo: <span className="text-[#a1a1aa]">{loot3mo}</span></span>
