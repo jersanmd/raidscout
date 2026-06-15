@@ -94,8 +94,13 @@ export function PayPalSubscribeButton({
     };
 
     // Render PayPal button
+    const paypalLabel = document.createElement("p");
+    paypalLabel.textContent = "Pay with PayPal";
+    paypalLabel.className = "text-[11px] text-[#71717a] font-medium mb-1.5";
+    containerRef.current.appendChild(paypalLabel);
+
     window.paypal.Buttons({
-      style: { layout: "horizontal", tagline: false, height: 36 },
+      style: { layout: "horizontal", tagline: false, height: 40 },
       createOrder,
       onApprove,
       onError: onErr,
@@ -103,18 +108,23 @@ export function PayPalSubscribeButton({
     }).render(containerRef.current);
 
     // Render separate Debit/Credit Card button
-    const cardContainer = document.createElement("div");
-    cardContainer.style.marginTop = "8px";
-    containerRef.current.appendChild(cardContainer);
+    const cardWrapper = document.createElement("div");
+    cardWrapper.style.marginTop = "16px";
+    containerRef.current.appendChild(cardWrapper);
+
+    const cardLabel = document.createElement("p");
+    cardLabel.textContent = "Pay with Debit or Credit Card";
+    cardLabel.className = "text-[11px] text-[#71717a] font-medium mb-1.5";
+    cardWrapper.appendChild(cardLabel);
 
     window.paypal.Buttons({
-      style: { layout: "horizontal", tagline: false, height: 36 },
+      style: { layout: "horizontal", tagline: false, height: 40 },
       createOrder,
       onApprove,
       onError: onErr,
       onCancel: () => {},
       fundingSource: window.paypal.FUNDING.CARD,
-    }).render(cardContainer);
+    }).render(cardWrapper);
 
     return () => {
       if (containerRef.current) containerRef.current.innerHTML = "";
