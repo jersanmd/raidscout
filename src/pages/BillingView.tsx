@@ -112,20 +112,20 @@ export function BillingView() {
             <CreditCard className="w-4 h-4 text-[#a1a1aa]" />
             Plan Details
           </h3>
-          <div className="space-y-3">
-            <div className="flex justify-between items-center">
+          <div className="flex flex-wrap gap-x-6 gap-y-2">
+            <div className="flex items-center gap-1.5">
               <span className="text-xs text-[#a1a1aa]">Plan</span>
               <span className="text-sm font-medium text-[#fafafa]">{planName}</span>
             </div>
-            <div className="flex justify-between items-center">
+            <div className="flex items-center gap-1.5">
               <span className="text-xs text-[#a1a1aa]">Price</span>
               <span className="text-sm font-medium text-[#fafafa]">{isSubActive ? "$9.99 / month" : isTrialActive ? "Free" : "—"}</span>
             </div>
-            <div className="flex justify-between items-center">
+            <div className="flex items-center gap-1.5">
               <span className="text-xs text-[#a1a1aa]">{isSubActive ? "Next renewal" : isTrialActive ? "Trial ends" : "Expired on"}</span>
               <span className="text-sm font-medium text-[#fafafa]">{stateConfig.date?.toLocaleDateString() || "—"}</span>
             </div>
-            <div className="flex justify-between items-center">
+            <div className="flex items-center gap-1.5">
               <span className="text-xs text-[#a1a1aa]">Status</span>
               <span className={`text-sm font-medium ${state === "active" ? "text-emerald-300" : state === "trial" ? "text-amber-300" : "text-red-300"}`}>
                 {state === "active" ? `${stateConfig.days}d remaining` : state === "trial" ? `${stateConfig.days}d left` : "Expired"}
