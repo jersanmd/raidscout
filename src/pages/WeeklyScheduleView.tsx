@@ -179,12 +179,13 @@ export function WeeklyScheduleView() {
       setSavingMessage("Recording death...");
       try {
         const ownerGuildName = getOwnerGuildName(boss.id) ?? undefined;
+        const resolvedGuildId = ownerGuildName ? guilds.find(g => g.name === ownerGuildName)?.id ?? null : null;
         await recordDeath({
           bossId,
           bossName: boss.name,
           deathTime,
           attendeeIds,
-          ownerGuildName: ownerGuildName || "",
+          ownerGuildName: resolvedGuildId || "",
           scanResults,
           rallyImages,
           notifyDiscordChannel: false, // WeeklySchedule handles its own notification
