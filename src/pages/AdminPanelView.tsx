@@ -416,7 +416,7 @@ export function AdminPanelView() {
               const isExpanded = expandedServer === s.id;
               const stats = serverStats[s.id];
               return (
-              <div key={s.id} ref={expandedServer === s.id ? expandedRef : undefined} className="bg-[#18181b] border border-[#27272a] rounded-xl overflow-hidden">
+              <div key={`${s.id}-${s.subscription_ends_at ?? 'none'}`} ref={expandedServer === s.id ? expandedRef : undefined} className="bg-[#18181b] border border-[#27272a] rounded-xl overflow-hidden">
                 <button
                   onClick={async () => {
                     if (isExpanded) {
@@ -1443,22 +1443,12 @@ export function AdminPanelView() {
             const { error } = await supabase.rpc("extend_server_subscription", { p_server_id: extendConfirm.serverId, p_days: 30 });
             if (error) throw error;
             setToast({ type: "success", message: `Extended ${extendConfirm.serverName} by 30 days` });
-            // Directly update cache — compute new date from current cached value
-            const now = new Date();
-            queryClient.setQueryData(["admin", "servers"], (old: any[]) =>
-              old?.map((s: any) => {
-                if (s.id !== extendConfirm.serverId) return s;
-                const currentEnd = s.subscription_ends_at ? new Date(s.subscription_ends_at) : now;
-                if (currentEnd < now) currentEnd.setTime(now.getTime());
-                return { ...s, subscription_ends_at: new Date(currentEnd.getTime() + 30 * 86400000).toISOString() };
-              })
-            );
-            const serverId = extendConfirm.serverId;
-            setExpandedServer(null);
-            setTimeout(() => {
-              setExpandedServer(serverId);
-              setTimeout(() => expandedRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }), 100);
-            }, 200);
+            // Force fresh data from server — RPC already updated the DB
+            await queryClient.fetchQuery({
+              queryKey: ["admin", "servers"],
+              queryFn: fetchAllServers,
+              staleTime: 0,
+            });
           } catch (err: any) {
             setToast({ type: "error", message: err?.message || "Failed to extend" });
           } finally {
