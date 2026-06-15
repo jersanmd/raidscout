@@ -416,6 +416,24 @@ export function AdminPanelView() {
               const renderServer = (s: any) => {
               const isExpanded = expandedServer === s.id;
               const stats = serverStats[s.id];
+              // Compute subscription status — shared between header badge and expanded detail
+              const now = new Date();
+              const effectiveSubEnd = subOverrides[s.id] ?? s.subscription_ends_at;
+              const subEnd = effectiveSubEnd ? new Date(effectiveSubEnd) : null;
+              const subDays = subEnd ? Math.ceil((subEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)) : 0;
+              const trialEnd = s.trial_ends_at ? new Date(s.trial_ends_at) : null;
+              const trialDays = trialEnd ? Math.ceil((trialEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)) : 0;
+              const isActive = subDays > 0;
+              const isTrialing = !isActive && trialDays > 0;
+              const isExpired = !isActive && !isTrialing && !!s.trial_ends_at;
+              const isGrandfathered = !s.trial_ends_at;
+              const subBadge = isGrandfathered
+                ? { cls: "bg-[#27272a] text-[#a1a1aa] border-[#3f3f46]", label: "Grandfathered" }
+                : isActive
+                ? { cls: "bg-emerald-500/10 text-emerald-300 border-emerald-500/20", label: `${subDays}d` }
+                : isTrialing
+                ? { cls: "bg-amber-500/10 text-amber-300 border-amber-500/20", label: `Trial ${trialDays}d` }
+                : { cls: "bg-red-500/10 text-red-300 border-red-500/20", label: "Expired" };
               return (
               <div key={s.id} ref={expandedServer === s.id ? expandedRef : undefined} className="bg-[#18181b] border border-[#27272a] rounded-xl overflow-hidden">
                 <button
@@ -437,6 +455,11 @@ export function AdminPanelView() {
                   <div className="min-w-0 flex-1 mr-2">
                     <div className="flex items-center gap-2">
                       <h4 className="text-sm font-semibold text-[#fafafa] truncate">{s.name}</h4>
+                      {!isExpanded && (
+                        <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] border ${subBadge.cls} shrink-0`}>
+                          {subBadge.label}
+                        </span>
+                      )}
                       {s.game_name && (
                         <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] text-[#a1a1aa] bg-[#27272a] shrink-0">
                           {s.game_icon_url ? (
@@ -496,49 +519,35 @@ export function AdminPanelView() {
                         </div>
 
                         {/* Subscription Status */}
-                        {(() => {
-                          const now = new Date();
-                          const trialEnd = s.trial_ends_at ? new Date(s.trial_ends_at) : null;
-                          const effectiveSubEnd = subOverrides[s.id] ?? s.subscription_ends_at;
-                          const subEnd = effectiveSubEnd ? new Date(effectiveSubEnd) : null;
-                          const subDays = subEnd ? Math.ceil((subEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)) : 0;
-                          const trialDays = trialEnd ? Math.ceil((trialEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)) : 0;
-                          const isActive = subDays > 0;
-                          const isTrialing = !isActive && trialDays > 0;
-                          const isExpired = !isActive && !isTrialing && !!s.trial_ends_at;
-                          const isGrandfathered = !s.trial_ends_at;
-                          return (
-                            <div key={`sub-${s.id}-${effectiveSubEnd ?? 'none'}`} className="border-t border-[#27272a] pt-3">
-                              <p className="text-[10px] text-[#71717a] uppercase tracking-wider mb-2">Subscription</p>
-                              <div className="flex items-center gap-4">
-                                {isGrandfathered ? (
-                                  <span className="text-xs text-[#a1a1aa]">Grandfathered — no expiry</span>
-                                ) : isActive ? (
-                                  <>
-                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] bg-emerald-500/10 text-emerald-300 border border-emerald-500/20">
-                                      ● Active — {subDays}d remaining
-                                    </span>
-                                    <span className="text-[10px] text-[#52525b]">Until {subEnd!.toLocaleDateString()}</span>
-                                  </>
-                                ) : isTrialing ? (
-                                  <>
-                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] bg-amber-500/10 text-amber-300 border border-amber-500/20">
-                                      ● Trial — {trialDays}d remaining
-                                    </span>
-                                    <span className="text-[10px] text-[#52525b]">Until {trialEnd!.toLocaleDateString()}</span>
-                                  </>
-                                ) : (
-                                  <>
-                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] bg-red-500/10 text-red-300 border border-red-500/20">
-                                      ● Expired
-                                    </span>
-                                    {subEnd && <span className="text-[10px] text-[#52525b]">Ended {subEnd.toLocaleDateString()}</span>}
-                                  </>
-                                )}
-                              </div>
-                            </div>
-                          );
-                        })()}
+                        <div key={`sub-${s.id}-${effectiveSubEnd ?? 'none'}`} className="border-t border-[#27272a] pt-3">
+                          <p className="text-[10px] text-[#71717a] uppercase tracking-wider mb-2">Subscription</p>
+                          <div className="flex items-center gap-4">
+                            {isGrandfathered ? (
+                              <span className="text-xs text-[#a1a1aa]">Grandfathered — no expiry</span>
+                            ) : isActive ? (
+                              <>
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] bg-emerald-500/10 text-emerald-300 border border-emerald-500/20">
+                                  ● Active — {subDays}d remaining
+                                </span>
+                                <span className="text-[10px] text-[#52525b]">Until {subEnd!.toLocaleDateString()}</span>
+                              </>
+                            ) : isTrialing ? (
+                              <>
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] bg-amber-500/10 text-amber-300 border border-amber-500/20">
+                                  ● Trial — {trialDays}d remaining
+                                </span>
+                                <span className="text-[10px] text-[#52525b]">Until {trialEnd!.toLocaleDateString()}</span>
+                              </>
+                            ) : (
+                              <>
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] bg-red-500/10 text-red-300 border border-red-500/20">
+                                  ● Expired
+                                </span>
+                                {subEnd && <span className="text-[10px] text-[#52525b]">Ended {subEnd.toLocaleDateString()}</span>}
+                              </>
+                            )}
+                          </div>
+                        </div>
 
                         {/* Guild Tags — monochrome text, 40% opacity for zero-count */}
                         {stats.guild_members && stats.guild_members.length > 0 && (
