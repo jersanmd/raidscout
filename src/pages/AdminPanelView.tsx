@@ -1453,11 +1453,11 @@ export function AdminPanelView() {
             const newEnd = new Date(currentEnd.getTime() + 30 * 86400000).toISOString();
             const newEndDate = new Date(newEnd).toLocaleDateString();
             setSubOverrides(prev => ({ ...prev, [extendConfirm.serverId]: newEnd }));
-            setToast({ type: "success", message: `Extended ${extendConfirm.serverName} to ${newEndDate}` });
+            toast("success", `Extended ${extendConfirm.serverName} to ${newEndDate}`);
             // Background: refresh cache from server
             queryClient.fetchQuery({ queryKey: ["admin", "servers"], queryFn: fetchAllServers, staleTime: 0 });
           } catch (err: any) {
-            setToast({ type: "error", message: err?.message || "Failed to extend" });
+            toast("error", err?.message || "Failed to extend");
           } finally {
             setExtending(false);
             setExtendConfirm(null);
