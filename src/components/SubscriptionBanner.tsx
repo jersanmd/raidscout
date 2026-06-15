@@ -1,31 +1,24 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useServer } from "@/contexts/ServerContext";
-import { X, AlertTriangle, Clock } from "lucide-react";
-import { PayPalSubscribeButton } from "@/components/PayPalSubscribeButton";
-import { useQueryClient } from "@tanstack/react-query";
-import { fetchAllServers } from "@/lib/supabase";
+import { X, AlertTriangle, Clock, ArrowRight } from "lucide-react";
 
 /**
  * Banner showing subscription status for server owners (all states) and moderators (expired only).
- * - Green: active subscription — owner only, no action needed
- * - Amber: trial active — owner only, subscribe button shown
- * - Red: expired — owner sees subscribe button, moderator sees contact-owner notice
+ * Links to /billing for plan management and subscription.
  */
 export function SubscriptionBanner() {
   const { user } = useAuth();
   const { currentServer } = useServer();
   const [dismissed, setDismissed] = useState(false);
-  const queryClient = useQueryClient();
 
   if (!user || !currentServer) return null;
 
   const isOwner = currentServer.role === "owner";
   const isMod = currentServer.role === "moderator";
 
-  // Moderators only see the banner when expired
   if (isMod && !currentServer.isExpired) return null;
-  // Only owners and moderators
   if (!isOwner && !isMod) return null;
 
   const now = new Date();
@@ -40,16 +33,13 @@ export function SubscriptionBanner() {
     ? Math.ceil((subEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
     : 0;
 
-  // Determine state for owner
   const isSubActive = subDaysLeft > 0;
   const isTrialActive = !isSubActive && trialDaysLeft > 0;
   const isExpired = !isSubActive && !isTrialActive;
 
-  // Don't show active green banner if dismissed
   if (isSubActive && dismissed) return null;
-
-  // Moderator expired state
   if (isMod && isExpired && dismissed) return null;
+  if (isOwner && isExpired && dismissed) return null;
 
   const state = isSubActive ? "active" : isTrialActive ? "trial" : "expired";
 
@@ -62,19 +52,17 @@ export function SubscriptionBanner() {
       subtitle: subEnd ? `Until ${subEnd.toLocaleDateString()}. Thank you for supporting RaidScout!` : "",
       titleColor: "text-emerald-200",
       subColor: "text-emerald-400/70",
-      btnBg: "",
-      showDismiss: true,
+      linkColor: "text-emerald-300 hover:text-emerald-100 border-emerald-500/30 hover:border-emerald-500/50",
     },
     trial: {
       bg: "bg-amber-950/40 border-amber-800/40",
       iconBg: "bg-amber-900/50",
       icon: <Clock className="w-4 h-4 text-amber-400" />,
       title: `Free trial — ${trialDaysLeft} day${trialDaysLeft !== 1 ? "s" : ""} remaining`,
-      subtitle: trialEnd ? `Until ${trialEnd.toLocaleDateString()}. Subscribe now to keep your server active.` : "",
+      subtitle: trialEnd ? `Until ${trialEnd.toLocaleDateString()}. Subscribe to keep your server active.` : "",
       titleColor: "text-amber-200",
       subColor: "text-amber-400/80",
-      btnBg: "bg-amber-600 hover:bg-amber-500",
-      showDismiss: true,
+      linkColor: "text-amber-300 hover:text-amber-100 border-amber-500/30 hover:border-amber-500/50",
     },
     expired: {
       bg: "bg-red-950/60 border-red-800/60",
@@ -84,16 +72,13 @@ export function SubscriptionBanner() {
         ? (subEnd && subEnd < now ? "Subscription expired" : "Free trial expired")
         : "Subscription expired",
       subtitle: isOwner
-        ? "Subscribe to restore full access — boss tracking, kill recording, inventory, and Discord notifications."
-        : "Contact the server owner to restore full access — kill recording is currently disabled.",
+        ? "Restore full access via the billing dashboard."
+        : "Contact the server owner to restore full access.",
       titleColor: "text-red-200",
       subColor: "text-red-400/80",
-      btnBg: "bg-red-600 hover:bg-red-500",
-      showDismiss: true,
+      linkColor: "text-red-300 hover:text-red-100 border-red-500/30 hover:border-red-500/50",
     },
   }[state];
-
-  if (isOwner && isExpired && dismissed) return null;
 
   return (
     <div className={`border-b ${config.bg}`}>
@@ -108,30 +93,26 @@ export function SubscriptionBanner() {
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
-          {/* PayPal Smart Button — owners on trial or expired */}
-          {isOwner && (isTrialActive || isExpired) && (
-            <PayPalSubscribeButton
-              serverId={currentServer.id}
-              onSuccess={() => {
-                // Optimistically refresh server data after approval
-                queryClient.invalidateQueries({ queryKey: ["admin", "servers"] });
-                queryClient.fetchQuery({
-                  queryKey: ["admin", "servers"],
-                  queryFn: fetchAllServers,
-                  staleTime: 0,
-                });
-              }}
-            />
-          )}
-          {config.showDismiss && (
-            <button
-              onClick={() => setDismissed(true)}
-              className={`p-1.5 ${state === "active" ? "text-emerald-500 hover:text-emerald-300 hover:bg-emerald-900/40" : state === "trial" ? "text-amber-500 hover:text-amber-300 hover:bg-amber-900/40" : "text-red-500 hover:text-red-300 hover:bg-red-900/40"} rounded-md transition`}
-              title="Dismiss"
+          {isOwner && (
+            <Link
+              to="/billing"
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition ${config.linkColor}`}
             >
-              <X className="w-4 h-4" />
-            </button>
+              Manage Billing
+              <ArrowRight className="w-3 h-3" />
+            </Link>
           )}
+          <button
+            onClick={() => setDismissed(true)}
+            className={`p-1.5 ${
+              state === "active" ? "text-emerald-500 hover:text-emerald-300 hover:bg-emerald-900/40" :
+              state === "trial" ? "text-amber-500 hover:text-amber-300 hover:bg-amber-900/40" :
+              "text-red-500 hover:text-red-300 hover:bg-red-900/40"
+            } rounded-md transition`}
+            title="Dismiss"
+          >
+            <X className="w-4 h-4" />
+          </button>
         </div>
       </div>
     </div>
