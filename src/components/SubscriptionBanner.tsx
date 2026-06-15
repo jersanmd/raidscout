@@ -59,7 +59,7 @@ export function SubscriptionBanner() {
       iconBg: "bg-amber-900/50",
       icon: <Clock className="w-4 h-4 text-amber-400" />,
       title: `Free trial — ${trialDaysLeft} day${trialDaysLeft !== 1 ? "s" : ""} remaining`,
-      subtitle: trialEnd ? `Until ${trialEnd.toLocaleDateString()}. Subscribe to keep your server active.` : "",
+      subtitle: trialEnd ? `Until ${trialEnd.toLocaleDateString()}. Extend access to keep your server active.` : "",
       titleColor: "text-amber-200",
       subColor: "text-amber-400/80",
       linkColor: "text-amber-300 hover:text-amber-100 border-amber-500/30 hover:border-amber-500/50",

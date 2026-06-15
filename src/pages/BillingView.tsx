@@ -1,12 +1,9 @@
-import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useServer } from "@/contexts/ServerContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
 import { PayPalSubscribeButton } from "@/components/PayPalSubscribeButton";
-import { ConfirmDialog } from "@/components/ConfirmDialog";
-import { supabase } from "@/lib/supabase";
-import { ArrowLeft, Clock, Shield, AlertTriangle, Loader2, ExternalLink, Zap, Users, Bell, Eye, BarChart3, Skull, Calendar, Trophy, Settings, MessageCircle, Globe, Activity } from "lucide-react";
+import { ArrowLeft, Clock, Shield, AlertTriangle, Zap, Users, Bell, Eye, BarChart3, Skull, Calendar, Trophy, Settings, MessageCircle, Globe, Activity } from "lucide-react";
 
 const FEATURES = [
   { icon: Skull, label: "Boss Kill Recording" },
@@ -28,8 +25,6 @@ export function BillingView() {
   const { user, isViewer } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
-  const [cancelling, setCancelling] = useState(false);
-  const [cancelConfirm, setCancelConfirm] = useState(false);
 
   if (!currentServer || isViewer) return null;
 
@@ -53,22 +48,6 @@ export function BillingView() {
 
   const StatusIcon = stateConfig.icon;
 
-  const handleCancel = async () => {
-    setCancelConfirm(false);
-    setCancelling(true);
-    try {
-      const { data: srv } = await supabase.from("servers").select("paypal_subscription_id").eq("id", currentServer.id).single();
-      if (!srv?.paypal_subscription_id) { toast("error", "No PayPal subscription found."); return; }
-      const { error } = await supabase.functions.invoke("cancel-subscription", { body: { server_id: currentServer.id } });
-      if (error) throw error;
-      toast("success", "Subscription cancelled. Access remains until period ends.");
-    } catch (err: any) {
-      toast("error", err?.message || "Failed to cancel.");
-    } finally {
-      setCancelling(false);
-    }
-  };
-
   return (
     <div className="max-w-7xl mx-auto px-3 sm:px-4 py-4 sm:py-6 space-y-6">
       <div className="flex items-center gap-3 mb-3 sm:mb-0">
@@ -76,7 +55,7 @@ export function BillingView() {
           <ArrowLeft className="w-5 h-5" />
         </button>
         <h2 className="text-lg sm:text-xl font-bold text-[#fafafa]">Billing &amp; Plan</h2>
-        <span className="text-xs text-[#52525b] mt-0.5">Manage your subscription and payments</span>
+        <span className="text-xs text-[#52525b] mt-0.5">Manage your billing and server access</span>
       </div>
 
       <div className="max-w-3xl mx-auto space-y-6 mt-8">
@@ -129,17 +108,12 @@ export function BillingView() {
 
           {isOwner ? (
             isSubActive ? (
-              <div className="space-y-2">
-                <a href="https://www.paypal.com/myaccount/autopay/" target="_blank" rel="noopener noreferrer"
-                  className="flex items-center justify-between w-full px-4 py-3 rounded-lg bg-[#f3f4f6] hover:bg-[#e5e7eb] transition group">
-                  <span className="text-sm text-[#111827]">Manage in PayPal</span>
-                  <ExternalLink className="w-4 h-4 text-[#9ca3af] group-hover:text-[#6b7280]" />
-                </a>
-                <button onClick={() => setCancelConfirm(true)} disabled={cancelling}
-                  className="flex items-center gap-2 w-full px-4 py-2.5 rounded-lg border border-red-200 hover:bg-red-50 transition disabled:opacity-50 text-sm text-red-600">
-                  {cancelling ? <Loader2 className="w-4 h-4 animate-spin" /> : <AlertTriangle className="w-4 h-4" />}
-                  {cancelling ? "Cancelling..." : "Cancel Subscription"}
-                </button>
+              <div className="text-center space-y-3">
+                <p className="text-sm text-[#6b7280]">Your server has <span className="font-semibold text-[#111827]">{subDaysLeft} day{subDaysLeft !== 1 ? "s" : ""}</span> of access remaining.</p>
+                <p className="text-xs text-[#9ca3af]">Extend anytime — days stack on top of your current balance.</p>
+                <div className="flex justify-center">
+                  <PayPalSubscribeButton serverId={currentServer.id} onSuccess={() => toast("success", "Added 30 days!")} />
+                </div>
               </div>
             ) : (
               <div className="space-y-3">
@@ -155,7 +129,7 @@ export function BillingView() {
           ) : (
             <div className="flex items-start gap-3">
               <Shield className="w-4 h-4 text-[#6b7280] mt-0.5 shrink-0" />
-              <p className="text-xs text-[#6b7280]">Only the server owner can manage billing and subscriptions.</p>
+              <p className="text-xs text-[#6b7280]">Only the server owner can manage billing.</p>
             </div>
           )}
         </div>
@@ -188,19 +162,8 @@ export function BillingView() {
 
       {/* ── Footer note ── */}
       <p className="text-center text-[11px] text-[#52525b]">
-        Payments are processed securely by PayPal. Your subscription will expire after 30 days unless renewed.
+        Payments are processed securely by PayPal. Each payment extends server access by 30 days.
       </p>
-
-      <ConfirmDialog
-        open={cancelConfirm}
-        title="Cancel Subscription"
-        message="Your server will retain full access until the current billing period ends. No refunds for partial periods."
-        confirmLabel="Cancel Subscription"
-        variant="danger"
-        loading={cancelling}
-        onConfirm={handleCancel}
-        onCancel={() => setCancelConfirm(false)}
-      />
 
       </div>
     </div>
