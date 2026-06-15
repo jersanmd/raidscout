@@ -1443,8 +1443,9 @@ export function AdminPanelView() {
             const { error } = await supabase.rpc("extend_server_subscription", { p_server_id: extendConfirm.serverId, p_days: 30 });
             if (error) throw error;
             setToast({ type: "success", message: `Extended ${extendConfirm.serverName} by 30 days` });
-            // Force-refetch then close & reopen card to guarantee fresh render
-            await queryClient.refetchQueries({ queryKey: ["admin", "servers"] });
+            // Manually fetch fresh data and update cache — bypasses React Query stale logic
+            const freshServers = await fetchAllServers();
+            queryClient.setQueryData(["admin", "servers"], freshServers);
             const serverId = extendConfirm.serverId;
             setExpandedServer(null);
             setTimeout(() => {
