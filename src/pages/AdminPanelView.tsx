@@ -516,7 +516,7 @@ export function AdminPanelView() {
                           </div>
                         )}
 
-                        {/* View Server + Force Spawn All buttons */}
+                        {/* View Server + Extend Sub + Force Spawn All buttons */}
                         <div className="flex items-center justify-end gap-2 pt-1 border-t border-[#27272a]">
                           <button
                             onClick={(e) => {
@@ -529,6 +529,22 @@ export function AdminPanelView() {
                           >
                             {forceSpawning === s.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
                             Force Spawn All
+                          </button>
+                          <button
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              try {
+                                const { error } = await supabase.rpc("extend_server_subscription", { p_server_id: s.id, p_days: 30 });
+                                if (error) throw error;
+                                setToast({ type: "success", message: `Extended ${s.name} by 30 days` });
+                              } catch (err: any) {
+                                setToast({ type: "error", message: err?.message || "Failed to extend" });
+                              }
+                            }}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 hover:border-emerald-500/50 transition"
+                          >
+                            <Clock className="w-3.5 h-3.5" />
+                            Extend +30d
                           </button>
                           <button
                             onClick={(e) => {

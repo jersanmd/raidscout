@@ -7,6 +7,7 @@ import { useServer } from "@/contexts/ServerContext";
 import { CreateServerModal } from "@/components/CreateServerModal";
 import { DiscordWebhookBanner } from "@/components/DiscordWebhookBanner";
 import { NoMembersBanner } from "@/components/NoMembersBanner";
+import { SubscriptionBanner } from "@/components/SubscriptionBanner";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { useSpawnAlerts } from "@/hooks/useSpawnAlerts";
 import { Skull, List, Calendar, LogOut, Clock, Trophy, Users, BarChart3, Server, Settings, Plus, Shield, ExternalLink, Eye, Bell, Volume2, ChevronDown, Globe, Loader2, Package, User } from "lucide-react";
@@ -338,6 +339,9 @@ export function Layout() {
 
       {/* No members warning Ã¢â‚¬â€ only visible to server owner when no members exist */}
       <NoMembersBanner />
+
+      {/* Subscription / trial expiry banner */}
+      <SubscriptionBanner />
 
       {/* Content */}
       <main className="flex-1 pb-16 md:pb-0">

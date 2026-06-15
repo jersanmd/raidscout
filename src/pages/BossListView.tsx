@@ -386,6 +386,11 @@ export function BossListView() {
       const boss = spawns.find((s) => s.boss.id === bossId)?.boss;
       if (!boss) return;
 
+      if (currentServer?.isExpired) {
+        setToast({ type: "error", message: "Trial expired. Subscribe to record kills." });
+        return;
+      }
+
       if (user || isViewer) {
         try {
           const ownerGuildNameStr = ownerGuildName(boss.id);
@@ -415,7 +420,7 @@ export function BossListView() {
         setToast({ type: "error", message: "Supabase not configured. Cannot record death." });
       }
     },
-    [user, isViewer, queryClient, spawns, ownerGuildName, recordDeath, setToast, debouncedInvalidateLeaderboard],
+    [user, isViewer, currentServer?.isExpired, queryClient, spawns, ownerGuildName, recordDeath, setToast, debouncedInvalidateLeaderboard],
   );
 
   const handleFinishActivity = useCallback(

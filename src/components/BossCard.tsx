@@ -117,7 +117,7 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
   const canEdit = !isActivity && (viewerCanEdit || (!isViewer && canSetSpawn)) && currentServer && !!onSetSpawnDate && (
     boss.spawn_type === "fixed_hours" && status !== "alive"
   );
-  const canMarkDied = viewerCanMarkDied || (!isViewer && canRecordDeath);
+  const canMarkDied = (viewerCanMarkDied || (!isViewer && canRecordDeath)) && !currentServer?.isExpired;
 
   const statusConfigMap = {
     unknown: {

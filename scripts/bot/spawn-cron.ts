@@ -66,9 +66,21 @@ async function runSpawnCron() {
     `discord_configs?select=raidscout_server_id,discord_guild_id,notification_channel_id&notification_channel_id=not.is.null`
   );
 
-  // Fetch active servers (exclude soft-deleted)
-  const activeServers = await supabaseQuerySafe(`servers?select=id&deleted_at=is.null`);
-  const activeServerIds = new Set((activeServers || []).map((s: any) => s.id));
+  // Fetch active servers (exclude soft-deleted AND expired)
+  const allServers = await supabaseQuerySafe(`servers?select=id,trial_ends_at,subscription_ends_at&deleted_at=is.null`);
+  const now = new Date();
+  const activeServerIds = new Set((allServers || [])
+    .filter((s: any) => {
+      // Grandfathered: no trial set
+      if (!s.trial_ends_at) return true;
+      // Active subscription overrides trial expiry
+      if (s.subscription_ends_at && new Date(s.subscription_ends_at) > now) return true;
+      // Active trial
+      if (s.trial_ends_at && new Date(s.trial_ends_at) > now) return true;
+      return false;
+    })
+    .map((s: any) => s.id)
+  );
 
   // Fetch thread configs for logging (which Discord servers have auto-threads enabled)
   const threadConfigs = await supabaseQuerySafe(

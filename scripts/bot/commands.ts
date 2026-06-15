@@ -95,6 +95,28 @@ export async function handleMessage(msg: any) {
     } catch (err) { console.error("[bot] maintenance check failed:", err); }
   }
 
+  // Subscription expiry check — block commands if trial + subscription both expired
+  if (serverId) {
+    try {
+      const srvRows = await supabaseQuerySafe(`servers?id=eq.${serverId}&select=trial_ends_at,subscription_ends_at`);
+      const srv = srvRows?.[0];
+      if (srv) {
+        const now = new Date();
+        const trialEnd = srv.trial_ends_at ? new Date(srv.trial_ends_at) : null;
+        const subEnd = srv.subscription_ends_at ? new Date(srv.subscription_ends_at) : null;
+        // Grandfathered: no trial set
+        const isExpired = srv.trial_ends_at && !(subEnd && subEnd > now) && !(trialEnd && trialEnd > now);
+        if (isExpired && cmd && !["help","commands","notifhere","cmdhere","threadhere","progresshere"].includes(cmd)) {
+          await discordFetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
+            method: "POST", headers: { Authorization: `Bot ${TOKEN}`, "Content-Type": "application/json" },
+            body: JSON.stringify({ content: "⏰ This server's free trial has expired. The owner needs to subscribe to restore bot access.\n🔗 https://www.raidscout.com" }),
+          });
+          return;
+        }
+      }
+    } catch (err) { console.error("[bot] subscription check failed:", err); }
+  }
+
   // ✅ reaction
   const validCmds = new Set(["list","nextspawn","spawn","killed","kill","editkilltime","forcespawn","forcespawnall","spawnall","commands","help","notifhere","cmdhere","threadhere","progresshere","party","updatestats","editstats","ping"]);
   if (validCmds.has(cmd)) {

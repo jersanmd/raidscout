@@ -14,6 +14,22 @@ export interface Server {
   role: "owner" | "moderator";
   viewer_can_edit?: boolean;
   viewer_can_mark_died?: boolean;
+  trial_ends_at?: string | null;
+  subscription_ends_at?: string | null;
+  isExpired?: boolean;
+}
+
+/** Check if a server's trial and subscription have both expired. */
+function computeIsExpired(trialEnds: string | null, subEnds: string | null): boolean {
+  const now = new Date();
+  // Active subscription overrides trial
+  if (subEnds && new Date(subEnds) > now) return false;
+  // Active trial
+  if (trialEnds && new Date(trialEnds) > now) return false;
+  // No trial set = grandfathered
+  if (!trialEnds) return false;
+  // Both expired or subscription expired with no active trial
+  return true;
 }
 
 interface ServerState {
@@ -78,7 +94,7 @@ export function ServerProvider({ children }: { children: ReactNode }) {
       if (userRole === "admin") {
         const { data: allServers } = await supabase
           .from("servers")
-          .select("id, name, owner_id, invite_code, created_at, discord_webhook_url, timezone, notification_prefix, deleted_at")
+          .select("id, name, owner_id, invite_code, created_at, discord_webhook_url, timezone, notification_prefix, deleted_at, trial_ends_at, subscription_ends_at")
           .is("deleted_at", null)
           .order("name");
 
@@ -93,6 +109,9 @@ export function ServerProvider({ children }: { children: ReactNode }) {
               timezone: s.timezone || 'Asia/Manila',
               notification_prefix: s.notification_prefix || '@everyone',
               role: "owner" as "owner" | "moderator",
+              trial_ends_at: s.trial_ends_at,
+              subscription_ends_at: s.subscription_ends_at,
+              isExpired: computeIsExpired(s.trial_ends_at, s.subscription_ends_at),
             });
           }
         }
@@ -136,7 +155,7 @@ export function ServerProvider({ children }: { children: ReactNode }) {
       // Fetch servers with all fields
       const { data: srvData } = await supabase
         .from("servers")
-        .select("id, name, owner_id, invite_code, created_at, discord_webhook_url, timezone, notification_prefix, deleted_at")
+        .select("id, name, owner_id, invite_code, created_at, discord_webhook_url, timezone, notification_prefix, deleted_at, trial_ends_at, subscription_ends_at")
         .in("id", uniqueIds);
 
       // Build role map
@@ -164,6 +183,9 @@ export function ServerProvider({ children }: { children: ReactNode }) {
             timezone: s.timezone || 'Asia/Manila',
             notification_prefix: s.notification_prefix || '@everyone',
             role: (role ?? "owner") as "owner" | "moderator",
+            trial_ends_at: s.trial_ends_at,
+            subscription_ends_at: s.subscription_ends_at,
+            isExpired: computeIsExpired(s.trial_ends_at, s.subscription_ends_at),
           });
         }
       } else {
