@@ -145,11 +145,13 @@ export function Layout() {
               const isPro = subDays > 0;
               const isTrial = !isPro && trialDays > 0;
               if (!isPro && !isTrial) return null;
+              const days = isPro ? subDays : trialDays;
+              const label = isPro ? "Pro" : "Trial";
               return (
                 <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium border shrink-0 ${
-                  isPro ? "bg-emerald-500/10 text-emerald-300 border-emerald-500/20" : "bg-amber-500/10 text-amber-300 border-amber-500/20"
+                  isPro ? "bg-emerald-500/10 text-emerald-300 border-emerald-500/20" : "bg-gray-800 text-gray-300 border-gray-700"
                 }`}>
-                  {isPro ? "Pro" : `Trial`}
+                  {label}<span className="opacity-60">·</span>{days}d
                 </span>
               );
             })()}
