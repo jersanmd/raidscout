@@ -28,6 +28,8 @@ export function PayPalSubscribeButton({
   className = "",
 }: PayPalSubscribeButtonProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const paypalButtonRef = useRef<any>(null);
+  const cardButtonRef = useRef<any>(null);
   const [sdkReady, setSdkReady] = useState(false);
   const [sdkError, setSdkError] = useState<string | null>(null);
 
@@ -79,11 +81,18 @@ export function PayPalSubscribeButton({
     const onApprove = async (data: any, actions: any) => {
       await actions.order.capture();
       try {
-        await supabase.functions.invoke("paypal-ipn", {
+        const { error } = await supabase.functions.invoke("paypal-ipn", {
           body: { server_id: serverId, order_id: data.orderID },
         });
-      } catch (err) {
+        if (error) {
+          console.error("paypal-ipn error:", error);
+          onError?.(new Error(error.message || "Failed to activate access"));
+          return;
+        }
+      } catch (err: any) {
         console.error("Failed to activate subscription:", err);
+        onError?.(err instanceof Error ? err : new Error("Failed to activate access. Your payment was processed — please contact support."));
+        return;
       }
       onSuccess?.();
     };
@@ -103,6 +112,9 @@ export function PayPalSubscribeButton({
     ppLabel.className = "text-[11px] text-[#71717a] font-medium mb-1.5";
     containerRef.current.appendChild(ppLabel);
 
+    const ppWrapper = document.createElement("div");
+    containerRef.current.appendChild(ppWrapper);
+
     window.paypal.Buttons({
       style: { layout: "horizontal", tagline: false, height: 40 },
       fundingSource: window.paypal.FUNDING.PAYPAL,
@@ -110,13 +122,18 @@ export function PayPalSubscribeButton({
       onApprove,
       onError: onErr,
       onCancel: () => {},
-    }).render(containerRef.current);
+    }).render(ppWrapper).then((instance: any) => {
+      paypalButtonRef.current = instance;
+    });
 
     // ── Debit / Credit Card ──
     const cardLabel = document.createElement("p");
     cardLabel.textContent = "Pay with Debit / Credit Card";
     cardLabel.className = "text-[11px] text-[#6b7280] font-medium mb-1.5 mt-4";
     containerRef.current.appendChild(cardLabel);
+
+    const cardWrapper = document.createElement("div");
+    containerRef.current.appendChild(cardWrapper);
 
     window.paypal.Buttons({
       style: {
@@ -131,9 +148,20 @@ export function PayPalSubscribeButton({
       onApprove,
       onError: onErr,
       onCancel: () => {},
-    }).render(containerRef.current);
+    }).render(cardWrapper).then((instance: any) => {
+      cardButtonRef.current = instance;
+    });
 
     return () => {
+      // Properly close PayPal buttons before cleanup
+      if (paypalButtonRef.current) {
+        try { paypalButtonRef.current.close(); } catch {}
+        paypalButtonRef.current = null;
+      }
+      if (cardButtonRef.current) {
+        try { cardButtonRef.current.close(); } catch {}
+        cardButtonRef.current = null;
+      }
       if (containerRef.current) containerRef.current.innerHTML = "";
     };
   }, [sdkReady, serverId, onSuccess, onError]);
