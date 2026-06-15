@@ -104,43 +104,8 @@ export function BillingView() {
         </div>
       </div>
 
-      {/* ── Plan + Payment ── */}
-      <div className="grid grid-cols-1 gap-4">
-        {/* Plan Details */}
-        <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-5 space-y-4">
-          <h3 className="text-sm font-semibold text-[#fafafa] flex items-center gap-2">
-            <CreditCard className="w-4 h-4 text-[#a1a1aa]" />
-            Plan Details
-          </h3>
-          <div className="flex flex-wrap gap-x-6 gap-y-2">
-            <div className="flex items-center gap-1.5">
-              <span className="text-xs text-[#a1a1aa]">Plan</span>
-              <span className="text-sm font-medium text-[#fafafa]">{planName}</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="text-xs text-[#a1a1aa]">Price</span>
-              <span className="text-sm font-medium text-[#fafafa]">{isSubActive ? "$9.99 / month" : isTrialActive ? "Free" : "—"}</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="text-xs text-[#a1a1aa]">{isSubActive ? "Next renewal" : isTrialActive ? "Trial ends" : "Expired on"}</span>
-              <span className="text-sm font-medium text-[#fafafa]">{stateConfig.date?.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) || "—"}</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="text-xs text-[#a1a1aa]">Status</span>
-              <span className={`text-sm font-medium ${state === "active" ? "text-emerald-300" : state === "trial" ? "text-amber-300" : "text-red-300"}`}>
-                {state === "active" ? `${stateConfig.days}d remaining` : state === "trial" ? `${stateConfig.days}d left` : "Expired"}
-              </span>
-            </div>
-          </div>
-          {currentServer.paypal_subscription_id && (
-            <div className="border-t border-[#27272a] pt-3">
-              <span className="text-[10px] text-[#71717a] uppercase tracking-wider">PayPal Subscription</span>
-              <p className="text-[11px] text-[#52525b] font-mono mt-1 truncate">{currentServer.paypal_subscription_id}</p>
-            </div>
-          )}
-        </div>
-
-        {/* Payment */}
+      {/* ── Payment ── */}
+      <div className="space-y-4">
         <div className="bg-white border border-[#e5e7eb] rounded-xl p-5 space-y-4 shadow-sm">
           <h3 className="text-sm font-semibold text-[#111827] flex items-center gap-2">
             <Shield className="w-4 h-4 text-[#6b7280]" />
