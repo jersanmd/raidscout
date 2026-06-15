@@ -187,9 +187,9 @@ export function BillingView() {
             <div className="grid grid-cols-12 gap-3 text-[11px] font-semibold text-[#9ca3af] uppercase tracking-wider px-3 pb-2 border-b border-[#f3f4f6]">
               <span className="col-span-3">Date</span>
               <span className="col-span-2">Amount</span>
-              <span className="col-span-2">Days Added</span>
-              <span className="col-span-3">Order ID</span>
-              <span className="col-span-2 text-right">Status</span>
+              <span className="col-span-2">Days</span>
+              <span className="col-span-3">Transaction</span>
+              <span className="col-span-2 text-right">Receipt</span>
             </div>
             {payments.map((p) => (
               <div key={p.id} className="grid grid-cols-12 gap-3 items-center px-3 py-2.5 rounded-lg hover:bg-[#f9fafb] transition-colors">
@@ -201,15 +201,27 @@ export function BillingView() {
                 </span>
                 <span className="col-span-2 text-xs text-[#111827] font-semibold">${p.amount}</span>
                 <span className="col-span-2 text-xs text-[#374151]">+{p.days_added}d</span>
-                <span className="col-span-3 text-[11px] text-[#6b7280] font-mono truncate" title={p.paypal_order_id}>
-                  {p.paypal_order_id ? p.paypal_order_id.slice(0, 12) + "..." : "—"}
-                </span>
-                <span className="col-span-2 text-right">
+                <span className="col-span-3 text-xs text-[#374151]">
                   <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold ${
                     p.status === "completed" ? "bg-emerald-50 text-emerald-600" : "bg-red-50 text-red-600"
                   }`}>
                     {p.status === "completed" ? "Completed" : "Refunded"}
                   </span>
+                </span>
+                <span className="col-span-2 text-right">
+                  {p.paypal_order_id ? (
+                    <a
+                      href={`https://www.paypal.com/myaccount/transactions/details/${p.paypal_order_id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-[10px] font-medium text-sky-600 hover:text-sky-700 hover:underline transition"
+                    >
+                      <Receipt className="w-3 h-3" />
+                      Receipt
+                    </a>
+                  ) : (
+                    <span className="text-[10px] text-[#d1d5db]">—</span>
+                  )}
                 </span>
               </div>
             ))}
