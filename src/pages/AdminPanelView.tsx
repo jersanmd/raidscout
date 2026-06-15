@@ -425,11 +425,8 @@ export function AdminPanelView() {
               const trialDays = trialEnd ? Math.ceil((trialEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)) : 0;
               const isActive = subDays > 0;
               const isTrialing = !isActive && trialDays > 0;
-              const isExpired = !isActive && !isTrialing && !!s.trial_ends_at;
-              const isGrandfathered = !s.trial_ends_at;
-              const subBadge = isGrandfathered
-                ? { cls: "bg-[#27272a] text-[#a1a1aa] border-[#3f3f46]", label: "Grandfathered" }
-                : isActive
+              const isExpired = !isActive && !isTrialing;
+              const subBadge = isActive
                 ? { cls: "bg-emerald-500/10 text-emerald-300 border-emerald-500/20", label: `${subDays}d` }
                 : isTrialing
                 ? { cls: "bg-amber-500/10 text-amber-300 border-amber-500/20", label: `Trial ${trialDays}d` }
@@ -522,9 +519,7 @@ export function AdminPanelView() {
                         <div key={`sub-${s.id}-${effectiveSubEnd ?? 'none'}`} className="border-t border-[#27272a] pt-3">
                           <p className="text-[10px] text-[#71717a] uppercase tracking-wider mb-2">Subscription</p>
                           <div className="flex items-center gap-4">
-                            {isGrandfathered ? (
-                              <span className="text-xs text-[#a1a1aa]">Grandfathered — no expiry</span>
-                            ) : isActive ? (
+                            {isActive ? (
                               <>
                                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] bg-emerald-500/10 text-emerald-300 border border-emerald-500/20">
                                   ● Active — {subDays}d remaining

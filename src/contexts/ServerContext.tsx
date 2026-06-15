@@ -26,8 +26,6 @@ function computeIsExpired(trialEnds: string | null, subEnds: string | null): boo
   if (subEnds && new Date(subEnds) > now) return false;
   // Active trial
   if (trialEnds && new Date(trialEnds) > now) return false;
-  // No trial set = grandfathered
-  if (!trialEnds) return false;
   // Both expired or subscription expired with no active trial
   return true;
 }
