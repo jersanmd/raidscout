@@ -23,5 +23,5 @@
     }
   },
   "include": ["src", "shared"],
-  "exclude": ["scripts"]
+  "exclude": ["scripts", "supabase"]
 }
