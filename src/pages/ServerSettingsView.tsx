@@ -1,11 +1,11 @@
 import { useState, useEffect, useMemo, useRef, Fragment } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams, Link as RouterLink } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { useServer } from "@/contexts/ServerContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { deleteServer, transferServerOwnership, removeServerModerator, addServerModerator, supabase, fetchServerMembers, type ServerMember, fetchGuilds, createGuild, updateGuildName, deleteGuild, fetchBossGuilds, setBossGuilds, fetchAllBossGuildsForServer, upsertBossGuildPoints, batchSetGuildSalary, fetchBosses, setBossPoints, setBossSalary, notifyDiscord, fetchModeratorPermissions, updateModeratorPermissions, updateThreadConfig, fetchPointRules, createPointRule, updatePointRule, deletePointRule, fetchBossAssists, toggleBossAssist, fetchAllActivitiesForServer, fetchAllActivityGuildsForServer, upsertActivityGuildPoints, fetchActivityAssists, toggleActivityAssist, type ModeratorPermissions, DEFAULT_MODERATOR_PERMISSIONS } from "@/lib/supabase";
 import type { Guild, BossGuild, Boss, PointRule, BossAssist, Activity, ActivityGuild, ActivityAssist } from "@/types";
-import { Loader2, Trash2, Crown, ArrowLeft, Server, Check, Key, Copy, RefreshCw, Plus, LogIn, Users, Bell, Link, Settings, AlertTriangle, X, Shield, Pencil, Swords, ChevronUp, ChevronDown, CheckSquare, Square, Eye, EyeOff, UserPlus, Minus, Trophy, Send, Save, MessageCircle, Zap, Calendar, Search, Skull } from "lucide-react";
+import { Loader2, Trash2, Crown, ArrowLeft, Server, Check, Key, Copy, RefreshCw, Plus, LogIn, Users, Bell, Link as LinkIcon, Settings, AlertTriangle, X, Shield, Pencil, Swords, ChevronUp, ChevronDown, CheckSquare, Square, Eye, EyeOff, UserPlus, Minus, Trophy, Send, Save, MessageCircle, Zap, Calendar, Search, Skull, CreditCard } from "lucide-react";
 import { ServerBossesActivitiesTab } from "@/components/ServerBossesActivitiesTab";
 import { ActivityGuildsTab } from "@/components/server/ActivityGuildsTab";
 import { ActivityPointsMatrix } from "@/components/server/ActivityPointsMatrix";
@@ -988,6 +988,14 @@ export function ServerSettingsView() {
               </button>;
             })}
           </nav>
+          {/* Billing link */}
+          <RouterLink
+            to="/billing"
+            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition text-[#a1a1aa] hover:text-[#fafafa] hover:bg-[#18181b]"
+          >
+            <CreditCard className="w-3.5 h-3.5 shrink-0" />
+            Billing
+          </RouterLink>
           {servers.length > 0 && (
             <div className="space-y-1">
               <h3 className="text-[11px] font-semibold text-[#71717a] uppercase tracking-wider px-1">My Servers</h3>
@@ -2498,7 +2506,7 @@ export function ServerSettingsView() {
                 </div>
                 <button onClick={handleAddDiscordLink} disabled={savingDiscord || !newDiscordId.trim()}
                   className="flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium bg-[#fafafa] text-[#09090b] hover:bg-[#e4e4e7] transition disabled:opacity-50">
-                  {savingDiscord ? <Loader2 className="w-4 h-4 animate-spin" /> : <Link className="w-4 h-4" />}
+                  {savingDiscord ? <Loader2 className="w-4 h-4 animate-spin" /> : <LinkIcon className="w-4 h-4" />}
                   Link
                 </button>
               </div>

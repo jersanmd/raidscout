@@ -52,6 +52,7 @@ Deno.serve(async (req: Request) => {
     const mcGross = params.get("mc_gross");
     const txnId = params.get("txn_id");
     const payerEmail = params.get("payer_email");
+    const subscrId = params.get("subscr_id"); // PayPal subscription ID
 
     console.log(`[paypal-ipn] Verified: txn=${txnId}, status=${paymentStatus}, server=${custom}, amount=${mcGross}`);
 
@@ -84,7 +85,18 @@ Deno.serve(async (req: Request) => {
       return new Response("ERROR", { status: 500, headers: CORS_HEADERS });
     }
 
-    console.log(`[paypal-ipn] Extended server ${custom} by ${days} days ($${amount} from ${payerEmail})`);
+    // Store PayPal subscription ID for cancel/manage later
+    if (subscrId) {
+      const { error: updateErr } = await supabase
+        .from("servers")
+        .update({ paypal_subscription_id: subscrId })
+        .eq("id", custom);
+      if (updateErr) {
+        console.error("[paypal-ipn] Failed to store subscription ID:", updateErr);
+      }
+    }
+
+    console.log(`[paypal-ipn] Extended server ${custom} by ${days} days ($${amount} from ${payerEmail}, sub=${subscrId})`);
     return new Response("OK", { status: 200, headers: CORS_HEADERS });
 
   } catch (err) {

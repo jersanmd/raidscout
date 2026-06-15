@@ -16,6 +16,7 @@ export interface Server {
   viewer_can_mark_died?: boolean;
   trial_ends_at?: string | null;
   subscription_ends_at?: string | null;
+  paypal_subscription_id?: string | null;
   isExpired?: boolean;
 }
 
@@ -92,7 +93,7 @@ export function ServerProvider({ children }: { children: ReactNode }) {
       if (userRole === "admin") {
         const { data: allServers } = await supabase
           .from("servers")
-          .select("id, name, owner_id, invite_code, created_at, discord_webhook_url, timezone, notification_prefix, deleted_at, trial_ends_at, subscription_ends_at")
+          .select("id, name, owner_id, invite_code, created_at, discord_webhook_url, timezone, notification_prefix, deleted_at, trial_ends_at, subscription_ends_at, paypal_subscription_id")
           .is("deleted_at", null)
           .order("name");
 
@@ -109,6 +110,7 @@ export function ServerProvider({ children }: { children: ReactNode }) {
               role: "owner" as "owner" | "moderator",
               trial_ends_at: s.trial_ends_at,
               subscription_ends_at: s.subscription_ends_at,
+              paypal_subscription_id: s.paypal_subscription_id,
               isExpired: computeIsExpired(s.trial_ends_at, s.subscription_ends_at),
             });
           }
@@ -153,7 +155,7 @@ export function ServerProvider({ children }: { children: ReactNode }) {
       // Fetch servers with all fields
       const { data: srvData } = await supabase
         .from("servers")
-        .select("id, name, owner_id, invite_code, created_at, discord_webhook_url, timezone, notification_prefix, deleted_at, trial_ends_at, subscription_ends_at")
+        .select("id, name, owner_id, invite_code, created_at, discord_webhook_url, timezone, notification_prefix, deleted_at, trial_ends_at, subscription_ends_at, paypal_subscription_id")
         .in("id", uniqueIds);
 
       // Build role map
@@ -183,6 +185,7 @@ export function ServerProvider({ children }: { children: ReactNode }) {
             role: (role ?? "owner") as "owner" | "moderator",
             trial_ends_at: s.trial_ends_at,
             subscription_ends_at: s.subscription_ends_at,
+            paypal_subscription_id: s.paypal_subscription_id,
             isExpired: computeIsExpired(s.trial_ends_at, s.subscription_ends_at),
           });
         }

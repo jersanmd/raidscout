@@ -22,6 +22,7 @@ const MembersView = lazy(() => import("@/pages/MembersView").then(m => ({ defaul
 const AnalyticsView = lazy(() => import("@/pages/AnalyticsView").then(m => ({ default: m.AnalyticsView })));
 const LeaderboardView = lazy(() => import("@/pages/LeaderboardView").then(m => ({ default: m.LeaderboardView })));
 const ServerSettingsView = lazy(() => import("@/pages/ServerSettingsView").then(m => ({ default: m.ServerSettingsView as ComponentType })));
+const BillingView = lazy(() => import("@/pages/BillingView").then(m => ({ default: m.BillingView })));
 const AdminPanelView = lazy(() => import("@/pages/AdminPanelView").then(m => ({ default: m.AdminPanelView })));
 const MemberProfileView = lazy(() => import("@/pages/MemberProfileView").then(m => ({ default: m.MemberProfileView })));
 const InventoryView = lazy(() => import("@/pages/InventoryView").then(m => ({ default: m.InventoryView })));
@@ -165,6 +166,7 @@ function AppRoutes() {
         <Route path="/inventory" element={<Suspense fallback={<PageLoader />}><InventoryView /></Suspense>} />
         <Route path="/analytics" element={<Suspense fallback={<PageLoader />}><AnalyticsView /></Suspense>} />
         <Route path="/server-settings" element={<Suspense fallback={<PageLoader />}><ServerSettingsView /></Suspense>} />
+        <Route path="/billing" element={<Suspense fallback={<PageLoader />}><BillingView /></Suspense>} />
       </Route>
     </Routes>
   );
