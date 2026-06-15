@@ -86,7 +86,7 @@ export function AdminPanelView() {
   const { data: servers = [], isLoading: srvLoading } = useQuery({
     queryKey: ["admin", "servers"],
     queryFn: fetchAllServers,
-    staleTime: 0,
+    staleTime: 30_000,
     enabled: userRole === "admin",
   });
 
