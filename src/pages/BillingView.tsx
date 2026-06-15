@@ -46,7 +46,7 @@ export function BillingView() {
 
   const stateConfig = {
     active:   { cardBg: "bg-white border-emerald-200", iconBg: "bg-emerald-50", iconColor: "text-emerald-500", accent: "text-emerald-600", muted: "text-emerald-400", badge: "bg-emerald-100 text-emerald-700", ring: "ring-emerald-100", bar: "bg-emerald-500", icon: Zap, days: subDaysLeft, date: subEnd, label: "Active until", statusLabel: "Pro Plan" },
-    trial:    { cardBg: "bg-white border-amber-200", iconBg: "bg-amber-50", iconColor: "text-amber-500", accent: "text-amber-600", muted: "text-amber-400", badge: "bg-amber-100 text-amber-700", ring: "ring-amber-100", bar: "bg-amber-500", icon: Clock, days: trialDaysLeft, date: trialEnd, label: "Trial ends", statusLabel: "Free Trial" },
+    trial:    { cardBg: "bg-white border-gray-300", iconBg: "bg-gray-100", iconColor: "text-gray-700", accent: "text-gray-800", muted: "text-gray-400", badge: "bg-gray-900 text-white", ring: "ring-gray-200", bar: "bg-gray-800", icon: Clock, days: trialDaysLeft, date: trialEnd, label: "Trial ends", statusLabel: "Free Trial" },
     expired:  { cardBg: "bg-white border-red-200", iconBg: "bg-red-50", iconColor: "text-red-500", accent: "text-red-600", muted: "text-red-400", badge: "bg-red-100 text-red-700", ring: "ring-red-100", bar: "bg-red-500", icon: AlertTriangle, days: 0, date: subEnd, label: "Expired on", statusLabel: "Expired" },
   }[state];
 
@@ -84,8 +84,6 @@ export function BillingView() {
 
       {/* ── Plan Status Banner ── */}
       <div className={`relative overflow-hidden rounded-2xl border ${stateConfig.cardBg} shadow-sm`}>
-        {/* Colored accent bar at top */}
-        <div className={`h-1 w-full ${stateConfig.bar}`} />
         <div className="p-6">
           <div className="flex items-center justify-between gap-6">
             {/* Left: icon + info */}
@@ -103,7 +101,7 @@ export function BillingView() {
                     : stateConfig.label}
                 </p>
                 {isSubActive && (
-                  <p className="text-[11px] text-[#9ca3af] mt-0.5">$9.99/month — renews automatically</p>
+                  <p className="text-[11px] text-[#9ca3af] mt-0.5">$9.99 extends access by 30 days</p>
                 )}
               </div>
             </div>
@@ -147,7 +145,7 @@ export function BillingView() {
             ) : (
               <div className="space-y-3">
                 <div className="text-center space-y-1">
-                  <p className="text-2xl font-bold text-[#111827]">$9.99<span className="text-sm text-[#6b7280] font-normal">/month</span></p>
+                  <p className="text-2xl font-bold text-[#111827]">$9.99<span className="text-sm text-[#6b7280] font-normal"> / 30 days</span></p>
                   <p className="text-xs text-[#6b7280]">{isTrialActive ? "Subscribe now to keep your server running" : "Restore full access to your server"}</p>
                 </div>
                 <div className="flex justify-center">

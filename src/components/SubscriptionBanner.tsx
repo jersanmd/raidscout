@@ -48,7 +48,7 @@ export function SubscriptionBanner() {
       bg: "bg-emerald-950/40 border-emerald-800/40",
       iconBg: "bg-emerald-900/50",
       icon: <Clock className="w-4 h-4 text-emerald-400" />,
-      title: `Subscription active — ${subDaysLeft} day${subDaysLeft !== 1 ? "s" : ""} remaining`,
+      title: `Access active — ${subDaysLeft} day${subDaysLeft !== 1 ? "s" : ""} remaining`,
       subtitle: subEnd ? `Until ${subEnd.toLocaleDateString()}. Thank you for supporting RaidScout!` : "",
       titleColor: "text-emerald-200",
       subColor: "text-emerald-400/70",
@@ -69,8 +69,8 @@ export function SubscriptionBanner() {
       iconBg: "bg-red-900/50",
       icon: <AlertTriangle className="w-4 h-4 text-red-400" />,
       title: isOwner
-        ? (subEnd && subEnd < now ? "Subscription expired" : "Free trial expired")
-        : "Subscription expired",
+        ? (subEnd && subEnd < now ? "Access expired" : "Free trial expired")
+        : "Access expired",
       subtitle: isOwner
         ? "Restore full access via the billing dashboard."
         : "Contact the server owner to restore full access.",
