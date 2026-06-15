@@ -105,7 +105,7 @@ export function BillingView() {
       </div>
 
       {/* ── Plan + Payment ── */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4">
         {/* Plan Details */}
         <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-5 space-y-4">
           <h3 className="text-sm font-semibold text-[#fafafa] flex items-center gap-2">
