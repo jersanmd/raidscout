@@ -1055,7 +1055,7 @@ export function LandingPage() {
 
       {/* ── Footer ── */}
       <footer className="border-t border-white/[0.04] bg-[#09090b] py-20 px-6">
-        <div className="max-w-2xl mx-auto grid grid-cols-1 sm:grid-cols-3 gap-10 mb-16">
+        <div className="max-w-4xl mx-auto grid grid-cols-1 sm:grid-cols-3 gap-10 mb-16">
           <div>
             <h4 className="text-sm font-semibold text-[#fafafa] mb-5">Resources</h4>
             <div className="space-y-3 text-sm text-[#fafafa]/40">
