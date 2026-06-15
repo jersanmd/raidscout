@@ -4,6 +4,7 @@ import { useServer } from "@/contexts/ServerContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
 import { PayPalSubscribeButton } from "@/components/PayPalSubscribeButton";
+import { PaymentSuccessModal } from "@/components/PaymentSuccessModal";
 import { supabase } from "@/lib/supabase";
 import { ArrowLeft, Clock, Shield, AlertTriangle, Zap, Users, Bell, Eye, BarChart3, Skull, Calendar, Trophy, Settings, MessageCircle, Globe, Activity, CreditCard, Receipt, Loader2 } from "lucide-react";
 
@@ -32,6 +33,7 @@ export function BillingView() {
 
   const [payments, setPayments] = useState<any[]>([]);
   const [paymentsLoading, setPaymentsLoading] = useState(false);
+  const [paymentResult, setPaymentResult] = useState<{ success: boolean; error?: string } | null>(null);
 
   useEffect(() => {
     if (!currentServer?.id) return;
@@ -131,7 +133,11 @@ export function BillingView() {
                 <p className="text-sm text-[#6b7280]">Your server has <span className="font-semibold text-[#111827]">{subDaysLeft} day{subDaysLeft !== 1 ? "s" : ""}</span> of access remaining.</p>
                 <p className="text-xs text-[#9ca3af]">Extend anytime — days stack on top of your current balance.</p>
                 <div className="flex justify-center">
-                  <PayPalSubscribeButton serverId={currentServer.id} onSuccess={() => toast("success", "Added 30 days!")} />
+                  <PayPalSubscribeButton
+                    serverId={currentServer.id}
+                    onSuccess={() => setPaymentResult({ success: true })}
+                    onError={(err) => setPaymentResult({ success: false, error: err.message })}
+                  />
                 </div>
               </div>
             ) : (
@@ -141,7 +147,11 @@ export function BillingView() {
                   <p className="text-xs text-[#6b7280]">{isTrialActive ? "Subscribe now to keep your server running" : "Restore full access to your server"}</p>
                 </div>
                 <div className="flex justify-center">
-                  <PayPalSubscribeButton serverId={currentServer.id} onSuccess={() => toast("success", "Payment successful!")} />
+                  <PayPalSubscribeButton
+                    serverId={currentServer.id}
+                    onSuccess={() => setPaymentResult({ success: true })}
+                    onError={(err) => setPaymentResult({ success: false, error: err.message })}
+                  />
                 </div>
               </div>
             )
@@ -236,6 +246,28 @@ export function BillingView() {
       <p className="text-center text-[11px] text-[#52525b]">
         Payments are processed securely by PayPal. Each payment extends server access by 30 days.
       </p>
+
+      {/* Payment Result Modal */}
+      <PaymentSuccessModal
+        open={!!paymentResult}
+        onClose={() => {
+          setPaymentResult(null);
+          // Refresh payments list
+          supabase
+            .from("payments")
+            .select("*")
+            .eq("server_id", currentServer.id)
+            .order("created_at", { ascending: false })
+            .then(({ data }) => { if (data) setPayments(data); });
+        }}
+        error={paymentResult?.success === false ? paymentResult.error : undefined}
+        daysExtended={30}
+        newExpiryDate={
+          subEnd && subEnd > now
+            ? new Date(subEnd.getTime() + 30 * 86400000).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
+            : new Date(Date.now() + 30 * 86400000).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
+        }
+      />
 
       </div>
     </div>
