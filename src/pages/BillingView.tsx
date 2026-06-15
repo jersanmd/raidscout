@@ -70,12 +70,16 @@ export function BillingView() {
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-6 space-y-6">
-      {/* Back + title */}
-      <div className="flex items-center gap-3">
-        <Link to="/server-settings" className="p-1.5 -ml-1.5 text-[#71717a] hover:text-[#fafafa] transition rounded-md">
-          <ArrowLeft className="w-5 h-5" />
+      {/* Header */}
+      <div className="pb-4 border-b border-[#27272a]">
+        <Link to="/server-settings" className="inline-flex items-center gap-1.5 text-xs text-[#71717a] hover:text-[#a1a1aa] transition mb-3">
+          <ArrowLeft className="w-3.5 h-3.5" />
+          Back to Server Settings
         </Link>
-        <h1 className="text-lg font-semibold text-[#fafafa]">Billing &amp; Plan</h1>
+        <div className="flex items-baseline gap-3">
+          <h1 className="text-xl font-bold text-[#fafafa]">Billing &amp; Plan</h1>
+          <span className="text-xs text-[#52525b]">Manage your subscription and payments</span>
+        </div>
       </div>
 
       {/* ── Plan Status ── */}
