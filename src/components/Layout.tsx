@@ -135,6 +135,24 @@ export function Layout() {
               <Skull className="w-4 h-4 text-[#a1a1aa]" />
             </div>
             <span className="font-semibold text-[#fafafa] tracking-tight text-sm">RaidScout</span>
+            {/* Subscription badge in header */}
+            {currentServer && (() => {
+              const now = new Date();
+              const subEnd = currentServer.subscription_ends_at ? new Date(currentServer.subscription_ends_at) : null;
+              const trialEnd = currentServer.trial_ends_at ? new Date(currentServer.trial_ends_at) : null;
+              const subDays = subEnd && subEnd > now ? Math.ceil((subEnd.getTime() - now.getTime()) / 86400000) : 0;
+              const trialDays = trialEnd && trialEnd > now ? Math.ceil((trialEnd.getTime() - now.getTime()) / 86400000) : 0;
+              const isPro = subDays > 0;
+              const isTrial = !isPro && trialDays > 0;
+              if (!isPro && !isTrial) return null;
+              return (
+                <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium border shrink-0 ${
+                  isPro ? "bg-emerald-500/10 text-emerald-300 border-emerald-500/20" : "bg-amber-500/10 text-amber-300 border-amber-500/20"
+                }`}>
+                  {isPro ? "Pro" : `Trial`}
+                </span>
+              );
+            })()}
             {isViewer && viewerServerName && (
               <span className="text-xs text-[#a1a1aa] flex items-center gap-1">
                 <Eye className="w-3 h-3" />
