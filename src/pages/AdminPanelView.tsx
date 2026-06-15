@@ -508,7 +508,7 @@ export function AdminPanelView() {
                           const isExpired = !isActive && !isTrialing && !!s.trial_ends_at;
                           const isGrandfathered = !s.trial_ends_at;
                           return (
-                            <div className="border-t border-[#27272a] pt-3">
+                            <div key={`sub-${s.id}-${effectiveSubEnd ?? 'none'}`} className="border-t border-[#27272a] pt-3">
                               <p className="text-[10px] text-[#71717a] uppercase tracking-wider mb-2">Subscription</p>
                               <div className="flex items-center gap-4">
                                 {isGrandfathered ? (
@@ -1444,7 +1444,6 @@ export function AdminPanelView() {
           try {
             const { error } = await supabase.rpc("extend_server_subscription", { p_server_id: extendConfirm.serverId, p_days: 30 });
             if (error) throw error;
-            setToast({ type: "success", message: `Extended ${extendConfirm.serverName} by 30 days` });
             // Compute new date locally and set state override for instant UI update
             const now = new Date();
             const cached = (queryClient.getQueryData(["admin", "servers"]) as any[]) ?? [];
@@ -1452,7 +1451,9 @@ export function AdminPanelView() {
             const currentEnd = srv?.subscription_ends_at ? new Date(srv.subscription_ends_at) : now;
             if (currentEnd < now) currentEnd.setTime(now.getTime());
             const newEnd = new Date(currentEnd.getTime() + 30 * 86400000).toISOString();
+            const newEndDate = new Date(newEnd).toLocaleDateString();
             setSubOverrides(prev => ({ ...prev, [extendConfirm.serverId]: newEnd }));
+            setToast({ type: "success", message: `Extended ${extendConfirm.serverName} to ${newEndDate}` });
             // Background: refresh cache from server
             queryClient.fetchQuery({ queryKey: ["admin", "servers"], queryFn: fetchAllServers, staleTime: 0 });
           } catch (err: any) {
