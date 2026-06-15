@@ -73,7 +73,7 @@ export function BossListView() {
   const { user, userRole, isViewer, viewerCanEdit: ctxViewerCanEdit, viewerCanMarkDied: ctxViewerCanMarkDied, viewerDiscordWebhookUrl: ctxDiscordWebhookUrl } = useAuth();
   const { currentServer } = useServer();
   const hasAddPermission = useHasPermission("can_manage_server_content");
-  const canAddBoss = currentServer?.role === "owner" || hasAddPermission;
+  const canAddBoss = (currentServer?.role === "owner" || hasAddPermission) && !currentServer?.isExpired;
   const queryClient = useQueryClient();
 
   const [searchText, setSearchText] = useState("");
