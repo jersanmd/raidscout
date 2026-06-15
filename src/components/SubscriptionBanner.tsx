@@ -46,8 +46,6 @@ export function SubscriptionBanner() {
   const isExpired = !isSubActive && !isTrialActive;
 
   if (isSubActive && (dismissed || paymentDismissed)) return null;
-  if (isMod && isExpired && dismissed) return null;
-  if (isOwner && isExpired && dismissed) return null;
 
   const state = isSubActive ? "active" : isTrialActive ? "trial" : "expired";
 
@@ -110,13 +108,10 @@ export function SubscriptionBanner() {
               <ArrowRight className="w-3 h-3" />
             </Link>
           )}
-          {state !== "trial" && (
+          {state !== "trial" && state !== "expired" && (
           <button
             onClick={() => setDismissed(true)}
-            className={`p-1.5 ${
-              state === "active" ? "text-emerald-500 hover:text-emerald-300 hover:bg-emerald-900/40" :
-              "text-red-500 hover:text-red-300 hover:bg-red-900/40"
-            } rounded-md transition`}
+            className="p-1.5 text-emerald-500 hover:text-emerald-300 hover:bg-emerald-900/40 rounded-md transition"
             title="Dismiss"
           >
             <X className="w-4 h-4" />

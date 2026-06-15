@@ -57,21 +57,52 @@ export function ServerProvider({ children }: { children: ReactNode }) {
   // Viewer mode: directly set the viewer's server
   useEffect(() => {
     if (isViewer && viewerServerId) {
-      const viewerServer: Server = {
-        id: viewerServerId,
-        name: viewerServerName || "Server",
-        owner_id: "",
-        invite_code: "",
-        created_at: undefined,
-        discord_webhook_url: viewerDiscordWebhookUrl ?? undefined,
-        timezone: viewerTimezone ?? undefined,
-        role: "viewer",
-      };
-      setServers([viewerServer]);
-      setCurrentServer(viewerServer);
-      currentRef.current = viewerServer;
-      setCurrentServerId(viewerServerId);
-      setLoading(false);
+      // Fetch trial/subscription info so we know if the server is expired
+      supabase
+        .from("servers")
+        .select("name, trial_ends_at, subscription_ends_at, timezone, discord_webhook_url")
+        .eq("id", viewerServerId)
+        .is("deleted_at", null)
+        .maybeSingle()
+        .then(({ data: srv }) => {
+        const trialEnds = srv?.trial_ends_at ?? null;
+        const subEnds = srv?.subscription_ends_at ?? null;
+        const viewerServer: Server = {
+          id: viewerServerId,
+          name: srv?.name || viewerServerName || "Server",
+          owner_id: "",
+          invite_code: "",
+          created_at: undefined,
+          discord_webhook_url: srv?.discord_webhook_url ?? viewerDiscordWebhookUrl ?? undefined,
+          timezone: srv?.timezone ?? viewerTimezone ?? undefined,
+          role: "viewer",
+          trial_ends_at: trialEnds,
+          subscription_ends_at: subEnds,
+          isExpired: computeIsExpired(trialEnds, subEnds),
+        };
+        setServers([viewerServer]);
+        setCurrentServer(viewerServer);
+        currentRef.current = viewerServer;
+        setCurrentServerId(viewerServerId);
+        setLoading(false);
+      }).catch(() => {
+        // Fallback if fetch fails
+        const viewerServer: Server = {
+          id: viewerServerId,
+          name: viewerServerName || "Server",
+          owner_id: "",
+          invite_code: "",
+          created_at: undefined,
+          discord_webhook_url: viewerDiscordWebhookUrl ?? undefined,
+          timezone: viewerTimezone ?? undefined,
+          role: "viewer",
+        };
+        setServers([viewerServer]);
+        setCurrentServer(viewerServer);
+        currentRef.current = viewerServer;
+        setCurrentServerId(viewerServerId);
+        setLoading(false);
+      });
     }
   }, [isViewer, viewerServerId, viewerServerName, viewerDiscordWebhookUrl, viewerTimezone]);
 
