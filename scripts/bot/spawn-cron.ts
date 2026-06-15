@@ -71,12 +71,11 @@ async function runSpawnCron() {
   const now = new Date();
   const activeServerIds = new Set((allServers || [])
     .filter((s: any) => {
-      // Grandfathered: no trial set
-      if (!s.trial_ends_at) return true;
-      // Active subscription overrides trial expiry
+      // Active subscription overrides trial
       if (s.subscription_ends_at && new Date(s.subscription_ends_at) > now) return true;
       // Active trial
       if (s.trial_ends_at && new Date(s.trial_ends_at) > now) return true;
+      // Both expired or neither set
       return false;
     })
     .map((s: any) => s.id)

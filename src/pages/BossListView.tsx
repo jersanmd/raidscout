@@ -746,6 +746,7 @@ export function BossListView() {
                 </button>
               </>
             )}
+            {!currentServer?.isExpired && (
             <button
               onClick={() => { if (multiMode) clearSelection(); setMultiMode(!multiMode); }}
               className={`ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 ${
@@ -757,6 +758,7 @@ export function BossListView() {
               <CheckSquare className="w-3.5 h-3.5" />
               {multiMode ? `Selecting (${selectedIds.size})` : "Select Multiple"}
             </button>
+            )}
           </>
         )}
       />

@@ -2375,6 +2375,7 @@ export function ServerSettingsView() {
                                   await updateThreadConfig(link.id, vals.channelId.trim() || null, vals.guilds);
                                   setDiscordLinks(prev => prev.map(d => d.id === link.id ? { ...d, thread_channel_id: vals.channelId.trim() || undefined, thread_guilds: vals.guilds } : d));
                                   setThreadValues(prev => { const n = { ...prev }; delete n[link.id]; return n; });
+                                  toast("success", "Auto-thread settings saved");
                                 }} className="text-xs px-2 py-1 rounded bg-green-600 text-[#fafafa] hover:bg-green-500 transition font-medium flex items-center gap-1">
                                   <Check className="w-3 h-3" />Save
                                 </button>
@@ -2647,6 +2648,7 @@ export function ServerSettingsView() {
         </section>
       )}
       </>
+      )}
       </div>
     </div>
     </div>

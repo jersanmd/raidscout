@@ -6,8 +6,8 @@ import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { SEOHead } from "@/components/SEOHead";
 import { version } from "../../package.json";
 import {
-  Timer, Shield, BarChart3, Sparkles, MessageSquare, Calendar, Skull, Eye, Trophy, Server, Clock, Lock, Image, Package, Archive, User,
-  LogIn, UserPlus, Mail, CheckCircle, AlertTriangle, Key, ChevronDown, Bot, Clock,
+  Timer, Shield, BarChart3, Sparkles, MessageSquare, Calendar, Skull, Eye, Trophy, Server, Clock, Lock, Image, Package, Archive, User, Users,
+  LogIn, UserPlus, Mail, CheckCircle, AlertTriangle, Key, ChevronDown, Bot,
   Crosshair, Radio, Activity, Wifi, Copy, Terminal, Check, Hash, AtSign, Play, X, Gamepad2, Globe, EyeOff
 } from "lucide-react";
 
@@ -362,22 +362,16 @@ export function LandingPage() {
           {/* CTAs */}
           <div className="flex items-center justify-center gap-3 pt-2">
             <button
-              onClick={() => document.getElementById("pricing")?.scrollIntoView({ behavior: "smooth" })}
-              className="px-6 py-3 rounded-lg font-medium text-sm border border-emerald-500/30 text-emerald-400 hover:border-emerald-500/60 hover:bg-emerald-500/5 transition-all duration-200"
-            >
-              $9.99 / 30 days
-            </button>
-            <button
               onClick={() => document.getElementById("get-started")?.scrollIntoView({ behavior: "smooth" })}
               className="px-6 py-3 rounded-lg font-medium text-sm border border-[#fafafa]/20 text-[#fafafa] hover:border-[#fafafa]/40 hover:bg-[#fafafa]/5 transition-all duration-200"
             >
               Deploy Dashboard →
             </button>
             <button
-              onClick={() => document.getElementById("features")?.scrollIntoView({ behavior: "smooth" })}
-              className="px-6 py-3 rounded-lg font-medium text-sm text-[#71717a] hover:text-[#a1a1aa] transition-colors duration-200"
+              onClick={() => document.getElementById("pricing")?.scrollIntoView({ behavior: "smooth" })}
+              className="px-6 py-3 rounded-lg font-medium text-sm border border-emerald-500/30 text-emerald-400 hover:border-emerald-500/60 hover:bg-emerald-500/5 transition-all duration-200"
             >
-              View Capabilities
+              $9.99 / 30 days
             </button>
             <button
               onClick={() => setShowVideo(true)}

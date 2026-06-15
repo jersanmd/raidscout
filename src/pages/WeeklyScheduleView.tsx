@@ -443,9 +443,9 @@ export function WeeklyScheduleView() {
                       return (
                       <div key={`boss-m-${s.boss.id}-${item.idx}`}
                         onClick={() => {
-                          if (isDeathEvent && s.deathRecord) {
+                          if (isDeathEvent && s.deathRecord && !currentServer?.isExpired) {
                             setSelectedDeath({ deathRecordId: s.deathRecord.id, bossName: s.boss.name, deathTime: s.deathRecord.death_time, ownerGuildId: s.deathRecord.display_owner_guild_id ?? s.deathRecord.owner_guild_id });
-                          } else if (!isViewer || viewerCanMarkDied) {
+                          } else if ((!isViewer || viewerCanMarkDied) && !currentServer?.isExpired) {
                             setMarkBoss({ boss: s.boss, spawnTime: isScheduleBoss ? s.nextSpawn ?? undefined : undefined });
                           }
                         }}
@@ -561,14 +561,14 @@ export function WeeklyScheduleView() {
                       <div
                         key={`boss-${s.boss.id}-${item.idx}`}
                         onClick={() => {
-                          if (isDeathEvent && s.deathRecord) {
+                          if (isDeathEvent && s.deathRecord && !currentServer?.isExpired) {
                             setSelectedDeath({
                               deathRecordId: s.deathRecord.id,
                               bossName: s.boss.name,
                               deathTime: s.deathRecord.death_time,
                               ownerGuildId: s.deathRecord.display_owner_guild_id ?? s.deathRecord.owner_guild_id,
                             });
-                          } else if (!isViewer || viewerCanMarkDied) {
+                          } else if ((!isViewer || viewerCanMarkDied) && !currentServer?.isExpired) {
                             setMarkBoss({
                               boss: s.boss,
                               spawnTime: isScheduleBoss ? s.nextSpawn ?? undefined : undefined,

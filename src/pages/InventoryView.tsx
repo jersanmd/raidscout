@@ -8,7 +8,8 @@ import {
   supabase as supabaseClient,
   fetchItemCategories, fetchItemRarities, fetchGuilds,
 } from "@/lib/supabase";
-import { useServerId } from "@/contexts/ServerContext";
+import { useServerId, useServer } from "@/contexts/ServerContext";
+import { ExpiredGate } from "@/components/ExpiredGate";
 import { useToast } from "@/contexts/ToastContext";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { guildColor } from "@/lib/constants";
@@ -54,9 +55,13 @@ const getClassIcon = (iconName: string) => {
 
 export function InventoryView() {
   const serverId = useServerId();
+  const { currentServer } = useServer();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const configured = isSupabaseConfigured();
+
+  if (currentServer?.isExpired) return <ExpiredGate page="Inventory" />;
+
   const [tab, setTab] = useState<"catalog" | "history" | "analytics" | "recipients">("catalog");
 
   // Track whether we need the full items list (history/analytics tabs or distribute modal)
