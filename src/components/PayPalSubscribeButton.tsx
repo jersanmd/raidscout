@@ -18,9 +18,8 @@ interface PayPalSubscribeButtonProps {
 const SCRIPT_ID = "paypal-sdk-script";
 
 /**
- * Loads the PayPal JS SDK once and renders a smart subscription button.
- * Supports PayPal accounts, credit/debit cards, and Venmo (US).
- * Requires VITE_PAYPAL_CLIENT_ID and VITE_PAYPAL_PLAN_ID env vars.
+ * PayPal one-time checkout button ($9.99 for 30 days).
+ * Uses intent=capture which supports guest debit/credit cards.
  */
 export function PayPalSubscribeButton({
   serverId,
@@ -32,18 +31,13 @@ export function PayPalSubscribeButton({
   const [sdkReady, setSdkReady] = useState(false);
   const [sdkError, setSdkError] = useState<string | null>(null);
 
-  // Load PayPal SDK script once
   useEffect(() => {
     if (document.getElementById(SCRIPT_ID)) {
-      // Script already loading/loaded — poll for paypal global
       if (window.paypal) {
         setSdkReady(true);
       } else {
         const check = setInterval(() => {
-          if (window.paypal) {
-            setSdkReady(true);
-            clearInterval(check);
-          }
+          if (window.paypal) { setSdkReady(true); clearInterval(check); }
         }, 200);
         return () => clearInterval(check);
       }
@@ -58,24 +52,16 @@ export function PayPalSubscribeButton({
 
     const script = document.createElement("script");
     script.id = SCRIPT_ID;
-    script.src = `https://www.paypal.com/sdk/js?client-id=${clientId}&vault=true&intent=subscription&currency=USD&enable-funding=card`;
+    script.src = `https://www.paypal.com/sdk/js?client-id=${clientId}&intent=capture&currency=USD`;
     script.async = true;
     script.onload = () => setSdkReady(true);
     script.onerror = () => setSdkError("Failed to load PayPal SDK.");
     document.head.appendChild(script);
   }, []);
 
-  // Render the button once SDK is ready
   useEffect(() => {
     if (!sdkReady || !containerRef.current || !window.paypal) return;
 
-    const planId = import.meta.env.VITE_PAYPAL_PLAN_ID;
-    if (!planId) {
-      setSdkError("PayPal plan ID not configured.");
-      return;
-    }
-
-    // Clear any previous button
     containerRef.current.innerHTML = "";
 
     window.paypal
@@ -85,19 +71,25 @@ export function PayPalSubscribeButton({
           tagline: false,
           height: 36,
         },
-        createSubscription: (_data: any, actions: any) => {
-          return actions.subscription.create({
-            plan_id: planId,
-            custom_id: serverId,
+        createOrder: (_data: any, actions: any) => {
+          return actions.order.create({
+            intent: "CAPTURE",
+            purchase_units: [{
+              amount: { currency_code: "USD", value: "9.99" },
+              description: "RaidScout Server — 30 Days",
+              custom_id: serverId,
+            }],
           });
         },
-        onApprove: async (data: any) => {
-          // Activate the subscription immediately via our edge function
+        onApprove: async (data: any, actions: any) => {
+          // Capture the payment
+          await actions.order.capture();
+          // Extend subscription in our DB
           try {
             await supabase.functions.invoke("paypal-ipn", {
               body: {
                 server_id: serverId,
-                subscription_id: data.subscriptionID,
+                order_id: data.orderID,
               },
             });
           } catch (err) {
@@ -109,16 +101,12 @@ export function PayPalSubscribeButton({
           console.error("PayPal button error:", err);
           onError?.(err instanceof Error ? err : new Error(String(err)));
         },
-        onCancel: () => {
-          // User closed the PayPal popup — nothing to do
-        },
+        onCancel: () => {},
       })
       .render(containerRef.current);
 
     return () => {
-      if (containerRef.current) {
-        containerRef.current.innerHTML = "";
-      }
+      if (containerRef.current) containerRef.current.innerHTML = "";
     };
   }, [sdkReady, serverId, onSuccess, onError]);
 
