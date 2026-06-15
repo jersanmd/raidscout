@@ -183,6 +183,7 @@ export function BillingView() {
       </div>
 
       {/* ── Payment History ── */}
+      {isOwner && (
       <div className="bg-white border border-[#e5e7eb] rounded-xl p-5 space-y-4 shadow-sm">
         <h3 className="text-sm font-semibold text-[#111827] flex items-center gap-2">
           <Receipt className="w-4 h-4 text-[#6b7280]" />
@@ -246,6 +247,7 @@ export function BillingView() {
           </div>
         )}
       </div>
+      )}
 
       {/* ── All Features ── */}
       <div className="bg-white border border-[#e5e7eb] rounded-xl p-5 space-y-4 shadow-sm">
