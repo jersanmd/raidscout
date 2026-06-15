@@ -93,6 +93,9 @@ export function PayPalSubscribeButton({
       onError?.(err instanceof Error ? err : new Error(String(err)));
     };
 
+    // Set minimum width so card form has enough space for input fields
+    containerRef.current.style.minWidth = "360px";
+
     // Render PayPal button
     const paypalLabel = document.createElement("p");
     paypalLabel.textContent = "Pay with PayPal";
@@ -100,7 +103,7 @@ export function PayPalSubscribeButton({
     containerRef.current.appendChild(paypalLabel);
 
     window.paypal.Buttons({
-      style: { layout: "horizontal", tagline: false, height: 40 },
+      style: { layout: "vertical", tagline: false, height: 40 },
       createOrder,
       onApprove,
       onError: onErr,
@@ -110,6 +113,7 @@ export function PayPalSubscribeButton({
     // Render separate Debit/Credit Card button
     const cardWrapper = document.createElement("div");
     cardWrapper.style.marginTop = "16px";
+    cardWrapper.style.minWidth = "360px";
     containerRef.current.appendChild(cardWrapper);
 
     const cardLabel = document.createElement("p");
