@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useServer } from "@/contexts/ServerContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
@@ -27,6 +27,7 @@ export function BillingView() {
   const { currentServer } = useServer();
   const { user, isViewer } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [cancelling, setCancelling] = useState(false);
   const [cancelConfirm, setCancelConfirm] = useState(false);
 
@@ -69,17 +70,12 @@ export function BillingView() {
   };
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-6 space-y-6">
-      {/* Header */}
-      <div className="pb-4 border-b border-[#27272a]">
-        <Link to="/server-settings" className="inline-flex items-center gap-1.5 text-xs text-[#71717a] hover:text-[#a1a1aa] transition mb-3">
-          <ArrowLeft className="w-3.5 h-3.5" />
-          Back to Server Settings
-        </Link>
-        <div className="flex items-baseline gap-3">
-          <h1 className="text-xl font-bold text-[#fafafa]">Billing &amp; Plan</h1>
-          <span className="text-xs text-[#52525b]">Manage your subscription and payments</span>
-        </div>
+    <div className="max-w-7xl mx-auto px-3 sm:px-4 py-4 sm:py-6 space-y-6">
+      <div className="flex items-center gap-3 mb-3 sm:mb-0">
+        <button onClick={() => navigate("/server-settings")} className="text-[#a1a1aa] hover:text-[#fafafa] p-1">
+          <ArrowLeft className="w-5 h-5" />
+        </button>
+        <h2 className="text-lg sm:text-xl font-bold text-[#fafafa]">Billing &amp; Plan</h2>
       </div>
 
       {/* ── Plan Status Banner ── */}
