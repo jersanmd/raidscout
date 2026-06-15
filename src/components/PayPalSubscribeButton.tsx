@@ -188,18 +188,39 @@ export function PayPalSubscribeButton({
   }
 
   return (
-    <div className={`relative ${className}`} style={{ minWidth: "400px", maxWidth: "500px", width: "100%" }}>
-      {/* Processing overlay */}
+    <>
+      {/* Full-screen processing overlay */}
       {processing && (
-        <div className="absolute inset-0 z-[999] flex flex-col items-center justify-center gap-3 bg-white/95 backdrop-blur-sm rounded-xl">
-          <Loader2 className="w-8 h-8 text-emerald-500 animate-spin" />
-          <div className="text-center">
-            <p className="text-sm font-semibold text-[#111827]">Processing payment...</p>
-            <p className="text-xs text-[#6b7280] mt-0.5">Extending your server access</p>
+        <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-black/70 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="flex flex-col items-center gap-6 p-8 rounded-2xl bg-[#0a0a0f] border border-[#27272a] shadow-2xl">
+            {/* Animated payment icon */}
+            <div className="relative w-16 h-16">
+              <div className="absolute inset-0 rounded-full border-4 border-emerald-500/20" />
+              <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-emerald-400 animate-spin" style={{ animationDuration: "0.8s" }} />
+              <div className="absolute inset-2 rounded-full bg-emerald-500/10 flex items-center justify-center">
+                <svg className="w-6 h-6 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+              </div>
+            </div>
+            {/* Text */}
+            <div className="text-center space-y-2">
+              <p className="text-lg font-bold text-[#fafafa]">Processing Payment</p>
+              <p className="text-sm text-[#71717a]">Securing your transaction with PayPal...</p>
+              <p className="text-xs text-[#52525b]">Extending server access by 30 days</p>
+            </div>
+            {/* Progress dots */}
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-emerald-500 animate-bounce" style={{ animationDuration: "0.6s" }} />
+              <div className="w-2 h-2 rounded-full bg-emerald-500 animate-bounce" style={{ animationDuration: "0.6s", animationDelay: "0.15s" }} />
+              <div className="w-2 h-2 rounded-full bg-emerald-500 animate-bounce" style={{ animationDuration: "0.6s", animationDelay: "0.3s" }} />
+            </div>
           </div>
         </div>
       )}
-      <div ref={containerRef} />
-    </div>
+      <div className={`relative ${className}`} style={{ minWidth: "400px", maxWidth: "500px", width: "100%" }}>
+        <div ref={containerRef} />
+      </div>
+    </>
   );
 }
