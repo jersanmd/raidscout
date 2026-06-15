@@ -1454,6 +1454,11 @@ export function AdminPanelView() {
               })
             );
             const serverId = extendConfirm.serverId;
+            setExpandedServer(null);
+            setTimeout(() => {
+              setExpandedServer(serverId);
+              setTimeout(() => expandedRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }), 100);
+            }, 200);
           } catch (err: any) {
             setToast({ type: "error", message: err?.message || "Failed to extend" });
           } finally {
