@@ -108,17 +108,18 @@ export function SubscriptionBanner() {
               <ArrowRight className="w-3 h-3" />
             </Link>
           )}
+          {state !== "trial" && (
           <button
             onClick={() => setDismissed(true)}
             className={`p-1.5 ${
               state === "active" ? "text-emerald-500 hover:text-emerald-300 hover:bg-emerald-900/40" :
-              state === "trial" ? "text-[#52525b] hover:text-[#a1a1aa] hover:bg-[#27272a]" :
               "text-red-500 hover:text-red-300 hover:bg-red-900/40"
             } rounded-md transition`}
             title="Dismiss"
           >
             <X className="w-4 h-4" />
           </button>
+          )}
         </div>
       </div>
     </div>
