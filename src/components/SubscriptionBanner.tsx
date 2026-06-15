@@ -9,7 +9,7 @@ import { X, AlertTriangle, Clock, ArrowRight } from "lucide-react";
  * Links to /billing for plan management and subscription.
  */
 export function SubscriptionBanner() {
-  const { user } = useAuth();
+  const { user, isViewer } = useAuth();
   const { currentServer } = useServer();
   const [dismissed, setDismissed] = useState(false);
   
@@ -19,13 +19,15 @@ export function SubscriptionBanner() {
     localStorage.removeItem("raidscout-banner-dismissed-active");
   }
 
-  if (!user || !currentServer) return null;
+  if (!currentServer) return null;
+  if (!user && !isViewer) return null;
 
   const isOwner = currentServer.role === "owner";
   const isMod = currentServer.role === "moderator";
 
+  // Mods only see expired banner; viewers see trial and expired; owners see all
   if (isMod && !currentServer.isExpired) return null;
-  if (!isOwner && !isMod) return null;
+  if (!isOwner && !isMod && !isViewer) return null;
 
   const now = new Date();
   const trialEnd = currentServer.trial_ends_at ? new Date(currentServer.trial_ends_at) : null;
