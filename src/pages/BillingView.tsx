@@ -282,10 +282,14 @@ export function BillingView() {
         open={!!paymentResult}
         onClose={() => setPaymentResult(null)}
         error={paymentResult?.success === false ? paymentResult.error : undefined}
-        daysExtended={30}
+        daysExtended={
+          currentServer.subscription_ends_at
+            ? Math.ceil((new Date(currentServer.subscription_ends_at).getTime() - Date.now()) / 86400000)
+            : 30
+        }
         newExpiryDate={
-          subEnd && subEnd > now
-            ? new Date(subEnd.getTime() + 30 * 86400000).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
+          currentServer.subscription_ends_at
+            ? new Date(currentServer.subscription_ends_at).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
             : new Date(Date.now() + 30 * 86400000).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
         }
       />

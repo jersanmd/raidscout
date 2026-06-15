@@ -1,6 +1,7 @@
 -- RPC: Extend server subscription by N days.
 -- Called by PayPal IPN edge function and AdminPanel "Extend +30d" button.
--- If subscription_ends_at is already in the future, stack on top.
+-- If subscription is active, stack on top.
+-- If trial is active, start from trial end date.
 -- Otherwise, start from NOW().
 CREATE OR REPLACE FUNCTION extend_server_subscription(
   p_server_id uuid,
@@ -11,18 +12,26 @@ SECURITY DEFINER
 SET search_path = ''
 AS $$
 DECLARE
-  v_current timestamptz;
+  v_sub_end timestamptz;
+  v_trial_end timestamptz;
+  v_base timestamptz;
 BEGIN
-  SELECT subscription_ends_at INTO v_current
-  FROM servers
+  SELECT subscription_ends_at, trial_ends_at
+  INTO v_sub_end, v_trial_end
+  FROM public.servers
   WHERE id = p_server_id;
 
-  UPDATE servers
-  SET subscription_ends_at =
-    CASE
-      WHEN v_current IS NOT NULL AND v_current > now() THEN v_current + (p_days || ' days')::interval
-      ELSE now() + (p_days || ' days')::interval
-    END
+  -- Determine the base date to extend from
+  IF v_sub_end IS NOT NULL AND v_sub_end > now() THEN
+    v_base := v_sub_end;          -- Active subscription: stack
+  ELSIF v_trial_end IS NOT NULL AND v_trial_end > now() THEN
+    v_base := v_trial_end;        -- Active trial: start from trial end
+  ELSE
+    v_base := now();              -- Neither active: start now
+  END IF;
+
+  UPDATE public.servers
+  SET subscription_ends_at = v_base + (p_days || ' days')::interval
   WHERE id = p_server_id;
 END;
 $$;
