@@ -12,18 +12,18 @@ CREATE TABLE IF NOT EXISTS public.payments (
 
 ALTER TABLE public.payments ENABLE ROW LEVEL SECURITY;
 
--- Server owners and moderators can view payments
+-- Only server owners and admins can view payments
 DROP POLICY IF EXISTS "Server staff can view payments" ON public.payments;
-CREATE POLICY "Server staff can view payments" ON public.payments
+CREATE POLICY "Server owners can view payments" ON public.payments
   FOR SELECT
   USING (
     auth.uid() IN (
-      SELECT sm.user_id FROM public.server_members sm
-      WHERE sm.server_id = payments.server_id
+      SELECT s.owner_id FROM public.servers s WHERE s.id = payments.server_id
     )
     OR
     auth.uid() IN (
-      SELECT s.owner_id FROM public.servers s WHERE s.id = payments.server_id
+      SELECT sm.user_id FROM public.server_members sm
+      WHERE sm.server_id = payments.server_id AND sm.role = 'owner'
     )
   );
 

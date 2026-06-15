@@ -1,5 +1,6 @@
 -- RPC: Extend server subscription by N days.
--- Called by PayPal IPN edge function and AdminPanel "Extend +30d" button.
+-- Called by PayPal IPN edge function (service_role) and AdminPanel "Extend +30d" button (owner/admin).
+-- Auth: only service_role, server owner, or admin can extend.
 -- If subscription is active, stack on top.
 -- If trial is active, start from trial end date.
 -- Otherwise, start from NOW().
@@ -15,7 +16,18 @@ DECLARE
   v_sub_end timestamptz;
   v_trial_end timestamptz;
   v_base timestamptz;
+  v_owner_id uuid;
+  v_is_admin boolean;
 BEGIN
+  -- Auth check: allow service_role (edge functions), server owner, or admin
+  IF auth.role() != 'service_role' THEN
+    SELECT owner_id INTO v_owner_id FROM public.servers WHERE id = p_server_id;
+    SELECT EXISTS(SELECT 1 FROM public.user_roles WHERE user_id = auth.uid() AND role = 'admin') INTO v_is_admin;
+    IF auth.uid() != v_owner_id AND NOT v_is_admin THEN
+      RAISE EXCEPTION 'Not authorized to extend subscription for this server';
+    END IF;
+  END IF;
+
   SELECT subscription_ends_at, trial_ends_at
   INTO v_sub_end, v_trial_end
   FROM public.servers
