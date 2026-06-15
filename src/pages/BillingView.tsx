@@ -137,7 +137,6 @@ export function BillingView() {
                     serverId={currentServer.id}
                     onSuccess={async () => {
                       await refreshServers();
-                      localStorage.setItem("raidscout-banner-dismissed-active", "true");
                       supabase
                         .from("payments")
                         .select("*")
@@ -161,7 +160,6 @@ export function BillingView() {
                     serverId={currentServer.id}
                     onSuccess={async () => {
                       await refreshServers();
-                      localStorage.setItem("raidscout-banner-dismissed-active", "true");
                       supabase
                         .from("payments")
                         .select("*")

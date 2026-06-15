@@ -1,8 +1,7 @@
-import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useServer } from "@/contexts/ServerContext";
-import { X, AlertTriangle, Clock, ArrowRight } from "lucide-react";
+import { AlertTriangle, Clock, ArrowRight } from "lucide-react";
 
 /**
  * Banner showing subscription status for server owners (all states) and moderators (expired only).
@@ -11,13 +10,6 @@ import { X, AlertTriangle, Clock, ArrowRight } from "lucide-react";
 export function SubscriptionBanner() {
   const { user, isViewer } = useAuth();
   const { currentServer } = useServer();
-  const [dismissed, setDismissed] = useState(false);
-  
-  // Auto-dismiss active banner if user just completed a payment
-  const paymentDismissed = localStorage.getItem("raidscout-banner-dismissed-active") === "true";
-  if (paymentDismissed) {
-    localStorage.removeItem("raidscout-banner-dismissed-active");
-  }
 
   if (!currentServer) return null;
   if (!user && !isViewer) return null;
@@ -42,24 +34,14 @@ export function SubscriptionBanner() {
     : 0;
 
   const isSubActive = subDaysLeft > 0;
-  const isTrialActive = !isSubActive && trialDaysLeft > 0;
-  const isExpired = !isSubActive && !isTrialActive;
 
-  if (isSubActive && (dismissed || paymentDismissed)) return null;
+  // Never show banner for Pro users — the nav badge is enough
+  if (isSubActive) return null;
 
-  const state = isSubActive ? "active" : isTrialActive ? "trial" : "expired";
+  const isTrialActive = trialDaysLeft > 0;
+  const state = isTrialActive ? "trial" : "expired";
 
   const config = {
-    active: {
-      bg: "bg-emerald-950/40 border-emerald-800/40",
-      iconBg: "bg-emerald-900/50",
-      icon: <Clock className="w-4 h-4 text-emerald-400" />,
-      title: `Access active — ${subDaysLeft} day${subDaysLeft !== 1 ? "s" : ""} remaining`,
-      subtitle: subEnd ? `Ends ${subEnd.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}. Thank you for supporting RaidScout!` : "",
-      titleColor: "text-emerald-200",
-      subColor: "text-emerald-400/70",
-      linkColor: "text-emerald-300 hover:text-emerald-100 border-emerald-500/30 hover:border-emerald-500/50",
-    },
     trial: {
       bg: "bg-[#18181b]/60 border-[#27272a]",
       iconBg: "bg-[#27272a]",
@@ -107,15 +89,6 @@ export function SubscriptionBanner() {
               Manage Billing
               <ArrowRight className="w-3 h-3" />
             </Link>
-          )}
-          {state !== "trial" && state !== "expired" && (
-          <button
-            onClick={() => setDismissed(true)}
-            className="p-1.5 text-emerald-500 hover:text-emerald-300 hover:bg-emerald-900/40 rounded-md transition"
-            title="Dismiss"
-          >
-            <X className="w-4 h-4" />
-          </button>
           )}
         </div>
       </div>
