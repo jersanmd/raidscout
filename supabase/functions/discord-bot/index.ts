@@ -150,8 +150,9 @@ serve(async (req: Request) => {
       }
     }
 
-    // Server is active — acknowledge the command (placeholder)
-    // In the future, route to specific command handlers here
+    // Server is active — route command to handler
+    // For !kill commands: call can_kill_boss(p_server_id, p_boss_id) RPC first,
+    // then insert death record via insertDeathRecord if allowed.
     await sendDiscordResponse(
       interactionId,
       interactionToken,
