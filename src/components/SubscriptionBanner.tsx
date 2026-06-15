@@ -73,10 +73,10 @@ export function SubscriptionBanner() {
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
-          {/* PayPal subscribe button (Phase 6 will wire this up) */}
+          {/* PayPal subscribe button */}
           {currentServer.isExpired && (
             <a
-              href={`https://www.paypal.com/cgi-bin/webscr?cmd=_xclick-subscriptions&business=your-paypal@email.com&item_name=RaidScout+Server+30+Days&a3=9.99&p3=1&t3=M&custom=${currentServer.id}&currency_code=USD&return=https://www.raidscout.com`}
+              href={`https://www.paypal.com/cgi-bin/webscr?cmd=_xclick-subscriptions&business=ceo%40raidscout.com&item_name=RaidScout+Server+30+Days&a3=9.99&p3=1&t3=M&custom=${currentServer.id}&currency_code=USD&notify_url=https%3A%2F%2Fcjuacehmienztxrhwnlg.supabase.co%2Ffunctions%2Fv1%2Fpaypal-ipn&return=https://www.raidscout.com`}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-red-600 text-[#fafafa] hover:bg-red-500 transition"
