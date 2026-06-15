@@ -69,7 +69,7 @@ export function BillingView() {
     <div className="max-w-3xl mx-auto px-4 py-6 space-y-6">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <Link to="/settings" className="p-1.5 -ml-1.5 text-[#71717a] hover:text-[#fafafa] transition rounded-md">
+        <Link to="/server-settings" className="p-1.5 -ml-1.5 text-[#71717a] hover:text-[#fafafa] transition rounded-md">
           <ArrowLeft className="w-5 h-5" />
         </Link>
         <h1 className="text-lg font-semibold text-[#fafafa]">Billing</h1>
