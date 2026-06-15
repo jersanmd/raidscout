@@ -32,6 +32,7 @@ export function PayPalSubscribeButton({
   const cardButtonRef = useRef<any>(null);
   const [sdkReady, setSdkReady] = useState(false);
   const [sdkError, setSdkError] = useState<string | null>(null);
+  const [processing, setProcessing] = useState(false);
 
   useEffect(() => {
     if (document.getElementById(SCRIPT_ID)) {
@@ -79,8 +80,9 @@ export function PayPalSubscribeButton({
     };
 
     const onApprove = async (data: any, actions: any) => {
-      await actions.order.capture();
+      setProcessing(true);
       try {
+        await actions.order.capture();
         const { error } = await supabase.functions.invoke("paypal-ipn", {
           body: { server_id: serverId, order_id: data.orderID },
         });
@@ -89,12 +91,13 @@ export function PayPalSubscribeButton({
           onError?.(new Error(error.message || "Failed to activate access"));
           return;
         }
+        onSuccess?.();
       } catch (err: any) {
         console.error("Failed to activate subscription:", err);
         onError?.(err instanceof Error ? err : new Error("Failed to activate access. Your payment was processed — please contact support."));
-        return;
+      } finally {
+        setProcessing(false);
       }
-      onSuccess?.();
     };
 
     const onErr = (err: any) => {
@@ -184,5 +187,19 @@ export function PayPalSubscribeButton({
     );
   }
 
-  return <div ref={containerRef} className={className} />;
+  return (
+    <div className={`relative ${className}`} style={{ minWidth: "400px", maxWidth: "500px", width: "100%" }}>
+      {/* Processing overlay */}
+      {processing && (
+        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-white/90 backdrop-blur-sm rounded-xl">
+          <Loader2 className="w-8 h-8 text-emerald-500 animate-spin" />
+          <div className="text-center">
+            <p className="text-sm font-semibold text-[#111827]">Processing payment...</p>
+            <p className="text-xs text-[#6b7280] mt-0.5">Extending your server access</p>
+          </div>
+        </div>
+      )}
+      <div ref={containerRef} />
+    </div>
+  );
 }

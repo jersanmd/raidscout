@@ -24,7 +24,7 @@ const FEATURES = [
 ];
 
 export function BillingView() {
-  const { currentServer } = useServer();
+  const { currentServer, refreshServers } = useServer();
   const { user, isViewer } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -264,7 +264,7 @@ export function BillingView() {
         open={!!paymentResult}
         onClose={() => {
           setPaymentResult(null);
-          // Refresh payments list
+          refreshServers();
           supabase
             .from("payments")
             .select("*")
