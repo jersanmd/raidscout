@@ -141,9 +141,9 @@ export function BillingView() {
         </div>
 
         {/* Payment */}
-        <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-5 space-y-4">
-          <h3 className="text-sm font-semibold text-[#fafafa] flex items-center gap-2">
-            <Shield className="w-4 h-4 text-[#a1a1aa]" />
+        <div className="bg-white border border-[#e5e7eb] rounded-xl p-5 space-y-4 shadow-sm">
+          <h3 className="text-sm font-semibold text-[#111827] flex items-center gap-2">
+            <Shield className="w-4 h-4 text-[#6b7280]" />
             {isOwner ? "Payment" : "Information"}
           </h3>
 
@@ -151,12 +151,12 @@ export function BillingView() {
             isSubActive ? (
               <div className="space-y-2">
                 <a href="https://www.paypal.com/myaccount/autopay/" target="_blank" rel="noopener noreferrer"
-                  className="flex items-center justify-between w-full px-4 py-3 rounded-lg bg-[#27272a] hover:bg-[#3f3f46] transition group">
-                  <span className="text-sm text-[#fafafa]">Manage in PayPal</span>
-                  <ExternalLink className="w-4 h-4 text-[#71717a] group-hover:text-[#a1a1aa]" />
+                  className="flex items-center justify-between w-full px-4 py-3 rounded-lg bg-[#f3f4f6] hover:bg-[#e5e7eb] transition group">
+                  <span className="text-sm text-[#111827]">Manage in PayPal</span>
+                  <ExternalLink className="w-4 h-4 text-[#9ca3af] group-hover:text-[#6b7280]" />
                 </a>
                 <button onClick={() => setCancelConfirm(true)} disabled={cancelling}
-                  className="flex items-center gap-2 w-full px-4 py-2.5 rounded-lg border border-red-500/20 hover:bg-red-500/5 transition disabled:opacity-50 text-sm text-red-400">
+                  className="flex items-center gap-2 w-full px-4 py-2.5 rounded-lg border border-red-200 hover:bg-red-50 transition disabled:opacity-50 text-sm text-red-600">
                   {cancelling ? <Loader2 className="w-4 h-4 animate-spin" /> : <AlertTriangle className="w-4 h-4" />}
                   {cancelling ? "Cancelling..." : "Cancel Subscription"}
                 </button>
@@ -164,8 +164,8 @@ export function BillingView() {
             ) : (
               <div className="space-y-3">
                 <div className="text-center space-y-1">
-                  <p className="text-2xl font-bold text-[#fafafa]">$9.99<span className="text-sm text-[#71717a] font-normal">/month</span></p>
-                  <p className="text-xs text-[#a1a1aa]">{isTrialActive ? "Subscribe now to keep your server running" : "Restore full access to your server"}</p>
+                  <p className="text-2xl font-bold text-[#111827]">$9.99<span className="text-sm text-[#6b7280] font-normal">/month</span></p>
+                  <p className="text-xs text-[#6b7280]">{isTrialActive ? "Subscribe now to keep your server running" : "Restore full access to your server"}</p>
                 </div>
                 <div className="flex justify-center">
                   <PayPalSubscribeButton serverId={currentServer.id} onSuccess={() => toast("success", "Payment successful!")} />
@@ -174,8 +174,8 @@ export function BillingView() {
             )
           ) : (
             <div className="flex items-start gap-3">
-              <Shield className="w-4 h-4 text-[#71717a] mt-0.5 shrink-0" />
-              <p className="text-xs text-[#a1a1aa]">Only the server owner can manage billing and subscriptions.</p>
+              <Shield className="w-4 h-4 text-[#6b7280] mt-0.5 shrink-0" />
+              <p className="text-xs text-[#6b7280]">Only the server owner can manage billing and subscriptions.</p>
             </div>
           )}
         </div>
