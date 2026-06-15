@@ -6,15 +6,21 @@ import { useToast } from "@/contexts/ToastContext";
 import { PayPalSubscribeButton } from "@/components/PayPalSubscribeButton";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { supabase } from "@/lib/supabase";
-import { ArrowLeft, Clock, Shield, AlertTriangle, Loader2, ExternalLink, Zap, Users, Bell, Eye, BarChart3, Skull } from "lucide-react";
+import { ArrowLeft, Clock, Shield, AlertTriangle, Loader2, ExternalLink, Zap, Users, Bell, Eye, BarChart3, Skull, Calendar, Trophy, Settings, MessageCircle, Globe, Activity } from "lucide-react";
 
 const FEATURES = [
   { icon: Skull, label: "Boss Kill Recording" },
   { icon: Clock, label: "Live Spawn Timers" },
   { icon: Bell, label: "Discord Notifications" },
+  { icon: Calendar, label: "Weekly Schedule View" },
+  { icon: Trophy, label: "Leaderboards & Rankings" },
+  { icon: BarChart3, label: "Kill History & Analytics" },
   { icon: Users, label: "Member Management" },
-  { icon: BarChart3, label: "Leaderboards & Stats" },
-  { icon: Eye, label: "Viewer Sharing" },
+  { icon: Activity, label: "Activity Tracking" },
+  { icon: Settings, label: "Guild & Rotation Config" },
+  { icon: MessageCircle, label: "Discord Bot Integration" },
+  { icon: Eye, label: "Viewer Guest Sharing" },
+  { icon: Globe, label: "Multi-Game Support" },
 ];
 
 export function BillingView() {
@@ -146,26 +152,26 @@ export function BillingView() {
         </div>
       </div>
 
-      {/* ── What's Included ── */}
-      <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-5 space-y-4">
-        <h3 className="text-sm font-semibold text-[#fafafa] flex items-center gap-2">
-          <Zap className="w-4 h-4 text-[#a1a1aa]" />
-          {isSubActive ? "Your Pro Benefits" : isTrialActive ? "Trial Includes" : "What You're Missing"}
+      {/* ── All Features ── */}
+      <div className="bg-white border border-[#e5e7eb] rounded-xl p-5 space-y-4 shadow-sm">
+        <h3 className="text-sm font-semibold text-[#111827] flex items-center gap-2">
+          <Zap className="w-4 h-4 text-[#6b7280]" />
+          All RaidScout Features
         </h3>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           {FEATURES.map((f) => (
-            <div key={f.label} className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg bg-[#09090b] border border-[#1f1f23]">
-              <f.icon className="w-3.5 h-3.5 text-[#a1a1aa] shrink-0" />
-              <span className="text-xs text-[#d4d4d8]">{f.label}</span>
+            <div key={f.label} className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg bg-[#f9fafb] border border-[#e5e7eb]">
+              <f.icon className="w-3.5 h-3.5 text-[#6b7280] shrink-0" />
+              <span className="text-xs text-[#374151]">{f.label}</span>
             </div>
           ))}
         </div>
         {isExpired && (
-          <div className="flex items-start gap-3 p-3 rounded-lg bg-red-500/5 border border-red-500/10">
-            <AlertTriangle className="w-4 h-4 text-red-400 mt-0.5 shrink-0" />
+          <div className="flex items-start gap-3 p-3 rounded-lg bg-red-50 border border-red-200">
+            <AlertTriangle className="w-4 h-4 text-red-500 mt-0.5 shrink-0" />
             <div>
-              <p className="text-xs text-red-300 font-medium">These features are currently locked</p>
-              <p className="text-[11px] text-red-400/70 mt-0.5">Subscribe to restore full access to all features.</p>
+              <p className="text-xs text-red-700 font-medium">These features are currently locked</p>
+              <p className="text-[11px] text-red-500 mt-0.5">Subscribe to restore full access to all features.</p>
             </div>
           </div>
         )}
