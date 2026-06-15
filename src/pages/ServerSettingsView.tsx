@@ -734,6 +734,7 @@ export function ServerSettingsView() {
       }).select().single();
       if (error) throw error;
       setDiscordLinks(prev => [...prev, data]);
+      queryClient.invalidateQueries({ queryKey: ["discord_configs", currentServer.id] });
       setNewDiscordId("");
       setNewDiscordLabel("");
       setNewDiscordPrefix("!");
@@ -751,6 +752,7 @@ export function ServerSettingsView() {
       const { error } = await supabase.from("discord_configs").delete().eq("id", id);
       if (error) throw error;
       setDiscordLinks(prev => prev.filter(d => d.id !== id));
+      queryClient.invalidateQueries({ queryKey: ["discord_configs", currentServer.id] });
       bumpWebhookVersion();
       toast("success", "Discord link removed");
     } catch (err: any) {

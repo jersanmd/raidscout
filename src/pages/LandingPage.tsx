@@ -209,9 +209,13 @@ export function LandingPage() {
   const [resetSent, setResetSent] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [showVideo, setShowVideo] = useState(false);
-  useEscapeKey(() => setShowVideo(false));
+  const [activeGuide, setActiveGuide] = useState<string | null>(null);
+  useEscapeKey(() => { setShowVideo(false); setActiveGuide(null); });
 
-  const YOUTUBE_ID = import.meta.env.VITE_YOUTUBE_DEMO_ID || "dQw4w9WgXcQ";
+  const GUIDES = [
+    { id: import.meta.env.VITE_YOUTUBE_DEMO_ID || "dQw4w9WgXcQ", title: "What is RaidScout?", description: "Overview of the platform and all core features — boss timers, guild rotations, AI scanning, and more." },
+    { id: "na_iii6gSwY", title: "How to Connect RaidScout to Your Discord Server", description: "Step-by-step guide: create a server, invite the bot, set up channels for commands, notifications, threads, and CP updates." },
+  ];
 
   // Live stats from Supabase
   const [liveStats, setLiveStats] = useState({
@@ -374,7 +378,7 @@ export function LandingPage() {
               className="px-6 py-3 rounded-lg font-medium text-sm border border-[#fafafa]/20 text-[#fafafa] hover:border-[#fafafa]/40 hover:bg-[#fafafa]/5 transition-all duration-200 flex items-center gap-2"
             >
               <Play className="w-4 h-4" fill="currentColor" />
-              Watch Demo
+              Watch Guides
             </button>
           </div>
 
@@ -945,32 +949,80 @@ export function LandingPage() {
         </div>
       </footer>
 
-      {/* YouTube Demo Modal */}
+      {/* Video Guides Modal */}
       {showVideo && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/80" onClick={() => setShowVideo(false)} />
-          <div className="relative bg-[#09090b] border border-[#27272a] rounded-xl w-full max-w-3xl shadow-2xl overflow-hidden">
-            <div className="flex items-center justify-between p-4 border-b border-[#27272a]">
+          <div className="absolute inset-0 bg-black/80" onClick={() => { setShowVideo(false); setActiveGuide(null); }} />
+          <div className="relative bg-[#09090b] border border-[#27272a] rounded-xl w-full max-w-3xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between p-4 border-b border-[#27272a] shrink-0">
               <h3 className="text-sm font-medium text-[#fafafa] flex items-center gap-2">
                 <Play className="w-4 h-4" fill="currentColor" />
-                What is RaidScout?
+                {activeGuide ? (GUIDES.find(g => g.id === activeGuide)?.title ?? "Watch Guide") : "RaidScout Video Guides"}
               </h3>
               <button
-                onClick={() => setShowVideo(false)}
+                onClick={() => { setShowVideo(false); setActiveGuide(null); }}
                 className="p-1 text-[#71717a] hover:text-[#fafafa] transition"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <div className="aspect-video">
-              <iframe
-                src={`https://www.youtube.com/embed/${YOUTUBE_ID}?rel=0`}
-                allow="autoplay; encrypted-media"
-                allowFullScreen
-                className="w-full h-full"
-                title="What is RaidScout?"
-              />
-            </div>
+            {activeGuide ? (
+              <>
+                <button
+                  onClick={() => setActiveGuide(null)}
+                  className="flex items-center gap-1 px-4 py-2 text-xs text-[#71717a] hover:text-[#fafafa] transition shrink-0"
+                >
+                  ← Back to guides
+                </button>
+                <div className="aspect-video">
+                  <iframe
+                    src={`https://www.youtube.com/embed/${activeGuide}?rel=0&autoplay=1`}
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                    allowFullScreen
+                    referrerPolicy="strict-origin-when-cross-origin"
+                    className="w-full h-full"
+                    title="RaidScout Guide"
+                  />
+                </div>
+                <div className="px-4 py-2 text-center">
+                  <a
+                    href={`https://www.youtube.com/watch?v=${activeGuide}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-[#71717a] hover:text-[#fafafa] transition underline underline-offset-2"
+                  >
+                    Open on YouTube ↗
+                  </a>
+                </div>
+              </>
+            ) : (
+              <div className="p-4 space-y-3 overflow-y-auto">
+                {GUIDES.map(guide => (
+                  <button
+                    key={guide.id}
+                    onClick={() => setActiveGuide(guide.id)}
+                    className="w-full flex items-start gap-4 p-3 rounded-lg bg-[#18181b] border border-[#27272a] hover:border-[#3f3f46] hover:bg-[#1f1f23] transition text-left group"
+                  >
+                    <div className="relative shrink-0 w-40 aspect-video rounded-md overflow-hidden bg-black">
+                      <img
+                        src={`https://img.youtube.com/vi/${guide.id}/mqdefault.jpg`}
+                        alt={guide.title}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      />
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <div className="w-10 h-10 rounded-full bg-black/70 flex items-center justify-center group-hover:bg-red-600 transition-colors">
+                          <Play className="w-5 h-5 text-white ml-0.5" fill="currentColor" />
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h4 className="text-sm font-medium text-[#fafafa] group-hover:text-white transition-colors leading-snug">{guide.title}</h4>
+                      <p className="text-xs text-[#71717a] mt-1 leading-relaxed line-clamp-2">{guide.description}</p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}

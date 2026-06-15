@@ -1,8 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useServer } from "@/contexts/ServerContext";
-import { supabase } from "@/lib/supabase";
+import { useMembers } from "@/hooks/useMembers";
 import { ExternalLink, X, Users } from "lucide-react";
 
 /**
@@ -15,22 +15,10 @@ export function NoMembersBanner() {
   const { currentServer } = useServer();
   const navigate = useNavigate();
   const [dismissed, setDismissed] = useState(false);
-  const [hasMembers, setHasMembers] = useState(true); // optimistic
 
-  useEffect(() => {
-    if (!currentServer?.id) return;
-    (async () => {
-      try {
-        const { count } = await supabase
-          .from("members")
-          .select("*", { count: "exact", head: true })
-          .eq("server_id", currentServer.id);
-        setHasMembers((count ?? 0) > 0);
-      } catch {
-        setHasMembers(false);
-      }
-    })();
-  }, [currentServer?.id]);
+  // Use React Query so it auto-updates when members are added/removed
+  const { data: members } = useMembers();
+  const hasMembers = (members?.length ?? 0) > 0;
 
   if (!user || !currentServer) return null;
   if (currentServer.role !== "owner" && currentServer.role !== "moderator") return null;

@@ -1,8 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { useServer } from "@/contexts/ServerContext";
-import { supabase } from "@/lib/supabase";
+import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { ExternalLink, X, MessageSquare } from "lucide-react";
 
 /**
@@ -14,24 +15,22 @@ export function DiscordWebhookBanner() {
   const { currentServer } = useServer();
   const navigate = useNavigate();
   const [dismissed, setDismissed] = useState(false);
-  const [hasNotifications, setHasNotifications] = useState(true);
 
-  useEffect(() => {
-    if (!currentServer?.id) return;
-    // Check if server is linked to Discord via discord_configs
-    (async () => {
-      try {
-        const { data } = await supabase
-          .from("discord_configs")
-          .select("id")
-          .eq("raidscout_server_id", currentServer.id)
-          .limit(1);
-        setHasNotifications((data?.length ?? 0) > 0);
-      } catch {
-        setHasNotifications(false);
-      }
-    })();
-  }, [currentServer?.id]);
+  // Use React Query so it auto-updates when Discord is linked/unlinked
+  const { data: configs } = useQuery({
+    queryKey: ["discord_configs", currentServer?.id],
+    queryFn: async () => {
+      if (!currentServer?.id || !isSupabaseConfigured()) return [];
+      const { data } = await supabase
+        .from("discord_configs")
+        .select("id")
+        .eq("raidscout_server_id", currentServer.id);
+      return data ?? [];
+    },
+    enabled: !!currentServer?.id && isSupabaseConfigured(),
+    staleTime: 30_000,
+  });
+  const hasNotifications = (configs?.length ?? 0) > 0;
 
   if (!user || !currentServer) return null;
   if (currentServer.role !== "owner" && currentServer.role !== "moderator") return null;
