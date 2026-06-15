@@ -68,24 +68,24 @@ function calculateFixedScheduleSpawn(boss: Boss, deathRecord: DeathRecord | null
     return { boss, nextSpawn: null, status: "unknown", deathRecord: null };
   }
 
-  // Only check the "alive" window if there's a death record (boss actually spawned).
-  // Without a death record, a newly created boss should show countdown to the next slot.
-  if (deathRecord) {
-    const recentSlot = findMostRecentSlot(boss.schedule, now);
-    if (recentSlot) {
-      const slotTime = buildSlotDate(now, recentSlot.day, recentSlot.time);
-      const rawAliveUntil = findNextScheduleSlot(boss.schedule, new Date(slotTime.getTime() + 60_000));
-      const aliveUntil = new Date(Math.min(
-        rawAliveUntil.getTime() - ALIVE_BUFFER_HOURS * 3600_000,
-        slotTime.getTime() + MAX_ALIVE_WINDOW_HOURS * 3600_000,
-      ));
+  // Check the alive window. Without a death record, the boss is alive during
+  // the spawn window (hasn't been killed yet).
+  const recentSlot = findMostRecentSlot(boss.schedule, now);
+  if (recentSlot) {
+    const slotTime = buildSlotDate(now, recentSlot.day, recentSlot.time);
+    const rawAliveUntil = findNextScheduleSlot(boss.schedule, new Date(slotTime.getTime() + 60_000));
+    const aliveUntil = new Date(Math.min(
+      rawAliveUntil.getTime() - ALIVE_BUFFER_HOURS * 3600_000,
+      slotTime.getTime() + MAX_ALIVE_WINDOW_HOURS * 3600_000,
+    ));
 
-      const wasKilledAfterSlot = new Date(deathRecord.death_time) >= slotTime;
+    const wasKilledAfterSlot = deathRecord
+      ? new Date(deathRecord.death_time) >= slotTime
+      : false;
 
-      if (!wasKilledAfterSlot && now >= slotTime && now < aliveUntil) {
-        const nextSpawn = findNextScheduleSlot(boss.schedule, new Date(aliveUntil.getTime() + 60_000));
-        return { boss, nextSpawn, status: "alive", deathRecord };
-      }
+    if (!wasKilledAfterSlot && now >= slotTime && now < aliveUntil) {
+      const nextSpawn = findNextScheduleSlot(boss.schedule, new Date(aliveUntil.getTime() + 60_000));
+      return { boss, nextSpawn, status: "alive", deathRecord };
     }
   }
 

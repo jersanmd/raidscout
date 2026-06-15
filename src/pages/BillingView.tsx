@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useServer } from "@/contexts/ServerContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
+import { SEOHead } from "@/components/SEOHead";
 import { PayPalSubscribeButton } from "@/components/PayPalSubscribeButton";
 import { PaymentSuccessModal } from "@/components/PaymentSuccessModal";
 import { supabase } from "@/lib/supabase";
@@ -29,7 +30,21 @@ export function BillingView() {
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  if (!currentServer || isViewer) return null;
+  if (isViewer) {
+    return (
+      <div className="max-w-7xl mx-auto px-3 sm:px-4 py-20 text-center">
+        <p className="text-[#71717a] text-sm">Billing is not available in viewer mode.</p>
+      </div>
+    );
+  }
+
+  if (!currentServer) {
+    return (
+      <div className="max-w-7xl mx-auto px-3 sm:px-4 py-20 text-center">
+        <p className="text-[#71717a] text-sm">Select a server to manage billing.</p>
+      </div>
+    );
+  }
 
   const [payments, setPayments] = useState<any[]>([]);
   const [paymentsLoading, setPaymentsLoading] = useState(false);
@@ -70,14 +85,21 @@ export function BillingView() {
   const StatusIcon = stateConfig.icon;
 
   return (
-    <div className="max-w-7xl mx-auto px-3 sm:px-4 py-4 sm:py-6 space-y-6">
-      <div className="flex items-center gap-3 mb-3 sm:mb-0">
-        <button onClick={() => navigate("/server-settings")} className="text-[#a1a1aa] hover:text-[#fafafa] p-1">
-          <ArrowLeft className="w-5 h-5" />
-        </button>
-        <h2 className="text-lg sm:text-xl font-bold text-[#fafafa]">Billing &amp; Plan</h2>
-        <span className="text-xs text-[#52525b] mt-0.5">Manage your billing and server access</span>
-      </div>
+    <>
+      <SEOHead
+        title={`Billing — ${currentServer.name} — RaidScout`}
+        description={`Manage billing and server access for ${currentServer.name} on RaidScout.`}
+        canonicalUrl="/billing"
+        noindex
+      />
+      <div className="max-w-7xl mx-auto px-3 sm:px-4 py-4 sm:py-6 space-y-6">
+        <div className="flex items-center gap-3 mb-3 sm:mb-0">
+          <button onClick={() => navigate("/server-settings")} className="text-[#a1a1aa] hover:text-[#fafafa] p-1">
+            <ArrowLeft className="w-5 h-5" />
+          </button>
+          <h2 className="text-lg sm:text-xl font-bold text-[#fafafa]">Billing &amp; Plan</h2>
+          <span className="text-xs text-[#52525b] mt-0.5">Manage your billing and server access</span>
+        </div>
 
       <div className="max-w-3xl mx-auto space-y-6 mt-8">
 
@@ -298,5 +320,6 @@ export function BillingView() {
 
       </div>
     </div>
+    </>
   );
 }

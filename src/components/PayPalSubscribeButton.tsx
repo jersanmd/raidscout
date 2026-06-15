@@ -55,7 +55,8 @@ export function PayPalSubscribeButton({
 
     const script = document.createElement("script");
     script.id = SCRIPT_ID;
-    script.src = `https://www.paypal.com/sdk/js?client-id=${clientId}&intent=capture&currency=USD`;
+    const paypalHost = import.meta.env.DEV ? "www.sandbox.paypal.com" : "www.paypal.com";
+    script.src = `https://${paypalHost}/sdk/js?client-id=${clientId}&intent=capture&currency=USD`;
     script.async = true;
     script.onload = () => setSdkReady(true);
     script.onerror = () => setSdkError("Failed to load PayPal SDK.");

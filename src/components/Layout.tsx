@@ -84,6 +84,7 @@ export function Layout() {
       "/members": "Members \u2014 RaidScout",
       "/analytics": "Analytics \u2014 RaidScout",
       "/server-settings": "Server Settings \u2014 RaidScout",
+      "/billing": "Billing \u2014 RaidScout",
       "/admin": "Admin Panel \u2014 RaidScout",
     };
     document.title = titles[location.pathname] ?? "RaidScout";
@@ -332,6 +333,11 @@ export function Layout() {
                       {hasServer && !isViewer && (
                         <NavLink to="/server-settings" onClick={() => setShowUserMenu(false)} className="flex items-center gap-2 px-4 py-2 text-sm text-[#a1a1aa] hover:bg-[#18181b] transition">
                           <Settings className="w-4 h-4" /> Server Settings
+                        </NavLink>
+                      )}
+                      {hasServer && !isViewer && (
+                        <NavLink to="/billing" onClick={() => setShowUserMenu(false)} className="flex items-center gap-2 px-4 py-2 text-sm text-[#a1a1aa] hover:bg-[#18181b] transition">
+                          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg> Billing
                         </NavLink>
                       )}
                       <button onClick={() => { setShowUserMenu(false); setShowLogoutConfirm(true); }} className="w-full text-left flex items-center gap-2 px-4 py-2 text-sm text-[#a1a1aa] hover:bg-[#18181b] transition border-t border-white/[0.06]">
