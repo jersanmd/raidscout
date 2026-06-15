@@ -490,6 +490,50 @@ export function AdminPanelView() {
                           </div>
                         </div>
 
+                        {/* Subscription Status */}
+                        {(() => {
+                          const now = new Date();
+                          const trialEnd = s.trial_ends_at ? new Date(s.trial_ends_at) : null;
+                          const subEnd = s.subscription_ends_at ? new Date(s.subscription_ends_at) : null;
+                          const subDays = subEnd ? Math.ceil((subEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)) : 0;
+                          const trialDays = trialEnd ? Math.ceil((trialEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)) : 0;
+                          const isActive = subDays > 0;
+                          const isTrialing = !isActive && trialDays > 0;
+                          const isExpired = !isActive && !isTrialing && !!s.trial_ends_at;
+                          const isGrandfathered = !s.trial_ends_at;
+                          return (
+                            <div className="border-t border-[#27272a] pt-3">
+                              <p className="text-[10px] text-[#71717a] uppercase tracking-wider mb-2">Subscription</p>
+                              <div className="flex items-center gap-4">
+                                {isGrandfathered ? (
+                                  <span className="text-xs text-[#a1a1aa]">Grandfathered — no expiry</span>
+                                ) : isActive ? (
+                                  <>
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] bg-emerald-500/10 text-emerald-300 border border-emerald-500/20">
+                                      ● Active — {subDays}d remaining
+                                    </span>
+                                    <span className="text-[10px] text-[#52525b]">Until {subEnd!.toLocaleDateString()}</span>
+                                  </>
+                                ) : isTrialing ? (
+                                  <>
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] bg-amber-500/10 text-amber-300 border border-amber-500/20">
+                                      ● Trial — {trialDays}d remaining
+                                    </span>
+                                    <span className="text-[10px] text-[#52525b]">Until {trialEnd!.toLocaleDateString()}</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] bg-red-500/10 text-red-300 border border-red-500/20">
+                                      ● Expired
+                                    </span>
+                                    {subEnd && <span className="text-[10px] text-[#52525b]">Ended {subEnd.toLocaleDateString()}</span>}
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })()}
+
                         {/* Guild Tags — monochrome text, 40% opacity for zero-count */}
                         {stats.guild_members && stats.guild_members.length > 0 && (
                           <div className="border-t border-[#27272a] pt-3">
