@@ -123,7 +123,13 @@ export function PayPalSubscribeButton({
     cardSection.appendChild(cardLabel);
 
     window.paypal.Buttons({
-      style: { layout: "horizontal", tagline: false, height: 40 },
+      style: {
+        layout: "horizontal",
+        tagline: false,
+        height: 40,
+        color: "black",
+        input: { color: "#fafafa", fontSize: "14px" },
+      },
       fundingSource: window.paypal.FUNDING.CARD,
       createOrder,
       onApprove,
