@@ -93,7 +93,9 @@ export function PayPalSubscribeButton({
       onError?.(err instanceof Error ? err : new Error(String(err)));
     };
 
-    containerRef.current.style.minWidth = "360px";
+    containerRef.current.style.minWidth = "400px";
+    containerRef.current.style.width = "100%";
+    containerRef.current.style.maxWidth = "500px";
 
     // ── PayPal ──
     const ppLabel = document.createElement("p");
