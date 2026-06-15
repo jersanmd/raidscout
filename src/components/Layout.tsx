@@ -143,7 +143,7 @@ export function Layout() {
               const isPro = subDays > 0;
               if (!isPro) return null;
               return (
-                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium border shrink-0 bg-emerald-500/10 text-emerald-300 border-emerald-500/20">
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium border shrink-0 bg-emerald-500/10 text-emerald-300 border-emerald-500/20 -ml-1">
                   Pro<span className="opacity-60">·</span>{subDays}d
                 </span>
               );
