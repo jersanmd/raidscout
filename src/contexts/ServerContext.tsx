@@ -65,7 +65,7 @@ export function ServerProvider({ children }: { children: ReactNode }) {
         created_at: undefined,
         discord_webhook_url: viewerDiscordWebhookUrl ?? undefined,
         timezone: viewerTimezone ?? undefined,
-        role: "moderator",
+        role: "viewer",
       };
       setServers([viewerServer]);
       setCurrentServer(viewerServer);
