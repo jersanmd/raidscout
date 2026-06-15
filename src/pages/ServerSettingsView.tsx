@@ -1172,7 +1172,7 @@ export function ServerSettingsView() {
                       className="p-2 rounded-lg text-[#a1a1aa] hover:text-[#fafafa] hover:bg-[#18181b] transition shrink-0"
                       title="Copy viewer link"
                     >
-                      <Link className="w-4 h-4" />
+                      <LinkIcon className="w-4 h-4" />
                     </button>
                   </div>
                 </>
