@@ -104,12 +104,12 @@ export async function handleMessage(msg: any) {
         const now = new Date();
         const trialEnd = srv.trial_ends_at ? new Date(srv.trial_ends_at) : null;
         const subEnd = srv.subscription_ends_at ? new Date(srv.subscription_ends_at) : null;
-        // Grandfathered: no trial set
-        const isExpired = srv.trial_ends_at && !(subEnd && subEnd > now) && !(trialEnd && trialEnd > now);
+        // Active subscription overrides trial. Both expired = locked.
+        const isExpired = !(subEnd && subEnd > now) && !(trialEnd && trialEnd > now);
         if (isExpired && cmd && !["help","commands","notifhere","cmdhere","threadhere","progresshere"].includes(cmd)) {
           await discordFetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
             method: "POST", headers: { Authorization: `Bot ${TOKEN}`, "Content-Type": "application/json" },
-            body: JSON.stringify({ content: "⏰ This server's free trial has expired. The owner needs to subscribe to restore bot access.\n🔗 https://www.raidscout.com" }),
+            body: JSON.stringify({ content: "⏰ This server's RaidScout access has expired. The owner needs to extend access to restore bot commands.\n🔗 https://www.raidscout.com" }),
           });
           return;
         }
@@ -599,11 +599,11 @@ export async function handleMessage(msg: any) {
       const actInstances = await supabaseQuerySafe(`activity_instances?activity_id=eq.${activity.id}&order=start_time.desc&limit=1`);
       const latestInst = actInstances?.[0] ?? null;
       let isRunning = latestInst && latestInst.start_time && !latestInst.end_time;
-      const alreadyCompleted = latestInst && latestInst.end_time;
+      let alreadyCompleted = false;
 
-      // For fixed_schedule activities with an existing instance, check if we're in the active window.
-      // Without an instance, a newly created activity should NOT be considered "running" from a past slot.
-      if (!isRunning && !alreadyCompleted && latestInst && activity.schedule_type === "fixed_schedule" && Array.isArray(activity.schedule)) {
+      // For fixed_schedule activities: check if we're within a new active window.
+      // Even if a previous instance was completed, a new schedule slot means the activity is active again.
+      if (activity.schedule_type === "fixed_schedule" && Array.isArray(activity.schedule)) {
         const actTz = (activity.is_custom || activity.template_id) ? "UTC" : "Asia/Manila";
         const schedule = activity.schedule;
         const now2 = new Date();
@@ -615,8 +615,22 @@ export async function handleMessage(msg: any) {
           const nextSlotAfterRecent = findNextScheduleSlot(schedule, new Date(recentSlot.getTime() + 60_000), actTz);
           const maxActiveWindow = Math.min(nextSlotAfterRecent.getTime() - recentSlot.getTime() - 3600_000, 4 * 3600_000);
           const activeUntil = new Date(recentSlot.getTime() + maxActiveWindow);
-          isRunning = now2 >= recentSlot && now2 < activeUntil;
+          const inWindow = now2 >= recentSlot && now2 < activeUntil;
+
+          // Recurring activities: if a new schedule window has opened since the last completion,
+          // the activity is active again (not "already completed").
+          if (activity.schedule_type !== "one_time" && latestInst?.end_time && new Date(latestInst.end_time) < recentSlot) {
+            // New window opened after last completion — activity is running again
+            isRunning = inWindow;
+            alreadyCompleted = false;
+          } else if (!isRunning) {
+            isRunning = inWindow;
+            alreadyCompleted = !!(latestInst?.end_time);
+          }
         }
+      } else {
+        // Non-schedule activities (one_time): use instance state directly
+        alreadyCompleted = !!(latestInst?.end_time);
       }
 
       if (!isRunning) {
