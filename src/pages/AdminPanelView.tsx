@@ -1443,9 +1443,14 @@ export function AdminPanelView() {
             const { error } = await supabase.rpc("extend_server_subscription", { p_server_id: extendConfirm.serverId, p_days: 30 });
             if (error) throw error;
             setToast({ type: "success", message: `Extended ${extendConfirm.serverName} by 30 days` });
-            // Keep card expanded & scroll to it, force refetch fresh dates
+            // Force-refetch then close & reopen card to guarantee fresh render
             await queryClient.refetchQueries({ queryKey: ["admin", "servers"] });
-            setTimeout(() => expandedRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }), 100);
+            const serverId = extendConfirm.serverId;
+            setExpandedServer(null);
+            setTimeout(() => {
+              setExpandedServer(serverId);
+              setTimeout(() => expandedRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }), 100);
+            }, 200);
           } catch (err: any) {
             setToast({ type: "error", message: err?.message || "Failed to extend" });
           } finally {
