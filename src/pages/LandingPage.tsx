@@ -889,6 +889,19 @@ export function LandingPage() {
                   </div>
                 </div>
               </div>
+
+              {/* Trial */}
+              <div className="rounded-2xl bg-[#0a0a0f] border border-[#27272a] p-6 hover:border-[#3f3f46] transition-colors duration-300">
+                <div className="flex items-start gap-4">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center shrink-0">
+                    <Clock className="w-5 h-5 text-emerald-400" />
+                  </div>
+                  <div>
+                    <h4 className="text-[#fafafa] font-semibold text-sm mb-1">7-day free trial</h4>
+                    <p className="text-[#71717a] text-sm leading-relaxed">No credit card required. Full access to every feature. Only pay when you're convinced it's right for your guild.</p>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
