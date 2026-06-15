@@ -96,12 +96,13 @@ export function PayPalSubscribeButton({
     // Set minimum width so card form has enough space for input fields
     containerRef.current.style.minWidth = "360px";
 
-    // Render PayPal button
-    const paypalLabel = document.createElement("p");
-    paypalLabel.textContent = "Pay with PayPal";
-    paypalLabel.className = "text-[11px] text-[#71717a] font-medium mb-1.5";
-    containerRef.current.appendChild(paypalLabel);
+    // Single label for all payment methods
+    const label = document.createElement("p");
+    label.textContent = "Pay with PayPal or Debit / Credit Card";
+    label.className = "text-[11px] text-[#71717a] font-medium mb-1.5";
+    containerRef.current.appendChild(label);
 
+    // Vertical layout shows PayPal + card buttons stacked
     window.paypal.Buttons({
       style: { layout: "vertical", tagline: false, height: 40 },
       createOrder,
@@ -109,26 +110,6 @@ export function PayPalSubscribeButton({
       onError: onErr,
       onCancel: () => {},
     }).render(containerRef.current);
-
-    // Render separate Debit/Credit Card button
-    const cardWrapper = document.createElement("div");
-    cardWrapper.style.marginTop = "16px";
-    cardWrapper.style.minWidth = "360px";
-    containerRef.current.appendChild(cardWrapper);
-
-    const cardLabel = document.createElement("p");
-    cardLabel.textContent = "Pay with Debit or Credit Card";
-    cardLabel.className = "text-[11px] text-[#71717a] font-medium mb-1.5";
-    cardWrapper.appendChild(cardLabel);
-
-    window.paypal.Buttons({
-      style: { layout: "horizontal", tagline: false, height: 40 },
-      createOrder,
-      onApprove,
-      onError: onErr,
-      onCancel: () => {},
-      fundingSource: window.paypal.FUNDING.CARD,
-    }).render(cardWrapper);
 
     return () => {
       if (containerRef.current) containerRef.current.innerHTML = "";
