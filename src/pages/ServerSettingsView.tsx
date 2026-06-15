@@ -197,7 +197,7 @@ export function ServerSettingsView() {
     navigate(`?${params.toString()}`, { replace: true });
   };
 
-  const GATED_TABS = new Set(["bosses", "boss-points", "boss-guilds", "activities", "activity-points", "activity-guilds"]);
+  const GATED_TABS = new Set(["bosses", "boss-points", "boss-guilds", "activities", "activity-points", "activity-guilds", "integrations"]);
   const isExpired = currentServer?.isExpired ?? false;
   const isTabLocked = isExpired && GATED_TABS.has(tab);
 
