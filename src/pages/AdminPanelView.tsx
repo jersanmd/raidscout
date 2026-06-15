@@ -29,6 +29,8 @@ export function AdminPanelView() {
   const [forceSpawnConfirm, setForceSpawnConfirm] = useState<{ serverId: string; serverName: string } | null>(null);
   const [extendConfirm, setExtendConfirm] = useState<{ serverId: string; serverName: string } | null>(null);
   const [extending, setExtending] = useState(false);
+  // Local overrides for instant UI update after extending subscription
+  const [subOverrides, setSubOverrides] = useState<Record<string, string>>({});
   const queryClient = useQueryClient();
   const [forceSpawnInput, setForceSpawnInput] = useState("");
   const [serverStats, setServerStats] = useState<Record<string, any>>({});
@@ -497,7 +499,8 @@ export function AdminPanelView() {
                         {(() => {
                           const now = new Date();
                           const trialEnd = s.trial_ends_at ? new Date(s.trial_ends_at) : null;
-                          const subEnd = s.subscription_ends_at ? new Date(s.subscription_ends_at) : null;
+                          const effectiveSubEnd = subOverrides[s.id] || s.subscription_ends_at;
+                          const subEnd = effectiveSubEnd ? new Date(effectiveSubEnd) : null;
                           const subDays = subEnd ? Math.ceil((subEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)) : 0;
                           const trialDays = trialEnd ? Math.ceil((trialEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)) : 0;
                           const isActive = subDays > 0;
@@ -1442,14 +1445,11 @@ export function AdminPanelView() {
             const { error } = await supabase.rpc("extend_server_subscription", { p_server_id: extendConfirm.serverId, p_days: 30 });
             if (error) throw error;
             setToast({ type: "success", message: `Extended ${extendConfirm.serverName} by 30 days` });
-            // Optimistic update: bump subscription_ends_at in cache immediately
-            queryClient.setQueryData(["admin", "servers"], (old: any[]) =>
-              old?.map((s: any) =>
-                s.id === extendConfirm.serverId
-                  ? { ...s, subscription_ends_at: new Date(Date.now() + 30 * 86400000).toISOString() }
-                  : s
-              )
-            );
+            // Instant UI update via local override
+            setSubOverrides(prev => ({
+              ...prev,
+              [extendConfirm.serverId]: new Date(Date.now() + 30 * 86400000).toISOString()
+            }));
             queryClient.invalidateQueries({ queryKey: ["admin", "servers"] });
           } catch (err: any) {
             setToast({ type: "error", message: err?.message || "Failed to extend" });
