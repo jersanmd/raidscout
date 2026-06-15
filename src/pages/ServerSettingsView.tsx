@@ -5,11 +5,12 @@ import { useServer } from "@/contexts/ServerContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { deleteServer, transferServerOwnership, removeServerModerator, addServerModerator, supabase, fetchServerMembers, type ServerMember, fetchGuilds, createGuild, updateGuildName, deleteGuild, fetchBossGuilds, setBossGuilds, fetchAllBossGuildsForServer, upsertBossGuildPoints, batchSetGuildSalary, fetchBosses, setBossPoints, setBossSalary, notifyDiscord, fetchModeratorPermissions, updateModeratorPermissions, updateThreadConfig, fetchPointRules, createPointRule, updatePointRule, deletePointRule, fetchBossAssists, toggleBossAssist, fetchAllActivitiesForServer, fetchAllActivityGuildsForServer, upsertActivityGuildPoints, fetchActivityAssists, toggleActivityAssist, type ModeratorPermissions, DEFAULT_MODERATOR_PERMISSIONS } from "@/lib/supabase";
 import type { Guild, BossGuild, Boss, PointRule, BossAssist, Activity, ActivityGuild, ActivityAssist } from "@/types";
-import { Loader2, Trash2, Crown, ArrowLeft, Server, Check, Key, Copy, RefreshCw, Plus, LogIn, Users, Bell, Link as LinkIcon, Settings, AlertTriangle, X, Shield, Pencil, Swords, ChevronUp, ChevronDown, CheckSquare, Square, Eye, EyeOff, UserPlus, Minus, Trophy, Send, Save, MessageCircle, Zap, Calendar, Search, Skull, CreditCard } from "lucide-react";
+import { Loader2, Trash2, Crown, ArrowLeft, Server, Check, Key, Copy, RefreshCw, Plus, LogIn, Users, Bell, Link as LinkIcon, Settings, AlertTriangle, X, Shield, Pencil, Swords, ChevronUp, ChevronDown, CheckSquare, Square, Eye, EyeOff, UserPlus, Minus, Trophy, Send, Save, MessageCircle, Zap, Calendar, Search, Skull, CreditCard, Lock } from "lucide-react";
 import { ServerBossesActivitiesTab } from "@/components/ServerBossesActivitiesTab";
 import { ActivityGuildsTab } from "@/components/server/ActivityGuildsTab";
 import { ActivityPointsMatrix } from "@/components/server/ActivityPointsMatrix";
 import { CreateServerModal } from "@/components/CreateServerModal";
+import { ExpiredGate } from "@/components/ExpiredGate";
 import { useToast } from "@/contexts/ToastContext";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
 
@@ -195,6 +196,10 @@ export function ServerSettingsView() {
     params.set("tab", key);
     navigate(`?${params.toString()}`, { replace: true });
   };
+
+  const GATED_TABS = new Set(["bosses", "boss-points", "boss-guilds", "activities", "activity-points", "activity-guilds"]);
+  const isExpired = currentServer?.isExpired ?? false;
+  const isTabLocked = isExpired && GATED_TABS.has(tab);
 
   useEffect(() => {
     const gid = newDiscordId.trim();
@@ -953,8 +958,14 @@ export function ServerSettingsView() {
       <div className="sm:hidden flex flex-wrap items-center gap-1 pb-1 mt-2">
         {(["general","guilds","bosses","boss-points","boss-guilds","activities","activity-points","activity-guilds","members","integrations","account",...(isOwner?["danger"]:[])] as string[]).map((key) => {
           const labels: Record<string,string> = {general:"General",guilds:"Guilds",bosses:"Bosses","boss-points":"Boss Points","boss-guilds":"Boss Guild Assignments",activities:"Activities","activity-points":"Activity Points","activity-guilds":"Activity Guild Assignments",members:"Moderator/Permissions",integrations:"Integrations",account:"Account",danger:"Danger"};
-          return <button key={key} onClick={() => setTabAndUrl(key)}
-            className={`shrink-0 px-2.5 py-1 rounded-md text-[11px] font-medium transition whitespace-nowrap ${tab===key?"bg-[#27272a] text-[#fafafa]":"text-[#71717a] hover:text-[#d4d4d8]"}`}>
+          const locked = isExpired && GATED_TABS.has(key);
+          return <button key={key} onClick={() => { if (!locked) setTabAndUrl(key); }}
+            disabled={locked}
+            className={`shrink-0 px-2.5 py-1 rounded-md text-[11px] font-medium transition whitespace-nowrap ${
+              locked ? "text-[#3f3f46] cursor-not-allowed" :
+              tab===key ? "bg-[#27272a] text-[#fafafa]" : "text-[#71717a] hover:text-[#d4d4d8]"
+            }`}>
+            {locked && <Lock className="w-3 h-3 inline mr-1" />}
             {labels[key]}
           </button>;
         })}
@@ -982,9 +993,15 @@ export function ServerSettingsView() {
               const icons: Record<string,React.ComponentType<{className?:string}>> = {general:Settings,guilds:Shield,bosses:Skull,"boss-points":Trophy,"boss-guilds":Swords,activities:Calendar,"activity-points":Trophy,"activity-guilds":Calendar,members:Users,integrations:Bell,account:Key,danger:AlertTriangle};
               const labels: Record<string,string> = {general:"General",guilds:"Guilds",bosses:"Bosses","boss-points":"Boss Points","boss-guilds":"Boss Guild Assignments",activities:"Activities","activity-points":"Activity Points","activity-guilds":"Activity Guild Assignments",members:"Moderator/Permissions",integrations:"Integrations",account:"Account",danger:"Danger"};
               const Icon = icons[key];
-              return <button key={key} onClick={() => setTabAndUrl(key)}
-                className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition ${tab===key?"bg-[#27272a] text-[#fafafa]":"text-[#a1a1aa] hover:text-[#fafafa] hover:bg-[#27272a]/50"}`}>
-                <Icon className="w-3.5 h-3.5 shrink-0" />{labels[key]}
+              const locked = isExpired && GATED_TABS.has(key);
+              return <button key={key} onClick={() => { if (!locked) setTabAndUrl(key); }}
+                disabled={locked}
+                className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition ${
+                  locked ? "text-[#3f3f46] cursor-not-allowed" :
+                  tab===key ? "bg-[#27272a] text-[#fafafa]" : "text-[#a1a1aa] hover:text-[#fafafa] hover:bg-[#27272a]/50"
+                }`}>
+                {locked ? <Lock className="w-3.5 h-3.5 shrink-0" /> : <Icon className="w-3.5 h-3.5 shrink-0" />}
+                {labels[key]}
               </button>;
             })}
           </nav>
@@ -1017,6 +1034,11 @@ export function ServerSettingsView() {
         </div>
         <div className="flex-1 min-w-0 space-y-4 w-full sm:w-auto">
 
+      {/* Expired gate for locked tabs */}
+      {isTabLocked ? (
+        <ExpiredGate page={tab === "bosses" ? "Bosses" : tab === "boss-points" ? "Boss Points" : tab === "boss-guilds" ? "Boss Guild Assignments" : tab === "activities" ? "Activities" : tab === "activity-points" ? "Activity Points" : "Activity Guild Assignments"} />
+      ) : (
+      <>
       {/* General Tab */}
       {tab === "general" && (
         <div className="space-y-4">
@@ -2624,6 +2646,7 @@ export function ServerSettingsView() {
           )}
         </section>
       )}
+      </>
       </div>
     </div>
     </div>
