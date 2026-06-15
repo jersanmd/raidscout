@@ -115,11 +115,15 @@ export function PayPalSubscribeButton({
     // ── Debit / Credit Card ──
     const cardSection = document.createElement("div");
     cardSection.style.marginTop = "16px";
+    // White background container so card input fields are visible
+    cardSection.style.backgroundColor = "#ffffff";
+    cardSection.style.borderRadius = "8px";
+    cardSection.style.padding = "12px";
     containerRef.current.appendChild(cardSection);
 
     const cardLabel = document.createElement("p");
     cardLabel.textContent = "Pay with Debit / Credit Card";
-    cardLabel.className = "text-[11px] text-[#71717a] font-medium mb-1.5";
+    cardLabel.className = "text-[11px] text-[#6b7280] font-medium mb-1.5";
     cardSection.appendChild(cardLabel);
 
     window.paypal.Buttons({
@@ -128,7 +132,7 @@ export function PayPalSubscribeButton({
         tagline: false,
         height: 40,
         color: "black",
-        input: { color: "#fafafa", fontSize: "14px" },
+        input: { color: "#111827", fontSize: "14px" },
       },
       fundingSource: window.paypal.FUNDING.CARD,
       createOrder,
