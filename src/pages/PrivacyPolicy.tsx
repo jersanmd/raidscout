@@ -18,7 +18,7 @@ export function PrivacyPolicyView() {
           Back
         </button>
       <h1 className="text-2xl font-bold text-[#fafafa]">Privacy Policy</h1>
-      <p className="text-slate-500 text-xs">Last updated: June 10, 2026</p>
+      <p className="text-slate-500 text-xs">Last updated: June 16, 2026</p>
 
       <section className="space-y-2">
         <h2 className="text-lg font-semibold text-[#fafafa]">1. Information We Collect</h2>
@@ -47,7 +47,14 @@ export function PrivacyPolicyView() {
           <li><strong>Discord guild IDs</strong> — if you link a Discord bot to your server</li>
         </ul>
 
-        <h3 className="text-base font-medium text-slate-200 mt-3">1.4 AI Vision Data (Optional)</h3>
+        <h3 className="text-base font-medium text-slate-200 mt-3">1.5 Payment Data</h3>
+        <ul className="list-disc pl-5 space-y-1">
+          <li><strong>PayPal transaction IDs</strong> — stored to link payments to your server and provide payment history</li>
+          <li><strong>Payment amounts and dates</strong> — stored for billing records and receipt access</li>
+          <li><strong>We do NOT store</strong> your credit card numbers, PayPal account credentials, or bank details — all payment processing is handled by PayPal</li>
+        </ul>
+
+        <h3 className="text-base font-medium text-slate-200 mt-3">1.6 AI Vision Data (Optional)</h3>
         <ul className="list-disc pl-5 space-y-1">
           <li>Screenshots uploaded for name extraction are sent to AI providers (OpenAI or DeepSeek) for processing</li>
           <li>Screenshots are processed <strong>in-memory only</strong> — they are not stored on our servers or by the AI providers per their API data usage policies</li>

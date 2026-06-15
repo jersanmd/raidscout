@@ -1068,6 +1068,7 @@ export function LandingPage() {
             <div className="space-y-3 text-sm text-[#fafafa]/40">
               <Link to="/terms" className="block hover:text-[#fafafa] transition-colors">Terms of Service</Link>
               <Link to="/privacy" className="block hover:text-[#fafafa] transition-colors">Privacy Policy</Link>
+              <Link to="/refund" className="block hover:text-[#fafafa] transition-colors">Refund Policy</Link>
             </div>
           </div>
           <div>

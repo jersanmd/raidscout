@@ -18,7 +18,7 @@ export function TermsOfServiceView() {
           Back
         </button>
       <h1 className="text-2xl font-bold text-[#fafafa]">Terms of Service</h1>
-      <p className="text-slate-500 text-xs">Last updated: June 10, 2026</p>
+      <p className="text-slate-500 text-xs">Last updated: June 16, 2026</p>
 
       <section className="space-y-2">
         <h2 className="text-lg font-semibold text-[#fafafa]">1. Acceptance of Terms</h2>
@@ -140,7 +140,23 @@ export function TermsOfServiceView() {
       </section>
 
       <section className="space-y-2">
-        <h2 className="text-lg font-semibold text-[#fafafa]">9. Intellectual Property</h2>
+        <h2 className="text-lg font-semibold text-[#fafafa]">9. Payments &amp; Server Access</h2>
+        <p>
+          RaidScout offers server access extensions as one-time payments of $9.99 USD per 30 days via PayPal. New servers
+          receive a 7-day free trial with full access to all features. After the trial period ends, a payment is required
+          to continue using the Service.
+        </p>
+        <ul className="list-disc pl-5 space-y-1">
+          <li>Payments are processed by PayPal. We do not store your payment card details.</li>
+          <li>Each payment extends server access by 30 days from the current expiry date. Days stack — paying early does not forfeit remaining time.</li>
+          <li>All payments are final. Refunds are handled per our <a href="/refund" className="text-indigo-400 hover:text-indigo-300">Refund Policy</a>.</li>
+          <li>Server Owners are responsible for managing their server&apos;s access status. Expired servers have limited functionality as described in the Service.</li>
+          <li>We reserve the right to modify pricing with reasonable notice. Price changes do not affect existing paid periods.</li>
+        </ul>
+      </section>
+
+      <section className="space-y-2">
+        <h2 className="text-lg font-semibold text-[#fafafa]">10. Intellectual Property</h2>
         <p>
           The RaidScout name, logo, branding, website design, and source code are the intellectual property of
           RaidScout. All game names, boss names, guild names, and related trademarks are the property of their
@@ -150,7 +166,7 @@ export function TermsOfServiceView() {
       </section>
 
       <section className="space-y-2">
-        <h2 className="text-lg font-semibold text-[#fafafa]">10. Disclaimer of Warranties</h2>
+        <h2 className="text-lg font-semibold text-[#fafafa]">11. Disclaimer of Warranties</h2>
         <p>
           THE SERVICE IS PROVIDED ON AN &ldquo;AS IS&rdquo; AND &ldquo;AS AVAILABLE&rdquo; BASIS WITHOUT WARRANTIES
           OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO IMPLIED WARRANTIES OF
@@ -165,7 +181,7 @@ export function TermsOfServiceView() {
       </section>
 
       <section className="space-y-2">
-        <h2 className="text-lg font-semibold text-[#fafafa]">11. Limitation of Liability</h2>
+        <h2 className="text-lg font-semibold text-[#fafafa]">12. Limitation of Liability</h2>
         <p>
           TO THE FULLEST EXTENT PERMITTED BY APPLICABLE LAW, RAID SCOUT SHALL NOT BE LIABLE FOR ANY INDIRECT,
           INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES, INCLUDING BUT NOT LIMITED TO LOSS OF PROFITS,
@@ -185,7 +201,7 @@ export function TermsOfServiceView() {
       </section>
 
       <section className="space-y-2">
-        <h2 className="text-lg font-semibold text-[#fafafa]">12. Termination</h2>
+        <h2 className="text-lg font-semibold text-[#fafafa]">13. Termination</h2>
         <p>
           We reserve the right to suspend or terminate your access to the Service at our sole discretion, without
           prior notice, for any reason including but not limited to violation of these Terms. Upon termination:
@@ -199,7 +215,7 @@ export function TermsOfServiceView() {
       </section>
 
       <section className="space-y-2">
-        <h2 className="text-lg font-semibold text-[#fafafa]">13. Changes to Terms</h2>
+        <h2 className="text-lg font-semibold text-[#fafafa]">14. Changes to Terms</h2>
         <p>
           We reserve the right to modify these Terms at any time. Material changes will be communicated through
           our Discord community and/or via email where feasible. The &ldquo;Last updated&rdquo; date at the top
@@ -209,7 +225,7 @@ export function TermsOfServiceView() {
       </section>
 
       <section className="space-y-2">
-        <h2 className="text-lg font-semibold text-[#fafafa]">14. Governing Law</h2>
+        <h2 className="text-lg font-semibold text-[#fafafa]">15. Governing Law</h2>
         <p>
           These Terms shall be governed by and construed in accordance with applicable laws. Any disputes arising
           from these Terms or the Service shall be resolved through good-faith negotiations. If resolution cannot
@@ -219,7 +235,7 @@ export function TermsOfServiceView() {
       </section>
 
       <section className="space-y-2">
-        <h2 className="text-lg font-semibold text-[#fafafa]">15. Contact</h2>
+        <h2 className="text-lg font-semibold text-[#fafafa]">16. Contact</h2>
         <p>
           For questions, concerns, or legal inquiries regarding these Terms, contact us through our{" "}
           <a href="https://discord.gg/738AmkeQtU" target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:text-indigo-300 transition">

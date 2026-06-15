@@ -27,7 +27,7 @@ const AdminPanelView = lazy(() => import("@/pages/AdminPanelView").then(m => ({ 
 const MemberProfileView = lazy(() => import("@/pages/MemberProfileView").then(m => ({ default: m.MemberProfileView })));
 const InventoryView = lazy(() => import("@/pages/InventoryView").then(m => ({ default: m.InventoryView })));
 const TermsOfServiceView = lazy(() => import("@/pages/TermsOfService").then(m => ({ default: m.TermsOfServiceView })));
-const PrivacyPolicyView = lazy(() => import("@/pages/PrivacyPolicy").then(m => ({ default: m.PrivacyPolicyView })));
+const RefundPolicyView = lazy(() => import("@/pages/RefundPolicy").then(m => ({ default: m.RefundPolicyView })));
 const ChangelogView = lazy(() => import("@/pages/ChangelogView").then(m => ({ default: m.ChangelogView })));
 
 /** Loading fallback shown while route chunks load */
@@ -95,6 +95,7 @@ function AppContent() {
         {/* Public pages — accessible without login */}
         <Route path="/terms" element={<Suspense fallback={<PageLoader />}><TermsOfServiceView /></Suspense>} />
         <Route path="/privacy" element={<Suspense fallback={<PageLoader />}><PrivacyPolicyView /></Suspense>} />
+        <Route path="/refund" element={<Suspense fallback={<PageLoader />}><RefundPolicyView /></Suspense>} />
         <Route path="/changelog" element={<Suspense fallback={<PageLoader />}><ChangelogView /></Suspense>} />
 
         {/* Viewer key auto-login route */}

@@ -17,7 +17,24 @@
   <a href="https://supabase.com"><img src="https://img.shields.io/badge/backend-Supabase-3ECF8E?style=flat-square&logo=supabase" alt="Supabase" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue?style=flat-square" alt="License" /></a>
   <a href="https://discord.gg/738AmkeQtU"><img src="https://img.shields.io/badge/discord-join%20server-5865F2?style=flat-square&logo=discord" alt="Discord" /></a>
+  <a href="#pricing"><img src="https://img.shields.io/badge/price-%249.99%2F30%20days-22c55e?style=flat-square" alt="Pricing" /></a>
 </p>
+
+---
+
+## 💰 Pricing
+
+RaidScout is **$9.99 per server per 30 days** — one price, everything included.
+
+| | |
+|---|---|
+| 💵 **$9.99 / 30 days** | That's just $0.33/day |
+| 🎁 **7-day free trial** | No credit card required |
+| 📦 **All features included** | No tiers, no limits, no hidden fees |
+| 🔄 **Days stack** | Pay early, days add on top of your balance |
+| 🛡️ **PayPal secure** | Processed by PayPal — we never see your card |
+
+[View Pricing →](https://www.raidscout.com/#pricing) · [Refund Policy](https://www.raidscout.com/refund)
 
 ---
 
