@@ -387,7 +387,7 @@ export function BossListView() {
       if (!boss) return;
 
       if (currentServer?.isExpired) {
-        setToast({ type: "error", message: "Trial expired. Subscribe to record kills." });
+        setToast({ type: "error", message: "Access expired. Extend in Billing to record kills." });
         return;
       }
 

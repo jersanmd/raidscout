@@ -2,7 +2,8 @@ import { useMemo, useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchAnalytics, type AnalyticsData, isSupabaseConfigured, fetchGuilds, fetchMembers } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
-import { useServerId } from "@/contexts/ServerContext";
+import { useServerId, useServer } from "@/contexts/ServerContext";
+import { ExpiredGate } from "@/components/ExpiredGate";
 import { guildColor } from "@/lib/constants";
 import type { Guild, Member } from "@/types";
 import { BarChart3, TrendingUp, Users, Skull, Activity, Loader2, Shield, Download } from "lucide-react";
@@ -23,7 +24,10 @@ interface AnalyticsUIData {
 export function AnalyticsView() {
   const { user, isViewer } = useAuth();
   const serverId = useServerId();
+  const { currentServer } = useServer();
   const configured = isSupabaseConfigured();
+
+  if (currentServer?.isExpired) return <ExpiredGate page="Analytics" />;
   const [period, setPeriod] = useState<"week" | "month" | "all">("week");
   const [huntersPage, setHuntersPage] = useState(1);
   const HUNTERS_PER_PAGE = 10;

@@ -5,7 +5,8 @@ import { useMembers } from "@/hooks/useMembers";
 import { useAuth } from "@/contexts/AuthContext";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { updateMemberName, deleteMember, upsertMember, isSupabaseConfigured, fetchGuilds, setMemberGuild, bulkAddMembers, supabase, fetchStaticParties, createParty, deleteParty, addMemberToParty, removeMemberFromParty, type StaticParty, sendCpReminder, createProgressThread, addBackdatedCpUpdate, fetchMemberCpHistory, editCpUpdate, deleteCpUpdate } from "@/lib/supabase";
-import { useServerId, useHasPermission } from "@/contexts/ServerContext";
+import { useServerId, useHasPermission, useServer } from "@/contexts/ServerContext";
+import { ExpiredGate } from "@/components/ExpiredGate";
 import type { Guild, Member, CpUpdate } from "@/types";
 import { Users, Plus, Pencil, Trash2, Loader2, X, Check, UserPlus, CheckCircle, AlertTriangle, Image, Upload, Copy, Shield, Search, ChevronLeft, ChevronRight, TrendingUp, ChevronUp, ChevronDown, Tag, Sword, Swords, ShieldHalf, ShieldCheck, Crosshair, Wand, Heart, Zap, Flame, Snowflake, Skull, Star, Crown, Anchor, Gavel, Axe, Target, Footprints, HandMetal, Megaphone, Calendar, Clock, Eye, EyeOff, Package, MoreHorizontal } from "lucide-react";
 import { guildColor } from "@/lib/constants";
@@ -14,7 +15,10 @@ import { GearTrackingTab } from "@/components/GearTrackingTab";
 export function MembersView() {
   const { user, isViewer } = useAuth();
   const serverId = useServerId();
+  const { currentServer } = useServer();
   const canManageRaidMembers = useHasPermission("can_manage_members");
+
+  if (currentServer?.isExpired) return <ExpiredGate page="Members" />;
   const queryClient = useQueryClient();
   const configured = isSupabaseConfigured();
   const { data: members = [], isLoading } = useMembers({ includeInactive: true });

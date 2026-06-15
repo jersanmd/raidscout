@@ -2,7 +2,8 @@ import { useState, useMemo, useEffect, useCallback } from "react";
 import { type HistoryEntry } from "@/lib/history";
 import { fetchHistoryFromSupabase, deleteDeathRecord, isSupabaseConfigured, editDeathTime, fetchGuilds, setDeathDisplayGuild } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
-import { useServerId } from "@/contexts/ServerContext";
+import { useServerId, useServer } from "@/contexts/ServerContext";
+import { ExpiredGate } from "@/components/ExpiredGate";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { useQueryClient } from "@tanstack/react-query";
 import { ParticipantModal } from "@/components/ParticipantModal";
@@ -19,7 +20,10 @@ export function HistoryView() {
   const [loading, setLoading] = useState(true);
   const { user, isViewer } = useAuth();
   const serverId = useServerId();
+  const { currentServer } = useServer();
   const configured = isSupabaseConfigured();
+
+  if (currentServer?.isExpired) return <ExpiredGate page="History" />;
 
   // Date range � default last 7 days
   const [dateRange, setDateRange] = useState<"7d" | "30d" | "custom">("7d");

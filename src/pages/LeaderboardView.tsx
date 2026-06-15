@@ -18,6 +18,7 @@ import { Trophy, Medal, Crown, Users, Loader2, X, Skull, CheckCheck, History, Ch
 import { TableRowSkeleton } from "@/components/Skeletons";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { BossImage } from "@/components/BossImage";
+import { ExpiredGate } from "@/components/ExpiredGate";
 
 const rankColors: Record<number, { icon: React.ReactNode; text: string; bg: string }> = {
   1: {
@@ -96,6 +97,7 @@ export function LeaderboardView() {
 
   // Attendance export state
   const { currentServer } = useServer();
+  if (currentServer?.isExpired) return <ExpiredGate page="Leaderboard" />;
   const serverTimezone = useServerTimezone();
   const todayInServerTz = (() => { const d = new Date(); return d.toLocaleDateString("en-CA", { timeZone: serverTimezone }); })();
   const weekAgoInServerTz = (() => { const d = new Date(Date.now() - 6 * 86400000); return d.toLocaleDateString("en-CA", { timeZone: serverTimezone }); })();
