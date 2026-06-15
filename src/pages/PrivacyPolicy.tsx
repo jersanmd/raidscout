@@ -8,7 +8,7 @@ export function PrivacyPolicyView() {
     <div className="min-h-screen bg-slate-950">
       <SEOHead
         title="Privacy Policy"
-        description="Privacy policy for RaidScout boss timer application."
+        description="Privacy policy for RaidScout — the guild operations platform for competitive MMO guilds."
         canonicalUrl="/privacy"
         noindex
       />

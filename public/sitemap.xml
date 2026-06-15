@@ -6,6 +6,11 @@
     <changefreq>weekly</changefreq>
   </url>
   <url>
+    <loc>https://www.raidscout.com/changelog</loc>
+    <priority>0.6</priority>
+    <changefreq>daily</changefreq>
+  </url>
+  <url>
     <loc>https://www.raidscout.com/terms</loc>
     <priority>0.3</priority>
     <changefreq>monthly</changefreq>

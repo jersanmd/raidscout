@@ -8,7 +8,7 @@ export function TermsOfServiceView() {
     <div className="min-h-screen bg-slate-950">
       <SEOHead
         title="Terms of Service"
-        description="Terms of service for RaidScout boss timer application."
+        description="Terms of service for RaidScout — the guild operations platform for competitive MMO guilds."
         canonicalUrl="/terms"
         noindex
       />

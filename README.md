@@ -7,6 +7,7 @@
 <p align="center">
   <strong>The Operating System for Competitive MMO Guilds</strong><br />
   Track world bosses across multiple servers, coordinate multi-guild kill rotations,
+  manage loot distribution with a full inventory system, track member gear &amp; CP progression,
   scan rally screenshots with AI, and compete on live leaderboards — all in real time.
 </p>
 
@@ -190,6 +191,33 @@ Track every member's gear across all equipment slots:
 - **Gear score summary** — See completion percentage and total gear score per member at a glance.
 - **Mobile-friendly** — Action buttons hidden on small screens; tap `⋯` for a dropdown menu.
 
+### 🎒 Inventory & Loot Distribution
+
+Complete item and loot tracking across your entire guild:
+
+- **Catalog** — Browse all items with rarity-colored names, images, and search by name or category. Filter by rarity (Common → Mythic) or item type.
+- **Distribute** — Record who received which items. Each distribution links to a member and item with quantity tracking.
+- **History** — Full audit log of every item distributed. Search, filter by rarity, edit or delete entries (with type-to-confirm safety). White player names with colored class icons.
+- **Recipients** — Player-grouped view showing who got what, chronologically sorted. Guild filter with localStorage persistence. Click any player for a detailed loot history modal.
+- **Analytics** — Category rarity stacked bar chart with inline labels. Top recipients leaderboard with guild badges. Click any item to see every recipient with guild and class badges.
+- **Search** — X clear buttons on all five search inputs across catalog, distribute, history, recipients, and analytics tabs.
+- **Rarity system** — Six tiers (Common, Uncommon, Rare, Epic, Legendary, Mythic) with distinct colors used across item badges, borders, and text.
+
+### 👤 Member Profiles
+
+Deep-dive pages for every member in your guild:
+
+- **Combat Power trends** — 7-day and 30-day CP charts showing progression over time.
+- **Loot history** — Every item they've received with rarity-colored borders and backgrounds on item icons.
+- **Attendance** — Kill and activity participation history with timestamps.
+- **Activity Timeline** — Chronological feed of kills attended, activities joined, and gear changes.
+- **Equipment grid** — All equipped gear displayed in a single-row flex layout matching the gear tracking tab sort order. Enhancement level badges (+8, +15) on each item.
+- **Public profiles** — Shareable links via unique member slugs for viewer-mode access.
+
+### 📋 Changelog
+
+Daily changelogs track every feature, fix, and improvement. Available at `/changelog` on the site and in the `docs/` folder. Each entry is organized into categories (New Features, UI, Fixes, Bot, Security, Architecture) and automatically loaded from Markdown files. Expand/collapse individual entries or use "Expand all" / "Collapse all" to browse.
+
 ### 📅 Weekly Schedule View
 
 A 7-day calendar grid showing **every boss, every day, with guild ownership**:
@@ -234,17 +262,6 @@ Install RaidScout as a native-like app on any device:
 - **Offline support** — service worker caches critical assets.
 - **Fast reloads** — Vite + code-splitting for instant page transitions.
 
-
-### 📋 Changelog
-
-All changes are documented in daily changelogs available at `/changelog` on the site
-and in the `docs/` folder of the repository.
-
-### 📋 Changelog
-
-All changes are documented in daily changelogs available at `/changelog` on the site
-and in the `docs/` folder of the repository.
-
 ---
 
 ## 🧰 Tech Stack
@@ -255,7 +272,7 @@ and in the `docs/` folder of the repository.
 | **Backend** | Supabase — Postgres, Auth, Realtime, Edge Functions, Storage | Managed Postgres with built-in auth, real-time subscriptions, and serverless functions |
 | **State** | TanStack React Query 5 · React Context | Automatic caching, background refetching, and optimistic updates |
 | **Routing** | React Router 7 | Code-split, lazy-loaded pages for fast initial load |
-| **Testing** | Vitest 4 · React Testing Library 16 | 180+ unit tests across 10+ test files — spawn logic, rotation math, bot queries, UI components |
+| **Testing** | Vitest 4 · React Testing Library 16 | 220+ unit tests across 14+ test files — spawn logic, rotation math, bot queries, data integrity, UI components |
 | **Icons** | Lucide React | Lightweight, tree-shakeable icon library |
 | **Dates** | date-fns 4 | Timezone-aware date formatting with minimal bundle size |
 | **SEO** | react-helmet-async · JSON-LD structured data · sitemap.xml · OG/Twitter cards | Full social media preview support and search engine indexing |
@@ -501,15 +518,42 @@ src/
 │   ├── DeathRecordModal.tsx       # Kill recorder: time picker, rally upload, AI scan, attendance
 │   ├── DiscordWebhookBanner.tsx   # Banner prompting webhook setup (hidden for viewers)
 │   ├── ErrorBoundary.tsx          # React error boundary with fallback UI
+│   ├── ActivityCard.tsx           # Activity card with timer, guild badge, finish button
+│   ├── AddActivityForm.tsx        # Activity creation form with spawn modes
+│   ├── AddActivityModal.tsx       # Modal wrapper for adding activities
+│   ├── AddBossForm.tsx            # Boss creation form with spawn configuration
+│   ├── AddBossModal.tsx           # Modal wrapper for adding bosses
+│   ├── AdminGamesTab.tsx          # Admin: game/slug management
+│   ├── ApprovedItemsTab.tsx       # Settings: approve/reject catalog item submissions
+│   ├── BossCard.tsx               # Boss card: countdown, guild badge, rotation buttons, mark-died
+│   ├── BossGuildsTab.tsx          # Settings: assign guilds to bosses with rotation modes
+│   ├── BossImage.tsx              # Boss portrait images (webp, size variants)
+│   ├── ConfirmDialog.tsx          # Generic confirm/cancel modal with type-to-confirm
+│   ├── CountdownTimer.tsx         # HH:MM:SS live countdown with urgent/critical callbacks
+│   ├── CreateServerModal.tsx      # New server wizard with duplicate-name check
+│   ├── DeathRecordModal.tsx       # Kill recorder: time picker, rally upload, AI scan, attendance
+│   ├── DiscordWebhookBanner.tsx   # Banner prompting webhook setup (hidden for viewers)
+│   ├── EditActivityForm.tsx       # Activity edit form
+│   ├── EditBossForm.tsx           # Boss edit form
+│   ├── ErrorBoundary.tsx          # React error boundary with fallback UI
+│   ├── ErrorRetry.tsx             # Retry button for failed data fetches
 │   ├── FilterBar.tsx              # Search + spawn type + time window filters
+│   ├── GearPlanner.tsx            # Gear planning and optimization tool
+│   ├── GearTrackingTab.tsx        # Settings: per-member gear slot management table
+│   ├── ItemReviewTab.tsx          # Settings: review and manage catalog items
 │   ├── Layout.tsx                 # App shell: glass navbar, server selector, footer
+│   ├── NoMembersBanner.tsx        # Prompt to add members when list is empty
 │   ├── NoServerView.tsx           # Empty state: create or join a server
 │   ├── NotificationToggle.tsx     # Browser notification permission toggle
 │   ├── ParticipantModal.tsx       # View/edit attendance on existing kills
+│   ├── PublicMemberProfile.tsx    # Public-facing member profile page
+│   ├── RallyImageOverlay.tsx      # AI-scanned rally screenshot with detected names
 │   ├── ResetPasswordForm.tsx      # Password reset flow
 │   ├── SavingOverlay.tsx          # Full-screen spinner during server creation
 │   ├── SEOHead.tsx                # Per-page meta tags (title, description, OG, Twitter)
-│   ├── UpcomingStrip.tsx          # Horizontal scroll of upcoming spawns with guild badges
+│   ├── Skeletons.tsx              # Loading skeleton placeholders
+│   ├── UpcomingActivitiesStrip.tsx # Horizontal scroll of upcoming activity spawns
+│   ├── UpcomingStrip.tsx          # Horizontal scroll of upcoming boss spawns with guild badges
 │   └── ViewerRoute.tsx            # Route wrapper for viewer-mode access control
 │
 ├── contexts/
@@ -518,36 +562,49 @@ src/
 │   └── ToastContext.tsx           # Toast notification queue with auto-dismiss
 │
 ├── hooks/
+│   ├── useActivities.ts           # React Query: activity CRUD and spawn tracking
+│   ├── useAdminViewAs.ts          # Admin: impersonate server view
 │   ├── useAttendance.ts           # React Query: per-kill attendance records
-│   ├── useAutoFinalize.ts         # Auto-finalize leaderboard snapshots on schedule
 │   ├── useBosses.ts               # React Query: fetch bosses for current server
 │   ├── useBossSpawns.ts           # Combines bosses + deaths → computed spawn info
 │   ├── useDeathRecords.ts         # React Query + Realtime: death records with live updates
+│   ├── useEscapeKey.ts            # Keyboard shortcut hook (Esc to close modals)
 │   ├── useLeaderboardSnapshots.ts # React Query: finalized rankings and snapshots
+│   ├── useMaintenance.ts          # Maintenance mode detection
 │   ├── useMembers.ts              # React Query: member list with guild associations
+│   ├── useRecordDeath.ts          # Consolidated kill recording with attendance
 │   ├── useServerTimezone.ts       # Detects and formats dates in server's timezone
 │   ├── useSpawnAlerts.ts          # Browser notification triggers for spawn windows
-│   └── useTimer.ts                # 1-second interval countdown + status detection
+│   ├── useTimer.ts                # 1-second interval countdown + status detection
+│   └── useUserTimezone.ts         # User's local timezone detection
 │
 ├── lib/
-│   ├── constants.ts               # boss definitions, guild color palette, app config
+│   ├── activityCalculator.ts      # Activity spawn computation and schedule logic
+│   ├── constants.ts               # Boss definitions, guild color palette, app config
 │   ├── history.ts                 # URL hash-based navigation history
 │   ├── notifications.ts           # Browser Notification API wrapper
 │   ├── rotation.ts                # Pure functions: guild rotation math, safeMod, day-of-week logic
 │   ├── rotation.test.ts           # 25 unit tests for rotation logic
+│   ├── scheduleTimezone.ts        # Server timezone ↔ UTC conversion utilities
 │   ├── spawnCalculator.ts         # Fixed-hours & fixed-schedule spawn computation
 │   ├── spawnCalculator.test.ts    # 22 unit tests for spawn calculations
 │   ├── supabase.ts                # Supabase client, typed API wrappers, Realtime subscriptions
+│   ├── timezones.ts               # Timezone database and lookup functions
 │   └── vision.ts                  # AI vision: encode image → call ai-vision function
 │
 ├── pages/
 │   ├── AdminPanelView.tsx         # Admin: servers, owners, audit log, database, cron, usage
 │   ├── AnalyticsView.tsx          # Stats: kills by week, hunter rankings, guild breakdowns
 │   ├── BossListView.tsx           # Main view: boss grid, filters, multi-select, kill actions
+│   ├── ChangelogView.tsx          # Daily changelog browser with expand/collapse
 │   ├── HistoryView.tsx            # Kill log: search, date range, guild badges, edit/delete
+│   ├── InventoryView.tsx          # Loot catalog, distribute, history, recipients, analytics
 │   ├── LandingPage.tsx            # Public landing: hero, stats, features, bot commands, auth
 │   ├── LeaderboardView.tsx        # Rankings: weekly/monthly/all-time, finalize, share
+│   ├── MaintenancePage.tsx        # Maintenance mode splash screen
+│   ├── MemberProfileView.tsx      # Per-member: CP trends, loot, attendance, gear grid
 │   ├── MembersView.tsx            # Member CRUD: add, edit, bulk import, guild assignment
+│   ├── NotFoundPage.tsx           # 404 page with navigation back to app
 │   ├── PrivacyPolicy.tsx          # Privacy policy page
 │   ├── ServerSettingsView.tsx     # Settings: timezone, guilds, boss-guild assignments, webhooks
 │   ├── TermsOfService.tsx         # Terms of service page
@@ -561,13 +618,34 @@ src/
 └── vite-env.d.ts                  # Vite type declarations
 
 supabase/
-├── migrations/                    # SQL migrations (001 through 020+)
-│   ├── 001_initial_schema.sql     # Core tables: bosses, death_records, servers, guilds, etc.
-│   ├── 002_attendance.sql         # attendance_records + RLS
-│   ├── 003_leaderboard_snapshots.sql # leaderboard_snapshots + point_adjustments
-│   ├── 004_helper_functions.sql   # update_updated_at, audit triggers, get_all_users
-│   └── ...                        # Additional migrations for cron, public stats, viewer RPCs
-├── seed.sql                       # boss definitions + guild/member sample data
+├── migrations/                    # SQL migrations (000 through 030)
+│   ├── 000_initial_schema.sql    # Core tables: bosses, death_records, servers, guilds, etc.
+│   ├── 006_auto_assign_guild.sql  # Auto-assign guild on member creation
+│   ├── 007_discord_configs_rls.sql # Discord config RLS policies
+│   ├── 008_member_management.sql  # Member CRUD RPCs and policies
+│   ├── 009_member_stats_rpc.sql   # Member statistics aggregation
+│   ├── 010_member_classes.sql     # Class system for members
+│   ├── 011_server_classes_viewer.sql # Viewer access for server classes
+│   ├── 012_cp_updates_rls_fix.sql # Combat Power update permissions
+│   ├── 013_progress_channel.sql   # Progress tracking channel
+│   ├── 014_member_public_slug.sql # Public profile URL slugs
+│   ├── 015_viewer_read_cp_notes.sql # Viewer CP and notes access
+│   ├── 016_server_classes_policies.sql # Server class management policies
+│   ├── 017_member_scores_rpc.sql  # Member scoring for leaderboards
+│   ├── 018_gear_tracking.sql      # Gear and equipment tracking tables
+│   ├── 019_crowdsourced_catalog.sql # Community item catalog
+│   ├── 020_item_catalog_structure.sql # Item catalog schema
+│   ├── 021_set_game_slug_on_server_create.sql # Auto game slug assignment
+│   ├── 022_gear_slots.sql         # Equipment slot definitions
+│   ├── 023_gear_slot_categories.sql # Slot category groupings
+│   ├── 024_member_gear_fk_fix.sql # Foreign key fixes for member gear
+│   ├── 025_member_is_active.sql   # Active/inactive member flag
+│   ├── 026_member_cp_updated_at.sql # CP change timestamps
+│   ├── 027_viewer_gear_access.sql # Viewer RLS for gear data
+│   ├── 028_death_records_insert_fix.sql # Death record insert policy fix
+│   ├── 029_item_approval.sql      # Item approval workflow
+│   └── 030_viewer_loot_access.sql # Viewer RLS for distributions and items
+├── seed.sql                       # Boss definitions + guild/member sample data
 └── functions/
     ├── ai-vision/                 # OpenAI GPT-4o rally screenshot scanner
     │   ├── index.ts               # Edge Function entry point
@@ -577,7 +655,12 @@ supabase/
         └── deno.json              # Deno runtime config
 
 scripts/
-└── discord-bot-gateway.ts         # Standalone Discord bot (WebSocket Gateway)
+├── bot/                           # Discord bot source
+│   └── commands.ts               # Bot command handlers (!spawn, !kill, etc.)
+└── discord-bot-gateway.ts        # Standalone Discord bot (WebSocket Gateway)
+
+docs/
+└── *-changelog.md                 # Daily changelogs (2026-05-23 through 2026-06-15)
 
 public/
 ├── logo.png                       # App icon (used for PWA, favicon, OG)
@@ -596,7 +679,7 @@ public/
 ## 🧪 Testing
 
 ```bash
-npm test              # Run all 143 tests
+npm test              # Run all 223 tests
 npm run test:watch    # Watch mode
 npm run test:coverage # With coverage report
 ```
@@ -608,10 +691,15 @@ npm run test:coverage # With coverage report
 | `constants.test.ts` | 17 | Boss definitions, guild colors, spawn types |
 | `extra-coverage.test.ts` | 36 | Edge cases: null/undefined inputs, boundary values |
 | `integration.test.ts` | 9 | Multi-file integration: spawn + rotation together |
+| `bot-queries.test.ts` | 14 | Discord bot SQL query correctness |
+| `integrity.test.ts` | 63 | Data integrity and schema validation |
 | `useTimer.test.ts` | 6 | Countdown hook: tick, expiry, status transitions |
+| `useRecordDeath.test.ts` | 13 | Kill recording flow with attendance |
+| `useEscapeKey.test.ts` | 4 | Keyboard shortcut behavior |
 | `HistoryView.test.tsx` | 5 | History page rendering and interaction |
 | `ConfirmDialog.test.tsx` | 11 | Modal open/close, confirm/cancel callbacks |
 | `FilterBar.test.tsx` | 12 | Filter UI: search input, type toggle, window buttons |
+| `AddBossModal.test.tsx` | 4 | Boss creation modal validation |
 
 ---
 

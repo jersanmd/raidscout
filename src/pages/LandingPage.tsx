@@ -6,7 +6,7 @@ import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { SEOHead } from "@/components/SEOHead";
 import { version } from "../../package.json";
 import {
-  Timer, Shield, BarChart3, Sparkles, MessageSquare, Calendar, Skull, Eye, Trophy, Server, Clock, Lock, Image, Package,
+  Timer, Shield, BarChart3, Sparkles, MessageSquare, Calendar, Skull, Eye, Trophy, Server, Clock, Lock, Image, Package, Archive, User,
   LogIn, UserPlus, Mail, CheckCircle, AlertTriangle, Key, ChevronDown, Bot,
   Crosshair, Radio, Activity, Wifi, Copy, Terminal, Check, Hash, AtSign, Play, X, Gamepad2, Globe, EyeOff
 } from "lucide-react";
@@ -292,8 +292,8 @@ export function LandingPage() {
   return (
     <div className="min-h-screen bg-slate-950 text-[#fafafa] overflow-x-hidden scroll-smooth">
       <SEOHead
-        title="RaidScout — Multi-Game Guild Operations Platform"
-        description="Track bosses & activities across any MMO. Manage guild rotations, monitor attendance, coordinate parties, and stay on top of every spawn. Forever free."
+        title="RaidScout — Guild Operations Platform for Competitive MMO Guilds"
+        description="Complete guild operations platform. Real-time boss timers, multi-guild rotation coordination, AI rally scanning, loot & inventory tracking, gear management, attendance monitoring, live leaderboards, and Discord integration. Free forever."
         canonicalUrl="/"
       />
 
@@ -303,7 +303,7 @@ export function LandingPage() {
           "@context": "https://schema.org",
           "@type": "WebApplication",
           name: "RaidScout",
-          description: "Multi-game guild operations platform. Track boss spawns, rotate multi-guild kills, scan rallies with AI, and compete on leaderboards — across any MMO.",
+          description: "Complete guild operations platform for competitive MMO guilds. Features real-time boss spawn timers, multi-guild kill rotation coordination, AI-powered rally screenshot scanning, loot distribution & inventory management, member gear & combat power tracking, attendance monitoring, live leaderboards, and Discord bot integration. Supports any MMO with timed boss spawns or scheduled events.",
           url: "https://www.raidscout.com",
           applicationCategory: "GameApplication",
           operatingSystem: "Web",
@@ -352,7 +352,7 @@ export function LandingPage() {
 
           {/* Subheadline */}
           <p className="text-sm md:text-base text-emerald-400/60 max-w-lg mx-auto leading-relaxed font-mono cyber-cursor">
-            <TypeWriter text="Real-time boss & activity tracking, multi-guild rotations, attendance monitoring, and Discord coordination. The command center competitive guilds trust." delay={25} />
+            <TypeWriter text="Real-time boss & activity tracking, multi-guild rotations, loot & inventory management, gear tracking, AI rally scanning, and Discord coordination. The command center competitive guilds trust." delay={25} />
           </p>
 
           {/* CTAs */}
@@ -451,7 +451,7 @@ export function LandingPage() {
               One Platform, Any MMO
             </h2>
             <p className="text-[#71717a] text-sm max-w-xl mx-auto mb-10">
-              RaidScout works with any game that has timed boss spawns, scheduled events, or guild activities.
+              RaidScout works with any game that has timed boss spawns, scheduled events, guild activities, loot drops, or gear progression.
               Select a game when creating your server and get pre-built templates — or start from scratch.
             </p>
 
@@ -640,31 +640,31 @@ export function LandingPage() {
                 <p className="text-xs text-[#fafafa]/80 leading-relaxed">Complete kill log with guild badges. Attendance tracking per kill.</p>
               </div>
 
-              {/* Discord Bot Commands */}
-              <div className="group p-5 rounded-xl bg-[#18181b] border border-white/[0.04] hover:border-white/[0.10] hover:bg-white/[0.01] hover:-translate-y-1 transition-all duration-300">
-                <div className="p-2.5 rounded-xl bg-[#18181b] border border-[#27272a] text-[#a1a1aa] w-fit mb-4 group-hover:scale-110 transition-transform duration-200">
-                  <Bot className="w-5 h-5" />
-                </div>
-                <h3 className="font-semibold text-sm text-[#fafafa] group-hover:text-[#fafafa] transition-colors mb-2">Discord Bot Commands</h3>
-                <p className="text-xs text-[#fafafa]/80 leading-relaxed">Track multiple servers from one Discord. Export to Excel.</p>
-              </div>
-
               {/* Gear & Equipment Tracking */}
               <div className="group p-5 rounded-xl bg-[#18181b] border border-white/[0.04] hover:border-white/[0.10] hover:bg-white/[0.01] hover:-translate-y-1 transition-all duration-300">
                 <div className="p-2.5 rounded-xl bg-[#18181b] border border-[#27272a] text-[#a1a1aa] w-fit mb-4 group-hover:scale-110 transition-transform duration-200">
                   <Package className="w-5 h-5" />
                 </div>
                 <h3 className="font-semibold text-sm text-[#fafafa] group-hover:text-[#fafafa] transition-colors mb-2">Gear & Equipment</h3>
-                <p className="text-xs text-[#fafafa]/80 leading-relaxed">Track every member's gear across all slots. Click any slot to equip items. Sort by gear score.</p>
+                <p className="text-xs text-[#fafafa]/80 leading-relaxed">Track every member's gear across all slots. Click-to-equip, enhancement badges, gear score summary.</p>
+              </div>
+
+              {/* Inventory & Loot */}
+              <div className="group p-5 rounded-xl bg-[#18181b] border border-white/[0.04] hover:border-white/[0.10] hover:bg-white/[0.01] hover:-translate-y-1 transition-all duration-300">
+                <div className="p-2.5 rounded-xl bg-[#18181b] border border-[#27272a] text-[#a1a1aa] w-fit mb-4 group-hover:scale-110 transition-transform duration-200">
+                  <Archive className="w-5 h-5" />
+                </div>
+                <h3 className="font-semibold text-sm text-[#fafafa] group-hover:text-[#fafafa] transition-colors mb-2">Inventory & Loot</h3>
+                <p className="text-xs text-[#fafafa]/80 leading-relaxed">Full item catalog with rarity system. Track distributions, view recipient history, and analyze loot analytics.</p>
               </div>
 
               {/* Member Profiles */}
               <div className="group p-5 rounded-xl bg-[#18181b] border border-white/[0.04] hover:border-white/[0.10] hover:bg-white/[0.01] hover:-translate-y-1 transition-all duration-300">
                 <div className="p-2.5 rounded-xl bg-[#18181b] border border-[#27272a] text-[#a1a1aa] w-fit mb-4 group-hover:scale-110 transition-transform duration-200">
-                  <Trophy className="w-5 h-5" />
+                  <User className="w-5 h-5" />
                 </div>
                 <h3 className="font-semibold text-sm text-[#fafafa] group-hover:text-[#fafafa] transition-colors mb-2">Member Profiles</h3>
-                <p className="text-xs text-[#fafafa]/80 leading-relaxed">Per-member pages with CP trends, loot history, attendance stats, and equipped gear.</p>
+                <p className="text-xs text-[#fafafa]/80 leading-relaxed">Per-member pages with CP trends, loot history, attendance stats, activity timeline, and equipped gear grid.</p>
               </div>
 
               {/* Viewer Mode (spans 2 cols on lg) */}
