@@ -131,7 +131,7 @@ export function PayPalSubscribeButton({
         layout: "horizontal",
         tagline: false,
         height: 40,
-        color: "black",
+        color: "white",
         input: { color: "#111827", fontSize: "14px" },
       },
       fundingSource: window.paypal.FUNDING.CARD,
