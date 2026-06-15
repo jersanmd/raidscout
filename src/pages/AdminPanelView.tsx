@@ -29,6 +29,7 @@ export function AdminPanelView() {
   const [forceSpawnConfirm, setForceSpawnConfirm] = useState<{ serverId: string; serverName: string } | null>(null);
   const [extendConfirm, setExtendConfirm] = useState<{ serverId: string; serverName: string } | null>(null);
   const [extending, setExtending] = useState(false);
+  const [subOverrides, setSubOverrides] = useState<Record<string, string>>({});
   const expandedRef = useRef<HTMLDivElement | null>(null);
   const queryClient = useQueryClient();
   const [forceSpawnInput, setForceSpawnInput] = useState("");
@@ -416,7 +417,7 @@ export function AdminPanelView() {
               const isExpanded = expandedServer === s.id;
               const stats = serverStats[s.id];
               return (
-              <div key={`${s.id}-${s.subscription_ends_at ?? 'none'}`} ref={expandedServer === s.id ? expandedRef : undefined} className="bg-[#18181b] border border-[#27272a] rounded-xl overflow-hidden">
+              <div key={s.id} ref={expandedServer === s.id ? expandedRef : undefined} className="bg-[#18181b] border border-[#27272a] rounded-xl overflow-hidden">
                 <button
                   onClick={async () => {
                     if (isExpanded) {
@@ -498,7 +499,8 @@ export function AdminPanelView() {
                         {(() => {
                           const now = new Date();
                           const trialEnd = s.trial_ends_at ? new Date(s.trial_ends_at) : null;
-                          const subEnd = s.subscription_ends_at ? new Date(s.subscription_ends_at) : null;
+                          const effectiveSubEnd = subOverrides[s.id] ?? s.subscription_ends_at;
+                          const subEnd = effectiveSubEnd ? new Date(effectiveSubEnd) : null;
                           const subDays = subEnd ? Math.ceil((subEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)) : 0;
                           const trialDays = trialEnd ? Math.ceil((trialEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)) : 0;
                           const isActive = subDays > 0;
@@ -1443,12 +1445,16 @@ export function AdminPanelView() {
             const { error } = await supabase.rpc("extend_server_subscription", { p_server_id: extendConfirm.serverId, p_days: 30 });
             if (error) throw error;
             setToast({ type: "success", message: `Extended ${extendConfirm.serverName} by 30 days` });
-            // Force fresh data from server — RPC already updated the DB
-            await queryClient.fetchQuery({
-              queryKey: ["admin", "servers"],
-              queryFn: fetchAllServers,
-              staleTime: 0,
-            });
+            // Compute new date locally and set state override for instant UI update
+            const now = new Date();
+            const cached = (queryClient.getQueryData(["admin", "servers"]) as any[]) ?? [];
+            const srv = cached.find((s: any) => s.id === extendConfirm.serverId);
+            const currentEnd = srv?.subscription_ends_at ? new Date(srv.subscription_ends_at) : now;
+            if (currentEnd < now) currentEnd.setTime(now.getTime());
+            const newEnd = new Date(currentEnd.getTime() + 30 * 86400000).toISOString();
+            setSubOverrides(prev => ({ ...prev, [extendConfirm.serverId]: newEnd }));
+            // Background: refresh cache from server
+            queryClient.fetchQuery({ queryKey: ["admin", "servers"], queryFn: fetchAllServers, staleTime: 0 });
           } catch (err: any) {
             setToast({ type: "error", message: err?.message || "Failed to extend" });
           } finally {
