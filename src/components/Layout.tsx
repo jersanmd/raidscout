@@ -454,7 +454,7 @@ export function Layout() {
         <div className="max-w-[90rem] mx-auto px-4 py-5 space-y-3">
           <div className="flex items-center gap-2 text-xs text-[#71717a]">
             <img src="/logo.png" alt="" className="w-4 h-4 rounded opacity-40" />
-            <span>RaidScout \u2014 Track boss respawn timers across any game, schedule hunts, and monitor member performance across your guild. </span>
+            <span>RaidScout — Track boss respawn timers across any game, schedule hunts, and monitor member performance across your guild.</span>
           </div>
           <div>
             <span className="text-[11px] font-semibold text-[#52525b] uppercase tracking-wider">Resources</span>
@@ -469,12 +469,13 @@ export function Layout() {
               </a>
               <Link to="/terms" className="hover:text-[#d4d4d8] transition">Terms</Link>
               <Link to="/privacy" className="hover:text-[#d4d4d8] transition">Privacy</Link>
+              <Link to="/refund" className="hover:text-[#d4d4d8] transition">Refunds</Link>
               <Link to="/changelog" className="hover:text-[#d4d4d8] transition">Changelog</Link>
             </div>
           </div>
           <div className="flex items-center gap-4 text-xs text-[#fafafa]/20">
             <span>v{version}</span>
-            <span>Ã‚Â© 2026 RaidScout. All rights reserved.</span>
+            <span>© {new Date().getFullYear()} RaidScout. All rights reserved.</span>
           </div>
         </div>
       </footer>
