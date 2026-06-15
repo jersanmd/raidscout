@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Loader2, AlertTriangle } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 
 declare global {
   interface Window {
@@ -90,9 +91,18 @@ export function PayPalSubscribeButton({
             custom_id: serverId,
           });
         },
-        onApprove: (_data: any) => {
-          // PayPal will send an IPN to our edge function, which extends the subscription.
-          // Optimistically trigger the success callback to refresh the UI.
+        onApprove: async (data: any) => {
+          // Activate the subscription immediately via our edge function
+          try {
+            await supabase.functions.invoke("paypal-ipn", {
+              body: {
+                server_id: serverId,
+                subscription_id: data.subscriptionID,
+              },
+            });
+          } catch (err) {
+            console.error("Failed to activate subscription:", err);
+          }
           onSuccess?.();
         },
         onError: (err: any) => {

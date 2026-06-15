@@ -1,39 +1,79 @@
 /**
- * PayPal IPN (Instant Payment Notification) receiver.
+ * PayPal IPN (Instant Payment Notification) receiver + Smart Button activation.
  * 
- * Flow:
- * 1. PayPal POSTs IPN data to this endpoint
- * 2. We POST back to PayPal to verify (required by PayPal spec)
- * 3. If verified + payment_status = "Completed":
- *    - Parse custom field for server_id
- *    - Extend subscription_ends_at by the paid duration
+ * Handles two request formats:
+ * 1. URL-encoded IPN POST from PayPal (legacy) — verified, then processed
+ * 2. JSON POST from our Smart Button onApprove — directly activates subscription
  */
+
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const PAYPAL_VERIFY_URL = "https://ipnpb.paypal.com/cgi-bin/webscr"; // Live
-// const PAYPAL_VERIFY_URL = "https://ipnpb.sandbox.paypal.com/cgi-bin/webscr"; // Sandbox
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+async function extendSubscription(serverId: string, subscrId: string | null, days: number) {
+  const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
+  const { error } = await supabase.rpc("extend_server_subscription", {
+    p_server_id: serverId,
+    p_days: days,
+  });
+
+  if (error) {
+    console.error("[paypal-ipn] Failed to extend subscription:", error);
+    throw error;
+  }
+
+  if (subscrId) {
+    const { error: updateErr } = await supabase
+      .from("servers")
+      .update({ paypal_subscription_id: subscrId })
+      .eq("id", serverId);
+    if (updateErr) {
+      console.error("[paypal-ipn] Failed to store subscription ID:", updateErr);
+    }
+  }
+
+  console.log(`[paypal-ipn] Extended server ${serverId} by ${days} days (sub=${subscrId})`);
+}
+
 Deno.serve(async (req: Request) => {
-  // Handle CORS preflight
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: CORS_HEADERS });
   }
 
   try {
-    // Read the raw body as URL-encoded form data (PayPal IPN format)
+    const contentType = req.headers.get("content-type") || "";
+
+    // ── Smart Button JSON activation (from onApprove) ──
+    if (contentType.includes("application/json")) {
+      const { server_id, subscription_id } = await req.json();
+
+      if (!server_id) {
+        return new Response(JSON.stringify({ error: "Missing server_id" }), {
+          status: 400,
+          headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
+        });
+      }
+
+      await extendSubscription(server_id, subscription_id || null, 30);
+      return new Response(JSON.stringify({ success: true }), {
+        headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
+      });
+    }
+
+    // ── Legacy IPN verification ──
     const body = await req.text();
 
-    // Step 1: Verify the IPN by posting back to PayPal with "cmd=_notify-validate" prepended
+    // Verify with PayPal
     const verifyBody = "cmd=_notify-validate&" + body;
-    const verifyRes = await fetch(PAYPAL_VERIFY_URL, {
+    const verifyRes = await fetch("https://ipnpb.paypal.com/cgi-bin/webscr", {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: verifyBody,
@@ -45,14 +85,13 @@ Deno.serve(async (req: Request) => {
       return new Response("INVALID", { status: 200, headers: CORS_HEADERS });
     }
 
-    // Step 2: Parse the IPN data
     const params = new URLSearchParams(body);
     const paymentStatus = params.get("payment_status");
-    const custom = params.get("custom"); // server_id
+    const custom = params.get("custom");
     const mcGross = params.get("mc_gross");
     const txnId = params.get("txn_id");
     const payerEmail = params.get("payer_email");
-    const subscrId = params.get("subscr_id"); // PayPal subscription ID
+    const subscrId = params.get("subscr_id");
 
     console.log(`[paypal-ipn] Verified: txn=${txnId}, status=${paymentStatus}, server=${custom}, amount=${mcGross}`);
 
@@ -66,35 +105,13 @@ Deno.serve(async (req: Request) => {
       return new Response("OK", { status: 200, headers: CORS_HEADERS });
     }
 
-    // Step 3: Determine plan duration from amount
     const amount = parseFloat(mcGross || "0");
-    let days = 30; // default
+    let days = 30;
     if (amount >= 45) days = 180;
     else if (amount >= 22) days = 90;
     else if (amount >= 9) days = 30;
 
-    // Step 4: Extend the subscription
-    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-    const { error } = await supabase.rpc("extend_server_subscription", {
-      p_server_id: custom,
-      p_days: days,
-    });
-
-    if (error) {
-      console.error("[paypal-ipn] Failed to extend subscription:", error);
-      return new Response("ERROR", { status: 500, headers: CORS_HEADERS });
-    }
-
-    // Store PayPal subscription ID for cancel/manage later
-    if (subscrId) {
-      const { error: updateErr } = await supabase
-        .from("servers")
-        .update({ paypal_subscription_id: subscrId })
-        .eq("id", custom);
-      if (updateErr) {
-        console.error("[paypal-ipn] Failed to store subscription ID:", updateErr);
-      }
-    }
+    await extendSubscription(custom, subscrId, days);
 
     console.log(`[paypal-ipn] Extended server ${custom} by ${days} days ($${amount} from ${payerEmail}, sub=${subscrId})`);
     return new Response("OK", { status: 200, headers: CORS_HEADERS });
