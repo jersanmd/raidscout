@@ -53,7 +53,7 @@ Deno.serve(async (req: Request) => {
 
     // ── Smart Button JSON activation (from onApprove) ──
     if (contentType.includes("application/json")) {
-      const { server_id, subscription_id } = await req.json();
+      const { server_id, order_id } = await req.json();
 
       if (!server_id) {
         return new Response(JSON.stringify({ error: "Missing server_id" }), {
@@ -62,7 +62,20 @@ Deno.serve(async (req: Request) => {
         });
       }
 
-      await extendSubscription(server_id, subscription_id || null, 30);
+      await extendSubscription(server_id, order_id || null, 30);
+
+      // Record payment
+      const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+      await supabase.from("payments").insert({
+        server_id,
+        paypal_order_id: order_id,
+        amount: 9.99,
+        days_added: 30,
+        status: "completed",
+      }).then(({ error }) => {
+        if (error) console.error("[paypal-ipn] Failed to record payment:", error);
+      });
+
       return new Response(JSON.stringify({ success: true }), {
         headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
       });

@@ -1,9 +1,11 @@
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useServer } from "@/contexts/ServerContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
 import { PayPalSubscribeButton } from "@/components/PayPalSubscribeButton";
-import { ArrowLeft, Clock, Shield, AlertTriangle, Zap, Users, Bell, Eye, BarChart3, Skull, Calendar, Trophy, Settings, MessageCircle, Globe, Activity } from "lucide-react";
+import { supabase } from "@/lib/supabase";
+import { ArrowLeft, Clock, Shield, AlertTriangle, Zap, Users, Bell, Eye, BarChart3, Skull, Calendar, Trophy, Settings, MessageCircle, Globe, Activity, CreditCard, Receipt, Loader2 } from "lucide-react";
 
 const FEATURES = [
   { icon: Skull, label: "Boss Kill Recording" },
@@ -27,6 +29,23 @@ export function BillingView() {
   const navigate = useNavigate();
 
   if (!currentServer || isViewer) return null;
+
+  const [payments, setPayments] = useState<any[]>([]);
+  const [paymentsLoading, setPaymentsLoading] = useState(false);
+
+  useEffect(() => {
+    if (!currentServer?.id) return;
+    setPaymentsLoading(true);
+    supabase
+      .from("payments")
+      .select("*")
+      .eq("server_id", currentServer.id)
+      .order("created_at", { ascending: false })
+      .then(({ data, error }) => {
+        if (!error && data) setPayments(data);
+        setPaymentsLoading(false);
+      });
+  }, [currentServer?.id]);
 
   const isOwner = currentServer.role === "owner";
   const now = new Date();
@@ -133,6 +152,59 @@ export function BillingView() {
             </div>
           )}
         </div>
+      </div>
+
+      {/* ── Payment History ── */}
+      <div className="bg-white border border-[#e5e7eb] rounded-xl p-5 space-y-4 shadow-sm">
+        <h3 className="text-sm font-semibold text-[#111827] flex items-center gap-2">
+          <Receipt className="w-4 h-4 text-[#6b7280]" />
+          Payment History
+        </h3>
+
+        {paymentsLoading ? (
+          <div className="flex items-center justify-center py-6">
+            <Loader2 className="w-5 h-5 text-[#9ca3af] animate-spin" />
+          </div>
+        ) : payments.length === 0 ? (
+          <div className="text-center py-6">
+            <CreditCard className="w-8 h-8 text-[#d1d5db] mx-auto mb-2" />
+            <p className="text-sm text-[#9ca3af]">No payments yet</p>
+            <p className="text-xs text-[#d1d5db] mt-1">Your payment history will appear here after your first purchase.</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {/* Header */}
+            <div className="grid grid-cols-12 gap-3 text-[11px] font-semibold text-[#9ca3af] uppercase tracking-wider px-3 pb-2 border-b border-[#f3f4f6]">
+              <span className="col-span-3">Date</span>
+              <span className="col-span-2">Amount</span>
+              <span className="col-span-2">Days Added</span>
+              <span className="col-span-3">Order ID</span>
+              <span className="col-span-2 text-right">Status</span>
+            </div>
+            {payments.map((p) => (
+              <div key={p.id} className="grid grid-cols-12 gap-3 items-center px-3 py-2.5 rounded-lg hover:bg-[#f9fafb] transition-colors">
+                <span className="col-span-3 text-xs text-[#374151] font-medium">
+                  {new Date(p.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                  <span className="block text-[10px] text-[#9ca3af] font-normal">
+                    {new Date(p.created_at).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}
+                  </span>
+                </span>
+                <span className="col-span-2 text-xs text-[#111827] font-semibold">${p.amount}</span>
+                <span className="col-span-2 text-xs text-[#374151]">+{p.days_added}d</span>
+                <span className="col-span-3 text-[11px] text-[#6b7280] font-mono truncate" title={p.paypal_order_id}>
+                  {p.paypal_order_id ? p.paypal_order_id.slice(0, 12) + "..." : "—"}
+                </span>
+                <span className="col-span-2 text-right">
+                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold ${
+                    p.status === "completed" ? "bg-emerald-50 text-emerald-600" : "bg-red-50 text-red-600"
+                  }`}>
+                    {p.status === "completed" ? "Completed" : "Refunded"}
+                  </span>
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* ── All Features ── */}
