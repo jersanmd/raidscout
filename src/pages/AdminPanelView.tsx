@@ -1443,15 +1443,17 @@ export function AdminPanelView() {
             const { error } = await supabase.rpc("extend_server_subscription", { p_server_id: extendConfirm.serverId, p_days: 30 });
             if (error) throw error;
             setToast({ type: "success", message: `Extended ${extendConfirm.serverName} by 30 days` });
-            // Manually fetch fresh data and update cache — bypasses React Query stale logic
-            const freshServers = await fetchAllServers();
-            queryClient.setQueryData(["admin", "servers"], freshServers);
+            // Directly update cache — compute new date from current cached value
+            const now = new Date();
+            queryClient.setQueryData(["admin", "servers"], (old: any[]) =>
+              old?.map((s: any) => {
+                if (s.id !== extendConfirm.serverId) return s;
+                const currentEnd = s.subscription_ends_at ? new Date(s.subscription_ends_at) : now;
+                if (currentEnd < now) currentEnd.setTime(now.getTime());
+                return { ...s, subscription_ends_at: new Date(currentEnd.getTime() + 30 * 86400000).toISOString() };
+              })
+            );
             const serverId = extendConfirm.serverId;
-            setExpandedServer(null);
-            setTimeout(() => {
-              setExpandedServer(serverId);
-              setTimeout(() => expandedRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }), 100);
-            }, 200);
           } catch (err: any) {
             setToast({ type: "error", message: err?.message || "Failed to extend" });
           } finally {
