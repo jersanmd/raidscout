@@ -122,6 +122,17 @@ and responds to prefix commands:
 
 The bot runs on Fly.io and stays online 24/7 via persistent WebSocket connection.
 
+### 💰 Billing & Access
+
+New servers get a **7-day free trial** with full access. After that, extend for $9.99 per 30 days:
+
+- **One-time payment** — No auto-renewing subscriptions. Pay once, get 30 days.
+- **Days stack** — Extend anytime; remaining days carry forward.
+- **PayPal checkout** — Pay with PayPal or debit/credit card. Secure, no card storage.
+- **Payment history** — View all transactions with PayPal receipt links.
+- **Expired gating** — Expired servers keep timers but lose kill recording, history, leaderboards, members, and inventory.
+- **Viewer mode** — Viewers see trial/expired banners; expired viewers can't access gated pages.
+
 ### 🎯 Activities System
 
 Track repeatable guild activities alongside boss spawns:

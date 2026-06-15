@@ -20,4 +20,9 @@
     <priority>0.3</priority>
     <changefreq>monthly</changefreq>
   </url>
+  <url>
+    <loc>https://www.raidscout.com/refund</loc>
+    <priority>0.3</priority>
+    <changefreq>monthly</changefreq>
+  </url>
 </urlset>
