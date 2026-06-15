@@ -49,20 +49,20 @@ export function SubscriptionBanner() {
       iconBg: "bg-emerald-900/50",
       icon: <Clock className="w-4 h-4 text-emerald-400" />,
       title: `Access active — ${subDaysLeft} day${subDaysLeft !== 1 ? "s" : ""} remaining`,
-      subtitle: subEnd ? `Until ${subEnd.toLocaleDateString()}. Thank you for supporting RaidScout!` : "",
+      subtitle: subEnd ? `Ends ${subEnd.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}. Thank you for supporting RaidScout!` : "",
       titleColor: "text-emerald-200",
       subColor: "text-emerald-400/70",
       linkColor: "text-emerald-300 hover:text-emerald-100 border-emerald-500/30 hover:border-emerald-500/50",
     },
     trial: {
-      bg: "bg-amber-950/40 border-amber-800/40",
-      iconBg: "bg-amber-900/50",
-      icon: <Clock className="w-4 h-4 text-amber-400" />,
+      bg: "bg-[#18181b]/60 border-[#27272a]",
+      iconBg: "bg-[#27272a]",
+      icon: <Clock className="w-4 h-4 text-[#a1a1aa]" />,
       title: `Free trial — ${trialDaysLeft} day${trialDaysLeft !== 1 ? "s" : ""} remaining`,
-      subtitle: trialEnd ? `Until ${trialEnd.toLocaleDateString()}. Extend access to keep your server active.` : "",
-      titleColor: "text-amber-200",
-      subColor: "text-amber-400/80",
-      linkColor: "text-amber-300 hover:text-amber-100 border-amber-500/30 hover:border-amber-500/50",
+      subtitle: trialEnd ? `Ends ${trialEnd.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}. We hope you're enjoying RaidScout!` : "",
+      titleColor: "text-[#d4d4d8]",
+      subColor: "text-[#71717a]",
+      linkColor: "text-[#a1a1aa] hover:text-white border-[#3f3f46] hover:border-[#52525b]",
     },
     expired: {
       bg: "bg-red-950/60 border-red-800/60",
@@ -106,7 +106,7 @@ export function SubscriptionBanner() {
             onClick={() => setDismissed(true)}
             className={`p-1.5 ${
               state === "active" ? "text-emerald-500 hover:text-emerald-300 hover:bg-emerald-900/40" :
-              state === "trial" ? "text-amber-500 hover:text-amber-300 hover:bg-amber-900/40" :
+              state === "trial" ? "text-[#52525b] hover:text-[#a1a1aa] hover:bg-[#27272a]" :
               "text-red-500 hover:text-red-300 hover:bg-red-900/40"
             } rounded-md transition`}
             title="Dismiss"
