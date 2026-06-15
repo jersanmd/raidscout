@@ -94,9 +94,9 @@ serve(async (req: Request) => {
       });
     }
     
-    // Fetch server name + prefix
+    // Fetch server name + prefix (exclude soft-deleted)
     const sRes = await fetch(
-      `${supabaseUrl}/rest/v1/servers?select=name,notification_prefix,discord_webhook_url&id=eq.${server_id}`,
+      `${supabaseUrl}/rest/v1/servers?select=name,notification_prefix,discord_webhook_url&id=eq.${server_id}&deleted_at=is.null`,
       { headers }
     );
     const servers = await sRes.json();

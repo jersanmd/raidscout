@@ -89,12 +89,7 @@ async function runSpawnCron() {
     serverThreadMap.get(sid)!.push({ discordId: tc.discord_guild_id, threadGuilds: tc.thread_guilds || [] });
   }
 
-  // Fetch ALL discord_configs for the server count (matches admin panel "Bot Alerts" logic)
-  const allDiscordConfigs = await supabaseQuerySafe(
-    `discord_configs?select=raidscout_server_id`
-  );
-
-  // Deduplicate by server_id — include ALL discord config types, exclude soft-deleted
+  // Deduplicate by server_id — include notification, thread, and command configs, exclude soft-deleted
   const allConfigServerIds = [
     ...configs.map((c: any) => c.raidscout_server_id),
     ...(threadConfigs || []).map((c: any) => c.raidscout_server_id),
@@ -103,10 +98,8 @@ async function runSpawnCron() {
   const serverIds = [...new Set(allConfigServerIds)]
     .filter((id: string) => activeServerIds.has(id));
 
-  // Count ALL servers with any Discord integration (matches admin panel "Bot Alerts")
-  const allDiscordServerIds = [...new Set((allDiscordConfigs || []).map((c: any) => c.raidscout_server_id))]
-    .filter((id: string) => activeServerIds.has(id));
-  serversChecked = allDiscordServerIds.length;
+  // Count only servers being processed (notification + thread + command channels)
+  serversChecked = serverIds.length;
 
   const serverResults = await concurrentMap(serverIds, 10, async (serverId) => {
     let bossCount = 0;
