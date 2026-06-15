@@ -1,7 +1,10 @@
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useServer } from "@/contexts/ServerContext";
-import { CreditCard, X, AlertTriangle, Clock } from "lucide-react";
+import { X, AlertTriangle, Clock } from "lucide-react";
+import { PayPalSubscribeButton } from "@/components/PayPalSubscribeButton";
+import { useQueryClient } from "@tanstack/react-query";
+import { fetchAllServers } from "@/lib/supabase";
 
 /**
  * Banner showing subscription status for server owners (all states) and moderators (expired only).
@@ -13,6 +16,7 @@ export function SubscriptionBanner() {
   const { user } = useAuth();
   const { currentServer } = useServer();
   const [dismissed, setDismissed] = useState(false);
+  const queryClient = useQueryClient();
 
   if (!user || !currentServer) return null;
 
@@ -104,17 +108,20 @@ export function SubscriptionBanner() {
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
-          {/* PayPal subscribe button — owners on trial or expired */}
+          {/* PayPal Smart Button — owners on trial or expired */}
           {isOwner && (isTrialActive || isExpired) && (
-            <a
-              href={`https://www.paypal.com/cgi-bin/webscr?cmd=_xclick-subscriptions&business=ceo%40raidscout.com&item_name=RaidScout+Server+30+Days&a3=9.99&p3=1&t3=M&custom=${currentServer.id}&currency_code=USD&notify_url=https%3A%2F%2Fcjuacehmienztxrhwnlg.supabase.co%2Ffunctions%2Fv1%2Fpaypal-ipn&return=https://www.raidscout.com`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-[#fafafa] transition ${config.btnBg}`}
-            >
-              <CreditCard className="w-3 h-3" />
-              Subscribe $9.99/mo
-            </a>
+            <PayPalSubscribeButton
+              serverId={currentServer.id}
+              onSuccess={() => {
+                // Optimistically refresh server data after approval
+                queryClient.invalidateQueries({ queryKey: ["admin", "servers"] });
+                queryClient.fetchQuery({
+                  queryKey: ["admin", "servers"],
+                  queryFn: fetchAllServers,
+                  staleTime: 0,
+                });
+              }}
+            />
           )}
           {config.showDismiss && (
             <button
