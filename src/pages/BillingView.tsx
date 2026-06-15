@@ -76,7 +76,10 @@ export function BillingView() {
           <ArrowLeft className="w-5 h-5" />
         </button>
         <h2 className="text-lg sm:text-xl font-bold text-[#fafafa]">Billing &amp; Plan</h2>
+        <span className="text-xs text-[#52525b] mt-0.5">Manage your subscription and payments</span>
       </div>
+
+      <div className="max-w-3xl mx-auto space-y-6 mt-8">
 
       {/* ── Plan Status Banner ── */}
       <div className={`relative overflow-hidden rounded-2xl border ${stateConfig.cardBg} shadow-sm`}>
@@ -198,6 +201,8 @@ export function BillingView() {
         onConfirm={handleCancel}
         onCancel={() => setCancelConfirm(false)}
       />
+
+      </div>
     </div>
   );
 }
