@@ -123,7 +123,7 @@ export function BillingView() {
             </div>
             <div className="flex items-center gap-1.5">
               <span className="text-xs text-[#a1a1aa]">{isSubActive ? "Next renewal" : isTrialActive ? "Trial ends" : "Expired on"}</span>
-              <span className="text-sm font-medium text-[#fafafa]">{stateConfig.date?.toLocaleDateString() || "—"}</span>
+              <span className="text-sm font-medium text-[#fafafa]">{stateConfig.date?.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) || "—"}</span>
             </div>
             <div className="flex items-center gap-1.5">
               <span className="text-xs text-[#a1a1aa]">Status</span>
