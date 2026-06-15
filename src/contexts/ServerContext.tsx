@@ -150,7 +150,11 @@ export function ServerProvider({ children }: { children: ReactNode }) {
         if (list.length > 0) {
           const persistedId = localStorage.getItem("lordnine-current-server-id");
           const match = persistedId ? list.find(s => s.id === persistedId) : null;
-          if (!currentRef.current || !list.find(s => s.id === currentRef.current?.id)) {
+          // Always update currentServer with fresh data (needed after payment, etc.)
+          const freshCurrent = list.find(s => s.id === currentRef.current?.id);
+          if (freshCurrent) {
+            setCurrentServerWrapped(freshCurrent);
+          } else if (!currentRef.current || !list.find(s => s.id === currentRef.current?.id)) {
             setCurrentServerWrapped(match ?? list[0]);
           }
         } else {
@@ -227,11 +231,14 @@ export function ServerProvider({ children }: { children: ReactNode }) {
       }
       
       setServers(list);
-      // Restore persisted server or pick first
+      // Restore persisted server or pick first — always update with fresh data
       if (list.length > 0) {
         const persistedId = localStorage.getItem("lordnine-current-server-id");
         const match = persistedId ? list.find(s => s.id === persistedId) : null;
-        if (!currentRef.current || !list.find(s => s.id === currentRef.current?.id)) {
+        const freshCurrent = list.find(s => s.id === currentRef.current?.id);
+        if (freshCurrent) {
+          setCurrentServerWrapped(freshCurrent);
+        } else if (!currentRef.current || !list.find(s => s.id === currentRef.current?.id)) {
           setCurrentServerWrapped(match ?? list[0]);
         }
       } else {
