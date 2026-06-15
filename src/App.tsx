@@ -27,6 +27,7 @@ const AdminPanelView = lazy(() => import("@/pages/AdminPanelView").then(m => ({ 
 const MemberProfileView = lazy(() => import("@/pages/MemberProfileView").then(m => ({ default: m.MemberProfileView })));
 const InventoryView = lazy(() => import("@/pages/InventoryView").then(m => ({ default: m.InventoryView })));
 const TermsOfServiceView = lazy(() => import("@/pages/TermsOfService").then(m => ({ default: m.TermsOfServiceView })));
+const PrivacyPolicyView = lazy(() => import("@/pages/PrivacyPolicy").then(m => ({ default: m.PrivacyPolicyView })));
 const RefundPolicyView = lazy(() => import("@/pages/RefundPolicy").then(m => ({ default: m.RefundPolicyView })));
 const ChangelogView = lazy(() => import("@/pages/ChangelogView").then(m => ({ default: m.ChangelogView })));
 
