@@ -7,7 +7,7 @@ import { SEOHead } from "@/components/SEOHead";
 import { version } from "../../package.json";
 import {
   Timer, Shield, BarChart3, Sparkles, MessageSquare, Calendar, Skull, Eye, Trophy, Server, Clock, Lock, Image, Package, Archive, User,
-  LogIn, UserPlus, Mail, CheckCircle, AlertTriangle, Key, ChevronDown, Bot,
+  LogIn, UserPlus, Mail, CheckCircle, AlertTriangle, Key, ChevronDown, Bot, Clock,
   Crosshair, Radio, Activity, Wifi, Copy, Terminal, Check, Hash, AtSign, Play, X, Gamepad2, Globe, EyeOff
 } from "lucide-react";
 
@@ -361,6 +361,12 @@ export function LandingPage() {
 
           {/* CTAs */}
           <div className="flex items-center justify-center gap-3 pt-2">
+            <button
+              onClick={() => document.getElementById("pricing")?.scrollIntoView({ behavior: "smooth" })}
+              className="px-6 py-3 rounded-lg font-medium text-sm border border-emerald-500/30 text-emerald-400 hover:border-emerald-500/60 hover:bg-emerald-500/5 transition-all duration-200"
+            >
+              $9.99 / 30 days
+            </button>
             <button
               onClick={() => document.getElementById("get-started")?.scrollIntoView({ behavior: "smooth" })}
               className="px-6 py-3 rounded-lg font-medium text-sm border border-[#fafafa]/20 text-[#fafafa] hover:border-[#fafafa]/40 hover:bg-[#fafafa]/5 transition-all duration-200"
@@ -783,6 +789,135 @@ export function LandingPage() {
           </div>
         </div>
       </section>
+
+      {/* ── Pricing ── */}
+      <section id="pricing" className="relative bg-[#09090b] px-6 py-24 overflow-hidden">
+        {/* Background glow */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-emerald-500/5 rounded-full blur-[120px] pointer-events-none" />
+
+        <div className="max-w-4xl mx-auto relative">
+          <div className="text-center mb-14">
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-medium mb-6">
+              <Shield className="w-3.5 h-3.5" /> SIMPLE PRICING
+            </div>
+            <h2 className="text-3xl md:text-4xl font-bold text-[#fafafa] mb-4">
+              One price. Everything included.
+              <div className="mx-auto mt-4 w-12 h-0.5 bg-emerald-400/30 rounded-full" />
+            </h2>
+            <p className="text-[#71717a] text-lg max-w-xl mx-auto">
+              No plans, no tiers, no hidden fees. Every feature unlocked for every server.
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-6 items-stretch">
+            {/* Price Card */}
+            <div className="relative rounded-2xl bg-[#0a0a0f] border border-[#27272a] p-8 flex flex-col group hover:border-emerald-500/20 transition-colors duration-300">
+              {/* Price */}
+              <div className="mb-6">
+                <div className="flex items-baseline gap-1 mb-1">
+                  <span className="text-[#52525b] text-lg">$</span>
+                  <span className="text-5xl font-extrabold text-[#fafafa] tracking-tight">9.99</span>
+                  <span className="text-[#52525b] text-lg">/ 30 days</span>
+                </div>
+                <p className="text-[#52525b] text-sm">That's just <span className="text-[#a1a1aa] font-medium">$0.33/day</span></p>
+              </div>
+
+              {/* What you get */}
+              <div className="space-y-3 mb-8 flex-1">
+                {[
+                  "Unlimited bosses & activities",
+                  "Multi-guild kill rotation tracking",
+                  "AI-powered rally screenshot scanning",
+                  "Live spawn timers & countdowns",
+                  "Member management & attendance",
+                  "Gear & combat power tracking",
+                  "Leaderboards & analytics",
+                  "Discord bot integration",
+                  "Viewer/guest sharing links",
+                ].map((feat) => (
+                  <div key={feat} className="flex items-start gap-3">
+                    <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
+                    <span className="text-sm text-[#a1a1aa]">{feat}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* 7-day trial badge */}
+              <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-emerald-500/5 border border-emerald-500/10 mb-4">
+                <Clock className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span className="text-sm text-emerald-300">Includes <span className="font-semibold">7-day free trial</span> — no card required</span>
+              </div>
+
+              <a href="#get-started"
+                className="flex items-center justify-center gap-2 w-full py-3 rounded-xl font-semibold text-sm bg-[#fafafa] text-[#09090b] hover:bg-white transition-all duration-200 group/btn">
+                Start Free Trial
+                <span className="inline-block group-hover/btn:translate-x-0.5 transition-transform">→</span>
+              </a>
+            </div>
+
+            {/* Value Props Card */}
+            <div className="space-y-4">
+              {/* No surprises */}
+              <div className="rounded-2xl bg-[#0a0a0f] border border-[#27272a] p-6 hover:border-[#3f3f46] transition-colors duration-300">
+                <div className="flex items-start gap-4">
+                  <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center shrink-0">
+                    <Sparkles className="w-5 h-5 text-amber-400" />
+                  </div>
+                  <div>
+                    <h4 className="text-[#fafafa] font-semibold text-sm mb-1">Pay as you go</h4>
+                    <p className="text-[#71717a] text-sm leading-relaxed">No auto-renewing subscriptions. Pay once, get 30 days. Days stack — extend anytime without losing your balance.</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Cancel anytime */}
+              <div className="rounded-2xl bg-[#0a0a0f] border border-[#27272a] p-6 hover:border-[#3f3f46] transition-colors duration-300">
+                <div className="flex items-start gap-4">
+                  <div className="w-10 h-10 rounded-xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center shrink-0">
+                    <Activity className="w-5 h-5 text-sky-400" />
+                  </div>
+                  <div>
+                    <h4 className="text-[#fafafa] font-semibold text-sm mb-1">Runs itself</h4>
+                    <p className="text-[#71717a] text-sm leading-relaxed">The Discord bot handles kill recording, spawn announcements, and member tracking automatically. Set it and forget it.</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Trust */}
+              <div className="rounded-2xl bg-[#0a0a0f] border border-[#27272a] p-6 hover:border-[#3f3f46] transition-colors duration-300">
+                <div className="flex items-start gap-4">
+                  <div className="w-10 h-10 rounded-xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center shrink-0">
+                    <Users className="w-5 h-5 text-violet-400" />
+                  </div>
+                  <div>
+                    <h4 className="text-[#fafafa] font-semibold text-sm mb-1">Built for guilds, by guilds</h4>
+                    <p className="text-[#71717a] text-sm leading-relaxed">Trusted by top MMO guilds. Every feature is built from real guild officer workflows — not guesses.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Trust bar */}
+          <div className="mt-14 flex flex-wrap items-center justify-center gap-6 text-[#3f3f46] text-xs">
+            <div className="flex items-center gap-2">
+              <Shield className="w-3.5 h-3.5" />
+              <span>PayPal secure payments</span>
+            </div>
+            <span className="hidden sm:inline">·</span>
+            <div className="flex items-center gap-2">
+              <CheckCircle className="w-3.5 h-3.5" />
+              <span>No credit card for trial</span>
+            </div>
+            <span className="hidden sm:inline">·</span>
+            <div className="flex items-center gap-2">
+              <Activity className="w-3.5 h-3.5" />
+              <span>Cancel anytime — access stays until period ends</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* ── Auth Section ── */}
       <section id="get-started" className="relative bg-[#09090b] px-6 py-24">
         <div className="max-w-md mx-auto">
