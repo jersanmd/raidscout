@@ -87,7 +87,7 @@ export function AdminPanelView() {
   const { data: servers = [], isLoading: srvLoading } = useQuery({
     queryKey: ["admin", "servers"],
     queryFn: fetchAllServers,
-    staleTime: 10_000,
+    staleTime: 0,
     enabled: userRole === "admin",
   });
 
@@ -1455,7 +1455,6 @@ export function AdminPanelView() {
               ...prev,
               [extendConfirm.serverId]: new Date(Date.now() + 30 * 86400000).toISOString()
             }));
-            queryClient.invalidateQueries({ queryKey: ["admin", "servers"] });
           } catch (err: any) {
             setToast({ type: "error", message: err?.message || "Failed to extend" });
           } finally {
