@@ -1442,6 +1442,14 @@ export function AdminPanelView() {
             const { error } = await supabase.rpc("extend_server_subscription", { p_server_id: extendConfirm.serverId, p_days: 30 });
             if (error) throw error;
             setToast({ type: "success", message: `Extended ${extendConfirm.serverName} by 30 days` });
+            // Optimistic update: bump subscription_ends_at in cache immediately
+            queryClient.setQueryData(["admin", "servers"], (old: any[]) =>
+              old?.map((s: any) =>
+                s.id === extendConfirm.serverId
+                  ? { ...s, subscription_ends_at: new Date(Date.now() + 30 * 86400000).toISOString() }
+                  : s
+              )
+            );
             queryClient.invalidateQueries({ queryKey: ["admin", "servers"] });
           } catch (err: any) {
             setToast({ type: "error", message: err?.message || "Failed to extend" });
