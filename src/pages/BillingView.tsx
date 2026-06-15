@@ -45,9 +45,9 @@ export function BillingView() {
   const state = isSubActive ? "active" : isTrialActive ? "trial" : "expired";
 
   const stateConfig = {
-    active:   { cardBg: "bg-white border-emerald-200", iconBg: "bg-emerald-100", iconColor: "text-emerald-600", accent: "text-emerald-700", muted: "text-emerald-500", badge: "bg-emerald-100 text-emerald-700", icon: Zap, days: subDaysLeft, date: subEnd, label: "Active until", statusLabel: "Pro" },
-    trial:    { cardBg: "bg-white border-amber-200", iconBg: "bg-amber-100", iconColor: "text-amber-600", accent: "text-amber-700", muted: "text-amber-500", badge: "bg-amber-100 text-amber-700", icon: Clock, days: trialDaysLeft, date: trialEnd, label: "Trial ends", statusLabel: "Free Trial" },
-    expired:  { cardBg: "bg-white border-red-200", iconBg: "bg-red-100", iconColor: "text-red-600", accent: "text-red-700", muted: "text-red-500", badge: "bg-red-100 text-red-700", icon: AlertTriangle, days: 0, date: subEnd, label: "Expired on", statusLabel: "Expired" },
+    active:   { cardBg: "bg-white border-emerald-200", iconBg: "bg-emerald-50", iconColor: "text-emerald-500", accent: "text-emerald-600", muted: "text-emerald-400", badge: "bg-emerald-100 text-emerald-700", ring: "ring-emerald-100", bar: "bg-emerald-500", icon: Zap, days: subDaysLeft, date: subEnd, label: "Active until", statusLabel: "Pro Plan" },
+    trial:    { cardBg: "bg-white border-amber-200", iconBg: "bg-amber-50", iconColor: "text-amber-500", accent: "text-amber-600", muted: "text-amber-400", badge: "bg-amber-100 text-amber-700", ring: "ring-amber-100", bar: "bg-amber-500", icon: Clock, days: trialDaysLeft, date: trialEnd, label: "Trial ends", statusLabel: "Free Trial" },
+    expired:  { cardBg: "bg-white border-red-200", iconBg: "bg-red-50", iconColor: "text-red-500", accent: "text-red-600", muted: "text-red-400", badge: "bg-red-100 text-red-700", ring: "ring-red-100", bar: "bg-red-500", icon: AlertTriangle, days: 0, date: subEnd, label: "Expired on", statusLabel: "Expired" },
   }[state];
 
   const StatusIcon = stateConfig.icon;
@@ -82,34 +82,42 @@ export function BillingView() {
         </div>
       </div>
 
-      {/* ── Plan Status ── */}
-      <div className={`rounded-2xl border ${stateConfig.cardBg} p-6 shadow-sm`}>
-        <div className="flex items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${stateConfig.iconBg}`}>
-              <StatusIcon className={`w-7 h-7 ${stateConfig.iconColor}`} />
-            </div>
-            <div>
-              <div className="flex items-center gap-2 mb-0.5">
-                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold ${stateConfig.badge}`}>
+      {/* ── Plan Status Banner ── */}
+      <div className={`relative overflow-hidden rounded-2xl border ${stateConfig.cardBg} shadow-sm`}>
+        {/* Colored accent bar at top */}
+        <div className={`h-1 w-full ${stateConfig.bar}`} />
+        <div className="p-6">
+          <div className="flex items-center justify-between gap-6">
+            {/* Left: icon + info */}
+            <div className="flex items-center gap-5">
+              <div className={`w-16 h-16 rounded-2xl flex items-center justify-center ${stateConfig.iconBg} ring-4 ${stateConfig.ring}`}>
+                <StatusIcon className={`w-8 h-8 ${stateConfig.iconColor}`} />
+              </div>
+              <div>
+                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${stateConfig.badge} mb-1.5`}>
                   {stateConfig.statusLabel}
                 </span>
-                {isSubActive && <span className="text-xs text-[#6b7280]">$9.99/month</span>}
+                <p className="text-sm text-[#6b7280] mt-1.5">
+                  {stateConfig.date
+                    ? `${stateConfig.label} ${stateConfig.date.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}`
+                    : stateConfig.label}
+                </p>
+                {isSubActive && (
+                  <p className="text-[11px] text-[#9ca3af] mt-0.5">$9.99/month — renews automatically</p>
+                )}
               </div>
-              <p className="text-xs text-[#6b7280]">
-                {stateConfig.date
-                  ? `${stateConfig.label} ${stateConfig.date.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}`
-                  : stateConfig.label}
+            </div>
+            {/* Right: big countdown */}
+            <div className="text-center shrink-0">
+              <div className={`inline-flex items-baseline gap-1`}>
+                <span className={`text-5xl font-extrabold tabular-nums tracking-tight ${stateConfig.accent}`}>
+                  {stateConfig.days}
+                </span>
+              </div>
+              <p className={`text-xs font-semibold uppercase tracking-wider mt-1 ${stateConfig.muted}`}>
+                {state === "expired" ? "Days Ago" : `Day${stateConfig.days !== 1 ? "s" : ""} Left`}
               </p>
             </div>
-          </div>
-          <div className="text-right shrink-0">
-            <p className={`text-3xl font-bold tabular-nums ${stateConfig.accent}`}>
-              {stateConfig.days}
-            </p>
-            <p className={`text-xs font-medium ${stateConfig.muted}`}>
-              {state === "expired" ? "days ago" : `day${stateConfig.days !== 1 ? "s" : ""} left`}
-            </p>
           </div>
         </div>
       </div>
