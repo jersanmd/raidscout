@@ -66,15 +66,14 @@ Deno.serve(async (req: Request) => {
 
       // Record payment
       const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-      await supabase.from("payments").insert({
+      const { error: payErr } = await supabase.from("payments").insert({
         server_id,
         paypal_order_id: order_id,
         amount: 9.99,
         days_added: 30,
         status: "completed",
-      }).then(({ error }) => {
-        if (error) console.error("[paypal-ipn] Failed to record payment:", error);
       });
+      if (payErr) console.error("[paypal-ipn] Failed to record payment:", payErr);
 
       return new Response(JSON.stringify({ success: true }), {
         headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
@@ -125,6 +124,18 @@ Deno.serve(async (req: Request) => {
     else if (amount >= 9) days = 30;
 
     await extendSubscription(custom, subscrId, days);
+
+    // Record payment for legacy IPN path too
+    const supabase2 = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+    const { error: payErr } = await supabase2.from("payments").insert({
+      server_id: custom,
+      paypal_order_id: txnId,
+      amount: amount,
+      days_added: days,
+      status: "completed",
+      payer_email: payerEmail || undefined,
+    });
+    if (payErr) console.error("[paypal-ipn] Failed to record payment (legacy):", payErr);
 
     console.log(`[paypal-ipn] Extended server ${custom} by ${days} days ($${amount} from ${payerEmail}, sub=${subscrId})`);
     return new Response("OK", { status: 200, headers: CORS_HEADERS });
