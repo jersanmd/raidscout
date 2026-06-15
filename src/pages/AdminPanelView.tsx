@@ -29,8 +29,7 @@ export function AdminPanelView() {
   const [forceSpawnConfirm, setForceSpawnConfirm] = useState<{ serverId: string; serverName: string } | null>(null);
   const [extendConfirm, setExtendConfirm] = useState<{ serverId: string; serverName: string } | null>(null);
   const [extending, setExtending] = useState(false);
-  // Local overrides for instant UI update after extending subscription
-  const [subOverrides, setSubOverrides] = useState<Record<string, string>>({});
+  const expandedRef = useRef<HTMLDivElement | null>(null);
   const queryClient = useQueryClient();
   const [forceSpawnInput, setForceSpawnInput] = useState("");
   const [serverStats, setServerStats] = useState<Record<string, any>>({});
@@ -399,14 +398,8 @@ export function AdminPanelView() {
             <p className="text-[#71717a] text-sm text-center py-12">No servers yet.</p>
           ) : (
             (() => {
-              // Merge subscription overrides into server objects for instant UI updates
-              const mergedServers = servers.map((s: any) =>
-                subOverrides[s.id]
-                  ? { ...s, subscription_ends_at: subOverrides[s.id] }
-                  : s
-              );
-              const testServers = mergedServers.filter((s: any) => s.name.toLowerCase().includes('test') && !s.deleted_at);
-              let regularServers = mergedServers.filter((s: any) => !s.name.toLowerCase().includes('test') && !s.deleted_at);
+              const testServers = servers.filter((s: any) => s.name.toLowerCase().includes('test') && !s.deleted_at);
+              let regularServers = servers.filter((s: any) => !s.name.toLowerCase().includes('test') && !s.deleted_at);
               // Apply search filter
               if (serverSearch) {
                 regularServers = regularServers.filter((s: any) => s.name.toLowerCase().includes(serverSearch.toLowerCase()));
@@ -423,7 +416,7 @@ export function AdminPanelView() {
               const isExpanded = expandedServer === s.id;
               const stats = serverStats[s.id];
               return (
-              <div key={s.id} className="bg-[#18181b] border border-[#27272a] rounded-xl overflow-hidden">
+              <div key={s.id} ref={expandedServer === s.id ? expandedRef : undefined} className="bg-[#18181b] border border-[#27272a] rounded-xl overflow-hidden">
                 <button
                   onClick={async () => {
                     if (isExpanded) {
@@ -1450,11 +1443,9 @@ export function AdminPanelView() {
             const { error } = await supabase.rpc("extend_server_subscription", { p_server_id: extendConfirm.serverId, p_days: 30 });
             if (error) throw error;
             setToast({ type: "success", message: `Extended ${extendConfirm.serverName} by 30 days` });
-            // Instant UI update via local override
-            setSubOverrides(prev => ({
-              ...prev,
-              [extendConfirm.serverId]: new Date(Date.now() + 30 * 86400000).toISOString()
-            }));
+            // Keep card expanded & scroll to it, invalidate to refetch fresh dates
+            queryClient.invalidateQueries({ queryKey: ["admin", "servers"] });
+            setTimeout(() => expandedRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }), 300);
           } catch (err: any) {
             setToast({ type: "error", message: err?.message || "Failed to extend" });
           } finally {
