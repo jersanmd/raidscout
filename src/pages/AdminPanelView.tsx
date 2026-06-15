@@ -399,8 +399,14 @@ export function AdminPanelView() {
             <p className="text-[#71717a] text-sm text-center py-12">No servers yet.</p>
           ) : (
             (() => {
-              const testServers = servers.filter((s: any) => s.name.toLowerCase().includes('test') && !s.deleted_at);
-              let regularServers = servers.filter((s: any) => !s.name.toLowerCase().includes('test') && !s.deleted_at);
+              // Merge subscription overrides into server objects for instant UI updates
+              const mergedServers = servers.map((s: any) =>
+                subOverrides[s.id]
+                  ? { ...s, subscription_ends_at: subOverrides[s.id] }
+                  : s
+              );
+              const testServers = mergedServers.filter((s: any) => s.name.toLowerCase().includes('test') && !s.deleted_at);
+              let regularServers = mergedServers.filter((s: any) => !s.name.toLowerCase().includes('test') && !s.deleted_at);
               // Apply search filter
               if (serverSearch) {
                 regularServers = regularServers.filter((s: any) => s.name.toLowerCase().includes(serverSearch.toLowerCase()));
@@ -499,8 +505,7 @@ export function AdminPanelView() {
                         {(() => {
                           const now = new Date();
                           const trialEnd = s.trial_ends_at ? new Date(s.trial_ends_at) : null;
-                          const effectiveSubEnd = subOverrides[s.id] || s.subscription_ends_at;
-                          const subEnd = effectiveSubEnd ? new Date(effectiveSubEnd) : null;
+                          const subEnd = s.subscription_ends_at ? new Date(s.subscription_ends_at) : null;
                           const subDays = subEnd ? Math.ceil((subEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)) : 0;
                           const trialDays = trialEnd ? Math.ceil((trialEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)) : 0;
                           const isActive = subDays > 0;
