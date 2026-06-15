@@ -12,6 +12,12 @@ export function SubscriptionBanner() {
   const { user } = useAuth();
   const { currentServer } = useServer();
   const [dismissed, setDismissed] = useState(false);
+  
+  // Auto-dismiss active banner if user just completed a payment
+  const paymentDismissed = localStorage.getItem("raidscout-banner-dismissed-active") === "true";
+  if (paymentDismissed) {
+    localStorage.removeItem("raidscout-banner-dismissed-active");
+  }
 
   if (!user || !currentServer) return null;
 
@@ -37,7 +43,7 @@ export function SubscriptionBanner() {
   const isTrialActive = !isSubActive && trialDaysLeft > 0;
   const isExpired = !isSubActive && !isTrialActive;
 
-  if (isSubActive && dismissed) return null;
+  if (isSubActive && (dismissed || paymentDismissed)) return null;
   if (isMod && isExpired && dismissed) return null;
   if (isOwner && isExpired && dismissed) return null;
 
