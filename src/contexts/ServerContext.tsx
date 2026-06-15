@@ -11,7 +11,7 @@ export interface Server {
   discord_webhook_url?: string;
   timezone?: string;
   notification_prefix?: string;
-  role: "owner" | "moderator";
+  role: "owner" | "moderator" | "viewer";
   viewer_can_edit?: boolean;
   viewer_can_mark_died?: boolean;
   trial_ends_at?: string | null;
@@ -65,44 +65,44 @@ export function ServerProvider({ children }: { children: ReactNode }) {
         .is("deleted_at", null)
         .maybeSingle()
         .then(({ data: srv }) => {
-        const trialEnds = srv?.trial_ends_at ?? null;
-        const subEnds = srv?.subscription_ends_at ?? null;
-        const viewerServer: Server = {
-          id: viewerServerId,
-          name: srv?.name || viewerServerName || "Server",
-          owner_id: "",
-          invite_code: "",
-          created_at: undefined,
-          discord_webhook_url: srv?.discord_webhook_url ?? viewerDiscordWebhookUrl ?? undefined,
-          timezone: srv?.timezone ?? viewerTimezone ?? undefined,
-          role: "viewer",
-          trial_ends_at: trialEnds,
-          subscription_ends_at: subEnds,
-          isExpired: computeIsExpired(trialEnds, subEnds),
-        };
-        setServers([viewerServer]);
-        setCurrentServer(viewerServer);
-        currentRef.current = viewerServer;
-        setCurrentServerId(viewerServerId);
-        setLoading(false);
-      }).catch(() => {
-        // Fallback if fetch fails
-        const viewerServer: Server = {
-          id: viewerServerId,
-          name: viewerServerName || "Server",
-          owner_id: "",
-          invite_code: "",
-          created_at: undefined,
-          discord_webhook_url: viewerDiscordWebhookUrl ?? undefined,
-          timezone: viewerTimezone ?? undefined,
-          role: "viewer",
-        };
-        setServers([viewerServer]);
-        setCurrentServer(viewerServer);
-        currentRef.current = viewerServer;
-        setCurrentServerId(viewerServerId);
-        setLoading(false);
-      });
+          const trialEnds = srv?.trial_ends_at ?? null;
+          const subEnds = srv?.subscription_ends_at ?? null;
+          const viewerServer: Server = {
+            id: viewerServerId,
+            name: srv?.name || viewerServerName || "Server",
+            owner_id: "",
+            invite_code: "",
+            created_at: undefined,
+            discord_webhook_url: srv?.discord_webhook_url ?? viewerDiscordWebhookUrl ?? undefined,
+            timezone: srv?.timezone ?? viewerTimezone ?? undefined,
+            role: "viewer",
+            trial_ends_at: trialEnds,
+            subscription_ends_at: subEnds,
+            isExpired: computeIsExpired(trialEnds, subEnds),
+          };
+          setServers([viewerServer]);
+          setCurrentServer(viewerServer);
+          currentRef.current = viewerServer;
+          setCurrentServerId(viewerServerId);
+          setLoading(false);
+        }, () => {
+          // Fallback if fetch fails
+          const viewerServer: Server = {
+            id: viewerServerId,
+            name: viewerServerName || "Server",
+            owner_id: "",
+            invite_code: "",
+            created_at: undefined,
+            discord_webhook_url: viewerDiscordWebhookUrl ?? undefined,
+            timezone: viewerTimezone ?? undefined,
+            role: "viewer",
+          };
+          setServers([viewerServer]);
+          setCurrentServer(viewerServer);
+          currentRef.current = viewerServer;
+          setCurrentServerId(viewerServerId);
+          setLoading(false);
+        });
     }
   }, [isViewer, viewerServerId, viewerServerName, viewerDiscordWebhookUrl, viewerTimezone]);
 
