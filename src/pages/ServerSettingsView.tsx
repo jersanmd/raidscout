@@ -77,8 +77,7 @@ export function ServerSettingsView() {
             (data as any[]).forEach((r: any) => { map[r.user_id] = r.is_verified; });
             setVerificationStatus(map);
           }
-        })
-        .catch(() => setVerificationStatus({}));
+        }, () => setVerificationStatus({}));
       // Fetch guilds
       setGuildsLoading(true);
       fetchGuilds(currentServer.id)
