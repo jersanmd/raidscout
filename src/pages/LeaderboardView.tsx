@@ -929,7 +929,7 @@ export function LeaderboardView() {
                                     </button>
                                   )}
                                   {isStaff && guildName && (
-                                    <button onClick={(e) => { e.stopPropagation(); const now = new Date(); setFinalizeTime(now.toISOString().slice(0, 16)); setShowFinalizeConfirm(guildName); }} className="ml-auto text-xs px-2.5 py-1 rounded bg-amber-500/10 border border-amber-500/30 text-amber-400 hover:bg-amber-500/20 transition" title={`Finalize ${guildName} rankings`}>
+                                    <button onClick={(e) => { e.stopPropagation(); const now = new Date(); const pad = (n: number) => String(n).padStart(2, "0"); setFinalizeTime(`${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`); setShowFinalizeConfirm(guildName); }} className="ml-auto text-xs px-2.5 py-1 rounded bg-amber-500/10 border border-amber-500/30 text-amber-400 hover:bg-amber-500/20 transition" title={`Finalize ${guildName} rankings`}>
                                       Finalize
                                     </button>
                                   )}
