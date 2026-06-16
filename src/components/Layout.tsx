@@ -136,7 +136,7 @@ export function Layout() {
               <Skull className="w-4 h-4 text-[#a1a1aa]" />
             </div>
             <span className="font-semibold text-[#fafafa] tracking-tight text-sm">RaidScout</span>
-            {/* Subscription badge in header — only show Pro, not Trial */}
+            {/* Subscription badge — premium SaaS-style */}
             {currentServer && (() => {
               const now = new Date();
               const subEnd = currentServer.subscription_ends_at ? new Date(currentServer.subscription_ends_at) : null;
@@ -144,8 +144,11 @@ export function Layout() {
               const isPro = subDays > 0;
               if (!isPro) return null;
               return (
-                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium border shrink-0 bg-emerald-500/10 text-emerald-300 border-emerald-500/20 -ml-1">
-                  Pro<span className="opacity-60">·</span>{subDays}d
+                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-medium shrink-0 bg-gradient-to-r from-amber-500/10 to-amber-400/5 text-amber-200 border border-amber-500/20 -ml-1">
+                  <svg className="w-3 h-3 text-amber-400" viewBox="0 0 24 24" fill="currentColor"><path d="M5 16L3 5l5.5 5L12 4l3.5 6L21 5l-2 11H5zm14 2v2H5v-2h14z"/></svg>
+                  <span className="font-semibold tracking-wide">Pro</span>
+                  <span className="text-amber-500/40">·</span>
+                  <span>{subDays} day{subDays !== 1 ? "s" : ""} left</span>
                 </span>
               );
             })()}

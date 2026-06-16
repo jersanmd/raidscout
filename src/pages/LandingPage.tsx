@@ -250,6 +250,71 @@ export function LandingPage() {
     fetchGames().then(data => { setGames(data || []); setGamesLoading(false); }).catch(() => setGamesLoading(false));
   }, []);
 
+  const SECTIONS = [
+    { id: "hero", label: "Hero" },
+    { id: "stats", label: "Games" },
+    { id: "features", label: "Features" },
+    { id: "how-it-works", label: "How It Works" },
+    { id: "guides", label: "Guides" },
+    { id: "pricing", label: "Pricing" },
+    { id: "get-started", label: "Sign In" },
+    { id: "faq", label: "FAQ" },
+  ];
+
+  // JavaScript scroll snap — only snaps when crossing section boundaries
+  const [activeSection, setActiveSection] = useState("hero");
+  const snapTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastSnappedSection = useRef("hero");
+  const lastScrollY = useRef(0);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY;
+      const scrollingDown = currentScrollY > lastScrollY.current;
+      lastScrollY.current = currentScrollY;
+
+      if (snapTimeout.current) clearTimeout(snapTimeout.current);
+      snapTimeout.current = setTimeout(() => {
+        // Find the section closest to the viewport top
+        let closestId = SECTIONS[0].id;
+        let closestDist = Infinity;
+        for (const s of SECTIONS) {
+          const el = document.getElementById(s.id);
+          if (!el) continue;
+          const rect = el.getBoundingClientRect();
+          const dist = Math.abs(rect.top);
+          if (dist < closestDist) { closestDist = dist; closestId = s.id; }
+        }
+
+        // Only snap if crossing into a different section
+        if (closestId !== lastSnappedSection.current) {
+          const el = document.getElementById(closestId);
+          if (el) {
+            if (scrollingDown) {
+              // Scrolling down: snap to top of new section
+              el.scrollIntoView({ behavior: "smooth", block: "start" });
+            } else {
+              // Scrolling up: snap to bottom of new section (show what's above)
+              el.scrollIntoView({ behavior: "smooth", block: "end" });
+            }
+          }
+          lastSnappedSection.current = closestId;
+        }
+
+        setActiveSection(closestId);
+      }, 600);
+    };
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+      if (snapTimeout.current) clearTimeout(snapTimeout.current);
+    };
+  }, []);
+
+  const scrollToSection = (id: string) => {
+    document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -320,7 +385,7 @@ export function LandingPage() {
       </script>
 
       {/* ── Hero ── */}
-      <section className="relative px-6 pt-32 pb-24 text-center overflow-hidden matrix-bg">
+      <section id="hero" className="relative px-6 pt-32 pb-24 text-center overflow-hidden matrix-bg min-h-screen">
         {/* ── Background ── */}
         <div className="absolute inset-0 bg-[#09090b]" />
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_60%_40%_at_50%_0%,rgba(250,250,250,0.02),transparent_70%)]" />
@@ -446,7 +511,7 @@ export function LandingPage() {
 
       {/* ── Games We Support ── */}
       {games.length > 0 && (
-        <section className="relative bg-[#09090b] px-6 py-16 border-b border-white/[0.04]">
+        <section id="stats" className="relative bg-[#09090b] px-6 py-16 border-b border-white/[0.04]" style={{ scrollSnapAlign: "start" }}>
           <div className="max-w-5xl mx-auto text-center">
             <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/[0.03] border border-white/[0.06] text-[#a1a1aa] text-xs font-medium mb-6 backdrop-blur-sm">
               <Globe className="w-3.5 h-3.5" /> MULTI-GAME PLATFORM
@@ -516,7 +581,7 @@ export function LandingPage() {
       )}
 
       {/* ── Features Grid ── */}
-      <section id="features" className="relative bg-[#09090b] px-6 py-24">
+      <section id="features" className="relative bg-[#09090b] px-6 py-24" style={{ scrollSnapAlign: "start" }}>
         <div className="max-w-5xl mx-auto">
           {/* Section Header */}
           <div className="text-center mb-16">
@@ -689,7 +754,7 @@ export function LandingPage() {
       </section>
 
       {/* ── Discord Bot Commands ── */}
-      <section className="relative bg-[#09090b] px-6 py-24">
+      <section id="how-it-works" className="relative bg-[#09090b] px-6 py-24" style={{ scrollSnapAlign: "start" }}>
         <div className="max-w-4xl mx-auto">
           {/* Header */}
           <div className="text-center mb-14">
@@ -730,7 +795,7 @@ export function LandingPage() {
 
       {/* ── Screenshot Showcase ── */}
       {/* ── Terminal Mockup ── */}
-      <section className="relative bg-[#09090b] px-4 py-24 flex items-center justify-center">
+      <section id="guides" className="relative bg-[#09090b] px-4 py-24 flex items-center justify-center" style={{ scrollSnapAlign: "start" }}>
         {/* Backdrop Radial Laser Ambient Illumination Effect */}
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(147,51,234,0.08),rgba(6,182,212,0.03),transparent_70%)] pointer-events-none animate-pulse" style={{ animationDuration: '4s' }} />
 
@@ -785,7 +850,7 @@ export function LandingPage() {
       </section>
 
       {/* ── Pricing ── */}
-      <section id="pricing" className="relative bg-[#09090b] px-6 py-24 overflow-hidden">
+      <section id="pricing" className="relative bg-[#09090b] px-6 py-24 overflow-hidden" style={{ scrollSnapAlign: "start" }}>
         {/* Background glow */}
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-emerald-500/5 rounded-full blur-[120px] pointer-events-none" />
 
@@ -926,7 +991,7 @@ export function LandingPage() {
       </section>
 
       {/* ── Auth Section ── */}
-      <section id="get-started" className="relative bg-[#09090b] px-6 py-24">
+      <section id="get-started" className="relative bg-[#09090b] px-6 py-24" style={{ scrollSnapAlign: "start" }}>
         <div className="max-w-md mx-auto">
           <div className="text-center mb-10">
             <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-emerald-500/20 text-emerald-400/60 text-xs font-medium mb-6 font-mono">
@@ -1037,7 +1102,7 @@ export function LandingPage() {
       </section>
 
       {/* ── FAQ Section ── */}
-      <section className="relative bg-[#09090b] px-6 py-24">
+      <section id="faq" className="relative bg-[#09090b] px-6 py-24" style={{ scrollSnapAlign: "start" }}>
         <div className="max-w-3xl mx-auto">
           <div className="text-center mb-14">
             <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/[0.03] border border-white/[0.06] text-sky-300/80 text-xs font-medium mb-6 backdrop-blur-sm">
@@ -1169,6 +1234,28 @@ export function LandingPage() {
           </div>
         </div>
       )}
+      {/* ── Section Dot Navigation ── */}
+      <div className="fixed right-4 top-1/2 -translate-y-1/2 z-40 hidden lg:flex flex-col items-center gap-3">
+        {SECTIONS.map((s) => {
+          const isActive = activeSection === s.id;
+          return (
+            <div key={s.id} className="relative group">
+              <button
+                onClick={() => scrollToSection(s.id)}
+                className={`block w-3 h-3 rounded-full transition-all duration-300 ${
+                  isActive
+                    ? "bg-[#fafafa] scale-125 shadow-[0_0_8px_rgba(250,250,250,0.3)]"
+                    : "bg-[#3f3f46] hover:bg-[#71717a]"
+                }`}
+                aria-label={s.label}
+              />
+              <span className="absolute right-5 top-1/2 -translate-y-1/2 bg-[#18181b] border border-[#27272a] text-[#d4d4d8] text-[11px] px-2.5 py-1 rounded-md opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap shadow-lg">
+                {s.label}
+              </span>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -1535,7 +1622,7 @@ function ScreenshotShowcase() {
   };
 
   return (
-    <section className="max-w-6xl mx-auto px-6 pb-24 overflow-hidden">
+    <section className="max-w-6xl mx-auto px-6 pb-24 overflow-hidden" style={{ scrollSnapAlign: "start" }}>
       <div className="text-center mb-12">
         <h2 className="text-3xl font-bold">See It in Action</h2>
         <p className="text-[#a1a1aa] mt-2">Everything you need to dominate boss rotations.</p>

@@ -69,6 +69,16 @@ export function ServerSettingsView() {
         .then(setMembers)
         .catch(() => setMembers([]))
         .finally(() => setMembersLoading(false));
+      // Fetch verification status for all members
+      supabase.rpc("get_member_verification", { p_server_id: currentServer.id })
+        .then(({ data }) => {
+          if (data) {
+            const map: Record<string, boolean> = {};
+            (data as any[]).forEach((r: any) => { map[r.user_id] = r.is_verified; });
+            setVerificationStatus(map);
+          }
+        })
+        .catch(() => setVerificationStatus({}));
       // Fetch guilds
       setGuildsLoading(true);
       fetchGuilds(currentServer.id)
@@ -152,6 +162,7 @@ export function ServerSettingsView() {
   const [pendingTimezone, setPendingTimezone] = useState<string | null>(null);
   const [members, setMembers] = useState<ServerMember[]>([]);
   const [membersLoading, setMembersLoading] = useState(false);
+  const [verificationStatus, setVerificationStatus] = useState<Record<string, boolean>>({});
   const [activities, setActivities] = useState<Activity[]>([]);
   const [activitiesLoading, setActivitiesLoading] = useState(false);
   const [allActivityGuilds, setAllActivityGuilds] = useState<ActivityGuild[]>([]);
@@ -2065,8 +2076,21 @@ export function ServerSettingsView() {
                       className={`flex items-center justify-between px-3 py-2 rounded-lg bg-[#18181b]/30 text-sm ${m.role === "moderator" && isOwner ? "cursor-pointer hover:bg-[#18181b]/50 transition" : ""}`}
                       onClick={() => m.role === "moderator" && isOwner && handleToggleModPerms(m.user_id)}
                     >
-                    <span className="text-[#d4d4d8] text-xs truncate max-w-[200px]">
-                      {m.email ?? m.user_id}
+                    <span className="text-[#d4d4d8] text-xs min-w-0 flex items-center gap-1.5">
+                      <span className="truncate">{m.email ?? m.user_id}</span>
+                      {verificationStatus[m.user_id] !== undefined && (
+                        verificationStatus[m.user_id] ? (
+                          <span className="text-emerald-400 flex items-center gap-1 shrink-0" title="Email verified">
+                            <MailCheck className="w-3 h-3" />
+                            <span className="text-[10px] text-emerald-400/70 hidden sm:inline">Verified</span>
+                          </span>
+                        ) : (
+                          <span className="text-amber-400 flex items-center gap-1 shrink-0" title="Email not verified">
+                            <MailWarning className="w-3 h-3" />
+                            <span className="text-[10px] text-amber-400/70 hidden sm:inline">Not verified</span>
+                          </span>
+                        )
+                      )}
                     </span>
                     <div className="flex items-center gap-2">
                       <span className={`text-xs px-1.5 py-0.5 rounded ${
@@ -2167,10 +2191,10 @@ export function ServerSettingsView() {
                   <Crown className="w-3 h-3" /> Transfer Ownership
                 </h4>
                 <p className="text-xs text-[#a1a1aa] mb-2">
-                  Transfer ownership to a current moderator. You'll become a moderator.
+                  Transfer ownership to a verified moderator. You'll become a moderator.
                 </p>
-                {moderators.length === 0 ? (
-                  <p className="text-xs text-[#71717a] italic">No moderators to transfer to. Share the invite code to add moderators first.</p>
+                {moderators.filter(m => verificationStatus[m.user_id]).length === 0 ? (
+                  <p className="text-xs text-[#71717a] italic">No verified moderators to transfer to.</p>
                 ) : (
                 <div className="flex gap-2">
                   <select
@@ -2178,12 +2202,15 @@ export function ServerSettingsView() {
                     onChange={(e) => setTransferId(e.target.value)}
                     className="flex-1 bg-[#18181b] border border-[#27272a] rounded-lg px-3 py-2 text-xs text-[#fafafa] outline-none focus:border-[#52525b] transition"
                   >
-                    <option value="">Select a moderator...</option>
-                    {moderators.map((m) => (
-                      <option key={m.user_id} value={m.user_id}>
-                        {m.email ?? m.user_id}
-                      </option>
-                    ))}
+                    <option value="">Select a verified moderator...</option>
+                    {moderators.map((m) => {
+                      const isVerified = verificationStatus[m.user_id];
+                      return (
+                        <option key={m.user_id} value={m.user_id} disabled={!isVerified}>
+                          {m.email ?? m.user_id}{!isVerified ? " (not verified)" : ""}
+                        </option>
+                      );
+                    })}
                   </select>
                   <button
                     onClick={handleTransfer}

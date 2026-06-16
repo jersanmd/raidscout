@@ -147,7 +147,7 @@ export function ForgotPasswordPage() {
 
                 <p className="text-center text-xs text-[#71717a]">
                   Remember your password?{" "}
-                  <Link to="/" className="text-[#a1a1aa] hover:text-[#fafafa] underline underline-offset-2 transition">
+                  <Link to="/#get-started" className="text-[#a1a1aa] hover:text-[#fafafa] underline underline-offset-2 transition">
                     Sign in
                   </Link>
                 </p>
