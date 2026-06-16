@@ -79,7 +79,7 @@ export function Layout() {
   }, [location.pathname]);
   // Fetch Discord guild info for connected servers
   useEffect(() => {
-    if (!currentServer?.id || isViewer) { setDiscordGuilds([]); return; }
+    if (!currentServer?.id) { setDiscordGuilds([]); return; }
     let cancelled = false;
     (async () => {
       const { data: links } = await supabase.from("discord_configs").select("discord_guild_id").eq("raidscout_server_id", currentServer.id);
@@ -118,10 +118,18 @@ export function Layout() {
 
       {/* ── Top Bar ── */}
       <header className="shrink-0 h-12 bg-[#0a0a0c] border-b border-[#1a1a1e] flex items-center px-4 gap-3 z-40">
-        <div className="hidden md:flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-2 shrink-0">
           <img src="/logo.png" alt="RaidScout" className="w-6 h-6 rounded-md" />
           <span className="font-semibold text-[#fafafa] text-sm tracking-tight">RaidScout</span>
         </div>
+        {/* Mobile server name + Pro badge */}
+        {currentServer && (
+          <div className="md:hidden flex items-center gap-1.5 shrink-0 min-w-0">
+            <Server className="w-3.5 h-3.5 text-[#a1a1aa] shrink-0" />
+            <span className="text-xs text-[#d4d4d8] truncate font-medium">{currentServer.name}</span>
+            {(()=>{const n=new Date();const e=currentServer.subscription_ends_at?new Date(currentServer.subscription_ends_at):null;if(!e)return null;const d=Math.ceil((e.getTime()-n.getTime())/86400000);if(d>0)return(<span className="shrink-0 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-semibold bg-amber-500/10 text-amber-300 border border-amber-500/20"><Crown className="w-2.5 h-2.5"/>Pro · {d}d</span>);return(<span className="shrink-0 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-semibold bg-red-500/10 text-red-300 border border-red-500/20">Expired</span>)})()}
+          </div>
+        )}
         {/* Discord connection indicator */}
         {discordGuilds.length > 0 && (
           <div className="hidden md:flex items-center gap-2.5 shrink-0 ml-1 pl-3 border-l border-[#27272a]">
@@ -209,7 +217,7 @@ export function Layout() {
         {/* User dropdown */}
         <div className="relative shrink-0">
           <button ref={menuBtnRef} onClick={()=>{if(!showUserMenu&&menuBtnRef.current){const r=menuBtnRef.current.getBoundingClientRect();setMenuPos({top:r.bottom+4,right:window.innerWidth-r.right})}setShowUserMenu(!showUserMenu)}} className="flex items-center gap-1.5 text-[#fafafa]/70 hover:text-[#fafafa] text-sm transition p-1.5 rounded-md hover:bg-[#18181b]" title="Account"><User className="w-4 h-4"/><span className="hidden sm:block text-xs max-w-[100px] truncate">{user?.email?.split("@")[0]}</span><ChevronDown className={`w-3 h-3 transition ${showUserMenu?"rotate-180":""}`}/></button>
-          {showUserMenu&&createPortal(<><div className="fixed inset-0 z-[9998]" onClick={()=>setShowUserMenu(false)}/><div className="fixed z-[9999] w-56 bg-[#18181b] border border-[#27272a] rounded-xl shadow-2xl overflow-hidden" style={menuPos?{top:menuPos.top,right:menuPos.right}:{}}><div className="px-4 py-3 border-b border-[#27272a]"><div className="text-sm font-semibold text-[#fafafa]">{user?.email?.split("@")[0]}</div><div className="text-xs text-[#71717a]">{user?.email}</div></div><div className="py-1"><div className="px-4 py-1.5 flex items-center gap-2 text-xs text-[#71717a]"><Globe className="w-3.5 h-3.5"/><select defaultValue={timezone} onChange={e=>setTimezone(e.target.value)} onClick={e=>e.stopPropagation()} className="flex-1 bg-transparent text-[#a1a1aa] text-xs focus:outline-none cursor-pointer">{TIMEZONES.map(tz=>(<option key={tz.value} value={tz.value} className="bg-[#11161e]">{tz.label}</option>))}</select></div>{isAdmin&&<NavLink to="/admin" onClick={()=>setShowUserMenu(false)} className="flex items-center gap-2 px-4 py-2 text-sm text-[#a1a1aa] hover:bg-[#18181b] transition"><Shield className="w-4 h-4"/>Admin Panel</NavLink>}<button onClick={()=>{setShowUserMenu(false);setShowLogoutConfirm(true)}} className="w-full text-left flex items-center gap-2 px-4 py-2 text-sm text-[#a1a1aa] hover:bg-[#18181b] transition border-t border-white/[0.06]"><LogOut className="w-4 h-4"/>Sign Out</button></div></div></>,document.body)}
+          {showUserMenu&&createPortal(<><div className="fixed inset-0 z-[9998]" onClick={()=>setShowUserMenu(false)}/><div className="fixed z-[9999] w-56 bg-[#18181b] border border-[#27272a] rounded-xl shadow-2xl overflow-hidden" style={menuPos?{top:menuPos.top,right:menuPos.right}:{}}><div className="px-4 py-3 border-b border-[#27272a]"><div className="text-sm font-semibold text-[#fafafa]">{user?.email?.split("@")[0]}</div><div className="text-xs text-[#71717a]">{user?.email}</div></div><div className="py-1"><div className="px-4 py-1.5 flex items-center gap-2 text-xs text-[#71717a]"><Globe className="w-3.5 h-3.5"/><select defaultValue={timezone} onChange={e=>setTimezone(e.target.value)} onClick={e=>e.stopPropagation()} className="flex-1 bg-transparent text-[#a1a1aa] text-xs focus:outline-none cursor-pointer">{TIMEZONES.map(tz=>(<option key={tz.value} value={tz.value} className="bg-[#11161e]">{tz.label}</option>))}</select></div>{hasServer&&!isViewer&&<div className="md:hidden"><NavLink to="/server-settings" onClick={()=>setShowUserMenu(false)} className="flex items-center gap-2 px-4 py-2 text-sm text-[#a1a1aa] hover:bg-[#18181b] transition"><Settings className="w-4 h-4"/>Server Settings</NavLink><NavLink to="/billing" onClick={()=>setShowUserMenu(false)} className="flex items-center gap-2 px-4 py-2 text-sm text-[#a1a1aa] hover:bg-[#18181b] transition"><CreditCard className="w-4 h-4"/>Billing</NavLink></div>}{isAdmin&&<NavLink to="/admin" onClick={()=>setShowUserMenu(false)} className="flex items-center gap-2 px-4 py-2 text-sm text-[#a1a1aa] hover:bg-[#18181b] transition"><Shield className="w-4 h-4"/>Admin Panel</NavLink>}<button onClick={()=>{setShowUserMenu(false);setShowLogoutConfirm(true)}} className="w-full text-left flex items-center gap-2 px-4 py-2 text-sm text-[#a1a1aa] hover:bg-[#18181b] transition border-t border-white/[0.06]"><LogOut className="w-4 h-4"/>Sign Out</button></div></div></>,document.body)}
         </div>
       </header>
 
@@ -303,11 +311,13 @@ export function Layout() {
       {/* ── Mobile Bottom Nav ── */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-[#09090b]/95 backdrop-blur-xl border-t border-[#27272a] safe-area-bottom">
         <div className="flex items-center justify-around h-14 max-w-lg mx-auto">
-          <NavLink to="/" end className={({isActive})=>`flex flex-col items-center justify-center gap-0.5 px-2 py-1.5 min-w-0 flex-1 rounded-lg transition-colors ${isActive?"text-[#fafafa]":"text-[#52525b]"}`}><Swords className="w-5 h-5"/><span className="text-[9px] font-medium">Bosses</span></NavLink>
-          <NavLink to="/schedule" className={({isActive})=>`flex flex-col items-center justify-center gap-0.5 px-2 py-1.5 min-w-0 flex-1 rounded-lg transition-colors ${isActive?"text-[#fafafa]":"text-[#52525b]"}`}><Calendar className="w-5 h-5"/><span className="text-[9px] font-medium">Sched</span></NavLink>
-          <NavLink to="/history" className={({isActive})=>`flex flex-col items-center justify-center gap-0.5 px-2 py-1.5 min-w-0 flex-1 rounded-lg transition-colors ${isActive?"text-[#fafafa]":"text-[#52525b]"}`}><Clock className="w-5 h-5"/><span className="text-[9px] font-medium">History</span></NavLink>
-          <NavLink to="/leaderboard" className={({isActive})=>`flex flex-col items-center justify-center gap-0.5 px-2 py-1.5 min-w-0 flex-1 rounded-lg transition-colors ${isActive?"text-[#fafafa]":"text-[#52525b]"}`}><Trophy className="w-5 h-5"/><span className="text-[9px] font-medium">Ranks</span></NavLink>
-          {!isViewer&&<NavLink to="/members" className={({isActive})=>`flex flex-col items-center justify-center gap-0.5 px-2 py-1.5 min-w-0 flex-1 rounded-lg transition-colors ${isActive?"text-[#fafafa]":"text-[#52525b]"}`}><Users className="w-5 h-5"/><span className="text-[9px] font-medium">Members</span></NavLink>}
+          <NavLink to="/" end className={({isActive})=>`flex flex-col items-center justify-center gap-0.5 px-1 py-1 min-w-0 flex-1 rounded-lg transition-colors ${isActive?"text-[#fafafa]":"text-[#52525b]"}`}><Swords className="w-4 h-4"/><span className="text-[8px] font-medium">Bosses</span></NavLink>
+          <NavLink to="/schedule" className={({isActive})=>`flex flex-col items-center justify-center gap-0.5 px-1 py-1 min-w-0 flex-1 rounded-lg transition-colors ${isActive?"text-[#fafafa]":"text-[#52525b]"}`}><Calendar className="w-4 h-4"/><span className="text-[8px] font-medium">Sched</span></NavLink>
+          <NavLink to="/history" className={({isActive})=>`flex flex-col items-center justify-center gap-0.5 px-1 py-1 min-w-0 flex-1 rounded-lg transition-colors ${isActive?"text-[#fafafa]":"text-[#52525b]"}`}><Clock className="w-4 h-4"/><span className="text-[8px] font-medium">History</span></NavLink>
+          <NavLink to="/leaderboard" className={({isActive})=>`flex flex-col items-center justify-center gap-0.5 px-1 py-1 min-w-0 flex-1 rounded-lg transition-colors ${isActive?"text-[#fafafa]":"text-[#52525b]"}`}><Trophy className="w-4 h-4"/><span className="text-[8px] font-medium">Ranks</span></NavLink>
+          {!isViewer&&<NavLink to="/members" className={({isActive})=>`flex flex-col items-center justify-center gap-0.5 px-1 py-1 min-w-0 flex-1 rounded-lg transition-colors ${isActive?"text-[#fafafa]":"text-[#52525b]"}`}><Users className="w-4 h-4"/><span className="text-[8px] font-medium">Members</span></NavLink>}
+          {!isViewer&&<NavLink to="/inventory" className={({isActive})=>`flex flex-col items-center justify-center gap-0.5 px-1 py-1 min-w-0 flex-1 rounded-lg transition-colors ${isActive?"text-[#fafafa]":"text-[#52525b]"}`}><Package className="w-4 h-4"/><span className="text-[8px] font-medium">Items</span></NavLink>}
+          <NavLink to="/analytics" className={({isActive})=>`flex flex-col items-center justify-center gap-0.5 px-1 py-1 min-w-0 flex-1 rounded-lg transition-colors ${isActive?"text-[#fafafa]":"text-[#52525b]"}`}><BarChart3 className="w-4 h-4"/><span className="text-[8px] font-medium">Stats</span></NavLink>
         </div>
       </nav>
 
