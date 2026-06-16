@@ -37,7 +37,7 @@ function playAlertSound() {
 
 export function Layout() {
   const { user, signOut, userRole, isViewer, viewerServerName } = useAuth();
-  const { servers, currentServer, setCurrentServer, loading: serverLoading } = useServer();
+  const { servers, currentServer, setCurrentServer, loading: serverLoading, refreshServers } = useServer();
   const { timezone, setTimezone } = useUserTimezone(currentServer?.timezone);
   const [showCreate, setShowCreate] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
@@ -52,7 +52,7 @@ export function Layout() {
   const { notifications, unreadCount, markRead, markAllRead } = useNotifications();
   const navigate = useNavigate(); const location = useLocation();
   const isAdmin = userRole === "admin"; const hasServer = !!currentServer;
-  const { joining: adminJoining } = useAdminViewAs(isAdmin ? currentServer?.id ?? null : null);
+  const { joining: adminJoining } = useAdminViewAs(isAdmin ? currentServer?.id ?? null : null, refreshServers);
 
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => localStorage.getItem("raidscout-sidebar-collapsed") === "true");
   const [sidebarHovered, setSidebarHovered] = useState(false);

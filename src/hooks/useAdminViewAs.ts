@@ -9,7 +9,7 @@ const EDGE_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/admin-impers
  * 2. Removes them when they navigate away
  * 3. Cleans up stale memberships on app load
  */
-export function useAdminViewAs(serverId: string | null) {
+export function useAdminViewAs(serverId: string | null, refreshServers?: () => Promise<void>) {
   const { user, userRole } = useAuth();
   const previousId = useRef<string | null>(null);
   const [joining, setJoining] = useState(false);
@@ -47,6 +47,7 @@ export function useAdminViewAs(serverId: string | null) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ user_id: user.id, server_id: serverId, action: "join" }),
       })
+        .then(() => refreshServers?.())
         .catch(() => {})
         .finally(() => setJoining(false));
     }

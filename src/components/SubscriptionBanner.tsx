@@ -8,11 +8,14 @@ import { AlertTriangle, Clock, ArrowRight } from "lucide-react";
  * Links to /billing for plan management and subscription.
  */
 export function SubscriptionBanner() {
-  const { user, isViewer } = useAuth();
+  const { user, isViewer, userRole } = useAuth();
   const { currentServer } = useServer();
 
   if (!currentServer) return null;
   if (!user && !isViewer) return null;
+
+  // Admins viewing a server should never see subscription banners
+  if (userRole === "admin") return null;
 
   const isOwner = currentServer.role === "owner";
   const isMod = currentServer.role === "moderator";
