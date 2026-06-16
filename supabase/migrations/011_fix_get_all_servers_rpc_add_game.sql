@@ -12,7 +12,9 @@ RETURNS TABLE(
   member_count bigint,
   raid_member_count bigint,
   game_name text,
-  game_icon_url text
+  game_icon_url text,
+  subscription_ends_at timestamptz,
+  trial_ends_at timestamptz
 )
 LANGUAGE sql
 SECURITY DEFINER
@@ -26,7 +28,9 @@ AS $$
     (SELECT COUNT(*) FROM public.server_members sm WHERE sm.server_id = s.id) AS member_count,
     (SELECT COUNT(*) FROM public.members m WHERE m.server_id = s.id) AS raid_member_count,
     g.name AS game_name,
-    g.icon_url AS game_icon_url
+    g.icon_url AS game_icon_url,
+    s.subscription_ends_at,
+    s.trial_ends_at
   FROM public.servers s
   LEFT JOIN public.games g ON g.id = s.game_id
   ORDER BY s.created_at DESC;
