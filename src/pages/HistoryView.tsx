@@ -86,8 +86,8 @@ export function HistoryView() {
   // ── Ledger data ──
   const [ledgerData, setLedgerData] = useState<{
     dates: string[];
-    fixedHours: { id: string; name: string }[];
-    fixedSchedule: { id: string; name: string }[];
+    fixedHours: { id: string; name: string; respawnHours: number }[];
+    fixedSchedule: { id: string; name: string; primaryDay: number }[];
     cells: Record<string, Record<string, { guild: string | null; time: string }[]>>;
   }>({ dates: [], fixedHours: [], fixedSchedule: [], cells: {} });
   const [ledgerLoading, setLedgerLoading] = useState(false);
@@ -98,12 +98,12 @@ export function HistoryView() {
       try {
         const since = dateFrom ? new Date(dateFrom + "T00:00:00Z").toISOString() : undefined;
         const until = dateTo ? new Date(dateTo + "T23:59:59Z").toISOString() : undefined;
-        let q = supabase.from("death_records").select("boss_id, death_time, owner_guild_id, bosses!inner(name, spawn_type)").eq("server_id", serverId).order("death_time", { ascending: false });
+        let q = supabase.from("death_records").select("boss_id, death_time, owner_guild_id, bosses!inner(name, spawn_type, respawn_hours, schedule)").eq("server_id", serverId).order("death_time", { ascending: false });
         if (since) q = q.gte("death_time", since);
         if (until) q = q.lte("death_time", until);
         const { data: deaths } = await q;
-        const fixedHoursMap = new Map<string, string>();
-        const fixedScheduleMap = new Map<string, string>();
+        const fixedHoursMap = new Map<string, { name: string; respawnHours: number }>();
+        const fixedScheduleMap = new Map<string, { name: string; primaryDay: number }>();
         const dateSet = new Set<string>();
         const cells: Record<string, Record<string, { guild: string | null; time: string }[]>> = {};
         (deaths || []).forEach((d: any) => {
@@ -114,8 +114,15 @@ export function HistoryView() {
           const boss = (d as any).bosses;
           const bname = boss?.name || "Unknown";
           const stype = boss?.spawn_type || "fixed_hours";
-          if (stype === "fixed_schedule") fixedScheduleMap.set(bid, bname);
-          else fixedHoursMap.set(bid, bname);
+          if (stype === "fixed_schedule") {
+            const schedule = boss?.schedule;
+            const days: number[] = Array.isArray(schedule) ? schedule.map((s: any) => s.day ?? 0) : [];
+            const primaryDay = days.length > 0 ? Math.min(...days) : 7;
+            if (!fixedScheduleMap.has(bid)) fixedScheduleMap.set(bid, { name: bname, primaryDay });
+          } else {
+            const rh = boss?.respawn_hours ?? 24;
+            if (!fixedHoursMap.has(bid)) fixedHoursMap.set(bid, { name: bname, respawnHours: rh });
+          }
           dateSet.add(date);
           if (!cells[date]) cells[date] = {};
           if (!cells[date][bid]) cells[date][bid] = [];
@@ -123,8 +130,12 @@ export function HistoryView() {
           const g = gid ? guilds.find(gg => gg.id === gid) : null;
           cells[date][bid].push({ guild: g?.name ?? null, time });
         });
-        const fixedHours = [...fixedHoursMap.entries()].map(([id, name]) => ({ id, name }));
-        const fixedSchedule = [...fixedScheduleMap.entries()].map(([id, name]) => ({ id, name }));
+        const fixedHours = [...fixedHoursMap.entries()]
+          .sort(([, a], [, b]) => a.respawnHours - b.respawnHours)
+          .map(([id, { name, respawnHours }]) => ({ id, name, respawnHours }));
+        const fixedSchedule = [...fixedScheduleMap.entries()]
+          .sort(([, a], [, b]) => a.primaryDay - b.primaryDay)
+          .map(([id, { name, primaryDay }]) => ({ id, name, primaryDay }));
         const dates = [...dateSet].sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
         setLedgerData({ dates, fixedHours, fixedSchedule, cells });
       } catch { /* ignore */ }
@@ -273,7 +284,8 @@ export function HistoryView() {
     dates: string[];
     cells: Record<string, Record<string, { guild: string | null; time: string }[]>>;
     guilds: Guild[];
-  }) => (
+  }) => {
+    return (
     <div className="overflow-x-auto">
         <table className="w-full text-xs border-collapse">
           <thead>
@@ -301,10 +313,10 @@ export function HistoryView() {
                                 <span className="text-[11px] text-[#a1a1aa] font-mono">{entry.time}</span>
                                 <span className="inline-flex items-center gap-1">
                                   {g ? (
-                                    <>
-                                      <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: guildColor(g.name) }} />
-                                      <span className="text-[10px] font-medium" style={{ color: guildColor(g.name) }}>{g.name}</span>
-                                    </>
+                                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium border" style={{ color: guildColor(g.name), backgroundColor: guildColor(g.name) + "15", borderColor: guildColor(g.name) + "30" }}>
+                                      <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: guildColor(g.name) }} />
+                                      {g.name}
+                                    </span>
                                   ) : (
                                     <span className="text-[#52525b] text-[10px]">—</span>
                                   )}
@@ -325,7 +337,7 @@ export function HistoryView() {
           </tbody>
         </table>
       </div>
-  );
+  };
 
   return (
     <div className="max-w-[95%] 2xl:max-w-[1600px] mx-auto px-4 py-6 space-y-6">
