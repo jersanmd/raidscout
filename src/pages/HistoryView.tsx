@@ -312,7 +312,7 @@ export function HistoryView() {
                                 <span className="text-[11px] text-[#a1a1aa] font-mono">{entry.time}</span>
                                 <span>
                                   {g ? (
-                                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium border" style={{ color: guildColor(g.name), backgroundColor: guildColor(g.name) + "15", borderColor: guildColor(g.name) + "30" }}>
+                                    <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium border ${guildColor(g.name).bg} ${guildColor(g.name).text} ${guildColor(g.name).border}`}>
                                       {g.name}
                                     </span>
                                   ) : (
