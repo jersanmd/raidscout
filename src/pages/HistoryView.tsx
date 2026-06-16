@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { type HistoryEntry } from "@/lib/history";
-import { fetchHistoryFromSupabase, deleteDeathRecord, isSupabaseConfigured, editDeathTime, fetchGuilds, setDeathDisplayGuild } from "@/lib/supabase";
+import { fetchHistoryFromSupabase, deleteDeathRecord, isSupabaseConfigured, editDeathTime, fetchGuilds, setDeathDisplayGuild, fetchBosses, supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { useServerId, useServer } from "@/contexts/ServerContext";
 import { ExpiredGate } from "@/components/ExpiredGate";
@@ -8,7 +8,7 @@ import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { useQueryClient } from "@tanstack/react-query";
 import { ParticipantModal } from "@/components/ParticipantModal";
 import { BossImage } from "@/components/BossImage";
-import { Clock, Trash2, Skull, Repeat, Timer, Users, Loader2, Pencil, X, Search, Calendar } from "lucide-react";
+import { Clock, Trash2, Skull, Repeat, Timer, Users, Loader2, Pencil, X, Search, Calendar, BookOpen } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { guildColor } from "@/lib/constants";
 import type { Guild } from "@/types";
@@ -78,6 +78,45 @@ export function HistoryView() {
       .catch(() => setGuilds([]))
       .finally(() => setGuildsLoading(false));
   }, []);
+
+  // ── Tabs ──
+  const [tab, setTab] = useState<"timeline" | "ledger">("timeline");
+
+  // ── Ledger data ──
+  const [ledgerData, setLedgerData] = useState<{ dates: string[]; bosses: { id: string; name: string }[]; cells: Record<string, Record<string, string | null>> }>({ dates: [], bosses: [], cells: {} });
+  const [ledgerLoading, setLedgerLoading] = useState(false);
+  useEffect(() => {
+    if (tab !== "ledger" || !serverId || !configured) return;
+    setLedgerLoading(true);
+    (async () => {
+      try {
+        const since = dateFrom ? new Date(dateFrom + "T00:00:00Z").toISOString() : undefined;
+        const until = dateTo ? new Date(dateTo + "T23:59:59Z").toISOString() : undefined;
+        let q = supabase.from("death_records").select("boss_id, death_time, owner_guild_id, bosses!inner(name)").eq("server_id", serverId).order("death_time", { ascending: false });
+        if (since) q = q.gte("death_time", since);
+        if (until) q = q.lte("death_time", until);
+        const { data: deaths } = await q;
+        const bossMap = new Map<string, string>();
+        const dateSet = new Set<string>();
+        const cells: Record<string, Record<string, string | null>> = {};
+        (deaths || []).forEach((d: any) => {
+          const date = new Date(d.death_time).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+          const bid = d.boss_id;
+          const bname = (d as any).bosses?.name || "Unknown";
+          bossMap.set(bid, bname);
+          dateSet.add(date);
+          if (!cells[date]) cells[date] = {};
+          const gid = d.owner_guild_id;
+          const g = gid ? guilds.find(gg => gg.id === gid) : null;
+          cells[date][bid] = g?.name || (gid ? "—" : null);
+        });
+        const bosses = [...bossMap.entries()].map(([id, name]) => ({ id, name }));
+        const dates = [...dateSet].sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
+        setLedgerData({ dates, bosses, cells });
+      } catch { /* ignore */ }
+      finally { setLedgerLoading(false); }
+    })();
+  }, [tab, serverId, configured, dateFrom, dateTo, guilds]);
 
   const handleEditDeathTime = async () => {
     if (!editEntry?.deathRecordId || !editDate) return;
@@ -224,7 +263,50 @@ export function HistoryView() {
           </div>
           <h2 className="text-xl font-semibold text-[#fafafa]">History</h2>
         </div>
-        <div className="flex items-center gap-2 order-3 sm:order-none w-full sm:w-auto mt-2 sm:mt-0">
+        {/* Tabs */}
+        <div className="flex items-center gap-1 bg-[#18181b] rounded-lg p-1">
+          <button onClick={() => setTab("timeline")} className={`px-3 py-1.5 rounded-md text-xs font-medium transition ${tab === "timeline" ? "bg-[#27272a] text-[#fafafa]" : "text-[#71717a] hover:text-[#d4d4d8]"}`}>Timeline</button>
+          <button onClick={() => setTab("ledger")} className={`px-3 py-1.5 rounded-md text-xs font-medium transition flex items-center gap-1 ${tab === "ledger" ? "bg-[#27272a] text-[#fafafa]" : "text-[#71717a] hover:text-[#d4d4d8]"}`}><BookOpen className="w-3 h-3" /> Ledger</button>
+        </div>
+      </div>
+
+      {/* Date range — shared by both tabs */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-2">
+          {(["7d", "30d", "custom"] as const).map(p => (
+            <button
+              key={p}
+              onClick={() => handleDatePreset(p)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition border ${
+                dateRange === p
+                  ? "bg-[#27272a] border-[#3f3f46] text-[#fafafa]"
+                  : "bg-[#18181b] border-[#27272a] text-[#a1a1aa] hover:text-[#fafafa]"
+              }`}
+            >
+              {p === "7d" ? "Last 7d" : p === "30d" ? "Last Month" : "Custom"}
+            </button>
+          ))}
+        </div>
+        {dateRange === "custom" && (
+          <>
+            <div className="flex items-center gap-2">
+              <label className="text-xs text-[#71717a]">From</label>
+              <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)}
+                className="bg-[#18181b] border border-[#27272a] rounded-lg px-3 py-1.5 text-xs text-[#fafafa] outline-none focus:border-[#52525b]" />
+            </div>
+            <div className="flex items-center gap-2">
+              <label className="text-xs text-[#71717a]">To</label>
+              <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)}
+                max={new Date().toISOString().split("T")[0]}
+                className="bg-[#18181b] border border-[#27272a] rounded-lg px-3 py-1.5 text-xs text-[#fafafa] outline-none focus:border-[#52525b]" />
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Timeline Tab */}
+      {tab === "timeline" && (<>
+        <div className="flex items-center gap-2 w-full">
           <div className="relative flex-1 sm:flex-initial sm:w-48 lg:w-64">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#71717a]" />
             <input
@@ -244,47 +326,6 @@ export function HistoryView() {
             )}
           </div>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
-          {(["7d", "30d", "custom"] as const).map(p => (
-            <button
-              key={p}
-              onClick={() => handleDatePreset(p)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition border ${
-                dateRange === p
-                  ? "bg-[#27272a] border-[#3f3f46] text-[#fafafa]"
-                  : "bg-[#18181b] border-[#27272a] text-[#a1a1aa] hover:text-[#fafafa]"
-              }`}
-            >
-              {p === "7d" ? "Last 7d" : p === "30d" ? "Last Month" : "Custom"}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Custom date range picker */}
-      {dateRange === "custom" && (
-        <div className="flex items-center gap-3 flex-wrap">
-          <div className="flex items-center gap-2">
-            <label className="text-xs text-[#71717a]">From</label>
-            <input
-              type="date"
-              value={dateFrom}
-              onChange={(e) => setDateFrom(e.target.value)}
-              className="bg-[#18181b] border border-[#27272a] rounded-lg px-3 py-1.5 text-xs text-[#fafafa] outline-none focus:border-[#52525b]"
-            />
-          </div>
-          <div className="flex items-center gap-2">
-            <label className="text-xs text-[#71717a]">To</label>
-            <input
-              type="date"
-              value={dateTo}
-              onChange={(e) => setDateTo(e.target.value)}
-              max={new Date().toISOString().split("T")[0]}
-              className="bg-[#18181b] border border-[#27272a] rounded-lg px-3 py-1.5 text-xs text-[#fafafa] outline-none focus:border-[#52525b]"
-            />
-          </div>
-        </div>
-      )}
 
       {loading || guildsLoading ? (
         <div className="flex items-center justify-center py-20">
@@ -401,6 +442,56 @@ export function HistoryView() {
               </div>
             </section>
           ))}
+        </div>
+      )}
+
+      </>)}
+
+      {/* Ledger Tab */}
+      {tab === "ledger" && (
+        <div className="space-y-4">
+          {ledgerLoading ? (
+            <div className="flex items-center justify-center py-20"><Loader2 className="w-8 h-8 text-[#a1a1aa] animate-spin" /></div>
+          ) : ledgerData.bosses.length === 0 ? (
+            <div className="text-center py-16"><BookOpen className="w-12 h-12 text-[#3f3f46] mx-auto mb-3" /><p className="text-[#71717a] text-lg">No kills recorded</p></div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs border-collapse">
+                <thead>
+                  <tr>
+                    <th className="text-left py-2 px-3 text-[#71717a] font-medium uppercase tracking-wider border-b border-[#27272a] sticky left-0 bg-[#09090b] z-10">Date</th>
+                    {ledgerData.bosses.map(b => (
+                      <th key={b.id} className="text-center py-2 px-3 text-[#71717a] font-medium uppercase tracking-wider border-b border-[#27272a] whitespace-nowrap">{b.name}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {ledgerData.dates.map(date => (
+                    <tr key={date} className="border-b border-[#27272a]/30 hover:bg-[#09090b]/30 transition">
+                      <td className="py-2 px-3 text-[#a1a1aa] font-medium sticky left-0 bg-[#09090b] whitespace-nowrap">{date}</td>
+                      {ledgerData.bosses.map(b => {
+                        const guild = ledgerData.cells[date]?.[b.id];
+                        const g = guild ? guilds.find(gg => gg.name === guild) : null;
+                        return (
+                          <td key={b.id} className="py-2 px-3 text-center whitespace-nowrap">
+                            {g ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium" style={{ color: guildColor(g.name) }}>
+                                {g.name}
+                              </span>
+                            ) : guild === null ? (
+                              <span className="text-[#3f3f46]">—</span>
+                            ) : (
+                              <span className="text-[#52525b]">{guild || "—"}</span>
+                            )}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
 
