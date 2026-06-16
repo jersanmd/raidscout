@@ -304,7 +304,7 @@ export function HistoryView() {
               ))}
             </tr>
           </thead>
-          <tbody>
+          <tbody className="bg-[#18181b]">
             {dates.map(date => (
               <tr key={date.key} className="border-b border-[#27272a]/50 hover:bg-[#3f3f46]/20 transition">
                 <td className="py-2 px-3 sticky left-0 bg-[#18181b] whitespace-nowrap align-top">
@@ -314,7 +314,7 @@ export function HistoryView() {
                 {bosses.map(b => {
                   const entries = cells[date.key]?.[b.id];
                   return (
-                    <td key={b.id} className="py-2 px-3 text-center whitespace-nowrap align-top">
+                    <td key={b.id} className="py-2 px-3 text-center whitespace-nowrap align-top bg-[#18181b]">
                       {entries?.length ? (
                         <div className="flex flex-col items-center gap-1">
                           {entries.map((entry, i) => {
