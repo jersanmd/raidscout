@@ -289,13 +289,13 @@ export function HistoryView() {
     cells: Record<string, Record<string, { guild: string | null; time: string }[]>>;
     guilds: Guild[];
   }) => (
-    <div className="overflow-auto max-h-[calc(100vh-200px)] rounded-lg border border-[#27272a]/50">
+    <div className="overflow-auto max-h-[calc(100vh-200px)] rounded-lg border border-[#3f3f46]">
         <table className="w-full text-xs border-collapse">
-          <thead className="sticky top-0 z-20 bg-[#09090b]">
+          <thead className="sticky top-0 z-20 bg-[#27272a]">
             <tr>
-              <th className="text-left py-2 px-3 text-[#71717a] font-medium uppercase tracking-wider border-b border-[#27272a] sticky left-0 bg-[#09090b] z-10">Date</th>
+              <th className="text-left py-2 px-3 text-[#a1a1aa] font-medium uppercase tracking-wider border-b border-[#3f3f46] sticky left-0 bg-[#27272a] z-10">Date</th>
               {bosses.map(b => (
-                <th key={b.id} className="text-center py-2 px-3 text-[#71717a] font-medium uppercase tracking-wider border-b border-[#27272a] whitespace-nowrap align-bottom">
+                <th key={b.id} className="text-center py-2 px-3 text-[#a1a1aa] font-medium uppercase tracking-wider border-b border-[#3f3f46] whitespace-nowrap align-bottom">
                   <div className="flex flex-col items-center gap-1">
                     <BossImage bossName={b.name} imageUrl={b.imageUrl} size="sm" />
                     <span>{b.name}</span>
@@ -306,10 +306,10 @@ export function HistoryView() {
           </thead>
           <tbody>
             {dates.map(date => (
-              <tr key={date.key} className="border-b border-[#27272a]/30 hover:bg-[#09090b]/30 transition">
-                <td className="py-2 px-3 sticky left-0 bg-[#09090b] whitespace-nowrap align-top">
-                  <div className="text-[#a1a1aa] font-medium text-xs">{date.monthDay}</div>
-                  <div className="text-[10px] text-[#52525b]">{date.weekday}</div>
+              <tr key={date.key} className="border-b border-[#27272a]/50 hover:bg-[#3f3f46]/20 transition">
+                <td className="py-2 px-3 sticky left-0 bg-[#18181b] whitespace-nowrap align-top">
+                  <div className="text-[#d4d4d8] font-medium text-xs">{date.monthDay}</div>
+                  <div className="text-[10px] text-[#71717a]">{date.weekday}</div>
                 </td>
                 {bosses.map(b => {
                   const entries = cells[date.key]?.[b.id];
@@ -328,16 +328,16 @@ export function HistoryView() {
                                       {g.name}
                                     </span>
                                   ) : (
-                                    <span className="text-[#52525b] text-[10px]">—</span>
+                                    <span className="text-[#71717a] text-[10px]">—</span>
                                   )}
                                 </span>
-                                {i < entries.length - 1 && <div className="w-4 h-px bg-[#27272a] my-0.5" />}
+                                {i < entries.length - 1 && <div className="w-4 h-px bg-[#3f3f46] my-0.5" />}
                               </div>
                             );
                           })}
                         </div>
                       ) : (
-                        <span className="text-[#3f3f46]">—</span>
+                        <span className="text-[#52525b]">—</span>
                       )}
                     </td>
                   );
