@@ -994,12 +994,12 @@ export function ServerSettingsView() {
 
     try {
       await setBossGuilds(bossId, newAssignments, "schedule");
-      const updated = await fetchBossGuilds(currentServer!.id);
-      setBossGuildsState(updated);
+      // Trust the optimistic update — don't refetch (edge function may return stale data)
     } catch (err: any) {
       // Revert on failure
       const reverted = await fetchBossGuilds(currentServer!.id);
       setBossGuildsState(reverted);
+      setBossModes(prev => ({ ...prev, [bossId]: getBossMode(bossId) }));
       toast("error", err?.message ?? "Failed to set schedule");
     }
   };
