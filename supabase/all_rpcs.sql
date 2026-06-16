@@ -813,6 +813,7 @@ AS $$
     s.trial_ends_at
   FROM public.servers s
   LEFT JOIN public.games g ON g.id = s.game_id
+  WHERE s.deleted_at IS NULL
   ORDER BY s.created_at DESC;
 $$;
 
