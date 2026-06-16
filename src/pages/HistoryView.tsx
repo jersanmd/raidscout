@@ -296,14 +296,10 @@ export function HistoryView() {
               <th className="text-left py-2 px-3 text-[#71717a] font-medium uppercase tracking-wider border-b border-[#27272a] sticky left-0 bg-[#09090b] z-10">Date</th>
               {bosses.map(b => (
                 <th key={b.id} className="text-center py-2 px-3 text-[#71717a] font-medium uppercase tracking-wider border-b border-[#27272a] whitespace-nowrap align-bottom">
-                  {b.imageUrl ? (
-                    <div className="flex flex-col items-center gap-1">
-                      <BossImage bossName={b.name} imageUrl={b.imageUrl} className="w-8 h-8 rounded object-cover" />
-                      <span>{b.name}</span>
-                    </div>
-                  ) : (
-                    b.name
-                  )}
+                  <div className="flex flex-col items-center gap-1">
+                    <BossImage bossName={b.name} imageUrl={b.imageUrl} size="sm" />
+                    <span>{b.name}</span>
+                  </div>
                 </th>
               ))}
             </tr>
