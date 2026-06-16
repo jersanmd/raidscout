@@ -2533,7 +2533,7 @@ export function ServerSettingsView() {
                               placeholder="@everyone"
                               className={`bg-[#27272a] border border-[#3f3f46] px-2 py-1 text-xs text-[#e4e4e7] font-mono outline-none focus:ring-1 focus:ring-[#52525b] transition ${
                                 (pingValues[link.id] ?? "") !== ((link as any).notification_prefix || "")
-                                  ? "rounded-l w-28" : "rounded w-36"
+                                  ? "rounded-l w-56" : "rounded w-56"
                               }`} />
                             {(pingValues[link.id] ?? "") !== ((link as any).notification_prefix || "") && (
                               <button
