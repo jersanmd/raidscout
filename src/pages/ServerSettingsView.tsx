@@ -422,7 +422,7 @@ export function ServerSettingsView() {
     setBulkScheduleDays(prev => ({ ...prev, [dayOfWeek]: guildId }));
     try {
       for (const bossId of selectedBossIds) {
-        const existing = getBossGuildsForBoss(bossId).filter(bg => bg.day_of_week !== dayOfWeek);
+        const existing = getBossGuildsForBoss(bossId).filter(bg => bg.day_of_week !== null && bg.day_of_week !== dayOfWeek);
         const newAssignments = existing.map(bg => ({ guild_id: bg.guild_id, day_of_week: bg.day_of_week! }));
         if (guildId) newAssignments.push({ guild_id: guildId, day_of_week: dayOfWeek });
         await setBossGuilds(bossId, newAssignments, "schedule");
@@ -877,8 +877,9 @@ export function ServerSettingsView() {
     setExpandedBoss(bossId);
 
     try {
-      await setBossGuilds(bossId, []);
+      // Clear local state immediately so stale rows don't leak into schedule handlers
       setBossGuildsState(prev => prev.filter(bg => bg.boss_id !== bossId));
+      await setBossGuilds(bossId, []);
     } catch (err: any) {
       toast("error", err?.message ?? "Failed to set mode");
       // Revert the mode change on error
@@ -971,7 +972,8 @@ export function ServerSettingsView() {
   };
 
   const handleSetScheduleGuild = async (bossId: string, dayOfWeek: number, guildId: string | null) => {
-    const existing = getBossGuildsForBoss(bossId).filter(bg => bg.day_of_week !== dayOfWeek);
+    // Only include existing schedule rows (day_of_week !== null), ignore stale rotation/daily rows
+    const existing = getBossGuildsForBoss(bossId).filter(bg => bg.day_of_week !== null && bg.day_of_week !== dayOfWeek);
     const newAssignments = existing.map(bg => ({ guild_id: bg.guild_id, day_of_week: bg.day_of_week! }));
     if (guildId) {
       newAssignments.push({ guild_id: guildId, day_of_week: dayOfWeek });
