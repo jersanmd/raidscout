@@ -788,7 +788,9 @@ RETURNS TABLE(
   owner_id uuid,
   created_at timestamptz,
   member_count bigint,
-  raid_member_count bigint
+  raid_member_count bigint,
+  game_name text,
+  game_icon_url text
 )
 LANGUAGE sql
 SECURITY DEFINER
@@ -800,8 +802,11 @@ AS $$
     s.owner_id,
     s.created_at,
     (SELECT COUNT(*) FROM public.server_members sm WHERE sm.server_id = s.id) AS member_count,
-    (SELECT COUNT(*) FROM public.members m WHERE m.server_id = s.id) AS raid_member_count
+    (SELECT COUNT(*) FROM public.members m WHERE m.server_id = s.id) AS raid_member_count,
+    g.name AS game_name,
+    g.icon_url AS game_icon_url
   FROM public.servers s
+  LEFT JOIN public.games g ON g.id = s.game_id
   ORDER BY s.created_at DESC;
 $$;
 
