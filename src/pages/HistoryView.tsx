@@ -284,8 +284,7 @@ export function HistoryView() {
     dates: string[];
     cells: Record<string, Record<string, { guild: string | null; time: string }[]>>;
     guilds: Guild[];
-  }) => {
-    return (
+  }) => (
     <div className="overflow-x-auto">
         <table className="w-full text-xs border-collapse">
           <thead>
@@ -311,10 +310,9 @@ export function HistoryView() {
                             return (
                               <div key={i} className="flex flex-col items-center gap-0.5">
                                 <span className="text-[11px] text-[#a1a1aa] font-mono">{entry.time}</span>
-                                <span className="inline-flex items-center gap-1">
+                                <span>
                                   {g ? (
-                                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium border" style={{ color: guildColor(g.name), backgroundColor: guildColor(g.name) + "15", borderColor: guildColor(g.name) + "30" }}>
-                                      <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: guildColor(g.name) }} />
+                                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium border" style={{ color: guildColor(g.name), backgroundColor: guildColor(g.name) + "15", borderColor: guildColor(g.name) + "30" }}>
                                       {g.name}
                                     </span>
                                   ) : (
@@ -337,7 +335,7 @@ export function HistoryView() {
           </tbody>
         </table>
       </div>
-  };
+  );
 
   return (
     <div className="max-w-[95%] 2xl:max-w-[1600px] mx-auto px-4 py-6 space-y-6">
