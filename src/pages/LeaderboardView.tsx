@@ -1553,7 +1553,7 @@ export function LeaderboardView() {
                 type="datetime-local"
                 value={finalizeTime}
                 onChange={(e) => setFinalizeTime(e.target.value)}
-                className="w-full bg-[#27272a] border border-[#3f3f46] rounded-lg px-3 py-2 text-sm text-[#fafafa] outline-none focus:border-[#52525b]"
+                className="w-full bg-[#27272a] border border-[#3f3f46] rounded-lg px-3 py-2 text-sm text-[#fafafa] outline-none focus:border-[#52525b] [color-scheme:dark]"
               />
             </div>
             <div className="flex justify-end gap-2">
