@@ -563,18 +563,23 @@ export async function handleMessage(msg: any) {
       return a.unix - b.unix;
     });
 
-    // ── Group by day with relative labels ──
-    const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    // ── Group by day with relative labels (in server timezone) ──
     const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
     function dayLabel(unix: number): string {
-      const d = new Date(unix * 1000);
-      const today = new Date(); today.setHours(0, 0, 0, 0);
-      const tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate() + 1);
-      const dDay = new Date(d); dDay.setHours(0, 0, 0, 0);
-      if (dDay.getTime() === today.getTime()) return `📅 Today (${monthNames[d.getMonth()]} ${d.getDate()})`;
-      if (dDay.getTime() === tomorrow.getTime()) return `📅 Tomorrow (${monthNames[d.getMonth()]} ${d.getDate()})`;
-      return `📅 ${dayNames[d.getDay()]} ${monthNames[d.getMonth()]} ${d.getDate()}`;
+      const toServerDate = (ts: number) =>
+        new Date(ts).toLocaleDateString("en-CA", { timeZone: tz }); // "YYYY-MM-DD"
+      const nowDate = toServerDate(Date.now());
+      const spawnDate = toServerDate(unix * 1000);
+      const [sy, sm, sd] = spawnDate.split("-").map(Number);
+      const [ny, nm, nd] = nowDate.split("-").map(Number);
+      const spawnMidnight = Date.UTC(sy, sm - 1, sd);
+      const nowMidnight = Date.UTC(ny, nm - 1, nd);
+      const tomorrowMidnight = Date.UTC(ny, nm - 1, nd + 1);
+      const dow = new Date(unix * 1000).toLocaleDateString("en-US", { timeZone: tz, weekday: "short" });
+      if (spawnMidnight === nowMidnight) return `📅 Today (${monthNames[sm - 1]} ${sd})`;
+      if (spawnMidnight === tomorrowMidnight) return `📅 Tomorrow (${monthNames[sm - 1]} ${sd})`;
+      return `📅 ${dow} ${monthNames[sm - 1]} ${sd}`;
     }
 
     const groups: { label: string; items: typeof upcoming }[] = [];
