@@ -68,9 +68,10 @@ export function useLeaderboardSnapshots() {
     async (
       period: string,
       rankings: { rank: number; memberId: string; memberName: string; points: number }[],
-      periodStart: string
+      periodStart: string,
+      finalizedAt?: string
     ) => {
-      const now = new Date().toISOString();
+      const now = finalizedAt || new Date().toISOString();
       // Use guild-specific reset key for per-guild finalization
       const resetKey = period.startsWith("weekly:") ? `leaderboard_reset_at:${period.replace("weekly:", "")}` : "leaderboard_reset_at";
 
