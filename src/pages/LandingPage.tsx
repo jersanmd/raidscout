@@ -264,7 +264,7 @@ export function LandingPage() {
     setLoading(true);
     const { error: err } = isSignUp ? await signUp(email, password) : await signIn(email, password);
     if (err) setError(err);
-    else if (isSignUp) setSuccess("Account created! Check your email for a verification link, then sign in.");
+    else if (isSignUp) setSuccess("Account created! You're signed in. Verify your email anytime in Account Settings.");
     setLoading(false);
   };
 

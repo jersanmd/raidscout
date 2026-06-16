@@ -7,7 +7,7 @@ import { SEOHead } from "@/components/SEOHead";
 import { PayPalSubscribeButton } from "@/components/PayPalSubscribeButton";
 import { PaymentSuccessModal } from "@/components/PaymentSuccessModal";
 import { supabase } from "@/lib/supabase";
-import { ArrowLeft, Clock, Shield, AlertTriangle, Zap, Users, Bell, Eye, BarChart3, Skull, Calendar, Trophy, Settings, MessageCircle, Globe, Activity, CreditCard, Receipt, Loader2 } from "lucide-react";
+import { ArrowLeft, Clock, Shield, AlertTriangle, Zap, Users, Bell, Eye, BarChart3, Skull, Calendar, Trophy, Settings, MessageCircle, Globe, Activity, CreditCard, Receipt, Loader2, MailWarning } from "lucide-react";
 
 const FEATURES = [
   { icon: Skull, label: "Boss Kill Recording" },
@@ -84,6 +84,13 @@ export function BillingView() {
 
   const StatusIcon = stateConfig.icon;
 
+  // Email verification check (same logic as ConfirmEmailSection in ServerSettingsView)
+  const confirmedAt = user?.email_confirmed_at || user?.confirmed_at;
+  const createdAt = user?.created_at;
+  const isEmailVerified = confirmedAt && createdAt
+    ? Math.abs(new Date(confirmedAt).getTime() - new Date(createdAt).getTime()) > 5000
+    : false;
+
   return (
     <>
       <SEOHead
@@ -143,6 +150,23 @@ export function BillingView() {
 
       {/* ── Payment ── */}
       <div className="space-y-4">
+        {isOwner && !isEmailVerified ? (
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-5 space-y-3 shadow-sm">
+            <div className="flex items-start gap-3">
+              <MailWarning className="w-5 h-5 text-amber-500 mt-0.5 shrink-0" />
+              <div className="space-y-2">
+                <p className="text-sm font-semibold text-amber-800">Verify your email to manage billing</p>
+                <p className="text-xs text-amber-600">You need a verified email address before making payments. This helps protect your account and ensures you receive payment receipts.</p>
+                <button
+                  onClick={() => navigate("/server-settings?tab=account")}
+                  className="inline-flex items-center gap-1.5 text-xs font-medium text-amber-700 hover:text-amber-900 underline underline-offset-2 transition"
+                >
+                  Verify in Server Settings → Account →
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : (
         <div className="bg-white border border-[#e5e7eb] rounded-xl p-5 space-y-4 shadow-sm">
           <h3 className="text-sm font-semibold text-[#111827] flex items-center gap-2">
             <Shield className="w-4 h-4 text-[#6b7280]" />
@@ -202,10 +226,11 @@ export function BillingView() {
             </div>
           )}
         </div>
+        )}
       </div>
 
       {/* ── Payment History ── */}
-      {isOwner && (
+      {isOwner && isEmailVerified && (
       <div className="bg-white border border-[#e5e7eb] rounded-xl p-5 space-y-4 shadow-sm">
         <h3 className="text-sm font-semibold text-[#111827] flex items-center gap-2">
           <Receipt className="w-4 h-4 text-[#6b7280]" />

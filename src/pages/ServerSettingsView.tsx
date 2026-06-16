@@ -5,7 +5,7 @@ import { useServer } from "@/contexts/ServerContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { deleteServer, transferServerOwnership, removeServerModerator, addServerModerator, supabase, fetchServerMembers, type ServerMember, fetchGuilds, createGuild, updateGuildName, deleteGuild, fetchBossGuilds, setBossGuilds, fetchAllBossGuildsForServer, upsertBossGuildPoints, batchSetGuildSalary, fetchBosses, setBossPoints, setBossSalary, notifyDiscord, fetchModeratorPermissions, updateModeratorPermissions, updateThreadConfig, fetchPointRules, createPointRule, updatePointRule, deletePointRule, fetchBossAssists, toggleBossAssist, fetchAllActivitiesForServer, fetchAllActivityGuildsForServer, upsertActivityGuildPoints, fetchActivityAssists, toggleActivityAssist, type ModeratorPermissions, DEFAULT_MODERATOR_PERMISSIONS } from "@/lib/supabase";
 import type { Guild, BossGuild, Boss, PointRule, BossAssist, Activity, ActivityGuild, ActivityAssist } from "@/types";
-import { Loader2, Trash2, Crown, ArrowLeft, Server, Check, Key, Copy, RefreshCw, Plus, LogIn, Users, Bell, Link as LinkIcon, Settings, AlertTriangle, X, Shield, Pencil, Swords, ChevronUp, ChevronDown, CheckSquare, Square, Eye, EyeOff, UserPlus, Minus, Trophy, Send, Save, MessageCircle, Zap, Calendar, Search, Skull, CreditCard, Lock } from "lucide-react";
+import { Loader2, Trash2, Crown, ArrowLeft, Server, Check, Key, Copy, RefreshCw, Plus, LogIn, Users, Bell, Link as LinkIcon, Settings, AlertTriangle, X, Shield, Pencil, Swords, ChevronUp, ChevronDown, CheckSquare, Square, Eye, EyeOff, UserPlus, Minus, Trophy, Send, Save, MessageCircle, Zap, Calendar, Search, Skull, CreditCard, Lock, Mail, MailCheck, MailWarning } from "lucide-react";
 import { ServerBossesActivitiesTab } from "@/components/ServerBossesActivitiesTab";
 import { ActivityGuildsTab } from "@/components/server/ActivityGuildsTab";
 import { ActivityPointsMatrix } from "@/components/server/ActivityPointsMatrix";
@@ -2592,7 +2592,10 @@ export function ServerSettingsView() {
 
       {/* Account Tab */}
       {tab === "account" && (
-        <ChangePasswordSection />
+        <div className="space-y-6">
+          <ConfirmEmailSection />
+          <ChangePasswordSection />
+        </div>
       )}
 
       {/* Danger Tab */}
@@ -2652,6 +2655,80 @@ export function ServerSettingsView() {
       </div>
     </div>
     </div>
+  );
+}
+
+// ── Confirm Email Section ──────────────────────────
+
+function ConfirmEmailSection() {
+  const { user } = useAuth();
+  const [sending, setSending] = useState(false);
+  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  // With Supabase "Confirm email" OFF, email_confirmed_at is auto-set at sign-up.
+  // A user has only truly verified if confirmed_at differs from created_at (≥ 5s gap).
+  const confirmedAt = user?.email_confirmed_at || user?.confirmed_at;
+  const createdAt = user?.created_at;
+  const isActuallyConfirmed = confirmedAt && createdAt
+    ? Math.abs(new Date(confirmedAt).getTime() - new Date(createdAt).getTime()) > 5000
+    : false;
+
+  const handleResend = async () => {
+    if (!user?.email) return;
+    setMessage(null);
+    setSending(true);
+    const { error } = await supabase.auth.resend({ type: "signup", email: user.email });
+    setSending(false);
+    if (error) {
+      setMessage({ type: "error", text: error.message });
+    } else {
+      setMessage({ type: "success", text: "Confirmation email sent! Check your inbox." });
+    }
+  };
+
+  return (
+    <section className="bg-[#09090b] border border-[#27272a] rounded-xl p-4 space-y-3">
+      <h3 className="text-sm font-semibold text-[#fafafa] flex items-center gap-2">
+        Email Confirmation
+        {isActuallyConfirmed ? (
+          <span className="inline-flex items-center gap-1 text-[10px] font-medium text-emerald-400 bg-emerald-400/10 px-1.5 py-0.5 rounded">
+            <MailCheck className="w-3 h-3" /> Confirmed
+          </span>
+        ) : (
+          <span className="inline-flex items-center gap-1 text-[10px] font-medium text-amber-400 bg-amber-400/10 px-1.5 py-0.5 rounded">
+            <MailWarning className="w-3 h-3" /> Not Confirmed
+          </span>
+        )}
+      </h3>
+
+      <div className="flex items-center gap-2 text-sm text-[#a1a1aa]">
+        <Mail className="w-4 h-4 shrink-0 text-[#52525b]" />
+        <span className="truncate">{user?.email || "No email"}</span>
+      </div>
+
+      {isActuallyConfirmed ? (
+        <p className="text-xs text-[#71717a]">Your email is verified. You'll receive password reset links and security notifications here.</p>
+      ) : (
+        <>
+          <p className="text-xs text-amber-300/80">Your email is not yet confirmed. Some features may be limited until you verify your email address.</p>
+
+          {message && (
+            <div className={`text-xs px-3 py-2 rounded-lg ${message.type === "success" ? "bg-emerald-900/20 border border-emerald-800/30 text-emerald-300" : "bg-red-900/20 border border-red-800/30 text-red-300"}`}>
+              {message.text}
+            </div>
+          )}
+
+          <button
+            onClick={handleResend}
+            disabled={sending}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium bg-[#fafafa] text-[#09090b] hover:bg-[#e4e4e7] transition disabled:opacity-40"
+          >
+            {sending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Mail className="w-3.5 h-3.5" />}
+            {sending ? "Sending..." : "Resend Confirmation Email"}
+          </button>
+        </>
+      )}
+    </section>
   );
 }
 
