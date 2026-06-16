@@ -972,16 +972,23 @@ export function ServerSettingsView() {
   };
 
   const handleSetScheduleGuild = async (bossId: string, dayOfWeek: number, guildId: string | null) => {
-    // Only include existing schedule rows (day_of_week !== null), ignore stale rotation/daily rows
-    const existing = getBossGuildsForBoss(bossId).filter(bg => bg.day_of_week !== null && bg.day_of_week !== dayOfWeek);
-    const newAssignments = existing.map(bg => ({ guild_id: bg.guild_id, day_of_week: bg.day_of_week! }));
-    if (guildId) {
-      newAssignments.push({ guild_id: guildId, day_of_week: dayOfWeek });
+    setSavingBossId(bossId);
+    try {
+      // Only include existing schedule rows (day_of_week !== null), ignore stale rotation/daily rows
+      const existing = getBossGuildsForBoss(bossId).filter(bg => bg.day_of_week !== null && bg.day_of_week !== dayOfWeek);
+      const newAssignments = existing.map(bg => ({ guild_id: bg.guild_id, day_of_week: bg.day_of_week! }));
+      if (guildId) {
+        newAssignments.push({ guild_id: guildId, day_of_week: dayOfWeek });
+      }
+      await setBossGuilds(bossId, newAssignments, "schedule");
+      const updated = await fetchBossGuilds(currentServer!.id);
+      setBossGuildsState(updated);
+      setBossModes(prev => ({ ...prev, [bossId]: newAssignments.length > 0 ? "schedule" : "none" }));
+    } catch (err: any) {
+      toast("error", err?.message ?? "Failed to set schedule");
+    } finally {
+      setSavingBossId(null);
     }
-    await setBossGuilds(bossId, newAssignments, "schedule");
-    const updated = await fetchBossGuilds(currentServer!.id);
-    setBossGuildsState(updated);
-    setBossModes(prev => ({ ...prev, [bossId]: newAssignments.length > 0 ? "schedule" : "none" }));
   };
 
   const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -1613,7 +1620,6 @@ export function ServerSettingsView() {
                                         } focus:border-[#52525b]`}
                                       >
                                         <option value="">—</option>
-                                        <option value="">Clear</option>
                                         {guilds.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
                                       </select>
                                     </div>
@@ -1802,7 +1808,6 @@ export function ServerSettingsView() {
                             } focus:border-[#52525b]`}
                           >
                             <option value="">—</option>
-                            <option value="">Clear</option>
                             {guilds.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
                           </select>
                         </div>
