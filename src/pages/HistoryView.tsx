@@ -289,7 +289,7 @@ export function HistoryView() {
     cells: Record<string, Record<string, { guild: string | null; time: string }[]>>;
     guilds: Guild[];
   }) => (
-    <div className="overflow-x-auto">
+    <div className="overflow-auto max-h-[calc(100vh-260px)] rounded-lg border border-[#27272a]/50">
         <table className="w-full text-xs border-collapse">
           <thead className="sticky top-0 z-20 bg-[#09090b]">
             <tr>
