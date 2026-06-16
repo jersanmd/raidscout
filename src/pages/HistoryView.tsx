@@ -85,7 +85,7 @@ export function HistoryView() {
 
   // ── Ledger data ──
   const [ledgerData, setLedgerData] = useState<{
-    dates: string[];
+    dates: { key: string; monthDay: string; weekday: string }[];
     fixedHours: { id: string; name: string; respawnHours: number }[];
     fixedSchedule: { id: string; name: string; primaryDay: number }[];
     cells: Record<string, Record<string, { guild: string | null; time: string }[]>>;
@@ -104,11 +104,14 @@ export function HistoryView() {
         const { data: deaths } = await q;
         const fixedHoursMap = new Map<string, { name: string; respawnHours: number }>();
         const fixedScheduleMap = new Map<string, { name: string; primaryDay: number }>();
-        const dateSet = new Set<string>();
+        const dateMap = new Map<string, { monthDay: string; weekday: string }>();
         const cells: Record<string, Record<string, { guild: string | null; time: string }[]>> = {};
         (deaths || []).forEach((d: any) => {
           const dt = new Date(d.death_time);
-          const date = dt.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+          const dateKey = dt.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+          const monthDay = dt.toLocaleDateString("en-US", { month: "long", day: "numeric" });
+          const weekday = dt.toLocaleDateString("en-US", { weekday: "long" });
+          if (!dateMap.has(dateKey)) dateMap.set(dateKey, { monthDay, weekday });
           const time = dt.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
           const bid = d.boss_id;
           const boss = (d as any).bosses;
@@ -123,12 +126,11 @@ export function HistoryView() {
             const rh = boss?.respawn_hours ?? 24;
             if (!fixedHoursMap.has(bid)) fixedHoursMap.set(bid, { name: bname, respawnHours: rh });
           }
-          dateSet.add(date);
-          if (!cells[date]) cells[date] = {};
-          if (!cells[date][bid]) cells[date][bid] = [];
+          if (!cells[dateKey]) cells[dateKey] = {};
+          if (!cells[dateKey][bid]) cells[dateKey][bid] = [];
           const gid = d.owner_guild_id;
           const g = gid ? guilds.find(gg => gg.id === gid) : null;
-          cells[date][bid].push({ guild: g?.name ?? null, time });
+          cells[dateKey][bid].push({ guild: g?.name ?? null, time });
         });
         const fixedHours = [...fixedHoursMap.entries()]
           .sort(([, a], [, b]) => a.respawnHours - b.respawnHours)
@@ -136,7 +138,9 @@ export function HistoryView() {
         const fixedSchedule = [...fixedScheduleMap.entries()]
           .sort(([, a], [, b]) => a.primaryDay - b.primaryDay)
           .map(([id, { name, primaryDay }]) => ({ id, name, primaryDay }));
-        const dates = [...dateSet].sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
+        const dates = [...dateMap.entries()]
+          .sort(([a], [b]) => new Date(b + ", 2026").getTime() - new Date(a + ", 2026").getTime())
+          .map(([key, { monthDay, weekday }]) => ({ key, monthDay, weekday }));
         setLedgerData({ dates, fixedHours, fixedSchedule, cells });
       } catch { /* ignore */ }
       finally { setLedgerLoading(false); }
@@ -281,7 +285,7 @@ export function HistoryView() {
   // ── Ledger sub-component ──
   const LedgerTable = ({ bosses, dates, cells, guilds: gs }: {
     bosses: { id: string; name: string }[];
-    dates: string[];
+    dates: { key: string; monthDay: string; weekday: string }[];
     cells: Record<string, Record<string, { guild: string | null; time: string }[]>>;
     guilds: Guild[];
   }) => (
@@ -297,10 +301,13 @@ export function HistoryView() {
           </thead>
           <tbody>
             {dates.map(date => (
-              <tr key={date} className="border-b border-[#27272a]/30 hover:bg-[#09090b]/30 transition">
-                <td className="py-2 px-3 text-[#a1a1aa] font-medium sticky left-0 bg-[#09090b] whitespace-nowrap">{date}</td>
+              <tr key={date.key} className="border-b border-[#27272a]/30 hover:bg-[#09090b]/30 transition">
+                <td className="py-2 px-3 sticky left-0 bg-[#09090b] whitespace-nowrap align-top">
+                  <div className="text-[#a1a1aa] font-medium text-xs">{date.monthDay}</div>
+                  <div className="text-[10px] text-[#52525b]">{date.weekday}</div>
+                </td>
                 {bosses.map(b => {
-                  const entries = cells[date]?.[b.id];
+                  const entries = cells[date.key]?.[b.id];
                   return (
                     <td key={b.id} className="py-2 px-3 text-center whitespace-nowrap align-top">
                       {entries?.length ? (
