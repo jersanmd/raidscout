@@ -562,12 +562,58 @@ export async function handleMessage(msg: any) {
       if (b.time === "**ALIVE NOW**" && a.time !== "**ALIVE NOW**") return 1;
       return a.unix - b.unix;
     });
-    const lines = upcoming.map((b, i) => {
-      const prefix = b.time === "**ALIVE NOW**" ? "🟢 " : "";
-      const guild = b.guild ? ` -- ${b.guild}` : "";
-      const countdown = b.time !== "**ALIVE NOW**" ? ` (<t:${b.unix}:R>)` : "";
-      return `${i + 1}. ${prefix}${b.name}${guild} ${b.time}${countdown}`;
-    });
+
+    // ── Group by day with relative labels ──
+    const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const refNow = Date.now();
+
+    function relativeTime(unix: number): string {
+      const diffMs = unix * 1000 - refNow;
+      const absMs = Math.abs(diffMs);
+      const mins = Math.round(absMs / 60_000);
+      const hrs = Math.round(absMs / 3600_000);
+      if (mins < 1) return "just now";
+      if (mins < 60) return diffMs > 0 ? `in ${mins} minute${mins !== 1 ? "s" : ""}` : `${mins} minute${mins !== 1 ? "s" : ""} ago`;
+      if (hrs < 24) return diffMs > 0 ? `in ${hrs} hour${hrs !== 1 ? "s" : ""}` : `${hrs} hour${hrs !== 1 ? "s" : ""} ago`;
+      const days = Math.round(absMs / 86400_000);
+      return diffMs > 0 ? `in ${days} day${days !== 1 ? "s" : ""}` : `${days} day${days !== 1 ? "s" : ""} ago`;
+    }
+
+    function dayLabel(unix: number): string {
+      const d = new Date(unix * 1000);
+      const today = new Date(); today.setHours(0, 0, 0, 0);
+      const tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate() + 1);
+      const dDay = new Date(d); dDay.setHours(0, 0, 0, 0);
+      if (dDay.getTime() === today.getTime()) return `📅 Today (${monthNames[d.getMonth()]} ${d.getDate()})`;
+      if (dDay.getTime() === tomorrow.getTime()) return `📅 Tomorrow (${monthNames[d.getMonth()]} ${d.getDate()})`;
+      return `📅 ${dayNames[d.getDay()]} ${monthNames[d.getMonth()]} ${d.getDate()}`;
+    }
+
+    const groups: { label: string; items: typeof upcoming }[] = [];
+    for (const b of upcoming) {
+      const label = dayLabel(b.unix);
+      let group = groups.find(g => g.label === label);
+      if (!group) { group = { label, items: [] }; groups.push(group); }
+      group.items.push(b);
+    }
+
+    let globalIdx = 1;
+    const lines: string[] = [];
+    for (const group of groups) {
+      lines.push("");
+      lines.push(group.label);
+      for (const b of group.items) {
+        const t = new Date(b.unix * 1000);
+        const timeStr = b.time === "**ALIVE NOW**" ? "Alive now" : t.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true });
+        const rel = b.time === "**ALIVE NOW**" ? "now" : relativeTime(b.unix);
+        const guild = b.guild ? ` -- ${b.guild}` : "";
+        const prefix = b.time === "**ALIVE NOW**" ? "🟢 " : "";
+        const suffix = b.name.startsWith("📋") ? "" : ` ${rel}`;
+        lines.push(`${globalIdx}. ${prefix}**${b.name}**${guild} -- ${timeStr}${suffix}`);
+        globalIdx++;
+      }
+    }
     await discordFetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
       method: "POST", headers: { Authorization: `Bot ${TOKEN}`, "Content-Type": "application/json" },
       body: JSON.stringify({ embeds: [{ title: filterGuild ? `📋 ${filterGuild.name} Spawns (24h)` : filter ? `${filter} Spawn` : "📋 Upcoming Boss Spawns (24h)", description: lines.join("\n"), color: 0x8b5cf6, footer: { text: "Powered by RaidScout" } }] }),
