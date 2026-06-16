@@ -350,7 +350,7 @@ export function HistoryView() {
   );
 
   return (
-    <div className="max-w-[95%] 2xl:max-w-[1600px] mx-auto px-4 py-6 space-y-6">
+    <div className="max-w-[99%] 2xl:max-w-[1600px] mx-auto px-4 py-6 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-2 shrink-0">

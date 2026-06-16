@@ -234,7 +234,7 @@ export function AdminPanelView() {
     <div className="min-h-screen bg-[#09090b] flex flex-col">
       {/* Top bar */}
       <div className="w-full border-b border-[#27272a] bg-[#09090b]/70 backdrop-blur-xl">
-        <div className="max-w-[95%] 2xl:max-w-[1600px] mx-auto px-4 h-14 flex items-center">
+        <div className="max-w-[99%] 2xl:max-w-[1600px] mx-auto px-4 h-14 flex items-center">
           {/* Left: Logo + Admin badge */}
           <div className="flex items-center gap-3 flex-1">
             <span className="font-bold text-[#fafafa]">RaidScout</span>
@@ -283,7 +283,7 @@ export function AdminPanelView() {
         </div>
       </div>
 
-      <div className="w-full max-w-[95%] 2xl:max-w-[1600px] mx-auto px-3 sm:px-4 py-4 sm:py-6 space-y-4 sm:space-y-6 flex-1 overflow-x-hidden min-w-0 pb-20">
+      <div className="w-full max-w-[99%] 2xl:max-w-[1600px] mx-auto px-3 sm:px-4 py-4 sm:py-6 space-y-4 sm:space-y-6 flex-1 overflow-x-hidden min-w-0 pb-20">
       <div className="flex items-center gap-3">
         <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-[#18181b] border border-[#27272a]">
           <Shield className="w-5 h-5 text-[#fafafa]" />

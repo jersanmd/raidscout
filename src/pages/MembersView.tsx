@@ -953,7 +953,7 @@ export function MembersView() {
   }
 
   return (
-    <div className="max-w-[95%] 2xl:max-w-[1600px] mx-auto px-4 py-6 space-y-6">
+    <div className="max-w-[99%] 2xl:max-w-[1600px] mx-auto px-4 py-6 space-y-6">
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-3">
