@@ -175,7 +175,7 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
     <>
       <div
         onClick={() => multiMode && !isActivity && onToggleSelect?.(boss.id)}
-        className={`relative rounded-xl border ${config.border} ${config.accentBorder} border-l-2 ${config.bg} p-3 sm:p-4 transition-all duration-300 ${config.glow} backdrop-blur-sm ${displayStatus === "alive" ? "boss-card-alive" : ""} ${isUrgent ? "boss-card-urgent" : isWarning ? "boss-card-warning" : ""} ${
+        className={`relative rounded-xl border ${config.border} ${config.accentBorder} border-l-2 ${config.bg} p-3 sm:p-4 transition-all duration-300 ${config.glow} backdrop-blur-sm overflow-hidden ${displayStatus === "alive" ? "boss-card-alive" : ""} ${isUrgent ? "boss-card-urgent" : isWarning ? "boss-card-warning" : ""} ${
           justKilled && !isActivity ? "animate-[fadeOut_0.4s_ease-out] scale-95 opacity-0" : ""
         } ${
           multiMode && !isActivity ? "cursor-pointer" : ""
@@ -379,7 +379,7 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
 
         {/* Bottom action buttons — activities */}
         {!compact && !multiMode && isActivity && (onFinishActivity || onEditActivityTime) && (
-          <div className="flex items-center justify-end gap-1.5 mt-3 pt-3 border-t border-white/[0.05] relative z-[1]">
+          <div className="flex items-center justify-end gap-1.5 mt-3 pt-3 border-t border-white/[0.05] relative z-[1] flex-wrap">
             {onEditActivityTime && displayStatus !== "alive" && (!isViewer || viewerCanEdit) && !currentServer?.isExpired && (
               <button
                 onClick={() => {
@@ -391,7 +391,7 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
                   setEditDateValue(dateStr);
                   setShowEditTimeModal(true);
                 }}
-                className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#18181b] border border-[#27272a] text-[#fafafa] text-[11px] font-medium hover:bg-[#27272a] active:scale-95 transition-all duration-200 whitespace-nowrap"
+                className="flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-lg bg-[#18181b] border border-[#27272a] text-[#fafafa] text-[11px] font-medium hover:bg-[#27272a] active:scale-95 transition-all duration-200 whitespace-nowrap"
               >
                 <Pencil className="w-3 h-3" />
                 Edit Time
@@ -400,7 +400,7 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
             {onFinishActivity && (!isViewer || viewerCanMarkDied) && !currentServer?.isExpired && (
             <button
               onClick={() => setShowModal(true)}
-              className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#18181b] border border-[#27272a] text-[#fafafa] text-[11px] font-medium hover:bg-[#27272a] active:scale-95 transition-all duration-200 whitespace-nowrap"
+              className="flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-lg bg-[#18181b] border border-[#27272a] text-[#fafafa] text-[11px] font-medium hover:bg-[#27272a] active:scale-95 transition-all duration-200 whitespace-nowrap"
             >
               <CheckCircle className="w-3 h-3" />
               Finish
@@ -411,7 +411,7 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
 
         {/* Bottom action buttons — bosses only */}
         {!compact && !multiMode && !isActivity && (canEdit || canMarkDied) && (
-          <div className="flex items-center justify-end gap-1.5 mt-3 pt-3 border-t border-white/[0.05] relative z-[1]">
+          <div className="flex items-center justify-end gap-1.5 mt-3 pt-3 border-t border-white/[0.05] relative z-[1] flex-wrap">
             {canEdit && status !== "unknown" && (
               <button
                 onClick={() => {
@@ -420,19 +420,16 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
                   setEditSpawnDate(local);
                   setShowEditSpawnModal(true);
                 }}
-                className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#18181b] border border-[#27272a] text-[#fafafa] text-[11px] font-medium hover:bg-[#27272a] active:scale-95 transition-all duration-200 whitespace-nowrap"
+                className="flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-lg bg-[#18181b] border border-[#27272a] text-[#fafafa] text-[11px] font-medium hover:bg-[#27272a] active:scale-95 transition-all duration-200 whitespace-nowrap"
               >
                 <Pencil className="w-3 h-3" />
                 Edit Spawn
               </button>
             )}
             {canMarkDied && status !== "unknown" && (
-            <>
-            {/* Party assign button */}
-            <div className="relative">
-              <button
+            <button
                 onClick={() => { setShowPartyModal(true); setShowAllStatic(false); }}
-                className={`flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg border text-[11px] font-medium active:scale-95 transition-all duration-200 whitespace-nowrap ${parties.some(p => p.boss_id === boss.id) ? "bg-emerald-900/20 border-emerald-800/50 text-emerald-400" : "bg-[#18181b] border-[#27272a] text-[#a1a1aa] hover:bg-[#27272a] hover:text-[#fafafa]"}`}
+                className={`flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-lg border text-[11px] font-medium active:scale-95 transition-all duration-200 whitespace-nowrap relative ${parties.some(p => p.boss_id === boss.id) ? "bg-emerald-900/20 border-emerald-800/50 text-emerald-400" : "bg-[#18181b] border-[#27272a] text-[#a1a1aa] hover:bg-[#27272a] hover:text-[#fafafa]"}`}
               >
                 {parties.some(p => p.boss_id === boss.id) ? (
                   <CheckCircle className="w-3 h-3" />
@@ -441,13 +438,11 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
                 )}
                 Party
               </button>
-            </div>
-            </>
             )}
             {canMarkDied && (
             <button
               onClick={() => setShowModal(true)}
-              className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#18181b] border border-[#27272a] text-[#fafafa] text-[11px] font-medium hover:bg-[#27272a] active:scale-95 transition-all duration-200 whitespace-nowrap"
+              className="flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-lg bg-[#18181b] border border-[#27272a] text-[#fafafa] text-[11px] font-medium hover:bg-[#27272a] active:scale-95 transition-all duration-200 whitespace-nowrap"
             >
               <Skull className="w-3 h-3" />
               Mark Dead
@@ -472,7 +467,7 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
             <span className="text-[10px] text-[#71717a] font-mono uppercase tracking-wider">
               Rotation {rotationMode ? `· ${rotationMode}` : ""}
             </span>
-            <div className="flex items-center gap-1 mt-1.5">
+            <div className="flex items-center gap-1 mt-1.5 flex-wrap">
               {rotationGuilds.map((g, i) => {
                 const isCurrent = i === rotationCurrentIndex;
                 return (

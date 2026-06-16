@@ -7,7 +7,7 @@ import { SEOHead } from "@/components/SEOHead";
 import { PayPalSubscribeButton } from "@/components/PayPalSubscribeButton";
 import { PaymentSuccessModal } from "@/components/PaymentSuccessModal";
 import { supabase } from "@/lib/supabase";
-import { ArrowLeft, Clock, Shield, AlertTriangle, Zap, Users, Bell, Eye, BarChart3, Skull, Calendar, Trophy, Settings, MessageCircle, Globe, Activity, CreditCard, Receipt, Loader2, MailWarning } from "lucide-react";
+import { ArrowLeft, Clock, Shield, AlertTriangle, Zap, Crown, Users, Bell, Eye, BarChart3, Skull, Calendar, Trophy, Settings, MessageCircle, Globe, Activity, CreditCard, Receipt, Loader2, MailWarning } from "lucide-react";
 
 const FEATURES = [
   { icon: Skull, label: "Boss Kill Recording" },
@@ -77,7 +77,7 @@ export function BillingView() {
   const state = isSubActive ? "active" : isTrialActive ? "trial" : "expired";
 
   const stateConfig = {
-    active:   { cardBg: "bg-white border-emerald-200", iconBg: "bg-emerald-50", iconColor: "text-emerald-500", accent: "text-emerald-600", muted: "text-emerald-400", badge: "bg-emerald-100 text-emerald-700", ring: "ring-emerald-100", bar: "bg-emerald-500", icon: Zap, days: subDaysLeft, date: subEnd, label: "Active until", statusLabel: "Pro Plan" },
+    active:   { cardBg: "bg-white border-amber-200", iconBg: "bg-amber-50", iconColor: "text-amber-500", accent: "text-amber-600", muted: "text-amber-400", badge: "bg-amber-100 text-amber-700", ring: "ring-amber-100", bar: "bg-amber-500", icon: Crown, days: subDaysLeft, date: subEnd, label: "Active until", statusLabel: "Pro Plan" },
     trial:    { cardBg: "bg-white border-gray-300", iconBg: "bg-gray-100", iconColor: "text-gray-700", accent: "text-gray-800", muted: "text-gray-400", badge: "bg-gray-900 text-white", ring: "ring-gray-200", bar: "bg-gray-800", icon: Clock, days: trialDaysLeft, date: trialEnd, label: "Trial ends", statusLabel: "Free Trial" },
     expired:  { cardBg: "bg-white border-red-200", iconBg: "bg-red-50", iconColor: "text-red-500", accent: "text-red-600", muted: "text-red-400", badge: "bg-red-100 text-red-700", ring: "ring-red-100", bar: "bg-red-500", icon: AlertTriangle, days: 0, date: subEnd, label: "Expired on", statusLabel: "Expired" },
   }[state];
