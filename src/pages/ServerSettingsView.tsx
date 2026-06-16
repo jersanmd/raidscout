@@ -2663,26 +2663,65 @@ export function ServerSettingsView() {
 function ConfirmEmailSection() {
   const { user } = useAuth();
   const [sending, setSending] = useState(false);
+  const [cooldown, setCooldown] = useState(0);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  // Cooldown countdown timer
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const timer = setInterval(() => {
+      setCooldown(prev => (prev <= 1 ? 0 : prev - 1));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [cooldown]);
+
+  // Handle ?token= in URL — user clicked the email confirmation link
+  const [searchParams, setSearchParams] = useSearchParams();
+  const urlToken = searchParams.get("token");
+  
+  useEffect(() => {
+    if (!urlToken || !user?.id) return;
+    setSending(true);
+    supabase.functions.invoke("send-verification", {
+      body: { action: "verify", token: urlToken, userId: user.id },
+    }).then(({ error }) => {
+      if (!error) {
+        setConfirmed(true);
+        // Refresh session to pick up new email_confirmed_at in JWT
+        supabase.auth.refreshSession();
+        // Remove token from URL
+        searchParams.delete("token");
+        setSearchParams(searchParams, { replace: true });
+      }
+      setSending(false);
+    });
+  }, [urlToken, user?.id]);
 
   // With Supabase "Confirm email" OFF, email_confirmed_at is auto-set at sign-up.
   // A user has only truly verified if confirmed_at differs from created_at (≥ 5s gap).
+  const [confirmed, setConfirmed] = useState(false);
+
   const confirmedAt = user?.email_confirmed_at || user?.confirmed_at;
   const createdAt = user?.created_at;
-  const isActuallyConfirmed = confirmedAt && createdAt
-    ? Math.abs(new Date(confirmedAt).getTime() - new Date(createdAt).getTime()) > 5000
-    : false;
+  const isActuallyConfirmed = confirmed || (
+    confirmedAt && createdAt
+      ? Math.abs(new Date(confirmedAt).getTime() - new Date(createdAt).getTime()) > 5000
+      : false
+  );
 
   const handleResend = async () => {
     if (!user?.email) return;
     setMessage(null);
     setSending(true);
-    const { error } = await supabase.auth.resend({ type: "signup", email: user.email });
+    const { error } = await supabase.functions.invoke("send-verification", {
+      body: { email: user.email, userId: user.id },
+    });
     setSending(false);
     if (error) {
-      setMessage({ type: "error", text: error.message });
+      setMessage({ type: "error", text: error.message || "Failed to send. Please try again." });
     } else {
-      setMessage({ type: "success", text: "Confirmation email sent! Check your inbox." });
+      setMessage({ type: "success", text: "Confirmation email sent! Check your inbox and click the link." });
+      setCooldown(60);
     }
   };
 
@@ -2720,11 +2759,11 @@ function ConfirmEmailSection() {
 
           <button
             onClick={handleResend}
-            disabled={sending}
+            disabled={sending || cooldown > 0}
             className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium bg-[#fafafa] text-[#09090b] hover:bg-[#e4e4e7] transition disabled:opacity-40"
           >
-            {sending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Mail className="w-3.5 h-3.5" />}
-            {sending ? "Sending..." : "Resend Confirmation Email"}
+            {sending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : cooldown > 0 ? <Loader2 className="w-3.5 h-3.5" /> : <Mail className="w-3.5 h-3.5" />}
+            {sending ? "Confirming..." : cooldown > 0 ? `Resend in ${cooldown}s` : "Confirm Email"}
           </button>
         </>
       )}
