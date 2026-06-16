@@ -1011,7 +1011,7 @@ export function LandingPage() {
                   )}
                   {!isSignUp && (
                     <div className="flex justify-end">
-                      <button type="button" onClick={handleForgotPassword} disabled={loading} className="text-xs text-emerald-400/40 hover:text-emerald-400 transition font-mono">Forgot password?</button>
+                      <Link to="/forgot-password" className="text-xs text-emerald-400/40 hover:text-emerald-400 transition font-mono">Forgot password?</Link>
                     </div>
                   )}
                   {isSignUp && (

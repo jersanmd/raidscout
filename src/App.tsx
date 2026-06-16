@@ -30,6 +30,8 @@ const TermsOfServiceView = lazy(() => import("@/pages/TermsOfService").then(m =>
 const PrivacyPolicyView = lazy(() => import("@/pages/PrivacyPolicy").then(m => ({ default: m.PrivacyPolicyView })));
 const RefundPolicyView = lazy(() => import("@/pages/RefundPolicy").then(m => ({ default: m.RefundPolicyView })));
 const ChangelogView = lazy(() => import("@/pages/ChangelogView").then(m => ({ default: m.ChangelogView })));
+const ForgotPasswordPage = lazy(() => import("@/pages/ForgotPasswordPage").then(m => ({ default: m.ForgotPasswordPage })));
+const ChangePasswordPage = lazy(() => import("@/pages/ChangePasswordPage").then(m => ({ default: m.ChangePasswordPage })));
 
 /** Loading fallback shown while route chunks load */
 function PageLoader() {
@@ -98,6 +100,8 @@ function AppContent() {
         <Route path="/privacy" element={<Suspense fallback={<PageLoader />}><PrivacyPolicyView /></Suspense>} />
         <Route path="/refund" element={<Suspense fallback={<PageLoader />}><RefundPolicyView /></Suspense>} />
         <Route path="/changelog" element={<Suspense fallback={<PageLoader />}><ChangelogView /></Suspense>} />
+        <Route path="/forgot-password" element={<Suspense fallback={<PageLoader />}><ForgotPasswordPage /></Suspense>} />
+        <Route path="/change-password" element={<Suspense fallback={<PageLoader />}><ChangePasswordPage /></Suspense>} />
 
         {/* Viewer key auto-login route */}
         <Route path="/view/:viewerKey" element={<ViewerRoute />} />
