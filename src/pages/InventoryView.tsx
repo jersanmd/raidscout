@@ -62,7 +62,7 @@ export function InventoryView() {
 
   if (currentServer?.isExpired) return <ExpiredGate page="Inventory" />;
 
-  const [tab, setTab] = useState<"catalog" | "history" | "analytics" | "recipients">("catalog");
+  const [tab, setTab] = useState<"catalog" | "collections" | "history" | "analytics" | "recipients">("catalog");
 
   // Track whether we need the full items list (history/analytics tabs or distribute modal)
   const [needFullItems, setNeedFullItems] = useState(false);
@@ -445,7 +445,7 @@ export function InventoryView() {
 
       {/* Tabs */}
       <div className="flex bg-[#18181b] rounded-lg p-0.5 gap-0.5">
-        {(["catalog", "history", "recipients", "analytics"] as const).map(t => (
+        {(["catalog", "collections", "history", "recipients", "analytics"] as const).map(t => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -454,6 +454,7 @@ export function InventoryView() {
             }`}
           >
             {t === "catalog" && <Package className="w-3.5 h-3.5" />}
+            {t === "collections" && <Star className="w-3.5 h-3.5" />}
             {t === "history" && <History className="w-3.5 h-3.5" />}
             {t === "analytics" && <BarChart3 className="w-3.5 h-3.5" />}
             {t === "recipients" && <Users className="w-3.5 h-3.5" />}
@@ -601,7 +602,25 @@ export function InventoryView() {
         </div>
       )}
 
-      {/* â”€â”€ History Tab â”€â”€ */}
+      {/* ── Collections Tab ── */}
+      {tab === "collections" && (
+        <div className="space-y-6">
+          <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-6 text-center space-y-3">
+            <Star className="w-12 h-12 text-[#f59e0b] mx-auto" />
+            <h3 className="text-sm font-semibold text-[#fafafa]">Item Collections</h3>
+            <p className="text-xs text-[#a1a1aa] max-w-md mx-auto">
+              Group items into themed collections for easier management and distribution.
+              Collections help you organize related items together.
+            </p>
+            <button className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium bg-[#fafafa] text-[#09090b] hover:bg-[#e4e4e7] transition">
+              <Plus className="w-4 h-4" />
+              Create Collection
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── History Tab ── */}
       {tab === "history" && (
         <div className="space-y-6">
           {/* Search + Rarity Filters */}
