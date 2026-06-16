@@ -99,7 +99,7 @@ export function BillingView() {
         canonicalUrl="/billing"
         noindex
       />
-      <div className="max-w-7xl mx-auto px-3 sm:px-4 py-4 sm:py-6 space-y-6">
+      <div className="max-w-[95%] 2xl:max-w-[1600px] mx-auto px-3 sm:px-4 py-4 sm:py-6 space-y-6">
         <div className="flex items-center gap-3 mb-3 sm:mb-0">
           <button onClick={() => navigate("/server-settings")} className="text-[#a1a1aa] hover:text-[#fafafa] p-1">
             <ArrowLeft className="w-5 h-5" />
