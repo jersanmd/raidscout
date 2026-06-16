@@ -1544,7 +1544,19 @@ export function LeaderboardView() {
               <button onClick={async () => {
                 setFinalizing(true);
                 const guildName = showFinalizeConfirm!;
-                const customTime = finalizeTime ? new Date(finalizeTime).toISOString() : new Date().toISOString();
+                const customTime = finalizeTime
+                  ? (() => {
+                      const [datePart, timePart] = finalizeTime.split("T");
+                      const [y, mo, d] = datePart.split("-").map(Number);
+                      const [hh, mm] = timePart.split(":").map(Number);
+                      const testUtc = Date.UTC(y, mo - 1, d, hh, mm);
+                      const tz = serverTimezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
+                      const testLocal = new Intl.DateTimeFormat("en-US", { timeZone: tz, hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(testUtc));
+                      const [tlH, tlM] = testLocal.split(":").map(Number);
+                      const offsetMs = ((tlH - hh) * 60 + (tlM - mm)) * 60_000;
+                      return new Date(testUtc - offsetMs).toISOString();
+                    })()
+                  : new Date().toISOString();
                 setShowFinalizeConfirm(null);
                 setFinalizeTime("");
                 try {
