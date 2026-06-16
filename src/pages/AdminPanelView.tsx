@@ -797,7 +797,7 @@ export function AdminPanelView() {
                       ) : servers.length === 0 ? (
                         <p className="text-xs text-[#71717a]">No servers.</p>
                       ) : (
-                        servers.map((s) => (
+                        [...servers].sort((a, b) => ((a as any).game_name || "ZZZ").localeCompare((b as any).game_name || "ZZZ")).map((s) => (
                           <div key={s.server_id} className="flex items-center justify-between bg-[#18181b] rounded-lg px-3 py-2">
                             <div className="flex items-center gap-2">
                               <Server className="w-3.5 h-3.5 text-[#71717a]" />
@@ -868,7 +868,7 @@ export function AdminPanelView() {
                 <select value={auditServerFilter} onChange={(e) => setAuditServerFilter(e.target.value)}
                   className="bg-[#18181b] border border-[#27272a] rounded-lg px-3 py-2 text-sm text-[#fafafa] outline-none focus:border-[#52525b]">
                   <option value="all">All Servers</option>
-                  {servers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  {[...servers].sort((a: any, b: any) => ((a as any).game_name || "ZZZ").localeCompare((b as any).game_name || "ZZZ") || a.name.localeCompare(b.name)).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                 </select>
               </div>
             )}
