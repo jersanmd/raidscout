@@ -352,10 +352,7 @@ export function HistoryView() {
           <button onClick={() => setTab("timeline")} className={`px-3 py-1.5 rounded-md text-xs font-medium transition ${tab === "timeline" ? "bg-[#27272a] text-[#fafafa]" : "text-[#71717a] hover:text-[#d4d4d8]"}`}>Timeline</button>
           <button onClick={() => setTab("ledger")} className={`px-3 py-1.5 rounded-md text-xs font-medium transition flex items-center gap-1 ${tab === "ledger" ? "bg-[#27272a] text-[#fafafa]" : "text-[#71717a] hover:text-[#d4d4d8]"}`}><BookOpen className="w-3 h-3" /> Ledger</button>
         </div>
-      </div>
-
-      {/* Date range — shared by both tabs */}
-      <div className="flex items-center gap-2 flex-wrap">
+        {/* Date range */}
         <div className="flex items-center gap-2">
           {(["7d", "30d", "custom"] as const).map(p => (
             <button
@@ -370,22 +367,17 @@ export function HistoryView() {
               {p === "7d" ? "Last 7d" : p === "30d" ? "Last Month" : "Custom"}
             </button>
           ))}
-        </div>
-        {dateRange === "custom" && (
-          <>
-            <div className="flex items-center gap-2">
-              <label className="text-xs text-[#71717a]">From</label>
+          {dateRange === "custom" && (
+            <>
               <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)}
                 className="bg-[#18181b] border border-[#27272a] rounded-lg px-3 py-1.5 text-xs text-[#fafafa] outline-none focus:border-[#52525b]" />
-            </div>
-            <div className="flex items-center gap-2">
-              <label className="text-xs text-[#71717a]">To</label>
+              <span className="text-xs text-[#71717a]">to</span>
               <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)}
                 max={new Date().toISOString().split("T")[0]}
                 className="bg-[#18181b] border border-[#27272a] rounded-lg px-3 py-1.5 text-xs text-[#fafafa] outline-none focus:border-[#52525b]" />
-            </div>
-          </>
-        )}
+            </>
+          )}
+        </div>
       </div>
 
       {/* Timeline Tab */}
