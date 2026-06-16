@@ -83,7 +83,12 @@ export function HistoryView() {
   const [tab, setTab] = useState<"timeline" | "ledger">("timeline");
 
   // ── Ledger data ──
-  const [ledgerData, setLedgerData] = useState<{ dates: string[]; bosses: { id: string; name: string }[]; cells: Record<string, Record<string, { guild: string | null; time: string }[]>> }>({ dates: [], bosses: [], cells: {} });
+  const [ledgerData, setLedgerData] = useState<{
+    dates: string[];
+    fixedHours: { id: string; name: string }[];
+    fixedSchedule: { id: string; name: string }[];
+    cells: Record<string, Record<string, { guild: string | null; time: string }[]>>;
+  }>({ dates: [], fixedHours: [], fixedSchedule: [], cells: {} });
   const [ledgerLoading, setLedgerLoading] = useState(false);
   useEffect(() => {
     if (tab !== "ledger" || !serverId || !configured) return;
@@ -92,11 +97,12 @@ export function HistoryView() {
       try {
         const since = dateFrom ? new Date(dateFrom + "T00:00:00Z").toISOString() : undefined;
         const until = dateTo ? new Date(dateTo + "T23:59:59Z").toISOString() : undefined;
-        let q = supabase.from("death_records").select("boss_id, death_time, owner_guild_id, bosses!inner(name)").eq("server_id", serverId).order("death_time", { ascending: false });
+        let q = supabase.from("death_records").select("boss_id, death_time, owner_guild_id, bosses!inner(name, spawn_type)").eq("server_id", serverId).order("death_time", { ascending: false });
         if (since) q = q.gte("death_time", since);
         if (until) q = q.lte("death_time", until);
         const { data: deaths } = await q;
-        const bossMap = new Map<string, string>();
+        const fixedHoursMap = new Map<string, string>();
+        const fixedScheduleMap = new Map<string, string>();
         const dateSet = new Set<string>();
         const cells: Record<string, Record<string, { guild: string | null; time: string }[]>> = {};
         (deaths || []).forEach((d: any) => {
@@ -104,8 +110,11 @@ export function HistoryView() {
           const date = dt.toLocaleDateString("en-US", { month: "short", day: "numeric" });
           const time = dt.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
           const bid = d.boss_id;
-          const bname = (d as any).bosses?.name || "Unknown";
-          bossMap.set(bid, bname);
+          const boss = (d as any).bosses;
+          const bname = boss?.name || "Unknown";
+          const stype = boss?.spawn_type || "fixed_hours";
+          if (stype === "fixed_schedule") fixedScheduleMap.set(bid, bname);
+          else fixedHoursMap.set(bid, bname);
           dateSet.add(date);
           if (!cells[date]) cells[date] = {};
           if (!cells[date][bid]) cells[date][bid] = [];
@@ -113,9 +122,10 @@ export function HistoryView() {
           const g = gid ? guilds.find(gg => gg.id === gid) : null;
           cells[date][bid].push({ guild: g?.name ?? null, time });
         });
-        const bosses = [...bossMap.entries()].map(([id, name]) => ({ id, name }));
+        const fixedHours = [...fixedHoursMap.entries()].map(([id, name]) => ({ id, name }));
+        const fixedSchedule = [...fixedScheduleMap.entries()].map(([id, name]) => ({ id, name }));
         const dates = [...dateSet].sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
-        setLedgerData({ dates, bosses, cells });
+        setLedgerData({ dates, fixedHours, fixedSchedule, cells });
       } catch { /* ignore */ }
       finally { setLedgerLoading(false); }
     })();
@@ -255,6 +265,72 @@ export function HistoryView() {
       month: "short",
       day: "numeric",
     });
+
+  // ── Ledger sub-component ──
+  const LedgerTable = ({ title, bosses, dates, cells, guilds: gs }: {
+    title: string;
+    bosses: { id: string; name: string }[];
+    dates: string[];
+    cells: Record<string, Record<string, { guild: string | null; time: string }[]>>;
+    guilds: Guild[];
+  }) => (
+    <div>
+      <h3 className="text-xs font-semibold text-[#a1a1aa] uppercase tracking-wider mb-3 flex items-center gap-2">
+        {title} <span className="text-[#52525b] font-normal normal-case">{bosses.length} boss{bosses.length !== 1 ? "es" : ""}</span>
+      </h3>
+      <div className="overflow-x-auto">
+        <table className="w-full text-xs border-collapse">
+          <thead>
+            <tr>
+              <th className="text-left py-2 px-3 text-[#71717a] font-medium uppercase tracking-wider border-b border-[#27272a] sticky left-0 bg-[#09090b] z-10">Date</th>
+              {bosses.map(b => (
+                <th key={b.id} className="text-center py-2 px-3 text-[#71717a] font-medium uppercase tracking-wider border-b border-[#27272a] whitespace-nowrap">{b.name}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {dates.map(date => (
+              <tr key={date} className="border-b border-[#27272a]/30 hover:bg-[#09090b]/30 transition">
+                <td className="py-2 px-3 text-[#a1a1aa] font-medium sticky left-0 bg-[#09090b] whitespace-nowrap">{date}</td>
+                {bosses.map(b => {
+                  const entries = cells[date]?.[b.id];
+                  return (
+                    <td key={b.id} className="py-2 px-3 text-center whitespace-nowrap align-top">
+                      {entries?.length ? (
+                        <div className="flex flex-col items-center gap-1">
+                          {entries.map((entry, i) => {
+                            const g = entry.guild ? gs.find(gg => gg.name === entry.guild) : null;
+                            return (
+                              <div key={i} className="flex flex-col items-center gap-0.5">
+                                <span className="text-[11px] text-[#a1a1aa] font-mono">{entry.time}</span>
+                                <span className="inline-flex items-center gap-1">
+                                  {g ? (
+                                    <>
+                                      <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: guildColor(g.name) }} />
+                                      <span className="text-[10px] font-medium" style={{ color: guildColor(g.name) }}>{g.name}</span>
+                                    </>
+                                  ) : (
+                                    <span className="text-[#52525b] text-[10px]">—</span>
+                                  )}
+                                </span>
+                                {i < entries.length - 1 && <div className="w-4 h-px bg-[#27272a] my-0.5" />}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <span className="text-[#3f3f46]">—</span>
+                      )}
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
 
   return (
     <div className="max-w-[95%] 2xl:max-w-[1600px] mx-auto px-4 py-6 space-y-6">
@@ -452,58 +528,20 @@ export function HistoryView() {
 
       {/* Ledger Tab */}
       {tab === "ledger" && (
-        <div className="space-y-4">
+        <div className="space-y-8">
           {ledgerLoading ? (
             <div className="flex items-center justify-center py-20"><Loader2 className="w-8 h-8 text-[#a1a1aa] animate-spin" /></div>
-          ) : ledgerData.bosses.length === 0 ? (
+          ) : ledgerData.fixedHours.length === 0 && ledgerData.fixedSchedule.length === 0 ? (
             <div className="text-center py-16"><BookOpen className="w-12 h-12 text-[#3f3f46] mx-auto mb-3" /><p className="text-[#71717a] text-lg">No kills recorded</p></div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs border-collapse">
-                <thead>
-                  <tr>
-                    <th className="text-left py-2 px-3 text-[#71717a] font-medium uppercase tracking-wider border-b border-[#27272a] sticky left-0 bg-[#09090b] z-10">Date</th>
-                    {ledgerData.bosses.map(b => (
-                      <th key={b.id} className="text-center py-2 px-3 text-[#71717a] font-medium uppercase tracking-wider border-b border-[#27272a] whitespace-nowrap">{b.name}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {ledgerData.dates.map(date => (
-                    <tr key={date} className="border-b border-[#27272a]/30 hover:bg-[#09090b]/30 transition">
-                      <td className="py-2 px-3 text-[#a1a1aa] font-medium sticky left-0 bg-[#09090b] whitespace-nowrap">{date}</td>
-                      {ledgerData.bosses.map(b => {
-                        const entries = ledgerData.cells[date]?.[b.id];
-                        return (
-                          <td key={b.id} className="py-2 px-3 text-center whitespace-nowrap align-top">
-                            {entries?.length ? (
-                              <div className="flex flex-col items-center gap-1">
-                                {entries.map((entry, i) => {
-                                  const g = entry.guild ? guilds.find(gg => gg.name === entry.guild) : null;
-                                  return (
-                                    <div key={i} className="flex flex-col items-center gap-0.5">
-                                      <span className="text-[11px] text-[#a1a1aa] font-mono">{entry.time}</span>
-                                      {g ? (
-                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium" style={{ color: guildColor(g.name) }}>{g.name}</span>
-                                      ) : (
-                                        <span className="text-[#52525b] text-[10px]">—</span>
-                                      )}
-                                      {i < entries.length - 1 && <div className="w-4 h-px bg-[#27272a] my-0.5" />}
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            ) : (
-                              <span className="text-[#3f3f46]">—</span>
-                            )}
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <>
+              {ledgerData.fixedHours.length > 0 && (
+                <LedgerTable title="Fixed-Hour Bosses" bosses={ledgerData.fixedHours} dates={ledgerData.dates} cells={ledgerData.cells} guilds={guilds} />
+              )}
+              {ledgerData.fixedSchedule.length > 0 && (
+                <LedgerTable title="Fixed-Schedule Bosses" bosses={ledgerData.fixedSchedule} dates={ledgerData.dates} cells={ledgerData.cells} guilds={guilds} />
+              )}
+            </>
           )}
         </div>
       )}
