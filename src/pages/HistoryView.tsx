@@ -83,7 +83,7 @@ export function HistoryView() {
   const [tab, setTab] = useState<"timeline" | "ledger">("timeline");
 
   // ── Ledger data ──
-  const [ledgerData, setLedgerData] = useState<{ dates: string[]; bosses: { id: string; name: string }[]; cells: Record<string, Record<string, { guild: string | null; time: string } | null>> }>({ dates: [], bosses: [], cells: {} });
+  const [ledgerData, setLedgerData] = useState<{ dates: string[]; bosses: { id: string; name: string }[]; cells: Record<string, Record<string, { guild: string | null; time: string }[]>> }>({ dates: [], bosses: [], cells: {} });
   const [ledgerLoading, setLedgerLoading] = useState(false);
   useEffect(() => {
     if (tab !== "ledger" || !serverId || !configured) return;
@@ -98,7 +98,7 @@ export function HistoryView() {
         const { data: deaths } = await q;
         const bossMap = new Map<string, string>();
         const dateSet = new Set<string>();
-        const cells: Record<string, Record<string, { guild: string | null; time: string } | null>> = {};
+        const cells: Record<string, Record<string, { guild: string | null; time: string }[]>> = {};
         (deaths || []).forEach((d: any) => {
           const dt = new Date(d.death_time);
           const date = dt.toLocaleDateString("en-US", { month: "short", day: "numeric" });
@@ -108,9 +108,10 @@ export function HistoryView() {
           bossMap.set(bid, bname);
           dateSet.add(date);
           if (!cells[date]) cells[date] = {};
+          if (!cells[date][bid]) cells[date][bid] = [];
           const gid = d.owner_guild_id;
           const g = gid ? guilds.find(gg => gg.id === gid) : null;
-          cells[date][bid] = { guild: g?.name ?? null, time };
+          cells[date][bid].push({ guild: g?.name ?? null, time });
         });
         const bosses = [...bossMap.entries()].map(([id, name]) => ({ id, name }));
         const dates = [...dateSet].sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
@@ -472,18 +473,25 @@ export function HistoryView() {
                     <tr key={date} className="border-b border-[#27272a]/30 hover:bg-[#09090b]/30 transition">
                       <td className="py-2 px-3 text-[#a1a1aa] font-medium sticky left-0 bg-[#09090b] whitespace-nowrap">{date}</td>
                       {ledgerData.bosses.map(b => {
-                        const cell = ledgerData.cells[date]?.[b.id];
-                        const g = cell?.guild ? guilds.find(gg => gg.name === cell.guild) : null;
+                        const entries = ledgerData.cells[date]?.[b.id];
                         return (
                           <td key={b.id} className="py-2 px-3 text-center whitespace-nowrap align-top">
-                            {cell ? (
-                              <div className="flex flex-col items-center gap-0.5">
-                                <span className="text-[11px] text-[#a1a1aa] font-mono">{cell.time}</span>
-                                {g ? (
-                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium" style={{ color: guildColor(g.name) }}>{g.name}</span>
-                                ) : (
-                                  <span className="text-[#52525b] text-[10px]">—</span>
-                                )}
+                            {entries?.length ? (
+                              <div className="flex flex-col items-center gap-1">
+                                {entries.map((entry, i) => {
+                                  const g = entry.guild ? guilds.find(gg => gg.name === entry.guild) : null;
+                                  return (
+                                    <div key={i} className="flex flex-col items-center gap-0.5">
+                                      <span className="text-[11px] text-[#a1a1aa] font-mono">{entry.time}</span>
+                                      {g ? (
+                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium" style={{ color: guildColor(g.name) }}>{g.name}</span>
+                                      ) : (
+                                        <span className="text-[#52525b] text-[10px]">—</span>
+                                      )}
+                                      {i < entries.length - 1 && <div className="w-4 h-px bg-[#27272a] my-0.5" />}
+                                    </div>
+                                  );
+                                })}
                               </div>
                             ) : (
                               <span className="text-[#3f3f46]">—</span>
