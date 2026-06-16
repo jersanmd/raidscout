@@ -289,7 +289,7 @@ export function HistoryView() {
     cells: Record<string, Record<string, { guild: string | null; time: string }[]>>;
     guilds: Guild[];
   }) => (
-    <div className="overflow-auto max-h-[calc(100vh-260px)] rounded-lg border border-[#27272a]/50">
+    <div className="overflow-auto max-h-[calc(100vh-200px)] rounded-lg border border-[#27272a]/50">
         <table className="w-full text-xs border-collapse">
           <thead className="sticky top-0 z-20 bg-[#09090b]">
             <tr>
@@ -350,7 +350,7 @@ export function HistoryView() {
   );
 
   return (
-    <div className="max-w-[99%] 2xl:max-w-[1600px] mx-auto px-4 py-6 space-y-6">
+    <div className="max-w-[100%] 2xl:max-w-[1600px] mx-auto px-4 py-6 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-2 shrink-0">

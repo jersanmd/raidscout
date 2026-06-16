@@ -374,7 +374,7 @@ export function WeeklyScheduleView() {
   }
 
   return (
-    <div className="max-w-[99%] 2xl:max-w-[1600px] mx-auto px-4 py-6">
+    <div className="max-w-[100%] 2xl:max-w-[1600px] mx-auto px-4 py-6">
       {/* Saving overlay � blocks all interaction */}
       {savingMessage && <SavingOverlay message={savingMessage} />}
 

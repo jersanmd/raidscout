@@ -584,7 +584,7 @@ export function MemberProfileView() {
   };
 
   return (
-    <div className="w-full max-w-[99%] 2xl:max-w-[1600px] mx-auto px-3 sm:px-4 py-4 sm:py-6 space-y-4 sm:space-y-5">
+    <div className="w-full max-w-[100%] 2xl:max-w-[1600px] mx-auto px-3 sm:px-4 py-4 sm:py-6 space-y-4 sm:space-y-5">
       {/* Back */}
       <button onClick={() => navigate(isViewer ? "/" : "/members")} className="flex items-center gap-1.5 text-[#a1a1aa] hover:text-[#fafafa] text-sm transition">
         <ArrowLeft className="w-4 h-4"/>{isViewer ? "Back to RaidScout" : "Back to Members"}

@@ -210,7 +210,7 @@ export function AnalyticsView() {
   const maxDaily = Math.max(...data.killsByDay.map((d) => d.count), 1);
 
   return (
-    <div className="max-w-[99%] 2xl:max-w-[1600px] mx-auto px-4 py-6 space-y-6">
+    <div className="max-w-[100%] 2xl:max-w-[1600px] mx-auto px-4 py-6 space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-[#18181b] border border-[#27272a]">
