@@ -1,6 +1,8 @@
 -- Update get_all_servers_with_counts RPC to include game_name and game_icon_url
 -- Fixes Admin Panel servers grouping by game
 
+DROP FUNCTION IF EXISTS get_all_servers_with_counts();
+
 CREATE OR REPLACE FUNCTION get_all_servers_with_counts()
 RETURNS TABLE(
   id uuid,
