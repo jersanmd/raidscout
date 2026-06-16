@@ -972,22 +972,35 @@ export function ServerSettingsView() {
   };
 
   const handleSetScheduleGuild = async (bossId: string, dayOfWeek: number, guildId: string | null) => {
-    setSavingBossId(bossId);
+    // Optimistic update: update local state immediately so the dropdown reflects the change
+    const existing = getBossGuildsForBoss(bossId).filter(bg => bg.day_of_week !== null && bg.day_of_week !== dayOfWeek);
+    const newAssignments = existing.map(bg => ({ guild_id: bg.guild_id, day_of_week: bg.day_of_week! }));
+    if (guildId) {
+      newAssignments.push({ guild_id: guildId, day_of_week: dayOfWeek });
+    }
+    // Build optimistic rows for local state (with temporary ids)
+    const optimisticRows = newAssignments.map(a => ({
+      id: `opt-${bossId}-${a.guild_id}-${a.day_of_week}`,
+      boss_id: bossId,
+      guild_id: a.guild_id,
+      sort_order: null as number | null,
+      day_of_week: a.day_of_week ?? null,
+      mode: "schedule" as const,
+      points: null as number | null,
+      has_salary: false,
+    }));
+    setBossGuildsState(prev => [...prev.filter(bg => bg.boss_id !== bossId), ...optimisticRows]);
+    setBossModes(prev => ({ ...prev, [bossId]: newAssignments.length > 0 ? "schedule" : "none" }));
+
     try {
-      // Only include existing schedule rows (day_of_week !== null), ignore stale rotation/daily rows
-      const existing = getBossGuildsForBoss(bossId).filter(bg => bg.day_of_week !== null && bg.day_of_week !== dayOfWeek);
-      const newAssignments = existing.map(bg => ({ guild_id: bg.guild_id, day_of_week: bg.day_of_week! }));
-      if (guildId) {
-        newAssignments.push({ guild_id: guildId, day_of_week: dayOfWeek });
-      }
       await setBossGuilds(bossId, newAssignments, "schedule");
       const updated = await fetchBossGuilds(currentServer!.id);
       setBossGuildsState(updated);
-      setBossModes(prev => ({ ...prev, [bossId]: newAssignments.length > 0 ? "schedule" : "none" }));
     } catch (err: any) {
+      // Revert on failure
+      const reverted = await fetchBossGuilds(currentServer!.id);
+      setBossGuildsState(reverted);
       toast("error", err?.message ?? "Failed to set schedule");
-    } finally {
-      setSavingBossId(null);
     }
   };
 
