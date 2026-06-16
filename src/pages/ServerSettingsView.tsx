@@ -180,7 +180,13 @@ export function ServerSettingsView() {
   const [newDiscordLabel, setNewDiscordLabel] = useState("");
   const [newDiscordPrefix, setNewDiscordPrefix] = useState("!");
   const [savingDiscord, setSavingDiscord] = useState(false);
-  const [usedPrefixes, setUsedPrefixes] = useState(new Set());
+  const [discordToRemove, setDiscordToRemove] = useState<{ id: string; label: string } | null>(null);
+  const [discordRemoveConfirmLabel, setDiscordRemoveConfirmLabel] = useState("");
+  const [channelToClear, setChannelToClear] = useState<{ linkId: string; field: string; value: string; label: string } | null>(null);
+  const [channelClearConfirm, setChannelClearConfirm] = useState("");
+  const notifyDiscordUpdated = () => window.dispatchEvent(new Event("discord-config-updated"));
+  const [usedPrefixes, setUsedPrefixes] = useState(new Set<string>());
+  const [globalPrefixOwners, setGlobalPrefixOwners] = useState<Map<string, Set<string>>>(new Map());
   const [editAliasLinkId, setEditAliasLinkId] = useState<string | null>(null);
   const [editAliases, setEditAliases] = useState<Record<string, string>>({});
   const [editingLinkId, setEditingLinkId] = useState<string | null>(null);
@@ -214,9 +220,24 @@ export function ServerSettingsView() {
   useEffect(() => {
     const gid = newDiscordId.trim();
     if (!gid) { setUsedPrefixes(new Set()); return; }
+    // Fetch prefixes already used by this guild across ALL servers.
+    // A guild CANNOT reuse a prefix it already uses elsewhere.
     supabase.from("discord_configs").select("command_prefix").eq("discord_guild_id", gid)
       .then(({ data }) => setUsedPrefixes(new Set((data || []).map((d: any) => d.command_prefix))));
   }, [newDiscordId]);
+
+  // Fetch all guild → prefixes assignments across all servers (for edit select)
+  useEffect(() => {
+    supabase.from("discord_configs").select("command_prefix,discord_guild_id")
+      .then(({ data }) => {
+        const map = new Map<string, Set<string>>(); // guild_id → set of prefixes
+        (data || []).forEach((d: any) => {
+          if (!map.has(d.discord_guild_id)) map.set(d.discord_guild_id, new Set());
+          map.get(d.discord_guild_id)!.add(d.command_prefix);
+        });
+        setGlobalPrefixOwners(map);
+      });
+  }, []);
 
   // Highlight Discord Server ID input when navigated from banner
   const discordIdInputRef = useRef<HTMLInputElement>(null);
@@ -738,6 +759,7 @@ export function ServerSettingsView() {
     const gid = newDiscordId.trim();
     if (!gid || !currentServer) return;
     const allPrefixes = ["!",";","$",".","~","?","%","&","-","+","=",":","rs!","rs;","rs.","rb!","rb;","boss!","boss;"];
+    // Pick first prefix this guild hasn't already used in another server
     const prefix = allPrefixes.find(p => !usedPrefixes.has(p)) || "!";
     setSavingDiscord(true);
     try {
@@ -749,6 +771,7 @@ export function ServerSettingsView() {
       }).select().single();
       if (error) throw error;
       setDiscordLinks(prev => [...prev, data]);
+      notifyDiscordUpdated();
       queryClient.invalidateQueries({ queryKey: ["discord_configs", currentServer.id] });
       setNewDiscordId("");
       setNewDiscordLabel("");
@@ -767,6 +790,7 @@ export function ServerSettingsView() {
       const { error } = await supabase.from("discord_configs").delete().eq("id", id);
       if (error) throw error;
       setDiscordLinks(prev => prev.filter(d => d.id !== id));
+      notifyDiscordUpdated();
       queryClient.invalidateQueries({ queryKey: ["discord_configs", currentServer.id] });
       bumpWebhookVersion();
       toast("success", "Discord link removed");
@@ -2264,7 +2288,14 @@ export function ServerSettingsView() {
                             >
                               {(() => {
                                 const allPrefixes = ["!",";","$",".","~","?","%","&","-","+","=",":","rs!","rs;","rs.","rb!","rb;","boss!","boss;"];
-                                const taken = new Set(discordLinks.filter(d => d.id !== link.id).map(d => d.command_prefix));
+                                const myGuildId = editLinkValues.discord_guild_id.trim();
+                                const currentPrefix = editLinkValues.command_prefix;
+                                const taken = new Set<string>();
+                                if (myGuildId && globalPrefixOwners.has(myGuildId)) {
+                                  // Disable prefixes this guild already uses in OTHER servers (but allow current)
+                                  const used = globalPrefixOwners.get(myGuildId)!;
+                                  used.forEach(p => { if (p !== currentPrefix) taken.add(p); });
+                                }
                                 return allPrefixes.map(p => (
                                   <option key={p} value={p} disabled={taken.has(p)}>
                                     {p}{taken.has(p) ? " (used)" : ""}
@@ -2298,6 +2329,7 @@ export function ServerSettingsView() {
                                     command_prefix: vals.command_prefix,
                                   }).eq("id", link.id);
                                   setDiscordLinks(prev => prev.map(d => d.id === link.id ? { ...d, discord_guild_id: vals.discord_guild_id.trim(), label: vals.label.trim() || undefined, command_prefix: vals.command_prefix } : d));
+                                  notifyDiscordUpdated();
                                   setEditingLinkId(null);
                                 }}
                                 className="text-xs px-2 py-1 rounded bg-green-600 text-[#fafafa] hover:bg-green-500 transition font-medium flex items-center gap-1"
@@ -2324,7 +2356,7 @@ export function ServerSettingsView() {
                             >
                               <Pencil className="w-3.5 h-3.5" />
                             </button>
-                            <button onClick={() => handleRemoveDiscordLink(link.id)} className="p-1.5 rounded hover:bg-[#18181b] text-[#a1a1aa] hover:text-[#f87171] transition" title="Remove link">
+                            <button onClick={() => { setDiscordToRemove({ id: link.id, label: link.label || link.discord_guild_id }); setDiscordRemoveConfirmLabel(""); }} className="p-1.5 rounded hover:bg-[#18181b] text-[#a1a1aa] hover:text-[#f87171] transition" title="Remove link">
                               <Trash2 className="w-4 h-4" />
                             </button>
                           </>
@@ -2381,10 +2413,10 @@ export function ServerSettingsView() {
                               </div>
                             </div>
                           ) : (
-                            <div className="flex gap-4 text-xs flex-wrap">
-                              <span className="text-[#71717a]">Alerts: {link.notification_channel_id ? <code className="text-[#d4d4d8] font-mono">{link.notification_channel_id}</code> : <span className="italic text-[#52525b]">not set</span>}</span>
-                              <span className="text-[#71717a]">Commands: {link.command_channel_id ? <code className="text-[#d4d4d8] font-mono">{link.command_channel_id}</code> : <span className="italic text-[#52525b]">not set</span>}</span>
-                              <span className="text-[#71717a]">Progress: {link.progress_channel_id ? <code className="text-[#d4d4d8] font-mono">{link.progress_channel_id}</code> : <span className="italic text-[#52525b]">not set</span>}</span>
+                            <div className="flex gap-4 text-xs flex-wrap items-center">
+                              <span className="text-[#71717a]">Alerts: {link.notification_channel_id ? <><code className="text-[#d4d4d8] font-mono">{link.notification_channel_id}</code> <button onClick={() => setChannelToClear({ linkId: link.id, field: "notification_channel_id", value: link.notification_channel_id!, label: "Alert Channel" })} className="inline-flex items-center text-[#a1a1aa] hover:text-[#f87171] transition" title="Clear alert channel"><X className="w-3 h-3"/></button></> : <span className="italic text-[#52525b]">not set</span>}</span>
+                              <span className="text-[#71717a]">Commands: {link.command_channel_id ? <><code className="text-[#d4d4d8] font-mono">{link.command_channel_id}</code> <button onClick={() => setChannelToClear({ linkId: link.id, field: "command_channel_id", value: link.command_channel_id!, label: "Command Channel" })} className="inline-flex items-center text-[#a1a1aa] hover:text-[#f87171] transition" title="Clear command channel"><X className="w-3 h-3"/></button></> : <span className="italic text-[#52525b]">not set</span>}</span>
+                              <span className="text-[#71717a]">Progress: {link.progress_channel_id ? <><code className="text-[#d4d4d8] font-mono">{link.progress_channel_id}</code> <button onClick={() => setChannelToClear({ linkId: link.id, field: "progress_channel_id", value: link.progress_channel_id!, label: "Progress Channel" })} className="inline-flex items-center text-[#a1a1aa] hover:text-[#f87171] transition" title="Clear progress channel"><X className="w-3 h-3"/></button></> : <span className="italic text-[#52525b]">not set</span>}</span>
                             </div>
                           )}
                         </div>
@@ -2448,7 +2480,7 @@ export function ServerSettingsView() {
                           ) : (
                             <div className="text-xs text-[#71717a]">
                               Threads: {link.thread_channel_id ? (
-                                <><code className="text-[#d4d4d8] font-mono">{link.thread_channel_id}</code> <span className="text-[#a1a1aa]">({((link.thread_guilds || []).map(gid => guilds.find(g => g.id === gid)?.name).filter(Boolean).join(", ")) || "no guilds"})</span></>
+                                <><code className="text-[#d4d4d8] font-mono">{link.thread_channel_id}</code> <span className="text-[#a1a1aa]">({((link.thread_guilds || []).map(gid => guilds.find(g => g.id === gid)?.name).filter(Boolean).join(", ")) || "no guilds"})</span> <button onClick={() => setChannelToClear({ linkId: link.id, field: "thread_channel_id", value: link.thread_channel_id!, label: "Thread Channel" })} className="inline-flex items-center text-[#a1a1aa] hover:text-[#f87171] transition" title="Clear thread channel"><X className="w-3 h-3"/></button></>
                               ) : (
                                 <span className="italic text-[#52525b]">not set</span>
                               )}
@@ -2681,6 +2713,83 @@ export function ServerSettingsView() {
             </div>
           )}
         </section>
+      )}
+      {/* Channel clear confirmation */}
+      {channelToClear && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-6 w-full max-w-md mx-4 shadow-2xl space-y-4">
+            <h3 className="text-sm font-semibold text-[#fafafa]">Clear {channelToClear.label}</h3>
+            <p className="text-xs text-[#a1a1aa]">
+              This will remove the {channelToClear.label.toLowerCase()} configuration. The bot will stop using this channel.
+              Type <code className="bg-[#09090b] px-1.5 py-0.5 rounded text-red-300 text-[11px]">{channelToClear.value}</code> to confirm:
+            </p>
+            <input
+              type="text"
+              value={channelClearConfirm}
+              onChange={(e) => setChannelClearConfirm(e.target.value)}
+              placeholder={channelToClear.value}
+              autoFocus
+              className="w-full bg-[#09090b] border border-[#27272a] rounded-lg px-3 py-2 text-sm text-[#fafafa] placeholder-[#71717a] outline-none focus:border-red-500 transition"
+            />
+            <div className="flex gap-2">
+              <button
+                onClick={() => { setChannelToClear(null); setChannelClearConfirm(""); }}
+                className="flex-1 py-2 rounded-lg text-sm font-medium bg-[#09090b] text-[#d4d4d8] hover:bg-[#27272a] transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  const { linkId, field } = channelToClear;
+                  await supabase.from("discord_configs").update({ [field]: null }).eq("id", linkId);
+                  setDiscordLinks(prev => prev.map(d => d.id === linkId ? { ...d, [field]: undefined } : d));
+                  setChannelToClear(null);
+                  setChannelClearConfirm("");
+                  toast("success", `${channelToClear.label} cleared`);
+                }}
+                disabled={channelClearConfirm.trim() !== channelToClear.value}
+                className="flex-1 py-2 rounded-lg text-sm font-medium bg-red-600 text-[#fafafa] hover:bg-red-500 transition disabled:opacity-50"
+              >
+                Clear Channel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Discord link removal confirmation */}
+      {discordToRemove && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-6 w-full max-w-md mx-4 shadow-2xl space-y-4">
+            <h3 className="text-sm font-semibold text-[#fafafa]">Remove Discord Link</h3>
+            <p className="text-xs text-[#a1a1aa]">
+              This will disconnect the Discord server and disable all bot commands.
+              Type <code className="bg-[#09090b] px-1.5 py-0.5 rounded text-red-300 text-[11px]">{discordToRemove.label}</code> to confirm:
+            </p>
+            <input
+              type="text"
+              value={discordRemoveConfirmLabel}
+              onChange={(e) => setDiscordRemoveConfirmLabel(e.target.value)}
+              placeholder={discordToRemove.label}
+              autoFocus
+              className="w-full bg-[#09090b] border border-[#27272a] rounded-lg px-3 py-2 text-sm text-[#fafafa] placeholder-[#71717a] outline-none focus:border-red-500 transition"
+            />
+            <div className="flex gap-2">
+              <button
+                onClick={() => { setDiscordToRemove(null); setDiscordRemoveConfirmLabel(""); }}
+                className="flex-1 py-2 rounded-lg text-sm font-medium bg-[#09090b] text-[#d4d4d8] hover:bg-[#27272a] transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => { handleRemoveDiscordLink(discordToRemove.id); setDiscordToRemove(null); setDiscordRemoveConfirmLabel(""); }}
+                disabled={discordRemoveConfirmLabel.trim() !== discordToRemove.label}
+                className="flex-1 py-2 rounded-lg text-sm font-medium bg-red-600 text-[#fafafa] hover:bg-red-500 transition disabled:opacity-50"
+              >
+                Remove Link
+              </button>
+            </div>
+          </div>
+        </div>
       )}
       </>
       )}

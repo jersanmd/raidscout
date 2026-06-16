@@ -919,7 +919,7 @@ export async function handleMessage(msg: any) {
     }
 
     // Get screenshot URL from attachments
-    const screenshotUrl = msg.attachments?.length > 0 ? msg.attachments[0].url : null;
+    let screenshotUrl = msg.attachments?.length > 0 ? msg.attachments[0].url : null;
 
     try {
       // Find or create member first to get member_id
@@ -1006,6 +1006,32 @@ export async function handleMessage(msg: any) {
       }
 
       // Submit CP update via REST API (service_role) with member_id
+      // Persist screenshot to Supabase Storage (Discord CDN URLs expire)
+      if (screenshotUrl && memberId) {
+        try {
+          const persistRes = await fetch(`${SUPABASE_URL}/functions/v1/persist-screenshot`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              attachment_url: screenshotUrl,
+              guild_id: guildId,
+              member_id: memberId,
+            }),
+          });
+          if (persistRes.ok) {
+            const persisted = await persistRes.json();
+            if (persisted.url) {
+              screenshotUrl = persisted.url;
+              console.log(`[bot] updatestats screenshot persisted: ${persisted.path}`);
+            }
+          } else {
+            console.warn(`[bot] persist-screenshot failed: ${persistRes.status}, using Discord URL`);
+          }
+        } catch (e) {
+          console.warn("[bot] persist-screenshot error, using Discord URL:", e);
+        }
+      }
+
       const body: any = {
         server_id: serverId,
         member_id: memberId,

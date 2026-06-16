@@ -81,9 +81,9 @@ export function Layout() {
   useEffect(() => {
     if (!currentServer?.id) { setDiscordGuilds([]); return; }
     let cancelled = false;
-    (async () => {
+    const fetchGuilds = async () => {
       const { data: links } = await supabase.from("discord_configs").select("discord_guild_id").eq("raidscout_server_id", currentServer.id);
-      if (!links?.length || cancelled) return;
+      if (!links?.length || cancelled) { if (!cancelled) setDiscordGuilds([]); return; }
       const results: typeof discordGuilds = [];
       for (const l of links) {
         try {
@@ -99,8 +99,12 @@ export function Layout() {
         } catch {}
       }
       if (!cancelled) setDiscordGuilds(results);
-    })();
-    return () => { cancelled = true; };
+    };
+    fetchGuilds();
+    // Listen for refresh events from ServerSettings when Discord links change
+    const handler = () => { if (!cancelled) fetchGuilds(); };
+    window.addEventListener("discord-config-updated", handler);
+    return () => { cancelled = true; window.removeEventListener("discord-config-updated", handler); };
   }, [currentServer?.id, isViewer]);
   useSpawnAlerts((bossName) => { setSpawnToast(bossName.startsWith("\u26A0\uFE0F") ? bossName : `\u26A1 ${bossName} spawning in \u2264 5 min!`); playAlertSound(); setTimeout(() => setSpawnToast(null), 8000); });
 
@@ -135,7 +139,7 @@ export function Layout() {
           <div className="hidden md:flex items-center gap-2.5 shrink-0 ml-1 pl-3 border-l border-[#27272a]">
             <div className="flex items-center gap-2 px-2.5 py-1 rounded-lg bg-[#18181b]/60 border border-[#27272a]/60">
               <span className="w-1.5 h-1.5 rounded-full bg-[#5865F2] shadow-[0_0_6px_rgba(88,101,242,0.5)]" />
-              <span className="text-[10px] text-[#8686f0] font-semibold tracking-wide">DISCORD</span>
+              <span className="text-[10px] text-[#8686f0] font-semibold tracking-wide">DISCORD CONNECTED</span>
             </div>
             {discordGuilds.map((g, i) => (
               <div key={g.guild_id} className="flex items-center gap-2 px-2 py-1 rounded-lg bg-[#18181b]/40 border border-[#27272a]/40 hover:border-[#3f3f46] transition-colors">
