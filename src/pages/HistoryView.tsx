@@ -81,6 +81,7 @@ export function HistoryView() {
 
   // ── Tabs ──
   const [tab, setTab] = useState<"timeline" | "ledger">("timeline");
+  const [ledgerSubtab, setLedgerSubtab] = useState<"fixed_hours" | "fixed_schedule">("fixed_hours");
 
   // ── Ledger data ──
   const [ledgerData, setLedgerData] = useState<{
@@ -267,18 +268,13 @@ export function HistoryView() {
     });
 
   // ── Ledger sub-component ──
-  const LedgerTable = ({ title, bosses, dates, cells, guilds: gs }: {
-    title: string;
+  const LedgerTable = ({ bosses, dates, cells, guilds: gs }: {
     bosses: { id: string; name: string }[];
     dates: string[];
     cells: Record<string, Record<string, { guild: string | null; time: string }[]>>;
     guilds: Guild[];
   }) => (
-    <div>
-      <h3 className="text-xs font-semibold text-[#a1a1aa] uppercase tracking-wider mb-3 flex items-center gap-2">
-        {title} <span className="text-[#52525b] font-normal normal-case">{bosses.length} boss{bosses.length !== 1 ? "es" : ""}</span>
-      </h3>
-      <div className="overflow-x-auto">
+    <div className="overflow-x-auto">
         <table className="w-full text-xs border-collapse">
           <thead>
             <tr>
@@ -329,7 +325,6 @@ export function HistoryView() {
           </tbody>
         </table>
       </div>
-    </div>
   );
 
   return (
@@ -528,20 +523,22 @@ export function HistoryView() {
 
       {/* Ledger Tab */}
       {tab === "ledger" && (
-        <div className="space-y-8">
+        <div className="space-y-4">
+          {/* Sub-tabs */}
+          <div className="flex items-center gap-1 bg-[#18181b] rounded-lg p-1 w-fit">
+            <button onClick={() => setLedgerSubtab("fixed_hours")} className={`px-3 py-1.5 rounded-md text-xs font-medium transition ${ledgerSubtab === "fixed_hours" ? "bg-[#27272a] text-[#fafafa]" : "text-[#71717a] hover:text-[#d4d4d8]"}`}>
+              Fixed-Hour Bosses
+            </button>
+            <button onClick={() => setLedgerSubtab("fixed_schedule")} className={`px-3 py-1.5 rounded-md text-xs font-medium transition ${ledgerSubtab === "fixed_schedule" ? "bg-[#27272a] text-[#fafafa]" : "text-[#71717a] hover:text-[#d4d4d8]"}`}>
+              Fixed-Schedule Bosses
+            </button>
+          </div>
           {ledgerLoading ? (
             <div className="flex items-center justify-center py-20"><Loader2 className="w-8 h-8 text-[#a1a1aa] animate-spin" /></div>
-          ) : ledgerData.fixedHours.length === 0 && ledgerData.fixedSchedule.length === 0 ? (
-            <div className="text-center py-16"><BookOpen className="w-12 h-12 text-[#3f3f46] mx-auto mb-3" /><p className="text-[#71717a] text-lg">No kills recorded</p></div>
           ) : (
-            <>
-              {ledgerData.fixedHours.length > 0 && (
-                <LedgerTable title="Fixed-Hour Bosses" bosses={ledgerData.fixedHours} dates={ledgerData.dates} cells={ledgerData.cells} guilds={guilds} />
-              )}
-              {ledgerData.fixedSchedule.length > 0 && (
-                <LedgerTable title="Fixed-Schedule Bosses" bosses={ledgerData.fixedSchedule} dates={ledgerData.dates} cells={ledgerData.cells} guilds={guilds} />
-              )}
-            </>
+            ledgerSubtab === "fixed_hours"
+              ? <LedgerTable bosses={ledgerData.fixedHours} dates={ledgerData.dates} cells={ledgerData.cells} guilds={guilds} />
+              : <LedgerTable bosses={ledgerData.fixedSchedule} dates={ledgerData.dates} cells={ledgerData.cells} guilds={guilds} />
           )}
         </div>
       )}
