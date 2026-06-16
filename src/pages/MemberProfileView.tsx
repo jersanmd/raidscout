@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fetchMemberProfile, addMemberNote, deleteMemberNote, isSupabaseConfigured, fetchGuilds, supabase } from "@/lib/supabase";
-import { useServerId } from "@/contexts/ServerContext";
+import { useServerId, useServer } from "@/contexts/ServerContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { guildColor } from "@/lib/constants";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
@@ -78,7 +78,30 @@ export function MemberProfileView() {
   const { memberId } = useParams<{ memberId: string }>();
   const navigate = useNavigate();
   const serverId = useServerId();
+  const { currentServer } = useServer();
   const { isViewer } = useAuth();
+  const serverTz = currentServer?.timezone || "UTC";
+
+  // Compute week/month start in the server's timezone
+  const weekStart = (() => {
+    const now = new Date();
+    const local = now.toLocaleString("en-US", { timeZone: serverTz });
+    const d = new Date(local);
+    // Monday 00:00 in server timezone
+    const day = d.getDay(); // 0=Sun, 1=Mon ... 6=Sat
+    const mondayOffset = day === 0 ? 6 : day - 1; // days back to Monday
+    d.setDate(d.getDate() - mondayOffset);
+    d.setHours(0,0,0,0);
+    return d;
+  })();
+  const monthStart = (() => {
+    const now = new Date();
+    const local = now.toLocaleString("en-US", { timeZone: serverTz });
+    const d = new Date(local);
+    d.setDate(1);
+    d.setHours(0,0,0,0);
+    return d;
+  })();
   const queryClient = useQueryClient();
   const configured = isSupabaseConfigured();
 
@@ -92,6 +115,74 @@ export function MemberProfileView() {
     queryKey: ["guilds", serverId],
     queryFn: () => fetchGuilds(serverId),
     staleTime: 60000,
+    enabled: !!serverId && configured,
+  });
+
+  // Total events since member joined (guild-owned bosses + guild activities only)
+  const { data: totalEventsSinceJoined = 0 } = useQuery({
+    queryKey: ["totalEventsSinceJoined", memberId, profile?.created_at, profile?.guild_id],
+    queryFn: async () => {
+      if (!profile?.created_at || !serverId) return 0;
+      const guildId = profile.guild_id;
+      if (!guildId) return 0;
+      // Owned boss kills + assisted boss kills
+      const [{ data: assistBosses }, { count: ownedKills }, { count: activities }] = await Promise.all([
+        supabase.from("boss_assists").select("boss_id").eq("assistant_guild_id", guildId),
+        supabase.from("death_records").select("*", { count: "exact", head: true }).eq("server_id", serverId).eq("owner_guild_id", guildId).gte("death_time", profile.created_at),
+        supabase.from("activity_instances").select("*, activities!inner(server_id), activity_guilds!inner(guild_id)", { count: "exact", head: true }).eq("activities.server_id", serverId).eq("activity_guilds.guild_id", guildId).gte("end_time", profile.created_at).not("end_time", "is", null),
+      ]);
+      let assistedKills = 0;
+      if (assistBosses?.length) {
+        const bossIds = [...new Set(assistBosses.map((a: any) => a.boss_id))];
+        const { count } = await supabase.from("death_records").select("*", { count: "exact", head: true }).eq("server_id", serverId).in("boss_id", bossIds).gte("death_time", profile.created_at);
+        assistedKills = count ?? 0;
+      }
+      return (ownedKills ?? 0) + assistedKills + (activities ?? 0);
+    },
+    enabled: !!memberId && !!profile?.created_at && !!serverId && configured,
+  });
+
+  // Total events this week and month (guild-owned bosses + guild activities)
+  const weekStartISO = weekStart.toISOString();
+  const monthStartISO = monthStart.toISOString();
+  const { data: totalEventsWeek = 0 } = useQuery({
+    queryKey: ["totalEventsWeek", serverId, weekStartISO, profile?.guild_id],
+    queryFn: async () => {
+      if (!serverId) return 0;
+      const guildId = profile?.guild_id; if (!guildId) return 0;
+      const [{ data: assistBosses }, { count: ownedKills }, { count: activities }] = await Promise.all([
+        supabase.from("boss_assists").select("boss_id").eq("assistant_guild_id", guildId),
+        supabase.from("death_records").select("*", { count: "exact", head: true }).eq("server_id", serverId).eq("owner_guild_id", guildId).gte("death_time", weekStartISO),
+        supabase.from("activity_instances").select("*, activities!inner(server_id), activity_guilds!inner(guild_id)", { count: "exact", head: true }).eq("activities.server_id", serverId).eq("activity_guilds.guild_id", guildId).gte("end_time", weekStartISO).not("end_time", "is", null),
+      ]);
+      let assistedKills = 0;
+      if (assistBosses?.length) {
+        const bossIds = [...new Set(assistBosses.map((a: any) => a.boss_id))];
+        const { count } = await supabase.from("death_records").select("*", { count: "exact", head: true }).eq("server_id", serverId).in("boss_id", bossIds).gte("death_time", weekStartISO);
+        assistedKills = count ?? 0;
+      }
+      return (ownedKills ?? 0) + assistedKills + (activities ?? 0);
+    },
+    enabled: !!serverId && configured,
+  });
+  const { data: totalEventsMonth = 0 } = useQuery({
+    queryKey: ["totalEventsMonth", serverId, monthStartISO, profile?.guild_id],
+    queryFn: async () => {
+      if (!serverId) return 0;
+      const guildId = profile?.guild_id; if (!guildId) return 0;
+      const [{ data: assistBosses }, { count: ownedKills }, { count: activities }] = await Promise.all([
+        supabase.from("boss_assists").select("boss_id").eq("assistant_guild_id", guildId),
+        supabase.from("death_records").select("*", { count: "exact", head: true }).eq("server_id", serverId).eq("owner_guild_id", guildId).gte("death_time", monthStartISO),
+        supabase.from("activity_instances").select("*, activities!inner(server_id), activity_guilds!inner(guild_id)", { count: "exact", head: true }).eq("activities.server_id", serverId).eq("activity_guilds.guild_id", guildId).gte("end_time", monthStartISO).not("end_time", "is", null),
+      ]);
+      let assistedKills = 0;
+      if (assistBosses?.length) {
+        const bossIds = [...new Set(assistBosses.map((a: any) => a.boss_id))];
+        const { count } = await supabase.from("death_records").select("*", { count: "exact", head: true }).eq("server_id", serverId).in("boss_id", bossIds).gte("death_time", monthStartISO);
+        assistedKills = count ?? 0;
+      }
+      return (ownedKills ?? 0) + assistedKills + (activities ?? 0);
+    },
     enabled: !!serverId && configured,
   });
 
@@ -230,6 +321,29 @@ export function MemberProfileView() {
     const acts = (profile.activity_attendance || []).filter((a: any) => new Date(a.created_at).getTime() >= cutoff).length;
     return hunts + acts;
   })();
+  const [eventsRange, setEventsRange] = useState<"weekly" | "monthly" | "all">("weekly");
+
+  const weekEvents = useMemo(() => {
+    if (!profile) return 0;
+    const hunts = (profile.attendance_history || []).filter((a: any) => new Date(a.created_at).getTime() >= weekStart.getTime()).length;
+    const acts = (profile.activity_attendance || []).filter((a: any) => new Date(a.created_at).getTime() >= weekStart.getTime()).length;
+    return hunts + acts;
+  }, [profile, weekStart]);
+  const monthEvents = useMemo(() => {
+    if (!profile) return 0;
+    const hunts = (profile.attendance_history || []).filter((a: any) => new Date(a.created_at).getTime() >= monthStart.getTime()).length;
+    const acts = (profile.activity_attendance || []).filter((a: any) => new Date(a.created_at).getTime() >= monthStart.getTime()).length;
+    return hunts + acts;
+  }, [profile, monthStart]);
+
+  const eventsDisplay = eventsRange === "weekly" ? weekEvents : eventsRange === "monthly" ? monthEvents : totalEvents;
+  const eventsLabel = eventsRange === "weekly" ? "This Week" : eventsRange === "monthly" ? "This Month" : "All Time";
+  const fmtShortDate = (d: Date) => d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  // Period-specific absences
+  const weekAbsences = Math.max(0, totalEventsWeek - weekEvents);
+  const monthAbsences = Math.max(0, totalEventsMonth - monthEvents);
+  const allAbsences = Math.max(0, totalEventsSinceJoined - totalEvents);
+  const displayAbsences = eventsRange === "weekly" ? weekAbsences : eventsRange === "monthly" ? monthAbsences : allAbsences;
   const loot14d = (() => {
     if (!profile) return 0;
     const cutoff = Date.now() - 14 * 86400000;
@@ -322,13 +436,26 @@ export function MemberProfileView() {
       lines.push({ text: `CP has been steady — keep pushing to grow stronger.`, colorClass: "text-[#a1a1aa]" });
     }
 
-    // Attendance commentary
-    if (totalEvents >= 20) {
-      lines.push({ text: `Very active — ${totalEvents} events attended. Keep it up!`, colorClass: "text-green-400" });
-    } else if (totalEvents >= 5) {
-      lines.push({ text: `Moderately active with ${totalEvents} events attended.`, colorClass: "text-amber-400" });
+    // Attendance commentary — based on weekly performance
+    if (totalEventsWeek > 0) {
+      const pct = Math.round((weekEvents / totalEventsWeek) * 100);
+      if (pct >= 80) {
+        lines.push({ text: `Excellent attendance — ${weekEvents}/${totalEventsWeek} events this week (${pct}%).`, colorClass: "text-green-400" });
+      } else if (pct >= 50) {
+        lines.push({ text: `Good attendance — ${weekEvents}/${totalEventsWeek} events this week (${pct}%).`, colorClass: "text-amber-400" });
+      } else if (weekEvents > 0) {
+        lines.push({ text: `Low attendance — only ${weekEvents}/${totalEventsWeek} events this week (${pct}%).`, colorClass: "text-[#a1a1aa]" });
+      } else {
+        lines.push({ text: `Missed all ${totalEventsWeek} events this week — time to catch up!`, colorClass: "text-red-400" });
+      }
     } else if (totalEvents > 0) {
-      lines.push({ text: `Just getting started — ${totalEvents} event${totalEvents !== 1 ? "s" : ""} attended so far.`, colorClass: "text-[#a1a1aa]" });
+      if (totalEvents >= 20) {
+        lines.push({ text: `Very active — ${totalEvents} events attended. Keep it up!`, colorClass: "text-green-400" });
+      } else if (totalEvents >= 5) {
+        lines.push({ text: `Moderately active with ${totalEvents} events attended.`, colorClass: "text-amber-400" });
+      } else {
+        lines.push({ text: `Just getting started — ${totalEvents} event${totalEvents !== 1 ? "s" : ""} attended so far.`, colorClass: "text-[#a1a1aa]" });
+      }
     }
 
     if (daysSinceActive >= 7 && daysSinceActive < 999) {
@@ -523,12 +650,38 @@ export function MemberProfileView() {
             </p>
           </div>
           <div className="bg-[#09090b] rounded-lg p-3">
-            <p className="text-[10px] text-[#71717a] uppercase tracking-wider">Events Attended</p>
-            <p className="text-lg font-bold text-[#fafafa] mt-0.5">{totalEvents}</p>
-            <div className="flex items-center gap-2 mt-1">
-              <span className="text-[10px] text-[#52525b]">7d: <span className="text-[#a1a1aa]">{events7d}</span></span>
-              <span className="text-[10px] text-[#52525b]">30d: <span className="text-[#a1a1aa]">{events30d}</span></span>
+            <div className="flex items-center justify-between mb-0.5">
+              <p className="text-[10px] text-[#71717a] uppercase tracking-wider">Events</p>
+              <div className="flex gap-0.5">
+                {(["weekly", "monthly", "all"] as const).map(r => (
+                  <button key={r} onClick={() => setEventsRange(r)}
+                    className={`text-[9px] px-1.5 py-0.5 rounded transition ${eventsRange === r ? "bg-[#27272a] text-[#fafafa]" : "text-[#52525b] hover:text-[#a1a1aa]"}`}>
+                    {r === "weekly" ? "Week" : r === "monthly" ? "Month" : "All"}
+                  </button>
+                ))}
+              </div>
             </div>
+            <p className="text-lg font-bold text-[#fafafa] mt-0.5">
+              {eventsDisplay}
+              <span className="text-[#52525b] text-sm font-normal"> / {eventsRange === "weekly" ? totalEventsWeek : eventsRange === "monthly" ? totalEventsMonth : totalEventsSinceJoined} events</span>
+            </p>
+            <p className="text-[10px] text-[#52525b]">{eventsLabel}{eventsRange !== "all" ? ` (${fmtShortDate(eventsRange === "weekly" ? weekStart : monthStart)} – today)` : ""}</p>
+            <p className="text-[10px] text-[#52525b]">
+              <span className="text-[#a1a1aa]">{(() => {
+                if (!profile) return "";
+                const start = eventsRange === "weekly" ? weekStart : eventsRange === "monthly" ? monthStart : new Date(0);
+                const hunts = (profile.attendance_history || []).filter((a: any) => new Date(a.created_at).getTime() >= start.getTime()).length;
+                const acts = (profile.activity_attendance || []).filter((a: any) => new Date(a.created_at).getTime() >= start.getTime()).length;
+                return `${hunts} bosses · ${acts} activities`;
+              })()}</span>
+            </p>
+            {totalEventsSinceJoined > 0 && (
+              <div className="mt-1 pt-1 border-t border-[#1a1a1e]">
+                <p className="text-[10px] text-[#52525b]">
+                  Absences: <span className="text-red-400 font-medium">{displayAbsences}</span>
+                </p>
+              </div>
+            )}
           </div>
           <div className="bg-[#09090b] rounded-lg p-3 col-span-2 sm:col-span-1">
             <p className="text-[10px] text-[#71717a] uppercase tracking-wider">Items Received</p>
@@ -804,7 +957,7 @@ export function MemberProfileView() {
             {accountSummary && accountSummary.length > 0 && (
               <div className="border-t border-[#27272a] pt-2 mt-2 space-y-1">
                 {accountSummary.map((line, i) => (
-                  <p key={i} className={`text-xs flex items-start gap-1.5 ${line.colorClass}`}>
+                  <p key={i} className={`text-sm flex items-start gap-1.5 ${line.colorClass}`}>
                     <span className="mt-0.5 w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: "currentColor" }} />
                     {line.text}
                   </p>
@@ -887,7 +1040,7 @@ export function MemberProfileView() {
         {accountSummary && accountSummary.length > 0 && (
           <div className="border-t border-[#27272a] pt-2 mt-2 space-y-1">
             {accountSummary.map((line, i) => (
-              <p key={i} className={`text-xs flex items-start gap-1.5 ${line.colorClass}`}>
+              <p key={i} className={`text-sm flex items-start gap-1.5 ${line.colorClass}`}>
                 <span className="mt-0.5 w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: "currentColor" }} />
                 {line.text}
               </p>

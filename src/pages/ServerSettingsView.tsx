@@ -770,6 +770,12 @@ export function ServerSettingsView() {
         command_prefix: prefix,
       }).select().single();
       if (error) throw error;
+      // Auto-assign all guilds to auto-thread by default
+      const allGuildIds = guilds.map(g => g.id);
+      if (allGuildIds.length > 0) {
+        await supabase.from("discord_configs").update({ thread_guilds: allGuildIds }).eq("id", data.id);
+        data.thread_guilds = allGuildIds;
+      }
       setDiscordLinks(prev => [...prev, data]);
       notifyDiscordUpdated();
       queryClient.invalidateQueries({ queryKey: ["discord_configs", currentServer.id] });
