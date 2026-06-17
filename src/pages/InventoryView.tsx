@@ -932,7 +932,7 @@ export function InventoryView() {
                             .catch(() => toast("error", "Failed to add item"));
                         }}
                         disabled={isAlreadyAdded}
-                        className={`inline-flex items-center gap-1 text-[10px] font-medium px-2.5 py-1.5 rounded border transition text-left ${isAlreadyAdded ? "border-emerald-500/20 bg-emerald-500/5 text-emerald-400/50 cursor-default" : "border-[#27272a] hover:border-[#3f3f46] cursor-pointer"}`}
+                        className={`inline-flex items-center gap-1 text-[11px] font-medium px-2.5 py-1.5 rounded-lg border transition text-left ${isAlreadyAdded ? "border-emerald-500/20 bg-emerald-500/5 text-emerald-400/50 cursor-default" : "border-[#27272a] hover:border-[#3f3f46] cursor-pointer"}`}
                         style={{ color: isAlreadyAdded ? undefined : rc }}
                         title={isAlreadyAdded ? `${item.name} — already in collection` : item.name}
                       >
