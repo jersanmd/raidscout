@@ -21,11 +21,11 @@ ALTER TABLE public.item_collections ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.item_collection_items ENABLE ROW LEVEL SECURITY;
 
 -- RLS: server-scoped
-CREATE POLICY "collections_server_select" ON public.item_collections FOR SELECT USING (server_id IN (SELECT id FROM public.servers));
-CREATE POLICY "collections_server_insert" ON public.item_collections FOR INSERT WITH CHECK (server_id IN (SELECT id FROM public.servers));
-CREATE POLICY "collections_server_update" ON public.item_collections FOR UPDATE USING (server_id IN (SELECT id FROM public.servers));
-CREATE POLICY "collections_server_delete" ON public.item_collections FOR DELETE USING (server_id IN (SELECT id FROM public.servers));
+CREATE POLICY IF NOT EXISTS "collections_server_select" ON public.item_collections FOR SELECT USING (server_id IN (SELECT id FROM public.servers));
+CREATE POLICY IF NOT EXISTS "collections_server_insert" ON public.item_collections FOR INSERT WITH CHECK (server_id IN (SELECT id FROM public.servers));
+CREATE POLICY IF NOT EXISTS "collections_server_update" ON public.item_collections FOR UPDATE USING (server_id IN (SELECT id FROM public.servers));
+CREATE POLICY IF NOT EXISTS "collections_server_delete" ON public.item_collections FOR DELETE USING (server_id IN (SELECT id FROM public.servers));
 
-CREATE POLICY "collection_items_select" ON public.item_collection_items FOR SELECT USING (collection_id IN (SELECT id FROM public.item_collections WHERE server_id IN (SELECT id FROM public.servers)));
-CREATE POLICY "collection_items_insert" ON public.item_collection_items FOR INSERT WITH CHECK (collection_id IN (SELECT id FROM public.item_collections WHERE server_id IN (SELECT id FROM public.servers)));
-CREATE POLICY "collection_items_delete" ON public.item_collection_items FOR DELETE USING (collection_id IN (SELECT id FROM public.item_collections WHERE server_id IN (SELECT id FROM public.servers)));
+CREATE POLICY IF NOT EXISTS "collection_items_select" ON public.item_collection_items FOR SELECT USING (collection_id IN (SELECT id FROM public.item_collections WHERE server_id IN (SELECT id FROM public.servers)));
+CREATE POLICY IF NOT EXISTS "collection_items_insert" ON public.item_collection_items FOR INSERT WITH CHECK (collection_id IN (SELECT id FROM public.item_collections WHERE server_id IN (SELECT id FROM public.servers)));
+CREATE POLICY IF NOT EXISTS "collection_items_delete" ON public.item_collection_items FOR DELETE USING (collection_id IN (SELECT id FROM public.item_collections WHERE server_id IN (SELECT id FROM public.servers)));
