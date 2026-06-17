@@ -492,7 +492,7 @@ export function InventoryView() {
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-md text-xs sm:text-sm font-medium transition ${
+            className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-md text-xs sm:text-sm font-medium transition ${
               tab === t ? "bg-[#27272a] text-[#fafafa]" : "text-[#a1a1aa] hover:text-[#e4e4e7]"
             }`}
           >
@@ -528,14 +528,14 @@ export function InventoryView() {
               </div>
               <button
                 onClick={() => setShowCreateItem(true)}
-                className="flex items-center gap-1.5 px-3 py-2.5 bg-[#fafafa] hover:bg-[#e4e4e7] text-[#09090b] rounded-xl text-xs font-medium transition shrink-0"
+                className="flex items-center gap-2 px-3 py-2.5 bg-[#fafafa] hover:bg-[#e4e4e7] text-[#09090b] rounded-xl text-xs font-medium transition shrink-0"
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">Add Item</span>
               </button>
             </div>
             {availableRarities.length > 0 && (
-              <div className="flex items-center gap-1.5 flex-wrap">
+              <div className="flex items-center gap-2 flex-wrap">
                 <button
                   onClick={() => setRarityFilter(null)}
                   className={`px-2.5 py-1 rounded-md text-[10px] font-medium transition ${
@@ -600,7 +600,7 @@ export function InventoryView() {
                   {/* Name + Rarity */}
                   <div className="min-w-0 flex-1">
                     <p className="text-[13px] font-medium truncate leading-tight" style={{ color: rarityColor }}>{item.name}</p>
-                    <div className="flex items-center gap-1.5 flex-wrap">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <span
                         className="text-[10px] font-semibold uppercase tracking-wider"
                         style={{ color: rarityColor }}
@@ -812,7 +812,7 @@ export function InventoryView() {
                 {collItemsWithData.length === 0 ? (
                   <p className="text-xs text-[#52525b] py-4">No items in this collection yet.</p>
                 ) : (
-                  <div className="flex flex-wrap gap-1.5">
+                  <div className="flex flex-wrap gap-2">
                     {collItemsWithData
                       .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
                       .map((ci, idx, arr) => {
@@ -820,7 +820,7 @@ export function InventoryView() {
                       const isFirst = idx === 0;
                       const isLast = idx === arr.length - 1;
                       return (
-                        <span key={ci.id} className="inline-flex items-center gap-1 text-[10px] font-medium rounded border border-[#27272a] bg-[#09090b] overflow-hidden" style={{ color: rc, borderColor: rc + "30" }}>
+                        <span key={ci.id} className="inline-flex items-center gap-1 text-[11px] font-medium rounded-lg border border-[#27272a] bg-[#09090b] overflow-hidden" style={{ color: rc, borderColor: rc + "30" }}>
                           {/* Reorder buttons */}
                           <span className="flex flex-col border-r border-[#27272a]">
                             <button
@@ -837,9 +837,9 @@ export function InventoryView() {
                                 queryClient.invalidateQueries({ queryKey: ["collectionItems", selectedCollection] });
                               }}
                               disabled={isFirst}
-                              className="px-0.5 py-0.5 text-[#52525b] hover:text-[#d4d4d8] disabled:opacity-30 disabled:cursor-default transition"
+                              className="px-1 py-1 text-[#52525b] hover:text-[#d4d4d8] disabled:opacity-30 disabled:cursor-default transition"
                               title="Move up"
-                            ><ChevronUp className="w-2.5 h-2.5" /></button>
+                            ><ChevronUp className="w-3 h-3" /></button>
                             <button
                               onClick={async () => {
                                 const next = arr[idx + 1];
@@ -853,12 +853,12 @@ export function InventoryView() {
                                 queryClient.invalidateQueries({ queryKey: ["collectionItems", selectedCollection] });
                               }}
                               disabled={isLast}
-                              className="px-0.5 py-0.5 text-[#52525b] hover:text-[#d4d4d8] disabled:opacity-30 disabled:cursor-default transition border-t border-[#27272a]"
+                              className="px-1 py-1 text-[#52525b] hover:text-[#d4d4d8] disabled:opacity-30 disabled:cursor-default transition border-t border-[#27272a]"
                               title="Move down"
-                            ><ChevronDown className="w-2.5 h-2.5" /></button>
+                            ><ChevronDown className="w-3 h-3" /></button>
                           </span>
-                          <span className="flex items-center gap-1.5 px-2 py-1">
-                            {ci.item?.image_url && <img src={ci.item.image_url} alt="" className="w-4 h-4 rounded object-cover" />}
+                          <span className="flex items-center gap-2 px-2.5 py-1.5">
+                            {ci.item?.image_url && <img src={ci.item.image_url} alt="" className="w-5 h-5 rounded object-cover" />}
                             {ci.item?.name ?? "Unknown"}
                           </span>
                           <button
@@ -866,8 +866,8 @@ export function InventoryView() {
                               removeItemFromCollection(selectedCollection!, ci.item_id)
                                 .then(() => queryClient.invalidateQueries({ queryKey: ["collectionItems", selectedCollection] }));
                             }}
-                            className="ml-1 text-[#71717a] hover:text-[#f87171]"
-                          ><X className="w-2.5 h-2.5" /></button>
+                            className="pr-2 text-[#71717a] hover:text-[#f87171]"
+                          ><X className="w-3 h-3" /></button>
                         </span>
                       );
                     })}
@@ -884,7 +884,7 @@ export function InventoryView() {
                     <select
                       value={collCatFilter}
                       onChange={e => setCollCatFilter(e.target.value)}
-                      className="text-[10px] bg-[#09090b] border border-[#27272a] rounded-lg text-[#fafafa] px-2 py-1 focus:outline-none focus:border-[#3f3f46]"
+                      className="text-[10px] bg-[#09090b] border border-[#27272a] rounded-lg text-[#fafafa] px-2.5 py-1.5 focus:outline-none focus:border-[#3f3f46]"
                     >
                       <option value="">All Categories</option>
                       {topCategories.map((tc: any) => (
@@ -900,7 +900,7 @@ export function InventoryView() {
                     <select
                       value={collRarityFilter}
                       onChange={e => setCollRarityFilter(e.target.value)}
-                      className="text-[10px] bg-[#09090b] border border-[#27272a] rounded-lg text-[#fafafa] px-2 py-1 focus:outline-none focus:border-[#3f3f46]"
+                      className="text-[10px] bg-[#09090b] border border-[#27272a] rounded-lg text-[#fafafa] px-2.5 py-1.5 focus:outline-none focus:border-[#3f3f46]"
                     >
                       <option value="">All Rarities</option>
                       {RARITY_ORDER.filter(r => collRarities.includes(r)).map(r => (
@@ -918,7 +918,7 @@ export function InventoryView() {
                     </div>
                   </div>
                 </div>
-                <div className="flex flex-wrap gap-1.5 max-h-64 overflow-y-auto">
+                <div className="flex flex-wrap gap-2 max-h-64 overflow-y-auto">
                   {filteredAvailable.slice(0, 50).map(item => {
                     const rc = item.rarity ? RARITY_COLORS[item.rarity.toLowerCase() as ItemRarity] : "#a1a1aa";
                     const isAlreadyAdded = collItemIds.has(item.id);
@@ -932,11 +932,11 @@ export function InventoryView() {
                             .catch(() => toast("error", "Failed to add item"));
                         }}
                         disabled={isAlreadyAdded}
-                        className={`inline-flex items-center gap-1 text-[10px] font-medium px-2 py-1 rounded border transition text-left ${isAlreadyAdded ? "border-emerald-500/20 bg-emerald-500/5 text-emerald-400/50 cursor-default" : "border-[#27272a] hover:border-[#3f3f46] cursor-pointer"}`}
+                        className={`inline-flex items-center gap-1 text-[10px] font-medium px-2.5 py-1.5 rounded border transition text-left ${isAlreadyAdded ? "border-emerald-500/20 bg-emerald-500/5 text-emerald-400/50 cursor-default" : "border-[#27272a] hover:border-[#3f3f46] cursor-pointer"}`}
                         style={{ color: isAlreadyAdded ? undefined : rc }}
                         title={isAlreadyAdded ? `${item.name} — already in collection` : item.name}
                       >
-                        {isAlreadyAdded ? <Check className="w-2.5 h-2.5 shrink-0" /> : <Plus className="w-2.5 h-2.5 shrink-0" />}
+                        {isAlreadyAdded ? <Check className="w-3 h-3 shrink-0" /> : <Plus className="w-3 h-3 shrink-0" />}
                         <span className="truncate max-w-[150px]">{item.name}</span>
                       </button>
                     );
@@ -1055,7 +1055,7 @@ export function InventoryView() {
               )}
             </div>
             {availableRarities.length > 0 && (
-              <div className="flex items-center gap-1.5 flex-wrap">
+              <div className="flex items-center gap-2 flex-wrap">
                 <button
                   onClick={() => setHistRarityFilter(null)}
                   className={`px-2.5 py-1 rounded-md text-[10px] font-medium transition ${
@@ -1121,7 +1121,7 @@ export function InventoryView() {
                             <p className="text-sm font-medium truncate" style={{ color: rc }}>{item?.name ?? "Unknown Item"}</p>
                             <span className="text-[11px] text-[#52525b] font-mono shrink-0">x{d.quantity}</span>
                           </div>
-                          <div className="flex items-center gap-1.5 mt-0.5">
+                          <div className="flex items-center gap-2 mt-0.5">
                             <span className="text-[11px] text-[#71717a]">→</span>
                             {(() => {
                               const m = members.find(m => m.name === d.player_name);
@@ -1247,7 +1247,7 @@ export function InventoryView() {
                   setRecipientGuildFilter(val);
                   try { localStorage.setItem("raidscout-recipient-guild", val); } catch {}
                 }}
-                className="text-[11px] bg-[#09090b] border border-[#27272a] rounded-lg text-[#fafafa] px-2 py-1 focus:outline-none focus:border-[#3f3f46]"
+                className="text-[11px] bg-[#09090b] border border-[#27272a] rounded-lg text-[#fafafa] px-2.5 py-1.5 focus:outline-none focus:border-[#3f3f46]"
               >
                 <option value="">All Guilds</option>
                 {guildNames.map(g => (
@@ -1257,7 +1257,7 @@ export function InventoryView() {
               <select
                 value={recipientSort}
                 onChange={(e) => setRecipientSort(e.target.value)}
-                className="text-[11px] bg-[#09090b] border border-[#27272a] rounded-lg text-[#fafafa] px-2 py-1 focus:outline-none focus:border-[#3f3f46]"
+                className="text-[11px] bg-[#09090b] border border-[#27272a] rounded-lg text-[#fafafa] px-2.5 py-1.5 focus:outline-none focus:border-[#3f3f46]"
               >
                 <option value="chrono">Chronological</option>
                 <option value="name-asc">Name A→Z</option>
@@ -1520,7 +1520,7 @@ export function InventoryView() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between mb-0.5">
-                            <div className="flex items-center gap-1.5 min-w-0">
+                            <div className="flex items-center gap-2 min-w-0">
                               <p className="text-xs truncate flex items-center gap-1 text-[#fafafa]">
                                 {ci && getClassIcon(ci) && (() => { const CIcon = getClassIcon(ci)!; return <CIcon className="w-3 h-3 shrink-0" style={{ color: cc }} />; })()}
                                 {r.player_name}
@@ -1657,7 +1657,7 @@ export function InventoryView() {
               {/* Rarity */}
               <div>
                 <label className="text-[10px] text-[#71717a] uppercase tracking-wider">Rarity</label>
-                <div className="flex gap-1.5 mt-1">
+                <div className="flex gap-2 mt-1">
                   {(gameRarities as any[]).length > 0 ? (
                     (gameRarities as any[]).sort((a: any, b: any) => a.sort_order - b.sort_order).map((r: any) => (
                       <button
@@ -1724,7 +1724,7 @@ export function InventoryView() {
               </div>
               <div>
                 <label className="text-[10px] text-[#71717a] uppercase tracking-wider">Rarity</label>
-                <div className="flex gap-1.5 mt-1">
+                <div className="flex gap-2 mt-1">
                   {RARITY_ORDER.map(r => (
                     <button key={r} onClick={() => setEditRarity(r)}
                       className="flex-1 py-1.5 rounded-md text-[10px] font-medium capitalize transition border"
@@ -1774,7 +1774,7 @@ export function InventoryView() {
               <div>
                 <h3 className="text-sm font-semibold text-[#fafafa]">Distribute Item</h3>
                 {distItem && (
-                  <p className="text-[11px] text-[#a1a1aa] mt-0.5 flex items-center gap-1.5">
+                  <p className="text-[11px] text-[#a1a1aa] mt-0.5 flex items-center gap-2">
                     <span className="capitalize font-medium" style={{ color: RARITY_COLORS[distItem.rarity?.toLowerCase() as ItemRarity] }}>{distItem.rarity}</span>
                     <span>{"\u00B7"}</span>
                     <span>{distItem.name}</span>
@@ -1952,7 +1952,7 @@ export function InventoryView() {
                           {m?.class && <span className="text-[10px] px-1.5 py-0.5 rounded font-medium capitalize shrink-0" style={{ backgroundColor: cc + "18", color: cc }}>{m.class}</span>}
                           {gc && g && (
                             <span className={`flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded border shrink-0 ${gc.bg} ${gc.text} ${gc.border}`}>
-                              <Shield className="w-2.5 h-2.5" />
+                              <Shield className="w-3 h-3" />
                               {g.name}
                             </span>
                           )}
