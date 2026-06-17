@@ -824,24 +824,33 @@ export function InventoryView() {
                           {/* Reorder buttons */}
                           <span className="flex flex-col border-r border-[#27272a]">
                             <button
-                              onClick={() => {
+                              onClick={async () => {
                                 const prev = arr[idx - 1];
                                 if (!prev) return;
-                                reorderCollectionItem(selectedCollection!, ci.item_id, prev.sort_order ?? idx - 1)
-                                  .then(() => reorderCollectionItem(selectedCollection!, prev.item_id, ci.sort_order ?? idx))
-                                  .then(() => queryClient.invalidateQueries({ queryKey: ["collectionItems", selectedCollection] }));
+                                const ciOrder = ci.sort_order ?? idx;
+                                const prevOrder = prev.sort_order ?? idx - 1;
+                                // Use a temp high value to avoid unique constraint issues
+                                const TEMP = 999999;
+                                await reorderCollectionItem(selectedCollection!, ci.item_id, TEMP);
+                                await reorderCollectionItem(selectedCollection!, prev.item_id, ciOrder);
+                                await reorderCollectionItem(selectedCollection!, ci.item_id, prevOrder);
+                                queryClient.invalidateQueries({ queryKey: ["collectionItems", selectedCollection] });
                               }}
                               disabled={isFirst}
                               className="px-0.5 py-0.5 text-[#52525b] hover:text-[#d4d4d8] disabled:opacity-30 disabled:cursor-default transition"
                               title="Move up"
                             ><ChevronUp className="w-2.5 h-2.5" /></button>
                             <button
-                              onClick={() => {
+                              onClick={async () => {
                                 const next = arr[idx + 1];
                                 if (!next) return;
-                                reorderCollectionItem(selectedCollection!, ci.item_id, next.sort_order ?? idx + 1)
-                                  .then(() => reorderCollectionItem(selectedCollection!, next.item_id, ci.sort_order ?? idx))
-                                  .then(() => queryClient.invalidateQueries({ queryKey: ["collectionItems", selectedCollection] }));
+                                const ciOrder = ci.sort_order ?? idx;
+                                const nextOrder = next.sort_order ?? idx + 1;
+                                const TEMP = 999999;
+                                await reorderCollectionItem(selectedCollection!, ci.item_id, TEMP);
+                                await reorderCollectionItem(selectedCollection!, next.item_id, ciOrder);
+                                await reorderCollectionItem(selectedCollection!, ci.item_id, nextOrder);
+                                queryClient.invalidateQueries({ queryKey: ["collectionItems", selectedCollection] });
                               }}
                               disabled={isLast}
                               className="px-0.5 py-0.5 text-[#52525b] hover:text-[#d4d4d8] disabled:opacity-30 disabled:cursor-default transition border-t border-[#27272a]"
