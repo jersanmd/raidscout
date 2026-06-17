@@ -1,6 +1,6 @@
 # fly.toml -- RaidScout Web + Bot
 app = "raidscout-bot"
-primary_region = "sin"
+primary_region = "nrt"
 
 [build]
   dockerfile = "Dockerfile"
