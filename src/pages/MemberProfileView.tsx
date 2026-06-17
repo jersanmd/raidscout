@@ -1132,18 +1132,6 @@ export function MemberProfileView() {
         </div>
       )}
 
-      {/* Footer — same as main Layout */}
-      <footer className="hidden md:block shrink-0 border-t border-[#1a1a1e] bg-[#09090b]">
-        <div className="px-4 py-2 flex items-center justify-between text-[11px] text-[#52525b]">
-          <span>© {new Date().getFullYear()} RaidScout. All rights reserved.</span>
-          <div className="flex items-center gap-3">
-            <Link to="/terms" className="hover:text-[#a1a1aa] transition">Terms</Link>
-            <Link to="/privacy" className="hover:text-[#a1a1aa] transition">Privacy</Link>
-            <Link to="/refund" className="hover:text-[#a1a1aa] transition">Refunds</Link>
-            <Link to="/changelog" className="hover:text-[#a1a1aa] transition">Changelog</Link>
-          </div>
-        </div>
-      </footer>
     </div>
   );
 }
