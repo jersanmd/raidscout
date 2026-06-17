@@ -77,6 +77,23 @@ export function InventoryView() {
   const [collCatFilter, setCollCatFilter] = useState("");
   const [collRarityFilter, setCollRarityFilter] = useState("");
   const [matrixSort, setMatrixSort] = useState<"name" | "owned-desc" | "owned-asc">("name");
+  const [matrixGuildFilter, setMatrixGuildFilter] = useState<string>(() => {
+    try { return localStorage.getItem("raidscout-matrix-guild") || ""; } catch { return ""; }
+  });
+
+  // Set default guild if none selected
+  useEffect(() => {
+    if (matrixGuildFilter) return;
+    if (collectionMode !== "matrix" || !selectedCollection) return;
+    const guildNames = [...new Set(members.map(m => {
+      const g = m.guild_id ? guilds.find(g => g.id === m.guild_id) : null;
+      return g?.name ?? "";
+    }).filter(Boolean))].sort();
+    if (guildNames.length > 0) {
+      setMatrixGuildFilter(guildNames[0]);
+      try { localStorage.setItem("raidscout-matrix-guild", guildNames[0]); } catch {}
+    }
+  }, [collectionMode, selectedCollection, members, guilds, matrixGuildFilter]);
 
   const { data: collections = [], isLoading: collectionsLoading } = useQuery({
     queryKey: ["collections", serverId],
@@ -956,13 +973,46 @@ export function InventoryView() {
         // Collection MATRIX mode
         if (collectionMode === "matrix" && selectedCollection) {
           const matrixItems = collItemsWithData.filter(ci => ci.item);
+
+          // Filter players by guild
+          const filteredPlayers = matrixGuildFilter
+            ? playersWithOwnership.filter(p => {
+                const m = members.find(m => m.id === p.name || m.name === p.name);
+                if (!m?.guild_id) return false;
+                const g = guilds.find(g => g.id === m.guild_id);
+                return g?.name === matrixGuildFilter;
+              })
+            : playersWithOwnership;
+
+          // Build guild list
+          const guildNames = [...new Set(members.map(m => {
+            const g = m.guild_id ? guilds.find(g => g.id === m.guild_id) : null;
+            return g?.name ?? "";
+          }).filter(Boolean))].sort();
+
           return (
             <div className="space-y-6">
               <div className="flex items-center gap-3">
                 <button onClick={() => { setCollectionMode("view"); }} className="p-1 text-[#a1a1aa] hover:text-[#fafafa] transition"><ArrowLeft className="w-4 h-4" /></button>
                 <div>
                   <h3 className="text-sm font-semibold text-[#fafafa]">{currentCollection?.name} — Ownership</h3>
-                  <p className="text-[10px] text-[#52525b]">{playersWithOwnership.length} players · {matrixItems.length} items</p>
+                  <p className="text-[10px] text-[#52525b]">{filteredPlayers.length} / {playersWithOwnership.length} players · {matrixItems.length} items</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <select
+                    value={matrixGuildFilter}
+                    onChange={e => {
+                      const val = e.target.value;
+                      setMatrixGuildFilter(val);
+                      try { localStorage.setItem("raidscout-matrix-guild", val); } catch {}
+                    }}
+                    className="text-[10px] bg-[#18181b] border border-[#27272a] rounded-lg text-[#fafafa] px-2.5 py-1.5 focus:outline-none focus:border-[#3f3f46]"
+                  >
+                    <option value="">All Guilds</option>
+                    {guildNames.map(g => (
+                      <option key={g} value={g}>{g}</option>
+                    ))}
+                  </select>
                 </div>
                 <div className="flex items-center gap-3 text-[10px]">
                   <span className="flex items-center gap-1"><span className="w-3 h-3 rounded border border-emerald-500/20 bg-emerald-500/10" /> Distributed</span>
@@ -999,10 +1049,10 @@ export function InventoryView() {
                         </tr>
                       </thead>
                       <tbody>
-                        {playersWithOwnership.length === 0 ? (
-                          <tr><td colSpan={matrixItems.length + 1} className="text-center py-8 text-[#52525b]">No distribution data yet.</td></tr>
+                        {filteredPlayers.length === 0 ? (
+                          <tr><td colSpan={matrixItems.length + 1} className="text-center py-8 text-[#52525b]">No players in this guild.</td></tr>
                         ) : (
-                          playersWithOwnership.map(p => (
+                          filteredPlayers.map(p => (
                             <tr key={p.name} className="border-b border-[#27272a]/50 hover:bg-[#09090b]/30 transition">
                               <td className="sticky left-0 bg-[#18181b] px-4 py-2.5 text-[#fafafa] font-medium text-xs">{p.name}</td>
                               {matrixItems.map(ci => {
