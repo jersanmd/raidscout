@@ -1221,7 +1221,7 @@ export function AdminPanelView() {
                 </div>
                 <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-2 sm:p-4 text-center">
                   <HardDrive className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#a1a1aa] mx-auto mb-1 sm:mb-2" />
-                  <p className="text-xs sm:text-lg font-bold text-[#d4d4d8] truncate">{botStatus.memory_mb} / 512 MB</p>
+                  <p className="text-xs sm:text-lg font-bold text-[#d4d4d8] truncate">{botStatus.memory_mb} / 1024 MB</p>
                   <p className="text-[9px] sm:text-[10px] text-[#71717a] mt-0.5 sm:mt-1">Memory</p>
                 </div>
                 <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-2 sm:p-4 text-center">
@@ -1242,7 +1242,7 @@ export function AdminPanelView() {
                   <p className="text-[9px] sm:text-[10px] text-[#71717a] mt-0.5">Platform</p>
                 </div>
                 <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-2 sm:p-3 text-center">
-                  <p className="text-[10px] sm:text-xs text-[#d4d4d8] font-mono">sin</p>
+                  <p className="text-[10px] sm:text-xs text-[#d4d4d8] font-mono">{botStatus.region}</p>
                   <p className="text-[9px] sm:text-[10px] text-[#71717a] mt-0.5">Region</p>
                 </div>
               </div>
