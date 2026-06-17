@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   fetchItemsPaginated, fetchItems, createItem, deleteItem, updateItem, searchItemsByGame,
@@ -64,9 +65,18 @@ export function InventoryView() {
   const queryClient = useQueryClient();
   const configured = isSupabaseConfigured();
 
-  if (currentServer?.isExpired) return <ExpiredGate page="Inventory" />;
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const tab = (searchParams.get("tab") as "catalog" | "collections" | "history" | "analytics" | "recipients") || "catalog";
+  const setTab = (t: "catalog" | "collections" | "history" | "analytics" | "recipients") => {
+    if (t === "catalog") {
+      navigate("/inventory", { replace: true });
+    } else {
+      navigate(`/inventory?tab=${t}`, { replace: true });
+    }
+  };
 
-  const [tab, setTab] = useState<"catalog" | "collections" | "history" | "analytics" | "recipients">("catalog");
+  if (currentServer?.isExpired) return <ExpiredGate page="Inventory" />;
 
   // ── Collections state ──
   const [collectionMode, setCollectionMode] = useState<"list" | "view" | "matrix">("list");

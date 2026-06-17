@@ -82,7 +82,13 @@ export function HistoryView() {
   // ── Tabs (synced to URL) ──
   const [searchParams, setSearchParams] = useSearchParams();
   const tab = (searchParams.get("tab") as "timeline" | "ledger") || "timeline";
-  const setTab = (t: "timeline" | "ledger") => setSearchParams(t === "ledger" ? { tab: "ledger" } : {});
+  const setTab = (t: "timeline" | "ledger") => {
+    if (t === "ledger") {
+      navigate(`/history?tab=ledger`, { replace: true });
+    } else {
+      navigate(`/history`, { replace: true });
+    }
+  };
   const [ledgerSubtab, setLedgerSubtab] = useState<"fixed_hours" | "fixed_schedule">("fixed_hours");
 
   // ── Ledger data ──
@@ -196,7 +202,6 @@ export function HistoryView() {
   };
 
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
   const [searchText, setSearchText] = useState("");
 
   // Auto-open participant modal from URL (linked from Leaderboard)

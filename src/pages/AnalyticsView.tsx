@@ -1,4 +1,5 @@
 import { useMemo, useState, useEffect } from "react";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { fetchAnalytics, type AnalyticsData, isSupabaseConfigured, fetchGuilds, fetchMembers } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
@@ -24,7 +25,16 @@ export function AnalyticsView() {
   const { user, isViewer } = useAuth();
   const serverId = useServerId();
   const configured = isSupabaseConfigured();
-  const [period, setPeriod] = useState<"week" | "month" | "all">("week");
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const period = (searchParams.get("period") as "week" | "month" | "all") || "week";
+  const setPeriod = (p: "week" | "month" | "all") => {
+    if (p === "week") {
+      navigate("/analytics", { replace: true });
+    } else {
+      navigate(`/analytics?period=${p}`, { replace: true });
+    }
+  };
   const [huntersPage, setHuntersPage] = useState(1);
   const HUNTERS_PER_PAGE = 10;
   const BOSSES_PER_PAGE = 10;

@@ -58,7 +58,17 @@ function getUtcDayRange(startDateStr: string, endDateStr: string, timezone: stri
 }
 
 export function LeaderboardView() {
-  const [period, setPeriod] = useState<LeaderboardPeriod>("weekly");
+  // ── Period tabs (synced to URL) ──
+  const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const period = (searchParams.get("period") as LeaderboardPeriod) || "weekly";
+  const setPeriod = (p: LeaderboardPeriod) => {
+    if (p === "all") {
+      navigate("/leaderboard?period=all", { replace: true });
+    } else {
+      navigate("/leaderboard", { replace: true });
+    }
+  };
   const { data: entries = [], isLoading } = useLeaderboard(period);
   const { user, isViewer } = useAuth();
   const { toast } = useToast();
@@ -274,8 +284,6 @@ export function LeaderboardView() {
   useEffect(() => { setCarouselPage(p => p >= carouselPages.length && carouselPages.length > 0 ? carouselPages.length - 1 : p); }, [carouselPages.length]);
 
   // Auto-open member from URL param (linked from History page)
-  const [searchParams, setSearchParams] = useSearchParams();
-  const navigate = useNavigate();
   useEffect(() => {
     const memberName = searchParams.get("member");
     if (memberName && entries.length > 0) {
