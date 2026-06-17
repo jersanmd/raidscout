@@ -295,6 +295,7 @@ export {
   removeItemFromCollection,
   reorderCollectionItem,
   fetchServerDistributions,
+  fetchAllCollectionItemsForServer,
   fetchManualOwnership,
   setManualOwnership,
   removeManualOwnership,

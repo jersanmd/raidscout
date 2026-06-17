@@ -75,6 +75,24 @@ export async function reorderCollectionItem(collectionId: string, itemId: string
   if (error) throw error;
 }
 
+// Fetch all collection items for a server (for card previews)
+export async function fetchAllCollectionItemsForServer(serverId: string): Promise<ItemCollectionItem[]> {
+  // First get collection IDs for this server
+  const { data: cols } = await supabase
+    .from("item_collections")
+    .select("id")
+    .eq("server_id", serverId);
+  const colIds = (cols || []).map((c: any) => c.id);
+  if (colIds.length === 0) return [];
+  // Then get items for those collections
+  const { data, error } = await supabase
+    .from("item_collection_items")
+    .select("*")
+    .in("collection_id", colIds);
+  if (error) throw error;
+  return data || [];
+}
+
 export async function removeItemFromCollection(collectionId: string, itemId: string): Promise<void> {
   const { error } = await supabase
     .from("item_collection_items")

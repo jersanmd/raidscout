@@ -9,7 +9,7 @@ import {
   fetchItemCategories, fetchItemRarities, fetchGuilds,
   fetchCollections, createCollection, deleteCollection,
   fetchCollectionItems, addItemToCollection, removeItemFromCollection, reorderCollectionItem,
-  fetchServerDistributions,
+  fetchServerDistributions, fetchAllCollectionItemsForServer,
   fetchManualOwnership, setManualOwnership, removeManualOwnership,
 } from "@/lib/supabase";
 import { useServerId, useServer } from "@/contexts/ServerContext";
@@ -85,6 +85,13 @@ export function InventoryView() {
     queryKey: ["collections", serverId],
     queryFn: () => fetchCollections(serverId!),
     enabled: configured && !!serverId && tab === "collections",
+  });
+
+  // All collection items for card previews (lightweight)
+  const { data: allCollItems = [] } = useQuery({
+    queryKey: ["allCollectionItems", serverId],
+    queryFn: () => fetchAllCollectionItemsForServer(serverId!),
+    enabled: configured && !!serverId && tab === "collections" && collectionMode === "list",
   });
 
   const { data: collItems = [], isLoading: collItemsLoading } = useQuery({
@@ -748,38 +755,77 @@ export function InventoryView() {
             ) : collections.length === 0 ? (
               <p className="text-sm text-[#71717a] text-center py-8">No collections yet. Create one to get started.</p>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {collections.map(c => (
-                  <div key={c.id} className="bg-[#18181b] border border-[#27272a] rounded-xl p-4 hover:border-[#3f3f46] transition group">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h4 className="text-sm font-medium text-[#fafafa]">{c.name}</h4>
-                        <p className="text-[10px] text-[#52525b] mt-0.5">Created {new Date(c.created_at).toLocaleDateString()}</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {collections.map(c => {
+                  // Compute summary from all collection items
+                  const collectionItemIds = new Set<string>();
+                  allCollItems.forEach(ci => { if (ci.collection_id === c.id) collectionItemIds.add(ci.item_id); });
+                  const previewItems = items.filter(i => collectionItemIds.has(i.id)).slice(0, 4);
+                  const totalItems = collectionItemIds.size;
+
+                  // Count owned players (if distribution data is available)
+                  const ownedPlayers = new Set<string>();
+                  allDists.forEach(d => { if (collectionItemIds.has(d.item_id)) ownedPlayers.add(d.player_name); });
+                  manualOwned.forEach(m => { if (m.owned && collectionItemIds.has(m.item_id)) ownedPlayers.add(m.player_name); });
+                  const playerCount = allDists.length > 0 || manualOwned.length > 0 ? ownedPlayers.size : null;
+
+                  return (
+                  <div key={c.id} className="bg-[#18181b] border border-[#27272a] rounded-xl p-5 hover:border-[#3f3f46] hover:bg-[#1c1c20] transition-all duration-200 group cursor-pointer" onClick={() => { setSelectedCollection(c.id); setCollectionMode("view"); }}>
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center shrink-0 group-hover:bg-amber-500/15 transition-colors">
+                          <Star className="w-5 h-5 text-amber-400" />
+                        </div>
+                        <div>
+                          <h4 className="text-sm font-semibold text-[#fafafa] leading-tight">{c.name}</h4>
+                          <p className="text-[10px] text-[#52525b] mt-0.5">{totalItems} item{totalItems !== 1 ? "s" : ""}{playerCount != null ? ` · ${playerCount} player${playerCount !== 1 ? "s" : ""}` : ""}</p>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-1">
+                      <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button
-                          onClick={() => { setSelectedCollection(c.id); setCollectionMode("view"); }}
-                          className="p-1.5 text-[#52525b] hover:text-[#d4d4d8] transition"
+                          onClick={(e) => { e.stopPropagation(); setSelectedCollection(c.id); setCollectionMode("view"); }}
+                          className="p-1.5 text-[#52525b] hover:text-[#d4d4d8] transition rounded-lg hover:bg-[#27272a]"
                           title="View Items"
                         ><Eye className="w-3.5 h-3.5" /></button>
                         <button
-                          onClick={() => { setSelectedCollection(c.id); setCollectionMode("matrix"); }}
-                          className="p-1.5 text-[#52525b] hover:text-[#a1a1aa] transition"
+                          onClick={(e) => { e.stopPropagation(); setSelectedCollection(c.id); setCollectionMode("matrix"); }}
+                          className="p-1.5 text-[#52525b] hover:text-[#a1a1aa] transition rounded-lg hover:bg-[#27272a]"
                           title="View Matrix"
                         ><BarChart3 className="w-3.5 h-3.5" /></button>
                         <button
-                          onClick={() => {
+                          onClick={(e) => {
+                            e.stopPropagation();
                             if (confirm(`Delete collection "${c.name}"?`)) {
                               deleteCollection(c.id).then(() => queryClient.invalidateQueries({ queryKey: ["collections", serverId] }));
                             }
                           }}
-                          className="p-1.5 text-[#52525b] hover:text-[#f87171] transition"
+                          className="p-1.5 text-[#52525b] hover:text-[#f87171] transition rounded-lg hover:bg-[#27272a]"
                           title="Delete"
                         ><Trash2 className="w-3.5 h-3.5" /></button>
                       </div>
                     </div>
+                    {/* Item previews */}
+                    {previewItems.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5">
+                        {previewItems.map(item => {
+                          const rc = item.rarity ? RARITY_COLORS[item.rarity.toLowerCase() as ItemRarity] : "#a1a1aa";
+                          return (
+                            <span key={item.id} className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-1 rounded-lg border bg-[#09090b]" style={{ color: rc, borderColor: rc + "20" }}>
+                              {item.image_url && <img src={item.image_url} alt="" className="w-3.5 h-3.5 rounded object-cover" />}
+                              <span className="truncate max-w-[100px]">{item.name}</span>
+                            </span>
+                          );
+                        })}
+                        {totalItems > 4 && (
+                          <span className="inline-flex items-center text-[10px] font-medium px-2 py-1 rounded-lg border border-[#27272a] bg-[#09090b] text-[#52525b]">
+                            +{totalItems - 4} more
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
