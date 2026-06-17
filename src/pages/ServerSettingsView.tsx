@@ -78,6 +78,11 @@ export function ServerSettingsView() {
             setVerificationStatus(map);
           }
         }, () => setVerificationStatus({}));
+      // Fetch admin user IDs (for masking admin emails)
+      supabase.rpc("get_admin_user_ids")
+        .then(({ data }) => {
+          if (data) setAdminUserIds(new Set((data as any[]).map((r: any) => r.user_id)));
+        }, () => {});
       // Fetch guilds
       setGuildsLoading(true);
       fetchGuilds(currentServer.id)
@@ -162,6 +167,7 @@ export function ServerSettingsView() {
   const [members, setMembers] = useState<ServerMember[]>([]);
   const [membersLoading, setMembersLoading] = useState(false);
   const [verificationStatus, setVerificationStatus] = useState<Record<string, boolean>>({});
+  const [adminUserIds, setAdminUserIds] = useState<Set<string>>(new Set());
   const [activities, setActivities] = useState<Activity[]>([]);
   const [activitiesLoading, setActivitiesLoading] = useState(false);
   const [allActivityGuilds, setAllActivityGuilds] = useState<ActivityGuild[]>([]);
@@ -2108,28 +2114,37 @@ export function ServerSettingsView() {
       )}
 
       {/* Members Tab */}
-      {tab === "members" && (
+      {tab === "members" && (() => {
+        const visibleMembers = members.filter(m => !adminUserIds.has(m.user_id));
+        return (
         <div className="space-y-4">
           <section className="bg-[#09090b] border border-[#27272a] rounded-xl p-4 space-y-3">
             <h3 className="text-sm font-semibold text-[#a1a1aa] uppercase tracking-wider flex items-center gap-1.5">
-              <Users className="w-3 h-3" /> Members ({members.length})
+              <Users className="w-3 h-3" /> Members ({visibleMembers.length})
             </h3>
+            {isOwner && visibleMembers.some(m => m.role === "moderator") && (
+              <p className="text-[10px] text-[#52525b] leading-relaxed">
+                <Settings className="w-3 h-3 inline mr-1 -mt-0.5" />
+                Click a moderator to manage their permissions. Each toggle controls what they can access and modify. Changes save immediately.
+              </p>
+            )}
             {membersLoading ? (
               <div className="flex items-center justify-center py-3">
                 <Loader2 className="w-4 h-4 text-[#71717a] animate-spin" />
               </div>
-            ) : members.length === 0 ? (
+            ) : visibleMembers.length === 0 ? (
               <p className="text-xs text-[#71717a]">No members yet.</p>
             ) : (
               <div className="space-y-1">
-                {members.map((m) => {
+                {visibleMembers.map((m) => {
                   const isExpanded = expandedModPerms === m.user_id;
                   const perms = modPermsData[m.user_id] ?? DEFAULT_MODERATOR_PERMISSIONS;
                   return (
                   <div key={m.user_id}>
                     <div
-                      className={`flex items-center justify-between px-3 py-2 rounded-lg bg-[#18181b]/30 text-sm ${m.role === "moderator" && isOwner ? "cursor-pointer hover:bg-[#18181b]/50 transition" : ""}`}
+                      className={`flex items-center justify-between px-3 py-2 rounded-lg bg-[#18181b]/30 text-sm group ${m.role === "moderator" && isOwner ? "cursor-pointer hover:bg-[#18181b]/50 transition" : ""}`}
                       onClick={() => m.role === "moderator" && isOwner && handleToggleModPerms(m.user_id)}
+                      title={m.role === "moderator" && isOwner ? "Click to manage permissions" : undefined}
                     >
                     <span className="text-[#d4d4d8] text-xs min-w-0 flex items-center gap-1.5">
                       <span className="truncate">{m.email ?? m.user_id}</span>
@@ -2148,6 +2163,12 @@ export function ServerSettingsView() {
                       )}
                     </span>
                     <div className="flex items-center gap-2">
+                      {isOwner && m.role === "moderator" && (
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded transition ${isExpanded ? "bg-[#27272a] text-[#d4d4d8]" : "bg-[#18181b] text-[#52525b] group-hover:text-[#a1a1aa] group-hover:bg-[#27272a]"}`}>
+                          {isExpanded ? <ChevronUp className="w-3 h-3" /> : <Settings className="w-3 h-3" />}
+                          <span className="ml-1 hidden sm:inline">{isExpanded ? "Hide" : "Permissions"}</span>
+                        </span>
+                      )}
                       <span className={`text-xs px-1.5 py-0.5 rounded ${
                         m.role === "owner" ? "text-[#a1a1aa] bg-[#18181b]" : "text-[#a1a1aa] bg-[#18181b]"
                       }`}>
@@ -2168,7 +2189,10 @@ export function ServerSettingsView() {
                   {isOwner && m.role === "moderator" && (
                     <div className={`transition-all duration-300 ease-in-out overflow-hidden ${isExpanded ? "max-h-[800px] opacity-100" : "max-h-0 opacity-0"}`}>
                       <div className="border-t border-[#27272a]/50 px-3 py-3 bg-[#09090b]/30 space-y-3">
-                        <span className="text-xs font-medium text-[#fafafa]">Permissions for {m.email ?? "moderator"}</span>
+                        <div className="space-y-1">
+                          <span className="text-xs font-medium text-[#fafafa]">Permissions for {m.email ?? "moderator"}</span>
+                          <p className="text-[10px] text-[#52525b] leading-relaxed">Toggle what this moderator can access. Changes apply immediately after saving.</p>
+                        </div>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                           {PERMISSION_SECTIONS.map(section => (
                             <div key={section.section} className="space-y-1.5">
@@ -2236,7 +2260,7 @@ export function ServerSettingsView() {
           )}
 
           {isOwner && (() => {
-            const moderators = members.filter((m) => m.role === "moderator");
+            const moderators = members.filter((m) => m.role === "moderator" && !adminUserIds.has(m.user_id));
             return (
             <section className="bg-[#09090b] border border-[#27272a] rounded-xl p-4 space-y-3">
               <h3 className="text-sm font-semibold text-[#fafafa]">Ownership</h3>
@@ -2282,7 +2306,8 @@ export function ServerSettingsView() {
             );
           })()}
         </div>
-      )}
+        );
+      })()}
 
       {/* Integrations Tab — Discord Bot & Notifications */}
       {tab === "integrations" && (

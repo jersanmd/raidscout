@@ -1,11 +1,11 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { fetchAllServers, fetchAllUsers, fetchAuditLog, fetchServerStats, fetchDatabaseStats, fetchPlanUsage, fetchCronStatus, restoreServer, supabase } from "@/lib/supabase";
+import { fetchAllServers, fetchAllUsers, fetchAuditLog, fetchServerStats, fetchDatabaseStats, fetchPlanUsage, fetchCronStatus, restoreServer, addServerModerator, supabase } from "@/lib/supabase";
 import { useServer } from "@/contexts/ServerContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
-import { Loader2, Shield, Server, Users, Eye, ChevronDown, ChevronUp, ClipboardList, HardDrive, BarChart3, Crosshair, Skull, Activity, Radio, Clock, Trash2, RefreshCw, LogOut, Gamepad2, Globe, Search, AlertTriangle, Crown, ScrollText } from "lucide-react";
+import { Loader2, Shield, Server, Users, Eye, ChevronDown, ChevronUp, ClipboardList, HardDrive, BarChart3, Crosshair, Skull, Activity, Radio, Clock, Trash2, RefreshCw, LogOut, Gamepad2, Globe, Search, AlertTriangle, Crown, ScrollText, CheckCircle, XCircle, UserPlus } from "lucide-react";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { AdminGamesTab } from "@/components/AdminGamesTab";
 import { useUserTimezone } from "@/hooks/useUserTimezone";
@@ -43,6 +43,8 @@ export function AdminPanelView() {
   const [userRoleFilter, setUserRoleFilter] = useState<"all" | "owner" | "moderator" | "member">("all");
   const [deletedSearch, setDeletedSearch] = useState("");
   const [restoreConfirm, setRestoreConfirm] = useState<{ id: string; name: string } | null>(null);
+  const [modEmailByServer, setModEmailByServer] = useState<Record<string, string>>({});
+  const [addingModForServer, setAddingModForServer] = useState<Record<string, boolean>>({});
 
   const handleForceSpawn = async () => {
     if (!forceSpawnConfirm) return;
@@ -548,6 +550,54 @@ export function AdminPanelView() {
                             View Server
                           </button>
                         </div>
+
+                        {/* Add Moderator — inline */}
+                        <div className="flex items-center gap-2 pt-2 border-t border-[#27272a]">
+                          <span className="text-[10px] text-[#71717a] uppercase tracking-wider shrink-0">Add Mod:</span>
+                          <input
+                            type="email"
+                            value={modEmailByServer[s.id] ?? ""}
+                            onChange={(e) => setModEmailByServer(prev => ({ ...prev, [s.id]: e.target.value }))}
+                            placeholder="user@email.com"
+                            onKeyDown={async (e) => {
+                              if (e.key !== "Enter") return;
+                              const email = (modEmailByServer[s.id] ?? "").trim();
+                              if (!email) return;
+                              setAddingModForServer(prev => ({ ...prev, [s.id]: true }));
+                              try {
+                                await addServerModerator(s.id, email);
+                                setModEmailByServer(prev => ({ ...prev, [s.id]: "" }));
+                                toast("success", `Moderator added to ${s.name}`);
+                              } catch (err: any) {
+                                toast("error", err?.message ?? "Failed to add moderator");
+                              } finally {
+                                setAddingModForServer(prev => ({ ...prev, [s.id]: false }));
+                              }
+                            }}
+                            className="flex-1 bg-[#09090b] border border-[#27272a] rounded-lg px-2.5 py-1.5 text-[11px] text-[#fafafa] placeholder-[#52525b] outline-none focus:border-[#52525b] transition"
+                          />
+                          <button
+                            onClick={async () => {
+                              const email = (modEmailByServer[s.id] ?? "").trim();
+                              if (!email) return;
+                              setAddingModForServer(prev => ({ ...prev, [s.id]: true }));
+                              try {
+                                await addServerModerator(s.id, email);
+                                setModEmailByServer(prev => ({ ...prev, [s.id]: "" }));
+                                toast("success", `Moderator added to ${s.name}`);
+                              } catch (err: any) {
+                                toast("error", err?.message ?? "Failed to add moderator");
+                              } finally {
+                                setAddingModForServer(prev => ({ ...prev, [s.id]: false }));
+                              }
+                            }}
+                            disabled={(addingModForServer[s.id] ?? false) || !(modEmailByServer[s.id] ?? "").trim()}
+                            className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-[11px] font-medium bg-[#fafafa] text-[#09090b] hover:bg-[#e4e4e7] transition disabled:opacity-50 shrink-0"
+                          >
+                            {addingModForServer[s.id] ? <Loader2 className="w-3 h-3 animate-spin" /> : <UserPlus className="w-3 h-3" />}
+                            Add
+                          </button>
+                        </div>
                       </>
                     )}
                   </div>
@@ -673,8 +723,9 @@ export function AdminPanelView() {
             <div className="border border-[#27272a] rounded-xl overflow-hidden">
               {/* Table Header — hidden on mobile */}
               <div className="hidden sm:grid grid-cols-12 gap-3 px-4 py-2.5 border-b border-[#27272a] bg-[#18181b]/50 text-[10px] font-semibold text-[#71717a] uppercase tracking-wider">
-                <div className="col-span-4">Email</div>
-                <div className="col-span-3">User ID</div>
+                <div className="col-span-3">Email</div>
+                <div className="col-span-2">User ID</div>
+                <div className="col-span-2">Verified</div>
                 <div className="col-span-2">Role</div>
                 <div className="col-span-2">Joined</div>
                 <div className="col-span-1"></div>
@@ -701,11 +752,18 @@ export function AdminPanelView() {
                     }}
                     className="w-full grid grid-cols-12 gap-3 px-4 py-3 items-center hover:bg-[#18181b]/30 transition text-left border-b border-[#27272a]/50 last:border-b-0"
                   >
-                    <div className="col-span-4 min-w-0">
+                    <div className="col-span-3 min-w-0">
                       <span className="text-sm text-[#fafafa] font-medium truncate block">{u.email ?? "No email"}</span>
                     </div>
-                    <div className="col-span-3 min-w-0">
+                    <div className="col-span-2 min-w-0">
                       <code className="text-[10px] text-[#52525b] font-mono truncate block">{u.user_id?.substring(0, 12)}...</code>
+                    </div>
+                    <div className="col-span-2">
+                      {(() => {
+                        const verified = u.email_confirmed_at || u.confirmed_at || u.last_sign_in_at;
+                        if (verified) return <span className="text-[10px] text-emerald-400 font-medium flex items-center gap-1"><CheckCircle className="w-3 h-3" /> Verified</span>;
+                        return <span className="text-[10px] text-[#71717a] flex items-center gap-1"><XCircle className="w-3 h-3" /> Unverified</span>;
+                      })()}
                     </div>
                     <div className="col-span-2">
                       {(() => {
