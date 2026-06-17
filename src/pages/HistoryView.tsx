@@ -79,8 +79,10 @@ export function HistoryView() {
       .finally(() => setGuildsLoading(false));
   }, []);
 
-  // ── Tabs ──
-  const [tab, setTab] = useState<"timeline" | "ledger">("timeline");
+  // ── Tabs (synced to URL) ──
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tab = (searchParams.get("tab") as "timeline" | "ledger") || "timeline";
+  const setTab = (t: "timeline" | "ledger") => setSearchParams(t === "ledger" ? { tab: "ledger" } : {});
   const [ledgerSubtab, setLedgerSubtab] = useState<"fixed_hours" | "fixed_schedule">("fixed_hours");
 
   // ── Ledger data ──
