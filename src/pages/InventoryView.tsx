@@ -81,20 +81,6 @@ export function InventoryView() {
     try { return localStorage.getItem("raidscout-matrix-guild") || ""; } catch { return ""; }
   });
 
-  // Set default guild if none selected
-  useEffect(() => {
-    if (matrixGuildFilter) return;
-    if (collectionMode !== "matrix" || !selectedCollection) return;
-    const guildNames = [...new Set(members.map(m => {
-      const g = m.guild_id ? guilds.find(g => g.id === m.guild_id) : null;
-      return g?.name ?? "";
-    }).filter(Boolean))].sort();
-    if (guildNames.length > 0) {
-      setMatrixGuildFilter(guildNames[0]);
-      try { localStorage.setItem("raidscout-matrix-guild", guildNames[0]); } catch {}
-    }
-  }, [collectionMode, selectedCollection, members, guilds, matrixGuildFilter]);
-
   const { data: collections = [], isLoading: collectionsLoading } = useQuery({
     queryKey: ["collections", serverId],
     queryFn: () => fetchCollections(serverId!),
@@ -140,6 +126,20 @@ export function InventoryView() {
     queryFn: () => fetchGuilds(serverId),
     enabled: configured,
   });
+
+  // Set default guild if none selected
+  useEffect(() => {
+    if (matrixGuildFilter) return;
+    if (collectionMode !== "matrix" || !selectedCollection) return;
+    const guildNames = [...new Set(members.map(m => {
+      const g = m.guild_id ? guilds.find(g => g.id === m.guild_id) : null;
+      return g?.name ?? "";
+    }).filter(Boolean))].sort();
+    if (guildNames.length > 0) {
+      setMatrixGuildFilter(guildNames[0]);
+      try { localStorage.setItem("raidscout-matrix-guild", guildNames[0]); } catch {}
+    }
+  }, [collectionMode, selectedCollection, members, guilds, matrixGuildFilter]);
 
   const { data: distributions = [], isLoading: distLoading } = useQuery({
     queryKey: ["distributions", serverId],
