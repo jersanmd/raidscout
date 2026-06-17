@@ -151,7 +151,7 @@ http.createServer((req, res) => {
       uptime_display: uptimeDisplay,
       memory_mb: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
       active_commands: getActiveCommandCount(),
-      region: process.env.FLY_REGION || "sin",
+      region: process.env.FLY_REGION || "unknown",
       node_version: process.version,
       spawn_cron: getCronStats(),
     }));

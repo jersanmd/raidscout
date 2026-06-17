@@ -781,6 +781,8 @@ grant execute on function viewer_remove_attendance(uuid, text) to anon, authenti
 
 DROP FUNCTION IF EXISTS get_all_servers_with_counts();
 
+DROP FUNCTION IF EXISTS get_all_servers_with_counts();
+
 CREATE OR REPLACE FUNCTION get_all_servers_with_counts()
 RETURNS TABLE(
   id uuid,
@@ -788,7 +790,11 @@ RETURNS TABLE(
   owner_id uuid,
   created_at timestamptz,
   member_count bigint,
-  raid_member_count bigint
+  raid_member_count bigint,
+  game_name text,
+  game_icon_url text,
+  subscription_ends_at timestamptz,
+  trial_ends_at timestamptz
 )
 LANGUAGE sql
 SECURITY DEFINER
@@ -800,8 +806,14 @@ AS $$
     s.owner_id,
     s.created_at,
     (SELECT COUNT(*) FROM public.server_members sm WHERE sm.server_id = s.id) AS member_count,
-    (SELECT COUNT(*) FROM public.members m WHERE m.server_id = s.id) AS raid_member_count
+    (SELECT COUNT(*) FROM public.members m WHERE m.server_id = s.id) AS raid_member_count,
+    g.name AS game_name,
+    g.icon_url AS game_icon_url,
+    s.subscription_ends_at,
+    s.trial_ends_at
   FROM public.servers s
+  LEFT JOIN public.games g ON g.id = s.game_id
+  WHERE s.deleted_at IS NULL
   ORDER BY s.created_at DESC;
 $$;
 

@@ -335,11 +335,15 @@ export function InventoryView() {
   const [analyticsItemSearch, setAnalyticsItemSearch] = useState("");
   const [analyticsRecipientSearch, setAnalyticsRecipientSearch] = useState("");
 
-  // Recipients tab search
+  // Recipients tab search & sort
   const [recipientSearch, setRecipientSearch] = useState("");
   const [recipientGuildFilter, setRecipientGuildFilter] = useState<string>(() => {
     try { return localStorage.getItem("raidscout-recipient-guild") || ""; } catch { return ""; }
   });
+  const [recipientSort, setRecipientSort] = useState<string>("chrono");
+
+  // Rarity sort order (highest first)
+  const RARITY_SORT_ORDER: Record<string, number> = { mythic: 0, legendary: 1, epic: 2, rare: 3, uncommon: 4, common: 5 };
 
   // Delete confirmation
   const [deleteConfirm, setDeleteConfirm] = useState<{ distId: string; itemName: string } | null>(null);
@@ -431,7 +435,7 @@ export function InventoryView() {
   }, {});
 
   return (
-    <div className="w-full max-w-7xl mx-auto px-3 sm:px-4 py-4 sm:py-6 space-y-4">
+    <div className="w-full max-w-[100%] 2xl:max-w-[1600px] mx-auto px-3 sm:px-4 py-4 sm:py-6 space-y-4">
       {/* Header */}
       <div className="flex items-center gap-3">
         <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-[#18181b] border border-[#27272a]">
@@ -752,8 +756,39 @@ export function InventoryView() {
           entry.dists.push(d);
         });
         const players = Array.from(playerMap.values()).sort((a, b) => b.dists.length - a.dists.length);
-        // Sort each player's items chronologically (earliest first, latest last)
-        players.forEach(p => p.dists.sort((a, b) => new Date(a.distributed_at).getTime() - new Date(b.distributed_at).getTime()));
+        // Sort each player's items based on selected sort
+        const sortDists = (dists: Distribution[], sort: string) => {
+          const sorted = [...dists];
+          if (sort === "chrono") {
+            sorted.sort((a, b) => new Date(a.distributed_at).getTime() - new Date(b.distributed_at).getTime());
+          } else if (sort === "name-asc") {
+            sorted.sort((a, b) => {
+              const ia = items.find(i => i.id === a.item_id)?.name ?? "";
+              const ib = items.find(i => i.id === b.item_id)?.name ?? "";
+              return ia.localeCompare(ib);
+            });
+          } else if (sort === "name-desc") {
+            sorted.sort((a, b) => {
+              const ia = items.find(i => i.id === a.item_id)?.name ?? "";
+              const ib = items.find(i => i.id === b.item_id)?.name ?? "";
+              return ib.localeCompare(ia);
+            });
+          } else if (sort === "rarity") {
+            sorted.sort((a, b) => {
+              const ra = items.find(i => i.id === a.item_id)?.rarity?.toLowerCase() ?? "";
+              const rb = items.find(i => i.id === b.item_id)?.rarity?.toLowerCase() ?? "";
+              return (RARITY_SORT_ORDER[ra] ?? 99) - (RARITY_SORT_ORDER[rb] ?? 99);
+            });
+          } else if (sort === "rarity-desc") {
+            sorted.sort((a, b) => {
+              const ra = items.find(i => i.id === a.item_id)?.rarity?.toLowerCase() ?? "";
+              const rb = items.find(i => i.id === b.item_id)?.rarity?.toLowerCase() ?? "";
+              return (RARITY_SORT_ORDER[rb] ?? 99) - (RARITY_SORT_ORDER[ra] ?? 99);
+            });
+          }
+          return sorted;
+        };
+        players.forEach(p => { p.dists = sortDists(p.dists, recipientSort); });
         const filteredPlayers = (() => {
           let list = players;
           if (recipientSearch) list = list.filter(p => p.player_name.toLowerCase().includes(recipientSearch.toLowerCase()));
@@ -807,6 +842,17 @@ export function InventoryView() {
                 {guildNames.map(g => (
                   <option key={g} value={g}>{g}</option>
                 ))}
+              </select>
+              <select
+                value={recipientSort}
+                onChange={(e) => setRecipientSort(e.target.value)}
+                className="text-[11px] bg-[#09090b] border border-[#27272a] rounded-lg text-[#fafafa] px-2 py-1 focus:outline-none focus:border-[#3f3f46]"
+              >
+                <option value="chrono">Chronological</option>
+                <option value="name-asc">Name A→Z</option>
+                <option value="name-desc">Name Z→A</option>
+                <option value="rarity">Rarity ↑</option>
+                <option value="rarity-desc">Rarity ↓</option>
               </select>
               <span className="text-xs text-[#52525b] font-mono">{filteredPlayers.length} / {players.length} players</span>
             </div>

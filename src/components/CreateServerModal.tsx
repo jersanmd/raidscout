@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { supabase, createServer, fetchGames } from "@/lib/supabase";
+import { supabase, createServer, fetchVisibleGames } from "@/lib/supabase";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { useServer } from "@/contexts/ServerContext";
 import { Loader2, Plus, X, Server, Shield, ArrowLeft, ArrowRight, Gamepad2 } from "lucide-react";
@@ -16,7 +16,7 @@ export function CreateServerModal({ onClose }: { onClose: () => void }) {
   const { refreshServers } = useServer();
 
   useEffect(() => {
-    fetchGames()
+    fetchVisibleGames()
       .then(setGames)
       .catch(() => setGames([]))
       .finally(() => setGamesLoading(false));

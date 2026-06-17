@@ -112,7 +112,7 @@ async function runSpawnCron() {
   // Count only servers being processed (notification + thread + command channels)
   serversChecked = serverIds.length;
 
-  const serverResults = await concurrentMap(serverIds, 10, async (serverId) => {
+  const serverResults = await concurrentMap(serverIds, 5, async (serverId) => {
     let bossCount = 0;
     const tz = await resolveServerTimezone(serverId).catch(() => "Asia/Manila");
     const [bosses, deaths, guilds, overrides] = await Promise.all([

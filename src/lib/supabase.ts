@@ -34,6 +34,7 @@ export type { ServerMember, ModeratorPermissions } from "./api/servers";
 // Games & image uploads
 export {
   fetchGames,
+  fetchVisibleGames,
   createGame,
   updateGame,
   deleteGame,

@@ -5,12 +5,11 @@ import { fetchAllServers, fetchAllUsers, fetchAuditLog, fetchServerStats, fetchD
 import { useServer } from "@/contexts/ServerContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
-import { Loader2, Shield, Server, Users, Eye, ChevronDown, ChevronUp, ClipboardList, HardDrive, BarChart3, Crosshair, Skull, Activity, Radio, Clock, Trash2, RefreshCw, LogOut, Gamepad2, Globe, ExternalLink, Search, AlertTriangle } from "lucide-react";
+import { Loader2, Shield, Server, Users, Eye, ChevronDown, ChevronUp, ClipboardList, HardDrive, BarChart3, Crosshair, Skull, Activity, Radio, Clock, Trash2, RefreshCw, LogOut, Gamepad2, Globe, Search, AlertTriangle, Crown, ScrollText } from "lucide-react";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { AdminGamesTab } from "@/components/AdminGamesTab";
 import { useUserTimezone } from "@/hooks/useUserTimezone";
 import { TIMEZONES } from "@/lib/timezones";
-import { version } from "../../package.json";
 
 export function AdminPanelView() {
   const [tab, setTab] = useState<"servers" | "users" | "audit" | "games" | "infra" | "database" | "cron" | "deleted" | "owners">("infra");
@@ -234,7 +233,7 @@ export function AdminPanelView() {
     <div className="min-h-screen bg-[#09090b] flex flex-col">
       {/* Top bar */}
       <div className="w-full border-b border-[#27272a] bg-[#09090b]/70 backdrop-blur-xl">
-        <div className="max-w-7xl mx-auto px-4 h-14 flex items-center">
+        <div className="max-w-[100%] 2xl:max-w-[1600px] mx-auto px-4 h-14 flex items-center">
           {/* Left: Logo + Admin badge */}
           <div className="flex items-center gap-3 flex-1">
             <span className="font-bold text-[#fafafa]">RaidScout</span>
@@ -283,8 +282,9 @@ export function AdminPanelView() {
         </div>
       </div>
 
-      <div className="w-full max-w-7xl mx-auto px-3 sm:px-4 py-4 sm:py-6 space-y-4 sm:space-y-6 flex-1 overflow-x-hidden min-w-0 pb-16 md:pb-0">
-      <div className="flex items-center gap-3">
+      <div className="w-full max-w-[100%] 2xl:max-w-[1600px] mx-auto px-3 sm:px-4 py-4 sm:py-6 flex-1 overflow-x-hidden min-w-0 pb-20">
+      {/* Header */}
+      <div className="flex items-center gap-3 mb-4">
         <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-[#18181b] border border-[#27272a]">
           <Shield className="w-5 h-5 text-[#fafafa]" />
         </div>
@@ -294,101 +294,34 @@ export function AdminPanelView() {
         </div>
       </div>
 
-      {/* Tabs — desktop: all tabs inline; mobile: top-level + subtabs */}
-
-      {/* Mobile: Servers subtabs (shown above content when Servers is active) */}
-      {(tab === "servers" || tab === "database" || tab === "cron" || tab === "deleted") && (
-        <div className="flex md:hidden flex-wrap bg-[#18181b]/50 rounded-lg p-0.5 gap-0.5 mb-3">
-          <button onClick={() => { setTab("servers"); setServerSubtab("servers"); }} className={`px-3 py-2 rounded-md text-xs font-medium transition whitespace-nowrap ${tab === "servers" ? "bg-[#27272a] text-[#fafafa]" : "text-[#71717a] hover:text-[#d4d4d8]"}`}>
-            Servers ({servers.length})
-          </button>
-          <button onClick={() => { setTab("database"); setServerSubtab("database"); }} className={`px-3 py-2 rounded-md text-xs font-medium transition whitespace-nowrap ${tab === "database" ? "bg-[#27272a] text-[#fafafa]" : "text-[#71717a] hover:text-[#d4d4d8]"}`}>
-            <HardDrive className="w-3.5 h-3.5 inline mr-1" /> Database
-          </button>
-          <button onClick={() => { setTab("cron"); setServerSubtab("cron"); }} className={`px-3 py-2 rounded-md text-xs font-medium transition whitespace-nowrap ${tab === "cron" ? "bg-[#27272a] text-[#fafafa]" : "text-[#71717a] hover:text-[#d4d4d8]"}`}>
-            <Clock className="w-3.5 h-3.5 inline mr-1" /> Test Cron
-          </button>
-          <button onClick={() => { setTab("deleted"); setServerSubtab("deleted"); }} className={`px-3 py-2 rounded-md text-xs font-medium transition whitespace-nowrap ${tab === "deleted" ? "bg-[#27272a] text-[#fafafa]" : "text-[#71717a] hover:text-[#d4d4d8]"}`}>
-            <Trash2 className="w-3.5 h-3.5 inline mr-1" /> Deleted
-          </button>
+      {/* Layout: Sidebar + Content */}
+      <div className="flex gap-4 items-start">
+        {/* Sidebar — vertical tab list */}
+        <div className="hidden md:flex flex-col w-44 shrink-0 bg-[#18181b] rounded-lg p-1 gap-0.5 sticky top-4">
+          {([
+            { id: "infra", icon: Radio, label: "Infra" },
+            { id: "games", icon: Gamepad2, label: "Games" },
+            { id: "servers", icon: Server, label: `Servers (${servers.length})` },
+            { id: "users", icon: Users, label: `Users (${users.length})` },
+            { id: "owners", icon: Crown, label: "Owners" },
+            { id: "audit", icon: ScrollText, label: "Audit" },
+            { id: "database", icon: HardDrive, label: "Database" },
+            { id: "cron", icon: Clock, label: "Test Cron" },
+            { id: "deleted", icon: Trash2, label: "Deleted" },
+          ] as const).map(({ id, icon: Icon, label }) => (
+            <button
+              key={id}
+              onClick={() => { setTab(id); if (["servers","database","cron","deleted"].includes(id)) setServerSubtab(id as any); }}
+              className={`flex items-center gap-2 px-3 py-2 rounded-md text-xs font-medium transition text-left ${tab === id ? "bg-[#27272a] text-[#fafafa]" : "text-[#a1a1aa] hover:text-[#e4e4e7] hover:bg-[#27272a]/50"}`}
+            >
+              <Icon className="w-3.5 h-3.5 shrink-0" />
+              {label}
+            </button>
+          ))}
         </div>
-      )}
 
-      {/* Desktop: all tabs inline */}
-      <div className="hidden md:flex flex-wrap bg-[#18181b] rounded-lg p-0.5 gap-0.5">
-        <button
-          onClick={() => setTab("infra")}
-          className={`flex items-center justify-center gap-1.5 px-2 sm:px-3 py-2 rounded-md text-xs sm:text-sm font-medium transition whitespace-nowrap shrink-0 ${
-            tab === "infra" ? "bg-[#27272a] text-[#fafafa]" : "text-[#a1a1aa] hover:text-[#e4e4e7]"
-          }`}
-        >
-          <Radio className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-          Infra
-        </button>
-        <button
-          onClick={() => setTab("games")}
-          className={`flex items-center justify-center gap-1.5 px-2 sm:px-3 py-2 rounded-md text-xs sm:text-sm font-medium transition whitespace-nowrap shrink-0 ${
-            tab === "games" ? "bg-[#27272a] text-[#fafafa]" : "text-[#a1a1aa] hover:text-[#e4e4e7]"
-          }`}
-        >
-          <Gamepad2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-          Games
-        </button>
-        <button
-          onClick={() => setTab("servers")}
-          className={`flex items-center justify-center gap-1.5 px-2 sm:px-3 py-2 rounded-md text-xs sm:text-sm font-medium transition whitespace-nowrap shrink-0 ${
-            tab === "servers" ? "bg-[#27272a] text-[#fafafa]" : "text-[#a1a1aa] hover:text-[#e4e4e7]"
-          }`}
-        >
-          <Server className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-          Servers ({servers.length})
-        </button>
-        <button
-          onClick={() => setTab("users")}
-          className={`flex items-center justify-center gap-1.5 px-2 sm:px-3 py-2 rounded-md text-xs sm:text-sm font-medium transition whitespace-nowrap shrink-0 ${
-            tab === "users" ? "bg-[#27272a] text-[#fafafa]" : "text-[#a1a1aa] hover:text-[#e4e4e7]"
-          }`}
-        >
-          <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-          Owners ({users.length})
-        </button>
-        <button
-          onClick={() => setTab("audit")}
-          className={`flex items-center justify-center gap-1.5 px-2 sm:px-3 py-2 rounded-md text-xs sm:text-sm font-medium transition whitespace-nowrap shrink-0 ${
-            tab === "audit" ? "bg-[#27272a] text-[#fafafa]" : "text-[#a1a1aa] hover:text-[#e4e4e7]"
-          }`}
-        >
-          <ClipboardList className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-          Audit
-        </button>
-        <button
-          onClick={() => setTab("database")}
-          className={`flex items-center justify-center gap-1.5 px-2 sm:px-3 py-2 rounded-md text-xs sm:text-sm font-medium transition whitespace-nowrap shrink-0 ${
-            tab === "database" ? "bg-[#27272a] text-[#fafafa]" : "text-[#a1a1aa] hover:text-[#e4e4e7]"
-          }`}
-        >
-          <HardDrive className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-          Database
-        </button>
-        <button
-          onClick={() => setTab("cron")}
-          className={`flex items-center justify-center gap-1.5 px-2 sm:px-3 py-2 rounded-md text-xs sm:text-sm font-medium transition whitespace-nowrap shrink-0 ${
-            tab === "cron" ? "bg-[#27272a] text-[#fafafa]" : "text-[#a1a1aa] hover:text-[#e4e4e7]"
-          }`}
-        >
-          <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-          Test Cron
-        </button>
-        <button
-          onClick={() => setTab("deleted")}
-          className={`flex items-center justify-center gap-1.5 px-2 sm:px-3 py-2 rounded-md text-xs sm:text-sm font-medium transition whitespace-nowrap shrink-0 ${
-            tab === "deleted" ? "bg-[#27272a] text-[#fafafa]" : "text-[#a1a1aa] hover:text-[#e4e4e7]"
-          }`}
-        >
-          <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-          Deleted
-        </button>
-      </div>
+        {/* Content area */}
+        <div className="flex-1 min-w-0">
 
       {/* Servers Tab */}
       {tab === "servers" && (
@@ -797,7 +730,7 @@ export function AdminPanelView() {
                       ) : servers.length === 0 ? (
                         <p className="text-xs text-[#71717a]">No servers.</p>
                       ) : (
-                        servers.map((s) => (
+                        [...servers].sort((a, b) => ((a as any).game_name || "ZZZ").localeCompare((b as any).game_name || "ZZZ")).map((s) => (
                           <div key={s.server_id} className="flex items-center justify-between bg-[#18181b] rounded-lg px-3 py-2">
                             <div className="flex items-center gap-2">
                               <Server className="w-3.5 h-3.5 text-[#71717a]" />
@@ -868,7 +801,7 @@ export function AdminPanelView() {
                 <select value={auditServerFilter} onChange={(e) => setAuditServerFilter(e.target.value)}
                   className="bg-[#18181b] border border-[#27272a] rounded-lg px-3 py-2 text-sm text-[#fafafa] outline-none focus:border-[#52525b]">
                   <option value="all">All Servers</option>
-                  {servers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  {[...servers].sort((a: any, b: any) => ((a as any).game_name || "ZZZ").localeCompare((b as any).game_name || "ZZZ") || a.name.localeCompare(b.name)).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                 </select>
               </div>
             )}
@@ -1287,7 +1220,7 @@ export function AdminPanelView() {
                 </div>
                 <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-2 sm:p-4 text-center">
                   <HardDrive className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#a1a1aa] mx-auto mb-1 sm:mb-2" />
-                  <p className="text-xs sm:text-lg font-bold text-[#d4d4d8] truncate">{botStatus.memory_mb} / 512 MB</p>
+                  <p className="text-xs sm:text-lg font-bold text-[#d4d4d8] truncate">{botStatus.memory_mb} / 1024 MB</p>
                   <p className="text-[9px] sm:text-[10px] text-[#71717a] mt-0.5 sm:mt-1">Memory</p>
                 </div>
                 <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-2 sm:p-4 text-center">
@@ -1308,7 +1241,7 @@ export function AdminPanelView() {
                   <p className="text-[9px] sm:text-[10px] text-[#71717a] mt-0.5">Platform</p>
                 </div>
                 <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-2 sm:p-3 text-center">
-                  <p className="text-[10px] sm:text-xs text-[#d4d4d8] font-mono">sin</p>
+                  <p className="text-[10px] sm:text-xs text-[#d4d4d8] font-mono">{botStatus.region}</p>
                   <p className="text-[9px] sm:text-[10px] text-[#71717a] mt-0.5">Region</p>
                 </div>
               </div>
@@ -1405,33 +1338,18 @@ export function AdminPanelView() {
           </button>
         </div>
       </nav>
+      </div>{/* close flex sidebar+content */}
+      </div>{/* close content wrapper */}
 
       {/* Footer — same as main Layout */}
-      <footer className="border-t border-[#27272a] bg-[#09090b] pb-16 md:pb-0">
-        <div className="max-w-[90rem] mx-auto px-4 py-5 space-y-3">
-          <div className="flex items-center gap-2 text-xs text-[#71717a]">
-            <img src="/logo.png" alt="" className="w-4 h-4 rounded opacity-40" />
-            <span>RaidScout — Track boss respawn timers across any game, schedule hunts, and monitor member performance across your guild. </span>
-          </div>
-          <div>
-            <span className="text-[11px] font-semibold text-[#52525b] uppercase tracking-wider">Resources</span>
-            <div className="flex items-center gap-3 text-xs text-[#a1a1aa] flex-wrap mt-1">
-              <a href="https://discord.gg/738AmkeQtU" target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 hover:text-[#5865f2] transition" title="Join our Discord community">
-                <ExternalLink className="w-3 h-3" />
-                Discord
-              </a>
-              <a href="https://www.facebook.com/profile.php?id=61590144185090" target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 hover:text-[#1877f2] transition" title="Follow us on Facebook">
-                <ExternalLink className="w-3 h-3" />
-                Facebook
-              </a>
-              <Link to="/terms" className="hover:text-[#d4d4d8] transition">Terms</Link>
-              <Link to="/privacy" className="hover:text-[#d4d4d8] transition">Privacy</Link>
-              <Link to="/changelog" className="hover:text-[#d4d4d8] transition">Changelog</Link>
-            </div>
-          </div>
-          <div className="flex items-center gap-4 text-xs text-[#fafafa]/20">
-            <span>v{version}</span>
-            <span>© 2026 RaidScout. All rights reserved.</span>
+      <footer className="hidden md:block shrink-0 border-t border-[#1a1a1e] bg-[#09090b]">
+        <div className="px-4 py-2 flex items-center justify-between text-[11px] text-[#52525b]">
+          <span>© {new Date().getFullYear()} RaidScout. All rights reserved.</span>
+          <div className="flex items-center gap-3">
+            <Link to="/terms" className="hover:text-[#a1a1aa] transition">Terms</Link>
+            <Link to="/privacy" className="hover:text-[#a1a1aa] transition">Privacy</Link>
+            <Link to="/refund" className="hover:text-[#a1a1aa] transition">Refunds</Link>
+            <Link to="/changelog" className="hover:text-[#a1a1aa] transition">Changelog</Link>
           </div>
         </div>
       </footer>

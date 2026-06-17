@@ -607,7 +607,7 @@ export function BossListView() {
   const enabledActivityCount = activities.filter(a => a.is_enabled).length;
 
   return (
-    <div className="max-w-7xl mx-auto px-3 sm:px-4 py-4 sm:py-6 space-y-4 sm:space-y-6">
+    <div className="max-w-[100%] 2xl:max-w-[1600px] mx-auto px-3 sm:px-4 py-4 sm:py-6 space-y-4 sm:space-y-6">
       {/* Saving overlay — blocks all interaction */}
       {savingMessage && <SavingOverlay message={savingMessage} />}
 

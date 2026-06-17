@@ -50,7 +50,7 @@ serve(async (req: Request) => {
       .from("boss_guilds")
       .select("*")
       .in("boss_id", bossIds)
-      .neq("sort_order", -1)
+      .or("sort_order.neq.-1,sort_order.is.null")
       .order("sort_order", { ascending: true })
       .order("day_of_week", { ascending: true });
 

@@ -44,9 +44,19 @@ export async function resolveRoles(guildId: string): Promise<Map<string, string>
 }
 
 export function resolvePrefix(prefix: string, roleMap: Map<string, string>): string {
-  return prefix.replace(/@(\S+)/g, (_, name) => {
-    const id = roleMap.get(name.toLowerCase());
-    return id ? `<@&${id}>` : `@${name}`;
+  // Match from @ until next @ or end. Then try progressively shorter word
+  // combinations to find a matching role (handles "@RoleName display text").
+  return prefix.replace(/@(.+?)(?=\s*@|$)/g, (_, name) => {
+    const words = name.trim().split(/\s+/);
+    for (let i = words.length; i > 0; i--) {
+      const candidate = words.slice(0, i).join(" ");
+      const id = roleMap.get(candidate.toLowerCase());
+      if (id) {
+        const remaining = words.slice(i).join(" ");
+        return `<@&${id}>${remaining ? " " + remaining : ""}`;
+      }
+    }
+    return `@${name.trim()}`;
   });
 }
 

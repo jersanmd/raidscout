@@ -96,8 +96,9 @@ and responds to prefix commands:
 
 | Command | Example | What it does |
 |---------|---------|-------------|
-| `!spawn` | `!spawn` | List all bosses spawning in the next 24 hours, with guild badges and precise countdowns (`in 3h 15m`) |
+| `!spawn` | `!spawn` | List all bosses spawning in the next 24 hours, grouped by day (📅 Today / Tomorrow) with 12hr timestamps and relative times |
 | `!spawn <boss>` | `!spawn Venatus` | Check spawn time for a specific boss |
+| `!spawn <guild>` | `!spawn PARAK` | List spawns owned by a specific guild |
 | `!kill <boss>` | `!kill Venatus` | Record a kill right now |
 | `!kill <boss> HH:MM` | `!kill Venatus 13:05` | Record a kill at a specific time (server timezone-aware) |
 | `!editkilltime <boss> HH:MM` | `!editkilltime Titore 18:26` | Fix a kill time (AM/PM correction), optional date `YYYY-MM-DD` |
@@ -111,8 +112,10 @@ and responds to prefix commands:
 
 **Bot highlights:**
 
-- **Multi-prefix support** — Each linked Discord server can use a different prefix (`!` `;` `$` `rs!` `boss!` etc.)
+- **Multi-prefix support** — Each linked Discord server can use a different prefix (25 options: `!` `;` `$` `/` `//` `!!` `!?` `..` `rs!` `boss!` and more). Same Discord server can be linked multiple times with different prefixes.
 - **Custom command aliases** — Rename any command per server (e.g., `!s` → `!spawn`, `!k` → `!killed`)
+- **Day-grouped spawns** — `!nextspawn` groups bosses by day (Today, Tomorrow, etc.) using the server's configured timezone, with Discord native 12hr timestamps and live relative times.
+- **Role ping with spaces** — Ping roles with spaces in their names (e.g., `@Y2 | MC丶AngBeat`). The bot matches progressively shorter word combinations against the guild's role list.
 - **✅ Reaction** — The bot reacts with ✅ on every recognized command for instant feedback
 - **Smart dedup** — Spawn notifications fire exactly once per boss: one 5-min warning ⏰ + one spawn alert 🟢
 - **Timezone-aware** — Schedule times are interpreted in each server's configured timezone, not UTC
@@ -204,6 +207,7 @@ Turn boss hunting into a competition:
 Every kill records who participated:
 
 - **Member management** — Add, edit, and organize members by guild.
+- **Weekly Attendance** — Progress tab shows each member's weekly event attendance as a percentage with guild-scoped totals. Toggle between `75%` and `6/8` views. Color-coded thresholds.
 - **Per-kill attendance** — Toggle who was present for each boss death.
 - **Bulk add** — Paste a list of names to add dozens of members at once.
 - **Attendance counts toward leaderboard scoring** — more kills attended = more points.
@@ -516,7 +520,7 @@ the `vercel.json` in the repo handles SPA routing and cache headers.
 
 ### Discord Bot Hosting (Fly.io)
 
-The bot process runs on Fly.io for 24/7 uptime. Deploy with:
+The bot process runs on Fly.io (Tokyo region) for 24/7 uptime. Deploy with:
 
 ```bash
 npm run build:bot

@@ -422,7 +422,7 @@ export function ServerSettingsView() {
     setBulkScheduleDays(prev => ({ ...prev, [dayOfWeek]: guildId }));
     try {
       for (const bossId of selectedBossIds) {
-        const existing = getBossGuildsForBoss(bossId).filter(bg => bg.day_of_week !== dayOfWeek);
+        const existing = getBossGuildsForBoss(bossId).filter(bg => bg.day_of_week !== null && bg.day_of_week !== dayOfWeek);
         const newAssignments = existing.map(bg => ({ guild_id: bg.guild_id, day_of_week: bg.day_of_week! }));
         if (guildId) newAssignments.push({ guild_id: guildId, day_of_week: dayOfWeek });
         await setBossGuilds(bossId, newAssignments, "schedule");
@@ -770,6 +770,12 @@ export function ServerSettingsView() {
         command_prefix: prefix,
       }).select().single();
       if (error) throw error;
+      // Auto-assign all guilds to auto-thread by default
+      const allGuildIds = guilds.map(g => g.id);
+      if (allGuildIds.length > 0) {
+        await supabase.from("discord_configs").update({ thread_guilds: allGuildIds }).eq("id", data.id);
+        data.thread_guilds = allGuildIds;
+      }
       setDiscordLinks(prev => [...prev, data]);
       notifyDiscordUpdated();
       queryClient.invalidateQueries({ queryKey: ["discord_configs", currentServer.id] });
@@ -871,8 +877,9 @@ export function ServerSettingsView() {
     setExpandedBoss(bossId);
 
     try {
-      await setBossGuilds(bossId, []);
+      // Clear local state immediately so stale rows don't leak into schedule handlers
       setBossGuildsState(prev => prev.filter(bg => bg.boss_id !== bossId));
+      await setBossGuilds(bossId, []);
     } catch (err: any) {
       toast("error", err?.message ?? "Failed to set mode");
       // Revert the mode change on error
@@ -965,21 +972,42 @@ export function ServerSettingsView() {
   };
 
   const handleSetScheduleGuild = async (bossId: string, dayOfWeek: number, guildId: string | null) => {
-    const existing = getBossGuildsForBoss(bossId).filter(bg => bg.day_of_week !== dayOfWeek);
+    // Optimistic update: update local state immediately so the dropdown reflects the change
+    const existing = getBossGuildsForBoss(bossId).filter(bg => bg.day_of_week !== null && bg.day_of_week !== dayOfWeek);
     const newAssignments = existing.map(bg => ({ guild_id: bg.guild_id, day_of_week: bg.day_of_week! }));
     if (guildId) {
       newAssignments.push({ guild_id: guildId, day_of_week: dayOfWeek });
     }
-    await setBossGuilds(bossId, newAssignments, "schedule");
-    const updated = await fetchBossGuilds(currentServer!.id);
-    setBossGuildsState(updated);
+    // Build optimistic rows for local state (with temporary ids)
+    const optimisticRows = newAssignments.map(a => ({
+      id: `opt-${bossId}-${a.guild_id}-${a.day_of_week}`,
+      boss_id: bossId,
+      guild_id: a.guild_id,
+      sort_order: null as number | null,
+      day_of_week: a.day_of_week ?? null,
+      mode: "schedule" as const,
+      points: null as number | null,
+      has_salary: false,
+    }));
+    setBossGuildsState(prev => [...prev.filter(bg => bg.boss_id !== bossId), ...optimisticRows]);
     setBossModes(prev => ({ ...prev, [bossId]: newAssignments.length > 0 ? "schedule" : "none" }));
+
+    try {
+      await setBossGuilds(bossId, newAssignments, "schedule");
+      // Trust the optimistic update — don't refetch (edge function may return stale data)
+    } catch (err: any) {
+      // Revert on failure
+      const reverted = await fetchBossGuilds(currentServer!.id);
+      setBossGuildsState(reverted);
+      setBossModes(prev => ({ ...prev, [bossId]: getBossMode(bossId) }));
+      toast("error", err?.message ?? "Failed to set schedule");
+    }
   };
 
   const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
   return (
-    <div className="max-w-7xl mx-auto px-3 sm:px-4 py-4 sm:py-6 overflow-x-hidden">
+    <div className="max-w-[100%] 2xl:max-w-[1600px] mx-auto px-3 sm:px-4 py-4 sm:py-6 overflow-x-hidden">
       <div className="flex items-center gap-3 mb-3 sm:mb-0">
         <button onClick={() => navigate("/")} className="text-[#a1a1aa] hover:text-[#fafafa] p-1">
           <ArrowLeft className="w-5 h-5" />
@@ -1605,7 +1633,6 @@ export function ServerSettingsView() {
                                         } focus:border-[#52525b]`}
                                       >
                                         <option value="">—</option>
-                                        <option value="">Clear</option>
                                         {guilds.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
                                       </select>
                                     </div>
@@ -1794,7 +1821,6 @@ export function ServerSettingsView() {
                             } focus:border-[#52525b]`}
                           >
                             <option value="">—</option>
-                            <option value="">Clear</option>
                             {guilds.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
                           </select>
                         </div>
@@ -2287,7 +2313,7 @@ export function ServerSettingsView() {
                               className="text-xs font-bold font-mono text-[#fafafa] bg-[#27272a] px-2 py-1 rounded border-none outline-none cursor-pointer"
                             >
                               {(() => {
-                                const allPrefixes = ["!",";","$",".","~","?","%","&","-","+","=",":","rs!","rs;","rs.","rb!","rb;","boss!","boss;"];
+                                const allPrefixes = ["!",";","$",".","~","?","%","&","-","+","=",":","/","//","!!","!?","..","|",">","rs!","rs;","rs.","rb!","rb;","boss!","boss;"];
                                 const myGuildId = editLinkValues.discord_guild_id.trim();
                                 const currentPrefix = editLinkValues.command_prefix;
                                 const taken = new Set<string>();
@@ -2507,7 +2533,7 @@ export function ServerSettingsView() {
                               placeholder="@everyone"
                               className={`bg-[#27272a] border border-[#3f3f46] px-2 py-1 text-xs text-[#e4e4e7] font-mono outline-none focus:ring-1 focus:ring-[#52525b] transition ${
                                 (pingValues[link.id] ?? "") !== ((link as any).notification_prefix || "")
-                                  ? "rounded-l w-28" : "rounded w-36"
+                                  ? "rounded-l w-56" : "rounded w-56"
                               }`} />
                             {(pingValues[link.id] ?? "") !== ((link as any).notification_prefix || "") && (
                               <button

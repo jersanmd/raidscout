@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { type HistoryEntry } from "@/lib/history";
-import { fetchHistoryFromSupabase, deleteDeathRecord, isSupabaseConfigured, editDeathTime, fetchGuilds, setDeathDisplayGuild } from "@/lib/supabase";
+import { fetchHistoryFromSupabase, deleteDeathRecord, isSupabaseConfigured, editDeathTime, fetchGuilds, setDeathDisplayGuild, fetchBosses, supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { useServerId, useServer } from "@/contexts/ServerContext";
 import { ExpiredGate } from "@/components/ExpiredGate";
@@ -8,7 +8,7 @@ import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { useQueryClient } from "@tanstack/react-query";
 import { ParticipantModal } from "@/components/ParticipantModal";
 import { BossImage } from "@/components/BossImage";
-import { Clock, Trash2, Skull, Repeat, Timer, Users, Loader2, Pencil, X, Search, Calendar } from "lucide-react";
+import { Clock, Trash2, Skull, Repeat, Timer, Users, Loader2, Pencil, X, Search, Calendar, BookOpen } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { guildColor } from "@/lib/constants";
 import type { Guild } from "@/types";
@@ -78,6 +78,74 @@ export function HistoryView() {
       .catch(() => setGuilds([]))
       .finally(() => setGuildsLoading(false));
   }, []);
+
+  // ── Tabs ──
+  const [tab, setTab] = useState<"timeline" | "ledger">("timeline");
+  const [ledgerSubtab, setLedgerSubtab] = useState<"fixed_hours" | "fixed_schedule">("fixed_hours");
+
+  // ── Ledger data ──
+  const [ledgerData, setLedgerData] = useState<{
+    dates: { key: string; monthDay: string; weekday: string }[];
+    fixedHours: { id: string; name: string; respawnHours: number; imageUrl?: string }[];
+    fixedSchedule: { id: string; name: string; primaryDay: number; imageUrl?: string }[];
+    cells: Record<string, Record<string, { guild: string | null; time: string }[]>>;
+  }>({ dates: [], fixedHours: [], fixedSchedule: [], cells: {} });
+  const [ledgerLoading, setLedgerLoading] = useState(false);
+  useEffect(() => {
+    if (tab !== "ledger" || !serverId || !configured) return;
+    setLedgerLoading(true);
+    (async () => {
+      try {
+        const since = dateFrom ? new Date(dateFrom + "T00:00:00Z").toISOString() : undefined;
+        const until = dateTo ? new Date(dateTo + "T23:59:59Z").toISOString() : undefined;
+        let q = supabase.from("death_records").select("boss_id, death_time, owner_guild_id, bosses!inner(name, spawn_type, respawn_hours, schedule, image_url)").eq("server_id", serverId).order("death_time", { ascending: false });
+        if (since) q = q.gte("death_time", since);
+        if (until) q = q.lte("death_time", until);
+        const { data: deaths } = await q;
+        const fixedHoursMap = new Map<string, { name: string; respawnHours: number; imageUrl?: string }>();
+        const fixedScheduleMap = new Map<string, { name: string; primaryDay: number; imageUrl?: string }>();
+        const dateMap = new Map<string, { monthDay: string; weekday: string }>();
+        const cells: Record<string, Record<string, { guild: string | null; time: string }[]>> = {};
+        (deaths || []).forEach((d: any) => {
+          const dt = new Date(d.death_time);
+          const dateKey = dt.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+          const monthDay = dt.toLocaleDateString("en-US", { month: "long", day: "numeric" });
+          const weekday = dt.toLocaleDateString("en-US", { weekday: "long" });
+          if (!dateMap.has(dateKey)) dateMap.set(dateKey, { monthDay, weekday });
+          const time = dt.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
+          const bid = d.boss_id;
+          const boss = (d as any).bosses;
+          const bname = boss?.name || "Unknown";
+          const stype = boss?.spawn_type || "fixed_hours";
+          if (stype === "fixed_schedule") {
+            const schedule = boss?.schedule;
+            const days: number[] = Array.isArray(schedule) ? schedule.map((s: any) => s.day ?? 0) : [];
+            const primaryDay = days.length > 0 ? Math.min(...days) : 7;
+            if (!fixedScheduleMap.has(bid)) fixedScheduleMap.set(bid, { name: bname, primaryDay, imageUrl: boss?.image_url || undefined });
+          } else {
+            const rh = boss?.respawn_hours ?? 24;
+            if (!fixedHoursMap.has(bid)) fixedHoursMap.set(bid, { name: bname, respawnHours: rh, imageUrl: boss?.image_url || undefined });
+          }
+          if (!cells[dateKey]) cells[dateKey] = {};
+          if (!cells[dateKey][bid]) cells[dateKey][bid] = [];
+          const gid = d.owner_guild_id;
+          const g = gid ? guilds.find(gg => gg.id === gid) : null;
+          cells[dateKey][bid].push({ guild: g?.name ?? null, time });
+        });
+        const fixedHours = [...fixedHoursMap.entries()]
+          .sort(([, a], [, b]) => a.respawnHours - b.respawnHours)
+          .map(([id, { name, respawnHours, imageUrl }]) => ({ id, name, respawnHours, imageUrl }));
+        const fixedSchedule = [...fixedScheduleMap.entries()]
+          .sort(([, a], [, b]) => a.primaryDay - b.primaryDay)
+          .map(([id, { name, primaryDay, imageUrl }]) => ({ id, name, primaryDay, imageUrl }));
+        const dates = [...dateMap.entries()]
+          .sort(([a], [b]) => new Date(b + ", 2026").getTime() - new Date(a + ", 2026").getTime())
+          .map(([key, { monthDay, weekday }]) => ({ key, monthDay, weekday }));
+        setLedgerData({ dates, fixedHours, fixedSchedule, cells });
+      } catch { /* ignore */ }
+      finally { setLedgerLoading(false); }
+    })();
+  }, [tab, serverId, configured, dateFrom, dateTo, guilds]);
 
   const handleEditDeathTime = async () => {
     if (!editEntry?.deathRecordId || !editDate) return;
@@ -214,8 +282,75 @@ export function HistoryView() {
       day: "numeric",
     });
 
+  // ── Ledger sub-component ──
+  const LedgerTable = ({ bosses, dates, cells, guilds: gs }: {
+    bosses: { id: string; name: string; imageUrl?: string }[];
+    dates: { key: string; monthDay: string; weekday: string }[];
+    cells: Record<string, Record<string, { guild: string | null; time: string }[]>>;
+    guilds: Guild[];
+  }) => (
+    <div className="overflow-auto max-h-[calc(100vh-200px)] rounded-lg border border-[#3f3f46]">
+        <table className="w-full text-xs border-collapse">
+          <thead className="sticky top-0 z-20 bg-[#27272a]">
+            <tr>
+              <th className="text-left py-2 px-3 text-[#a1a1aa] font-medium uppercase tracking-wider border-b border-[#3f3f46] sticky left-0 bg-[#27272a] z-10">Date</th>
+              {bosses.map(b => (
+                <th key={b.id} className="text-center py-2 px-3 text-[#a1a1aa] font-medium uppercase tracking-wider border-b border-[#3f3f46] whitespace-nowrap align-bottom">
+                  <div className="flex flex-col items-center gap-1">
+                    <BossImage bossName={b.name} imageUrl={b.imageUrl} size="sm" />
+                    <span>{b.name}</span>
+                  </div>
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="bg-[#18181b]">
+            {dates.map(date => (
+              <tr key={date.key} className="border-b border-[#27272a]/50 hover:bg-[#3f3f46]/20 transition">
+                <td className="py-2 px-3 sticky left-0 bg-[#18181b] whitespace-nowrap align-top">
+                  <div className="text-[#d4d4d8] font-medium text-xs">{date.monthDay}</div>
+                  <div className="text-[10px] text-[#71717a]">{date.weekday}</div>
+                </td>
+                {bosses.map(b => {
+                  const entries = cells[date.key]?.[b.id];
+                  return (
+                    <td key={b.id} className="py-2 px-3 text-center whitespace-nowrap align-top bg-[#18181b]">
+                      {entries?.length ? (
+                        <div className="flex flex-col items-center gap-1">
+                          {entries.map((entry, i) => {
+                            const g = entry.guild ? gs.find(gg => gg.name === entry.guild) : null;
+                            return (
+                              <div key={i} className="flex flex-col items-center gap-0.5">
+                                <span className="text-[11px] text-[#a1a1aa] font-mono">{entry.time}</span>
+                                <span>
+                                  {g ? (
+                                    <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium border ${guildColor(g.name).bg} ${guildColor(g.name).text} ${guildColor(g.name).border}`}>
+                                      {g.name}
+                                    </span>
+                                  ) : (
+                                    <span className="text-[#71717a] text-[10px]">—</span>
+                                  )}
+                                </span>
+                                {i < entries.length - 1 && <div className="w-4 h-px bg-[#3f3f46] my-0.5" />}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <span className="text-[#52525b]">—</span>
+                      )}
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+  );
+
   return (
-    <div className="max-w-7xl mx-auto px-4 py-6 space-y-6">
+    <div className="max-w-[100%] 2xl:max-w-[1600px] mx-auto px-4 py-6 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-2 shrink-0">
@@ -224,7 +359,42 @@ export function HistoryView() {
           </div>
           <h2 className="text-xl font-semibold text-[#fafafa]">History</h2>
         </div>
-        <div className="flex items-center gap-2 order-3 sm:order-none w-full sm:w-auto mt-2 sm:mt-0">
+        {/* Tabs */}
+        <div className="flex items-center gap-1 bg-[#18181b] rounded-lg p-1">
+          <button onClick={() => setTab("timeline")} className={`px-3 py-1.5 rounded-md text-xs font-medium transition ${tab === "timeline" ? "bg-[#27272a] text-[#fafafa]" : "text-[#71717a] hover:text-[#d4d4d8]"}`}>Timeline</button>
+          <button onClick={() => setTab("ledger")} className={`px-3 py-1.5 rounded-md text-xs font-medium transition flex items-center gap-1 ${tab === "ledger" ? "bg-[#27272a] text-[#fafafa]" : "text-[#71717a] hover:text-[#d4d4d8]"}`}><BookOpen className="w-3 h-3" /> Ledger</button>
+        </div>
+        {/* Date range */}
+        <div className="flex items-center gap-2">
+          {(["7d", "30d", "custom"] as const).map(p => (
+            <button
+              key={p}
+              onClick={() => handleDatePreset(p)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition border ${
+                dateRange === p
+                  ? "bg-[#27272a] border-[#3f3f46] text-[#fafafa]"
+                  : "bg-[#18181b] border-[#27272a] text-[#a1a1aa] hover:text-[#fafafa]"
+              }`}
+            >
+              {p === "7d" ? "Last 7d" : p === "30d" ? "Last Month" : "Custom"}
+            </button>
+          ))}
+          {dateRange === "custom" && (
+            <>
+              <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)}
+                className="bg-[#18181b] border border-[#27272a] rounded-lg px-3 py-1.5 text-xs text-[#fafafa] outline-none focus:border-[#52525b]" />
+              <span className="text-xs text-[#71717a]">to</span>
+              <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)}
+                max={new Date().toISOString().split("T")[0]}
+                className="bg-[#18181b] border border-[#27272a] rounded-lg px-3 py-1.5 text-xs text-[#fafafa] outline-none focus:border-[#52525b]" />
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Timeline Tab */}
+      {tab === "timeline" && (<>
+        <div className="flex items-center gap-2 w-full">
           <div className="relative flex-1 sm:flex-initial sm:w-48 lg:w-64">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#71717a]" />
             <input
@@ -244,47 +414,6 @@ export function HistoryView() {
             )}
           </div>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
-          {(["7d", "30d", "custom"] as const).map(p => (
-            <button
-              key={p}
-              onClick={() => handleDatePreset(p)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition border ${
-                dateRange === p
-                  ? "bg-[#27272a] border-[#3f3f46] text-[#fafafa]"
-                  : "bg-[#18181b] border-[#27272a] text-[#a1a1aa] hover:text-[#fafafa]"
-              }`}
-            >
-              {p === "7d" ? "Last 7d" : p === "30d" ? "Last Month" : "Custom"}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Custom date range picker */}
-      {dateRange === "custom" && (
-        <div className="flex items-center gap-3 flex-wrap">
-          <div className="flex items-center gap-2">
-            <label className="text-xs text-[#71717a]">From</label>
-            <input
-              type="date"
-              value={dateFrom}
-              onChange={(e) => setDateFrom(e.target.value)}
-              className="bg-[#18181b] border border-[#27272a] rounded-lg px-3 py-1.5 text-xs text-[#fafafa] outline-none focus:border-[#52525b]"
-            />
-          </div>
-          <div className="flex items-center gap-2">
-            <label className="text-xs text-[#71717a]">To</label>
-            <input
-              type="date"
-              value={dateTo}
-              onChange={(e) => setDateTo(e.target.value)}
-              max={new Date().toISOString().split("T")[0]}
-              className="bg-[#18181b] border border-[#27272a] rounded-lg px-3 py-1.5 text-xs text-[#fafafa] outline-none focus:border-[#52525b]"
-            />
-          </div>
-        </div>
-      )}
 
       {loading || guildsLoading ? (
         <div className="flex items-center justify-center py-20">
@@ -401,6 +530,30 @@ export function HistoryView() {
               </div>
             </section>
           ))}
+        </div>
+      )}
+
+      </>)}
+
+      {/* Ledger Tab */}
+      {tab === "ledger" && (
+        <div className="space-y-4">
+          {/* Sub-tabs */}
+          <div className="flex items-center gap-1 bg-[#18181b] rounded-lg p-1 w-fit">
+            <button onClick={() => setLedgerSubtab("fixed_hours")} className={`px-3 py-1.5 rounded-md text-xs font-medium transition ${ledgerSubtab === "fixed_hours" ? "bg-[#27272a] text-[#fafafa]" : "text-[#71717a] hover:text-[#d4d4d8]"}`}>
+              Fixed-Hour Bosses
+            </button>
+            <button onClick={() => setLedgerSubtab("fixed_schedule")} className={`px-3 py-1.5 rounded-md text-xs font-medium transition ${ledgerSubtab === "fixed_schedule" ? "bg-[#27272a] text-[#fafafa]" : "text-[#71717a] hover:text-[#d4d4d8]"}`}>
+              Fixed-Schedule Bosses
+            </button>
+          </div>
+          {ledgerLoading ? (
+            <div className="flex items-center justify-center py-20"><Loader2 className="w-8 h-8 text-[#a1a1aa] animate-spin" /></div>
+          ) : (
+            ledgerSubtab === "fixed_hours"
+              ? <LedgerTable bosses={ledgerData.fixedHours} dates={ledgerData.dates} cells={ledgerData.cells} guilds={guilds} />
+              : <LedgerTable bosses={ledgerData.fixedSchedule} dates={ledgerData.dates} cells={ledgerData.cells} guilds={guilds} />
+          )}
         </div>
       )}
 

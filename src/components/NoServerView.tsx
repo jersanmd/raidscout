@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { supabase, createServer, fetchGames } from "@/lib/supabase";
+import { supabase, createServer, fetchVisibleGames } from "@/lib/supabase";
 import { useServer } from "@/contexts/ServerContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { Loader2, Plus, Key, Server, ArrowRight, LogOut, Gamepad2 } from "lucide-react";
@@ -19,7 +19,7 @@ export function NoServerView() {
   const [gamesLoading, setGamesLoading] = useState(true);
 
   useEffect(() => {
-    fetchGames()
+    fetchVisibleGames()
       .then(setGames)
       .catch(() => setGames([]))
       .finally(() => setGamesLoading(false));

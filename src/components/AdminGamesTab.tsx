@@ -27,7 +27,7 @@ import {
   Tags, Palette, Upload, Shield, ClipboardCheck, Check,
 } from "lucide-react";
 
-type Game = { id: string; name: string; slug: string; icon_url?: string | null; supported_spawn_types: string[]; created_at: string };
+type Game = { id: string; name: string; slug: string; icon_url?: string | null; supported_spawn_types: string[]; created_at: string; is_visible?: boolean };
 type BossTemplate = { id: string; game_id: string; name: string; spawn_type: string; respawn_hours?: number | null; schedule?: any; is_recurring: boolean; category?: string | null; tags?: string[]; points: number; image_url?: string | null };
 type ActivityTemplate = { id: string; game_id: string; name: string; schedule_type: string; schedule?: any; duration_minutes?: number | null; points_per_participant: number; party_size?: number | null; category?: string | null; tags?: string[]; image_url?: string | null };
 type ItemCatalogItem = { id: string; game: string; name: string; rarity: string; description?: string | null; image_url?: string | null; category_id?: string | null; created_by_username?: string | null };
@@ -56,6 +56,7 @@ export function AdminGamesTab() {
   const [iconFile, setIconFile] = useState<File | null>(null);
   const [iconPreview, setIconPreview] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{ type: "game" | "boss" | "activity" | "item" | "category" | "rarity"; id: string; name: string; gameName?: string } | null>(null);
+  const [visibilityConfirm, setVisibilityConfirm] = useState<{ id: string; name: string; next: boolean } | null>(null);
   const [loadingTemplates, setLoadingTemplates] = useState(false);
   const [editingBoss, setEditingBoss] = useState<Partial<BossTemplate> | null>(null);
   const [showAddBoss, setShowAddBoss] = useState(false);
@@ -233,8 +234,18 @@ export function AdminGamesTab() {
   const handleUpdateGame = async () => {
     if (!editingGame?.id || !editingGame.name?.trim()) return;
     const types = Array.isArray(editingGame.supported_spawn_types) ? editingGame.supported_spawn_types : [];
-    await updateGame(editingGame.id, { name: editingGame.name.trim(), slug: editingGame.slug?.trim().toLowerCase(), supported_spawn_types: types, icon_url: editingGame.icon_url?.trim() || null });
+    await updateGame(editingGame.id, { name: editingGame.name.trim(), slug: editingGame.slug?.trim().toLowerCase(), supported_spawn_types: types, icon_url: editingGame.icon_url?.trim() || null, is_visible: editingGame.is_visible });
     setEditingGame(null); queryClient.invalidateQueries({ queryKey: ["admin", "games"] });
+  };
+  const handleToggleVisibility = async (game: Game) => {
+    const next = game.is_visible === false ? true : false;
+    setVisibilityConfirm({ id: game.id, name: game.name, next });
+  };
+  const confirmToggleVisibility = async () => {
+    if (!visibilityConfirm) return;
+    await updateGame(visibilityConfirm.id, { is_visible: visibilityConfirm.next });
+    queryClient.invalidateQueries({ queryKey: ["admin", "games"] });
+    setVisibilityConfirm(null);
   };
   const handleDeleteGame = async () => { if (!deleteConfirm || deleteConfirm.type !== "game") return; await deleteGame(deleteConfirm.id); setDeleteConfirm(null); setExpandedGame(null); queryClient.invalidateQueries({ queryKey: ["admin", "games"] }); };
   const handleDeleteBoss = async () => { if (!deleteConfirm || deleteConfirm.type !== "boss") return; await deleteBossTemplate(deleteConfirm.id); setDeleteConfirm(null); refreshTemplates(); };
@@ -351,7 +362,12 @@ export function AdminGamesTab() {
                 <div><div className="flex items-center gap-2"><span className="text-sm font-medium text-[#fafafa]">{game.name}</span><span className="text-xs px-1.5 py-0.5 rounded bg-[#27272a] text-[#a1a1aa] font-mono">{game.slug}</span></div><div className="flex items-center gap-2 mt-0.5">{(Array.isArray(game.supported_spawn_types) ? game.supported_spawn_types : []).map((t: string) => (<span key={t} className="text-xs px-1.5 py-0.5 rounded bg-[#27272a] text-[#a1a1aa]">{t}</span>))}</div></div>
               </button>
               <div className="flex items-center gap-1">
-                <button onClick={() => setEditingGame({ id: game.id, name: game.name, slug: game.slug, icon_url: game.icon_url, supported_spawn_types: Array.isArray(game.supported_spawn_types) ? game.supported_spawn_types : [] })} className="p-1.5 text-[#71717a] hover:text-[#d4d4d8] transition"><Pencil className="w-3.5 h-3.5" /></button>
+                <button onClick={(e) => { e.stopPropagation(); handleToggleVisibility(game); }} title={game.is_visible !== false ? "Hide from Create Server" : "Show in Create Server"} className="p-1.5 rounded transition">
+                  <div className={`relative w-8 h-4.5 rounded-full transition-colors ${game.is_visible !== false ? "bg-emerald-500/50" : "bg-[#3f3f46]"}`}>
+                    <div className={`absolute top-0.5 w-3.5 h-3.5 rounded-full bg-[#fafafa] shadow transition-transform ${game.is_visible !== false ? "left-4" : "left-0.5"}`} />
+                  </div>
+                </button>
+                <button onClick={() => setEditingGame({ id: game.id, name: game.name, slug: game.slug, icon_url: game.icon_url, supported_spawn_types: Array.isArray(game.supported_spawn_types) ? game.supported_spawn_types : [], is_visible: game.is_visible })} className="p-1.5 text-[#71717a] hover:text-[#d4d4d8] transition"><Pencil className="w-3.5 h-3.5" /></button>
                 <button onClick={() => setDeleteConfirm({ type: "game", id: game.id, name: game.name })} className="p-1.5 text-[#71717a] hover:text-[#f87171] transition"><Trash2 className="w-3.5 h-3.5" /></button>
                 {expandedGame === game.id ? <ChevronUp className="w-4 h-4 text-[#71717a]" /> : <ChevronDown className="w-4 h-4 text-[#71717a]" />}
               </div>
@@ -364,6 +380,7 @@ export function AdminGamesTab() {
                   <div><label className="block text-xs text-[#a1a1aa] mb-1">Slug</label><input value={editingGame.slug || ""} onChange={e => setEditingGame(p => ({ ...p, slug: e.target.value }))} className="w-full px-2.5 py-1.5 bg-[#18181b] border border-[#27272a] rounded text-sm text-[#fafafa] focus:outline-none focus:ring-1 focus:ring-[#52525b]" /></div>
                   <div className="col-span-2"><label className="block text-xs text-[#a1a1aa] mb-1">Game Icon</label><div className="flex items-center gap-3"><label className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-[#27272a] hover:bg-[#3f3f46] text-[#d4d4d8] cursor-pointer transition"><Image className="w-3.5 h-3.5" /> {editingGame.icon_url ? "Replace" : "Choose Image"}<input type="file" accept="image/png,image/jpeg,image/webp,image/gif" onChange={e => { const f = e.target.files?.[0] || null; if (f) { uploadGameIcon(editingGame.slug || "", f).then(url => setEditingGame(p => ({ ...p, icon_url: url }))).catch(() => {}); } }} className="hidden" /></label>{editingGame.icon_url && <div className="relative"><img src={editingGame.icon_url} alt="Icon" className="w-8 h-8 rounded object-cover border border-[#3f3f46]" /><button onClick={() => setEditingGame(p => ({ ...p, icon_url: null }))} className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-[#3f3f46] text-[#fafafa] flex items-center justify-center hover:bg-[#52525b] transition"><X className="w-2.5 h-2.5" /></button></div>}</div></div>
                   <div className="col-span-2"><label className="block text-xs text-[#a1a1aa] mb-1.5">Spawn Types</label><div className="flex gap-3">{["fixed_hours", "fixed_schedule"].map(t => { const current = Array.isArray(editingGame.supported_spawn_types) ? editingGame.supported_spawn_types : []; return (<label key={t} className="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" checked={current.includes(t)} onChange={e => setEditingGame(p => ({ ...p, supported_spawn_types: e.target.checked ? [...current, t] : current.filter(x => x !== t) }))} className="w-3.5 h-3.5 rounded border-[#3f3f46] bg-[#18181b] text-[#a1a1aa] focus:ring-[#52525b] focus:ring-offset-0" /><span className="text-xs text-[#d4d4d8]">{t === "fixed_hours" ? "Fixed Hours" : "Fixed Schedule"}</span></label>); })}</div></div>
+                  <div className="col-span-2"><label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={editingGame.is_visible !== false} onChange={e => setEditingGame(p => ({ ...p, is_visible: e.target.checked }))} className="w-3.5 h-3.5 rounded border-[#3f3f46] bg-[#18181b] text-emerald-400 focus:ring-[#52525b] focus:ring-offset-0" /><span className="text-xs text-[#d4d4d8]">Visible in Create Server page</span></label></div>
                 </div>
                 <div className="flex items-center gap-2"><button onClick={handleUpdateGame} className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded bg-[#fafafa] hover:bg-[#e4e4e7] text-[#09090b] transition"><Save className="w-3 h-3" /> Save</button><button onClick={() => setEditingGame(null)} className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded bg-[#27272a] hover:bg-[#3f3f46] text-[#d4d4d8] transition"><X className="w-3 h-3" /> Cancel</button></div>
               </div>
@@ -630,6 +647,17 @@ export function AdminGamesTab() {
           confirmLabel="Delete"
           onConfirm={deleteConfirm.type === "game" ? handleDeleteGame : deleteConfirm.type === "boss" ? handleDeleteBoss : deleteConfirm.type === "item" ? handleDeleteItem : deleteConfirm.type === "category" ? handleDeleteCategory : deleteConfirm.type === "rarity" ? handleDeleteRarity : handleDeleteActivity}
           onCancel={() => setDeleteConfirm(null)}
+        />
+      )}
+
+      {visibilityConfirm && (
+        <ConfirmDialog
+          open={true}
+          title={visibilityConfirm.next ? "Show Game" : "Hide Game"}
+          message={visibilityConfirm.next ? `Show "${visibilityConfirm.name}" in the Create Server page? Users will be able to create servers for this game.` : `Hide "${visibilityConfirm.name}" from the Create Server page? It will no longer appear as an option when creating new servers.`}
+          confirmLabel={visibilityConfirm.next ? "Show" : "Hide"}
+          onConfirm={confirmToggleVisibility}
+          onCancel={() => setVisibilityConfirm(null)}
         />
       )}
     </div>

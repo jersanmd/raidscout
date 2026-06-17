@@ -8,13 +8,19 @@ export async function fetchGames(): Promise<any[]> {
   return data || [];
 }
 
+export async function fetchVisibleGames(): Promise<any[]> {
+  const { data, error } = await supabase.from("games").select("*").eq("is_visible", true).order("created_at");
+  if (error) throw error;
+  return data || [];
+}
+
 export async function createGame(name: string, slug: string, supportedSpawnTypes: string[], iconUrl?: string): Promise<any> {
-  const { data, error } = await supabase.from("games").insert({ name, slug, supported_spawn_types: supportedSpawnTypes, icon_url: iconUrl || null }).select().single();
+  const { data, error } = await supabase.from("games").insert({ name, slug, supported_spawn_types: supportedSpawnTypes, icon_url: iconUrl || null, is_visible: true }).select().single();
   if (error) throw error;
   return data;
 }
 
-export async function updateGame(id: string, updates: { name?: string; slug?: string; supported_spawn_types?: string[]; icon_url?: string | null }): Promise<void> {
+export async function updateGame(id: string, updates: { name?: string; slug?: string; supported_spawn_types?: string[]; icon_url?: string | null; is_visible?: boolean }): Promise<void> {
   const { error } = await supabase.from("games").update(updates).eq("id", id);
   if (error) throw error;
 }

@@ -145,6 +145,7 @@ function AppRoutes() {
       } />
 
       <Route
+        path="/"
         element={
           !ready ? (
             <div className="min-h-screen flex items-center justify-center bg-[#09090b]">

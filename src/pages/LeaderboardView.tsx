@@ -14,7 +14,7 @@ import { fetchMemberKills, fetchMemberActivityHistory, type MemberBossKill, type
 import { useAttendance } from "@/hooks/useAttendance";
 import { useMembers } from "@/hooks/useMembers";
 import type { Guild, LeaderboardSnapshot, PointAdjustment } from "@/types";
-import { Trophy, Medal, Crown, Users, Loader2, X, Skull, CheckCheck, History, ChevronRight, ChevronLeft, Search, Shield, Plus, Minus, Edit3, RotateCcw, Calendar, Sword, Swords, ShieldHalf, ShieldCheck, Crosshair, Wand, Heart, Zap, Flame, Snowflake, Star, Anchor, Gavel, Axe, Target, Footprints, HandMetal, Tag } from "lucide-react";
+import { Trophy, Medal, Crown, Users, Loader2, X, Skull, CheckCheck, History, ChevronRight, ChevronLeft, Search, Shield, Plus, Minus, Edit3, RotateCcw, Calendar, Sword, Swords, ShieldHalf, ShieldCheck, Crosshair, Wand, Heart, Zap, Flame, Snowflake, Star, Anchor, Gavel, Axe, Target, Footprints, HandMetal, Tag, AlertTriangle } from "lucide-react";
 import { TableRowSkeleton } from "@/components/Skeletons";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { BossImage } from "@/components/BossImage";
@@ -90,10 +90,10 @@ export function LeaderboardView() {
   const [searchQuery, setSearchQuery] = useState("");
   const [guildFilter, setGuildFilter] = useState<string>("all");
   const [showFinalizeConfirm, setShowFinalizeConfirm] = useState<string | null>(null);
+  const [finalizeTime, setFinalizeTime] = useState("");
   const [showResetConfirm, setShowResetConfirm] = useState<string | null>(null);
   const [resetLoading, setResetLoading] = useState(false);
   const [copiedShare, setCopiedShare] = useState(false);
-  const [snapshotGuildFilter, setSnapshotGuildFilter] = useState<string>("all");
 
   // Attendance export state
   const { currentServer } = useServer();
@@ -112,6 +112,7 @@ export function LeaderboardView() {
   const canAdjustPoints = useHasPermission("can_manage_points");
   const canExportAttendance = useHasPermission("can_manage_points");
   const isStaff = !isViewer && (currentServer?.role === "owner" || currentServer?.role === "moderator");
+  const isOwner = currentServer?.role === "owner";
   const [carouselPage, setCarouselPage] = useState(0);
   const touchStartX = useRef(0);
   const touchDeltaX = useRef(0);
@@ -340,7 +341,7 @@ export function LeaderboardView() {
 
   if (isLoading || guildsLoading) {
     return (
-      <div className="max-w-7xl mx-auto px-3 sm:px-4 py-4 sm:py-6">
+    <div className="max-w-[100%] 2xl:max-w-[1600px] mx-auto px-3 sm:px-4 py-4 sm:py-6">
         <div className="bg-[#09090b] border border-[#27272a] rounded-xl overflow-hidden">
           <table className="w-full text-sm">
             <tbody>
@@ -781,7 +782,7 @@ export function LeaderboardView() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-3 sm:px-4 py-4 sm:py-6 space-y-2 sm:space-y-3">
+    <div className="max-w-[100%] 2xl:max-w-[1600px] mx-auto px-3 sm:px-4 py-4 sm:py-6 space-y-2 sm:space-y-3">
       {/* Header */}
       <div className="flex items-center justify-between mb-2 sm:mb-3">
         <div className="flex items-center gap-3">
@@ -928,11 +929,11 @@ export function LeaderboardView() {
                                     </button>
                                   )}
                                   {isStaff && guildName && (
-                                    <button onClick={(e) => { e.stopPropagation(); setShowFinalizeConfirm(guildName); }} className="ml-auto text-xs px-2.5 py-1 rounded bg-amber-500/10 border border-amber-500/30 text-amber-400 hover:bg-amber-500/20 transition" title={`Finalize ${guildName} rankings`}>
+                                    <button onClick={(e) => { e.stopPropagation(); const now = new Date(); const pad = (n: number) => String(n).padStart(2, "0"); setFinalizeTime(`${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`); setShowFinalizeConfirm(guildName); }} className="ml-auto text-xs px-2.5 py-1 rounded bg-amber-500/10 border border-amber-500/30 text-amber-400 hover:bg-amber-500/20 transition" title={`Finalize ${guildName} rankings`}>
                                       Finalize
                                     </button>
                                   )}
-                                  {isStaff && guildName && (
+                                  {isOwner && guildName && (
                                     <button onClick={(e) => { e.stopPropagation(); setShowResetConfirm(guildName); }} className="text-xs px-2.5 py-1 rounded bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 transition flex items-center gap-1" title={`Reset all ${guildName} points`}>
                                       <RotateCcw className="w-3.5 h-3.5" />Reset
                                     </button>
@@ -1084,7 +1085,7 @@ export function LeaderboardView() {
                 return (
                   <button
                     key={snap.id}
-                    onClick={() => { prevShowSnapshots.current = showSnapshots; setShowSnapshots(null); setSnapshotGuildFilter("all"); loadSnapshot(snap.id); }}
+                    onClick={() => { prevShowSnapshots.current = showSnapshots; setShowSnapshots(null); loadSnapshot(snap.id); }}
                     className="w-full flex items-start gap-2 px-2.5 py-2 rounded-lg bg-[#18181b]/50 border border-[#27272a]/50 hover:border-[#52525b] transition text-left"
                   >
                     <History className="w-3.5 h-3.5 text-[#a1a1aa] shrink-0 mt-0.5" />
@@ -1161,25 +1162,8 @@ export function LeaderboardView() {
                   </button>
                 </div>
                 <div className="overflow-y-auto p-2 space-y-0.5 flex-1">
-                  {/* Guild filter */}
-                  {guilds.length > 0 && (
-                    <div className="mb-1.5">
-                      <select
-                        value={snapshotGuildFilter}
-                        onChange={(e) => setSnapshotGuildFilter(e.target.value)}
-                        className="w-full px-2 py-1 bg-[#18181b] border border-[#27272a] rounded-lg text-[#fafafa] text-[11px] focus:outline-none focus:ring-2 focus:ring-purple-500 transition"
-                      >
-                        <option value="all">All Guilds</option>
-                        {guilds.map(g => (
-                          <option key={g.id} value={g.id}>{g.name}</option>
-                        ))}
-                      </select>
-                    </div>
-                  )}
                   {(() => {
-                    const filtered = snapshotGuildFilter === "all"
-                      ? viewingSnapshot.rankings
-                      : viewingSnapshot.rankings.filter(r => memberGuildMap.get(r.memberId) === snapshotGuildFilter);
+                    const filtered = viewingSnapshot.rankings;
                     if (filtered.length === 0) {
                       return <p className="text-[#71717a] text-xs text-center py-4">No rankings for this guild.</p>;
                     }
@@ -1531,38 +1515,72 @@ export function LeaderboardView() {
         );
       })()}
 
-      <ConfirmDialog
-        open={!!showFinalizeConfirm}
-        title={`Finalize ${showFinalizeConfirm ?? ""}`}
-        message="Save current rankings for this guild as a snapshot and reset their points."
-        confirmLabel="Finalize"
-        variant="warning"
-        loading={finalizing}
-        onConfirm={async () => {
-          setFinalizing(true);
-          const guildName = showFinalizeConfirm!;
-          setShowFinalizeConfirm(null);
-          try {
-            const guildEntries = guildGroups.find(([n]) => n === guildName)?.[1] ?? [];
-            const rankings = guildEntries.map((e, i) => ({ rank: i + 1, memberId: e.id, memberName: e.name, points: e.points }));
-            // Period start = last reset date for this guild (from app_settings)
-            let resetAt = new Date(0).toISOString();
-            if (serverId) {
-              const { data: setting } = await supabase
-                .from("app_settings")
-                .select("value")
-                .eq("server_id", serverId)
-                .eq("key", `leaderboard_reset_at:${guildName}`)
-                .maybeSingle();
-              if (setting) resetAt = (setting as any).value;
-            }
-            await finalizeResults(`weekly:${guildName}`, rankings, resetAt);
-            toast("success", `${guildName} finalized`);
-          } catch { toast("error", "Failed to finalize"); }
-          finally { setFinalizing(false); }
-        }}
-        onCancel={() => setShowFinalizeConfirm(null)}
-      />
+      {/* Finalize modal with datetime picker */}
+      {showFinalizeConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60" onClick={() => setShowFinalizeConfirm(null)} />
+          <div className="relative bg-[#18181b] border border-[#27272a] rounded-xl w-full max-w-sm shadow-lg p-6 space-y-4">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-full bg-[#27272a] flex items-center justify-center shrink-0 ring-1 ring-[#27272a]">
+                <AlertTriangle className="w-5 h-5 text-[#a1a1aa]" />
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-[#fafafa]">Finalize {showFinalizeConfirm}</h3>
+                <p className="text-xs text-[#71717a] mt-1">Save current rankings as a snapshot and reset points.</p>
+              </div>
+            </div>
+            <div>
+              <label className="text-xs text-[#71717a] block mb-1">Finalized at (server timezone)</label>
+              <input
+                type="datetime-local"
+                value={finalizeTime}
+                onChange={(e) => setFinalizeTime(e.target.value)}
+                className="w-full bg-[#27272a] border border-[#3f3f46] rounded-lg px-3 py-2 text-sm text-[#fafafa] outline-none focus:border-[#52525b] [color-scheme:dark]"
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setShowFinalizeConfirm(null)} disabled={finalizing}
+                className="px-4 py-2 rounded-md text-sm text-[#71717a] hover:text-[#fafafa] transition disabled:opacity-50">Cancel</button>
+              <button onClick={async () => {
+                setFinalizing(true);
+                const guildName = showFinalizeConfirm!;
+                const customTime = finalizeTime
+                  ? (() => {
+                      const [datePart, timePart] = finalizeTime.split("T");
+                      const [y, mo, d] = datePart.split("-").map(Number);
+                      const [hh, mm] = timePart.split(":").map(Number);
+                      const testUtc = Date.UTC(y, mo - 1, d, hh, mm);
+                      const tz = serverTimezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
+                      const testLocal = new Intl.DateTimeFormat("en-US", { timeZone: tz, hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(testUtc));
+                      const [tlH, tlM] = testLocal.split(":").map(Number);
+                      const offsetMs = ((tlH - hh) * 60 + (tlM - mm)) * 60_000;
+                      return new Date(testUtc - offsetMs).toISOString();
+                    })()
+                  : new Date().toISOString();
+                setShowFinalizeConfirm(null);
+                setFinalizeTime("");
+                try {
+                  const guildEntries = guildGroups.find(([n]) => n === guildName)?.[1] ?? [];
+                  const rankings = guildEntries.map((e, i) => ({ rank: i + 1, memberId: e.id, memberName: e.name, points: e.points }));
+                  let resetAt = new Date(0).toISOString();
+                  if (serverId) {
+                    const { data: setting } = await supabase
+                      .from("app_settings").select("value").eq("server_id", serverId).eq("key", `leaderboard_reset_at:${guildName}`).maybeSingle();
+                    if (setting) resetAt = (setting as any).value;
+                  }
+                  await finalizeResults(`weekly:${guildName}`, rankings, resetAt, customTime);
+                  toast("success", `${guildName} finalized`);
+                } catch { toast("error", "Failed to finalize"); }
+                finally { setFinalizing(false); }
+              }} disabled={finalizing}
+                className="px-4 py-2 rounded-md text-sm font-medium bg-[#fafafa] hover:bg-[#e4e4e7] text-[#09090b] transition disabled:opacity-50 flex items-center gap-2">
+                {finalizing && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                Finalize
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <ConfirmDialog
         open={!!showResetConfirm}

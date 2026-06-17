@@ -42,25 +42,29 @@ export async function fetchAnalytics(since: string, serverId?: string | null): P
 
   const deathIds = deaths.map(d => d.id);
 
-  // Get attendance — direct paginated query (more reliable than edge function)
+  // Get attendance — batched .in() to avoid URL length limits on large datasets
   let att: any[] = [];
   {
-    let attPage = 0;
-    while (true) {
-      const { data: batch, error: aErr } = await supabase
-        .from("attendance_records")
-        .select("death_record_id, member_id")
-        .in("death_record_id", deathIds)
-        .range(attPage * 1000, (attPage + 1) * 1000 - 1);
-      if (aErr) { console.warn("attendance fetch error:", aErr); break; }
-      if (!batch?.length) break;
-      att.push(...batch);
-      if (batch.length < 1000) break;
-      attPage++;
+    const BATCH_SIZE = 200; // keep URL length under Supabase's ~8KB limit
+    for (let i = 0; i < deathIds.length; i += BATCH_SIZE) {
+      const idBatch = deathIds.slice(i, i + BATCH_SIZE);
+      let attPage = 0;
+      while (true) {
+        const { data: batch, error: aErr } = await supabase
+          .from("attendance_records")
+          .select("death_record_id, member_id")
+          .in("death_record_id", idBatch)
+          .range(attPage * 1000, (attPage + 1) * 1000 - 1);
+        if (aErr) { console.warn("attendance fetch error:", aErr); break; }
+        if (!batch?.length) break;
+        att.push(...batch);
+        if (batch.length < 1000) break;
+        attPage++;
+      }
     }
   }
 
-  // Get bosses for names
+  // Get bosses for names (boss count is usually small, single query is fine)
   const bossIds = [...new Set(deaths.map(d => d.boss_id))];
   const { data: bosses, error: bErr } = await supabase
     .from("bosses")
@@ -69,14 +73,19 @@ export async function fetchAnalytics(since: string, serverId?: string | null): P
   if (bErr) throw bErr;
   const bossNameMap = new Map((bosses || []).map(b => [b.id, b.name]));
 
-  // Get members for names
+  // Get members for names — batched to avoid URL length limits
   const memberIds = [...new Set((att || []).map(a => a.member_id))];
-  const { data: members, error: mErr } = await supabase
-    .from("members")
-    .select("id, name")
-    .in("id", memberIds);
-  if (mErr) throw mErr;
-  const memberNameMap = new Map((members || []).map(m => [m.id, m.name]));
+  const memberNameMap = new Map<string, string>();
+  const MEMBER_BATCH = 200;
+  for (let i = 0; i < memberIds.length; i += MEMBER_BATCH) {
+    const idBatch = memberIds.slice(i, i + MEMBER_BATCH);
+    const { data: members, error: mErr } = await supabase
+      .from("members")
+      .select("id, name")
+      .in("id", idBatch);
+    if (mErr) throw mErr;
+    (members || []).forEach((m: any) => memberNameMap.set(m.id, m.name));
+  }
 
   const totalKills = deaths.length;
   const totalAttendance = (att || []).length;

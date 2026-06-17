@@ -100,7 +100,7 @@ export function MembersView() {
 
   // Sort state for guild member tables (persisted in localStorage)
   const sortKey = `members-sort-${serverId ?? "global"}`;
-  const [sortColumn, setSortColumn] = useState<"name" | "cp" | "growth" | "score" | "status">(() => {
+  const [sortColumn, setSortColumn] = useState<"name" | "cp" | "growth" | "score" | "weekly" | "status">(() => {
     try {
       const saved = JSON.parse(localStorage.getItem(sortKey) || "{}");
       return saved.col || "name";
@@ -113,7 +113,7 @@ export function MembersView() {
     } catch { return "asc"; }
   });
 
-  const toggleSort = (col: "name" | "cp" | "growth" | "score" | "status") => {
+  const toggleSort = (col: "name" | "cp" | "growth" | "score" | "weekly" | "status") => {
     if (sortColumn === col) {
       setSortDir(d => {
         const next = d === "asc" ? "desc" : "asc";
@@ -128,8 +128,21 @@ export function MembersView() {
     }
   };
 
+  // Server timezone for week boundary (matches MemberProfileView)
+  const serverTz = currentServer?.timezone || "UTC";
+  const weekStartISO = (() => {
+    const now = new Date();
+    const local = now.toLocaleString("en-US", { timeZone: serverTz });
+    const d = new Date(local);
+    const day = d.getDay();
+    const mondayOffset = day === 0 ? 6 : day - 1;
+    d.setDate(d.getDate() - mondayOffset);
+    d.setHours(0, 0, 0, 0);
+    return d.toISOString();
+  })();
+
   // Fetch member scores & growth from RPC
-  const { data: memberStats = {} } = useQuery<Record<string, { score: number; growth: number; cpUpdatedAt?: string | null }>>({
+  const { data: memberStats = {} } = useQuery<Record<string, { score: number; growth: number; cpUpdatedAt?: string | null; weekly?: number }>>({
     queryKey: ["memberStats", serverId],
     queryFn: async () => {
       if (!serverId || !configured) return {};
@@ -144,6 +157,90 @@ export function MembersView() {
     staleTime: 120_000,
     enabled: !!serverId && configured,
   });
+
+  // Fetch weekly attendance counts per member (numerator — same as MemberProfileView)
+  const { data: weeklyStats = {} } = useQuery<Record<string, number>>({
+    queryKey: ["weeklyAttendance", serverId, weekStartISO],
+    queryFn: async () => {
+      if (!serverId || !configured) return {};
+      const [{ data: attendance }, { data: activityAttendance }] = await Promise.all([
+        supabase.from("attendance_records").select("member_id").eq("server_id", serverId).gte("created_at", weekStartISO),
+        supabase.from("activity_attendance").select("member_id").eq("server_id", serverId).gte("created_at", weekStartISO),
+      ]);
+      const attended: Record<string, number> = {};
+      (attendance || []).forEach((a: any) => { attended[a.member_id] = (attended[a.member_id] || 0) + 1; });
+      (activityAttendance || []).forEach((a: any) => { attended[a.member_id] = (attended[a.member_id] || 0) + 1; });
+      return attended;
+    },
+    staleTime: 120_000,
+    enabled: !!serverId && configured,
+  });
+
+  // Fetch per-GUILD weekly totals (denominator — matches MemberProfileView formula:
+  // owned boss kills + assisted boss kills + guild activities)
+  const { data: guildWeeklyTotals = {} } = useQuery<Record<string, number>>({
+    queryKey: ["guildWeeklyTotals", serverId, weekStartISO],
+    queryFn: async () => {
+      if (!serverId || !configured) return {};
+      // All death records this week for the server
+      const { data: deaths } = await supabase
+        .from("death_records").select("owner_guild_id, boss_id").eq("server_id", serverId).gte("death_time", weekStartISO);
+      // All boss-assist mappings
+      const { data: assists } = await supabase.from("boss_assists").select("boss_id, assistant_guild_id");
+      // All activity instances this week with guild assignments
+      const { data: actInstances } = await supabase
+        .from("activity_instances")
+        .select("id, activity_guilds(guild_id), activities!inner(server_id)")
+        .eq("activities.server_id", serverId)
+        .gte("end_time", weekStartISO)
+        .not("end_time", "is", null);
+
+      const totals: Record<string, number> = {};
+
+      // Owned boss kills
+      (deaths || []).forEach((d: any) => {
+        if (d.owner_guild_id) totals[d.owner_guild_id] = (totals[d.owner_guild_id] || 0) + 1;
+      });
+
+      // Assisted boss kills: per guild, count deaths of bosses they assist
+      const assistMap: Record<string, Set<string>> = {};
+      (assists || []).forEach((a: any) => {
+        if (!assistMap[a.assistant_guild_id]) assistMap[a.assistant_guild_id] = new Set();
+        assistMap[a.assistant_guild_id].add(a.boss_id);
+      });
+      for (const [gid, bossIds] of Object.entries(assistMap)) {
+        const count = (deaths || []).filter((d: any) => bossIds.has(d.boss_id)).length;
+        if (count > 0) totals[gid] = (totals[gid] || 0) + count;
+      }
+
+      // Activities
+      (actInstances || []).forEach((a: any) => {
+        const guilds = a.activity_guilds || [];
+        guilds.forEach((g: any) => {
+          totals[g.guild_id] = (totals[g.guild_id] || 0) + 1;
+        });
+      });
+
+      return totals;
+    },
+    staleTime: 120_000,
+    enabled: !!serverId && configured,
+  });
+
+  // Toggle between percentage and fraction display for Weekly column
+  const [showWeeklyFraction, setShowWeeklyFraction] = useState(false);
+
+  // Merge weekly attendance into memberStats for sort & display
+  const mergedStats = useMemo(() => {
+    const merged: Record<string, { score: number; growth: number; cpUpdatedAt?: string | null; weekly?: number }> = {};
+    for (const [id, s] of Object.entries(memberStats)) {
+      merged[id] = { ...s, weekly: weeklyStats[id] ?? 0 };
+    }
+    for (const [id, w] of Object.entries(weeklyStats)) {
+      if (!merged[id]) merged[id] = { score: 0, growth: 0, weekly: w };
+    }
+    return merged;
+  }, [memberStats, weeklyStats]);
 
   // Fetch classes from DB
   useEffect(() => {
@@ -856,7 +953,7 @@ export function MembersView() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-6 space-y-6">
+    <div className="max-w-[100%] 2xl:max-w-[1600px] mx-auto px-4 py-6 space-y-6">
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-3">
@@ -1314,6 +1411,20 @@ export function MembersView() {
                           <span className="inline-block w-3 text-center">{sortColumn === "cp" ? (sortDir === "asc" ? "▲" : "▼") : "⇅"}</span>
                         </span>
                       </th>
+                      <th className="text-center py-2.5 px-1 w-[7%] cursor-pointer select-none hover:bg-[#27272a]/30 transition group" onClick={() => toggleSort("weekly")} title="Weekly performance">
+                        <span className="inline-flex items-center gap-1 justify-center">
+                          <span className={sortColumn === "weekly" ? "text-[#fafafa]" : "group-hover:text-[#a1a1aa]"}>Weekly Attendance</span>
+                          <span className="inline-block w-3 text-center">{sortColumn === "weekly" ? (sortDir === "asc" ? "▲" : "▼") : "⇅"}</span>
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); setShowWeeklyFraction(f => !f); }}
+                            className="ml-1 text-[10px] text-[#52525b] hover:text-[#a1a1aa] transition leading-none"
+                            title={showWeeklyFraction ? "Show percentage" : "Show fraction"}
+                          >
+                            {showWeeklyFraction ? "⅞" : "%"}
+                          </button>
+                        </span>
+                      </th>
                       <th className="text-right py-2.5 px-2 w-[7%] cursor-pointer select-none hover:bg-[#27272a]/30 transition group" onClick={() => toggleSort("growth")} title="30d CP growth">
                         <span className="inline-flex items-center gap-1 justify-end">
                           <span className={sortColumn === "growth" ? "text-[#fafafa]" : "group-hover:text-[#a1a1aa]"}>30d Growth</span>
@@ -1348,15 +1459,21 @@ export function MembersView() {
                           return dir * ((a.combat_power ?? 0) - (b.combat_power ?? 0));
                         }
                         if (sortColumn === "growth") {
-                          const aG = memberStats[a.id]?.growth ?? -999999;
-                          const bG = memberStats[b.id]?.growth ?? -999999;
+                          const aG = mergedStats[a.id]?.growth ?? -999999;
+                          const bG = mergedStats[b.id]?.growth ?? -999999;
                           if (aG !== bG) return dir * (aG - bG);
                           return a.name.localeCompare(b.name);
                         }
                         if (sortColumn === "score") {
-                          const aScore = memberStats[a.id]?.score ?? -1;
-                          const bScore = memberStats[b.id]?.score ?? -1;
+                          const aScore = mergedStats[a.id]?.score ?? -1;
+                          const bScore = mergedStats[b.id]?.score ?? -1;
                           if (aScore !== bScore) return dir * (aScore - bScore);
+                          return a.name.localeCompare(b.name);
+                        }
+                        if (sortColumn === "weekly") {
+                          const aW = mergedStats[a.id]?.weekly ?? -1;
+                          const bW = mergedStats[b.id]?.weekly ?? -1;
+                          if (aW !== bW) return dir * (aW - bW);
                           return a.name.localeCompare(b.name);
                         }
                         if (sortColumn === "status") {
@@ -1383,16 +1500,33 @@ export function MembersView() {
                           </span>
                           </Link>
                         </td>
+                        <td className="py-2.5 px-1 text-center font-mono text-xs align-middle">
+                          <Link to={`/members/${m.id}`} className="block -m-2 p-2 rounded hover:bg-[#09090b]/50 transition">
+                          {(() => {
+                            const stats = mergedStats[m.id];
+                            const w = stats?.weekly;
+                            if (w == null) return <span className="text-[#3f3f46]">—</span>;
+                            const guildTotal = m.guild_id ? (guildWeeklyTotals[m.guild_id] ?? 0) : 0;
+                            const pct = guildTotal > 0 ? Math.round((w / guildTotal) * 100) : 0;
+                            const color = pct >= 75 ? "text-green-400" : pct >= 50 ? "text-amber-400" : pct > 0 ? "text-red-400" : "text-[#52525b]";
+                            return (
+                              <span className={`font-bold ${color}`}>
+                                {showWeeklyFraction ? `${w}/${guildTotal}` : `${pct}%`}
+                              </span>
+                            );
+                          })()}
+                          </Link>
+                        </td>
                         <td className="py-2.5 px-3 text-right font-mono text-xs align-middle">
                           <Link to={`/members/${m.id}`} className="block -m-2 p-2 rounded hover:bg-[#09090b]/50 transition">
-                          {memberStats[m.id]?.growth != null && memberStats[m.id].growth !== 0 && m.combat_power != null ? (() => {
-                            const base = m.combat_power - memberStats[m.id].growth;
+                          {mergedStats[m.id]?.growth != null && mergedStats[m.id].growth !== 0 && m.combat_power != null ? (() => {
+                            const base = m.combat_power - mergedStats[m.id].growth;
                             if (base <= 0) return <span className="text-[#3f3f46]">—</span>;
-                            const pct = (memberStats[m.id].growth / base) * 100;
-                            const positive = memberStats[m.id].growth > 0;
+                            const pct = (mergedStats[m.id].growth / base) * 100;
+                            const positive = mergedStats[m.id].growth > 0;
                             return (
                               <span className={positive ? "text-green-400" : "text-red-400"}>
-                                {positive ? "+" : ""}{memberStats[m.id].growth.toLocaleString()}
+                                {positive ? "+" : ""}{mergedStats[m.id].growth.toLocaleString()}
                                 <span className="text-[#52525b] ml-0.5">({positive ? "+" : ""}{pct.toFixed(1)}%)</span>
                               </span>
                             );
@@ -1403,17 +1537,21 @@ export function MembersView() {
                         </td>
                         <td className="py-2.5 px-1 text-center font-mono text-xs align-middle">
                           <Link to={`/members/${m.id}`} className="block -m-2 p-2 rounded hover:bg-[#09090b]/50 transition">
-                          {memberStats[m.id]?.score != null ? (
-                            <span className={`font-bold ${memberStats[m.id].score >= 75 ? "text-green-400" : memberStats[m.id].score >= 50 ? "text-amber-400" : memberStats[m.id].score > 0 ? "text-red-400" : "text-[#52525b]"}`}>{memberStats[m.id].score}</span>
-                          ) : (
-                            <span className="text-[#3f3f46]">—</span>
-                          )}
+                          {(() => {
+                            const stats = mergedStats[m.id];
+                            const s = stats?.score;
+                            return s != null ? (
+                              <span className={`font-bold ${s >= 75 ? "text-green-400" : s >= 50 ? "text-amber-400" : s > 0 ? "text-red-400" : "text-[#52525b]"}`}>{s}</span>
+                            ) : (
+                              <span className="text-[#3f3f46]">—</span>
+                            );
+                          })()}
                           </Link>
                         </td>
                         <td className="py-2.5 px-2 text-center align-middle">
                           <Link to={`/members/${m.id}`} className="block -m-2 p-2 rounded hover:bg-[#09090b]/50 transition">
                           {(() => {
-                            const updatedAt = memberStats[m.id]?.cpUpdatedAt;
+                            const updatedAt = mergedStats[m.id]?.cpUpdatedAt;
                             if (!updatedAt && m.combat_power == null) {
                               return <span className="inline-block w-2.5 h-2.5 rounded-full bg-[#3f3f46]" title="CP not set" />;
                             }

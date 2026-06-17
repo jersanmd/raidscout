@@ -562,12 +562,48 @@ export async function handleMessage(msg: any) {
       if (b.time === "**ALIVE NOW**" && a.time !== "**ALIVE NOW**") return 1;
       return a.unix - b.unix;
     });
-    const lines = upcoming.map((b, i) => {
-      const prefix = b.time === "**ALIVE NOW**" ? "🟢 " : "";
-      const guild = b.guild ? ` -- ${b.guild}` : "";
-      const countdown = b.time !== "**ALIVE NOW**" ? ` (<t:${b.unix}:R>)` : "";
-      return `${i + 1}. ${prefix}${b.name}${guild} ${b.time}${countdown}`;
-    });
+
+    // ── Group by day with relative labels (in server timezone) ──
+    const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+    function dayLabel(unix: number): string {
+      const toServerDate = (ts: number) =>
+        new Date(ts).toLocaleDateString("en-CA", { timeZone: tz }); // "YYYY-MM-DD"
+      const nowDate = toServerDate(Date.now());
+      const spawnDate = toServerDate(unix * 1000);
+      const [sy, sm, sd] = spawnDate.split("-").map(Number);
+      const [ny, nm, nd] = nowDate.split("-").map(Number);
+      const spawnMidnight = Date.UTC(sy, sm - 1, sd);
+      const nowMidnight = Date.UTC(ny, nm - 1, nd);
+      const tomorrowMidnight = Date.UTC(ny, nm - 1, nd + 1);
+      const dow = new Date(unix * 1000).toLocaleDateString("en-US", { timeZone: tz, weekday: "short" });
+      if (spawnMidnight === nowMidnight) return `📅 Today (${monthNames[sm - 1]} ${sd})`;
+      if (spawnMidnight === tomorrowMidnight) return `📅 Tomorrow (${monthNames[sm - 1]} ${sd})`;
+      return `📅 ${dow} ${monthNames[sm - 1]} ${sd}`;
+    }
+
+    const groups: { label: string; items: typeof upcoming }[] = [];
+    for (const b of upcoming) {
+      const label = dayLabel(b.unix);
+      let group = groups.find(g => g.label === label);
+      if (!group) { group = { label, items: [] }; groups.push(group); }
+      group.items.push(b);
+    }
+
+    let globalIdx = 1;
+    const lines: string[] = [];
+    for (const group of groups) {
+      lines.push("");
+      lines.push(group.label);
+      for (const b of group.items) {
+        const timeDisplay = b.time === "**ALIVE NOW**" ? "Alive now" : `<t:${b.unix}:t>`;
+        const relative = b.time === "**ALIVE NOW**" ? "" : b.name.startsWith("📋") ? "" : ` (<t:${b.unix}:R>)`;
+        const guild = b.guild ? ` -- ${b.guild}` : "";
+        const prefix = b.time === "**ALIVE NOW**" ? "🟢 " : "";
+        lines.push(`${globalIdx}. ${prefix}**${b.name}**${guild} -- ${timeDisplay}${relative}`);
+        globalIdx++;
+      }
+    }
     await discordFetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
       method: "POST", headers: { Authorization: `Bot ${TOKEN}`, "Content-Type": "application/json" },
       body: JSON.stringify({ embeds: [{ title: filterGuild ? `📋 ${filterGuild.name} Spawns (24h)` : filter ? `${filter} Spawn` : "📋 Upcoming Boss Spawns (24h)", description: lines.join("\n"), color: 0x8b5cf6, footer: { text: "Powered by RaidScout" } }] }),
