@@ -284,3 +284,15 @@ export {
   fetchItemDistributionStats,
   fetchTopRecipients,
 } from "./api/memberManagement";
+
+// Item Collections
+export {
+  fetchCollections,
+  createCollection,
+  deleteCollection,
+  fetchCollectionItems,
+  addItemToCollection,
+  removeItemFromCollection,
+  fetchServerDistributions,
+} from "./api/collections";
+export type { ItemCollection, ItemCollectionItem } from "./api/collections";

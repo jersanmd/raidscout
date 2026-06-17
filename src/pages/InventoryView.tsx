@@ -7,6 +7,9 @@ import {
   fetchMembers, isSupabaseConfigured,
   supabase as supabaseClient,
   fetchItemCategories, fetchItemRarities, fetchGuilds,
+  fetchCollections, createCollection, deleteCollection,
+  fetchCollectionItems, addItemToCollection, removeItemFromCollection,
+  fetchServerDistributions,
 } from "@/lib/supabase";
 import { useServerId, useServer } from "@/contexts/ServerContext";
 import { ExpiredGate } from "@/components/ExpiredGate";
@@ -63,6 +66,32 @@ export function InventoryView() {
   if (currentServer?.isExpired) return <ExpiredGate page="Inventory" />;
 
   const [tab, setTab] = useState<"catalog" | "collections" | "history" | "analytics" | "recipients">("catalog");
+
+  // ── Collections state ──
+  const [collectionMode, setCollectionMode] = useState<"list" | "view" | "matrix">("list");
+  const [selectedCollection, setSelectedCollection] = useState<string | null>(null);
+  const [showCreateCollection, setShowCreateCollection] = useState(false);
+  const [newCollectionName, setNewCollectionName] = useState("");
+  const [collectionItemSearch, setCollectionItemSearch] = useState("");
+
+  const { data: collections = [], isLoading: collectionsLoading } = useQuery({
+    queryKey: ["collections", serverId],
+    queryFn: () => fetchCollections(serverId!),
+    enabled: configured && !!serverId && tab === "collections",
+  });
+
+  const { data: collItems = [], isLoading: collItemsLoading } = useQuery({
+    queryKey: ["collectionItems", selectedCollection],
+    queryFn: () => fetchCollectionItems(selectedCollection!),
+    enabled: !!selectedCollection,
+  });
+
+  // All distributions for ownership checking
+  const { data: allDists = [] } = useQuery({
+    queryKey: ["allDists", serverId],
+    queryFn: () => fetchServerDistributions(serverId!),
+    enabled: configured && !!serverId && tab === "collections" && collectionMode === "matrix",
+  });
 
   // Track whether we need the full items list (history/analytics tabs or distribute modal)
   const [needFullItems, setNeedFullItems] = useState(false);
@@ -607,22 +636,267 @@ export function InventoryView() {
       )}
 
       {/* ── Collections Tab ── */}
-      {tab === "collections" && (
-        <div className="space-y-6">
-          <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-6 text-center space-y-3">
-            <Star className="w-12 h-12 text-[#f59e0b] mx-auto" />
-            <h3 className="text-sm font-semibold text-[#fafafa]">Item Collections</h3>
-            <p className="text-xs text-[#a1a1aa] max-w-md mx-auto">
-              Group items into themed collections for easier management and distribution.
-              Collections help you organize related items together.
-            </p>
-            <button className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium bg-[#fafafa] text-[#09090b] hover:bg-[#e4e4e7] transition">
-              <Plus className="w-4 h-4" />
-              Create Collection
-            </button>
+      {tab === "collections" && (() => {
+        const currentCollection = collections.find(c => c.id === selectedCollection);
+        const collItemIds = new Set(collItems.map(ci => ci.item_id));
+
+        // Ownership map: player_name → Set<item_id>
+        const ownedMap = new Map<string, Set<string>>();
+        allDists.forEach(d => {
+          if (!ownedMap.has(d.player_name)) ownedMap.set(d.player_name, new Set());
+          ownedMap.get(d.player_name)!.add(d.item_id);
+        });
+
+        const collItemsWithData = collItems.map(ci => {
+          const item = items.find(i => i.id === ci.item_id);
+          return { ...ci, item };
+        });
+
+        const playersWithOwnership = Array.from(ownedMap.entries())
+          .map(([name, itemSet]) => ({ name, itemSet }))
+          .sort((a, b) => a.name.localeCompare(b.name));
+
+        // Collection LIST mode
+        if (collectionMode === "list") return (
+          <div className="space-y-6">
+            {showCreateCollection && (
+              <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-4 space-y-3">
+                <h4 className="text-xs font-semibold text-[#fafafa]">New Collection</h4>
+                <div className="flex items-center gap-2">
+                  <input
+                    value={newCollectionName}
+                    onChange={e => setNewCollectionName(e.target.value)}
+                    placeholder="Collection name (e.g., Mounts)"
+                    className="flex-1 px-3 py-2 bg-[#09090b] border border-[#27272a] rounded-lg text-sm text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#3f3f46]"
+                    autoFocus
+                    onKeyDown={e => {
+                      if (e.key === "Enter" && newCollectionName.trim()) {
+                        createCollection(serverId!, newCollectionName.trim(), currentServer?.owner_id)
+                          .then(() => { queryClient.invalidateQueries({ queryKey: ["collections", serverId] }); setShowCreateCollection(false); setNewCollectionName(""); toast("success", "Collection created!"); })
+                          .catch(() => toast("error", "Failed to create collection"));
+                      }
+                    }}
+                  />
+                  <button
+                    onClick={() => {
+                      if (!newCollectionName.trim()) return;
+                      createCollection(serverId!, newCollectionName.trim(), currentServer?.owner_id)
+                        .then(() => { queryClient.invalidateQueries({ queryKey: ["collections", serverId] }); setShowCreateCollection(false); setNewCollectionName(""); toast("success", "Collection created!"); })
+                        .catch(() => toast("error", "Failed to create collection"));
+                    }}
+                    className="px-3 py-2 rounded-lg text-xs font-medium bg-[#fafafa] text-[#09090b] hover:bg-[#e4e4e7] transition"
+                  >Create</button>
+                  <button onClick={() => { setShowCreateCollection(false); setNewCollectionName(""); }} className="px-3 py-2 rounded-lg text-xs font-medium bg-[#27272a] text-[#d4d4d8] hover:bg-[#3f3f46] transition">Cancel</button>
+                </div>
+              </div>
+            )}
+
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-[#fafafa] flex items-center gap-2">
+                <Star className="w-4 h-4 text-[#f59e0b]" />Item Collections
+              </h3>
+              <button
+                onClick={() => setShowCreateCollection(true)}
+                className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium bg-[#fafafa] text-[#09090b] hover:bg-[#e4e4e7] transition"
+              >
+                <Plus className="w-3 h-3" />New Collection
+              </button>
+            </div>
+
+            {collectionsLoading ? (
+              <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 text-[#71717a] animate-spin" /></div>
+            ) : collections.length === 0 ? (
+              <p className="text-sm text-[#71717a] text-center py-8">No collections yet. Create one to get started.</p>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {collections.map(c => (
+                  <div key={c.id} className="bg-[#18181b] border border-[#27272a] rounded-xl p-4 hover:border-[#3f3f46] transition group">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="text-sm font-medium text-[#fafafa]">{c.name}</h4>
+                        <p className="text-[10px] text-[#52525b] mt-0.5">Created {new Date(c.created_at).toLocaleDateString()}</p>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => { setSelectedCollection(c.id); setCollectionMode("view"); }}
+                          className="p-1.5 text-[#52525b] hover:text-[#d4d4d8] transition"
+                          title="View Items"
+                        ><Eye className="w-3.5 h-3.5" /></button>
+                        <button
+                          onClick={() => { setSelectedCollection(c.id); setCollectionMode("matrix"); }}
+                          className="p-1.5 text-[#52525b] hover:text-[#a1a1aa] transition"
+                          title="View Matrix"
+                        ><BarChart3 className="w-3.5 h-3.5" /></button>
+                        <button
+                          onClick={() => {
+                            if (confirm(`Delete collection "${c.name}"?`)) {
+                              deleteCollection(c.id).then(() => queryClient.invalidateQueries({ queryKey: ["collections", serverId] }));
+                            }
+                          }}
+                          className="p-1.5 text-[#52525b] hover:text-[#f87171] transition"
+                          title="Delete"
+                        ><Trash2 className="w-3.5 h-3.5" /></button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
-        </div>
-      )}
+        );
+
+        // Collection VIEW mode (manage items)
+        if (collectionMode === "view" && selectedCollection) {
+          const availableItems = items.filter(i => !collItemIds.has(i.id));
+          const filteredAvailable = collectionItemSearch
+            ? availableItems.filter(i => i.name.toLowerCase().includes(collectionItemSearch.toLowerCase()))
+            : availableItems;
+
+          return (
+            <div className="space-y-6">
+              <div className="flex items-center gap-3">
+                <button onClick={() => { setCollectionMode("list"); setSelectedCollection(null); setCollectionItemSearch(""); }} className="p-1 text-[#a1a1aa] hover:text-[#fafafa] transition"><ArrowLeft className="w-4 h-4" /></button>
+                <div>
+                  <h3 className="text-sm font-semibold text-[#fafafa]">{currentCollection?.name}</h3>
+                  <p className="text-[10px] text-[#52525b]">{collItems.length} item{collItems.length !== 1 ? "s" : ""} in collection</p>
+                </div>
+                <div className="flex-1" />
+                <button
+                  onClick={() => setCollectionMode("matrix")}
+                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium bg-[#27272a] text-[#d4d4d8] hover:bg-[#3f3f46] transition"
+                ><BarChart3 className="w-3 h-3" />View Matrix</button>
+              </div>
+
+              {/* Items already in collection */}
+              <div>
+                <h4 className="text-xs font-semibold text-[#d4d4d8] mb-2">Collection Items</h4>
+                {collItemsWithData.length === 0 ? (
+                  <p className="text-xs text-[#52525b] py-4">No items in this collection yet.</p>
+                ) : (
+                  <div className="flex flex-wrap gap-1.5">
+                    {collItemsWithData.map(ci => {
+                      const rc = ci.item?.rarity ? RARITY_COLORS[ci.item.rarity.toLowerCase() as ItemRarity] : "#a1a1aa";
+                      return (
+                        <span key={ci.id} className="inline-flex items-center gap-1.5 text-[10px] font-medium px-2 py-1 rounded border border-[#27272a] bg-[#09090b]" style={{ color: rc, borderColor: rc + "30" }}>
+                          {ci.item?.image_url && <img src={ci.item.image_url} alt="" className="w-4 h-4 rounded object-cover" />}
+                          {ci.item?.name ?? "Unknown"}
+                          <button
+                            onClick={() => {
+                              removeItemFromCollection(selectedCollection!, ci.item_id)
+                                .then(() => queryClient.invalidateQueries({ queryKey: ["collectionItems", selectedCollection] }));
+                            }}
+                            className="ml-1 text-[#71717a] hover:text-[#f87171]"
+                          ><X className="w-2.5 h-2.5" /></button>
+                        </span>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Available items to add */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="text-xs font-semibold text-[#d4d4d8]">Catalog Items</h4>
+                  <div className="relative">
+                    <Search className="w-3 h-3 text-[#52525b] absolute left-2 top-1/2 -translate-y-1/2" />
+                    <input
+                      value={collectionItemSearch}
+                      onChange={e => setCollectionItemSearch(e.target.value)}
+                      placeholder="Search..."
+                      className="w-40 pl-6 pr-2 py-1 text-[11px] bg-[#09090b] border border-[#27272a] rounded-lg text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#3f3f46]"
+                    />
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-1.5 max-h-64 overflow-y-auto">
+                  {filteredAvailable.slice(0, 50).map(item => {
+                    const rc = item.rarity ? RARITY_COLORS[item.rarity.toLowerCase() as ItemRarity] : "#a1a1aa";
+                    return (
+                      <button
+                        key={item.id}
+                        onClick={() => {
+                          addItemToCollection(selectedCollection!, item.id)
+                            .then(() => { queryClient.invalidateQueries({ queryKey: ["collectionItems", selectedCollection] }); toast("success", `Added ${item.name}`); })
+                            .catch(() => toast("error", "Failed to add item"));
+                        }}
+                        className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-1 rounded border border-[#27272a] hover:border-[#3f3f46] transition text-left"
+                        style={{ color: rc }}
+                        title={item.name}
+                      >
+                        <Plus className="w-2.5 h-2.5 shrink-0" />
+                        <span className="truncate max-w-[150px]">{item.name}</span>
+                      </button>
+                    );
+                  })}
+                  {filteredAvailable.length === 0 && <p className="text-xs text-[#52525b] py-2 w-full">No matching items.</p>}
+                </div>
+              </div>
+            </div>
+          );
+        }
+
+        // Collection MATRIX mode
+        if (collectionMode === "matrix" && selectedCollection) {
+          const matrixItems = collItemsWithData.filter(ci => ci.item);
+          return (
+            <div className="space-y-6">
+              <div className="flex items-center gap-3">
+                <button onClick={() => { setCollectionMode("view"); }} className="p-1 text-[#a1a1aa] hover:text-[#fafafa] transition"><ArrowLeft className="w-4 h-4" /></button>
+                <div>
+                  <h3 className="text-sm font-semibold text-[#fafafa]">{currentCollection?.name} — Ownership</h3>
+                  <p className="text-[10px] text-[#52525b]">{playersWithOwnership.length} players · {matrixItems.length} items</p>
+                </div>
+              </div>
+
+              {matrixItems.length === 0 ? (
+                <p className="text-sm text-[#52525b] text-center py-8">Add items to this collection first.</p>
+              ) : (
+                <div className="bg-[#18181b] border border-[#27272a] rounded-xl overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className="border-b border-[#27272a] bg-[#18181b]">
+                          <th className="sticky left-0 bg-[#18181b] text-left px-4 py-2.5 text-[10px] text-[#71717a] uppercase tracking-wider font-medium min-w-[140px]">Player</th>
+                          {matrixItems.map(ci => (
+                            <th key={ci.item_id} className="px-3 py-2.5 text-center text-[10px] text-[#71717a] uppercase tracking-wider font-medium min-w-[80px]">
+                              <div className="flex flex-col items-center gap-1">
+                                {ci.item?.image_url && <img src={ci.item.image_url} alt="" className="w-5 h-5 rounded object-cover" />}
+                                <span className="truncate max-w-[70px]" style={{ color: ci.item?.rarity ? RARITY_COLORS[ci.item.rarity.toLowerCase() as ItemRarity] : "#a1a1aa" }}>{ci.item?.name ?? "?"}</span>
+                              </div>
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {playersWithOwnership.length === 0 ? (
+                          <tr><td colSpan={matrixItems.length + 1} className="text-center py-8 text-[#52525b]">No distribution data yet.</td></tr>
+                        ) : (
+                          playersWithOwnership.map(p => (
+                            <tr key={p.name} className="border-b border-[#27272a]/50 hover:bg-[#09090b]/30 transition">
+                              <td className="sticky left-0 bg-[#18181b] px-4 py-2.5 text-[#fafafa] font-medium text-xs">{p.name}</td>
+                              {matrixItems.map(ci => (
+                                <td key={ci.item_id} className="px-3 py-2.5 text-center">
+                                  {p.itemSet.has(ci.item_id) ? (
+                                    <span className="inline-flex items-center gap-1 text-[10px] font-medium text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">✓ Owned</span>
+                                  ) : (
+                                    <span className="text-[10px] text-[#3f3f46]">—</span>
+                                  )}
+                                </td>
+                              ))}
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        }
+
+        return null;
+      })()}
 
       {/* ── History Tab ── */}
       {tab === "history" && (
