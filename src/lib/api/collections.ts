@@ -12,6 +12,7 @@ export type ItemCollectionItem = {
   id: string;
   collection_id: string;
   item_id: string;
+  sort_order: number;
   added_at: string;
 };
 
@@ -45,15 +46,32 @@ export async function fetchCollectionItems(collectionId: string): Promise<ItemCo
     .from("item_collection_items")
     .select("*")
     .eq("collection_id", collectionId)
-    .order("added_at");
+    .order("sort_order");
   if (error) throw error;
   return data || [];
 }
 
 export async function addItemToCollection(collectionId: string, itemId: string): Promise<void> {
+  // Get next sort_order
+  const { data: existing } = await supabase
+    .from("item_collection_items")
+    .select("sort_order")
+    .eq("collection_id", collectionId)
+    .order("sort_order", { ascending: false })
+    .limit(1);
+  const nextOrder = (existing?.[0]?.sort_order ?? -1) + 1;
   const { error } = await supabase
     .from("item_collection_items")
-    .insert({ collection_id: collectionId, item_id: itemId });
+    .insert({ collection_id: collectionId, item_id: itemId, sort_order: nextOrder });
+  if (error) throw error;
+}
+
+export async function reorderCollectionItem(collectionId: string, itemId: string, newOrder: number): Promise<void> {
+  const { error } = await supabase
+    .from("item_collection_items")
+    .update({ sort_order: newOrder })
+    .eq("collection_id", collectionId)
+    .eq("item_id", itemId);
   if (error) throw error;
 }
 

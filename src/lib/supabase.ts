@@ -293,6 +293,7 @@ export {
   fetchCollectionItems,
   addItemToCollection,
   removeItemFromCollection,
+  reorderCollectionItem,
   fetchServerDistributions,
 } from "./api/collections";
 export type { ItemCollection, ItemCollectionItem } from "./api/collections";

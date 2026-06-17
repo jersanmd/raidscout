@@ -8,7 +8,7 @@ import {
   supabase as supabaseClient,
   fetchItemCategories, fetchItemRarities, fetchGuilds,
   fetchCollections, createCollection, deleteCollection,
-  fetchCollectionItems, addItemToCollection, removeItemFromCollection,
+  fetchCollectionItems, addItemToCollection, removeItemFromCollection, reorderCollectionItem,
   fetchServerDistributions,
 } from "@/lib/supabase";
 import { useServerId, useServer } from "@/contexts/ServerContext";
@@ -19,7 +19,7 @@ import { guildColor } from "@/lib/constants";
 import type { Item, Distribution, ItemRarity } from "@/types";
 import {
   Package, Plus, Trash2, Loader2, Search, Gift, History, BarChart3,
-  X, ChevronRight, ArrowLeft, Image, Star, Upload, Minus, Pencil, Box, Users, Check,
+  X, ChevronRight, ChevronUp, ChevronDown, ArrowLeft, Image, Star, Upload, Minus, Pencil, Box, Users, Check,
   Sword, Shield, Wand, Skull, Flame, Sparkles, Zap, Heart, Eye, Anchor, Footprints, Swords, Crosshair, Bone,
 } from "lucide-react";
 
@@ -792,17 +792,50 @@ export function InventoryView() {
 
               {/* Items already in collection */}
               <div>
-                <h4 className="text-xs font-semibold text-[#d4d4d8] mb-2">Collection Items</h4>
+                <h4 className="text-xs font-semibold text-[#d4d4d8] mb-2">Collection Items ({collItemsWithData.length})</h4>
                 {collItemsWithData.length === 0 ? (
                   <p className="text-xs text-[#52525b] py-4">No items in this collection yet.</p>
                 ) : (
                   <div className="flex flex-wrap gap-1.5">
-                    {collItemsWithData.map(ci => {
+                    {collItemsWithData
+                      .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+                      .map((ci, idx, arr) => {
                       const rc = ci.item?.rarity ? RARITY_COLORS[ci.item.rarity.toLowerCase() as ItemRarity] : "#a1a1aa";
+                      const isFirst = idx === 0;
+                      const isLast = idx === arr.length - 1;
                       return (
-                        <span key={ci.id} className="inline-flex items-center gap-1.5 text-[10px] font-medium px-2 py-1 rounded border border-[#27272a] bg-[#09090b]" style={{ color: rc, borderColor: rc + "30" }}>
-                          {ci.item?.image_url && <img src={ci.item.image_url} alt="" className="w-4 h-4 rounded object-cover" />}
-                          {ci.item?.name ?? "Unknown"}
+                        <span key={ci.id} className="inline-flex items-center gap-1 text-[10px] font-medium rounded border border-[#27272a] bg-[#09090b] overflow-hidden" style={{ color: rc, borderColor: rc + "30" }}>
+                          {/* Reorder buttons */}
+                          <span className="flex flex-col border-r border-[#27272a]">
+                            <button
+                              onClick={() => {
+                                const prev = arr[idx - 1];
+                                if (!prev) return;
+                                reorderCollectionItem(selectedCollection!, ci.item_id, prev.sort_order ?? idx - 1)
+                                  .then(() => reorderCollectionItem(selectedCollection!, prev.item_id, ci.sort_order ?? idx))
+                                  .then(() => queryClient.invalidateQueries({ queryKey: ["collectionItems", selectedCollection] }));
+                              }}
+                              disabled={isFirst}
+                              className="px-0.5 py-0.5 text-[#52525b] hover:text-[#d4d4d8] disabled:opacity-30 disabled:cursor-default transition"
+                              title="Move up"
+                            ><ChevronUp className="w-2.5 h-2.5" /></button>
+                            <button
+                              onClick={() => {
+                                const next = arr[idx + 1];
+                                if (!next) return;
+                                reorderCollectionItem(selectedCollection!, ci.item_id, next.sort_order ?? idx + 1)
+                                  .then(() => reorderCollectionItem(selectedCollection!, next.item_id, ci.sort_order ?? idx))
+                                  .then(() => queryClient.invalidateQueries({ queryKey: ["collectionItems", selectedCollection] }));
+                              }}
+                              disabled={isLast}
+                              className="px-0.5 py-0.5 text-[#52525b] hover:text-[#d4d4d8] disabled:opacity-30 disabled:cursor-default transition border-t border-[#27272a]"
+                              title="Move down"
+                            ><ChevronDown className="w-2.5 h-2.5" /></button>
+                          </span>
+                          <span className="flex items-center gap-1.5 px-2 py-1">
+                            {ci.item?.image_url && <img src={ci.item.image_url} alt="" className="w-4 h-4 rounded object-cover" />}
+                            {ci.item?.name ?? "Unknown"}
+                          </span>
                           <button
                             onClick={() => {
                               removeItemFromCollection(selectedCollection!, ci.item_id)
