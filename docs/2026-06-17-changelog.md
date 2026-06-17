@@ -23,3 +23,20 @@
 
 - **`!nextspawn` timezone fix** — `dayLabel` now uses server timezone instead of bot's UTC clock. Spawns at 1:43 AM UTC correctly grouped under "Tomorrow" for Asia/Manila servers.
 - **Role resolution improvement** — `resolvePrefix` progressively shortens word combinations to match roles with display text appended (e.g., `@RoleName | extra text`).
+
+## 🛠️ Admin Panel
+
+- **Vertical sidebar** — Admin Panel now has a vertical sidebar (hidden on mobile) with all 9 admin tabs: Infra, Games, Servers, Users, Owners, Audit, Database, Test Cron, Deleted. Mobile retains a bottom nav bar with the 5 most-used tabs.
+- **Footer pinned to bottom** — Admin Panel footer now sticks to the bottom of the viewport, matching the main Layout behavior.
+- **Bot Status cards updated** — Memory display corrected from `512 MB` to `1024 MB`. Region now shows the live `FLY_REGION` env var (dynamic) instead of hardcoded `sin`.
+
+## 🔧 Infrastructure
+
+- **Bot retry logic** — Supabase queries now retry up to 3 times with exponential backoff (1s → 2s → 4s) on `fetch failed` errors and 5xx responses. Reduces transient failure impact during network blips.
+- **Spawn cron concurrency reduced** — Concurrent server checks lowered from 10 → 5 to reduce peak request pressure on Supabase.
+- **Bot moved to Tokyo** — fly.io bot machine relocated from Singapore (`sin`) to Tokyo (`nrt`) to resolve persistent Cloudflare 521/522 origin connectivity issues.
+
+## ⚙️ Discord Integrations
+
+- **More command prefixes** — Added 7 new prefix options: `/`, `//`, `!!`, `!?`, `..`, `|`, `>`. Total of 25 prefixes available.
+- **Prefix matching fix** — Bot now sorts prefixes longest-first before matching, so `//` won't be incorrectly matched by `/`, and `!?` won't be caught by `!`.

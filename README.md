@@ -112,7 +112,7 @@ and responds to prefix commands:
 
 **Bot highlights:**
 
-- **Multi-prefix support** — Each linked Discord server can use a different prefix (`!` `;` `$` `rs!` `boss!` etc.). Same Discord server can be linked multiple times with different prefixes.
+- **Multi-prefix support** — Each linked Discord server can use a different prefix (25 options: `!` `;` `$` `/` `//` `!!` `!?` `..` `rs!` `boss!` and more). Same Discord server can be linked multiple times with different prefixes.
 - **Custom command aliases** — Rename any command per server (e.g., `!s` → `!spawn`, `!k` → `!killed`)
 - **Day-grouped spawns** — `!nextspawn` groups bosses by day (Today, Tomorrow, etc.) using the server's configured timezone, with Discord native 12hr timestamps and live relative times.
 - **Role ping with spaces** — Ping roles with spaces in their names (e.g., `@Y2 | MC丶AngBeat`). The bot matches progressively shorter word combinations against the guild's role list.
@@ -520,7 +520,7 @@ the `vercel.json` in the repo handles SPA routing and cache headers.
 
 ### Discord Bot Hosting (Fly.io)
 
-The bot process runs on Fly.io for 24/7 uptime. Deploy with:
+The bot process runs on Fly.io (Tokyo region) for 24/7 uptime. Deploy with:
 
 ```bash
 npm run build:bot
