@@ -2313,7 +2313,7 @@ export function ServerSettingsView() {
                               className="text-xs font-bold font-mono text-[#fafafa] bg-[#27272a] px-2 py-1 rounded border-none outline-none cursor-pointer"
                             >
                               {(() => {
-                                const allPrefixes = ["!",";","$",".","~","?","%","&","-","+","=",":","rs!","rs;","rs.","rb!","rb;","boss!","boss;"];
+                                const allPrefixes = ["!",";","$",".","~","?","%","&","-","+","=",":","/","//","!!","!?","..","|",">","rs!","rs;","rs.","rb!","rb;","boss!","boss;"];
                                 const myGuildId = editLinkValues.discord_guild_id.trim();
                                 const currentPrefix = editLinkValues.command_prefix;
                                 const taken = new Set<string>();

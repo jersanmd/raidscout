@@ -18,7 +18,7 @@ export async function getGuildPrefixes(guildId: string): Promise<string[]> {
   const rows = await supabaseQuerySafe(
     `discord_configs?discord_guild_id=eq.${guildId}&select=command_prefix`,
   );
-  const prefixes: string[] = rows?.map((r: any) => r.command_prefix) ?? [];
+  const prefixes: string[] = (rows?.map((r: any) => r.command_prefix) ?? []).sort((a, b) => b.length - a.length);
   guildPrefixes.set(guildId, { prefixes, cachedAt: Date.now() });
   return prefixes;
 }
