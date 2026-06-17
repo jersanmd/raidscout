@@ -5,12 +5,11 @@ import { fetchAllServers, fetchAllUsers, fetchAuditLog, fetchServerStats, fetchD
 import { useServer } from "@/contexts/ServerContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
-import { Loader2, Shield, Server, Users, Eye, ChevronDown, ChevronUp, ClipboardList, HardDrive, BarChart3, Crosshair, Skull, Activity, Radio, Clock, Trash2, RefreshCw, LogOut, Gamepad2, Globe, ExternalLink, Search, AlertTriangle, Crown, ScrollText } from "lucide-react";
+import { Loader2, Shield, Server, Users, Eye, ChevronDown, ChevronUp, ClipboardList, HardDrive, BarChart3, Crosshair, Skull, Activity, Radio, Clock, Trash2, RefreshCw, LogOut, Gamepad2, Globe, Search, AlertTriangle, Crown, ScrollText } from "lucide-react";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { AdminGamesTab } from "@/components/AdminGamesTab";
 import { useUserTimezone } from "@/hooks/useUserTimezone";
 import { TIMEZONES } from "@/lib/timezones";
-import { version } from "../../package.json";
 
 export function AdminPanelView() {
   const [tab, setTab] = useState<"servers" | "users" | "audit" | "games" | "infra" | "database" | "cron" | "deleted" | "owners">("infra");
@@ -1343,31 +1342,14 @@ export function AdminPanelView() {
       </div>{/* close content wrapper */}
 
       {/* Footer — same as main Layout */}
-      <footer className="border-t border-[#27272a] bg-[#09090b] pb-16 md:pb-0">
-        <div className="max-w-[90rem] mx-auto px-4 py-5 space-y-3">
-          <div className="flex items-center gap-2 text-xs text-[#71717a]">
-            <img src="/logo.png" alt="" className="w-4 h-4 rounded opacity-40" />
-            <span>RaidScout — Track boss respawn timers across any game, schedule hunts, and monitor member performance across your guild. </span>
-          </div>
-          <div>
-            <span className="text-[11px] font-semibold text-[#52525b] uppercase tracking-wider">Resources</span>
-            <div className="flex items-center gap-3 text-xs text-[#a1a1aa] flex-wrap mt-1">
-              <a href="https://discord.gg/738AmkeQtU" target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 hover:text-[#5865f2] transition" title="Join our Discord community">
-                <ExternalLink className="w-3 h-3" />
-                Discord
-              </a>
-              <a href="https://www.facebook.com/profile.php?id=61590144185090" target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 hover:text-[#1877f2] transition" title="Follow us on Facebook">
-                <ExternalLink className="w-3 h-3" />
-                Facebook
-              </a>
-              <Link to="/terms" className="hover:text-[#d4d4d8] transition">Terms</Link>
-              <Link to="/privacy" className="hover:text-[#d4d4d8] transition">Privacy</Link>
-              <Link to="/changelog" className="hover:text-[#d4d4d8] transition">Changelog</Link>
-            </div>
-          </div>
-          <div className="flex items-center gap-4 text-xs text-[#fafafa]/20">
-            <span>v{version}</span>
-            <span>© 2026 RaidScout. All rights reserved.</span>
+      <footer className="hidden md:block shrink-0 border-t border-[#1a1a1e] bg-[#09090b]">
+        <div className="px-4 py-2 flex items-center justify-between text-[11px] text-[#52525b]">
+          <span>© {new Date().getFullYear()} RaidScout. All rights reserved.</span>
+          <div className="flex items-center gap-3">
+            <Link to="/terms" className="hover:text-[#a1a1aa] transition">Terms</Link>
+            <Link to="/privacy" className="hover:text-[#a1a1aa] transition">Privacy</Link>
+            <Link to="/refund" className="hover:text-[#a1a1aa] transition">Refunds</Link>
+            <Link to="/changelog" className="hover:text-[#a1a1aa] transition">Changelog</Link>
           </div>
         </div>
       </footer>
