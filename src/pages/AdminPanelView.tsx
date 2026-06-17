@@ -5,7 +5,7 @@ import { fetchAllServers, fetchAllUsers, fetchAuditLog, fetchServerStats, fetchD
 import { useServer } from "@/contexts/ServerContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
-import { Loader2, Shield, Server, Users, Eye, ChevronDown, ChevronUp, ClipboardList, HardDrive, BarChart3, Crosshair, Skull, Activity, Radio, Clock, Trash2, RefreshCw, LogOut, Gamepad2, Globe, ExternalLink, Search, AlertTriangle } from "lucide-react";
+import { Loader2, Shield, Server, Users, Eye, ChevronDown, ChevronUp, ClipboardList, HardDrive, BarChart3, Crosshair, Skull, Activity, Radio, Clock, Trash2, RefreshCw, LogOut, Gamepad2, Globe, ExternalLink, Search, AlertTriangle, Crown, ScrollText } from "lucide-react";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { AdminGamesTab } from "@/components/AdminGamesTab";
 import { useUserTimezone } from "@/hooks/useUserTimezone";
@@ -283,8 +283,9 @@ export function AdminPanelView() {
         </div>
       </div>
 
-      <div className="w-full max-w-[100%] 2xl:max-w-[1600px] mx-auto px-3 sm:px-4 py-4 sm:py-6 space-y-4 sm:space-y-6 flex-1 overflow-x-hidden min-w-0 pb-20">
-      <div className="flex items-center gap-3">
+      <div className="w-full max-w-[100%] 2xl:max-w-[1600px] mx-auto px-3 sm:px-4 py-4 sm:py-6 flex-1 overflow-x-hidden min-w-0 pb-20">
+      {/* Header */}
+      <div className="flex items-center gap-3 mb-4">
         <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-[#18181b] border border-[#27272a]">
           <Shield className="w-5 h-5 text-[#fafafa]" />
         </div>
@@ -294,101 +295,34 @@ export function AdminPanelView() {
         </div>
       </div>
 
-      {/* Tabs — desktop: all tabs inline; mobile: top-level + subtabs */}
-
-      {/* Mobile: Servers subtabs (shown above content when Servers is active) */}
-      {(tab === "servers" || tab === "database" || tab === "cron" || tab === "deleted") && (
-        <div className="flex md:hidden flex-wrap bg-[#18181b]/50 rounded-lg p-0.5 gap-0.5 mb-3">
-          <button onClick={() => { setTab("servers"); setServerSubtab("servers"); }} className={`px-3 py-2 rounded-md text-xs font-medium transition whitespace-nowrap ${tab === "servers" ? "bg-[#27272a] text-[#fafafa]" : "text-[#71717a] hover:text-[#d4d4d8]"}`}>
-            Servers ({servers.length})
-          </button>
-          <button onClick={() => { setTab("database"); setServerSubtab("database"); }} className={`px-3 py-2 rounded-md text-xs font-medium transition whitespace-nowrap ${tab === "database" ? "bg-[#27272a] text-[#fafafa]" : "text-[#71717a] hover:text-[#d4d4d8]"}`}>
-            <HardDrive className="w-3.5 h-3.5 inline mr-1" /> Database
-          </button>
-          <button onClick={() => { setTab("cron"); setServerSubtab("cron"); }} className={`px-3 py-2 rounded-md text-xs font-medium transition whitespace-nowrap ${tab === "cron" ? "bg-[#27272a] text-[#fafafa]" : "text-[#71717a] hover:text-[#d4d4d8]"}`}>
-            <Clock className="w-3.5 h-3.5 inline mr-1" /> Test Cron
-          </button>
-          <button onClick={() => { setTab("deleted"); setServerSubtab("deleted"); }} className={`px-3 py-2 rounded-md text-xs font-medium transition whitespace-nowrap ${tab === "deleted" ? "bg-[#27272a] text-[#fafafa]" : "text-[#71717a] hover:text-[#d4d4d8]"}`}>
-            <Trash2 className="w-3.5 h-3.5 inline mr-1" /> Deleted
-          </button>
+      {/* Layout: Sidebar + Content */}
+      <div className="flex gap-4 items-start">
+        {/* Sidebar — vertical tab list */}
+        <div className="hidden md:flex flex-col w-44 shrink-0 bg-[#18181b] rounded-lg p-1 gap-0.5 sticky top-4">
+          {([
+            { id: "infra", icon: Radio, label: "Infra" },
+            { id: "games", icon: Gamepad2, label: "Games" },
+            { id: "servers", icon: Server, label: `Servers (${servers.length})` },
+            { id: "users", icon: Users, label: `Users (${users.length})` },
+            { id: "owners", icon: Crown, label: "Owners" },
+            { id: "audit", icon: ScrollText, label: "Audit" },
+            { id: "database", icon: HardDrive, label: "Database" },
+            { id: "cron", icon: Clock, label: "Test Cron" },
+            { id: "deleted", icon: Trash2, label: "Deleted" },
+          ] as const).map(({ id, icon: Icon, label }) => (
+            <button
+              key={id}
+              onClick={() => { setTab(id); if (["servers","database","cron","deleted"].includes(id)) setServerSubtab(id as any); }}
+              className={`flex items-center gap-2 px-3 py-2 rounded-md text-xs font-medium transition text-left ${tab === id ? "bg-[#27272a] text-[#fafafa]" : "text-[#a1a1aa] hover:text-[#e4e4e7] hover:bg-[#27272a]/50"}`}
+            >
+              <Icon className="w-3.5 h-3.5 shrink-0" />
+              {label}
+            </button>
+          ))}
         </div>
-      )}
 
-      {/* Desktop: all tabs inline */}
-      <div className="hidden md:flex flex-wrap bg-[#18181b] rounded-lg p-0.5 gap-0.5">
-        <button
-          onClick={() => setTab("infra")}
-          className={`flex items-center justify-center gap-1.5 px-2 sm:px-3 py-2 rounded-md text-xs sm:text-sm font-medium transition whitespace-nowrap shrink-0 ${
-            tab === "infra" ? "bg-[#27272a] text-[#fafafa]" : "text-[#a1a1aa] hover:text-[#e4e4e7]"
-          }`}
-        >
-          <Radio className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-          Infra
-        </button>
-        <button
-          onClick={() => setTab("games")}
-          className={`flex items-center justify-center gap-1.5 px-2 sm:px-3 py-2 rounded-md text-xs sm:text-sm font-medium transition whitespace-nowrap shrink-0 ${
-            tab === "games" ? "bg-[#27272a] text-[#fafafa]" : "text-[#a1a1aa] hover:text-[#e4e4e7]"
-          }`}
-        >
-          <Gamepad2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-          Games
-        </button>
-        <button
-          onClick={() => setTab("servers")}
-          className={`flex items-center justify-center gap-1.5 px-2 sm:px-3 py-2 rounded-md text-xs sm:text-sm font-medium transition whitespace-nowrap shrink-0 ${
-            tab === "servers" ? "bg-[#27272a] text-[#fafafa]" : "text-[#a1a1aa] hover:text-[#e4e4e7]"
-          }`}
-        >
-          <Server className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-          Servers ({servers.length})
-        </button>
-        <button
-          onClick={() => setTab("users")}
-          className={`flex items-center justify-center gap-1.5 px-2 sm:px-3 py-2 rounded-md text-xs sm:text-sm font-medium transition whitespace-nowrap shrink-0 ${
-            tab === "users" ? "bg-[#27272a] text-[#fafafa]" : "text-[#a1a1aa] hover:text-[#e4e4e7]"
-          }`}
-        >
-          <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-          Owners ({users.length})
-        </button>
-        <button
-          onClick={() => setTab("audit")}
-          className={`flex items-center justify-center gap-1.5 px-2 sm:px-3 py-2 rounded-md text-xs sm:text-sm font-medium transition whitespace-nowrap shrink-0 ${
-            tab === "audit" ? "bg-[#27272a] text-[#fafafa]" : "text-[#a1a1aa] hover:text-[#e4e4e7]"
-          }`}
-        >
-          <ClipboardList className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-          Audit
-        </button>
-        <button
-          onClick={() => setTab("database")}
-          className={`flex items-center justify-center gap-1.5 px-2 sm:px-3 py-2 rounded-md text-xs sm:text-sm font-medium transition whitespace-nowrap shrink-0 ${
-            tab === "database" ? "bg-[#27272a] text-[#fafafa]" : "text-[#a1a1aa] hover:text-[#e4e4e7]"
-          }`}
-        >
-          <HardDrive className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-          Database
-        </button>
-        <button
-          onClick={() => setTab("cron")}
-          className={`flex items-center justify-center gap-1.5 px-2 sm:px-3 py-2 rounded-md text-xs sm:text-sm font-medium transition whitespace-nowrap shrink-0 ${
-            tab === "cron" ? "bg-[#27272a] text-[#fafafa]" : "text-[#a1a1aa] hover:text-[#e4e4e7]"
-          }`}
-        >
-          <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-          Test Cron
-        </button>
-        <button
-          onClick={() => setTab("deleted")}
-          className={`flex items-center justify-center gap-1.5 px-2 sm:px-3 py-2 rounded-md text-xs sm:text-sm font-medium transition whitespace-nowrap shrink-0 ${
-            tab === "deleted" ? "bg-[#27272a] text-[#fafafa]" : "text-[#a1a1aa] hover:text-[#e4e4e7]"
-          }`}
-        >
-          <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-          Deleted
-        </button>
-      </div>
+        {/* Content area */}
+        <div className="flex-1 min-w-0">
 
       {/* Servers Tab */}
       {tab === "servers" && (
@@ -1522,6 +1456,8 @@ export function AdminPanelView() {
           </div>
         </div>
       )}
+        </div>{/* close content area */}
+      </div>{/* close flex sidebar+content */}
     </div>
   );
 }
