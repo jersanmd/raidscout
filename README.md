@@ -229,14 +229,16 @@ Complete item and loot tracking across your entire guild:
 
 - **Catalog** — Browse all items with rarity-colored names, images, and search by name or category. Filter by rarity (Common → Mythic) or item type.
 - **Distribute** — Record who received which items. Each distribution links to a member and item with quantity tracking.
-- **Collections** — Group items into themed collections (e.g., "World Boss Drops"). View as premium cards, manage items with reorder, or use the ownership matrix to track who owns each item — with manual toggles, guild filters, sortable columns, and player search.
+- **Collections** — Group items into themed collections (e.g., "World Boss Drops"). View as premium cards, manage items with reorder, or use the ownership matrix to track who owns each item — with manual toggles, guild filters, sortable columns, player search, item sorting (click a column to sort owners first), and inline distribute button per player.
 - **History** — Full audit log of every item distributed. Search, filter by rarity, edit or delete entries (with type-to-confirm safety). White player names with colored class icons.
 - **Recipients** — Player-grouped view showing who got what, chronologically sorted. Guild filter with localStorage persistence. Click any player for a detailed loot history modal. Sort by name A-Z or most items.
 - **Analytics** — Category rarity stacked bar chart with inline labels. Top recipients leaderboard with guild badges. Click any item to see every recipient with guild and class badges.
 - **Search** — X clear buttons on all five search inputs across catalog, distribute, history, recipients, and analytics tabs.
 - **Rarity system** — Six tiers (Common, Uncommon, Rare, Epic, Legendary, Mythic) with distinct colors used across item badges, borders, and text.
 - **Class icons** — 20 class icons (Sword, Shield, Crossbow, etc.) with custom colors displayed next to player names across all tabs.
-- **URL-synced tabs** — All 5 inventory tabs sync to the browser URL, persisting on refresh.
+- **URL-synced tabs** — All 5 inventory tabs, plus History (Timeline/Ledger), Leaderboard (Reset/All Time), and Analytics (Week/Month/All Time) sync to the browser URL, persisting on refresh and share.
+- **Sticky matrix** — Ownership matrix headers and player column stay fixed while scrolling, matching the Ledger pattern.
+- **Sidebar** — Collapsed sidebar shows all server icons; hover to expand with matching positions.
 
 ### 👤 Member Profiles
 

@@ -41,7 +41,9 @@
 - **Verified column** — Admin Panel Users tab now shows a Verified/Unverified badge with checkmark/X icons.
 - **Inline Add Moderator** — Expanded server cards in Admin Panel → Servers now have an email input + Add button to add moderators directly.
 - **Admin email hidden** — Site admin emails are completely filtered out of the Server Settings → Members list. Server owners and moderators see only their own members.
-- **Permissions UX** — Moderator rows in Server Settings now show a clickable "⚙ Permissions" badge. Instructional text explains what each permission toggle gates.
+- **Permissions UX** — Moderator rows in Server Settings now show a clickable "⚙ Permissions" badge (wider, icon+text on one line). Instructional text explains what each permission toggle gates.
+- **Verified column fixed** — Now uses 5-second gap check between `email_confirmed_at` and `created_at` to distinguish auto-confirmed users from truly verified ones. RPC updated to include `email_confirmed_at` field.
+- **Owners tab removed** — "Owners" tab removed from Admin Panel sidebar (was just an alias for Users).
 
 ## 📦 Inventory Upgrades
 
@@ -53,6 +55,12 @@
 - **Matrix player search** — Search bar (far right) filters the matrix by player name.
 - **Matrix hover sync** — Sticky player name column now highlights in sync with the rest of the row.
 - **Inventory loading screen** — Spinner appears until members, guilds, and class data are fully loaded.
+
+- **Sticky matrix headers** — Item headers and player column now stay fixed when scrolling (same pattern as History → Ledger). Table container uses `overflow-auto max-h` for scrollable content with pinned headers.
+- **Matrix item sorting** — Click any item header to sort players by ownership (owners first ▼ → missing first ▲ → clear). Active sort highlights the header with a direction arrow.
+- **Matrix distribute button** — Each player row has a "+" button (appears on hover) that opens a modal to search items and instantly distribute. Table auto-refreshes after distribution.
+- **Recipients: all members** — Members with zero items received now appear in the recipients list. Toolbar rearranged: filters (Guild, Sort) on the left, search on the far right.
+- **Sidebar: all server icons** — Collapsed sidebar now shows all server icons (not just current). When hover-expanding, icon positions match the full sidebar.
 
 ## 🐛 Class Icons Fix
 
