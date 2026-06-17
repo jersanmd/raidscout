@@ -76,6 +76,7 @@ export function InventoryView() {
   const [collectionItemSearch, setCollectionItemSearch] = useState("");
   const [collCatFilter, setCollCatFilter] = useState("");
   const [collRarityFilter, setCollRarityFilter] = useState("");
+  const [matrixSort, setMatrixSort] = useState<"name" | "owned-desc" | "owned-asc">("name");
 
   const { data: collections = [], isLoading: collectionsLoading } = useQuery({
     queryKey: ["collections", serverId],
@@ -672,7 +673,11 @@ export function InventoryView() {
 
         const playersWithOwnership = Array.from(ownedMap.entries())
           .map(([name, sets]) => ({ name, distributed: sets.distributed, manual: sets.manual }))
-          .sort((a, b) => a.name.localeCompare(b.name));
+          .sort((a, b) => {
+            if (matrixSort === "owned-desc") return (b.distributed.size + b.manual.size) - (a.distributed.size + a.manual.size);
+            if (matrixSort === "owned-asc") return (a.distributed.size + a.manual.size) - (b.distributed.size + b.manual.size);
+            return a.name.localeCompare(b.name);
+          });
 
         // Collection LIST mode
         if (collectionMode === "list") return (
@@ -974,7 +979,15 @@ export function InventoryView() {
                     <table className="w-full text-xs">
                       <thead>
                         <tr className="border-b border-[#27272a] bg-[#18181b]">
-                          <th className="sticky left-0 bg-[#18181b] text-left px-4 py-2.5 text-[10px] text-[#71717a] uppercase tracking-wider font-medium min-w-[140px]">Player</th>
+                          <th className="sticky left-0 bg-[#18181b] text-left px-4 py-2.5 text-[10px] text-[#71717a] uppercase tracking-wider font-medium min-w-[140px]">
+                            <button
+                              onClick={() => setMatrixSort(ms => ms === "name" ? "owned-desc" : ms === "owned-desc" ? "owned-asc" : "name")}
+                              className="flex items-center gap-1 hover:text-[#d4d4d8] transition"
+                            >
+                              Player
+                              {matrixSort === "name" ? <ChevronUp className="w-3 h-3 opacity-30" /> : matrixSort === "owned-desc" ? <ChevronDown className="w-3 h-3" /> : <ChevronUp className="w-3 h-3" />}
+                            </button>
+                          </th>
                           {matrixItems.map(ci => (
                             <th key={ci.item_id} className="px-3 py-2.5 text-center text-[10px] text-[#71717a] uppercase tracking-wider font-medium min-w-[80px]">
                               <div className="flex flex-col items-center gap-1">
