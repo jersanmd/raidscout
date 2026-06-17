@@ -133,18 +133,13 @@ function AppRoutes() {
   // Use a single stable <Routes> tree to prevent Layout remounting
   return (
     <Routes>
-      {/* Admin panel — always accessible to admins, no server required */}
-      <Route path="/admin" element={
-        userRole === null ? (
-          <PageLoader />
-        ) : isAdmin ? (
-          <Suspense fallback={<PageLoader />}><AdminPanelView /></Suspense>
-        ) : (
-          <Navigate to="/" replace />
-        )
-      } />
+      {/* Admin panel — wrapper route with Layout sidebar & top bar, no server required */}
+      <Route element={isAdmin ? <Layout /> : <Navigate to="/" replace />}>
+        <Route path="/admin" element={<Suspense fallback={<PageLoader />}><AdminPanelView /></Suspense>} />
+      </Route>
 
       <Route
+        path="/"
         element={
           !ready ? (
             <div className="min-h-screen flex items-center justify-center bg-[#09090b]">
