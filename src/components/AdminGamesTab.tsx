@@ -27,7 +27,7 @@ import {
   Tags, Palette, Upload, Shield, ClipboardCheck, Check,
 } from "lucide-react";
 
-type Game = { id: string; name: string; slug: string; icon_url?: string | null; supported_spawn_types: string[]; created_at: string };
+type Game = { id: string; name: string; slug: string; icon_url?: string | null; supported_spawn_types: string[]; created_at: string; is_visible?: boolean };
 type BossTemplate = { id: string; game_id: string; name: string; spawn_type: string; respawn_hours?: number | null; schedule?: any; is_recurring: boolean; category?: string | null; tags?: string[]; points: number; image_url?: string | null };
 type ActivityTemplate = { id: string; game_id: string; name: string; schedule_type: string; schedule?: any; duration_minutes?: number | null; points_per_participant: number; party_size?: number | null; category?: string | null; tags?: string[]; image_url?: string | null };
 type ItemCatalogItem = { id: string; game: string; name: string; rarity: string; description?: string | null; image_url?: string | null; category_id?: string | null; created_by_username?: string | null };
@@ -238,7 +238,7 @@ export function AdminGamesTab() {
     setEditingGame(null); queryClient.invalidateQueries({ queryKey: ["admin", "games"] });
   };
   const handleToggleVisibility = async (game: Game) => {
-    const next = (game as any).is_visible === false ? true : false;
+    const next = game.is_visible === false ? true : false;
     setVisibilityConfirm({ id: game.id, name: game.name, next });
   };
   const confirmToggleVisibility = async () => {
@@ -362,12 +362,12 @@ export function AdminGamesTab() {
                 <div><div className="flex items-center gap-2"><span className="text-sm font-medium text-[#fafafa]">{game.name}</span><span className="text-xs px-1.5 py-0.5 rounded bg-[#27272a] text-[#a1a1aa] font-mono">{game.slug}</span></div><div className="flex items-center gap-2 mt-0.5">{(Array.isArray(game.supported_spawn_types) ? game.supported_spawn_types : []).map((t: string) => (<span key={t} className="text-xs px-1.5 py-0.5 rounded bg-[#27272a] text-[#a1a1aa]">{t}</span>))}</div></div>
               </button>
               <div className="flex items-center gap-1">
-                <button onClick={(e) => { e.stopPropagation(); handleToggleVisibility(game); }} title={(game as any).is_visible !== false ? "Hide from Create Server" : "Show in Create Server"} className="p-1.5 rounded transition">
-                  <div className={`relative w-8 h-4.5 rounded-full transition-colors ${(game as any).is_visible !== false ? "bg-emerald-500/50" : "bg-[#3f3f46]"}`}>
-                    <div className={`absolute top-0.5 w-3.5 h-3.5 rounded-full bg-[#fafafa] shadow transition-transform ${(game as any).is_visible !== false ? "left-4" : "left-0.5"}`} />
+                <button onClick={(e) => { e.stopPropagation(); handleToggleVisibility(game); }} title={game.is_visible !== false ? "Hide from Create Server" : "Show in Create Server"} className="p-1.5 rounded transition">
+                  <div className={`relative w-8 h-4.5 rounded-full transition-colors ${game.is_visible !== false ? "bg-emerald-500/50" : "bg-[#3f3f46]"}`}>
+                    <div className={`absolute top-0.5 w-3.5 h-3.5 rounded-full bg-[#fafafa] shadow transition-transform ${game.is_visible !== false ? "left-4" : "left-0.5"}`} />
                   </div>
                 </button>
-                <button onClick={() => setEditingGame({ id: game.id, name: game.name, slug: game.slug, icon_url: game.icon_url, supported_spawn_types: Array.isArray(game.supported_spawn_types) ? game.supported_spawn_types : [], is_visible: (game as any).is_visible })} className="p-1.5 text-[#71717a] hover:text-[#d4d4d8] transition"><Pencil className="w-3.5 h-3.5" /></button>
+                <button onClick={() => setEditingGame({ id: game.id, name: game.name, slug: game.slug, icon_url: game.icon_url, supported_spawn_types: Array.isArray(game.supported_spawn_types) ? game.supported_spawn_types : [], is_visible: game.is_visible })} className="p-1.5 text-[#71717a] hover:text-[#d4d4d8] transition"><Pencil className="w-3.5 h-3.5" /></button>
                 <button onClick={() => setDeleteConfirm({ type: "game", id: game.id, name: game.name })} className="p-1.5 text-[#71717a] hover:text-[#f87171] transition"><Trash2 className="w-3.5 h-3.5" /></button>
                 {expandedGame === game.id ? <ChevronUp className="w-4 h-4 text-[#71717a]" /> : <ChevronDown className="w-4 h-4 text-[#71717a]" />}
               </div>
