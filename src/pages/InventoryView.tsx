@@ -19,7 +19,7 @@ import { guildColor } from "@/lib/constants";
 import type { Item, Distribution, ItemRarity } from "@/types";
 import {
   Package, Plus, Trash2, Loader2, Search, Gift, History, BarChart3,
-  X, ChevronRight, ArrowLeft, Image, Star, Upload, Minus, Pencil, Box, Users,
+  X, ChevronRight, ArrowLeft, Image, Star, Upload, Minus, Pencil, Box, Users, Check,
   Sword, Shield, Wand, Skull, Flame, Sparkles, Zap, Heart, Eye, Anchor, Footprints, Swords, Crosshair, Bone,
 } from "lucide-react";
 
@@ -749,17 +749,18 @@ export function InventoryView() {
 
         // Collection VIEW mode (manage items)
         if (collectionMode === "view" && selectedCollection) {
-          const availableItems = items.filter(i => !collItemIds.has(i.id));
+          // Show all items, mark already-added ones
+          const allItems = items;
 
           // Build category tree from gameCategories
           const topCategories = (gameCategories as any[]).filter((c: any) => !c.parent_id);
           const subCategories = (gameCategories as any[]).filter((c: any) => c.parent_id);
 
           // Collect available rarities from unfiltered items
-          const collRarities = [...new Set(availableItems.map(i => i.rarity?.toLowerCase()).filter(Boolean))] as string[];
+          const collRarities = [...new Set(allItems.map(i => i.rarity?.toLowerCase()).filter(Boolean))] as string[];
 
           // Apply filters
-          let filtered = availableItems;
+          let filtered = allItems;
           if (collectionItemSearch)
             filtered = filtered.filter(i => i.name.toLowerCase().includes(collectionItemSearch.toLowerCase()));
           if (collCatFilter) {
@@ -862,19 +863,22 @@ export function InventoryView() {
                 <div className="flex flex-wrap gap-1.5 max-h-64 overflow-y-auto">
                   {filteredAvailable.slice(0, 50).map(item => {
                     const rc = item.rarity ? RARITY_COLORS[item.rarity.toLowerCase() as ItemRarity] : "#a1a1aa";
+                    const isAlreadyAdded = collItemIds.has(item.id);
                     return (
                       <button
                         key={item.id}
                         onClick={() => {
+                          if (isAlreadyAdded) return;
                           addItemToCollection(selectedCollection!, item.id)
                             .then(() => { queryClient.invalidateQueries({ queryKey: ["collectionItems", selectedCollection] }); toast("success", `Added ${item.name}`); })
                             .catch(() => toast("error", "Failed to add item"));
                         }}
-                        className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-1 rounded border border-[#27272a] hover:border-[#3f3f46] transition text-left"
-                        style={{ color: rc }}
-                        title={item.name}
+                        disabled={isAlreadyAdded}
+                        className={`inline-flex items-center gap-1 text-[10px] font-medium px-2 py-1 rounded border transition text-left ${isAlreadyAdded ? "border-emerald-500/20 bg-emerald-500/5 text-emerald-400/50 cursor-default" : "border-[#27272a] hover:border-[#3f3f46] cursor-pointer"}`}
+                        style={{ color: isAlreadyAdded ? undefined : rc }}
+                        title={isAlreadyAdded ? `${item.name} — already in collection` : item.name}
                       >
-                        <Plus className="w-2.5 h-2.5 shrink-0" />
+                        {isAlreadyAdded ? <Check className="w-2.5 h-2.5 shrink-0" /> : <Plus className="w-2.5 h-2.5 shrink-0" />}
                         <span className="truncate max-w-[150px]">{item.name}</span>
                       </button>
                     );
