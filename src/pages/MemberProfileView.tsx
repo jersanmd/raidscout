@@ -14,7 +14,7 @@ import {
   User, MessageSquare, Clock, Package, Skull, Activity,
   Gift, AlertTriangle, Shield, Star, Calendar, X,
   Sword, Swords, HandMetal, ShieldHalf, ShieldCheck, Gavel, Axe, Crosshair,
-  Target, Wand, Heart, Zap, Flame, Snowflake, Anchor, Footprints, Crown, Tag, ExternalLink,
+  Target, Wand, Heart, Zap, Flame, Snowflake, Anchor, Footprints, Crown, Tag,
 } from "lucide-react";
 
 const RARITY_COLORS: Record<ItemRarity, string> = {
@@ -1132,28 +1132,16 @@ export function MemberProfileView() {
         </div>
       )}
 
-      {/* Footer */}
-      <footer className="border-t border-[#27272a] bg-[#09090b] py-5 mt-8" style={{ marginLeft: "calc(-1 * (100vw - 100%) / 2)", marginRight: "calc(-1 * (100vw - 100%) / 2)", marginBottom: "-24px", paddingLeft: "calc((100vw - 100%) / 2)", paddingRight: "calc((100vw - 100%) / 2)" }}>
-        <div className="space-y-3">
-          <div className="flex items-center gap-2 text-xs text-[#71717a]">
-            <img src="/logo.png" alt="" className="w-4 h-4 rounded opacity-40" />
-            <span>RaidScout — Track boss respawn timers across any game, schedule hunts, and monitor member performance across your guild.</span>
+      {/* Footer — same as main Layout */}
+      <footer className="hidden md:block shrink-0 border-t border-[#1a1a1e] bg-[#09090b]">
+        <div className="px-4 py-2 flex items-center justify-between text-[11px] text-[#52525b]">
+          <span>© {new Date().getFullYear()} RaidScout. All rights reserved.</span>
+          <div className="flex items-center gap-3">
+            <Link to="/terms" className="hover:text-[#a1a1aa] transition">Terms</Link>
+            <Link to="/privacy" className="hover:text-[#a1a1aa] transition">Privacy</Link>
+            <Link to="/refund" className="hover:text-[#a1a1aa] transition">Refunds</Link>
+            <Link to="/changelog" className="hover:text-[#a1a1aa] transition">Changelog</Link>
           </div>
-          <div>
-            <span className="text-[11px] font-semibold text-[#52525b] uppercase tracking-wider">Resources</span>
-            <div className="flex items-center gap-3 text-xs text-[#a1a1aa] flex-wrap mt-1">
-              <a href="https://discord.gg/738AmkeQtU" target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 hover:text-[#5865f2] transition">
-                <ExternalLink className="w-3 h-3" />Discord
-              </a>
-              <a href="https://www.facebook.com/profile.php?id=61590144185090" target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 hover:text-[#1877f2] transition">
-                <ExternalLink className="w-3 h-3" />Facebook
-              </a>
-              <Link to="/terms" className="hover:text-[#d4d4d8] transition">Terms</Link>
-              <Link to="/privacy" className="hover:text-[#d4d4d8] transition">Privacy</Link>
-              <Link to="/changelog" className="hover:text-[#d4d4d8] transition">Changelog</Link>
-            </div>
-          </div>
-          <p className="text-xs text-[#fafafa]/20">© 2026 RaidScout. All rights reserved.</p>
         </div>
       </footer>
     </div>
