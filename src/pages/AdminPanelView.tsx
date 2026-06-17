@@ -1339,6 +1339,8 @@ export function AdminPanelView() {
           </button>
         </div>
       </nav>
+      </div>{/* close flex sidebar+content */}
+      </div>{/* close content wrapper */}
 
       {/* Footer — same as main Layout */}
       <footer className="border-t border-[#27272a] bg-[#09090b] pb-16 md:pb-0">
@@ -1456,8 +1458,6 @@ export function AdminPanelView() {
           </div>
         </div>
       )}
-        </div>{/* close content area */}
-      </div>{/* close flex sidebar+content */}
     </div>
   );
 }
