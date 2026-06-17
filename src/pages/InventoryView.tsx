@@ -21,7 +21,7 @@ import { guildColor } from "@/lib/constants";
 import type { Item, Distribution, ItemRarity } from "@/types";
 import {
   Package, Plus, Trash2, Loader2, Search, Gift, History, BarChart3,
-  X, ChevronRight, ChevronUp, ChevronDown, ArrowLeft, Image, Star, Upload, Minus, Pencil, Box, Users, Check,
+  X, ChevronRight, ChevronUp, ChevronDown, ArrowUpDown, ArrowLeft, Image, Star, Upload, Minus, Pencil, Box, Users, Check,
   Sword, Shield, Wand, Skull, Flame, Sparkles, Zap, Heart, Eye, Anchor, Footprints, Swords, Crosshair, Bone,
 } from "lucide-react";
 
@@ -415,6 +415,7 @@ export function InventoryView() {
     try { return localStorage.getItem("raidscout-recipient-guild") || ""; } catch { return ""; }
   });
   const [recipientSort, setRecipientSort] = useState<string>("chrono");
+  const [recipientPlayerSort, setRecipientPlayerSort] = useState<"most" | "name-asc">("most");
 
   // Rarity sort order (highest first)
   const RARITY_SORT_ORDER: Record<string, number> = { mythic: 0, legendary: 1, epic: 2, rare: 3, uncommon: 4, common: 5 };
@@ -1113,9 +1114,26 @@ export function InventoryView() {
                         {filteredPlayers.length === 0 ? (
                           <tr><td colSpan={matrixItems.length + 1} className="text-center py-8 text-[#52525b]">No players in this guild.</td></tr>
                         ) : (
-                          filteredPlayers.map(p => (
+                          filteredPlayers.map((p, i) => (
                             <tr key={p.name} className="border-b border-[#27272a]/50 hover:bg-[#09090b]/30 transition">
-                              <td className="sticky left-0 bg-[#18181b] px-4 py-2.5 text-[#fafafa] font-medium text-xs">{p.name}</td>
+                              <td className="sticky left-0 bg-[#18181b] px-4 py-2.5 font-medium text-xs">
+                                <span className="flex items-center gap-2">
+                                  <span className="text-[10px] text-[#52525b] tabular-nums w-5 text-right shrink-0">{i + 1}</span>
+                                  <span className="text-[#fafafa]">{p.name}</span>
+                                  {(() => {
+                                    const m = members.find(m => m.id === p.name || m.name === p.name);
+                                    const g = m?.guild_id ? guilds.find(g => g.id === m.guild_id) : null;
+                                    if (!g) return null;
+                                    const c = guildColor(g.name);
+                                    return (
+                                      <span className={`flex items-center gap-0.5 text-[9px] font-medium px-1 py-0.5 rounded border shrink-0 ${c.bg} ${c.text} ${c.border}`}>
+                                        <Shield className="w-2 h-2" />
+                                        {g.name}
+                                      </span>
+                                    );
+                                  })()}
+                                </span>
+                              </td>
                               {matrixItems.map(ci => {
                                 const isDistributed = p.distributed.has(ci.item_id);
                                 const isManual = p.manual.has(ci.item_id);
@@ -1290,7 +1308,12 @@ export function InventoryView() {
           if (!entry) { entry = { player_name: d.player_name, member_id: d.member_id, dists: [] }; playerMap.set(d.player_name, entry); }
           entry.dists.push(d);
         });
-        const players = Array.from(playerMap.values()).sort((a, b) => b.dists.length - a.dists.length);
+        const players = Array.from(playerMap.values()).sort((a, b) => {
+          if (recipientPlayerSort === "name-asc") {
+            return a.player_name.localeCompare(b.player_name);
+          }
+          return b.dists.length - a.dists.length;
+        });
         // Sort each player's items based on selected sort
         const sortDists = (dists: Distribution[], sort: string) => {
           const sorted = [...dists];
@@ -1400,7 +1423,12 @@ export function InventoryView() {
                 <table className="w-full">
                   <thead>
                     <tr className="border-b border-[#27272a]">
-                      <th className="text-left px-4 py-2.5 text-[10px] text-[#71717a] uppercase tracking-wider font-medium w-36">Name</th>
+                      <th className="text-left px-4 py-2.5 text-[10px] text-[#71717a] uppercase tracking-wider font-medium w-36 cursor-pointer select-none hover:text-[#fafafa] transition" onClick={() => setRecipientPlayerSort(s => s === "most" ? "name-asc" : "most")}>
+                        <span className="flex items-center gap-1">
+                          Name
+                          {recipientPlayerSort === "name-asc" ? <ChevronUp className="w-3 h-3" /> : <ArrowUpDown className="w-3 h-3 opacity-40" />}
+                        </span>
+                      </th>
                       <th className="text-left px-4 py-2.5 text-[10px] text-[#71717a] uppercase tracking-wider font-medium">Items Received</th>
                     </tr>
                   </thead>
