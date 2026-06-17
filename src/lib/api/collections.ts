@@ -93,3 +93,41 @@ export async function fetchServerDistributions(serverId: string): Promise<{ memb
   if (error) throw error;
   return data || [];
 }
+
+// ── Manual Ownership ──────────────────────────────────────
+
+export type ManualOwnership = {
+  id: string;
+  collection_id: string;
+  item_id: string;
+  player_name: string;
+  owned: boolean;
+  set_by?: string;
+  set_at: string;
+};
+
+export async function fetchManualOwnership(collectionId: string): Promise<ManualOwnership[]> {
+  const { data, error } = await supabase
+    .from("item_collection_manual_ownership")
+    .select("*")
+    .eq("collection_id", collectionId);
+  if (error) throw error;
+  return data || [];
+}
+
+export async function setManualOwnership(collectionId: string, itemId: string, playerName: string, owned: boolean): Promise<void> {
+  const { error } = await supabase
+    .from("item_collection_manual_ownership")
+    .upsert({ collection_id: collectionId, item_id: itemId, player_name: playerName, owned }, { onConflict: "collection_id,item_id,player_name" });
+  if (error) throw error;
+}
+
+export async function removeManualOwnership(collectionId: string, itemId: string, playerName: string): Promise<void> {
+  const { error } = await supabase
+    .from("item_collection_manual_ownership")
+    .delete()
+    .eq("collection_id", collectionId)
+    .eq("item_id", itemId)
+    .eq("player_name", playerName);
+  if (error) throw error;
+}

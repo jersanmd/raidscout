@@ -295,5 +295,8 @@ export {
   removeItemFromCollection,
   reorderCollectionItem,
   fetchServerDistributions,
+  fetchManualOwnership,
+  setManualOwnership,
+  removeManualOwnership,
 } from "./api/collections";
 export type { ItemCollection, ItemCollectionItem } from "./api/collections";

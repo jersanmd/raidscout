@@ -10,6 +10,7 @@ import {
   fetchCollections, createCollection, deleteCollection,
   fetchCollectionItems, addItemToCollection, removeItemFromCollection, reorderCollectionItem,
   fetchServerDistributions,
+  fetchManualOwnership, setManualOwnership, removeManualOwnership,
 } from "@/lib/supabase";
 import { useServerId, useServer } from "@/contexts/ServerContext";
 import { ExpiredGate } from "@/components/ExpiredGate";
@@ -93,6 +94,13 @@ export function InventoryView() {
     queryKey: ["allDists", serverId],
     queryFn: () => fetchServerDistributions(serverId!),
     enabled: configured && !!serverId && tab === "collections" && collectionMode === "matrix",
+  });
+
+  // Manual ownership overrides
+  const { data: manualOwned = [] } = useQuery({
+    queryKey: ["manualOwnership", selectedCollection],
+    queryFn: () => fetchManualOwnership(selectedCollection!),
+    enabled: !!selectedCollection && collectionMode === "matrix",
   });
 
   // Track whether we need the full items list (history/analytics tabs or distribute modal)
@@ -642,11 +650,19 @@ export function InventoryView() {
         const currentCollection = collections.find(c => c.id === selectedCollection);
         const collItemIds = new Set(collItems.map(ci => ci.item_id));
 
-        // Ownership map: player_name → Set<item_id>
-        const ownedMap = new Map<string, Set<string>>();
+        // Ownership map: player_name → { distributed, manual }
+        const ownedMap = new Map<string, { distributed: Set<string>; manual: Set<string> }>();
         allDists.forEach(d => {
-          if (!ownedMap.has(d.player_name)) ownedMap.set(d.player_name, new Set());
-          ownedMap.get(d.player_name)!.add(d.item_id);
+          if (!ownedMap.has(d.player_name)) ownedMap.set(d.player_name, { distributed: new Set(), manual: new Set() });
+          ownedMap.get(d.player_name)!.distributed.add(d.item_id);
+        });
+        manualOwned.forEach(m => {
+          if (!ownedMap.has(m.player_name)) ownedMap.set(m.player_name, { distributed: new Set(), manual: new Set() });
+          if (m.owned) {
+            ownedMap.get(m.player_name)!.manual.add(m.item_id);
+          } else {
+            ownedMap.get(m.player_name)!.distributed.delete(m.item_id);
+          }
         });
 
         const collItemsWithData = collItems.map(ci => {
@@ -655,7 +671,7 @@ export function InventoryView() {
         });
 
         const playersWithOwnership = Array.from(ownedMap.entries())
-          .map(([name, itemSet]) => ({ name, itemSet }))
+          .map(([name, sets]) => ({ name, distributed: sets.distributed, manual: sets.manual }))
           .sort((a, b) => a.name.localeCompare(b.name));
 
         // Collection LIST mode
@@ -934,6 +950,11 @@ export function InventoryView() {
                   <h3 className="text-sm font-semibold text-[#fafafa]">{currentCollection?.name} — Ownership</h3>
                   <p className="text-[10px] text-[#52525b]">{playersWithOwnership.length} players · {matrixItems.length} items</p>
                 </div>
+                <div className="flex items-center gap-3 text-[10px]">
+                  <span className="flex items-center gap-1"><span className="w-3 h-3 rounded border border-emerald-500/20 bg-emerald-500/10" /> Distributed</span>
+                  <span className="flex items-center gap-1"><span className="w-3 h-3 rounded border border-amber-500/20 bg-amber-500/10" /> Manual</span>
+                  <span className="text-[#52525b] ml-1">Click cells to toggle</span>
+                </div>
               </div>
 
               {matrixItems.length === 0 ? (
@@ -962,15 +983,34 @@ export function InventoryView() {
                           playersWithOwnership.map(p => (
                             <tr key={p.name} className="border-b border-[#27272a]/50 hover:bg-[#09090b]/30 transition">
                               <td className="sticky left-0 bg-[#18181b] px-4 py-2.5 text-[#fafafa] font-medium text-xs">{p.name}</td>
-                              {matrixItems.map(ci => (
+                              {matrixItems.map(ci => {
+                                const isDistributed = p.distributed.has(ci.item_id);
+                                const isManual = p.manual.has(ci.item_id);
+                                const isOwned = isDistributed || isManual;
+                                return (
                                 <td key={ci.item_id} className="px-3 py-2.5 text-center">
-                                  {p.itemSet.has(ci.item_id) ? (
-                                    <span className="inline-flex items-center gap-1 text-[10px] font-medium text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">✓ Owned</span>
-                                  ) : (
-                                    <span className="text-[10px] text-[#3f3f46]">—</span>
-                                  )}
+                                  <button
+                                    onClick={async () => {
+                                      if (isManual) {
+                                        // Remove manual override → revert to distributed status
+                                        await removeManualOwnership(selectedCollection!, ci.item_id, p.name);
+                                      } else if (isDistributed) {
+                                        // Mark as NOT owned (override)
+                                        await setManualOwnership(selectedCollection!, ci.item_id, p.name, false);
+                                      } else {
+                                        // Mark as manually owned
+                                        await setManualOwnership(selectedCollection!, ci.item_id, p.name, true);
+                                      }
+                                      queryClient.invalidateQueries({ queryKey: ["manualOwnership", selectedCollection] });
+                                    }}
+                                    className={`text-[10px] font-medium px-1.5 py-0.5 rounded border transition cursor-pointer ${isManual ? "text-amber-400 bg-amber-500/10 border-amber-500/20 hover:bg-amber-500/20" : isDistributed ? "text-emerald-400 bg-emerald-500/10 border-emerald-500/20 hover:bg-emerald-500/20" : "text-[#3f3f46] hover:text-[#a1a1aa] border-transparent hover:border-[#3f3f46]"}`}
+                                    title={isManual ? "Manual ✓ — click to remove" : isDistributed ? "Distributed ✓ — click to mark not owned" : "Not owned — click to mark owned"}
+                                  >
+                                    {isManual ? "✎ Owned" : isDistributed ? "✓ Owned" : "—"}
+                                  </button>
                                 </td>
-                              ))}
+                                );
+                              })}
                             </tr>
                           ))
                         )}
