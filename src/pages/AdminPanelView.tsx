@@ -12,7 +12,7 @@ import { useUserTimezone } from "@/hooks/useUserTimezone";
 import { TIMEZONES } from "@/lib/timezones";
 
 export function AdminPanelView() {
-  const [tab, setTab] = useState<"servers" | "users" | "audit" | "games" | "infra" | "database" | "cron" | "deleted" | "owners">("infra");
+  const [tab, setTab] = useState<"servers" | "users" | "audit" | "games" | "infra" | "database" | "cron" | "deleted">("infra");
   const [serverSubtab, setServerSubtab] = useState<"servers" | "database" | "cron" | "deleted">("servers");
   const { setCurrentServer, currentServer } = useServer();
   const { userRole, user, signOut } = useAuth();
@@ -305,7 +305,6 @@ export function AdminPanelView() {
             { id: "games", icon: Gamepad2, label: "Games" },
             { id: "servers", icon: Server, label: `Servers (${servers.length})` },
             { id: "users", icon: Users, label: `Users (${users.length})` },
-            { id: "owners", icon: Crown, label: "Owners" },
             { id: "audit", icon: ScrollText, label: "Audit" },
             { id: "database", icon: HardDrive, label: "Database" },
             { id: "cron", icon: Clock, label: "Test Cron" },
@@ -672,7 +671,7 @@ export function AdminPanelView() {
         </div>
       )}
 
-      {/* Server Owners Tab */}
+      {/* Users Tab */}
       {tab === "users" && (() => {
         const { owners, moderators } = serverRoles;
         const filteredUsers = users.filter((u: any) => {
@@ -760,8 +759,11 @@ export function AdminPanelView() {
                     </div>
                     <div className="col-span-2">
                       {(() => {
-                        const verified = u.email_confirmed_at || u.confirmed_at || u.last_sign_in_at;
-                        if (verified) return <span className="text-[10px] text-emerald-400 font-medium flex items-center gap-1"><CheckCircle className="w-3 h-3" /> Verified</span>;
+                        const confirmedAt = u.email_confirmed_at;
+                        const createdAt = u.created_at;
+                        if (confirmedAt && createdAt && Math.abs(new Date(confirmedAt).getTime() - new Date(createdAt).getTime()) > 5000) {
+                          return <span className="text-[10px] text-emerald-400 font-medium flex items-center gap-1"><CheckCircle className="w-3 h-3" /> Verified</span>;
+                        }
                         return <span className="text-[10px] text-[#71717a] flex items-center gap-1"><XCircle className="w-3 h-3" /> Unverified</span>;
                       })()}
                     </div>
@@ -1386,7 +1388,7 @@ export function AdminPanelView() {
             <Server className="w-5 h-5" />
             <span className="text-[10px] font-medium">Servers</span>
           </button>
-          <button onClick={() => setTab("users")} className={`flex flex-col items-center justify-center gap-0.5 px-2 py-1.5 min-w-[64px] rounded-lg transition-colors ${tab === "users" || tab === "owners" ? "text-[#fafafa]" : "text-[#52525b]"}`}>
+          <button onClick={() => setTab("users")} className={`flex flex-col items-center justify-center gap-0.5 px-2 py-1.5 min-w-[64px] rounded-lg transition-colors ${tab === "users" ? "text-[#fafafa]" : "text-[#52525b]"}`}>
             <Users className="w-5 h-5" />
             <span className="text-[10px] font-medium">Owners</span>
           </button>

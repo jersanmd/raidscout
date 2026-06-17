@@ -28,6 +28,45 @@
 
 - **Vertical sidebar** — Admin Panel now has a vertical sidebar (hidden on mobile) with all 9 admin tabs: Infra, Games, Servers, Users, Owners, Audit, Database, Test Cron, Deleted. Mobile retains a bottom nav bar with the 5 most-used tabs.
 - **Footer pinned to bottom** — Admin Panel footer now sticks to the bottom of the viewport, matching the main Layout behavior.
+
+## 🔗 URL-Synced Tabs
+
+- **History** — Timeline/Ledger tabs now sync to `?tab=ledger`. URL persists on refresh and share.
+- **Leaderboard** — Since Reset / All Time synced to `?period=all`.
+- **Inventory** — All 5 tabs (Catalog, Collections, History, Recipients, Analytics) synced to `?tab=`.
+- **Analytics** — This Week / This Month / All Time synced to `?period=month`.
+
+## 🔒 Admin Privacy & Security
+
+- **Verified column** — Admin Panel Users tab now shows a Verified/Unverified badge with checkmark/X icons.
+- **Inline Add Moderator** — Expanded server cards in Admin Panel → Servers now have an email input + Add button to add moderators directly.
+- **Admin email hidden** — Site admin emails are completely filtered out of the Server Settings → Members list. Server owners and moderators see only their own members.
+- **Permissions UX** — Moderator rows in Server Settings now show a clickable "⚙ Permissions" badge. Instructional text explains what each permission toggle gates.
+
+## 📦 Inventory Upgrades
+
+- **Collection delete confirmation** — Requires typing the collection name to confirm before deleting.
+- **All members in matrix** — Collection Ownership matrix now includes all server members, even those with zero distributed items.
+- **Recipients name sort** — Click the "Name" column header to toggle between most-items and alphabetical (A→Z).
+- **Matrix guild badges** — Player names in ownership matrix now show colored guild badges with Shield icons.
+- **Matrix row numbers** — Each player row shows a counter on the left.
+- **Matrix player search** — Search bar (far right) filters the matrix by player name.
+- **Matrix hover sync** — Sticky player name column now highlights in sync with the rest of the row.
+- **Inventory loading screen** — Spinner appears until members, guilds, and class data are fully loaded.
+
+## 🐛 Class Icons Fix
+
+- **CLASS_ICONS synced** — InventoryView now uses the same 20-icon list as MembersView (HandMetal, ShieldCheck, Gavel, Axe, Target, Snowflake, etc.).
+- **Case-insensitive lookups** — Class names now matched with `.toLowerCase().trim()` everywhere.
+- **Member ID matching** — History tab now checks `member_id` first, then falls back to name.
+- **Paginated fetchMembers** — No more 1000-row limit; inactive members included.
+
+## 🛡️ RLS Policy Fixes
+
+- **072** — Added explicit WITH CHECK for admin writes to server_members.
+- **073** — Eliminated infinite recursion by querying `servers.owner_id` instead of self-referencing.
+- **074** — Added "Users can join servers" INSERT policy for invite code flow.
+- **075** — Created `get_admin_user_ids()` SECURITY DEFINER RPC for admin email masking.
 - **Bot Status cards updated** — Memory display corrected from `512 MB` to `1024 MB`. Region now shows the live `FLY_REGION` env var (dynamic) instead of hardcoded `sin`.
 
 ## 🔧 Infrastructure

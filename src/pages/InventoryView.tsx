@@ -95,6 +95,10 @@ export function InventoryView() {
   const [collCatFilter, setCollCatFilter] = useState("");
   const [collRarityFilter, setCollRarityFilter] = useState("");
   const [matrixSort, setMatrixSort] = useState<"name" | "owned-desc" | "owned-asc">("name");
+  const [matrixItemSort, setMatrixItemSort] = useState<string | null>(null); // item_id to sort by, null = default sort
+  const [matrixItemSortDir, setMatrixItemSortDir] = useState<"has" | "missing">("has");
+  const [matrixDistributePlayer, setMatrixDistributePlayer] = useState<{ name: string; memberId: string } | null>(null);
+  const [matrixDistributeSearch, setMatrixDistributeSearch] = useState("");
   const [matrixGuildFilter, setMatrixGuildFilter] = useState<string>(() => {
     try { return localStorage.getItem("raidscout-matrix-guild") || ""; } catch { return ""; }
   });
@@ -1090,6 +1094,16 @@ export function InventoryView() {
             return list;
           })();
 
+          // Apply item sort (click item header to sort owners first)
+          const sortedPlayers = matrixItemSort
+            ? [...filteredPlayers].sort((a, b) => {
+                const aHas = a.distributed.has(matrixItemSort) || a.manual.has(matrixItemSort);
+                const bHas = b.distributed.has(matrixItemSort) || b.manual.has(matrixItemSort);
+                if (aHas === bHas) return 0;
+                return matrixItemSortDir === "has" ? (aHas ? -1 : 1) : (aHas ? 1 : -1);
+              })
+            : filteredPlayers;
+
           // Build guild list
           const guildNames = [...new Set(members.map(m => {
             const g = m.guild_id ? guilds.find(g => g.id === m.guild_id) : null;
@@ -1102,7 +1116,7 @@ export function InventoryView() {
                 <button onClick={() => { setCollectionMode("view"); }} className="p-1 text-[#a1a1aa] hover:text-[#fafafa] transition"><ArrowLeft className="w-4 h-4" /></button>
                 <div>
                   <h3 className="text-sm font-semibold text-[#fafafa]">{currentCollection?.name} — Ownership</h3>
-                  <p className="text-[10px] text-[#52525b]">{filteredPlayers.length} / {playersWithOwnership.length} players · {matrixItems.length} items</p>
+                  <p className="text-[10px] text-[#52525b]">{sortedPlayers.length} / {playersWithOwnership.length} players · {matrixItems.length} items</p>
                 </div>
                 <div className="flex items-center gap-2">
                   <select
@@ -1132,7 +1146,7 @@ export function InventoryView() {
                     value={matrixPlayerSearch}
                     onChange={(e) => setMatrixPlayerSearch(e.target.value)}
                     placeholder="Search player…"
-                    className="w-36 pl-6 pr-6 py-1.5 text-[10px] bg-[#18181b] border border-[#27272a] rounded-lg text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#3f3f46]"
+                    className="w-48 pl-6 pr-6 py-1.5 text-[10px] bg-[#18181b] border border-[#27272a] rounded-lg text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#3f3f46]"
                   />
                   {matrixPlayerSearch && (
                     <button onClick={() => setMatrixPlayerSearch("")} className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[#52525b] hover:text-[#a1a1aa]">
@@ -1145,12 +1159,11 @@ export function InventoryView() {
               {matrixItems.length === 0 ? (
                 <p className="text-sm text-[#52525b] text-center py-8">Add items to this collection first.</p>
               ) : (
-                <div className="bg-[#18181b] border border-[#27272a] rounded-xl overflow-hidden">
-                  <div className="overflow-x-auto">
+                <div className="bg-[#18181b] border border-[#27272a] rounded-xl overflow-auto max-h-[calc(100vh-220px)]">
                     <table className="w-full text-xs">
                       <thead>
                         <tr className="border-b border-[#27272a] bg-[#18181b]">
-                          <th className="sticky left-0 bg-[#18181b] text-left px-4 py-2.5 text-[10px] text-[#71717a] uppercase tracking-wider font-medium min-w-[140px]">
+                          <th className="sticky left-0 top-0 z-20 bg-[#18181b] text-left px-4 py-2.5 text-[10px] text-[#71717a] uppercase tracking-wider font-medium min-w-[140px]">
                             <button
                               onClick={() => setMatrixSort(ms => ms === "name" ? "owned-desc" : ms === "owned-desc" ? "owned-asc" : "name")}
                               className="flex items-center gap-1 hover:text-[#d4d4d8] transition"
@@ -1160,22 +1173,38 @@ export function InventoryView() {
                             </button>
                           </th>
                           {matrixItems.map(ci => (
-                            <th key={ci.item_id} className="px-3 py-2.5 text-center text-[10px] text-[#71717a] uppercase tracking-wider font-medium min-w-[80px]">
-                              <div className="flex flex-col items-center gap-1">
+                            <th key={ci.item_id} className="sticky top-0 bg-[#18181b] px-3 py-2.5 text-center text-[10px] text-[#71717a] uppercase tracking-wider font-medium min-w-[80px]">
+                              <button
+                                onClick={() => {
+                                  if (matrixItemSort === ci.item_id) {
+                                    if (matrixItemSortDir === "has") setMatrixItemSortDir("missing");
+                                    else setMatrixItemSort(null);
+                                  } else {
+                                    setMatrixItemSort(ci.item_id);
+                                    setMatrixItemSortDir("has");
+                                  }
+                                }}
+                                className={`flex flex-col items-center gap-1 hover:text-[#d4d4d8] transition ${matrixItemSort === ci.item_id ? "text-[#fafafa]" : ""}`}
+                              >
                                 {ci.item?.image_url && <img src={ci.item.image_url} alt="" className="w-5 h-5 rounded object-cover" />}
-                                <span className="truncate max-w-[70px]" style={{ color: ci.item?.rarity ? RARITY_COLORS[ci.item.rarity.toLowerCase() as ItemRarity] : "#a1a1aa" }}>{ci.item?.name ?? "?"}</span>
-                              </div>
+                                <span className="truncate max-w-[70px] flex items-center gap-0.5" style={{ color: ci.item?.rarity ? RARITY_COLORS[ci.item.rarity.toLowerCase() as ItemRarity] : undefined }}>
+                                  {ci.item?.name ?? "?"}
+                                  {matrixItemSort === ci.item_id && (
+                                    matrixItemSortDir === "has" ? <ChevronDown className="w-3 h-3" /> : <ChevronUp className="w-3 h-3" />
+                                  )}
+                                </span>
+                              </button>
                             </th>
                           ))}
                         </tr>
                       </thead>
                       <tbody>
-                        {filteredPlayers.length === 0 ? (
+                        {sortedPlayers.length === 0 ? (
                           <tr><td colSpan={matrixItems.length + 1} className="text-center py-8 text-[#52525b]">No players in this guild.</td></tr>
                         ) : (
-                          filteredPlayers.map((p, i) => (
+                          sortedPlayers.map((p, i) => (
                             <tr key={p.name} className="border-b border-[#27272a]/50 hover:bg-[#09090b]/30 transition group">
-                              <td className="sticky left-0 bg-[#18181b] group-hover:bg-[#09090b]/30 px-4 py-2.5 font-medium text-xs transition-colors">
+                              <td className="sticky left-0 z-10 bg-[#18181b] group-hover:bg-[#09090b]/30 px-4 py-2.5 font-medium text-xs transition-colors">
                                 <span className="flex items-center gap-2">
                                   <span className="text-[10px] text-[#52525b] tabular-nums w-5 text-right shrink-0">{i + 1}</span>
                                   <span className="text-[#fafafa]">{p.name}</span>
@@ -1191,6 +1220,18 @@ export function InventoryView() {
                                       </span>
                                     );
                                   })()}
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      const m = members.find(m => m.id === p.name || m.name.toLowerCase().trim() === p.name.toLowerCase().trim());
+                                      setMatrixDistributePlayer({ name: p.name, memberId: m?.id ?? p.name });
+                                      setMatrixDistributeSearch("");
+                                    }}
+                                    className="ml-auto p-0.5 rounded text-[#52525b] hover:text-[#fafafa] hover:bg-[#27272a] transition opacity-0 group-hover:opacity-100"
+                                    title="Distribute item"
+                                  >
+                                    <Plus className="w-3 h-3" />
+                                  </button>
                                 </span>
                               </td>
                               {matrixItems.map(ci => {
@@ -1226,7 +1267,6 @@ export function InventoryView() {
                         )}
                       </tbody>
                     </table>
-                  </div>
                 </div>
               )}
             </div>
@@ -1373,6 +1413,13 @@ export function InventoryView() {
           }
           return b.dists.length - a.dists.length;
         });
+        // Include all members who haven't received anything
+        const existingNames = new Set(players.map(p => p.player_name.toLowerCase().trim()));
+        for (const m of members) {
+          if (!existingNames.has(m.name.toLowerCase().trim())) {
+            players.push({ player_name: m.name, member_id: m.id, dists: [] });
+          }
+        }
         // Sort each player's items based on selected sort
         const sortDists = (dists: Distribution[], sort: string) => {
           const sorted = [...dists];
@@ -1426,26 +1473,15 @@ export function InventoryView() {
         }).filter(Boolean))].sort();
         return (
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-[#fafafa] flex items-center gap-2">
-              <Users className="w-4 h-4 text-[#a1a1aa]" />
-              All Recipients
-            </h3>
-            <div className="flex items-center gap-3">
-              <div className="relative">
-                <Search className="w-3 h-3 text-[#52525b] absolute left-2 top-1/2 -translate-y-1/2" />
-                <input
-                  value={recipientSearch}
-                  onChange={(e) => setRecipientSearch(e.target.value)}
-                  placeholder="Search player..."
-                  className="w-40 pl-6 pr-6 py-1 text-[11px] bg-[#09090b] border border-[#27272a] rounded-lg text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#3f3f46]"
-                />
-                {recipientSearch && (
-                  <button onClick={() => setRecipientSearch("")} className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[#52525b] hover:text-[#a1a1aa]">
-                    <X className="w-3 h-3" />
-                  </button>
-                )}
-              </div>
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2 min-w-0">
+              <h3 className="text-sm font-semibold text-[#fafafa] flex items-center gap-2 shrink-0">
+                <Users className="w-4 h-4 text-[#a1a1aa]" />
+                All Recipients
+              </h3>
+              <span className="text-xs text-[#52525b] font-mono shrink-0">{filteredPlayers.length} / {players.length} players</span>
+            </div>
+            <div className="flex items-center gap-2">
               <select
                 value={recipientGuildFilter}
                 onChange={(e) => {
@@ -1471,7 +1507,20 @@ export function InventoryView() {
                 <option value="rarity">Rarity ↑</option>
                 <option value="rarity-desc">Rarity ↓</option>
               </select>
-              <span className="text-xs text-[#52525b] font-mono">{filteredPlayers.length} / {players.length} players</span>
+              <div className="relative ml-auto">
+                <Search className="w-3 h-3 text-[#52525b] absolute left-2 top-1/2 -translate-y-1/2" />
+                <input
+                  value={recipientSearch}
+                  onChange={(e) => setRecipientSearch(e.target.value)}
+                  placeholder="Search player..."
+                  className="w-40 pl-6 pr-6 py-1 text-[11px] bg-[#09090b] border border-[#27272a] rounded-lg text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#3f3f46]"
+                />
+                {recipientSearch && (
+                  <button onClick={() => setRecipientSearch("")} className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[#52525b] hover:text-[#a1a1aa]">
+                    <X className="w-3 h-3" />
+                  </button>
+                )}
+              </div>
             </div>
           </div>
           {filteredPlayers.length === 0 ? (
@@ -2242,6 +2291,68 @@ export function InventoryView() {
         }}
         onCancel={() => setDeleteCollectionTarget(null)}
       />
+
+      {/* ── Matrix Distribute Modal ── */}
+      {matrixDistributePlayer && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setMatrixDistributePlayer(null)}>
+          <div className="bg-[#09090b] border border-[#27272a] rounded-xl p-5 w-full max-w-xs mx-4 space-y-3" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-[#fafafa]">Distribute to {matrixDistributePlayer.name}</h3>
+              <button onClick={() => setMatrixDistributePlayer(null)} className="text-[#52525b] hover:text-[#fafafa]"><X className="w-4 h-4" /></button>
+            </div>
+            <div className="relative">
+              <Search className="w-3 h-3 text-[#52525b] absolute left-2.5 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                value={matrixDistributeSearch}
+                onChange={(e) => setMatrixDistributeSearch(e.target.value)}
+                placeholder="Search item to distribute..."
+                autoFocus
+                className="w-full pl-8 pr-3 py-2 text-xs bg-[#18181b] border border-[#27272a] rounded-lg text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#3f3f46]"
+              />
+            </div>
+            <div className="max-h-48 overflow-y-auto space-y-0.5">
+              {(() => {
+                const q = matrixDistributeSearch.toLowerCase();
+                const filtered = items.filter(i => i.name.toLowerCase().includes(q)).slice(0, 15);
+                return filtered.length === 0 ? (
+                  <p className="text-xs text-[#52525b] text-center py-4">No items found.</p>
+                ) : filtered.map(item => {
+                  const rc = item.rarity ? RARITY_COLORS[item.rarity.toLowerCase() as ItemRarity] : "#a1a1aa";
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={async () => {
+                        try {
+                          await createDistribution({
+                            server_id: serverId!,
+                            item_id: item.id,
+                            member_id: matrixDistributePlayer.memberId,
+                            player_name: matrixDistributePlayer.name,
+                            quantity: 1,
+                            reason: "",
+                          });
+                          queryClient.invalidateQueries({ queryKey: ["distributions", serverId] });
+                          queryClient.invalidateQueries({ queryKey: ["allDists", serverId] });
+                          queryClient.invalidateQueries({ queryKey: ["manualOwnership", selectedCollection] });
+                          toast("success", `${item.name} → ${matrixDistributePlayer.name}`);
+                          setMatrixDistributePlayer(null);
+                        } catch (err: any) {
+                          toast("error", err?.message ?? "Failed to distribute");
+                        }
+                      }}
+                      className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-[#18181b] transition text-left"
+                    >
+                      {item.image_url && <img src={item.image_url} alt="" className="w-6 h-6 rounded object-cover shrink-0" />}
+                      <span className="text-xs font-medium truncate" style={{ color: rc }}>{item.name}</span>
+                    </button>
+                  );
+                });
+              })()}
+            </div>
+          </div>
+        </div>
+      )}
         </>
       )}
 

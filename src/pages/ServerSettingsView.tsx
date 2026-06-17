@@ -2164,9 +2164,9 @@ export function ServerSettingsView() {
                     </span>
                     <div className="flex items-center gap-2">
                       {isOwner && m.role === "moderator" && (
-                        <span className={`text-[10px] px-1.5 py-0.5 rounded transition ${isExpanded ? "bg-[#27272a] text-[#d4d4d8]" : "bg-[#18181b] text-[#52525b] group-hover:text-[#a1a1aa] group-hover:bg-[#27272a]"}`}>
-                          {isExpanded ? <ChevronUp className="w-3 h-3" /> : <Settings className="w-3 h-3" />}
-                          <span className="ml-1 hidden sm:inline">{isExpanded ? "Hide" : "Permissions"}</span>
+                        <span className={`text-[10px] px-2 py-0.5 rounded transition flex items-center gap-1 whitespace-nowrap ${isExpanded ? "bg-[#27272a] text-[#d4d4d8]" : "bg-[#18181b] text-[#52525b] group-hover:text-[#a1a1aa] group-hover:bg-[#27272a]"}`}>
+                          {isExpanded ? <ChevronUp className="w-3 h-3 shrink-0" /> : <Settings className="w-3 h-3 shrink-0" />}
+                          <span className="hidden sm:inline">{isExpanded ? "Hide" : "Permissions"}</span>
                         </span>
                       )}
                       <span className={`text-xs px-1.5 py-0.5 rounded ${
