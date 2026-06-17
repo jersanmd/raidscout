@@ -918,7 +918,7 @@ export function InventoryView() {
                     </div>
                   </div>
                 </div>
-                <div className="flex flex-wrap gap-2 max-h-64 overflow-y-auto">
+                <div className="flex flex-wrap gap-2">
                   {filteredAvailable.slice(0, 50).map(item => {
                     const rc = item.rarity ? RARITY_COLORS[item.rarity.toLowerCase() as ItemRarity] : "#a1a1aa";
                     const isAlreadyAdded = collItemIds.has(item.id);
