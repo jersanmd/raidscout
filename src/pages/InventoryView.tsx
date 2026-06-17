@@ -15,6 +15,7 @@ import {
 } from "@/lib/supabase";
 import { useServerId, useServer } from "@/contexts/ServerContext";
 import { ExpiredGate } from "@/components/ExpiredGate";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { useToast } from "@/contexts/ToastContext";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { guildColor } from "@/lib/constants";
@@ -22,7 +23,7 @@ import type { Item, Distribution, ItemRarity } from "@/types";
 import {
   Package, Plus, Trash2, Loader2, Search, Gift, History, BarChart3,
   X, ChevronRight, ChevronUp, ChevronDown, ArrowUpDown, ArrowLeft, Image, Star, Upload, Minus, Pencil, Box, Users, Check,
-  Sword, Shield, Wand, Skull, Flame, Sparkles, Zap, Heart, Eye, Anchor, Footprints, Swords, Crosshair, Bone,
+  Sword, Swords, HandMetal, Shield, ShieldHalf, ShieldCheck, Gavel, Axe, Crosshair, Target, Wand, Heart, Zap, Flame, Snowflake, Skull, Crown, Anchor, Footprints, Eye,
 } from "lucide-react";
 
 const RARITY_COLORS: Record<ItemRarity, string> = {
@@ -37,23 +38,30 @@ const RARITY_COLORS: Record<ItemRarity, string> = {
 const RARITY_ORDER: ItemRarity[] = ["mythic", "legendary", "epic", "rare", "uncommon", "common"];
 
 const CLASS_ICONS = [
-  { name: "Sword", icon: Sword, label: "Combat / DPS" },
-  { name: "Shield", icon: Shield, label: "Defense / Tank" },
-  { name: "Wand", icon: Wand, label: "Magic / Caster" },
-  { name: "Skull", icon: Skull, label: "Dark / Necromancer" },
-  { name: "Flame", icon: Flame, label: "Fire / Pyro" },
-  { name: "Sparkles", icon: Sparkles, label: "Light / Healer" },
-  { name: "Zap", icon: Zap, label: "Lightning / Storm" },
-  { name: "Heart", icon: Heart, label: "Support / Healer" },
-  { name: "Eye", icon: Eye, label: "Mystic / Seer" },
+  { name: "Sword", icon: Sword, label: "Sword / Greatsword" },
+  { name: "Swords", icon: Swords, label: "Dual Daggers / Blades" },
+  { name: "HandMetal", icon: HandMetal, label: "Knuckles / Fist" },
+  { name: "ShieldIcon", icon: Shield, label: "Tank / Defense" },
+  { name: "ShieldHalf", icon: ShieldHalf, label: "Sword & Shield" },
+  { name: "ShieldCheck", icon: ShieldCheck, label: "Battle Shield / Paladin" },
+  { name: "Gavel", icon: Gavel, label: "Hammer / Warhammer" },
+  { name: "Axe", icon: Axe, label: "Axe / Great Axe" },
+  { name: "Crosshair", icon: Crosshair, label: "Ranger / Crossbow" },
+  { name: "Target", icon: Target, label: "Bow / Marksman" },
+  { name: "Wand", icon: Wand, label: "Staff / Battlestaff" },
+  { name: "Heart", icon: Heart, label: "Healer / Support" },
+  { name: "Zap", icon: Zap, label: "Lightning / Elemental" },
+  { name: "Flame", icon: Flame, label: "Fire Mage / Pyro" },
+  { name: "Snowflake", icon: Snowflake, label: "Ice Mage / Cryo" },
+  { name: "SkullIcon", icon: Skull, label: "Dark / Necromancer" },
+  { name: "Star", icon: Star, label: "Rare / Special" },
+  { name: "Crown", icon: Crown, label: "Leader / Officer" },
   { name: "Anchor", icon: Anchor, label: "Defense / Anchor" },
   { name: "Footprints", icon: Footprints, label: "Scout / Rogue" },
-  { name: "Swords", icon: Swords, label: "Dual Wield / Blades" },
-  { name: "Crosshair", icon: Crosshair, label: "Ranged / Archer" },
-  { name: "Bone", icon: Bone, label: "Necromancer / Dark" },
 ];
 
 const getClassIcon = (iconName: string) => {
+  if (!iconName) return null;
   const entry = CLASS_ICONS.find(c => c.name === iconName);
   return entry ? entry.icon : null;
 };
@@ -91,6 +99,7 @@ export function InventoryView() {
     try { return localStorage.getItem("raidscout-matrix-guild") || ""; } catch { return ""; }
   });
   const [matrixPlayerSearch, setMatrixPlayerSearch] = useState("");
+  const [deleteCollectionTarget, setDeleteCollectionTarget] = useState<{ id: string; name: string } | null>(null);
 
   const { data: collections = [], isLoading: collectionsLoading } = useQuery({
     queryKey: ["collections", serverId],
@@ -133,13 +142,14 @@ export function InventoryView() {
     enabled: configured && (tab !== "catalog" || needFullItems),
   });
 
-  const { data: members = [] } = useQuery({
-    queryKey: ["members", serverId],
-    queryFn: () => fetchMembers(serverId),
+  const { data: members = [], isLoading: membersLoading } = useQuery({
+    queryKey: ["members", serverId, "all"],
+    queryFn: () => fetchMembers(serverId, { includeInactive: true }),
     enabled: configured,
+    staleTime: 0,
   });
 
-  const { data: guilds = [] } = useQuery({
+  const { data: guilds = [], isLoading: guildsLoading } = useQuery({
     queryKey: ["guilds", serverId],
     queryFn: () => fetchGuilds(serverId),
     enabled: configured,
@@ -180,8 +190,10 @@ export function InventoryView() {
   // Class icons & colors for history tab
   const [classIcons, setClassIcons] = useState<Record<string, string>>({});
   const [classColors, setClassColors] = useState<Record<string, string>>({});
+  const [classesLoading, setClassesLoading] = useState(true);
   useEffect(() => {
-    if (!serverId) return;
+    if (!serverId) { setClassesLoading(false); return; }
+    setClassesLoading(true);
     supabaseClient.from("server_classes")
       .select("name, icon, color")
       .eq("server_id", serverId)
@@ -190,11 +202,12 @@ export function InventoryView() {
         if (data) {
           const icons: Record<string, string> = {};
           const colors: Record<string, string> = {};
-          data.forEach((r: any) => { icons[r.name] = r.icon; colors[r.name] = r.color; });
+          data.forEach((r: any) => { icons[r.name.toLowerCase()] = r.icon; colors[r.name.toLowerCase()] = r.color; });
           setClassIcons(icons);
           setClassColors(colors);
         }
-      });
+        setClassesLoading(false);
+      }, () => setClassesLoading(false));
   }, [serverId]);
 
   // â”€â”€ Create Item Modal â”€â”€
@@ -510,6 +523,8 @@ export function InventoryView() {
     return acc;
   }, {});
 
+  const isDataReady = !membersLoading && !guildsLoading && !classesLoading;
+
   return (
     <div className="w-full max-w-[100%] 2xl:max-w-[1600px] mx-auto px-3 sm:px-4 py-4 sm:py-6 space-y-4">
       {/* Header */}
@@ -523,6 +538,19 @@ export function InventoryView() {
         </div>
       </div>
 
+      {!isDataReady ? (
+        <div className="flex flex-col items-center justify-center py-20 space-y-4">
+          <div className="relative w-10 h-10">
+            <div className="absolute inset-0 rounded-full border-2 border-[#27272a]" />
+            <div className="absolute inset-0 rounded-full border-2 border-t-[#a1a1aa] border-r-transparent border-b-transparent border-l-transparent animate-spin" />
+          </div>
+          <div className="text-center space-y-1">
+            <p className="text-sm text-[#a1a1aa] font-medium">Loading inventory data...</p>
+            <p className="text-[11px] text-[#52525b]">Fetching members, classes & guild badges</p>
+          </div>
+        </div>
+      ) : (
+        <>
       {/* Tabs */}
       <div className="flex bg-[#18181b] rounded-lg p-0.5 gap-0.5">
         {(["catalog", "collections", "history", "recipients", "analytics"] as const).map(t => (
@@ -707,13 +735,22 @@ export function InventoryView() {
           return { ...ci, item };
         });
 
-        const playersWithOwnership = Array.from(ownedMap.entries())
-          .map(([name, sets]) => ({ name, distributed: sets.distributed, manual: sets.manual }))
-          .sort((a, b) => {
+        const playersWithOwnership = (() => {
+          const list = Array.from(ownedMap.entries())
+            .map(([name, sets]) => ({ name, distributed: sets.distributed, manual: sets.manual }));
+          // Include all members even if they have no distributions yet (so they appear for manual assignment)
+          const existingNames = new Set(list.map(p => p.name.toLowerCase().trim()));
+          for (const m of members) {
+            if (!existingNames.has(m.name.toLowerCase().trim())) {
+              list.push({ name: m.name, distributed: new Set<string>(), manual: new Set<string>() });
+            }
+          }
+          return list.sort((a, b) => {
             if (matrixSort === "owned-desc") return (b.distributed.size + b.manual.size) - (a.distributed.size + a.manual.size);
             if (matrixSort === "owned-asc") return (a.distributed.size + a.manual.size) - (b.distributed.size + b.manual.size);
             return a.name.localeCompare(b.name);
           });
+        })();
 
         // Collection LIST mode
         if (collectionMode === "list") return (
@@ -831,9 +868,7 @@ export function InventoryView() {
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          if (confirm(`Delete collection "${c.name}"?`)) {
-                            deleteCollection(c.id).then(() => queryClient.invalidateQueries({ queryKey: ["collections", serverId] }));
-                          }
+                          setDeleteCollectionTarget({ id: c.id, name: c.name });
                         }}
                         className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 text-[11px] font-medium text-[#52525b] hover:text-[#f87171] hover:bg-[#f87171]/5 transition-colors"
                       >
@@ -1042,7 +1077,7 @@ export function InventoryView() {
             let list = playersWithOwnership;
             if (matrixGuildFilter) {
               list = list.filter(p => {
-                const m = members.find(m => m.id === p.name || m.name === p.name);
+                const m = members.find(m => m.id === p.name || m.name.toLowerCase().trim() === p.name.toLowerCase().trim());
                 if (!m?.guild_id) return false;
                 const g = guilds.find(g => g.id === m.guild_id);
                 return g?.name === matrixGuildFilter;
@@ -1145,7 +1180,7 @@ export function InventoryView() {
                                   <span className="text-[10px] text-[#52525b] tabular-nums w-5 text-right shrink-0">{i + 1}</span>
                                   <span className="text-[#fafafa]">{p.name}</span>
                                   {(() => {
-                                    const m = members.find(m => m.id === p.name || m.name === p.name);
+                                    const m = members.find(m => m.id === p.name || m.name.toLowerCase().trim() === p.name.toLowerCase().trim());
                                     const g = m?.guild_id ? guilds.find(g => g.id === m.guild_id) : null;
                                     if (!g) return null;
                                     const c = guildColor(g.name);
@@ -1290,9 +1325,9 @@ export function InventoryView() {
                           <div className="flex items-center gap-2 mt-0.5">
                             <span className="text-[11px] text-[#71717a]">→</span>
                             {(() => {
-                              const m = members.find(m => m.name === d.player_name);
-                              const cc = (m?.class && classColors[m.class]) || "#a1a1aa";
-                              const ci = m?.class && classIcons[m.class];
+                              const m = members.find(m => m.id === d.member_id || m.name.toLowerCase().trim() === d.player_name.toLowerCase().trim());
+                              const cc = (m?.class && classColors[m.class?.toLowerCase().trim() ?? ""]) || "#a1a1aa";
+                              const ci = m?.class && classIcons[m.class?.toLowerCase().trim() ?? ""];
                               return (
                                 <span className="text-[11px] font-medium flex items-center gap-1 text-[#fafafa]">
                                   {ci && getClassIcon(ci) && (() => { const CIcon = getClassIcon(ci)!; return <CIcon className="w-3 h-3" style={{ color: cc }} />; })()}
@@ -1376,7 +1411,7 @@ export function InventoryView() {
           if (recipientSearch) list = list.filter(p => p.player_name.toLowerCase().includes(recipientSearch.toLowerCase()));
           if (recipientGuildFilter) {
             list = list.filter(p => {
-              const m = members.find(m => m.id === p.member_id || m.name === p.player_name);
+              const m = members.find(m => m.id === p.member_id || m.name.toLowerCase().trim() === p.player_name.toLowerCase().trim());
               const g = m?.guild_id ? guilds.find(g => g.id === m.guild_id) : null;
               return g?.name === recipientGuildFilter;
             });
@@ -1385,7 +1420,7 @@ export function InventoryView() {
         })();
         // Build unique guild list for filter dropdown
         const guildNames = [...new Set(players.map(p => {
-          const m = members.find(m => m.id === p.member_id || m.name === p.player_name);
+          const m = members.find(m => m.id === p.member_id || m.name.toLowerCase().trim() === p.player_name.toLowerCase().trim());
           const g = m?.guild_id ? guilds.find(g => g.id === m.guild_id) : null;
           return g?.name ?? "";
         }).filter(Boolean))].sort();
@@ -1458,9 +1493,9 @@ export function InventoryView() {
                   </thead>
                   <tbody>
                     {filteredPlayers.map(p => {
-                      const m = members.find(m => m.id === p.member_id || m.name === p.player_name);
-                      const cc = (m?.class && classColors[m.class]) || "#a1a1aa";
-                      const ci = m?.class && classIcons[m.class];
+                      const m = members.find(m => m.id === p.member_id || m.name.toLowerCase().trim() === p.player_name.toLowerCase().trim());
+                      const cc = (m?.class && classColors[m.class?.toLowerCase().trim() ?? ""]) || "#a1a1aa";
+                      const ci = m?.class && classIcons[m.class?.toLowerCase().trim() ?? ""];
                       const CIcon = ci ? getClassIcon(ci) : null;
                       const g = m?.guild_id ? guilds.find(g => g.id === m.guild_id) : null;
                       const gc = g ? guildColor(g.name) : null;
@@ -1678,9 +1713,9 @@ export function InventoryView() {
                 <div className="space-y-1">
                   {list.map((r, i) => {
                     const pct = Math.max(4, (r.total_items / maxItems) * 100);
-                    const m = members.find(m => m.id === r.member_id || m.name === r.player_name);
-                    const cc = (m?.class && classColors[m.class]) || "#a1a1aa";
-                    const ci = m?.class && classIcons[m.class];
+                    const m = members.find(m => m.id === r.member_id || m.name.toLowerCase().trim() === r.player_name.toLowerCase().trim());
+                    const cc = (m?.class && classColors[m.class?.toLowerCase().trim() ?? ""]) || "#a1a1aa";
+                    const ci = m?.class && classIcons[m.class?.toLowerCase().trim() ?? ""];
                     const g = m?.guild_id ? guilds.find(g => g.id === m.guild_id) : null;
                     const gc = g ? guildColor(g.name) : null;
                     return (
@@ -2032,9 +2067,9 @@ export function InventoryView() {
       {/* ── Recipient Detail Modal (Analytics) ── */}
       {selectedRecipient && (() => {
         const memberItems = distributions.filter(d => d.member_id === selectedRecipient.member_id || d.player_name === selectedRecipient.player_name);
-        const m = members.find(m => m.id === selectedRecipient.member_id || m.name === selectedRecipient.player_name);
-        const cc = (m?.class && classColors[m.class]) || "#a1a1aa";
-        const ci = m?.class && classIcons[m.class];
+        const m = members.find(m => m.id === selectedRecipient.member_id || m.name.toLowerCase().trim() === selectedRecipient.player_name.toLowerCase().trim());
+        const cc = (m?.class && classColors[m.class?.toLowerCase().trim() ?? ""]) || "#a1a1aa";
+        const ci = m?.class && classIcons[m.class?.toLowerCase().trim() ?? ""];
         const CIcon = ci ? getClassIcon(ci) : null;
         return (
           <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setSelectedRecipient(null)}>
@@ -2112,9 +2147,9 @@ export function InventoryView() {
               ) : (
                 <div className="space-y-1.5">
                   {recipients.map(r => {
-                    const m = members.find(m => m.id === r.member_id || m.name === r.player_name);
-                    const cc = (m?.class && classColors[m.class]) || "#a1a1aa";
-                    const ci = m?.class && classIcons[m.class];
+                    const m = members.find(m => m.id === r.member_id || m.name.toLowerCase().trim() === r.player_name.toLowerCase().trim());
+                    const cc = (m?.class && classColors[m.class?.toLowerCase().trim() ?? ""]) || "#a1a1aa";
+                    const ci = m?.class && classIcons[m.class?.toLowerCase().trim() ?? ""];
                     const CIcon = ci ? getClassIcon(ci) : null;
                     const g = m?.guild_id ? guilds.find(g => g.id === m.guild_id) : null;
                     const gc = g ? guildColor(g.name) : null;
@@ -2175,7 +2210,7 @@ export function InventoryView() {
             </div>
             <button
               onClick={() => {
-                if (deleteConfirmName.toLowerCase() === deleteConfirm.itemName.toLowerCase()) {
+                if (deleteConfirmName.toLowerCase().trim() === deleteConfirm.itemName.toLowerCase().trim()) {
                   deleteDistMutation.mutate(deleteConfirm.distId);
                   setDeleteConfirm(null);
                 }
@@ -2188,6 +2223,26 @@ export function InventoryView() {
             </button>
           </div>
         </div>
+      )}
+
+      <ConfirmDialog
+        open={deleteCollectionTarget !== null}
+        title="Delete Collection"
+        message={`This will permanently delete the collection and all its item assignments. Ownership data will be lost.`}
+        confirmLabel="Delete Collection"
+        confirmText={deleteCollectionTarget?.name ?? ""}
+        variant="danger"
+        onConfirm={() => {
+          if (deleteCollectionTarget) {
+            deleteCollection(deleteCollectionTarget.id).then(() => {
+              queryClient.invalidateQueries({ queryKey: ["collections", serverId] });
+            });
+            setDeleteCollectionTarget(null);
+          }
+        }}
+        onCancel={() => setDeleteCollectionTarget(null)}
+      />
+        </>
       )}
 
     </div>

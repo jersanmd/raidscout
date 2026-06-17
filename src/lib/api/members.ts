@@ -6,12 +6,25 @@ import type { Member } from "@/types";
 export async function fetchMembers(serverId?: string | null, opts?: { includeInactive?: boolean }): Promise<Member[]> {
   const sid = serverId ?? getCurrentServerId();
   if (!sid) return [];
-  let query = supabase.from("members").select("*").order("name");
-  if (sid) query = query.eq("server_id", sid);
-  if (!opts?.includeInactive) query = query.eq("is_active", true);
-  const { data, error } = await query;
-  if (error) throw error;
-  return data as Member[];
+
+  const all: Member[] = [];
+  const pageSize = 1000;
+  let page = 0;
+
+  while (true) {
+    let query = supabase.from("members").select("*").order("name")
+      .range(page * pageSize, (page + 1) * pageSize - 1);
+    if (sid) query = query.eq("server_id", sid);
+    if (!opts?.includeInactive) query = query.eq("is_active", true);
+    const { data, error } = await query;
+    if (error) throw error;
+    if (!data || data.length === 0) break;
+    all.push(...(data as Member[]));
+    if (data.length < pageSize) break;
+    page++;
+  }
+
+  return all;
 }
 
 export async function upsertMember(name: string, guildId?: string | null, combatPower?: number | null, memberClass?: string | null): Promise<Member> {
