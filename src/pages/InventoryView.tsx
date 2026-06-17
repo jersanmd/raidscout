@@ -820,7 +820,7 @@ export function InventoryView() {
                       const isFirst = idx === 0;
                       const isLast = idx === arr.length - 1;
                       return (
-                        <span key={ci.id} className="inline-flex items-center gap-1 text-[11px] font-medium rounded-lg border border-[#27272a] bg-[#09090b] overflow-hidden" style={{ color: rc, borderColor: rc + "30" }}>
+                        <span key={ci.id} className="inline-flex items-center gap-1 text-[11px] font-medium rounded-lg border border-[#27272a] bg-[#18181b] overflow-hidden" style={{ color: rc, borderColor: rc + "30" }}>
                           {/* Reorder buttons */}
                           <span className="flex flex-col border-r border-[#27272a]">
                             <button
@@ -884,7 +884,7 @@ export function InventoryView() {
                     <select
                       value={collCatFilter}
                       onChange={e => setCollCatFilter(e.target.value)}
-                      className="text-[10px] bg-[#09090b] border border-[#27272a] rounded-lg text-[#fafafa] px-2.5 py-1.5 focus:outline-none focus:border-[#3f3f46]"
+                      className="text-[10px] bg-[#18181b] border border-[#27272a] rounded-lg text-[#fafafa] px-2.5 py-1.5 focus:outline-none focus:border-[#3f3f46]"
                     >
                       <option value="">All Categories</option>
                       {topCategories.map((tc: any) => (
@@ -900,7 +900,7 @@ export function InventoryView() {
                     <select
                       value={collRarityFilter}
                       onChange={e => setCollRarityFilter(e.target.value)}
-                      className="text-[10px] bg-[#09090b] border border-[#27272a] rounded-lg text-[#fafafa] px-2.5 py-1.5 focus:outline-none focus:border-[#3f3f46]"
+                      className="text-[10px] bg-[#18181b] border border-[#27272a] rounded-lg text-[#fafafa] px-2.5 py-1.5 focus:outline-none focus:border-[#3f3f46]"
                     >
                       <option value="">All Rarities</option>
                       {RARITY_ORDER.filter(r => collRarities.includes(r)).map(r => (
@@ -913,7 +913,7 @@ export function InventoryView() {
                         value={collectionItemSearch}
                         onChange={e => setCollectionItemSearch(e.target.value)}
                         placeholder="Search name..."
-                        className="w-36 pl-6 pr-2 py-1 text-[11px] bg-[#09090b] border border-[#27272a] rounded-lg text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#3f3f46]"
+                        className="w-36 pl-6 pr-2 py-1 text-[11px] bg-[#18181b] border border-[#27272a] rounded-lg text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#3f3f46]"
                       />
                     </div>
                   </div>
@@ -932,7 +932,7 @@ export function InventoryView() {
                             .catch(() => toast("error", "Failed to add item"));
                         }}
                         disabled={isAlreadyAdded}
-                        className={`inline-flex items-center gap-1 text-[11px] font-medium px-2.5 py-1.5 rounded-lg border transition text-left ${isAlreadyAdded ? "border-emerald-500/20 bg-emerald-500/5 text-emerald-400/50 cursor-default" : "border-[#27272a] hover:border-[#3f3f46] cursor-pointer"}`}
+                        className={`inline-flex items-center gap-1 text-[11px] font-medium px-2.5 py-1.5 rounded-lg border transition text-left ${isAlreadyAdded ? "border-emerald-500/20 bg-emerald-500/5 text-emerald-400/50 cursor-default" : "border-[#27272a] bg-[#18181b] hover:border-[#3f3f46] cursor-pointer"}`}
                         style={{ color: isAlreadyAdded ? undefined : rc }}
                         title={isAlreadyAdded ? `${item.name} — already in collection` : item.name}
                       >
