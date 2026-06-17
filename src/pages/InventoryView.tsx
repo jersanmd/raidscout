@@ -90,6 +90,7 @@ export function InventoryView() {
   const [matrixGuildFilter, setMatrixGuildFilter] = useState<string>(() => {
     try { return localStorage.getItem("raidscout-matrix-guild") || ""; } catch { return ""; }
   });
+  const [matrixPlayerSearch, setMatrixPlayerSearch] = useState("");
 
   const { data: collections = [], isLoading: collectionsLoading } = useQuery({
     queryKey: ["collections", serverId],
@@ -1036,15 +1037,23 @@ export function InventoryView() {
         if (collectionMode === "matrix" && selectedCollection) {
           const matrixItems = collItemsWithData.filter(ci => ci.item);
 
-          // Filter players by guild
-          const filteredPlayers = matrixGuildFilter
-            ? playersWithOwnership.filter(p => {
+          // Filter players by guild + search
+          const filteredPlayers = (() => {
+            let list = playersWithOwnership;
+            if (matrixGuildFilter) {
+              list = list.filter(p => {
                 const m = members.find(m => m.id === p.name || m.name === p.name);
                 if (!m?.guild_id) return false;
                 const g = guilds.find(g => g.id === m.guild_id);
                 return g?.name === matrixGuildFilter;
-              })
-            : playersWithOwnership;
+              });
+            }
+            if (matrixPlayerSearch.trim()) {
+              const q = matrixPlayerSearch.toLowerCase();
+              list = list.filter(p => p.name.toLowerCase().includes(q));
+            }
+            return list;
+          })();
 
           // Build guild list
           const guildNames = [...new Set(members.map(m => {
@@ -1079,7 +1088,22 @@ export function InventoryView() {
                 <div className="flex items-center gap-3 text-[10px]">
                   <span className="flex items-center gap-1"><span className="w-3 h-3 rounded border border-emerald-500/20 bg-emerald-500/10" /> Distributed</span>
                   <span className="flex items-center gap-1"><span className="w-3 h-3 rounded border border-amber-500/20 bg-amber-500/10" /> Manual</span>
-                  <span className="text-[#52525b] ml-1">Click cells to toggle</span>
+                  <span className="text-[#52525b]">Click cells to toggle</span>
+                </div>
+                <div className="relative ml-auto">
+                  <Search className="w-3 h-3 text-[#52525b] absolute left-2 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    value={matrixPlayerSearch}
+                    onChange={(e) => setMatrixPlayerSearch(e.target.value)}
+                    placeholder="Search player…"
+                    className="w-36 pl-6 pr-6 py-1.5 text-[10px] bg-[#18181b] border border-[#27272a] rounded-lg text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#3f3f46]"
+                  />
+                  {matrixPlayerSearch && (
+                    <button onClick={() => setMatrixPlayerSearch("")} className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[#52525b] hover:text-[#a1a1aa]">
+                      <X className="w-3 h-3" />
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -1115,8 +1139,8 @@ export function InventoryView() {
                           <tr><td colSpan={matrixItems.length + 1} className="text-center py-8 text-[#52525b]">No players in this guild.</td></tr>
                         ) : (
                           filteredPlayers.map((p, i) => (
-                            <tr key={p.name} className="border-b border-[#27272a]/50 hover:bg-[#09090b]/30 transition">
-                              <td className="sticky left-0 bg-[#18181b] px-4 py-2.5 font-medium text-xs">
+                            <tr key={p.name} className="border-b border-[#27272a]/50 hover:bg-[#09090b]/30 transition group">
+                              <td className="sticky left-0 bg-[#18181b] group-hover:bg-[#09090b]/30 px-4 py-2.5 font-medium text-xs transition-colors">
                                 <span className="flex items-center gap-2">
                                   <span className="text-[10px] text-[#52525b] tabular-nums w-5 text-right shrink-0">{i + 1}</span>
                                   <span className="text-[#fafafa]">{p.name}</span>
