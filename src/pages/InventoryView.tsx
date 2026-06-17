@@ -73,6 +73,8 @@ export function InventoryView() {
   const [showCreateCollection, setShowCreateCollection] = useState(false);
   const [newCollectionName, setNewCollectionName] = useState("");
   const [collectionItemSearch, setCollectionItemSearch] = useState("");
+  const [collCatFilter, setCollCatFilter] = useState("");
+  const [collRarityFilter, setCollRarityFilter] = useState("");
 
   const { data: collections = [], isLoading: collectionsLoading } = useQuery({
     queryKey: ["collections", serverId],
@@ -748,14 +750,34 @@ export function InventoryView() {
         // Collection VIEW mode (manage items)
         if (collectionMode === "view" && selectedCollection) {
           const availableItems = items.filter(i => !collItemIds.has(i.id));
-          const filteredAvailable = collectionItemSearch
-            ? availableItems.filter(i => i.name.toLowerCase().includes(collectionItemSearch.toLowerCase()))
-            : availableItems;
+
+          // Build category tree from gameCategories
+          const topCategories = (gameCategories as any[]).filter((c: any) => !c.parent_id);
+          const subCategories = (gameCategories as any[]).filter((c: any) => c.parent_id);
+
+          // Collect available rarities from unfiltered items
+          const collRarities = [...new Set(availableItems.map(i => i.rarity?.toLowerCase()).filter(Boolean))] as string[];
+
+          // Apply filters
+          let filtered = availableItems;
+          if (collectionItemSearch)
+            filtered = filtered.filter(i => i.name.toLowerCase().includes(collectionItemSearch.toLowerCase()));
+          if (collCatFilter) {
+            filtered = filtered.filter(i => {
+              const catId = (i as any).category_id;
+              if (!catId) return false;
+              const cat = (gameCategories as any[]).find((c: any) => c.id === catId);
+              return cat?.parent_id === collCatFilter || cat?.id === collCatFilter;
+            });
+          }
+          if (collRarityFilter)
+            filtered = filtered.filter(i => i.rarity?.toLowerCase() === collRarityFilter);
+          const filteredAvailable = filtered;
 
           return (
             <div className="space-y-6">
               <div className="flex items-center gap-3">
-                <button onClick={() => { setCollectionMode("list"); setSelectedCollection(null); setCollectionItemSearch(""); }} className="p-1 text-[#a1a1aa] hover:text-[#fafafa] transition"><ArrowLeft className="w-4 h-4" /></button>
+                <button onClick={() => { setCollectionMode("list"); setSelectedCollection(null); setCollectionItemSearch(""); setCollCatFilter(""); setCollRarityFilter(""); }} className="p-1 text-[#a1a1aa] hover:text-[#fafafa] transition"><ArrowLeft className="w-4 h-4" /></button>
                 <div>
                   <h3 className="text-sm font-semibold text-[#fafafa]">{currentCollection?.name}</h3>
                   <p className="text-[10px] text-[#52525b]">{collItems.length} item{collItems.length !== 1 ? "s" : ""} in collection</p>
@@ -796,16 +818,45 @@ export function InventoryView() {
 
               {/* Available items to add */}
               <div>
-                <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
                   <h4 className="text-xs font-semibold text-[#d4d4d8]">Catalog Items</h4>
-                  <div className="relative">
-                    <Search className="w-3 h-3 text-[#52525b] absolute left-2 top-1/2 -translate-y-1/2" />
-                    <input
-                      value={collectionItemSearch}
-                      onChange={e => setCollectionItemSearch(e.target.value)}
-                      placeholder="Search..."
-                      className="w-40 pl-6 pr-2 py-1 text-[11px] bg-[#09090b] border border-[#27272a] rounded-lg text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#3f3f46]"
-                    />
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {/* Category filter */}
+                    <select
+                      value={collCatFilter}
+                      onChange={e => setCollCatFilter(e.target.value)}
+                      className="text-[10px] bg-[#09090b] border border-[#27272a] rounded-lg text-[#fafafa] px-2 py-1 focus:outline-none focus:border-[#3f3f46]"
+                    >
+                      <option value="">All Categories</option>
+                      {topCategories.map((tc: any) => (
+                        <optgroup key={tc.id} label={tc.name}>
+                          <option value={tc.id}>{tc.name} (all)</option>
+                          {subCategories.filter((sc: any) => sc.parent_id === tc.id).map((sc: any) => (
+                            <option key={sc.id} value={sc.id}>  {sc.name}</option>
+                          ))}
+                        </optgroup>
+                      ))}
+                    </select>
+                    {/* Rarity filter */}
+                    <select
+                      value={collRarityFilter}
+                      onChange={e => setCollRarityFilter(e.target.value)}
+                      className="text-[10px] bg-[#09090b] border border-[#27272a] rounded-lg text-[#fafafa] px-2 py-1 focus:outline-none focus:border-[#3f3f46]"
+                    >
+                      <option value="">All Rarities</option>
+                      {RARITY_ORDER.filter(r => collRarities.includes(r)).map(r => (
+                        <option key={r} value={r} className="capitalize">{r}</option>
+                      ))}
+                    </select>
+                    <div className="relative">
+                      <Search className="w-3 h-3 text-[#52525b] absolute left-2 top-1/2 -translate-y-1/2" />
+                      <input
+                        value={collectionItemSearch}
+                        onChange={e => setCollectionItemSearch(e.target.value)}
+                        placeholder="Search name..."
+                        className="w-36 pl-6 pr-2 py-1 text-[11px] bg-[#09090b] border border-[#27272a] rounded-lg text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#3f3f46]"
+                      />
+                    </div>
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-1.5 max-h-64 overflow-y-auto">
