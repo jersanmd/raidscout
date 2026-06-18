@@ -36,7 +36,6 @@ for (const stmt of statements) {
   if (
     stmt.startsWith("COPY ") ||
     stmt.startsWith("INSERT INTO ") ||
-    stmt.startsWith("ALTER TABLE ONLY") && stmt.includes("ADD CONSTRAINT") && stmt.includes("_pkey") ||
     stmt.includes("pg_catalog.") && !stmt.startsWith("CREATE EXTENSION") ||
     stmt.startsWith("GRANT ") ||
     stmt.startsWith("REVOKE ") ||
@@ -63,11 +62,13 @@ for (const stmt of statements) {
   } else if (stmt.startsWith("ALTER TABLE") && (stmt.includes("ENABLE ROW LEVEL SECURITY") || stmt.includes("ENABLE ALWAYS"))) {
     alterTables.push(stmt);
   } else if (stmt.startsWith("ALTER TABLE") && stmt.includes("ADD CONSTRAINT")) {
-    // Keep FK and unique constraints (but not pkey constraints — those are inline)
-    if (!stmt.includes("_pkey") && !stmt.includes("PRIMARY KEY")) {
-      alterTables.push(stmt);
-    }
+    // Keep FK, unique, and PK constraints
+    alterTables.push(stmt);
   } else if (stmt.startsWith("ALTER TABLE")) {
+    // Skip sequence defaults (pg_dump artifacts for SERIAL columns — our tables use UUIDs)
+    if (stmt.includes("nextval")) continue;
+    // Skip OWNER TO changes
+    if (stmt.includes("OWNER TO")) continue;
     alterTables.push(stmt);
   } else if (stmt.startsWith("CREATE") && stmt.includes("INDEX")) {
     let cleaned = stmt
@@ -84,7 +85,12 @@ for (const stmt of statements) {
   }
 }
 
-// Build migration
+// Build migration — sort ALTER TABLE: PK constraints first, then others, then FKs last
+const pkAlters = alterTables.filter(s => s.includes("PRIMARY KEY"));
+const fkAlters = alterTables.filter(s => s.includes("FOREIGN KEY"));
+const otherAlters = alterTables.filter(s => !s.includes("PRIMARY KEY") && !s.includes("FOREIGN KEY"));
+const sortedAlters = [...pkAlters, ...otherAlters, ...fkAlters];
+
 const parts = [
   "-- Consolidated Production Schema",
   `-- Generated: ${new Date().toISOString()}`,
@@ -97,12 +103,15 @@ const parts = [
   ...tables,
   "",
   "-- ── Alter Tables ──",
-  ...alterTables,
+  ...sortedAlters,
   "",
   "-- ── Indexes ──",
   ...indexes,
   "",
   "-- ── Functions ──",
+  "",
+  "SET check_function_bodies = false;",
+  "",
   ...functions,
   "",
   "-- ── Policies ──",
