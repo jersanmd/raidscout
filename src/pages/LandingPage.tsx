@@ -4,7 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase, fetchGames } from "@/lib/supabase";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { SEOHead } from "@/components/SEOHead";
-import { version } from "../../package.json";
+declare const APP_VERSION: string;
 import {
   Timer, Shield, BarChart3, Sparkles, MessageSquare, Calendar, Skull, Eye, Trophy, Server, Clock, Lock, Image, Package, Archive, User, Users,
   LogIn, UserPlus, Mail, CheckCircle, AlertTriangle, Key, ChevronDown, Bot,
@@ -1153,7 +1153,7 @@ export function LandingPage() {
             <img src="/logo.png" alt="" className="w-5 h-5 rounded opacity-40" />
             <span className="text-sm">&copy; {new Date().getFullYear()} RaidScout. All rights reserved.</span>
           </div>
-          <span className="text-xs text-[#fafafa]/20 font-mono">v{version}</span>
+          <span className="text-xs text-[#fafafa]/20 font-mono">v{APP_VERSION}</span>
         </div>
       </footer>
 
