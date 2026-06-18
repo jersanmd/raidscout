@@ -238,7 +238,8 @@ Complete item and loot tracking across your entire guild:
 - **Class icons** — 20 class icons (Sword, Shield, Crossbow, etc.) with custom colors displayed next to player names across all tabs.
 - **URL-synced tabs** — All 5 inventory tabs, plus History (Timeline/Ledger), Leaderboard (Reset/All Time), and Analytics (Week/Month/All Time) sync to the browser URL, persisting on refresh and share.
 - **Sticky matrix** — Ownership matrix headers and player column stay fixed while scrolling, matching the Ledger pattern.
-- **Sidebar** — Collapsed sidebar shows all server icons; hover to expand with matching positions.
+- **Date-based versioning** — Auto-generated build version shown in footer. Manual `WIPE_STORAGE_KEY` controls when user preferences reset; routine deploys keep all settings.
+- **Sidebar** — Collapsed sidebar shows abbreviated section labels (Svrs, Ops, Mgmt, Asts, Ins) at matching font sizes. All items use fixed heights for consistent alignment across collapsed, hover overlay, and expanded states. Auto-collapse on settings pages without persisting.
 
 ### 👤 Member Profiles
 

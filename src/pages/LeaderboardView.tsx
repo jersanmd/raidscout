@@ -809,9 +809,9 @@ export function LeaderboardView() {
       </div>
 
       {/* Period tabs */}
-      <div className="flex bg-[#18181b] rounded-lg p-0.5">
+      <div className="flex items-center gap-1 border-b border-[#27272a] pb-2">
         {(["weekly", "all"] as LeaderboardPeriod[]).map((p) => (
-          <button key={p} onClick={() => setPeriod(p)} className={`flex-1 py-1.5 rounded-md text-xs font-medium transition ${period === p ? "bg-[#27272a] text-[#fafafa]" : "text-[#a1a1aa] hover:text-[#fafafa]"}`}>
+          <button key={p} onClick={() => setPeriod(p)} className={`px-3 py-1.5 rounded-t-md text-xs font-medium transition ${period === p ? "bg-[#18181b] text-[#fafafa] border border-[#27272a] border-b-transparent" : "text-[#71717a] hover:text-[#d4d4d8]"}`}>
             {p === "all" ? "All Time" : "Since Reset"}
           </button>
         ))}

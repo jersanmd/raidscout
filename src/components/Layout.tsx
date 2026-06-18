@@ -3,6 +3,8 @@ import { createPortal } from "react-dom";
 import { NavLink, Outlet, useNavigate, useLocation, Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAdminViewAs } from "@/hooks/useAdminViewAs";
+
+declare const APP_VERSION: string;
 import { useServer } from "@/contexts/ServerContext";
 import { supabase } from "@/lib/supabase";
 import { CreateServerModal } from "@/components/CreateServerModal";
@@ -64,17 +66,15 @@ export function Layout() {
     const t: Record<string,string> = {"/":"Bosses / Activities \u2014 RaidScout","/schedule":"Weekly Schedule \u2014 RaidScout","/leaderboard":"Leaderboard \u2014 RaidScout","/history":"Kill History \u2014 RaidScout","/members":"Members \u2014 RaidScout","/analytics":"Analytics \u2014 RaidScout","/server-settings":"Server Settings \u2014 RaidScout","/billing":"Billing \u2014 RaidScout","/admin":"Admin Panel \u2014 RaidScout"};
     document.title = t[location.pathname] ?? "RaidScout";
   }, [location.pathname]);
-  // Auto-collapse sidebar on settings pages, restore when leaving
+  // Auto-collapse sidebar on settings pages, restore when leaving (don't persist)
   useEffect(() => {
     const isSettings = location.pathname === "/server-settings" || location.pathname === "/billing";
     if (isSettings && !sidebarCollapsed) {
       autoCollapsedRef.current = true;
       setSidebarCollapsed(true);
-      localStorage.setItem("raidscout-sidebar-collapsed", "true");
     } else if (!isSettings && autoCollapsedRef.current) {
       autoCollapsedRef.current = false;
       setSidebarCollapsed(false);
-      localStorage.setItem("raidscout-sidebar-collapsed", "false");
     }
   }, [location.pathname]);
   // Fetch Discord guild info for connected servers
@@ -109,11 +109,61 @@ export function Layout() {
   useSpawnAlerts((bossName) => { setSpawnToast(bossName.startsWith("\u26A0\uFE0F") ? bossName : `\u26A1 ${bossName} spawning in \u2264 5 min!`); playAlertSound(); setTimeout(() => setSpawnToast(null), 8000); });
 
   const NAV_GROUPS = [
-    { label: "Operations", items: [{ to: "/", icon: Swords, label: "Bosses / Activities", end: true },{ to: "/schedule", icon: Calendar, label: "Schedule" },{ to: "/history", icon: Clock, label: "History" }] },
-    { label: "Management", items: [{ to: "/leaderboard", icon: Trophy, label: "Ranks" },...(!isViewer?[{ to: "/members", icon: Users, label: "Members" }]:[])] },
-    { label: "Assets", items: [...(!isViewer?[{ to: "/inventory", icon: Package, label: "Inventory" }]:[])] },
-    { label: "Insights", items: [{ to: "/analytics", icon: BarChart3, label: "Analytics" }] },
+    { label: "Operations", abbr: "Ops", items: [{ to: "/", icon: Swords, label: "Bosses / Activities", end: true },{ to: "/schedule", icon: Calendar, label: "Schedule" },{ to: "/history", icon: Clock, label: "History" }] },
+    { label: "Management", abbr: "Mgmt", items: [{ to: "/leaderboard", icon: Trophy, label: "Ranks" },...(!isViewer?[{ to: "/members", icon: Users, label: "Members" }]:[])] },
+    { label: "Assets", abbr: "Asts", items: [...(!isViewer?[{ to: "/inventory", icon: Package, label: "Inventory" }]:[])] },
+    { label: "Insights", abbr: "Ins", items: [{ to: "/analytics", icon: BarChart3, label: "Analytics" }] },
   ].filter(g => g.items.length > 0);
+
+  // Shared sidebar content — renders nav items in either "full" or "collapsed" mode
+  const renderSidebarNav = (mode: "full" | "collapsed", onNavClick?: () => void) => (
+    <>
+      <nav className="flex-1 overflow-y-auto py-2 px-2 space-y-3 scrollbar-thin">
+        <div>
+          {mode === "full" ? (
+            isViewer ? (<><div className="px-2 mb-0.5 text-[9px] font-semibold text-[#52525b] uppercase tracking-wider">Servers</div><div className="px-2.5 py-2 rounded-md bg-[#18181b] text-xs text-[#a1a1aa] flex items-center gap-2"><Eye className="w-3.5 h-3.5 shrink-0"/><span className="truncate">{viewerServerName||"Read-only"}</span></div></>)
+            : currentServer ? (<><div className="px-2 mb-0.5 text-[9px] font-semibold text-[#52525b] uppercase tracking-wider">Servers</div><div className="space-y-1">
+                <div className="px-2.5 py-2 rounded-md bg-[#18181b] flex items-center gap-2"><Server className="w-3.5 h-3.5 text-[#a1a1aa] shrink-0"/><span className="text-xs text-[#d4d4d8] truncate font-medium">{currentServer.name}</span><span className="ml-0.5 text-[9px] text-amber-500/60 shrink-0">{currentServer.role==="owner"?"Owner":"Mod"}</span>
+                {(()=>{const n=new Date();const e=currentServer.subscription_ends_at?new Date(currentServer.subscription_ends_at):null;if(!e)return null;const d=Math.ceil((e.getTime()-n.getTime())/86400000);if(d>0)return(<span className="ml-auto shrink-0 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-semibold bg-amber-500/10 text-amber-300 border border-amber-500/20"><Crown className="w-2.5 h-2.5"/>Pro · {d}d</span>);return(<span className="ml-auto shrink-0 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-semibold bg-red-500/10 text-red-300 border border-red-500/20">Expired</span>)})()}
+                </div>
+                {servers.length>1&&(<div className="space-y-0.5 pl-1">{servers.filter(s=>s.id!==currentServer.id).map(s=>(<button key={s.id} onClick={()=>{setCurrentServer(s);onNavClick?.()}} className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs text-[#71717a] hover:text-[#d4d4d8] hover:bg-[#18181b]/50 transition text-left"><Server className="w-3 h-3 shrink-0"/><span className="truncate">{s.name}</span><span className={`ml-0.5 text-[9px] shrink-0 ${s.role==="owner"?"text-amber-500/60":"text-blue-400/60"}`}>{s.role==="owner"?"Owner":"Mod"}</span></button>))}</div>)}
+              </div></>) : !isAdmin ? (<button onClick={()=>{setShowCreate(true);onNavClick?.()}} className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-xs font-medium bg-[#fafafa] text-[#09090b] hover:bg-[#e4e4e7] transition"><Plus className="w-3.5 h-3.5"/>New Server</button>) : null
+          ) : (
+            // Collapsed: abbreviated "Svrs" header + icon-only server list
+            currentServer ? (<>
+              <div className="flex justify-center mb-0.5 text-[9px] font-semibold text-[#52525b] uppercase tracking-wider">Svrs</div>
+              <div className="flex justify-center"><div className="flex items-center justify-center p-2 rounded-md bg-[#18181b] h-9"><Server className="w-4 h-4 text-[#d4d4d8]"/></div></div>
+              {servers.length > 1 && (
+                <div className="flex flex-col items-center">
+                  {servers.filter(s => s.id !== currentServer.id).map(s => (
+                    <button key={s.id} onClick={() => setCurrentServer(s)} className="flex items-center justify-center p-2 rounded-md text-[#52525b] hover:text-[#d4d4d8] hover:bg-[#18181b]/50 transition h-9" title={s.name}><Server className="w-4 h-4" /></button>
+                  ))}
+                </div>
+              )}
+            </>) : !currentServer && !isAdmin ? (
+              <div className="flex justify-center pb-1"><button onClick={()=>setShowCreate(true)} className="p-1 rounded-md text-[#71717a] hover:text-[#fafafa] hover:bg-[#18181b] transition"><Plus className="w-4 h-4"/></button></div>
+            ) : null
+          )}
+          <div className="my-2 border-t border-[#1a1a1e]" />
+        </div>
+        {NAV_GROUPS.map(g=>(
+          <div key={g.label}>
+            <div className={mode === "full" ? "px-2.5 mb-1 text-[10px] font-semibold text-[#52525b] uppercase tracking-wider" : "flex justify-center mb-1 text-[10px] font-semibold text-[#52525b] uppercase tracking-wider"}>{mode === "full" ? g.label : g.abbr}</div>
+            <div className="space-y-0.5">{g.items.map(item=>(<NavLink key={item.to} to={item.to} end={item.end} onClick={onNavClick} className={mode === "full" ? ({isActive})=>`flex items-center gap-2.5 px-3 py-2 h-9 rounded-md text-sm font-medium transition-all duration-150 ${isActive?"bg-[#1a1a1e] text-[#fafafa]":"text-[#71717a] hover:text-[#d4d4d8] hover:bg-[#18181b]/50"}` : ({isActive})=>`flex items-center justify-center px-3 py-2 h-9 rounded-md text-sm font-medium transition ${isActive?"bg-[#1a1a1e] text-[#fafafa]":"text-[#71717a] hover:text-[#d4d4d8]"}`} title={mode === "full" ? undefined : item.label}><item.icon className="w-4 h-4 shrink-0"/>{mode === "full" && <span>{item.label}</span>}</NavLink>))}</div>
+          </div>
+        ))}
+      </nav>
+      <div className="border-t border-[#1a1a1e] p-2 space-y-0.5 shrink-0">
+        {hasServer&&!isViewer&&(<>
+          <NavLink to="/server-settings" onClick={onNavClick} className={({isActive})=>`flex items-center gap-2.5 px-2.5 py-2 h-9 rounded-md text-sm font-medium transition ${isActive?"bg-[#1a1a1e] text-[#fafafa]":"text-[#71717a] hover:text-[#d4d4d8] hover:bg-[#18181b]/50"}`} title={mode === "full" ? undefined : "Server Settings"}><Settings className="w-4 h-4 shrink-0"/>{mode === "full" && <span>Server Settings</span>}</NavLink>
+          <NavLink to="/billing" onClick={onNavClick} className={({isActive})=>`flex items-center gap-2.5 px-2.5 py-2 h-9 rounded-md text-sm font-medium transition ${isActive?"bg-[#1a1a1e] text-[#fafafa]":"text-[#71717a] hover:text-[#d4d4d8] hover:bg-[#18181b]/50"}`} title={mode === "full" ? undefined : "Billing"}><CreditCard className="w-4 h-4 shrink-0"/>{mode === "full" && <span>Billing</span>}</NavLink>
+        </>)}
+        <button onClick={toggleSidebar} className="w-full flex items-center gap-2.5 px-2.5 py-2 h-9 rounded-md text-sm text-[#52525b] hover:text-[#a1a1aa] hover:bg-[#18181b]/50 transition" title={mode === "full" ? undefined : (sidebarCollapsed ? "Expand" : "Collapse")}>
+          <PanelLeft className="w-4 h-4 shrink-0"/>{mode === "full" && <span>{sidebarCollapsed ? "Expand" : "Collapse"}</span>}
+        </button>
+      </div>
+    </>
+  );
 
   return (
     <div className="h-screen bg-[#09090b] flex flex-col overflow-hidden" onClick={() => { showUserMenu && setShowUserMenu(false); showNotifications && setShowNotifications(false); }}>
@@ -232,96 +282,20 @@ export function Layout() {
           onMouseLeave={() => setSidebarHovered(false)}
           className={`hidden md:flex flex-col shrink-0 bg-[#0a0a0c] border-r border-[#1a1a1e] transition-all duration-200 ${sidebarCollapsed ? "w-[56px]" : "w-[220px]"}`}
         >
-          {/* -- Floating expanded overlay (collapsed + hovered) -- */}
+          {/* Hover overlay (collapsed → expand on hover) */}
           {sidebarCollapsed && (
             <div className={`absolute left-0 top-0 w-[220px] h-full bg-[#0a0a0c] border-r border-[#1a1a1e] shadow-2xl shadow-black/50 z-40 flex flex-col transition-all duration-200 ease-out ${sidebarHovered ? "translate-x-0 opacity-100" : "-translate-x-3 opacity-0 pointer-events-none"}`}>
-              <nav className="flex-1 overflow-y-auto py-2 px-2 space-y-3 scrollbar-thin">
-                <div>
-                  {isViewer ? (<><div className="px-2 mb-0.5 text-[9px] font-semibold text-[#52525b] uppercase tracking-wider">Servers</div><div className="px-2.5 py-2 rounded-md bg-[#18181b] text-xs text-[#a1a1aa] flex items-center gap-2"><Eye className="w-3.5 h-3.5 shrink-0"/><span className="truncate">{viewerServerName||"Read-only"}</span></div></>)
-                  : currentServer ? (<><div className="px-2 mb-0.5 text-[9px] font-semibold text-[#52525b] uppercase tracking-wider">Servers</div><div className="space-y-1">
-                    <div className="px-2.5 py-2 rounded-md bg-[#18181b] flex items-center gap-2"><Server className="w-3.5 h-3.5 text-[#a1a1aa] shrink-0"/><span className="text-xs text-[#d4d4d8] truncate font-medium">{currentServer.name}</span><span className="ml-0.5 text-[9px] text-amber-500/60 shrink-0">{currentServer.role==="owner"?"Owner":"Mod"}</span>
-                    {(()=>{const n=new Date();const e=currentServer.subscription_ends_at?new Date(currentServer.subscription_ends_at):null;if(!e)return null;const d=Math.ceil((e.getTime()-n.getTime())/86400000);if(d>0)return(<span className="ml-auto shrink-0 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-semibold bg-amber-500/10 text-amber-300 border border-amber-500/20"><Crown className="w-2.5 h-2.5"/>Pro � {d}d</span>);return(<span className="ml-auto shrink-0 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-semibold bg-red-500/10 text-red-300 border border-red-500/20">Expired</span>)})()}
-                    </div>
-                    {servers.length>1&&(<div className="space-y-0.5 pl-1">{servers.filter(s=>s.id!==currentServer.id).map(s=>(<button key={s.id} onClick={()=>{setCurrentServer(s);setSidebarHovered(false)}} className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs text-[#71717a] hover:text-[#d4d4d8] hover:bg-[#18181b]/50 transition text-left"><Server className="w-3 h-3 shrink-0"/><span className="truncate">{s.name}</span><span className={`ml-0.5 text-[9px] shrink-0 ${s.role==="owner"?"text-amber-500/60":"text-blue-400/60"}`}>{s.role==="owner"?"Owner":"Mod"}</span></button>))}</div>)}
-                  </div></>) : !isAdmin ? (<button onClick={()=>{setShowCreate(true);setSidebarHovered(false)}} className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-xs font-medium bg-[#fafafa] text-[#09090b] hover:bg-[#e4e4e7] transition"><Plus className="w-3.5 h-3.5"/>New Server</button>) : null}
-                  <div className="my-2 border-t border-[#1a1a1e]" />
-                </div>
-                {NAV_GROUPS.map(g=>(
-                  <div key={g.label}>
-                    <div className="px-2.5 mb-1 text-[10px] font-semibold text-[#52525b] uppercase tracking-wider">{g.label}</div>
-                    <div className="space-y-0.5">{g.items.map(item=>(<NavLink key={item.to} to={item.to} end={item.end} onClick={()=>setSidebarHovered(false)} className={({isActive})=>`flex items-center gap-2.5 px-3 py-2 rounded-md text-sm font-medium transition-all duration-150 ${isActive?"bg-[#1a1a1e] text-[#fafafa]":"text-[#71717a] hover:text-[#d4d4d8] hover:bg-[#18181b]/50"}`}><item.icon className="w-4 h-4 shrink-0"/><span>{item.label}</span></NavLink>))}</div>
-                  </div>
-                ))}
-              </nav>
-              <div className="border-t border-[#1a1a1e] p-2 space-y-0.5 shrink-0">
-                {hasServer&&!isViewer&&(<><NavLink to="/server-settings" onClick={()=>setSidebarHovered(false)} className={({isActive})=>`flex items-center gap-2.5 px-2.5 py-2 rounded-md text-sm font-medium transition ${isActive?"bg-[#1a1a1e] text-[#fafafa]":"text-[#71717a] hover:text-[#d4d4d8] hover:bg-[#18181b]/50"}`}><Settings className="w-4 h-4 shrink-0"/>Server Settings</NavLink><NavLink to="/billing" onClick={()=>setSidebarHovered(false)} className={({isActive})=>`flex items-center gap-2.5 px-2.5 py-2 rounded-md text-sm font-medium transition ${isActive?"bg-[#1a1a1e] text-[#fafafa]":"text-[#71717a] hover:text-[#d4d4d8] hover:bg-[#18181b]/50"}`}><CreditCard className="w-4 h-4 shrink-0"/>Billing</NavLink></>)}
-                <button onClick={toggleSidebar} className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md text-sm text-[#52525b] hover:text-[#a1a1aa] hover:bg-[#18181b]/50 transition"><PanelLeft className="w-4 h-4 shrink-0"/><span>Expand</span></button>
-              </div>
+              {renderSidebarNav("full", () => setSidebarHovered(false))}
             </div>
           )}
-
-          {/* -- Collapsed icons (always visible when collapsed) -- */}
-          {sidebarCollapsed && (<>
-            <nav className="flex-1 overflow-y-auto py-2 px-2 space-y-3 scrollbar-thin">
-              {currentServer && (
-                <>
-                  <div className="flex justify-center pb-0.5"><Server className="w-4 h-4 text-[#a1a1aa]"/></div>
-                  {servers.length > 1 && (
-                    <div className="flex flex-col items-center gap-0.5">
-                      {servers.filter(s => s.id !== currentServer.id).map(s => (
-                        <button key={s.id} onClick={() => setCurrentServer(s)} className="p-1 rounded-md text-[#52525b] hover:text-[#d4d4d8] hover:bg-[#18181b]/50 transition" title={s.name}>
-                          <Server className="w-4 h-4" />
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </>
-              )}
-              {!currentServer && !isAdmin && <div className="flex justify-center pb-1"><button onClick={()=>setShowCreate(true)} className="p-1 rounded-md text-[#71717a] hover:text-[#fafafa] hover:bg-[#18181b] transition"><Plus className="w-4 h-4"/></button></div>}
-              <div className="border-t border-[#1a1a1e] mb-1" />
-              {NAV_GROUPS.map(g=>(
-                <div key={g.label} className="space-y-0.5">
-                  {g.items.map(item=>(<NavLink key={item.to} to={item.to} end={item.end} className={({isActive})=>`flex justify-center px-2 py-2 rounded-md text-sm font-medium transition ${isActive?"bg-[#1a1a1e] text-[#fafafa]":"text-[#71717a] hover:text-[#d4d4d8]"}`} title={item.label}><item.icon className="w-4 h-4 shrink-0"/></NavLink>))}
-                </div>
-              ))}
-            </nav>
-            <div className="border-t border-[#1a1a1e] p-2 space-y-0.5 shrink-0">
-              {hasServer&&!isViewer&&(<><NavLink to="/server-settings" className={({isActive})=>`flex justify-center px-2 py-2 rounded-md transition ${isActive?"bg-[#1a1a1e] text-[#fafafa]":"text-[#71717a] hover:text-[#d4d4d8]"}`} title="Server Settings"><Settings className="w-4 h-4"/></NavLink><NavLink to="/billing" className={({isActive})=>`flex justify-center px-2 py-2 rounded-md transition ${isActive?"bg-[#1a1a1e] text-[#fafafa]":"text-[#71717a] hover:text-[#d4d4d8]"}`} title="Billing"><CreditCard className="w-4 h-4"/></NavLink></>)}
-              <button onClick={toggleSidebar} className="w-full flex justify-center px-2 py-2 rounded-md text-sm text-[#52525b] hover:text-[#a1a1aa] hover:bg-[#18181b]/50 transition" title="Expand"><PanelLeft className="w-4 h-4"/></button>
-            </div>
-          </>)}
-
-          {/* -- Normal expanded (when not collapsed) -- */}
-          {!sidebarCollapsed && (<>
-            <nav className="flex-1 overflow-y-auto py-2 px-2 space-y-3 scrollbar-thin">
-              <div>
-                {isViewer ? (<><div className="px-2 mb-0.5 text-[9px] font-semibold text-[#52525b] uppercase tracking-wider">Servers</div><div className="px-2.5 py-2 rounded-md bg-[#18181b] text-xs text-[#a1a1aa] flex items-center gap-2"><Eye className="w-3.5 h-3.5 shrink-0"/><span className="truncate">{viewerServerName||"Read-only"}</span></div></>)
-                : currentServer ? (<><div className="px-2 mb-0.5 text-[9px] font-semibold text-[#52525b] uppercase tracking-wider">Servers</div><div className="space-y-1">
-                  <div className="px-2.5 py-2 rounded-md bg-[#18181b] flex items-center gap-2"><Server className="w-3.5 h-3.5 text-[#a1a1aa] shrink-0"/><span className="text-xs text-[#d4d4d8] truncate font-medium">{currentServer.name}</span><span className="ml-0.5 text-[9px] text-amber-500/60 shrink-0">{currentServer.role==="owner"?"Owner":"Mod"}</span>
-                  {(()=>{const n=new Date();const e=currentServer.subscription_ends_at?new Date(currentServer.subscription_ends_at):null;if(!e)return null;const d=Math.ceil((e.getTime()-n.getTime())/86400000);if(d>0)return(<span className="ml-auto shrink-0 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-semibold bg-amber-500/10 text-amber-300 border border-amber-500/20"><Crown className="w-2.5 h-2.5"/>Pro � {d}d</span>);return(<span className="ml-auto shrink-0 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-semibold bg-red-500/10 text-red-300 border border-red-500/20">Expired</span>)})()}
-                  </div>
-                  {servers.length>1&&(<div className="space-y-0.5 pl-1">{servers.filter(s=>s.id!==currentServer.id).map(s=>(<button key={s.id} onClick={()=>setCurrentServer(s)} className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs text-[#71717a] hover:text-[#d4d4d8] hover:bg-[#18181b]/50 transition text-left"><Server className="w-3 h-3 shrink-0"/><span className="truncate">{s.name}</span><span className={`ml-0.5 text-[9px] shrink-0 ${s.role==="owner"?"text-amber-500/60":"text-blue-400/60"}`}>{s.role==="owner"?"Owner":"Mod"}</span></button>))}</div>)}
-                </div></>) : !isAdmin ? (<button onClick={()=>setShowCreate(true)} className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-xs font-medium bg-[#fafafa] text-[#09090b] hover:bg-[#e4e4e7] transition"><Plus className="w-3.5 h-3.5"/>New Server</button>) : null}
-                <div className="my-2 border-t border-[#1a1a1e]" />
-              </div>
-              {NAV_GROUPS.map(g=>(
-                <div key={g.label}>
-                  <div className="px-2.5 mb-1 text-[10px] font-semibold text-[#52525b] uppercase tracking-wider">{g.label}</div>
-                  <div className="space-y-0.5">{g.items.map(item=>(<NavLink key={item.to} to={item.to} end={item.end} className={({isActive})=>`flex items-center gap-2.5 px-3 py-2 rounded-md text-sm font-medium transition-all duration-150 ${isActive?"bg-[#1a1a1e] text-[#fafafa]":"text-[#71717a] hover:text-[#d4d4d8] hover:bg-[#18181b]/50"}`}><item.icon className="w-4 h-4 shrink-0"/><span>{item.label}</span></NavLink>))}</div>
-                </div>
-              ))}
-            </nav>
-            <div className="border-t border-[#1a1a1e] p-2 space-y-0.5 shrink-0">
-              {hasServer&&!isViewer&&(<><NavLink to="/server-settings" className={({isActive})=>`flex items-center gap-2.5 px-2.5 py-2 rounded-md text-sm font-medium transition ${isActive?"bg-[#1a1a1e] text-[#fafafa]":"text-[#71717a] hover:text-[#d4d4d8] hover:bg-[#18181b]/50"}`}><Settings className="w-4 h-4 shrink-0"/>Server Settings</NavLink><NavLink to="/billing" className={({isActive})=>`flex items-center gap-2.5 px-2.5 py-2 rounded-md text-sm font-medium transition ${isActive?"bg-[#1a1a1e] text-[#fafafa]":"text-[#71717a] hover:text-[#d4d4d8] hover:bg-[#18181b]/50"}`}><CreditCard className="w-4 h-4 shrink-0"/>Billing</NavLink></>)}
-              <button onClick={toggleSidebar} className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md text-sm text-[#52525b] hover:text-[#a1a1aa] hover:bg-[#18181b]/50 transition"><PanelLeftClose className="w-4 h-4 shrink-0"/><span>Collapse</span></button>
-            </div>
-          </>)}
+          {/* Main content: collapsed icons or full expanded */}
+          {sidebarCollapsed ? renderSidebarNav("collapsed") : renderSidebarNav("full")}
         </aside>
 
         <div className="flex-1 flex flex-col min-w-0 min-h-0">
           <DiscordWebhookBanner/><NoMembersBanner/><SubscriptionBanner/>
           <main className="flex-1 overflow-y-auto pb-16 md:pb-0"><Outlet/></main>
-          <footer className="hidden md:block shrink-0 border-t border-[#1a1a1e] bg-[#09090b]"><div className="px-4 py-2 flex items-center justify-between text-[11px] text-[#52525b]"><span>� {new Date().getFullYear()} RaidScout. All rights reserved.</span><div className="flex items-center gap-3"><Link to="/terms" className="hover:text-[#a1a1aa] transition">Terms</Link><Link to="/privacy" className="hover:text-[#a1a1aa] transition">Privacy</Link><Link to="/refund" className="hover:text-[#a1a1aa] transition">Refunds</Link><Link to="/changelog" className="hover:text-[#a1a1aa] transition">Changelog</Link></div></div></footer>
+          <footer className="hidden md:block shrink-0 border-t border-[#1a1a1e] bg-[#09090b]"><div className="px-4 py-2 flex items-center justify-between text-[11px] text-[#52525b]"><span>© {new Date().getFullYear()} RaidScout · v{APP_VERSION}</span><div className="flex items-center gap-3"><Link to="/terms" className="hover:text-[#a1a1aa] transition">Terms</Link><Link to="/privacy" className="hover:text-[#a1a1aa] transition">Privacy</Link><Link to="/refund" className="hover:text-[#a1a1aa] transition">Refunds</Link><Link to="/changelog" className="hover:text-[#a1a1aa] transition">Changelog</Link></div></div></footer>
         </div>
       </div>
 

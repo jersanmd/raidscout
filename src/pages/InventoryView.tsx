@@ -556,20 +556,20 @@ export function InventoryView() {
       ) : (
         <>
       {/* Tabs */}
-      <div className="flex bg-[#18181b] rounded-lg p-0.5 gap-0.5">
+      <div className="flex items-center gap-1 border-b border-[#27272a] pb-2">
         {(["catalog", "collections", "history", "recipients", "analytics"] as const).map(t => (
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-md text-xs sm:text-sm font-medium transition ${
-              tab === t ? "bg-[#27272a] text-[#fafafa]" : "text-[#a1a1aa] hover:text-[#e4e4e7]"
+            className={`px-3 py-1.5 rounded-t-md text-xs font-medium transition ${
+              tab === t ? "bg-[#18181b] text-[#fafafa] border border-[#27272a] border-b-transparent" : "text-[#71717a] hover:text-[#d4d4d8]"
             }`}
           >
-            {t === "catalog" && <Package className="w-3.5 h-3.5" />}
-            {t === "collections" && <Star className="w-3.5 h-3.5" />}
-            {t === "history" && <History className="w-3.5 h-3.5" />}
-            {t === "analytics" && <BarChart3 className="w-3.5 h-3.5" />}
-            {t === "recipients" && <Users className="w-3.5 h-3.5" />}
+            {t === "catalog" && <Package className="w-3.5 h-3.5 inline mr-1" />}
+            {t === "collections" && <Star className="w-3.5 h-3.5 inline mr-1" />}
+            {t === "history" && <History className="w-3.5 h-3.5 inline mr-1" />}
+            {t === "analytics" && <BarChart3 className="w-3.5 h-3.5 inline mr-1" />}
+            {t === "recipients" && <Users className="w-3.5 h-3.5 inline mr-1" />}
             <span className="capitalize">{t}</span>
           </button>
         ))}
@@ -1140,17 +1140,17 @@ export function InventoryView() {
                   <span className="text-[#52525b]">Click cells to toggle</span>
                 </div>
                 <div className="relative ml-auto">
-                  <Search className="w-3 h-3 text-[#52525b] absolute left-2 top-1/2 -translate-y-1/2" />
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#52525b]" />
                   <input
                     type="text"
                     value={matrixPlayerSearch}
                     onChange={(e) => setMatrixPlayerSearch(e.target.value)}
                     placeholder="Search player…"
-                    className="w-48 pl-6 pr-6 py-1.5 text-[10px] bg-[#18181b] border border-[#27272a] rounded-lg text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#3f3f46]"
+                    className="w-48 pl-9 pr-9 py-2 text-sm bg-[#18181b] border border-[#27272a] rounded-xl text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#52525b]"
                   />
                   {matrixPlayerSearch && (
-                    <button onClick={() => setMatrixPlayerSearch("")} className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[#52525b] hover:text-[#a1a1aa]">
-                      <X className="w-3 h-3" />
+                    <button onClick={() => setMatrixPlayerSearch("")} className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded text-[#52525b] hover:text-[#a1a1aa]">
+                      <X className="w-3.5 h-3.5" />
                     </button>
                   )}
                 </div>
@@ -1489,7 +1489,7 @@ export function InventoryView() {
                   setRecipientGuildFilter(val);
                   try { localStorage.setItem("raidscout-recipient-guild", val); } catch {}
                 }}
-                className="text-[11px] bg-[#09090b] border border-[#27272a] rounded-lg text-[#fafafa] px-2.5 py-1.5 focus:outline-none focus:border-[#3f3f46]"
+                className="text-sm bg-[#18181b] border border-[#27272a] rounded-xl text-[#fafafa] px-3 py-2.5 focus:outline-none focus:border-[#52525b]"
               >
                 <option value="">All Guilds</option>
                 {guildNames.map(g => (
@@ -1499,7 +1499,7 @@ export function InventoryView() {
               <select
                 value={recipientSort}
                 onChange={(e) => setRecipientSort(e.target.value)}
-                className="text-[11px] bg-[#09090b] border border-[#27272a] rounded-lg text-[#fafafa] px-2.5 py-1.5 focus:outline-none focus:border-[#3f3f46]"
+                className="text-sm bg-[#18181b] border border-[#27272a] rounded-xl text-[#fafafa] px-3 py-2.5 focus:outline-none focus:border-[#52525b]"
               >
                 <option value="chrono">Chronological</option>
                 <option value="name-asc">Name A→Z</option>
@@ -1508,16 +1508,16 @@ export function InventoryView() {
                 <option value="rarity-desc">Rarity ↓</option>
               </select>
               <div className="relative ml-auto">
-                <Search className="w-3 h-3 text-[#52525b] absolute left-2 top-1/2 -translate-y-1/2" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#52525b]" />
                 <input
                   value={recipientSearch}
                   onChange={(e) => setRecipientSearch(e.target.value)}
                   placeholder="Search player..."
-                  className="w-40 pl-6 pr-6 py-1 text-[11px] bg-[#09090b] border border-[#27272a] rounded-lg text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#3f3f46]"
+                  className="w-48 pl-9 pr-9 py-2.5 text-sm bg-[#18181b] border border-[#27272a] rounded-xl text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#52525b]"
                 />
                 {recipientSearch && (
-                  <button onClick={() => setRecipientSearch("")} className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[#52525b] hover:text-[#a1a1aa]">
-                    <X className="w-3 h-3" />
+                  <button onClick={() => setRecipientSearch("")} className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded text-[#52525b] hover:text-[#a1a1aa]">
+                    <X className="w-3.5 h-3.5" />
                   </button>
                 )}
               </div>
