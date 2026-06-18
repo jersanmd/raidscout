@@ -93,6 +93,11 @@ async function main() {
   }
   console.log(`\r  Created/mapped ${idMap.size}/${prodUsers.length} users`);
 
+  // Save map for full-copy.mjs to use
+  const fs = await import("fs");
+  fs.writeFileSync("scripts/user-map.json", JSON.stringify([...idMap]));
+  console.log("  Saved user-map.json");
+
   // 3. Update server_members
   console.log("\nStep 3: Remapping server_members...");
   let updatedMembers = 0;
@@ -138,6 +143,33 @@ async function main() {
     } catch {}
   }
   console.log(`  Updated ${updatedRoles} user_roles`);
+
+  // 5. Remap user_id in all data tables
+  const userColTables = {
+    "death_records": ["user_id", "party_leader_id"],
+    "items": ["created_by", "approved_by"],
+    "admin_audit_log": ["actor_id"],
+    "point_adjustments": ["adjusted_by"],
+    "cp_updates": ["approved_by"],
+    "member_notes": ["created_by"],
+    "distributions": ["created_by"],
+  };
+
+  for (const [table, cols] of Object.entries(userColTables)) {
+    let updated = 0;
+    for (const [oldId, newId] of idMap) {
+      for (const col of cols) {
+        try {
+          const res = await fetch(
+            `${STAGING_URL}/rest/v1/${table}?${col}=eq.${oldId}`,
+            { method: "PATCH", headers: { apikey: STAGING_KEY, Authorization: `Bearer ${STAGING_KEY}`, "Content-Type": "application/json", Prefer: "return=minimal" }, body: JSON.stringify({ [col]: newId }) }
+          );
+          if (res.ok) updated++;
+        } catch {}
+      }
+    }
+    if (updated) console.log(`  Remapped ${table}: ${updated} rows`);
+  }
 
   console.log(`\n✅ Done! ${idMap.size} users on staging — password: ${DEFAULT_PASSWORD}`);
 }

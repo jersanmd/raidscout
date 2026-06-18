@@ -234,24 +234,24 @@ export function AdminPanelView() {
   return (
     <div className="min-h-screen bg-[#09090b] flex flex-col">
       {/* Top bar */}
-      <div className="w-full border-b border-[#27272a] bg-[#09090b]/70 backdrop-blur-xl">
+      <div className="w-full border-b border-[#1e1e2a] bg-[#0d0d11]/80 backdrop-blur-xl">
         <div className="max-w-[100%] 2xl:max-w-[1600px] mx-auto px-4 h-14 flex items-center">
           {/* Left: Logo + Admin badge */}
           <div className="flex items-center gap-3 flex-1">
             <span className="font-bold text-[#fafafa]">RaidScout</span>
-            <span className="text-xs bg-[#18181b] text-[#a1a1aa] px-2 py-0.5 rounded">Admin</span>
+            <span className="text-xs bg-[#1e1e2a] text-[#a1a1aa] px-2 py-0.5 rounded">Admin</span>
           </div>
 
           {/* Center: Timezone */}
-          <div className="flex items-center gap-1.5 text-xs text-[#71717a] shrink-0">
+          <div className="flex items-center gap-1.5 text-xs text-[#52525b] shrink-0">
             <Globe className="w-3.5 h-3.5" />
             <select
               value={timezone}
               onChange={e => setTimezone(e.target.value)}
-              className="bg-[#18181b] border border-[#27272a] rounded px-2 py-1 text-[#d4d4d8] text-xs focus:outline-none focus:ring-1 focus:ring-[#52525b]"
+              className="bg-[#0d0d11] border border-[#1e1e2a] rounded px-2 py-1 text-[#d4d4d8] text-xs focus:outline-none focus:ring-1 focus:ring-violet-500/30"
             >
               {TIMEZONES.map(tz => (
-                <option key={tz.value} value={tz.value} className="bg-[#18181b]">{tz.label}</option>
+                <option key={tz.value} value={tz.value} className="bg-[#0d0d11]">{tz.label}</option>
               ))}
             </select>
           </div>
@@ -259,20 +259,20 @@ export function AdminPanelView() {
           {/* Right: User menu */}
           <div className="flex items-center gap-3 flex-1 justify-end">
             <div className="relative">
-              <button onClick={() => setShowUserMenu(!showUserMenu)} className="flex items-center gap-1 text-[#a1a1aa] hover:text-[#fafafa] text-sm transition p-1.5 rounded-md hover:bg-[#18181b]" title="Menu">
+              <button onClick={() => setShowUserMenu(!showUserMenu)} className="flex items-center gap-1 text-[#a1a1aa] hover:text-[#fafafa] text-sm transition p-1.5 rounded-md hover:bg-[#1e1e2a]" title="Menu">
                 <span className="text-xs hidden md:block">{user?.email?.split("@")[0]}</span>
                 <ChevronDown className={`w-3 h-3 transition ${showUserMenu ? "rotate-180" : ""}`} />
               </button>
               {showUserMenu && (
                 <>
                   <div className="fixed inset-0 z-40" onClick={() => setShowUserMenu(false)} />
-                  <div className="absolute right-0 top-full mt-1 w-56 bg-[#18181b] border border-[#27272a] rounded-xl shadow-2xl z-50 overflow-hidden">
-                    <div className="px-4 py-3 border-b border-[#27272a]">
+                  <div className="absolute right-0 top-full mt-1 w-56 bg-[#0d0d11] border border-[#1e1e2a] rounded-xl shadow-2xl z-50 overflow-hidden">
+                    <div className="px-4 py-3 border-b border-[#1e1e2a]">
                       <div className="text-sm font-semibold text-[#fafafa]">{user?.email?.split("@")[0]}</div>
-                      <div className="text-xs text-[#71717a]">{user?.email}</div>
+                      <div className="text-xs text-[#52525b]">{user?.email}</div>
                     </div>
                     <div className="py-1">
-                      <button onClick={() => { setShowUserMenu(false); setShowLogoutConfirm(true); }} className="w-full text-left flex items-center gap-2 px-4 py-2 text-sm text-[#d4d4d8] hover:bg-[#27272a] transition">
+                      <button onClick={() => { setShowUserMenu(false); setShowLogoutConfirm(true); }} className="w-full text-left flex items-center gap-2 px-4 py-2 text-sm text-[#d4d4d8] hover:bg-[#1e1e2a] transition">
                         <LogOut className="w-4 h-4" /> Sign Out
                       </button>
                     </div>
@@ -287,19 +287,19 @@ export function AdminPanelView() {
       <div className="w-full max-w-[100%] 2xl:max-w-[1600px] mx-auto px-3 sm:px-4 py-4 sm:py-6 flex-1 overflow-x-hidden min-w-0 pb-20">
       {/* Header */}
       <div className="flex items-center gap-3 mb-4">
-        <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-[#18181b] border border-[#27272a]">
+        <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-[#0d0d11] border border-[#1e1e2a]">
           <Shield className="w-5 h-5 text-[#fafafa]" />
         </div>
         <div>
           <h2 className="text-xl font-bold text-[#fafafa]">Admin Panel</h2>
-          <p className="text-sm text-[#a1a1aa]">Oversee all servers and users</p>
+          <p className="text-sm text-[#52525b]">Oversee all servers and users</p>
         </div>
       </div>
 
       {/* Layout: Sidebar + Content */}
       <div className="flex gap-4 items-start">
         {/* Sidebar — vertical tab list */}
-        <div className="hidden md:flex flex-col w-44 shrink-0 bg-[#18181b] rounded-lg p-1 gap-0.5 sticky top-4">
+        <div className="hidden md:flex flex-col w-44 shrink-0 bg-[#0d0d11] border border-[#1e1e2a] rounded-lg p-1 gap-0.5 sticky top-4">
           {([
             { id: "infra", icon: Radio, label: "Infra" },
             { id: "games", icon: Gamepad2, label: "Games" },
@@ -313,7 +313,7 @@ export function AdminPanelView() {
             <button
               key={id}
               onClick={() => { setTab(id); if (["servers","database","cron","deleted"].includes(id)) setServerSubtab(id as any); }}
-              className={`flex items-center gap-2 px-3 py-2 rounded-md text-xs font-medium transition text-left ${tab === id ? "bg-[#27272a] text-[#fafafa]" : "text-[#a1a1aa] hover:text-[#e4e4e7] hover:bg-[#27272a]/50"}`}
+              className={`flex items-center gap-2 px-3 py-2 rounded-md text-xs font-medium transition text-left ${tab === id ? "bg-[#1e1e2a] text-[#fafafa]" : "text-[#a1a1aa] hover:text-[#e4e4e7] hover:bg-[#1e1e2a]/50"}`}
             >
               <Icon className="w-3.5 h-3.5 shrink-0" />
               {label}
@@ -366,7 +366,7 @@ export function AdminPanelView() {
                 ? { cls: "bg-amber-500/10 text-amber-300 border-amber-500/20", label: `Trial ${trialDays}d` }
                 : { cls: "bg-red-500/10 text-red-300 border-red-500/20", label: "Expired" };
               return (
-              <div key={s.id} ref={expandedServer === s.id ? expandedRef : undefined} className="bg-[#18181b] border border-[#27272a] rounded-xl overflow-hidden">
+              <div key={s.id} ref={expandedServer === s.id ? expandedRef : undefined} className="bg-[#0d0d11] border border-[#1e1e2a] rounded-xl overflow-hidden">
                 <button
                   onClick={async () => {
                     if (isExpanded) {
@@ -381,7 +381,7 @@ export function AdminPanelView() {
                       }
                     }
                   }}
-                  className="w-full p-3 sm:p-4 flex items-center justify-between hover:bg-[#18181b]/50 transition text-left"
+                  className="w-full p-3 sm:p-4 flex items-center justify-between hover:bg-[#0d0d11]/50 transition text-left"
                 >
                   <div className="min-w-0 flex-1 mr-2">
                     <div className="flex items-center gap-2">
@@ -405,7 +405,7 @@ export function AdminPanelView() {
                     <p className="text-[10px] text-[#71717a] font-mono">{s.id?.substring(0, 12)}...</p>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#18181b] text-[11px] text-[#d4d4d8]">
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#0d0d11] text-[11px] text-[#d4d4d8]">
                       <Users className="w-3.5 h-3.5" />
                       {s.raid_member_count ?? 0}
                     </span>
@@ -416,7 +416,7 @@ export function AdminPanelView() {
                   </div>
                 </button>
                 {isExpanded && (
-                  <div className="border-t border-[#27272a] px-4 py-3 space-y-3">
+                  <div className="border-t border-[#1e1e2a] px-4 py-3 space-y-3">
                     {!stats ? (
                       <Loader2 className="w-4 h-4 text-[#71717a] animate-spin" />
                     ) : (stats as any).error ? (
@@ -450,7 +450,7 @@ export function AdminPanelView() {
                         </div>
 
                         {/* Subscription Status */}
-                        <div key={`sub-${s.id}-${effectiveSubEnd ?? 'none'}`} className="border-t border-[#27272a] pt-3">
+                        <div key={`sub-${s.id}-${effectiveSubEnd ?? 'none'}`} className="border-t border-[#1e1e2a] pt-3">
                           <p className="text-[10px] text-[#71717a] uppercase tracking-wider mb-2">Subscription</p>
                           <div className="flex items-center gap-4">
                             {isActive ? (
@@ -480,7 +480,7 @@ export function AdminPanelView() {
 
                         {/* Guild Tags — monochrome text, 40% opacity for zero-count */}
                         {stats.guild_members && stats.guild_members.length > 0 && (
-                          <div className="border-t border-[#27272a] pt-3">
+                          <div className="border-t border-[#1e1e2a] pt-3">
                             <p className="text-[10px] text-[#71717a] uppercase tracking-wider mb-2">
                               Players by Guild <span className="text-[#52525b]">({stats.total_raid_members ?? 0} total)</span>
                             </p>
@@ -491,8 +491,8 @@ export function AdminPanelView() {
                                 <span key={g.guild}
                                   className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-[11px] border transition ${
                                     isEmpty
-                                      ? 'border-[#27272a] text-[#52525b] opacity-40'
-                                      : 'border-[#3f3f46] text-[#d4d4d8] bg-[#18181b]'
+                                      ? 'border-[#1e1e2a] text-[#52525b] opacity-40'
+                                      : 'border-[#3f3f46] text-[#d4d4d8] bg-[#0d0d11]'
                                   }`}
                                 >
                                   <span className="truncate max-w-[140px]">{g.guild}</span>
@@ -505,7 +505,7 @@ export function AdminPanelView() {
                         )}
 
                         {/* View Server + Extend Sub + Force Spawn All buttons */}
-                        <div className="flex items-center justify-end gap-2 pt-1 border-t border-[#27272a]">
+                        <div className="flex items-center justify-end gap-2 pt-1 border-t border-[#1e1e2a]">
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
@@ -543,7 +543,7 @@ export function AdminPanelView() {
                               });
                               queueMicrotask(() => navigate("/"));
                             }}
-                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-[#3f3f46] text-[#d4d4d8] hover:bg-[#18181b] hover:border-[#52525b] transition"
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-[#3f3f46] text-[#d4d4d8] hover:bg-[#0d0d11] hover:border-[#52525b] transition"
                           >
                             <Eye className="w-3.5 h-3.5" />
                             View Server
@@ -551,7 +551,7 @@ export function AdminPanelView() {
                         </div>
 
                         {/* Add Moderator — inline */}
-                        <div className="flex items-center gap-2 pt-2 border-t border-[#27272a]">
+                        <div className="flex items-center gap-2 pt-2 border-t border-[#1e1e2a]">
                           <span className="text-[10px] text-[#71717a] uppercase tracking-wider shrink-0">Add Mod:</span>
                           <input
                             type="email"
@@ -573,7 +573,7 @@ export function AdminPanelView() {
                                 setAddingModForServer(prev => ({ ...prev, [s.id]: false }));
                               }
                             }}
-                            className="flex-1 bg-[#09090b] border border-[#27272a] rounded-lg px-2.5 py-1.5 text-[11px] text-[#fafafa] placeholder-[#52525b] outline-none focus:border-[#52525b] transition"
+                            className="flex-1 bg-[#09090b] border border-[#1e1e2a] rounded-lg px-2.5 py-1.5 text-[11px] text-[#fafafa] placeholder-[#52525b] outline-none focus:border-[#52525b] transition"
                           />
                           <button
                             onClick={async () => {
@@ -619,7 +619,7 @@ export function AdminPanelView() {
                           placeholder="Search servers…"
                           value={serverSearch}
                           onChange={e => setServerSearch(e.target.value)}
-                          className="w-36 pl-7 pr-2 py-1 text-[10px] bg-[#18181b] border border-[#27272a] rounded text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#52525b]"
+                          className="w-36 pl-7 pr-2 py-1 text-[10px] bg-[#0d0d11] border border-[#1e1e2a] rounded text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#52525b]"
                         />
                       </div>
                       <span className="text-[10px] text-[#71717a]">Filter:</span>
@@ -693,7 +693,7 @@ export function AdminPanelView() {
               <select
                 value={userRoleFilter}
                 onChange={e => setUserRoleFilter(e.target.value as any)}
-                className="w-32 pl-2 pr-2 py-1.5 text-xs bg-[#18181b] border border-[#27272a] rounded text-[#fafafa] focus:outline-none focus:border-[#52525b]"
+                className="w-32 pl-2 pr-2 py-1.5 text-xs bg-[#0d0d11] border border-[#1e1e2a] rounded text-[#fafafa] focus:outline-none focus:border-[#52525b]"
               >
                 <option value="all">All Roles</option>
                 <option value="owner">Server Owners</option>
@@ -707,7 +707,7 @@ export function AdminPanelView() {
                   placeholder="Search by email…"
                   value={userSearch}
                   onChange={e => setUserSearch(e.target.value)}
-                  className="w-40 pl-7 pr-2 py-1.5 text-xs bg-[#18181b] border border-[#27272a] rounded text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#52525b]"
+                  className="w-40 pl-7 pr-2 py-1.5 text-xs bg-[#0d0d11] border border-[#1e1e2a] rounded text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#52525b]"
                 />
               </div>
             </div>
@@ -719,9 +719,9 @@ export function AdminPanelView() {
           ) : filteredUsers.length === 0 ? (
             <p className="text-[#71717a] text-sm text-center py-12">No users match "{userSearch}".</p>
           ) : (
-            <div className="border border-[#27272a] rounded-xl overflow-hidden">
+            <div className="border border-[#1e1e2a] rounded-xl overflow-hidden">
               {/* Table Header — hidden on mobile */}
-              <div className="hidden sm:grid grid-cols-12 gap-3 px-4 py-2.5 border-b border-[#27272a] bg-[#18181b]/50 text-[10px] font-semibold text-[#71717a] uppercase tracking-wider">
+              <div className="hidden sm:grid grid-cols-12 gap-3 px-4 py-2.5 border-b border-[#1e1e2a] bg-[#0d0d11]/50 text-[10px] font-semibold text-[#71717a] uppercase tracking-wider">
                 <div className="col-span-3">Email</div>
                 <div className="col-span-2">User ID</div>
                 <div className="col-span-2">Verified</div>
@@ -749,7 +749,7 @@ export function AdminPanelView() {
                         }
                       }
                     }}
-                    className="w-full grid grid-cols-12 gap-3 px-4 py-3 items-center hover:bg-[#18181b]/30 transition text-left border-b border-[#27272a]/50 last:border-b-0"
+                    className="w-full grid grid-cols-12 gap-3 px-4 py-3 items-center hover:bg-[#0d0d11]/30 transition text-left border-b border-[#1e1e2a]/50 last:border-b-0"
                   >
                     <div className="col-span-3 min-w-0">
                       <span className="text-sm text-[#fafafa] font-medium truncate block">{u.email ?? "No email"}</span>
@@ -783,7 +783,7 @@ export function AdminPanelView() {
                     </div>
                   </button>
                   {isExpanded && (
-                    <div className="border-t border-[#27272a] px-4 py-3 space-y-2 bg-[#09090b]/50">
+                    <div className="border-t border-[#1e1e2a] px-4 py-3 space-y-2 bg-[#09090b]/50">
                       <p className="text-[10px] text-[#71717a] uppercase tracking-wider">Servers</p>
                       {loadingServers ? (
                         <Loader2 className="w-4 h-4 text-[#71717a] animate-spin" />
@@ -791,7 +791,7 @@ export function AdminPanelView() {
                         <p className="text-xs text-[#71717a]">No servers.</p>
                       ) : (
                         [...servers].sort((a, b) => ((a as any).game_name || "ZZZ").localeCompare((b as any).game_name || "ZZZ")).map((s) => (
-                          <div key={s.server_id} className="flex items-center justify-between bg-[#18181b] rounded-lg px-3 py-2">
+                          <div key={s.server_id} className="flex items-center justify-between bg-[#0d0d11] rounded-lg px-3 py-2">
                             <div className="flex items-center gap-2">
                               <Server className="w-3.5 h-3.5 text-[#71717a]" />
                               <span className="text-sm text-[#fafafa] font-medium">{s.server_name}</span>
@@ -802,7 +802,7 @@ export function AdminPanelView() {
                                 setCurrentServer({ id: s.server_id, name: s.server_name, owner_id: u.user_id, invite_code: s.server_id?.substring(0, 8) ?? "", created_at: (s as any).created_at, role: s.role as "owner" | "moderator" });
                                 navigate("/");
                               }}
-                              className="flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-medium bg-[#18181b] border border-[#27272a] text-[#fafafa] hover:bg-[#27272a] transition"
+                              className="flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-medium bg-[#0d0d11] border border-[#1e1e2a] text-[#fafafa] hover:bg-[#27272a] transition"
                             >
                               <Eye className="w-3.5 h-3.5" />
                               View
@@ -859,7 +859,7 @@ export function AdminPanelView() {
               <div className="flex items-center gap-1.5">
                 <span className="text-xs text-[#71717a]">Server</span>
                 <select value={auditServerFilter} onChange={(e) => setAuditServerFilter(e.target.value)}
-                  className="bg-[#18181b] border border-[#27272a] rounded-lg px-3 py-2 text-sm text-[#fafafa] outline-none focus:border-[#52525b]">
+                  className="bg-[#0d0d11] border border-[#1e1e2a] rounded-lg px-3 py-2 text-sm text-[#fafafa] outline-none focus:border-[#52525b]">
                   <option value="all">All Servers</option>
                   {[...servers].sort((a: any, b: any) => ((a as any).game_name || "ZZZ").localeCompare((b as any).game_name || "ZZZ") || a.name.localeCompare(b.name)).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                 </select>
@@ -871,22 +871,22 @@ export function AdminPanelView() {
                 <button key={range} onClick={() => setAuditTimeRange(range)}
                   className={`px-2.5 py-1.5 rounded-md text-xs font-medium transition ${
                     auditTimeRange === range && auditTimeRange !== "custom"
-                      ? "bg-[#27272a] text-[#fafafa]" : "text-[#a1a1aa] hover:text-[#fafafa] hover:bg-[#18181b]"
+                      ? "bg-[#27272a] text-[#fafafa]" : "text-[#a1a1aa] hover:text-[#fafafa] hover:bg-[#0d0d11]"
                   }`}>
                   {range === "1month" ? "1M" : range === "all" ? "All" : range}
                 </button>
               ))}
               <button onClick={() => setAuditTimeRange("custom")}
                 className={`px-2.5 py-1.5 rounded-md text-xs font-medium transition ${
-                  auditTimeRange === "custom" ? "bg-[#27272a] text-[#fafafa]" : "text-[#a1a1aa] hover:text-[#fafafa] hover:bg-[#18181b]"
+                  auditTimeRange === "custom" ? "bg-[#27272a] text-[#fafafa]" : "text-[#a1a1aa] hover:text-[#fafafa] hover:bg-[#0d0d11]"
                 }`}>Custom</button>
               {auditTimeRange === "custom" && (
                 <div className="flex items-center gap-1 ml-1">
                   <input type="date" value={auditCustomSince} onChange={(e) => setAuditCustomSince(e.target.value)}
-                    className="bg-[#18181b] border border-[#27272a] rounded px-2.5 py-1.5 text-xs text-[#fafafa] outline-none focus:border-[#52525b]" />
+                    className="bg-[#0d0d11] border border-[#1e1e2a] rounded px-2.5 py-1.5 text-xs text-[#fafafa] outline-none focus:border-[#52525b]" />
                   <span className="text-xs text-[#52525b]">—</span>
                   <input type="date" value={auditCustomUntil} onChange={(e) => setAuditCustomUntil(e.target.value)}
-                    className="bg-[#18181b] border border-[#27272a] rounded px-2.5 py-1.5 text-xs text-[#fafafa] outline-none focus:border-[#52525b]" />
+                    className="bg-[#0d0d11] border border-[#1e1e2a] rounded px-2.5 py-1.5 text-xs text-[#fafafa] outline-none focus:border-[#52525b]" />
                 </div>
               )}
             </div>
@@ -901,9 +901,9 @@ export function AdminPanelView() {
               {auditServerFilter !== "all" ? `No events for "${serverMap[auditServerFilter] || auditServerFilter}".` : "No audit events yet."}
             </p>
           ) : (
-            <div className="border border-[#27272a] rounded-xl overflow-hidden">
+            <div className="border border-[#1e1e2a] rounded-xl overflow-hidden">
               {/* Header */}
-              <div className="hidden sm:grid grid-cols-12 gap-3 px-4 py-2 border-b border-[#27272a] bg-[#18181b]/50 text-[10px] font-semibold text-[#71717a] uppercase tracking-wider">
+              <div className="hidden sm:grid grid-cols-12 gap-3 px-4 py-2 border-b border-[#1e1e2a] bg-[#0d0d11]/50 text-[10px] font-semibold text-[#71717a] uppercase tracking-wider">
                 <div className="col-span-3">Event</div>
                 <div className="col-span-2">Server</div>
                 <div className="col-span-3">Details</div>
@@ -932,7 +932,7 @@ export function AdminPanelView() {
                   : entry.actor_id?.substring(0,8) + '…';
 
                 return (
-                <div key={entry.id} className="grid grid-cols-12 gap-3 px-4 py-2.5 items-center border-b border-[#27272a]/50 last:border-b-0 hover:bg-[#18181b]/20 transition group">
+                <div key={entry.id} className="grid grid-cols-12 gap-3 px-4 py-2.5 items-center border-b border-[#1e1e2a]/50 last:border-b-0 hover:bg-[#0d0d11]/20 transition group">
                   <div className="col-span-3 flex items-center gap-2 min-w-0">
                     <span className={`shrink-0 w-1.5 h-1.5 rounded-full ${dot}`} />
                     <span className={`text-xs font-medium truncate ${txt}`}>{actionLabel[entry.action] || entry.action}</span>
@@ -970,21 +970,21 @@ export function AdminPanelView() {
             <>
               {/* Overview cards */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-4 text-center">
+                <div className="bg-[#0d0d11] border border-[#1e1e2a] rounded-xl p-4 text-center">
                   <p className="text-2xl font-bold text-[#fafafa]">{planUsage?.db_size || dbStats.db_size || '—'}</p>
-                  <div className="w-full h-1.5 bg-[#18181b] rounded-full mt-2 overflow-hidden">
+                  <div className="w-full h-1.5 bg-[#0d0d11] rounded-full mt-2 overflow-hidden">
                     <div className="h-full bg-[#a1a1aa] rounded-full" style={{ width: `${Math.min(100, ((planUsage?.db_size_bytes || 0) / (8 * 1024 * 1024 * 1024)) * 100)}%` }} />
                   </div>
                   <p className="text-[10px] text-[#71717a] mt-1">DB Size (8 GB limit)</p>
                 </div>
-                <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-4 text-center">
+                <div className="bg-[#0d0d11] border border-[#1e1e2a] rounded-xl p-4 text-center">
                   <p className="text-2xl font-bold text-[#a1a1aa]">{dbStats.cache_hit_ratio ?? '—'}%</p>
                   <p className="text-[10px] text-[#71717a] mt-1">Cache Hit Ratio</p>
                   <p className="text-[10px] text-[#52525b] mt-2">{planUsage?.total_rows?.toLocaleString() ?? '—'} rows · {planUsage?.table_count ?? dbStats.table_stats?.length ?? 0} tables</p>
                 </div>
-                <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-4 text-center">
+                <div className="bg-[#0d0d11] border border-[#1e1e2a] rounded-xl p-4 text-center">
                   <p className="text-2xl font-bold text-[#fafafa]">{planUsage?.active_connections ?? dbStats.active_connections ?? '—'}<span className="text-sm text-[#71717a]">/{planUsage?.max_connections ?? dbStats.total_connections ?? '—'}</span></p>
-                  <div className="w-full h-1.5 bg-[#18181b] rounded-full mt-2 overflow-hidden flex">
+                  <div className="w-full h-1.5 bg-[#0d0d11] rounded-full mt-2 overflow-hidden flex">
                     <div className="h-full bg-blue-500 rounded-l-full" style={{ width: `${((planUsage?.active_connections || dbStats.active_connections || 0) / (planUsage?.max_connections || dbStats.total_connections || 1)) * 100}%` }} />
                     <div className="h-full bg-[#3f3f46] rounded-r-full" style={{ width: `${((planUsage?.idle_connections || 0) / (planUsage?.max_connections || dbStats.total_connections || 1)) * 100}%` }} />
                   </div>
@@ -993,7 +993,7 @@ export function AdminPanelView() {
                     {planUsage?.idle_connections != null && <span className="text-[#71717a] flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-[#3f3f46] inline-block" />Idle: {planUsage.idle_connections}</span>}
                   </div>
                 </div>
-                <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-4 text-center">
+                <div className="bg-[#0d0d11] border border-[#1e1e2a] rounded-xl p-4 text-center">
                   <p className="text-xl font-bold text-[#fafafa]">{planUsage?.auth_users ?? '—'}</p>
                   <p className="text-[10px] text-[#71717a] mt-1">Auth Users</p>
                   <p className="text-[10px] text-[#52525b] mt-2">{planUsage?.active_auth_users_30d ?? 0} active 30d</p>
@@ -1003,12 +1003,12 @@ export function AdminPanelView() {
               {/* Storage + Row count row */}
               {planUsage && (
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-4">
+                  <div className="bg-[#0d0d11] border border-[#1e1e2a] rounded-xl p-4">
                     <p className="text-xs text-[#71717a] mb-1">Storage</p>
                     <p className="text-xl font-bold text-[#fafafa]">{planUsage.storage_size_pretty || '0 bytes'}</p>
                     <p className="text-[10px] text-[#52525b] mt-2">{planUsage.storage_objects ?? 0} objects</p>
                   </div>
-                  <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-4">
+                  <div className="bg-[#0d0d11] border border-[#1e1e2a] rounded-xl p-4">
                     <h4 className="text-xs font-semibold text-[#71717a] mb-1">Plan Limits (Pro)</h4>
                     <div className="grid grid-cols-2 gap-1 text-[10px]">
                       <span className="text-[#71717a]">Database:</span><span className="text-[#fafafa] text-right">8 GB</span>
@@ -1029,13 +1029,13 @@ export function AdminPanelView() {
                 <h4 className="text-sm font-semibold text-[#fafafa] mb-2">Table Sizes</h4>
                 <div className="space-y-1">
                   {(dbStats.table_stats || []).map((t: any) => (
-                    <div key={t.table_name} className="bg-[#18181b] border border-[#27272a] rounded-lg px-3 sm:px-4 py-2.5">
+                    <div key={t.table_name} className="bg-[#0d0d11] border border-[#1e1e2a] rounded-lg px-3 sm:px-4 py-2.5">
                       <div className="flex items-center justify-between gap-2 mb-1.5">
                         <span className="text-sm text-[#fafafa] font-medium truncate">{t.table_name}</span>
                         <span className="text-[10px] text-[#71717a] shrink-0">~{t.row_estimate} rows</span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <div className="flex-1 h-2 bg-[#18181b] rounded-full overflow-hidden">
+                        <div className="flex-1 h-2 bg-[#0d0d11] rounded-full overflow-hidden">
                           <div
                             className="h-full bg-[#a1a1aa]/60 rounded-full"
                             style={{
@@ -1069,26 +1069,26 @@ export function AdminPanelView() {
             <>
               {/* Status cards */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <div className={`bg-[#18181b] border rounded-xl p-4 text-center ${cronStatus.active ? 'border-green-500/30' : 'border-[#27272a]'}`}>
+                <div className={`bg-[#0d0d11] border rounded-xl p-4 text-center ${cronStatus.active ? 'border-green-500/30' : 'border-[#1e1e2a]'}`}>
                   <div className={`w-3 h-3 rounded-full mx-auto mb-2 ${cronStatus.active ? 'bg-green-500' : 'bg-[#71717a]'}`} />
                   <p className={`text-lg font-bold ${cronStatus.active ? 'text-green-400' : 'text-[#f87171]'}`}>
                     {cronStatus.active ? 'ACTIVE' : 'INACTIVE'}
                   </p>
                   <p className="text-[10px] text-[#71717a] mt-1">Cron Status</p>
                 </div>
-                <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-4 text-center">
+                <div className="bg-[#0d0d11] border border-[#1e1e2a] rounded-xl p-4 text-center">
                   <Clock className="w-4 h-4 text-[#a1a1aa] mx-auto mb-2" />
                   <p className="text-xs text-[#d4d4d8] font-mono">
                     {cronStatus.last_run ? cronStatus.last_run : 'Never'}
                   </p>
                   <p className="text-[10px] text-[#71717a] mt-1">Last Run (Manila)</p>
                 </div>
-                <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-4 text-center">
+                <div className="bg-[#0d0d11] border border-[#1e1e2a] rounded-xl p-4 text-center">
                   <Server className="w-4 h-4 text-[#a1a1aa] mx-auto mb-2" />
                   <p className="text-lg font-bold text-[#d4d4d8]">{cronStatus.servers?.length ?? 0}</p>
                   <p className="text-[10px] text-[#71717a] mt-1">Test Servers</p>
                 </div>
-                <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-4 text-center">
+                <div className="bg-[#0d0d11] border border-[#1e1e2a] rounded-xl p-4 text-center">
                   <Skull className="w-4 h-4 text-[#f87171] mx-auto mb-2" />
                   <p className="text-lg font-bold text-[#fca5a5]">{cronStatus.total_kills?.toLocaleString() ?? 0}</p>
                   <p className="text-[10px] text-[#71717a] mt-1">Total Kills</p>
@@ -1100,10 +1100,10 @@ export function AdminPanelView() {
                 <h4 className="text-sm font-semibold text-[#fafafa] mb-2">Kills per Test Server</h4>
                 <div className="space-y-1">
                   {(cronStatus.servers || []).map((srv) => (
-                    <div key={srv.name} className="bg-[#18181b] border border-[#27272a] rounded-lg px-4 py-2.5 flex items-center justify-between">
+                    <div key={srv.name} className="bg-[#0d0d11] border border-[#1e1e2a] rounded-lg px-4 py-2.5 flex items-center justify-between">
                       <span className="text-sm text-[#fafafa]">{srv.name}</span>
                       <div className="flex items-center gap-2">
-                        <div className="w-24 sm:w-32 h-2 bg-[#18181b] rounded-full overflow-hidden">
+                        <div className="w-24 sm:w-32 h-2 bg-[#0d0d11] rounded-full overflow-hidden">
                           <div
                             className="h-full bg-gradient-to-r from-red-500 to-orange-500 rounded-full"
                             style={{ width: `${Math.min(100, (srv.kills / Math.max(1, cronStatus.total_kills)) * 100)}%` }}
@@ -1140,7 +1140,7 @@ export function AdminPanelView() {
                 placeholder="Search deleted…"
                 value={deletedSearch}
                 onChange={e => setDeletedSearch(e.target.value)}
-                className="w-40 pl-7 pr-2 py-1 text-[10px] bg-[#18181b] border border-[#27272a] rounded text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#52525b]"
+                className="w-40 pl-7 pr-2 py-1 text-[10px] bg-[#0d0d11] border border-[#1e1e2a] rounded text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#52525b]"
               />
             </div>
           </div>
@@ -1152,7 +1152,7 @@ export function AdminPanelView() {
             <p className="text-[#71717a] text-sm text-center py-12">No deleted servers match "{deletedSearch}".</p>
           ) : (
             filteredDeleted.map((s: any) => (
-              <div key={s.id} className="bg-[#18181b] border border-[#27272a] rounded-lg px-4 py-3">
+              <div key={s.id} className="bg-[#0d0d11] border border-[#1e1e2a] rounded-lg px-4 py-3">
                 <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-[#fafafa] font-medium">{s.name}</p>
@@ -1167,7 +1167,7 @@ export function AdminPanelView() {
                 </button>
                 </div>
                 {restoreConfirm?.id === s.id && (
-                  <div className="mt-3 pt-3 border-t border-[#27272a] space-y-2">
+                  <div className="mt-3 pt-3 border-t border-[#1e1e2a] space-y-2">
                     <div className="flex items-center gap-2 text-amber-400">
                       <AlertTriangle className="w-4 h-4" />
                       <span className="text-xs font-medium">Type <code className="px-1 py-0.5 bg-[#27272a] rounded text-[#fafafa] text-[11px]">{s.name}</code> to confirm restore</span>
@@ -1186,7 +1186,7 @@ export function AdminPanelView() {
                             finally { setRestoring(false); }
                           }
                         }}
-                        className="flex-1 px-2.5 py-1.5 text-xs bg-[#18181b] border border-[#27272a] rounded text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#52525b]"
+                        className="flex-1 px-2.5 py-1.5 text-xs bg-[#0d0d11] border border-[#1e1e2a] rounded text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#52525b]"
                         autoFocus
                       />
                       <button
@@ -1217,9 +1217,9 @@ export function AdminPanelView() {
       {tab === "infra" && (
         <div className="space-y-3 sm:space-y-4">
           {/* Bot Logs Terminal */}
-          <div className="bg-[#0a0a0a] border border-[#1a1a1a] rounded-xl overflow-hidden shadow-inner">
+          <div className="bg-[#08080c] border border-[#1e1e2a] rounded-xl overflow-hidden shadow-inner">
             {/* Terminal header */}
-            <div className="flex items-center gap-1.5 px-2 sm:px-3 py-2 bg-[#0d0d0d] border-b border-[#1a1a1a]">
+            <div className="flex items-center gap-1.5 px-2 sm:px-3 py-2 bg-[#0d0d11] border-b border-[#1e1e2a]">
               <span className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-[#ff5f57] shrink-0"></span>
               <span className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-[#febc2e] shrink-0"></span>
               <span className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-[#28c840] shrink-0"></span>
@@ -1234,11 +1234,11 @@ export function AdminPanelView() {
               {logsLoading ? (
                 <div className="flex justify-center py-6"><Loader2 className="w-4 h-4 text-[#52525b] animate-spin" /></div>
               ) : !botLogs?.logs?.length ? (
-                <p className="text-[#3a3a3a] px-2 py-6 text-center select-none">No logs yet — waiting for bot events...</p>
+                <p className="text-[#3f3f46] px-2 py-6 text-center select-none">No logs yet — waiting for bot events...</p>
               ) : (
                 botLogs.logs.map((l: any, i: number) => (
-                  <div key={i} className="flex gap-1.5 py-[1px] hover:bg-[#0d0d0d]">
-                    <span className="text-[#404040] shrink-0 w-[52px] sm:w-[75px] select-none">{l.ts ? new Date(l.ts).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", second: "2-digit", timeZone: timezone }) : "--:--:--"}</span>
+                  <div key={i} className="flex gap-1.5 py-[1px] hover:bg-[#0d0d11]/50">
+                    <span className="text-[#3f3f46] shrink-0 w-[52px] sm:w-[75px] select-none">{l.ts ? new Date(l.ts).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", second: "2-digit", timeZone: timezone }) : "--:--:--"}</span>
                     <span className={`shrink-0 w-8 sm:w-10 text-right select-none text-[10px] sm:text-[11px] ${
                       l.level === "error" ? "text-[#ff5f57]" : l.level === "warn" ? "text-[#febc2e]" : "text-[#52525b]"
                     }`}>{l.level}</span>
@@ -1264,71 +1264,57 @@ export function AdminPanelView() {
             <p className="text-[#71717a] text-sm text-center py-12">Bot unreachable.</p>
           ) : (
             <>
+              {/* ── Spawn Cron Premium Card ── */}
+              <SpawnCronCard data={botStatus.spawn_cron} connected={botStatus.discord_connected} />
+
               {/* Status Cards — 2-col on mobile, 4-col on desktop */}
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
-                <div className={`bg-[#18181b] border rounded-xl p-2 sm:p-4 text-center ${botStatus.discord_connected ? 'border-emerald-500/30' : 'border-[#27272a]'}`}>
-                  <div className={`w-2 h-2 sm:w-3 sm:h-3 rounded-full mx-auto mb-1 sm:mb-2 ${botStatus.discord_connected ? 'bg-emerald-400 animate-pulse' : 'bg-[#71717a]'}`} />
+                <div className={`bg-[#0d0d11] border rounded-xl p-2 sm:p-4 text-center ${botStatus.discord_connected ? 'border-emerald-500/30 shadow-[0_0_12px_rgba(52,211,153,0.08)]' : 'border-[#1e1e2a]'}`}>
+                  <div className={`w-2 h-2 sm:w-3 sm:h-3 rounded-full mx-auto mb-1 sm:mb-2 ${botStatus.discord_connected ? 'bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.5)] animate-pulse' : 'bg-[#52525b]'}`} />
                   <p className={`text-xs sm:text-lg font-bold ${botStatus.discord_connected ? 'text-emerald-300' : 'text-[#f87171]'}`}>
                     {botStatus.discord_connected ? 'ONLINE' : 'OFFLINE'}
                   </p>
-                  <p className="text-[9px] sm:text-[10px] text-[#71717a] mt-0.5 sm:mt-1">Discord</p>
+                  <p className="text-[9px] sm:text-[10px] text-[#52525b] mt-0.5 sm:mt-1 uppercase tracking-wider">Discord</p>
                 </div>
-                <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-2 sm:p-4 text-center">
-                  <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#a1a1aa] mx-auto mb-1 sm:mb-2" />
+                <div className="bg-[#0d0d11] border border-[#1e1e2a] rounded-xl p-2 sm:p-4 text-center">
+                  <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#52525b] mx-auto mb-1 sm:mb-2" />
                   <p className="text-[10px] sm:text-xs text-[#d4d4d8] font-mono truncate">{botStatus.uptime_display}</p>
-                  <p className="text-[9px] sm:text-[10px] text-[#71717a] mt-0.5 sm:mt-1">Uptime</p>
+                  <p className="text-[9px] sm:text-[10px] text-[#52525b] mt-0.5 sm:mt-1 uppercase tracking-wider">Uptime</p>
                 </div>
-                <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-2 sm:p-4 text-center">
-                  <HardDrive className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#a1a1aa] mx-auto mb-1 sm:mb-2" />
+                <div className="bg-[#0d0d11] border border-[#1e1e2a] rounded-xl p-2 sm:p-4 text-center">
+                  <HardDrive className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#52525b] mx-auto mb-1 sm:mb-2" />
                   <p className="text-xs sm:text-lg font-bold text-[#d4d4d8] truncate">{botStatus.memory_mb} / 1024 MB</p>
-                  <p className="text-[9px] sm:text-[10px] text-[#71717a] mt-0.5 sm:mt-1">Memory</p>
+                  <p className="text-[9px] sm:text-[10px] text-[#52525b] mt-0.5 sm:mt-1 uppercase tracking-wider">Memory</p>
                 </div>
-                <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-2 sm:p-4 text-center">
-                  <Radio className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#a1a1aa] mx-auto mb-1 sm:mb-2" />
+                <div className="bg-[#0d0d11] border border-[#1e1e2a] rounded-xl p-2 sm:p-4 text-center">
+                  <Radio className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#52525b] mx-auto mb-1 sm:mb-2" />
                   <p className="text-[10px] sm:text-xs text-[#d4d4d8] font-mono truncate">{botStatus.region} · 2 vCPU</p>
-                  <p className="text-[9px] sm:text-[10px] text-[#71717a] mt-0.5 sm:mt-1">Machine</p>
+                  <p className="text-[9px] sm:text-[10px] text-[#52525b] mt-0.5 sm:mt-1 uppercase tracking-wider">Machine</p>
                 </div>
               </div>
 
               {/* Extra Info Cards — 3-col on all screens */}
               <div className="grid grid-cols-3 gap-2 sm:gap-3">
-                <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-2 sm:p-3 text-center">
+                <div className="bg-[#0d0d11] border border-[#1e1e2a] rounded-xl p-2 sm:p-3 text-center">
                   <p className="text-[10px] sm:text-xs text-[#d4d4d8] font-mono truncate">{botStatus.node_version}</p>
-                  <p className="text-[9px] sm:text-[10px] text-[#71717a] mt-0.5">Node.js</p>
+                  <p className="text-[9px] sm:text-[10px] text-[#52525b] mt-0.5 uppercase tracking-wider">Node.js</p>
                 </div>
-                <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-2 sm:p-3 text-center">
+                <div className="bg-[#0d0d11] border border-[#1e1e2a] rounded-xl p-2 sm:p-3 text-center">
                   <p className="text-[10px] sm:text-xs text-[#d4d4d8] font-mono">fly.io</p>
-                  <p className="text-[9px] sm:text-[10px] text-[#71717a] mt-0.5">Platform</p>
+                  <p className="text-[9px] sm:text-[10px] text-[#52525b] mt-0.5 uppercase tracking-wider">Platform</p>
                 </div>
-                <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-2 sm:p-3 text-center">
+                <div className="bg-[#0d0d11] border border-[#1e1e2a] rounded-xl p-2 sm:p-3 text-center">
                   <p className="text-[10px] sm:text-xs text-[#d4d4d8] font-mono">{botStatus.region}</p>
-                  <p className="text-[9px] sm:text-[10px] text-[#71717a] mt-0.5">Region</p>
+                  <p className="text-[9px] sm:text-[10px] text-[#52525b] mt-0.5 uppercase tracking-wider">Region</p>
                 </div>
               </div>
 
-              {/* Spawn Cron */}
-              <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-3 sm:p-4">
-                <h5 className="text-xs font-semibold text-[#d4d4d8] mb-2 sm:mb-3">Spawn Cron</h5>
-                <div className="grid grid-cols-3 gap-2 sm:gap-4 text-center">
-                  <div>
-                    <p className="text-sm sm:text-lg font-bold text-[#d4d4d8] font-mono">{botStatus.spawn_cron?.last_tick_seconds_ago ?? "—"}s</p>
-                    <p className="text-[9px] sm:text-[10px] text-[#71717a]">Last Tick</p>
-                  </div>
-                  <div>
-                    <p className="text-sm sm:text-lg font-bold text-[#d4d4d8]">{botStatus.spawn_cron?.servers_checked}</p>
-                    <p className="text-[9px] sm:text-[10px] text-[#71717a]">Servers</p>
-                  </div>
-                  <div>
-                    <p className="text-sm sm:text-lg font-bold text-[#d4d4d8]">{botStatus.spawn_cron?.bosses_checked}</p>
-                    <p className="text-[9px] sm:text-[10px] text-[#71717a]">Bosses</p>
-                  </div>
-                </div>
-              </div>
 
-              <p className="text-[10px] text-[#52525b]">Auto-refreshes every 15s.</p>
+
+              <p className="text-[10px] text-[#3f3f46]">Auto-refreshes every 15s.</p>
 
               {/* Maintenance Mode */}
-              <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-3 sm:p-4 space-y-3">
+              <div className="bg-[#0d0d11] border border-[#1e1e2a] rounded-xl p-3 sm:p-4 space-y-3">
                 <div className="flex flex-col gap-2">
                   <div>
                     <h4 className="text-sm font-semibold text-[#fafafa]">Maintenance Mode</h4>
@@ -1358,9 +1344,9 @@ export function AdminPanelView() {
                 {!maintenance && (
                   <div className="flex flex-col gap-2">
                     <input type="date" value={maintEndDate} onChange={e => setMaintEndDate(e.target.value)}
-                      className="w-full px-2 py-1.5 bg-[#09090b] border border-[#27272a] rounded text-xs text-[#fafafa]" />
+                      className="w-full px-2 py-1.5 bg-[#09090b] border border-[#1e1e2a] rounded text-xs text-[#fafafa]" />
                     <input type="time" value={maintEndTime} onChange={e => setMaintEndTime(e.target.value)}
-                      className="w-full px-2 py-1.5 bg-[#09090b] border border-[#27272a] rounded text-xs text-[#fafafa]" />
+                      className="w-full px-2 py-1.5 bg-[#09090b] border border-[#1e1e2a] rounded text-xs text-[#fafafa]" />
                   </div>
                 )}
               </div>
@@ -1374,7 +1360,7 @@ export function AdminPanelView() {
     </div>
 
       {/* Mobile: bottom navigation */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-[#09090b]/95 backdrop-blur-xl border-t border-[#27272a] safe-area-bottom">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-[#09090b]/95 backdrop-blur-xl border-t border-[#1e1e2a] safe-area-bottom">
         <div className="flex items-center justify-around h-14 max-w-lg mx-auto">
           <button onClick={() => setTab("infra")} className={`flex flex-col items-center justify-center gap-0.5 px-2 py-1.5 min-w-[64px] rounded-lg transition-colors ${tab === "infra" ? "text-[#fafafa]" : "text-[#52525b]"}`}>
             <Radio className="w-5 h-5" />
@@ -1462,7 +1448,7 @@ export function AdminPanelView() {
       {forceSpawnConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/60" onClick={() => setForceSpawnConfirm(null)} />
-          <div className="relative bg-[#18181b] border border-[#27272a] rounded-xl w-full max-w-md shadow-2xl p-6 space-y-4">
+          <div className="relative bg-[#0d0d11] border border-[#1e1e2a] rounded-xl w-full max-w-md shadow-2xl p-6 space-y-4">
             <h3 className="text-sm font-bold text-[#fafafa]">Force Spawn All</h3>
             <p className="text-xs text-[#a1a1aa]">
               This will force-spawn <strong>all fixed-timer bosses</strong> in{" "}
@@ -1475,7 +1461,7 @@ export function AdminPanelView() {
               onChange={(e) => setForceSpawnInput(e.target.value)}
               placeholder={forceSpawnConfirm.serverName}
               autoFocus
-              className="w-full px-3 py-2 bg-[#09090b] border border-[#27272a] rounded-lg text-[#fafafa] text-sm placeholder-[#52525b] focus:outline-none focus:ring-2 focus:ring-amber-500/50 transition"
+              className="w-full px-3 py-2 bg-[#09090b] border border-[#1e1e2a] rounded-lg text-[#fafafa] text-sm placeholder-[#52525b] focus:outline-none focus:ring-2 focus:ring-amber-500/50 transition"
               onKeyDown={(e) => {
                 if (e.key === "Enter" && forceSpawnInput === forceSpawnConfirm.serverName) {
                   handleForceSpawn();
@@ -1500,6 +1486,242 @@ export function AdminPanelView() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// ── Spawn Cron Premium Card ─────────────────────────────────
+function SpawnCronCard({ data, connected }: { data: any; connected: boolean }) {
+  const [timeRange, setTimeRange] = useState("1h");
+  const [tooltip, setTooltip] = useState<{ i: number; v: number; x: number; y: number } | null>(null);
+  const inMemoryHistory: number[] = data?.tick_history_ms ?? [];
+
+  // Fetch historical metrics from bot
+  const BOT_URL = "https://raidscout-bot.fly.dev";
+  const { data: histData } = useQuery({
+    queryKey: ["tick-metrics", timeRange],
+    queryFn: async () => {
+      const res = await fetch(`${BOT_URL}/tick-metrics?range=${timeRange}`);
+      if (!res.ok) return null;
+      return res.json() as Promise<{ ok: boolean; metrics: { ts: number; duration_ms: number }[] }>;
+    },
+    staleTime: 15_000,
+    refetchInterval: 15_000,
+    enabled: timeRange !== "live",
+  });
+
+  // Use historical data if available, else in-memory buffer
+  const history: number[] = timeRange === "live" || !histData?.ok
+    ? inMemoryHistory
+    : (histData?.metrics?.map((m: any) => m.duration_ms) ?? inMemoryHistory);
+  const durationMs = data?.last_tick_duration_ms ?? 0;
+  const lastTickSec = data?.last_tick_seconds_ago;
+  const servers = data?.servers_checked ?? 0;
+  const bosses = data?.bosses_checked ?? 0;
+  const hasData = history.length > 1;
+
+  const W = 800, H = 220, LX = 42, RX = 30, TY = 12, BY = 28;
+  const max = hasData ? Math.max(...history, 500) : 5000;
+  const min = hasData ? Math.min(...history, 0) : 0;
+  const rng = max - min || 1;
+  const pw = W - LX - RX;
+  const ph = H - TY - BY;
+  const sx = hasData && history.length > 1 ? pw / (history.length - 1) : 0;
+
+  const yPos = (v: number) => TY + ph - ((v - min) / rng) * ph;
+  const xPos = (i: number) => LX + i * sx;
+
+  const pts = hasData ? history.map((v, i) => `${xPos(i)},${yPos(v)}`).join(" ") : "";
+
+  // Y ticks
+  const yTicks: number[] = [];
+  const yStep = rng > 4000 ? 1000 : rng > 2000 ? 500 : rng > 1000 ? 250 : 200;
+  for (let v = Math.ceil(min / yStep) * yStep; v <= max; v += yStep) yTicks.push(v);
+  if (yTicks.length < 2) yTicks.push(min, max);
+
+  const avg = hasData ? history.reduce((a, b) => a + b, 0) / history.length : 0;
+  const avgY = yPos(avg);
+  const latest = history[history.length - 1] ?? 0;
+  const prev = history.length > 1 ? history[history.length - 2] : latest;
+  const trend = latest > prev ? "up" : latest < prev ? "down" : "flat";
+
+  // Label every ~6th tick
+  const labelStep = Math.max(1, Math.floor(history.length / 6));
+
+  return (
+    <div className="relative rounded-xl bg-[#0d0d11] border border-[#1e1e2a]">
+      {/* Ambient top glow bar */}
+      <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-violet-400/40 to-transparent" />
+
+      {/* Header bar */}
+      <div className="relative flex items-center justify-between px-4 sm:px-5 pt-3 pb-1">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <span className={`w-2 h-2 rounded-full ${connected ? 'bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.5)]' : 'bg-[#52525b]'}`} />
+            <span className="text-[11px] font-semibold text-[#e4e4e7] tracking-wide">SPAWN CRON</span>
+          </div>
+          <span className="text-[10px] text-[#52525b] font-mono">30s</span>
+          {/* Time range filter */}
+          <select
+            value={timeRange}
+            onChange={e => setTimeRange(e.target.value)}
+            className="bg-[#0d0d11] border border-[#1e1e2a] rounded px-1.5 py-0.5 text-[10px] text-[#a1a1aa] font-mono focus:outline-none focus:border-violet-500/30 cursor-pointer"
+          >
+            <option value="live">Live</option>
+            <option value="1h">1 Hour</option>
+            <option value="3h">3 Hours</option>
+            <option value="6h">6 Hours</option>
+            <option value="12h">12 Hours</option>
+            <option value="1d">1 Day</option>
+            <option value="3d">3 Days</option>
+            <option value="5d">5 Days</option>
+            <option value="7d">7 Days</option>
+            <option value="14d">14 Days</option>
+            <option value="30d">30 Days</option>
+          </select>
+        </div>
+        <div className="flex items-center gap-4">
+          <span className="text-[10px] text-[#52525b] font-mono">
+            avg <span className="text-[#a1a1aa]">{(avg / 1000).toFixed(2)}s</span>
+          </span>
+          <span className={`text-[10px] font-mono ${trend === "up" ? "text-emerald-400" : trend === "down" ? "text-rose-400" : "text-[#52525b]"}`}>
+            {trend === "up" ? "▲" : trend === "down" ? "▼" : "─"} {(latest / 1000).toFixed(2)}s
+          </span>
+        </div>
+      </div>
+
+      {/* Chart */}
+      <div className="relative">
+        <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-40 sm:h-48" preserveAspectRatio="none">
+          <style>{`
+            @keyframes drawIn { from { stroke-dashoffset: var(--d); } to { stroke-dashoffset: 0; } }
+            @keyframes fadeUp { from { opacity: 0; } to { opacity: 1; } }
+            @keyframes pulseGlow { 0%,100% { opacity: 0.25; } 50% { opacity: 0.55; } }
+            @keyframes pulseDot { 0%,100% { r: 3; opacity: 0.6; } 50% { r: 4.5; opacity: 1; } }
+            .cline { stroke-dasharray: var(--d); stroke-dashoffset: var(--d); animation: drawIn 1.4s cubic-bezier(0.33,1,0.68,1) forwards; }
+            .glow  { stroke-dasharray: var(--d); stroke-dashoffset: var(--d); animation: drawIn 1.4s cubic-bezier(0.33,1,0.68,1) forwards, pulseGlow 2.5s ease-in-out 1.4s infinite; }
+            .area  { opacity: 0; animation: fadeUp 0.7s ease-out 0.5s forwards; }
+            .ldot  { animation: pulseDot 2s ease-in-out infinite; }
+          `}</style>
+          <defs>
+            <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#8b5cf6" stopOpacity="0.15" />
+              <stop offset="50%" stopColor="#8b5cf6" stopOpacity="0.04" />
+              <stop offset="100%" stopColor="#8b5cf6" stopOpacity="0" />
+            </linearGradient>
+            <filter id="glow">
+              <feGaussianBlur stdDeviation="3" result="b" />
+              <feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
+            </filter>
+          </defs>
+
+          {/* Grid */}
+          {yTicks.map(v => (
+            <g key={`g-${v}`}>
+              <line x1={LX} y1={yPos(v)} x2={W - RX} y2={yPos(v)} stroke="#1e1e2a" strokeWidth="0.5" />
+              <text x={LX - 5} y={yPos(v) + 3} textAnchor="end" fill="#3f3f46" fontSize="9" fontFamily="monospace">{(v / 1000).toFixed(1)}</text>
+            </g>
+          ))}
+          {/* X-axis */}
+          <line x1={LX} y1={TY + ph} x2={W - RX} y2={TY + ph} stroke="#1e1e2a" strokeWidth="0.5" />
+
+          {/* Average line */}
+          {hasData && (
+            <line x1={LX} y1={avgY} x2={W - RX} y2={avgY} stroke="#3f3f46" strokeWidth="0.5" strokeDasharray="4,6" />
+          )}
+
+          {hasData && (
+            <>
+              {/* Area */}
+              <polygon points={`${xPos(0)},${TY + ph} ${pts} ${xPos(history.length - 1)},${TY + ph}`} fill="url(#areaGrad)" className="area" />
+              {/* Glow line */}
+              <polyline points={pts} fill="none" stroke="#8b5cf6" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" opacity="0"
+                filter="url(#glow)" className="glow" style={{ '--d': pw * 1.5 } as React.CSSProperties} />
+              {/* Main line */}
+              <polyline points={pts} fill="none" stroke="#a78bfa" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"
+                className="cline" style={{ '--d': pw * 1.5 } as React.CSSProperties} />
+
+              {/* Data points */}
+              {history.map((v, i) => {
+                const isLast = i === history.length - 1;
+                const show = i % labelStep === 0 || isLast;
+                const x = xPos(i), y = yPos(v);
+                const lbl = (v / 1000).toFixed(2);
+                const onEnter = () => setTooltip({ i, v, x, y });
+                const onLeave = () => setTooltip(null);
+
+                if (!show) return (
+                  <circle key={`d-${i}`} cx={x} cy={y} r="6" fill="transparent"
+                    onMouseEnter={onEnter} onMouseLeave={onLeave} />
+                );
+
+                return (
+                  <g key={`p-${i}`}>
+                    <rect x={x - 14} y={y - 14} width="28" height="28" fill="transparent"
+                      onMouseEnter={onEnter} onMouseLeave={onLeave} />
+                    {isLast ? (
+                      <circle cx={x} cy={y} r="5" fill="#8b5cf6" opacity="0.2" className="ldot" />
+                    ) : (
+                      <>
+                        <circle cx={x} cy={y} r="2" fill="#a78bfa" stroke="#0d0d11" strokeWidth="1" />
+                        <text x={x} y={y - 7} textAnchor="middle" fill="#71717a" fontSize="7.5" fontFamily="monospace">{lbl}</text>
+                      </>
+                    )}
+                    {isLast && <circle cx={x} cy={y} r="2.5" fill="#c4b5fd" stroke="#0d0d11" strokeWidth="1.5" />}
+                  </g>
+                );
+              })}
+
+              {/* X tick labels */}
+              {history.map((_, i) => {
+                if (i % labelStep !== 0 && i !== history.length - 1) return null;
+                return (
+                  <text key={`xl-${i}`} x={xPos(i)} y={TY + ph + 15} textAnchor="middle" fill="#3f3f46" fontSize="8" fontFamily="monospace">
+                    {i + 1}
+                  </text>
+                );
+              })}
+            </>
+          )}
+
+          {/* Empty state */}
+          {!hasData && (
+            <text x={W / 2} y={H / 2} textAnchor="middle" fill="#3f3f46" fontSize="11" fontFamily="monospace">
+              Collecting data...
+            </text>
+          )}
+        </svg>
+      </div>
+
+      {/* Hover tooltip */}
+      {tooltip && (
+        <div className="absolute z-20 pointer-events-none px-2 py-1 rounded bg-[#1e1e2a] border border-[#3f3f46] text-[10px] font-mono text-[#fafafa] shadow-lg"
+          style={{ left: `${((tooltip.x - LX) / pw) * 100}%`, top: `${((tooltip.y - TY) / ph) * 100}%`, transform: 'translate(-50%, -120%)' }}>
+          Tick {tooltip.i + 1}: {(tooltip.v / 1000).toFixed(2)}s
+        </div>
+      )}
+
+      {/* Stats bar */}
+      <div className="relative flex items-center justify-center gap-6 sm:gap-10 px-4 pb-4 pt-1 border-t border-[#1e1e2a]">
+        <div className="text-center">
+          <p className="text-[10px] text-[#52525b] uppercase tracking-wider">Duration</p>
+          <p className="text-sm font-bold text-[#fafafa] font-mono">
+            {durationMs > 0 ? (durationMs / 1000).toFixed(2) : "—"}<span className="text-[10px] text-[#71717a] ml-0.5">s</span>
+          </p>
+        </div>
+        <div className="text-center">
+          <p className="text-[10px] text-[#52525b] uppercase tracking-wider">Servers</p>
+          <p className="text-sm font-bold text-[#fafafa] font-mono">{servers}</p>
+        </div>
+        <div className="text-center">
+          <p className="text-[10px] text-[#52525b] uppercase tracking-wider">Bosses</p>
+          <p className="text-sm font-bold text-[#fafafa] font-mono">{bosses}</p>
+        </div>
+        <div className="text-center">
+          <p className="text-[10px] text-[#52525b] uppercase tracking-wider">Ticks</p>
+          <p className="text-sm font-bold text-[#fafafa] font-mono">{history.length || "—"}</p>
+        </div>
+      </div>
     </div>
   );
 }

@@ -109,6 +109,7 @@ export function BossListView() {
   useEffect(() => {
     const sid = currentServer?.id;
     if (!sid) return;
+    setGuildsLoading(true);
     Promise.all([fetchGuilds(sid), fetchBossGuilds(sid), fetchActivityGuilds(sid)])
       .then(([g, bg, ag]) => { setGuilds(g); setBossGuilds(bg); setActivityGuilds(ag ?? []); })
       .catch(() => { setGuilds([]); setBossGuilds([]); setActivityGuilds([]); })
@@ -608,6 +609,16 @@ export function BossListView() {
 
   return (
     <div className="max-w-[100%] 2xl:max-w-[1600px] mx-auto px-3 sm:px-4 py-4 sm:py-6 space-y-4 sm:space-y-6">
+      {/* Guild loading overlay — shown when switching servers */}
+      {guildsLoading && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-[#09090b]/80">
+          <div className="flex flex-col items-center gap-3">
+            <div className="w-8 h-8 border-2 border-[#27272a] border-t-[#a1a1aa] rounded-full animate-spin" />
+            <span className="text-sm text-[#71717a]">Loading guild data...</span>
+          </div>
+        </div>
+      )}
+
       {/* Saving overlay — blocks all interaction */}
       {savingMessage && <SavingOverlay message={savingMessage} />}
 
@@ -849,6 +860,11 @@ export function BossListView() {
                           const ag = activityGuilds.filter(x => x.activity_id === a.id).sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
                           if (ag.length === 0) return undefined;
                           return guilds.find(g => g.id === ag[0].guild_id)?.name;
+                        })()}
+                        ownerGuildNames={(() => {
+                          const ag = activityGuilds.filter(x => x.activity_id === a.id).sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+                          if (ag.length <= 1) return undefined;
+                          return ag.map(x => guilds.find(g => g.id === x.guild_id)?.name).filter(Boolean) as string[];
                         })()}
                         hideScheduleTime={hideScheduleTime}
                       />

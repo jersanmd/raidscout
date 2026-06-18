@@ -17,11 +17,12 @@ export function NoMembersBanner() {
   const [dismissed, setDismissed] = useState(false);
 
   // Use React Query so it auto-updates when members are added/removed
-  const { data: members } = useMembers();
+  const { data: members, isLoading } = useMembers();
   const hasMembers = (members?.length ?? 0) > 0;
 
   if (!user || !currentServer) return null;
   if (currentServer.role !== "owner" && currentServer.role !== "moderator") return null;
+  if (isLoading) return null; // Don't flash banner while data is still loading
   if (hasMembers) return null;
   if (dismissed) return null;
 

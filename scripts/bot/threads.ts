@@ -2,7 +2,7 @@
 
 import { TOKEN, SUPABASE_URL, SUPABASE_KEY } from "./config";
 import { discordFetch } from "./discord-api";
-import { supabaseQuerySafe } from "./supabase";
+import { supabaseQuerySafe, logError } from "./supabase";
 import { fetchPartyList, formatPartyListForThread } from "./party-utils";
 import { resolveServerTimezone } from "./server-cache";
 
@@ -15,6 +15,7 @@ export async function createThreadInChannel(
   firstMessage: string,
   guildName: string | undefined,
 ) {
+  try {
   const threadRes = await discordFetch(
     `https://discord.com/api/v10/channels/${channelId}/threads`,
     {
@@ -42,7 +43,10 @@ export async function createThreadInChannel(
     ).catch(() => {});
     return thread.id;
   }
-  console.error(`[thread] ❌ Failed to create "${threadName}" in channel ${channelId}: HTTP ${threadRes.status}`);
+  logError("thread", `Failed to create "${threadName}"`, `HTTP ${threadRes.status}`, { channelId, guildName });
+  } catch (err: any) {
+    logError("thread", `createThreadInChannel crashed`, err, { channelId, threadName, guildName });
+  }
   return null;
 }
 
@@ -156,12 +160,12 @@ export async function createEventThreads(
             }
           }
         } catch (assistErr: any) {
-          console.error("[thread] Assist lookup failed:", assistErr.message);
+          logError("thread", "Assist lookup failed", assistErr, { serverId, bossName: name, targetId });
         }
       }
     }
   } catch (err: any) {
-    console.error("[thread] createEventThreads failed:", err.message);
+    logError("thread", "createEventThreads failed", err, { serverId, name, guildName, ownerType });
   }
 }
 

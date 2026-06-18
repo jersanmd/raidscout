@@ -45,7 +45,7 @@ interface ServerState {
 const ServerContext = createContext<ServerState | undefined>(undefined);
 
 export function ServerProvider({ children }: { children: ReactNode }) {
-  const { user, isViewer, viewerServerId, viewerServerName, viewerDiscordWebhookUrl, viewerTimezone, userRole } = useAuth();
+  const { user, isViewer, viewerServerId, viewerServerName, viewerDiscordWebhookUrl, viewerTimezone, userRole, roleLoading } = useAuth();
   const [servers, setServers] = useState<Server[]>([]);
   const [currentServer, setCurrentServer] = useState<Server | null>(null);
   const [loading, setLoading] = useState(true);
@@ -146,6 +146,7 @@ export function ServerProvider({ children }: { children: ReactNode }) {
             });
           }
         }
+        list.sort((a, b) => a.name.localeCompare(b.name));
         setServers(list);
         if (list.length > 0) {
           const persistedId = localStorage.getItem("lordnine-current-server-id");
@@ -230,6 +231,7 @@ export function ServerProvider({ children }: { children: ReactNode }) {
         console.warn("No server data found for boss ids:", uniqueIds);
       }
       
+      list.sort((a, b) => a.name.localeCompare(b.name));
       setServers(list);
       // Restore persisted server or pick first — always update with fresh data
       if (list.length > 0) {
@@ -256,8 +258,10 @@ export function ServerProvider({ children }: { children: ReactNode }) {
       setLoading(false);
       return;
     }
+    // Wait for role to load so refreshServers uses the correct role for the query
+    if (roleLoading) return;
     refreshServers().finally(() => setLoading(false));
-  }, [user?.id, refreshServers, isViewer]);
+  }, [user?.id, refreshServers, isViewer, roleLoading]);
 
   // Sync server ID to supabase module for inserts
   useEffect(() => {

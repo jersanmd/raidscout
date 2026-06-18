@@ -2666,7 +2666,7 @@ export function ServerSettingsView() {
                 <span className="text-xs font-bold text-[#a1a1aa] bg-[#18181b] px-2 py-0.5 rounded">Step 2</span>
                 <p className="text-xs text-[#d4d4d8] font-medium">Invite the bot</p>
                 <p className="text-[11px] text-[#71717a] leading-relaxed">
-                  <a href="https://discord.com/api/oauth2/authorize?client_id=1508368991272566975&permissions=2147485696&scope=bot%20applications.commands" target="_blank" rel="noopener noreferrer"
+                  <a href={`https://discord.com/api/oauth2/authorize?client_id=${import.meta.env.VITE_DISCORD_CLIENT_ID || '1508368991272566975'}&permissions=2147485696&scope=bot%20applications.commands`} target="_blank" rel="noopener noreferrer"
                     className="text-[#a1a1aa] hover:text-[#d4d4d8] underline font-medium">Click here to invite RaidScout Bot</a> to your Discord server.
                 </p>
               </div>

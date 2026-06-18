@@ -17,7 +17,7 @@ export function DiscordWebhookBanner() {
   const [dismissed, setDismissed] = useState(false);
 
   // Use React Query so it auto-updates when Discord is linked/unlinked
-  const { data: configs } = useQuery({
+  const { data: configs, isLoading } = useQuery({
     queryKey: ["discord_configs", currentServer?.id],
     queryFn: async () => {
       if (!currentServer?.id || !isSupabaseConfigured()) return [];
@@ -34,6 +34,8 @@ export function DiscordWebhookBanner() {
 
   if (!user || !currentServer) return null;
   if (currentServer.role !== "owner" && currentServer.role !== "moderator") return null;
+  // Don't flash banner while data is still loading
+  if (isLoading) return null;
   // Hide once at least 1 Discord link exists
   if (hasNotifications) return null;
   if (dismissed) return null;

@@ -4,46 +4,36 @@
 
 - **Weekly Attendance column** — Members → Progress now shows a "Weekly Attendance" column between Current CP and 30d Growth. Shows percentage of events attended this week (guild-scoped: owned kills + assisted kills + activities). Click the `%`/`⅞` toggle to switch between percentage and fraction (`75%` ↔ `6/8`). Color-coded: green ≥75%, amber ≥50%, red >0%, gray 0%.
 - **`!nextspawn` day grouping** — Discord bot now groups spawns by day with 📅 headers (Today, Tomorrow, etc.) using server timezone. Uses Discord native `<t:unix:t>` (12hr) and `<t:unix:R>` (relative) timestamps.
-- **Discord auto-thread defaults** — When linking a Discord server in Server Settings → Integrations, all guilds are now auto-assigned to `thread_guilds` by default. No need to manually check each guild.
-- **Same Discord server, multiple links** — Migration drops the unique constraint on `discord_configs(discord_guild_id, raidscout_server_id)`, allowing the same Discord server to be linked multiple times with different command prefixes.
+- **Discord auto-thread defaults** — When linking a Discord server in Server Settings → Integrations, all guilds are now auto-assigned to thread channels by default. No need to manually check each guild.
+- **Same Discord server, multiple prefixes** — The same Discord server can now be linked multiple times with different command prefixes.
 
 ## 🐛 Bug Fixes
 
-- **Analytics All Time 400 error** — `fetchAnalytics` now batches the `.in("death_record_id")` filter into chunks of 200 to stay under Supabase's URL length limit. Also batched member ID lookups.
-- **Schedule mode guild-per-day not saving** — Fixed three bugs: (1) stale rotation rows leaking into schedule via `bg.day_of_week !== null` filter, (2) optimistic update so dropdowns reflect changes instantly, (3) edge function `get-boss-guilds` filtering out rows with `sort_order: NULL` (PostgreSQL `NULL != -1` = `NULL` = falsy).
-- **Role ping with spaces** — `resolvePrefix` regex changed from `/@(\S+)/g` to word-combination matching: tries progressively shorter word groups to match roles with spaces (`@Y2 | MC丶AngBeat` → pings `@Y2` role, displays `| MC丶AngBeat` as text).
+- **Analytics All Time error** — Fixed 400 error on large servers by batching analytics lookups.
+- **Schedule mode guild-per-day not saving** — Fixed guild assignments not saving for schedule-mode bosses with per-day guild rotation.
+- **Role ping with spaces** — Discord role mentions with spaces (like `@Y2 | MC丶AngBeat`) now correctly ping the role while displaying the extra text.
 
 ## 🎨 UI
 
-- **Wider page containers** — All pages changed from `max-w-7xl` (1280px fixed) to `max-w-[95%] 2xl:max-w-[1600px]`, nearly doubling usable space on large screens.
-- **Wider ping input** — Discord integration ping field widened from `w-28`/`w-36` to `w-56` (224px) for multi-role mentions.
-- **Schedule schedule "Clear" option removed** — Duplicate `<option value="">` removed from day dropdowns (invalid HTML).
+- **Wider page containers** — All pages expanded from 1280px to nearly double the width on large screens, making better use of widescreen monitors.
+- **Wider ping input** — Discord integration ping field widened for multi-role mentions.
+- **Schedule "Clear" option removed** — Duplicate empty option removed from day dropdowns.
 
 ## 🤖 Discord Bot
 
-- **`!nextspawn` timezone fix** — `dayLabel` now uses server timezone instead of bot's UTC clock. Spawns at 1:43 AM UTC correctly grouped under "Tomorrow" for Asia/Manila servers.
-- **Role resolution improvement** — `resolvePrefix` progressively shortens word combinations to match roles with display text appended (e.g., `@RoleName | extra text`).
-
-## 🛠️ Admin Panel
-
-- **Vertical sidebar** — Admin Panel now has a vertical sidebar (hidden on mobile) with all 9 admin tabs: Infra, Games, Servers, Users, Owners, Audit, Database, Test Cron, Deleted. Mobile retains a bottom nav bar with the 5 most-used tabs.
-- **Footer pinned to bottom** — Admin Panel footer now sticks to the bottom of the viewport, matching the main Layout behavior.
+- **`!nextspawn` timezone fix** — Day labels now use your server's timezone instead of UTC. Spawns at odd hours correctly grouped under the right day.
+- **Role resolution improvement** — Bot now progressively matches role names with spaces, allowing display text after the role mention.
 
 ## 🔗 URL-Synced Tabs
 
-- **History** — Timeline/Ledger tabs now sync to `?tab=ledger`. URL persists on refresh and share.
-- **Leaderboard** — Since Reset / All Time synced to `?period=all`.
-- **Inventory** — All 5 tabs (Catalog, Collections, History, Recipients, Analytics) synced to `?tab=`.
-- **Analytics** — This Week / This Month / All Time synced to `?period=month`.
+- **History** — Timeline/Ledger tabs now sync to the URL. Persists on refresh and share.
+- **Leaderboard** — Since Reset / All Time selection persists in the URL.
+- **Inventory** — All 5 tabs (Catalog, Collections, History, Recipients, Analytics) persist in the URL.
+- **Analytics** — Period selection (This Week / This Month / All Time) persists in the URL.
 
-## 🔒 Admin Privacy & Security
+## 🎨 UI — Continued
 
-- **Verified column** — Admin Panel Users tab now shows a Verified/Unverified badge with checkmark/X icons.
-- **Inline Add Moderator** — Expanded server cards in Admin Panel → Servers now have an email input + Add button to add moderators directly.
-- **Admin email hidden** — Site admin emails are completely filtered out of the Server Settings → Members list. Server owners and moderators see only their own members.
-- **Permissions UX** — Moderator rows in Server Settings now show a clickable "⚙ Permissions" badge (wider, icon+text on one line). Instructional text explains what each permission toggle gates.
-- **Verified column fixed** — Now uses 5-second gap check between `email_confirmed_at` and `created_at` to distinguish auto-confirmed users from truly verified ones. RPC updated to include `email_confirmed_at` field.
-- **Owners tab removed** — "Owners" tab removed from Admin Panel sidebar (was just an alias for Users).
+- **Moderator permissions** — Server Settings now shows a clickable "⚙ Permissions" badge for moderators with clear descriptions of what each toggle controls.
 
 ## 📦 Inventory Upgrades
 
@@ -54,9 +44,9 @@
 - **Matrix row numbers** — Each player row shows a counter on the left.
 - **Matrix player search** — Search bar (far right) filters the matrix by player name.
 - **Matrix hover sync** — Sticky player name column now highlights in sync with the rest of the row.
-- **Inventory loading screen** — Spinner appears until members, guilds, and class data are fully loaded.
+- **Inventory loading screen** — Spinner appears until data is fully loaded.
 
-- **Sticky matrix headers** — Item headers and player column now stay fixed when scrolling (same pattern as History → Ledger). Table container uses `overflow-auto max-h` for scrollable content with pinned headers.
+- **Sticky matrix headers** — Item headers and player column stay fixed when scrolling.
 - **Matrix item sorting** — Click any item header to sort players by ownership (owners first ▼ → missing first ▲ → clear). Active sort highlights the header with a direction arrow.
 - **Matrix distribute button** — Each player row has a "+" button (appears on hover) that opens a modal to search items and instantly distribute. Table auto-refreshes after distribution.
 - **Recipients: all members** — Members with zero items received now appear in the recipients list. Toolbar rearranged: filters (Guild, Sort) on the left, search on the far right.
@@ -64,24 +54,16 @@
 
 ## 🐛 Class Icons Fix
 
-- **CLASS_ICONS synced** — InventoryView now uses the same 20-icon list as MembersView (HandMetal, ShieldCheck, Gavel, Axe, Target, Snowflake, etc.).
-- **Case-insensitive lookups** — Class names now matched with `.toLowerCase().trim()` everywhere.
-- **Member ID matching** — History tab now checks `member_id` first, then falls back to name.
-- **Paginated fetchMembers** — No more 1000-row limit; inactive members included.
+- **Consistent class icons** — Inventory now uses the same class icons as the Members page.
+- **Case-insensitive matching** — Class names now match regardless of capitalization.
+- **Member ID matching** — Kill history now correctly attributes to the right member.
+- **All members loaded** — No more 1000-member limit; inactive members included.
 
-## 🛡️ RLS Policy Fixes
+##  Infrastructure
 
-- **072** — Added explicit WITH CHECK for admin writes to server_members.
-- **073** — Eliminated infinite recursion by querying `servers.owner_id` instead of self-referencing.
-- **074** — Added "Users can join servers" INSERT policy for invite code flow.
-- **075** — Created `get_admin_user_ids()` SECURITY DEFINER RPC for admin email masking.
-- **Bot Status cards updated** — Memory display corrected from `512 MB` to `1024 MB`. Region now shows the live `FLY_REGION` env var (dynamic) instead of hardcoded `sin`.
-
-## 🔧 Infrastructure
-
-- **Bot retry logic** — Supabase queries now retry up to 3 times with exponential backoff (1s → 2s → 4s) on `fetch failed` errors and 5xx responses. Reduces transient failure impact during network blips.
-- **Spawn cron concurrency reduced** — Concurrent server checks lowered from 10 → 5 to reduce peak request pressure on Supabase.
-- **Bot moved to Tokyo** — fly.io bot machine relocated from Singapore (`sin`) to Tokyo (`nrt`) to resolve persistent Cloudflare 521/522 origin connectivity issues.
+- **Bot retry logic** — Bot now retries failed requests up to 3 times with increasing delays, reducing impact of temporary network issues.
+- **Spawn cron optimized** — Reduced concurrent server checks to lower peak load.
+- **Bot moved to Tokyo** — Relocated for better connectivity and reliability.
 
 ## ⚙️ Discord Integrations
 

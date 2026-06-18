@@ -2,6 +2,32 @@
 
 import { SUPABASE_URL, SUPABASE_KEY } from "./config";
 
+// ── Structured error logging ─────────────────────────────
+// All bot errors should route through here for consistent format + context.
+export function logError(scope: string, message: string, detail?: any, extra?: Record<string, any>) {
+  const parts = [`[${scope}]`, message];
+  if (detail != null) {
+    if (typeof detail === "string") {
+      parts.push(detail);
+    } else if (detail instanceof Error) {
+      parts.push(detail.message);
+      if (detail.stack) parts.push(detail.stack.split("\n").slice(0, 3).join(" ← "));
+    } else {
+      try { parts.push(JSON.stringify(detail)); } catch { parts.push(String(detail)); }
+    }
+  }
+  if (extra) {
+    try { parts.push(JSON.stringify(extra)); } catch {}
+  }
+  console.error(parts.join(" "));
+}
+
+// Graceful wrapper: never throws, always returns null on failure
+export async function safeCall<T>(label: string, fn: () => Promise<T>): Promise<T | null> {
+  try { return await fn(); }
+  catch (err: any) { logError("safe", `${label} failed`, err); return null; }
+}
+
 const MAX_RETRIES = 3;
 const RETRY_DELAY_MS = 1000; // base delay, doubles each retry
 
@@ -63,4 +89,54 @@ export async function supabaseInsert(table: string, record: any): Promise<any> {
     throw new Error(`Insert failed: ${res.status}`);
   }
   return res.json();
+}
+
+export async function supabaseRpc<T = any>(fn: string, params: Record<string, any> = {}): Promise<T> {
+  const url = `${SUPABASE_URL}/rest/v1/rpc/${fn}`;
+  const res = await fetchWithRetry(url, {
+    method: "POST",
+    headers: { apikey: SUPABASE_KEY!, Authorization: `Bearer ${SUPABASE_KEY!}`, "Content-Type": "application/json" },
+    body: JSON.stringify(params),
+  });
+  if (!res.ok) {
+    console.error(`RPC ${fn} failed: ${res.status}`);
+    throw new Error(`RPC failed (${res.status})`);
+  }
+  return res.json() as T;
+}
+
+// ── Safe write helpers — never throw, log with context ────
+export async function supabasePatch(table: string, id: string, body: Record<string, any>): Promise<boolean> {
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?id=eq.${id}`, {
+      method: "PATCH",
+      headers: { apikey: SUPABASE_KEY!, Authorization: `Bearer ${SUPABASE_KEY!}`, "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) { logError("db", `PATCH ${table} HTTP ${res.status}`, { id }); return false; }
+    return true;
+  } catch (err: any) { logError("db", `PATCH ${table} failed`, err, { id }); return false; }
+}
+
+export async function supabaseDelete(table: string, column: string, value: string): Promise<boolean> {
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?${column}=eq.${value}`, {
+      method: "DELETE",
+      headers: { apikey: SUPABASE_KEY!, Authorization: `Bearer ${SUPABASE_KEY!}` },
+    });
+    if (!res.ok) { logError("db", `DELETE ${table} HTTP ${res.status}`, { [column]: value }); return false; }
+    return true;
+  } catch (err: any) { logError("db", `DELETE ${table} failed`, err, { [column]: value }); return false; }
+}
+
+export async function supabasePost(table: string, body: Record<string, any>): Promise<boolean> {
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
+      method: "POST",
+      headers: { apikey: SUPABASE_KEY!, Authorization: `Bearer ${SUPABASE_KEY!}`, "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) { logError("db", `POST ${table} HTTP ${res.status}`, { keys: Object.keys(body) }); return false; }
+    return true;
+  } catch (err: any) { logError("db", `POST ${table} failed`, err, { keys: Object.keys(body) }); return false; }
 }

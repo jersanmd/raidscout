@@ -3,7 +3,7 @@
 
 import { TOKEN, SUPABASE_URL, SUPABASE_KEY, SITE_URL, botUserId } from "./config";
 import { discordFetch } from "./discord-api";
-import { supabaseQuery, supabaseQuerySafe } from "./supabase";
+import { supabaseQuery, supabaseQuerySafe, supabaseRpc, logError } from "./supabase";
 import { getGuildPrefixes, resolveServerId, resolveServerTimezone, bustPrefixCache } from "./server-cache";
 import { addHours, computeOwnerGuild, getScheduleTz, scheduleSlotToUTC, findNextScheduleSlot } from "./spawn-utils";
 import { fetchPartyList } from "./party-utils";
@@ -14,6 +14,8 @@ export async function handleMessage(msg: any) {
   const channelId: string = msg.channel_id;
   const guildId: string = msg.guild_id;
   const author: string = msg.author?.username ?? "unknown";
+
+  try {
 
   const guildServerNames = new Map<string, string>();
   const resolveServerName = async (gid: string): Promise<string> => {
@@ -174,20 +176,28 @@ export async function handleMessage(msg: any) {
   }
 
   async function reply(text: string) {
-    await discordFetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
-      method: "POST", headers: { Authorization: `Bot ${TOKEN}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ content: text }),
-    });
-    await cmdLog(cmd, "ok");
+    try {
+      await discordFetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
+        method: "POST", headers: { Authorization: `Bot ${TOKEN}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ content: text }),
+      });
+    } catch (err: any) {
+      logError("cmd", "reply failed", err, { channelId: channelId?.slice(0, 8), text: text?.slice(0, 50) });
+    }
+    await cmdLog(cmd, "ok").catch(() => {});
   }
 
   async function replyEmbed(title: string, desc: string, color: number, fields?: any[]) {
-    const res = await discordFetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
-      method: "POST", headers: { Authorization: `Bot ${TOKEN}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ embeds: [{ title, description: desc, color, fields, footer: { text: "Powered by RaidScout" } }] }),
-    });
-    if (!res.ok) console.error(`replyEmbed failed: ${res.status}`, await res.text().catch(() => ""));
-    await cmdLog(cmd, "ok");
+    try {
+      const res = await discordFetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
+        method: "POST", headers: { Authorization: `Bot ${TOKEN}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ embeds: [{ title, description: desc, color, fields, footer: { text: "Powered by RaidScout" } }] }),
+      });
+      if (!res.ok) logError("cmd", `replyEmbed HTTP ${res.status}`, await res.text().catch(() => ""));
+    } catch (err: any) {
+      logError("cmd", "replyEmbed failed", err, { channelId: channelId?.slice(0, 8), title });
+    }
+    await cmdLog(cmd, "ok").catch(() => {});
   }
 
   // ── list ──
@@ -405,21 +415,41 @@ export async function handleMessage(msg: any) {
   if (cmd === "nextspawn" || cmd === "spawn") {
     if (!serverId) { await cmdLog(cmd, "fail", "not linked"); return reply("⚠️ Not linked to RaidScout."); }
     const filter = args[1];
-    const tz = await resolveServerTimezone(serverId);
-    const [bosses, deaths, guilds, overrides] = await Promise.all([
-      supabaseQuery(`bosses?server_id=eq.${serverId}&is_enabled=not.is.false&deleted_at=is.null&order=name`),
-      supabaseQuery(`death_records?server_id=eq.${serverId}&order=death_time.desc&limit=200`),
-      supabaseQuery(`guilds?server_id=eq.${serverId}`),
-      supabaseQuery(`boss_spawn_overrides?server_id=eq.${serverId}&select=boss_id,death_time`),
-    ]);
+
+    // Use bulk RPC — replaces 6+ REST queries
+    let snap: any;
+    try {
+      snap = await supabaseRpc("bot_server_snapshot", { p_server_id: serverId });
+    } catch { snap = null; }
+
+    let tz: string, bosses: any[], deaths: any[], guilds: any[], overrides: any[], serverBossGuilds: any[], activities: any[];
+    if (snap) {
+      tz = snap.timezone || "Asia/Manila";
+      bosses = snap.bosses || [];
+      deaths = snap.deaths || [];
+      guilds = snap.guilds || [];
+      overrides = snap.overrides || [];
+      serverBossGuilds = snap.boss_guilds || [];
+      activities = snap.activities || [];
+    } else {
+      // REST fallback
+      tz = await resolveServerTimezone(serverId);
+      [bosses, deaths, guilds, overrides] = await Promise.all([
+        supabaseQuerySafe(`bosses?server_id=eq.${serverId}&is_enabled=not.is.false&deleted_at=is.null&order=name`),
+        supabaseQuerySafe(`death_records?server_id=eq.${serverId}&is_initial_spawn=is.false&order=death_time.desc&limit=200`),
+        supabaseQuerySafe(`guilds?server_id=eq.${serverId}`),
+        supabaseQuerySafe(`boss_spawn_overrides?server_id=eq.${serverId}&select=boss_id,death_time`),
+      ]);
+      const allBossGuilds = await supabaseQuerySafe(`boss_guilds?select=boss_id,guild_id,sort_order,day_of_week,mode`);
+      const serverGuildIds = new Set((guilds || []).map((g: any) => g.id));
+      serverBossGuilds = (allBossGuilds || []).filter((bg: any) => serverGuildIds.has(bg.guild_id));
+      activities = await supabaseQuerySafe(`activities?server_id=eq.${serverId}&is_enabled=not.is.false&deleted_at=is.null`);
+    }
     const overrideMap = new Map((overrides || []).map((o: any) => [o.boss_id, o.death_time]));
     const filterGuild = filter ? guilds.find((g: any) => g.name.toLowerCase() === filter.toLowerCase()) : null;
     const now = new Date();
     const cutoff = addHours(now, 24);
     const upcoming: { name: string; time: string; unix: number; guild: string }[] = [];
-    const bossGuilds = await supabaseQuery(`boss_guilds?select=boss_id,guild_id,sort_order,day_of_week,mode`);
-    const serverGuildIds = new Set(guilds.map((g: any) => g.id));
-    const serverBossGuilds = bossGuilds.filter((bg: any) => serverGuildIds.has(bg.guild_id));
 
     for (const boss of bosses) {
       if (filter && !boss.name.toLowerCase().includes(filter.toLowerCase())) {
@@ -455,22 +485,20 @@ export async function handleMessage(msg: any) {
           spawn = findNextScheduleSlot(boss.schedule, now, schedTz);
         }
       } else continue;
-      if (spawn.getTime() <= cutoff.getTime()) {
+      if (spawn.getTime() <= cutoff.getTime() || filter) {
         const gName = computeOwnerGuild(boss, serverBossGuilds, guilds, lastDeath, spawn, tz) || "";
         const unix = Math.floor(spawn.getTime() / 1000);
         upcoming.push({ name: boss.name, time: spawn <= now ? "**ALIVE NOW**" : `<t:${unix}:t>`, unix, guild: gName });
       }
     }
     // ── Activities (within 24h cutoff, merged and sorted with bosses) ──
-    const activities = await supabaseQuery(`activities?server_id=eq.${serverId}&is_enabled=not.is.false&deleted_at=is.null`);
     let activityInstances: any[] = [];
     if (activities?.length) {
       const actIds = activities.map((a: any) => a.id);
-      // Fetch instances for these activities in batches (PostgREST in-filter limit ~100)
       const batchSize = 100;
       for (let i = 0; i < actIds.length; i += batchSize) {
         const batch = actIds.slice(i, i + batchSize).map((id: string) => `"${id}"`).join(",");
-        const batchData = await supabaseQuery(`activity_instances?activity_id=in.(${batch})&order=start_time.desc&limit=${batchSize}`);
+        const batchData = await supabaseQuerySafe(`activity_instances?activity_id=in.(${batch})&order=start_time.desc&limit=${batchSize}`);
         if (batchData) activityInstances.push(...batchData);
       }
     }
@@ -542,7 +570,7 @@ export async function handleMessage(msg: any) {
           }
         }
       }
-      if (startTime && startTime.getTime() <= cutoff.getTime()) {
+      if (startTime && (startTime.getTime() <= cutoff.getTime() || filter)) {
         const unix = Math.floor(startTime.getTime() / 1000);
         upcoming.push({
           name: `📋 ${act.name}`,
@@ -555,7 +583,7 @@ export async function handleMessage(msg: any) {
 
     if (upcoming.length === 0) {
       if (filter) await cmdLog(cmd, "fail", `no spawns for "${filter}"`); else await cmdLog(cmd, "fail", "no spawns in 24h");
-      return reply(filter ? `No spawn data for **${filter}** in 24h.` : "No bosses spawning in 24h.");
+      return reply(filter ? `No spawn data for **${filter}**.` : "No bosses spawning in 24h.");
     }
     upcoming.sort((a, b) => {
       if (a.time === "**ALIVE NOW**" && b.time !== "**ALIVE NOW**") return -1;
@@ -1242,5 +1270,19 @@ export async function handleMessage(msg: any) {
       await cmdLog(cmd, "fail", err.message);
       return reply(`❌ Error editing **${playerName}**: ${err.message}`);
     }
+  }
+
+  } catch (err: any) {
+    logError("cmd", `handleMessage crash [${author}]`, err, {
+      guildId: guildId?.slice(0, 8),
+      channelId: channelId?.slice(0, 8),
+      content: content?.slice(0, 100),
+    });
+    // Best-effort error reply to user
+    discordFetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
+      method: "POST",
+      headers: { Authorization: `Bot ${TOKEN}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ content: "❌ An internal error occurred. The bot team has been notified." }),
+    }).catch(() => {});
   }
 }

@@ -126,7 +126,7 @@ function corsHeaders(): Record<string, string> {
   };
 }
 
-http.createServer((req, res) => {
+http.createServer(async (req, res) => {
   const url = new URL(req.url || "/", `http://localhost:${PORT}`);
   const headers = { ...corsHeaders(), "Content-Type": "application/json" };
 
@@ -209,6 +209,61 @@ http.createServer((req, res) => {
         res.end(JSON.stringify({ ok: false, error: e.message }));
       }
     });
+    return;
+  }
+
+  // GET /tick-metrics?range=1h|3h|6h|12h|1d|3d|5d|7d|14d|30d|custom&from=&to=
+  if (req.method === "GET" && url.pathname === "/tick-metrics") {
+    const range = url.searchParams.get("range") || "1h";
+    const fromParam = url.searchParams.get("from");
+    const toParam = url.searchParams.get("to");
+
+    const rangeMap: Record<string, number> = {
+      "1h": 3600, "3h": 10800, "6h": 21600, "12h": 43200,
+      "1d": 86400, "3d": 259200, "5d": 432000, "7d": 604800,
+      "14d": 1209600, "30d": 2592000,
+    };
+
+    let cutoff: number;
+    if (range === "custom" && fromParam && toParam) {
+      cutoff = Math.floor(new Date(fromParam).getTime() / 1000);
+      // We'll filter server-side using the toParam as well
+    } else {
+      const seconds = rangeMap[range] || 3600;
+      cutoff = Math.floor(Date.now() / 1000) - seconds;
+    }
+
+    try {
+      const SUPABASE_URL = process.env.SUPABASE_URL || "";
+      const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
+      const qs = range === "custom" && fromParam && toParam
+        ? `created_at=gte.${new Date(fromParam).toISOString()}&created_at=lte.${new Date(toParam).toISOString()}`
+        : `created_at=gte.${new Date((cutoff) * 1000).toISOString()}`;
+
+      const dbRes = await fetch(
+        `${SUPABASE_URL}/rest/v1/tick_metrics?${qs}&order=created_at.asc&limit=3000`,
+        { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } }
+      );
+
+      if (!dbRes.ok) {
+        res.writeHead(dbRes.status, headers);
+        return res.end(JSON.stringify({ ok: false, error: `DB error: ${dbRes.status}` }));
+      }
+
+      const rows = await dbRes.json() as any[];
+      const metrics = rows.map((r: any) => ({
+        ts: new Date(r.created_at).getTime(),
+        duration_ms: r.duration_ms,
+        servers: r.servers_checked,
+        bosses: r.bosses_checked,
+      }));
+
+      res.writeHead(200, headers);
+      res.end(JSON.stringify({ ok: true, metrics }));
+    } catch (e: any) {
+      res.writeHead(500, headers);
+      res.end(JSON.stringify({ ok: false, error: e.message }));
+    }
     return;
   }
 

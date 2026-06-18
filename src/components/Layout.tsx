@@ -52,6 +52,21 @@ export function Layout() {
   const [spawnToast, setSpawnToast] = useState<string | null>(null);
   const [discordGuilds, setDiscordGuilds] = useState<{ guild_id: string; name: string; icon_url: string | null }[]>([]);
   const { notifications, unreadCount, markRead, markAllRead } = useNotifications();
+
+  // ── Server switch loading overlay ──
+  const [serverSwitching, setServerSwitching] = useState(false);
+  const prevServerId = useRef(currentServer?.id);
+  useEffect(() => {
+    if (currentServer?.id && currentServer.id !== prevServerId.current) {
+      setServerSwitching(true);
+      // Hide after data settles (React Query refetches should complete within ~800ms)
+      const t = setTimeout(() => setServerSwitching(false), 1000);
+      prevServerId.current = currentServer.id;
+      return () => clearTimeout(t);
+    }
+    prevServerId.current = currentServer?.id;
+  }, [currentServer?.id]);
+
   const navigate = useNavigate(); const location = useLocation();
   const isAdmin = userRole === "admin"; const hasServer = !!currentServer;
   const { joining: adminJoining } = useAdminViewAs(isAdmin ? currentServer?.id ?? null : null, refreshServers);
@@ -59,7 +74,20 @@ export function Layout() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => localStorage.getItem("raidscout-sidebar-collapsed") === "true");
   const [sidebarHovered, setSidebarHovered] = useState(false);
   const autoCollapsedRef = useRef(false);
+  const serverNavRef = useRef<HTMLDivElement>(null);
   const toggleSidebar = () => { autoCollapsedRef.current = false; const n = !sidebarCollapsed; setSidebarCollapsed(n); localStorage.setItem("raidscout-sidebar-collapsed", String(n)); };
+
+  // Auto-scroll to selected server on mount/change
+  useEffect(() => {
+    if (!currentServer?.id) return;
+    const timer = setTimeout(() => {
+      const el = document.getElementById(`server-${currentServer.id}`);
+      if (el && serverNavRef.current) {
+        el.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      }
+    }, 200);
+    return () => clearTimeout(timer);
+  }, [currentServer?.id]);
 
   useEffect(() => { if (serverLoading) return; if (isAdmin && !hasServer && !localStorage.getItem("lordnine-current-server-id") && location.pathname !== "/admin") navigate("/admin", { replace: true }); }, [isAdmin, hasServer, location.pathname, navigate]);
   useEffect(() => {
@@ -118,28 +146,27 @@ export function Layout() {
   // Shared sidebar content — renders nav items in either "full" or "collapsed" mode
   const renderSidebarNav = (mode: "full" | "collapsed", onNavClick?: () => void) => (
     <>
-      <nav className="flex-1 overflow-y-auto py-2 px-2 space-y-3 scrollbar-thin">
+      <nav ref={serverNavRef} className="flex-1 overflow-y-auto py-2 px-2 space-y-3 scrollbar-thin">
         <div>
           {mode === "full" ? (
             isViewer ? (<><div className="px-2 mb-0.5 text-[9px] font-semibold text-[#52525b] uppercase tracking-wider">Servers</div><div className="px-2.5 py-2 rounded-md bg-[#18181b] text-xs text-[#a1a1aa] flex items-center gap-2"><Eye className="w-3.5 h-3.5 shrink-0"/><span className="truncate">{viewerServerName||"Read-only"}</span></div></>)
-            : currentServer ? (<><div className="px-2 mb-0.5 text-[9px] font-semibold text-[#52525b] uppercase tracking-wider">Servers</div><div className="space-y-1">
-                <div className="px-2.5 py-2 rounded-md bg-[#18181b] flex items-center gap-2"><Server className="w-3.5 h-3.5 text-[#a1a1aa] shrink-0"/><span className="text-xs text-[#d4d4d8] truncate font-medium">{currentServer.name}</span><span className="ml-0.5 text-[9px] text-amber-500/60 shrink-0">{currentServer.role==="owner"?"Owner":"Mod"}</span>
-                {(()=>{const n=new Date();const e=currentServer.subscription_ends_at?new Date(currentServer.subscription_ends_at):null;if(!e)return null;const d=Math.ceil((e.getTime()-n.getTime())/86400000);if(d>0)return(<span className="ml-auto shrink-0 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-semibold bg-amber-500/10 text-amber-300 border border-amber-500/20"><Crown className="w-2.5 h-2.5"/>Pro · {d}d</span>);return(<span className="ml-auto shrink-0 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-semibold bg-red-500/10 text-red-300 border border-red-500/20">Expired</span>)})()}
-                </div>
-                {servers.length>1&&(<div className="space-y-0.5 pl-1">{servers.filter(s=>s.id!==currentServer.id).map(s=>(<button key={s.id} onClick={()=>{setCurrentServer(s);onNavClick?.()}} className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs text-[#71717a] hover:text-[#d4d4d8] hover:bg-[#18181b]/50 transition text-left"><Server className="w-3 h-3 shrink-0"/><span className="truncate">{s.name}</span><span className={`ml-0.5 text-[9px] shrink-0 ${s.role==="owner"?"text-amber-500/60":"text-blue-400/60"}`}>{s.role==="owner"?"Owner":"Mod"}</span></button>))}</div>)}
-              </div></>) : !isAdmin ? (<button onClick={()=>{setShowCreate(true);onNavClick?.()}} className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-xs font-medium bg-[#fafafa] text-[#09090b] hover:bg-[#e4e4e7] transition"><Plus className="w-3.5 h-3.5"/>New Server</button>) : null
+            : currentServer ? (<><div className="px-2 mb-0.5 text-[9px] font-semibold text-[#52525b] uppercase tracking-wider">Servers</div><div className="space-y-0.5">{servers.map(s=>{const n=new Date();const e=s.subscription_ends_at?new Date(s.subscription_ends_at):null;const t=s.trial_ends_at?new Date(s.trial_ends_at):null;const d=e?Math.ceil((e.getTime()-n.getTime())/86400000):0;const td=t?Math.ceil((t.getTime()-n.getTime())/86400000):0;const isActive=d>0;const isTrial=!isActive&&td>0;const isExpired=!isActive&&!isTrial&&(e||t);const isCurrent=s.id===currentServer.id;return(<button key={s.id} id={`server-${s.id}`} onClick={()=>{if(!isCurrent){setCurrentServer(s);onNavClick?.()}}} className={`w-full flex items-center gap-2.5 rounded-md text-sm transition text-left h-9 ${isCurrent?"px-2.5 bg-[#1e1e2a] text-[#fafafa]":"px-2.5 text-[#71717a] hover:text-[#d4d4d8] hover:bg-[#18181b]/50"}`}><Server className="w-4 h-4 shrink-0"/><span className="truncate">{s.name}</span>{!isCurrent && <span className={`ml-0.5 text-[10px] shrink-0 ${s.role==="owner"?"text-amber-500/60":"text-blue-400/60"}`}>{s.role==="owner"?"Owner":"Mod"}</span>}{isActive&&isCurrent?<span className="ml-auto shrink-0 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-amber-500/10 text-amber-300 border border-amber-500/20"><Crown className="w-2.5 h-2.5"/>Pro · {d}d</span>:isActive?<span className="ml-auto shrink-0 text-[10px] px-1 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">{d}d</span>:isTrial?<span className="ml-auto shrink-0 text-[10px] px-1 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">Trial {td}d</span>:isExpired?<span className="ml-auto shrink-0 text-[10px] px-1 py-0.5 rounded bg-red-500/10 text-red-400 border border-red-500/20">Exp</span>:null}</button>)})}</div></>) : !isAdmin ? (<button onClick={()=>{setShowCreate(true);onNavClick?.()}} className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-xs font-medium bg-[#fafafa] text-[#09090b] hover:bg-[#e4e4e7] transition"><Plus className="w-3.5 h-3.5"/>New Server</button>) : null
           ) : (
             // Collapsed: abbreviated "Svrs" header + icon-only server list
             currentServer ? (<>
               <div className="flex justify-center mb-0.5 text-[9px] font-semibold text-[#52525b] uppercase tracking-wider">Svrs</div>
-              <div className="flex justify-center"><div className="flex items-center justify-center p-2 rounded-md bg-[#18181b] h-9"><Server className="w-4 h-4 text-[#d4d4d8]"/></div></div>
-              {servers.length > 1 && (
-                <div className="flex flex-col items-center">
-                  {servers.filter(s => s.id !== currentServer.id).map(s => (
-                    <button key={s.id} onClick={() => setCurrentServer(s)} className="flex items-center justify-center p-2 rounded-md text-[#52525b] hover:text-[#d4d4d8] hover:bg-[#18181b]/50 transition h-9" title={s.name}><Server className="w-4 h-4" /></button>
-                  ))}
-                </div>
-              )}
+              <div className="flex flex-col items-center gap-0.5">
+                {servers.map(s => {
+                  const isCurrent = s.id === currentServer.id;
+                  return (
+                    <button key={s.id} id={`server-${s.id}`} onClick={() => { if (!isCurrent) setCurrentServer(s); }}
+                      className={`flex items-center justify-center rounded-md transition h-9 w-9 ${isCurrent ? "bg-[#1e1e2a] text-[#d4d4d8]" : "text-[#52525b] hover:text-[#d4d4d8] hover:bg-[#18181b]/50"}`}
+                      title={`${s.name}${isCurrent ? " (active)" : ""}`}>
+                      <Server className="w-4 h-4" />
+                    </button>
+                  );
+                })}
+              </div>
             </>) : !currentServer && !isAdmin ? (
               <div className="flex justify-center pb-1"><button onClick={()=>setShowCreate(true)} className="p-1 rounded-md text-[#71717a] hover:text-[#fafafa] hover:bg-[#18181b] transition"><Plus className="w-4 h-4"/></button></div>
             ) : null
@@ -168,6 +195,15 @@ export function Layout() {
   return (
     <div className="h-screen bg-[#09090b] flex flex-col overflow-hidden" onClick={() => { showUserMenu && setShowUserMenu(false); showNotifications && setShowNotifications(false); }}>
       {adminJoining && (<div className="fixed inset-0 z-[100] bg-[#09090b]/80 flex items-center justify-center"><div className="text-center space-y-3"><Loader2 className="w-8 h-8 text-[#a1a1aa] animate-spin mx-auto" /><p className="text-sm text-[#a1a1aa]">Joining server as owner{"\u2026"}</p></div></div>)}
+      {/* Server switch overlay — covers tab content until data settles */}
+      {serverSwitching && !adminJoining && (
+        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-[#09090b]">
+          <div className="flex flex-col items-center gap-3">
+            <div className="w-8 h-8 border-2 border-[#27272a] border-t-[#a1a1aa] rounded-full animate-spin" />
+            <span className="text-sm text-[#71717a]">Loading {currentServer?.name}...</span>
+          </div>
+        </div>
+      )}
       <a href="#main-content" className="skip-to-content">Skip to content</a>
 
       {/* -- Top Bar -- */}

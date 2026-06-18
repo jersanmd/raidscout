@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, useRef, type ReactNode } from "react";
 import { supabase, setCurrentViewerKey } from "@/lib/supabase";
 import type { User, Session } from "@supabase/supabase-js";
 
@@ -64,42 +64,59 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Check for stored viewer key — re-verify with server to avoid stale settings
     const storedViewerKey = localStorage.getItem(VIEWER_KEY_STORAGE);
     let viewerCancelled = false;
+    let viewerResolved = !storedViewerKey; // no key = already resolved
+
     if (storedViewerKey) {
       try {
         const parsed = JSON.parse(storedViewerKey);
         // Re-verify with server to get latest viewer_can_edit, viewer_can_mark_died, etc.
         (async () => {
-          const { data, error } = await supabase.rpc("get_server_by_viewer_key", { v_key: parsed.viewerKey });
-          // If a real session was found while we were waiting, abort — don't clobber it
-          if (viewerCancelled) return;
-          if (error || !data || (data as any[]).length === 0) {
+          try {
+            const { data, error } = await supabase.rpc("get_server_by_viewer_key", { v_key: parsed.viewerKey });
+            // If a real session was found while we were waiting, abort — don't clobber it
+            if (viewerCancelled) { viewerResolved = true; return; }
+            if (error || !data || (data as any[]).length === 0) {
+              localStorage.removeItem(VIEWER_KEY_STORAGE);
+              viewerResolved = true;
+              return;
+            }
+            const server = (data as any[])[0];
+            setIsViewer(true);
+            setViewerServerId(server.id);
+            setViewerServerName(server.name || null);
+            setViewerKey(parsed.viewerKey);
+            setViewerCanEdit(!!server.viewer_can_edit);
+            setViewerCanMarkDied(!!server.viewer_can_mark_died);
+            setViewerDiscordWebhookUrl(server.discord_webhook_url || null);
+            setViewerTimezone(server.timezone || null);
+            // Update localStorage with fresh settings
+            localStorage.setItem(VIEWER_KEY_STORAGE, JSON.stringify({
+              serverId: server.id,
+              serverName: server.name,
+              viewerKey: parsed.viewerKey,
+              viewerCanEdit: !!server.viewer_can_edit,
+              viewerCanMarkDied: !!server.viewer_can_mark_died,
+              discordWebhookUrl: server.discord_webhook_url || null,
+              timezone: server.timezone || null,
+            }));
+          } catch {
             localStorage.removeItem(VIEWER_KEY_STORAGE);
-            return;
+          } finally {
+            viewerResolved = true;
           }
-          const server = (data as any[])[0];
-          setIsViewer(true);
-          setViewerServerId(server.id);
-          setViewerServerName(server.name || null);
-          setViewerKey(parsed.viewerKey);
-          setViewerCanEdit(!!server.viewer_can_edit);
-          setViewerCanMarkDied(!!server.viewer_can_mark_died);
-          setViewerDiscordWebhookUrl(server.discord_webhook_url || null);
-          setViewerTimezone(server.timezone || null);
-          // Update localStorage with fresh settings
-          localStorage.setItem(VIEWER_KEY_STORAGE, JSON.stringify({
-            serverId: server.id,
-            serverName: server.name,
-            viewerKey: parsed.viewerKey,
-            viewerCanEdit: !!server.viewer_can_edit,
-            viewerCanMarkDied: !!server.viewer_can_mark_died,
-            discordWebhookUrl: server.discord_webhook_url || null,
-            timezone: server.timezone || null,
-          }));
-        })().catch(() => {
-          localStorage.removeItem(VIEWER_KEY_STORAGE);
-        });
-      } catch { localStorage.removeItem(VIEWER_KEY_STORAGE); }
+        })();
+      } catch { localStorage.removeItem(VIEWER_KEY_STORAGE); viewerResolved = true; }
     }
+
+    async function waitForViewer() {
+      const start = Date.now();
+      while (!viewerResolved && Date.now() - start < 5000) {
+        await new Promise(r => setTimeout(r, 50));
+      }
+    }
+
+    // Guard: prevent onAuthStateChange from setting loading=false before initial auth is done
+    let initialAuthDone = false;
 
     // Always check Supabase session and set up auth listener
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -122,7 +139,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } else {
         setRoleLoading(false);
       }
-      setLoading(false);
+      // Wait for viewer key check to finish before unblocking UI
+      waitForViewer().finally(() => {
+        initialAuthDone = true;
+        setLoading(false);
+      });
     });
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -144,7 +165,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUserRole(null);
         setRoleLoading(false);
       }
-      setLoading(false);
+      // Only set loading=false on subsequent auth changes, not initial load
+      if (initialAuthDone) {
+        setLoading(false);
+      }
     });
 
     return () => listener.subscription.unsubscribe();

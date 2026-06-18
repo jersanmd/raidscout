@@ -1,5 +1,5 @@
-// full-copy.mjs — Copy all data from production to staging with filters
-// Run: node scripts/full-copy.mjs
+// full-copy.mjs — Clone ALL data from production to staging (no filters)
+// Run: $env:SUPABASE_PROD_KEY="..." $env:SUPABASE_STAGING_KEY="..." node scripts/full-copy.mjs
 
 const PROD_KEY = process.env.SUPABASE_PROD_KEY;
 const STAGING_KEY = process.env.SUPABASE_STAGING_KEY;
@@ -12,147 +12,76 @@ if (!PROD_KEY || !STAGING_KEY) {
 }
 
 const PH = { apikey: PROD_KEY, Authorization: `Bearer ${PROD_KEY}` };
-const SH = { apikey: STAGING_KEY, Authorization: `Bearer ${STAGING_KEY}`, "Content-Type": "application/json", Prefer: "return=minimal" };
+const SH = { apikey: STAGING_KEY, Authorization: `Bearer ${STAGING_KEY}`, "Content-Type": "application/json", Prefer: "resolution=merge-duplicates" };
 
-const SEVEN_DAYS_AGO = new Date(Date.now() - 7 * 86400_000).toISOString();
+// Load old→new user UUID map (created by migrate-users-full.mjs)
+let userMap = new Map();
+try {
+  const fs = await import("fs");
+  if (fs.existsSync("scripts/user-map.json")) {
+    const data = JSON.parse(fs.readFileSync("scripts/user-map.json", "utf-8"));
+    userMap = new Map(data);
+    console.log(`Loaded ${userMap.size} user UUID mappings`);
+  }
+} catch {}
 
-// Table definitions: [name, timeFilter?]
+// ALL tables — full copy, upsert everything
 const TABLES = [
-  // No filtering — copy all
-  ["app_settings"],
-  ["games"],
-  ["activity_templates"],
-  ["item_categories"],
-  ["servers"],
-  ["guilds"],
-  ["activities"],
-  ["boss_templates"],
-  ["static_parties"],
-  ["static_party_members"],
-  ["members"],
-  ["member_classes"],
-  ["discord_configs"],
-  ["server_classes"],
-  ["point_adjustments"],
-  ["leaderboard_snapshots"],
-  ["items"],
-  ["item_collections"],
-  ["collection_items"],
-  ["item_ownership"],
-  ["transactions"],
-  ["listings"],
-  ["cp_screenshots"],
-  ["activity_attendance"],
-  ["member_gear"],
-
-  // Last 7 days only
-  ["bosses", `created_at=gte.${SEVEN_DAYS_AGO}`],
-  ["death_records", `death_time=gte.${SEVEN_DAYS_AGO}`],
-  ["attendance_records", `created_at=gte.${SEVEN_DAYS_AGO}`],
-  ["boss_guilds", `created_at=gte.${SEVEN_DAYS_AGO}`],
-  ["boss_spawn_overrides", `created_at=gte.${SEVEN_DAYS_AGO}`],
-  ["admin_audit_log", `created_at=gte.${SEVEN_DAYS_AGO}`],
-
-  // Skip: spawn_notifications
+  "app_settings","games","item_categories","servers","guilds","boss_templates",
+  "bosses","activities","boss_guilds","boss_assists","boss_spawn_overrides",
+  "static_parties","static_party_members","members","member_gear",
+  "death_records","attendance_records","activity_attendance",
+  "discord_configs","server_classes","point_adjustments","leaderboard_snapshots",
+  "items","item_collections","item_collection_items","item_collection_manual_ownership",
+  "admin_audit_log","cp_updates","distributions",
+  "gear_slot_categories","gear_slots","gear_templates","gear_upgrade_history",
+  "item_rarities","member_notes","moderator_permissions",
+  "notifications","payments","point_rules",
+  "activity_guilds","activity_instances","spawn_notifications",
 ];
 
-async function fetchAll(table, filter) {
+async function fetchAll(table) {
   const rows = [];
-  let offset = 0;
-  const limit = 1000;
-  const query = filter ? `select=*&limit=${limit}&offset=${offset}&${filter}` : `select=*&limit=${limit}&offset=${offset}`;
-  
+  let offset = 0, limit = 1000;
   while (true) {
-    const url = `${PROD_URL}/rest/v1/${table}?${query.replace(`offset=0`, `offset=${offset}`)}`;
+    const url = `${PROD_URL}/rest/v1/${table}?select=*&limit=${limit}&offset=${offset}`;
     const res = await fetch(url, { headers: PH });
-    if (!res.ok) {
-      console.error(`  ❌ ${table}: ${res.status}`);
-      break;
-    }
+    if (!res.ok) { if (res.status !== 404) console.error(`  ❌ ${table}: ${res.status}`); break; }
     const batch = await res.json();
-    if (!batch.length) break;
+    if (!batch || !batch.length) break;
     rows.push(...batch);
     offset += limit;
     process.stdout.write(`\r  ${table}: ${rows.length} rows...`);
   }
-  console.log(`\r  ${table}: ${rows.length} rows`);
+  if (rows.length) console.log(`\r  ${table}: ${rows.length} rows`);
   return rows;
 }
 
 async function upsertTable(table, rows) {
-  if (!rows.length) return 0;
-  let inserted = 0;
+  if (!rows.length) return;
   const chunkSize = 500;
-  
   for (let i = 0; i < rows.length; i += chunkSize) {
     const chunk = rows.slice(i, i + chunkSize);
     try {
-      const res = await fetch(`${STAGING_URL}/rest/v1/${table}`, {
-        method: "POST",
-        headers: { ...SH, Prefer: "resolution=merge-duplicates" },
-        body: JSON.stringify(chunk),
-      });
-      if (res.ok) {
-        inserted += chunk.length;
-      } else {
-        // Try without merge-duplicates
-        const r2 = await fetch(`${STAGING_URL}/rest/v1/${table}`, {
-          method: "POST",
-          headers: SH,
-          body: JSON.stringify(chunk),
-        });
-        if (!r2.ok) {
-          const err = await r2.text().catch(() => "");
-          if (err.includes("23505") || err.includes("duplicate")) {
-            inserted += chunk.length; // already exists
-          } else {
-            console.error(`  ⚠️ ${table} chunk ${i}: ${r2.status} ${err.slice(0,80)}`);
-          }
-        } else {
-          inserted += chunk.length;
-        }
+      const res = await fetch(`${STAGING_URL}/rest/v1/${table}`, { method: "POST", headers: SH, body: JSON.stringify(chunk) });
+      if (!res.ok) {
+        const err = await res.text().catch(() => "");
+        if (!err.includes("23505") && !err.includes("duplicate")) console.error(`  ⚠️ ${table} chunk ${i}: ${err.slice(0, 80)}`);
       }
-    } catch (e) {
-      console.error(`  ⚠️ ${table} chunk ${i}: ${e.message}`);
+    } catch (e) { console.error(`  ⚠️ ${table}: ${e.message}`); }
+  }
+}
+
+console.log("Full clone PROD → STAGING\n");
+for (const table of TABLES) {
+  const rows = await fetchAll(table);
+  if (!rows.length) continue;
+  // Auto-remap any column matching a known old user UUID
+  for (const row of rows) {
+    for (const key of Object.keys(row)) {
+      if (row[key] && userMap.has(row[key])) row[key] = userMap.get(row[key]);
     }
   }
-  console.log(`  ✅ ${table}: ${inserted}/${rows.length}`);
-  return inserted;
+  await upsertTable(table, rows);
 }
-
-async function clearTable(table) {
-  try {
-    // Delete all rows
-    let deleted = 0;
-    while (true) {
-      const res = await fetch(`${STAGING_URL}/rest/v1/${table}?select=id&limit=1000`, {
-        method: "DELETE",
-        headers: { apikey: STAGING_KEY, Authorization: `Bearer ${STAGING_KEY}`, Prefer: "return=minimal" },
-      });
-      if (res.ok) break;
-      const err = await res.text().catch(() => "");
-      if (err.includes("PGRST") || res.status === 404) break;
-      console.error(`  Clear ${table}: ${res.status}`);
-      break;
-    }
-  } catch {}
-}
-
-console.log("Full data copy PROD → STAGING\n");
-
-for (const [table, filter] of TABLES) {
-  // Skip tables that reference auth.users (user_id columns) — those need UUID remapping
-  if (table === "server_members" || table === "user_roles") {
-    console.log(`  ⏭️ ${table}: skipped (auth-dependent)`);
-    continue;
-  }
-  
-  console.log(`\n📋 ${table}${filter ? " (last 7 days)" : ""}`);
-  const rows = await fetchAll(table, filter || null);
-  if (rows.length > 0) {
-    await upsertTable(table, rows);
-  }
-}
-
-console.log("\n✅ Full copy complete!");
-console.log("Note: server_members and user_roles preserved from migration script.");
+console.log("\n✅ Clone complete!");

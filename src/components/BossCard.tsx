@@ -27,6 +27,8 @@ interface BossCardProps {
   selected?: boolean;
   onToggleSelect?: (bossId: string) => void;
   ownerGuildName?: string;
+  /** Multiple guild names (for activities owned by several guilds) */
+  ownerGuildNames?: string[];
   ownerGuildId?: string | null;
   /** Guild rotation — ordered list of guild names with colors */
   rotationGuilds?: { name: string; color: { bg: string; text: string; border: string } }[];
@@ -55,7 +57,7 @@ interface BossCardProps {
   hideScheduleTime?: boolean;
 }
 
-export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, onCriticalSpawn, onSpawned, compact = false, multiMode = false, selected = false, onToggleSelect, ownerGuildName, ownerGuildId, rotationGuilds, rotationCurrentIndex, rotationMode, onSetRotation, viewerCanEdit, viewerCanMarkDied, hasGuilds, justKilled, activity, onFinishActivity, onRecordEnd, onEditActivityTime, hideScheduleTime = false }: BossCardProps) {
+export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, onCriticalSpawn, onSpawned, compact = false, multiMode = false, selected = false, onToggleSelect, ownerGuildName, ownerGuildId, ownerGuildNames, rotationGuilds, rotationCurrentIndex, rotationMode, onSetRotation, viewerCanEdit, viewerCanMarkDied, hasGuilds, justKilled, activity, onFinishActivity, onRecordEnd, onEditActivityTime, hideScheduleTime = false }: BossCardProps) {
   const { isViewer } = useAuth();
   const { currentServer } = useServer();
   const { timezone: tz } = useUserTimezone(currentServer?.timezone);
@@ -239,7 +241,17 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
               ) : (
                 <span title="Fixed hours"><Timer className="w-3.5 h-3.5 text-[#a1a1aa] shrink-0" /></span>
               )}
-              {displayOwner && (() => { const c = guildColor(displayOwner); return (
+              {ownerGuildNames && ownerGuildNames.length > 0 ? (
+                ownerGuildNames.map((gn, i) => {
+                  const c = guildColor(gn);
+                  return (
+                    <span key={i} className={`flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded border shrink-0 ${c.bg} ${c.text} ${c.border}`}>
+                      <Shield className="w-3 h-3" />
+                      {gn}
+                    </span>
+                  );
+                })
+              ) : displayOwner && (() => { const c = guildColor(displayOwner); return (
                 <span className={`flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded border shrink-0 ${c.bg} ${c.text} ${c.border}`}>
                   <Shield className="w-3 h-3" />
                   {displayOwner}

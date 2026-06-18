@@ -361,8 +361,8 @@ export function LandingPage() {
   return (
     <div className="min-h-screen bg-slate-950 text-[#fafafa] overflow-x-hidden scroll-smooth">
       <SEOHead
-        title="RaidScout — Guild Operations Platform for Competitive MMO Guilds"
-        description="Complete guild operations platform. Real-time boss timers, multi-guild rotation coordination, AI rally scanning, loot & inventory tracking, gear management, attendance monitoring, live leaderboards, and Discord integration. Free forever."
+        title="RaidScout — Guild Operations Platform for Any MMO"
+        description="Track bosses for any game with custom server support. Real-time timers, multi-guild rotations, AI rally scanning, loot & inventory tracking, gear management, attendance, leaderboards, and Discord integration."
         canonicalUrl="/"
       />
 
@@ -372,7 +372,7 @@ export function LandingPage() {
           "@context": "https://schema.org",
           "@type": "WebApplication",
           name: "RaidScout",
-          description: "Complete guild operations platform for competitive MMO guilds. Features real-time boss spawn timers, multi-guild kill rotation coordination, AI-powered rally screenshot scanning, loot distribution & inventory management, member gear & combat power tracking, attendance monitoring, live leaderboards, and Discord bot integration. Supports any MMO with timed boss spawns or scheduled events.",
+          description: "Complete guild operations platform for competitive MMO guilds. Track bosses for any game — supports custom servers, pre-seeded templates, and any number of bosses. Features real-time spawn timers, multi-guild kill rotation coordination, AI-powered rally screenshot scanning, loot distribution & inventory management, member gear & combat power tracking, attendance monitoring, live leaderboards, and Discord bot integration.",
           url: "https://www.raidscout.com",
           applicationCategory: "GameApplication",
           operatingSystem: "Web",
@@ -421,7 +421,7 @@ export function LandingPage() {
 
           {/* Subheadline */}
           <p className="text-sm md:text-base text-emerald-400/60 max-w-lg mx-auto leading-relaxed font-mono cyber-cursor">
-            <TypeWriter text="Real-time boss & activity tracking, multi-guild rotations, loot & inventory management, gear tracking, AI rally scanning, and Discord coordination. The command center competitive guilds trust." delay={25} />
+            <TypeWriter text="Track any boss, any game, any guild. Custom servers, real-time timers, multi-guild rotations, loot & inventory, gear tracking, AI rally scanning, and Discord coordination. Built for competitive guilds — works with any MMO." delay={25} />
           </p>
 
           {/* CTAs */}

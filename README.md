@@ -6,9 +6,10 @@
 
 <p align="center">
   <strong>The Operating System for Competitive MMO Guilds</strong><br />
-  Track world bosses across multiple servers, coordinate multi-guild kill rotations,
+  Track bosses and activities across any game, coordinate multi-guild kill rotations,
   manage loot distribution with a full inventory system, track member gear &amp; CP progression,
-  scan rally screenshots with AI, and compete on live leaderboards — all in real time.
+  scan rally screenshots with AI, and compete on live leaderboards — all in real time.<br />
+  <em>Supports custom servers, any number of bosses, and any game — not just pre-seeded templates.</em>
 </p>
 
 <p align="center">
@@ -41,8 +42,9 @@ RaidScout is **$9.99 per server per 30 days** — one price, everything included
 ## What is RaidScout?
 
 RaidScout is a **real-time boss tracking and guild coordination platform** built for competitive
-MMO communities. Whether you're managing a single guild or orchestrating a multi-guild alliance
-across multiple game servers, RaidScout handles the logistics so you can focus on hunting.
+MMO communities. Whether you're running a single guild on a pre-seeded game like LordNine or
+managing a multi-guild alliance on a custom game with your own boss list, RaidScout handles
+the logistics so you can focus on hunting.
 
 **At its core, RaidScout answers three questions every guild leader faces:**
 
@@ -124,6 +126,16 @@ and responds to prefix commands:
 - **@everyone support** — Set a notification prefix like `@everyone` to ping your members on spawns
 
 The bot runs on Fly.io and stays online 24/7 via persistent WebSocket connection.
+
+### 🎮 Multi-Game & Custom Server Support
+
+RaidScout isn't locked to one game. Create servers for any MMO:
+
+- **Pre-seeded games** — Start with LordNine: Infinite Class (39 bosses, 2 spawn types, ready to go).
+- **Custom servers** — Start from scratch with zero bosses. Add your own bosses, activities, guilds, and members.
+- **Any number of bosses** — 5, 50, or 500 — the platform scales to your game.
+- **Flexible spawn types** — Fixed Hours (respawn timer), Fixed Schedule (specific days×), or One-Time events.
+- **Game icons & metadata** — Each game has its own icon, supported spawn types, and seed templates.
 
 ### 💰 Billing & Access
 

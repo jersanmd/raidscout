@@ -59,7 +59,7 @@ export function CreateServerModal({ onClose }: { onClose: () => void }) {
       <div className="absolute inset-0 bg-black/60" onClick={onClose} />
 
       {loading ? (
-        <div className="relative bg-[#18181b] border border-[#27272a] rounded-xl w-full max-w-sm shadow-2xl p-8">
+        <div className="relative bg-[#09090b] border border-[#27272a] rounded-xl w-full max-w-sm shadow-2xl p-8">
           <div className="text-center space-y-5">
             <div className="relative mx-auto w-12 h-12">
               <div className="absolute inset-0 rounded-full border-3 border-[#27272a]" />
@@ -83,7 +83,7 @@ export function CreateServerModal({ onClose }: { onClose: () => void }) {
         </div>
       ) : step === "choose" ? (
         /* ── Step 1: Choose Game ── */
-        <div className="relative bg-[#18181b] border border-[#27272a] rounded-xl w-full max-w-sm shadow-2xl">
+        <div className="relative bg-[#09090b] border border-[#27272a] rounded-xl w-full max-w-sm shadow-2xl">
           <div className="flex items-center justify-between p-4 border-b border-[#27272a]">
             <h3 className="text-sm font-bold text-[#fafafa] flex items-center gap-2">
               <Gamepad2 className="w-4 h-4 text-[#a1a1aa]" />
@@ -107,7 +107,7 @@ export function CreateServerModal({ onClose }: { onClose: () => void }) {
                   <button
                     key={g.id}
                     onClick={() => { setSelectedGame(g); setStep("create"); }}
-                    className="group w-full flex items-center gap-3 px-4 py-3 rounded-lg bg-[#09090b] border border-[#27272a] hover:bg-[#1c1d22] transition-all duration-200 text-left"
+                    className="group w-full flex items-center gap-3 px-4 py-3 rounded-lg bg-[#18181b] border border-[#27272a] hover:bg-[#27272a] transition-all duration-200 text-left"
                   >
                     {g.icon_url ? (
                       <img src={g.icon_url} alt={g.name} className="w-8 h-8 rounded-lg object-cover shrink-0" />
@@ -127,7 +127,7 @@ export function CreateServerModal({ onClose }: { onClose: () => void }) {
                 ))}
                 <button
                   onClick={() => { setSelectedGame({ id: "custom", name: "Custom (no seed)" }); setStep("create"); }}
-                  className="group w-full flex items-center gap-3 px-4 py-3 rounded-lg bg-[#09090b] border border-[#27272a] hover:bg-[#1c1d22] transition-all duration-200 text-left"
+                  className="group w-full flex items-center gap-3 px-4 py-3 rounded-lg bg-[#18181b] border border-[#27272a] hover:bg-[#27272a] transition-all duration-200 text-left"
                 >
                   <Plus className="w-4 h-4 text-[#52525b] shrink-0 group-hover:text-[#a1a1aa] transition-colors" />
                   <div className="flex-1 min-w-0">
@@ -144,7 +144,7 @@ export function CreateServerModal({ onClose }: { onClose: () => void }) {
         </div>
       ) : (
         /* ── Step 2: Server Details ── */
-        <div className="relative bg-[#18181b] border border-[#27272a] rounded-xl w-full max-w-sm shadow-2xl">
+        <div className="relative bg-[#09090b] border border-[#27272a] rounded-xl w-full max-w-sm shadow-2xl">
           <div className="flex items-center justify-between p-4 border-b border-[#27272a]">
             <button onClick={() => setStep("choose")} className="text-[#71717a] hover:text-[#fafafa] p-1 transition" title="Back to game selection">
               <ArrowLeft className="w-4 h-4" />
@@ -171,7 +171,7 @@ export function CreateServerModal({ onClose }: { onClose: () => void }) {
                 placeholder="My Server"
                 autoFocus
                 onKeyDown={(e) => e.key === "Enter" && handleCreate()}
-                className="w-full bg-[#09090b] border border-[#27272a] rounded-lg px-3 py-2 text-sm text-[#fafafa] placeholder-[#52525b] outline-none focus:border-[#52525b] focus:ring-1 focus:ring-[#27272a] transition"
+                className="w-full bg-[#18181b] border border-[#27272a] rounded-lg px-3 py-2 text-sm text-[#fafafa] placeholder-[#52525b] outline-none focus:border-[#52525b] focus:ring-1 focus:ring-[#27272a] transition"
               />
             </div>
             <div>
@@ -182,7 +182,7 @@ export function CreateServerModal({ onClose }: { onClose: () => void }) {
                 onChange={(e) => setGuildName(e.target.value)}
                 placeholder="My Guild"
                 onKeyDown={(e) => e.key === "Enter" && handleCreate()}
-                className="w-full bg-[#09090b] border border-[#27272a] rounded-lg px-3 py-2 text-sm text-[#fafafa] placeholder-[#52525b] outline-none focus:border-[#52525b] focus:ring-1 focus:ring-[#27272a] transition"
+                className="w-full bg-[#18181b] border border-[#27272a] rounded-lg px-3 py-2 text-sm text-[#fafafa] placeholder-[#52525b] outline-none focus:border-[#52525b] focus:ring-1 focus:ring-[#27272a] transition"
               />
             </div>
             {error && <p className="text-xs text-red-400">{error}</p>}

@@ -11,6 +11,7 @@ import { ViewerRoute } from "@/components/ViewerRoute";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { ToastProvider } from "@/contexts/ToastContext";
 import { NoServerView } from "@/components/NoServerView";
+import { FullScreenLoader } from "@/components/FullScreenLoader";
 import { useMaintenance } from "@/hooks/useMaintenance";
 import { MaintenancePage } from "@/pages/MaintenancePage";
 
@@ -69,11 +70,7 @@ function AppContent() {
   }
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-[#09090b]">
-        <div className="w-8 h-8 border-2 border-slate-600 border-t-red-500 rounded-full animate-spin" />
-      </div>
-    );
+    return <FullScreenLoader message="Loading..." />;
   }
 
   // Password recovery flow — show reset form regardless of auth state
@@ -83,9 +80,8 @@ function AppContent() {
   }
 
   // Maintenance mode gate — admins bypass, everyone else sees maintenance screen
-  // Block during loading to prevent flash of normal app
   if (maintLoading) {
-    return <PageLoader />;
+    return <FullScreenLoader message="Checking status..." />;
   }
   const isPreview = new URLSearchParams(window.location.search).get("preview") === "true";
   if (isMaintenance && !isAdmin && !isPreview) {
@@ -148,10 +144,8 @@ function AppRoutes() {
         path="/"
         element={
           !ready ? (
-            <div className="min-h-screen flex items-center justify-center bg-[#09090b]">
-              <div className="w-8 h-8 border-2 border-slate-600 border-t-red-500 rounded-full animate-spin" />
-            </div>
-          ) : !hasServer && isAdmin && !localStorage.getItem("lordnine-current-server-id") && ready ? (
+            <FullScreenLoader message="Preparing your servers..." />
+          ) : !hasServer && isAdmin && !localStorage.getItem("lordnine-current-server-id") ? (
             <Navigate to="/admin" replace />
           ) : !hasServer ? (
             <div className="min-h-screen bg-[#09090b]">

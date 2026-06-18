@@ -94,7 +94,7 @@ export function InventoryView() {
   const [collectionItemSearch, setCollectionItemSearch] = useState("");
   const [collCatFilter, setCollCatFilter] = useState("");
   const [collRarityFilter, setCollRarityFilter] = useState("");
-  const [matrixSort, setMatrixSort] = useState<"name" | "owned-desc" | "owned-asc">("name");
+  const [matrixSort, setMatrixSort] = useState<"name" | "owned-desc" | "owned-asc" | "cp-desc" | "cp-asc">("name");
   const [matrixItemSort, setMatrixItemSort] = useState<string | null>(null); // item_id to sort by, null = default sort
   const [matrixItemSortDir, setMatrixItemSortDir] = useState<"has" | "missing">("has");
   const [matrixDistributePlayer, setMatrixDistributePlayer] = useState<{ name: string; memberId: string } | null>(null);
@@ -750,6 +750,16 @@ export function InventoryView() {
             }
           }
           return list.sort((a, b) => {
+            if (matrixSort === "cp-desc" || matrixSort === "cp-asc") {
+              const getCp = (name: string) => {
+                const m = members.find(m => m.name.toLowerCase().trim() === name.toLowerCase().trim());
+                return m?.combat_power ?? 0;
+              };
+              const aCp = getCp(a.name);
+              const bCp = getCp(b.name);
+              if (aCp !== bCp) return matrixSort === "cp-desc" ? bCp - aCp : aCp - bCp;
+              return a.name.localeCompare(b.name);
+            }
             if (matrixSort === "owned-desc") return (b.distributed.size + b.manual.size) - (a.distributed.size + a.manual.size);
             if (matrixSort === "owned-asc") return (a.distributed.size + a.manual.size) - (b.distributed.size + b.manual.size);
             return a.name.localeCompare(b.name);
@@ -1163,14 +1173,24 @@ export function InventoryView() {
                     <table className="w-full text-xs">
                       <thead>
                         <tr className="border-b border-[#27272a] bg-[#18181b]">
-                          <th className="sticky left-0 top-0 z-20 bg-[#18181b] text-left px-4 py-2.5 text-[10px] text-[#71717a] uppercase tracking-wider font-medium min-w-[140px]">
-                            <button
-                              onClick={() => setMatrixSort(ms => ms === "name" ? "owned-desc" : ms === "owned-desc" ? "owned-asc" : "name")}
-                              className="flex items-center gap-1 hover:text-[#d4d4d8] transition"
-                            >
-                              Player
-                              {matrixSort === "name" ? <ChevronUp className="w-3 h-3 opacity-30" /> : matrixSort === "owned-desc" ? <ChevronDown className="w-3 h-3" /> : <ChevronUp className="w-3 h-3" />}
-                            </button>
+                          <th className="sticky left-0 top-0 z-20 bg-[#18181b] text-left px-4 py-2.5 text-[11px] text-[#71717a] uppercase tracking-wider font-medium min-w-[160px]">
+                            <div className="flex items-center gap-3">
+                              <button
+                                onClick={() => setMatrixSort(ms => ms === "name" ? "owned-desc" : ms === "owned-desc" ? "owned-asc" : ms === "owned-asc" ? "cp-desc" : ms === "cp-desc" ? "cp-asc" : "name")}
+                                className="flex items-center gap-1 hover:text-[#d4d4d8] transition"
+                              >
+                                Player
+                                {matrixSort === "name" ? <ChevronUp className="w-3 h-3 opacity-30" /> : matrixSort === "owned-desc" ? <ChevronDown className="w-3 h-3" /> : matrixSort === "owned-asc" ? <ChevronUp className="w-3 h-3" /> : matrixSort === "cp-desc" ? <ChevronDown className="w-3 h-3" /> : <ChevronUp className="w-3 h-3" />}
+                              </button>
+                              <span className="w-px h-3 bg-[#27272a]" />
+                              <button
+                                onClick={() => setMatrixSort(ms => ms === "cp-desc" ? "cp-asc" : ms === "cp-asc" ? "name" : "cp-desc")}
+                                className="flex items-center gap-1 hover:text-[#d4d4d8] transition"
+                              >
+                                CP
+                                {matrixSort === "cp-desc" ? <ChevronDown className="w-3 h-3" /> : matrixSort === "cp-asc" ? <ChevronUp className="w-3 h-3" /> : <ChevronUp className="w-3 h-3 opacity-30" />}
+                              </button>
+                            </div>
                           </th>
                           {matrixItems.map(ci => (
                             <th key={ci.item_id} className="sticky top-0 bg-[#18181b] px-3 py-2.5 text-center text-[10px] text-[#71717a] uppercase tracking-wider font-medium min-w-[80px]">
@@ -1202,7 +1222,8 @@ export function InventoryView() {
                         {sortedPlayers.length === 0 ? (
                           <tr><td colSpan={matrixItems.length + 1} className="text-center py-8 text-[#52525b]">No players in this guild.</td></tr>
                         ) : (
-                          sortedPlayers.map((p, i) => (
+                          sortedPlayers.map((p, i) => {
+                            return (
                             <tr key={p.name} className="border-b border-[#27272a]/50 hover:bg-[#09090b]/30 transition group">
                               <td className="sticky left-0 z-10 bg-[#18181b] group-hover:bg-[#09090b]/30 px-4 py-2.5 font-medium text-xs transition-colors">
                                 <span className="flex items-center gap-2">
@@ -1211,13 +1232,20 @@ export function InventoryView() {
                                   {(() => {
                                     const m = members.find(m => m.id === p.name || m.name.toLowerCase().trim() === p.name.toLowerCase().trim());
                                     const g = m?.guild_id ? guilds.find(g => g.id === m.guild_id) : null;
-                                    if (!g) return null;
-                                    const c = guildColor(g.name);
+                                    const hasCp = (m?.combat_power ?? null) != null;
+                                    if (!g && !hasCp) return null;
                                     return (
-                                      <span className={`flex items-center gap-0.5 text-[9px] font-medium px-1 py-0.5 rounded border shrink-0 ${c.bg} ${c.text} ${c.border}`}>
-                                        <Shield className="w-2 h-2" />
-                                        {g.name}
-                                      </span>
+                                      <>
+                                        {g && (() => { const c = guildColor(g.name); return (
+                                          <span className={`flex items-center gap-0.5 text-[9px] font-medium px-1 py-0.5 rounded border shrink-0 ${c.bg} ${c.text} ${c.border}`}>
+                                            <Shield className="w-2 h-2" />
+                                            {g.name}
+                                          </span>
+                                        ); })()}
+                                        {hasCp && (
+                                          <span className="text-[10px] text-[#71717a] tabular-nums shrink-0 font-mono">{m!.combat_power!.toLocaleString()}</span>
+                                        )}
+                                      </>
                                     );
                                   })()}
                                   <button
@@ -1263,7 +1291,7 @@ export function InventoryView() {
                                 );
                               })}
                             </tr>
-                          ))
+                          )})
                         )}
                       </tbody>
                     </table>
