@@ -13,10 +13,11 @@ import { NoMembersBanner } from "@/components/NoMembersBanner";
 import { SubscriptionBanner } from "@/components/SubscriptionBanner";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { useSpawnAlerts } from "@/hooks/useSpawnAlerts";
-import { Calendar, LogOut, Clock, Trophy, Users, BarChart3, Server, Settings, Plus, Shield, Eye, ChevronDown, Globe, Loader2, Package, User, PanelLeftClose, PanelLeft, Crown, Swords, CreditCard, Bell } from "lucide-react";
+import { Calendar, LogOut, Clock, Trophy, Users, BarChart3, Server, Settings, Plus, Shield, Eye, ChevronDown, Globe, Loader2, Package, User, PanelLeftClose, PanelLeft, Crown, Swords, CreditCard, Bell, ScrollText, X } from "lucide-react";
 import { version } from "../../package.json";
 import { useUserTimezone } from "@/hooks/useUserTimezone";
 import { useNotifications, typeIcon } from "@/hooks/useNotifications";
+import { ServerActivityLogTab } from "@/pages/ServerSettingsView";
 import { TIMEZONES } from "@/lib/timezones";
 
 let _audioCtx: AudioContext | null = null;
@@ -45,6 +46,7 @@ export function Layout() {
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showActivityLog, setShowActivityLog] = useState(false);
   const [expandedNotifId, setExpandedNotifId] = useState<string | null>(null);
   const menuBtnRef = useRef<HTMLButtonElement>(null);
   const notifBtnRef = useRef<HTMLButtonElement>(null);
@@ -242,6 +244,16 @@ export function Layout() {
           </div>
         )}
         <div className="flex-1" />
+        {/* Activity Log button */}
+        {currentServer && !isViewer && (
+          <button
+            onClick={(e) => { e.stopPropagation(); setShowActivityLog(true); }}
+            className="relative flex items-center justify-center p-1.5 rounded-md text-[#fafafa]/70 hover:text-[#fafafa] hover:bg-[#18181b] transition"
+            title="Activity Log"
+          >
+            <ScrollText className="w-4 h-4" />
+          </button>
+        )}
         {/* Notification bell */}
         <div className="relative shrink-0">
           <button
@@ -351,6 +363,26 @@ export function Layout() {
       {showCreate && <CreateServerModal onClose={() => setShowCreate(false)} />}
       <ConfirmDialog open={showLogoutConfirm} title="Sign Out" message="Are you sure you want to sign out?" confirmLabel="Sign Out" onConfirm={async () => { setShowLogoutConfirm(false); await signOut(); }} onCancel={() => setShowLogoutConfirm(false)} />
       {spawnToast && (<div className="fixed bottom-16 md:bottom-6 left-1/2 -translate-x-1/2 z-50 bg-[#18181b] border border-[#27272a] rounded-xl px-4 py-3 shadow-2xl animate-slide-up"><p className="text-sm text-[#fafafa]">{spawnToast}</p></div>)}
+
+      {/* Activity Log Modal */}
+      {showActivityLog && currentServer && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/70 backdrop-blur-sm overflow-y-auto pt-10 pb-10" onClick={() => setShowActivityLog(false)}>
+          <div className="bg-[#0d0d11] border border-[#27272a] rounded-xl w-full max-w-3xl mx-4 shadow-2xl" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-3 border-b border-[#1e1e2a]">
+              <div className="flex items-center gap-2">
+                <ScrollText className="w-4 h-4 text-[#a1a1aa]" />
+                <h3 className="text-sm font-semibold text-[#fafafa]">Activity Log</h3>
+              </div>
+              <button onClick={() => setShowActivityLog(false)} className="p-1 rounded hover:bg-[#1e1e2a] text-[#a1a1aa] hover:text-[#fafafa] transition">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="p-5 max-h-[70vh] overflow-y-auto">
+              <ServerActivityLogTab serverId={currentServer.id} />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

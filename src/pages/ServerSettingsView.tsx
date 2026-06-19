@@ -210,7 +210,6 @@ export function ServerSettingsView() {
     ? tabParam
     : "general";
   const [tab, setTab] = useState<string>(initialTab);
-  const [showActivityLog, setShowActivityLog] = useState(false);
 
   // Update both state and URL when tab changes
   const setTabAndUrl = (key: string) => {
@@ -1023,11 +1022,6 @@ export function ServerSettingsView() {
         </button>
         <h2 className="text-lg sm:text-xl font-bold text-[#fafafa]">Server Settings</h2>
         {isOwner && <span className="text-xs bg-[#18181b] text-[#a1a1aa] px-2 py-0.5 rounded-full">Owner</span>}
-        <div className="flex-1" />
-        <button onClick={() => setShowActivityLog(true)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-[#18181b] border border-[#27272a] text-[#a1a1aa] hover:text-[#fafafa] hover:bg-[#27272a] transition">
-          <ScrollText className="w-3.5 h-3.5" />
-          <span className="hidden sm:inline">Activity Log</span>
-        </button>
       </div>
 
       {/* Mobile tab bar */}
@@ -2707,26 +2701,6 @@ export function ServerSettingsView() {
         </div>
       )}
 
-      {/* Activity Log Modal */}
-      {showActivityLog && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/70 backdrop-blur-sm overflow-y-auto pt-10 pb-10" onClick={() => setShowActivityLog(false)}>
-          <div className="bg-[#0d0d11] border border-[#27272a] rounded-xl w-full max-w-3xl mx-4 shadow-2xl" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between px-5 py-3 border-b border-[#1e1e2a]">
-              <div className="flex items-center gap-2">
-                <ScrollText className="w-4 h-4 text-[#a1a1aa]" />
-                <h3 className="text-sm font-semibold text-[#fafafa]">Activity Log</h3>
-              </div>
-              <button onClick={() => setShowActivityLog(false)} className="p-1 rounded hover:bg-[#1e1e2a] text-[#a1a1aa] hover:text-[#fafafa] transition">
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            <div className="p-5 max-h-[70vh] overflow-y-auto">
-              <ServerActivityLogTab serverId={currentServer.id} />
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Bosses Tab */}
       {tab === "bosses" && <ServerBossesActivitiesTab mode="bosses" />}
 
@@ -3368,7 +3342,7 @@ function BossPointsMatrix({
 
 // ── Server Activity Log Tab (Owner/Mod Audit) ───────────────
 
-function ServerActivityLogTab({ serverId }: { serverId: string }) {
+export function ServerActivityLogTab({ serverId }: { serverId: string }) {
   const [actionFilter, setActionFilter] = useState<string>("all");
   const [cursor, setCursor] = useState<string | null>(null);
   const [log, setLog] = useState<any[]>([]);
