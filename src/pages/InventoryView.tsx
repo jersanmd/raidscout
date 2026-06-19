@@ -1137,13 +1137,13 @@ export function InventoryView() {
 
           return (
             <div className="space-y-6">
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                 <button onClick={() => { setCollectionMode("view"); }} className="p-1 text-[#a1a1aa] hover:text-[#fafafa] transition"><ArrowLeft className="w-4 h-4" /></button>
                 <div>
                   <h3 className="text-sm font-semibold text-[#fafafa]">{currentCollection?.name} — Ownership</h3>
                   <p className="text-[10px] text-[#52525b]">{sortedPlayers.length} / {playersWithOwnership.length} players · {matrixItems.length} items</p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <select
                     value={matrixGuildFilter}
                     onChange={e => {
@@ -1158,20 +1158,20 @@ export function InventoryView() {
                       <option key={g} value={g}>{g}</option>
                     ))}
                   </select>
+                  <div className="flex items-center gap-2 text-[10px] flex-wrap">
+                    <span className="flex items-center gap-1"><span className="w-3 h-3 rounded border border-emerald-500/20 bg-emerald-500/10 shrink-0" /> Distributed</span>
+                    <span className="flex items-center gap-1"><span className="w-3 h-3 rounded border border-amber-500/20 bg-amber-500/10 shrink-0" /> Manual</span>
+                    <span className="text-[#52525b] hidden sm:inline">Click cells to toggle</span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-3 text-[10px]">
-                  <span className="flex items-center gap-1"><span className="w-3 h-3 rounded border border-emerald-500/20 bg-emerald-500/10" /> Distributed</span>
-                  <span className="flex items-center gap-1"><span className="w-3 h-3 rounded border border-amber-500/20 bg-amber-500/10" /> Manual</span>
-                  <span className="text-[#52525b]">Click cells to toggle</span>
-                </div>
-                <div className="relative ml-auto">
+                <div className="relative sm:ml-auto">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#52525b]" />
                   <input
                     type="text"
                     value={matrixPlayerSearch}
                     onChange={(e) => setMatrixPlayerSearch(e.target.value)}
                     placeholder="Search player…"
-                    className="w-36 sm:w-48 pl-9 pr-9 py-2 text-sm bg-[#18181b] border border-[#27272a] rounded-xl text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#52525b]"
+                    className="w-36 sm:w-48 pl-9 pr-9 py-1.5 sm:py-2 text-xs sm:text-sm bg-[#18181b] border border-[#27272a] rounded-xl text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#52525b]"
                   />
                   {matrixPlayerSearch && (
                     <button onClick={() => setMatrixPlayerSearch("")} className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded text-[#52525b] hover:text-[#a1a1aa]">
