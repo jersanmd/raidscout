@@ -3343,11 +3343,15 @@ function BossPointsMatrix({
 // ── Server Activity Log Tab (Owner/Mod Audit) ───────────────
 
 export function ServerActivityLogTab({ serverId }: { serverId: string }) {
+  // Action types hidden from the owner filter (still appear in log)
+  const HIDDEN_ACTIONS = new Set(["boss_toggle", "activity_toggle"]);
+
   // All visible action types across categories
   const allActions = useMemo(() =>
     AUDIT_ACTION_GROUPS
       .filter(g => !["Admin", "Subscription", "Server"].includes(g.label))
-      .flatMap(g => g.actions),
+      .flatMap(g => g.actions)
+      .filter(a => !HIDDEN_ACTIONS.has(a)),
   []);
 
   // Load saved filters from localStorage, default to all checked
@@ -3474,10 +3478,13 @@ export function ServerActivityLogTab({ serverId }: { serverId: string }) {
     <div className="space-y-3">
       {/* Action filter — inline checkboxes grouped by category */}
       <div className="flex flex-wrap items-start gap-x-4 gap-y-1 max-h-32 overflow-y-auto text-[10px]">
-        {AUDIT_ACTION_GROUPS.filter(g => !["Admin", "Subscription"].includes(g.label)).map(g => (
+        {AUDIT_ACTION_GROUPS.filter(g => !["Admin", "Subscription", "Server"].includes(g.label)).map(g => {
+          const actions = g.actions.filter(a => !HIDDEN_ACTIONS.has(a));
+          if (actions.length === 0) return null;
+          return (
           <div key={g.label} className="flex items-center gap-1.5 flex-wrap">
             <span className="text-[#52525b] font-semibold shrink-0">{g.label}</span>
-            {g.actions.map(a => (
+            {actions.map(a => (
               <button key={a} onClick={() => toggleAction(a)}
                 className={`flex items-center gap-1 px-1.5 py-0.5 rounded border transition ${actionFilters.has(a) ? "border-violet-500/50 text-violet-300 bg-violet-500/10" : "border-[#1e1e2a] text-[#71717a] hover:border-[#3f3f46] hover:text-[#a1a1aa]"}`}>
                 <span className={`shrink-0 w-3 h-3 rounded border flex items-center justify-center ${actionFilters.has(a) ? "bg-violet-500 border-violet-500" : "border-[#3f3f46]"}`}>
@@ -3487,7 +3494,8 @@ export function ServerActivityLogTab({ serverId }: { serverId: string }) {
               </button>
             ))}
           </div>
-        ))}
+          );
+        })}
         {actionFilters.size < allActions.length ? (
           <button onClick={checkAll} className="text-[#71717a] hover:text-[#fafafa] transition shrink-0">Check all</button>
         ) : (
