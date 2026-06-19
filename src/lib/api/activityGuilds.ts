@@ -68,7 +68,7 @@ export async function advanceActivityRotation(activityId: string, serverId?: str
     await supabase.from("activity_guilds").update({ sort_order: ags[i + 1].sort_order }).eq("id", ags[i].id);
   }
   await supabase.from("activity_guilds").update({ sort_order: first.sort_order }).eq("id", ags[ags.length - 1].id);
-  if (serverId) writeAuditEntry({ action: AuditAction.ACTIVITY_ROTATION_ADVANCE, server_id: serverId, target_id: activityId, details: { guilds: ags.map(a => a.guild_id) } });
+  if (serverId) writeAuditEntry({ action: AuditAction.ACTIVITY_ROTATION, server_id: serverId, target_id: activityId, details: { guilds: ags.map(a => a.guild_id) } });
 }
 
 export async function upsertActivityGuildPoints(
