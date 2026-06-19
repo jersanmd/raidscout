@@ -206,10 +206,11 @@ export function ServerSettingsView() {
   const [savingPerms, setSavingPerms] = useState<string | null>(null); // user_id being saved
   const [searchParams] = useSearchParams();
   const tabParam = searchParams.get("tab");
-  const initialTab = (tabParam === "general" || tabParam === "members" || tabParam === "integrations" || tabParam === "danger" || tabParam === "boss-points" || tabParam === "bosses" || tabParam === "activities" || tabParam === "activity-points" || tabParam === "activity-guilds" || tabParam === "boss-guilds" || tabParam === "guilds" || tabParam === "account" || tabParam === "activity-log")
+  const initialTab = (tabParam === "general" || tabParam === "members" || tabParam === "integrations" || tabParam === "danger" || tabParam === "boss-points" || tabParam === "bosses" || tabParam === "activities" || tabParam === "activity-points" || tabParam === "activity-guilds" || tabParam === "boss-guilds" || tabParam === "guilds" || tabParam === "account")
     ? tabParam
     : "general";
   const [tab, setTab] = useState<string>(initialTab);
+  const [showActivityLog, setShowActivityLog] = useState(false);
 
   // Update both state and URL when tab changes
   const setTabAndUrl = (key: string) => {
@@ -1022,12 +1023,17 @@ export function ServerSettingsView() {
         </button>
         <h2 className="text-lg sm:text-xl font-bold text-[#fafafa]">Server Settings</h2>
         {isOwner && <span className="text-xs bg-[#18181b] text-[#a1a1aa] px-2 py-0.5 rounded-full">Owner</span>}
+        <div className="flex-1" />
+        <button onClick={() => setShowActivityLog(true)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-[#18181b] border border-[#27272a] text-[#a1a1aa] hover:text-[#fafafa] hover:bg-[#27272a] transition">
+          <ScrollText className="w-3.5 h-3.5" />
+          <span className="hidden sm:inline">Activity Log</span>
+        </button>
       </div>
 
       {/* Mobile tab bar */}
       <div className="sm:hidden flex flex-wrap items-center gap-1 pb-1 mt-2">
-        {(["general","guilds","bosses","boss-points","boss-guilds","activities","activity-points","activity-guilds","members","integrations","account","activity-log",...(isOwner?["danger"]:[])] as string[]).map((key) => {
-          const labels: Record<string,string> = {general:"General",guilds:"Guilds",bosses:"Bosses","boss-points":"Boss Points","boss-guilds":"Boss Guild Assignments",activities:"Activities","activity-points":"Activity Points","activity-guilds":"Activity Guild Assignments",members:"Moderator/Permissions",integrations:"Integrations",account:"Account","activity-log":"Activity Log",danger:"Danger"};
+        {(["general","guilds","bosses","boss-points","boss-guilds","activities","activity-points","activity-guilds","members","integrations","account",...(isOwner?["danger"]:[])] as string[]).map((key) => {
+          const labels: Record<string,string> = {general:"General",guilds:"Guilds",bosses:"Bosses","boss-points":"Boss Points","boss-guilds":"Boss Guild Assignments",activities:"Activities","activity-points":"Activity Points","activity-guilds":"Activity Guild Assignments",members:"Moderator/Permissions",integrations:"Integrations",account:"Account",danger:"Danger"};
           const locked = isExpired && GATED_TABS.has(key);
           return <button key={key} onClick={() => { if (!locked) setTabAndUrl(key); }}
             disabled={locked}
@@ -1059,9 +1065,9 @@ export function ServerSettingsView() {
           </div>
           {showCreateModal && <CreateServerModal onClose={() => setShowCreateModal(false)} />}
           <nav className="bg-[#18181b] border border-[#27272a] rounded-xl p-1 space-y-0.5">
-            {(["general","guilds","bosses","boss-points","boss-guilds","activities","activity-points","activity-guilds","members","integrations","account","activity-log",...(isOwner?["danger"]:[])] as string[]).map((key) => {
-              const icons: Record<string,React.ComponentType<{className?:string}>> = {general:Settings,guilds:Shield,bosses:Skull,"boss-points":Trophy,"boss-guilds":Swords,activities:Calendar,"activity-points":Trophy,"activity-guilds":Calendar,members:Users,integrations:Bell,account:Key,"activity-log":ScrollText,danger:AlertTriangle};
-              const labels: Record<string,string> = {general:"General",guilds:"Guilds",bosses:"Bosses","boss-points":"Boss Points","boss-guilds":"Boss Guild Assignments",activities:"Activities","activity-points":"Activity Points","activity-guilds":"Activity Guild Assignments",members:"Moderator/Permissions",integrations:"Integrations",account:"Account","activity-log":"Activity Log",danger:"Danger"};
+            {(["general","guilds","bosses","boss-points","boss-guilds","activities","activity-points","activity-guilds","members","integrations","account",...(isOwner?["danger"]:[])] as string[]).map((key) => {
+              const icons: Record<string,React.ComponentType<{className?:string}>> = {general:Settings,guilds:Shield,bosses:Skull,"boss-points":Trophy,"boss-guilds":Swords,activities:Calendar,"activity-points":Trophy,"activity-guilds":Calendar,members:Users,integrations:Bell,account:Key,danger:AlertTriangle};
+              const labels: Record<string,string> = {general:"General",guilds:"Guilds",bosses:"Bosses","boss-points":"Boss Points","boss-guilds":"Boss Guild Assignments",activities:"Activities","activity-points":"Activity Points","activity-guilds":"Activity Guild Assignments",members:"Moderator/Permissions",integrations:"Integrations",account:"Account",danger:"Danger"};
               const Icon = icons[key];
               const locked = isExpired && GATED_TABS.has(key);
               return <button key={key} onClick={() => { if (!locked) setTabAndUrl(key); }}
@@ -2701,8 +2707,25 @@ export function ServerSettingsView() {
         </div>
       )}
 
-      {/* Activity Log Tab — Server Audit */}
-      {tab === "activity-log" && <ServerActivityLogTab serverId={currentServer.id} />}
+      {/* Activity Log Modal */}
+      {showActivityLog && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/70 backdrop-blur-sm overflow-y-auto pt-10 pb-10" onClick={() => setShowActivityLog(false)}>
+          <div className="bg-[#0d0d11] border border-[#27272a] rounded-xl w-full max-w-3xl mx-4 shadow-2xl" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-3 border-b border-[#1e1e2a]">
+              <div className="flex items-center gap-2">
+                <ScrollText className="w-4 h-4 text-[#a1a1aa]" />
+                <h3 className="text-sm font-semibold text-[#fafafa]">Activity Log</h3>
+              </div>
+              <button onClick={() => setShowActivityLog(false)} className="p-1 rounded hover:bg-[#1e1e2a] text-[#a1a1aa] hover:text-[#fafafa] transition">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="p-5 max-h-[70vh] overflow-y-auto">
+              <ServerActivityLogTab serverId={currentServer.id} />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Bosses Tab */}
       {tab === "bosses" && <ServerBossesActivitiesTab mode="bosses" />}
