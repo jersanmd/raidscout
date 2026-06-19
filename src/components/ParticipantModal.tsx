@@ -137,6 +137,8 @@ export function ParticipantModal({
   const addAttendance = useAddAttendance();
   const removeAttendance = useRemoveAttendance();
   const [pendingIds, setPendingIds] = useState<Set<string>>(new Set());
+  const queryClient = useQueryClient();
+  const serverId = useServerId();
   const toggleAttendance = useCallback(async (memberId: string, isAttending: boolean, readOnly: boolean) => {
     if (readOnly) return;
     setPendingIds(prev => new Set(prev).add(memberId));
@@ -171,8 +173,6 @@ export function ParticipantModal({
       });
     }
   }, [attendance, activityInstanceId, deathRecordId, addAttendance, removeAttendance, queryClient]);
-  const queryClient = useQueryClient();
-  const serverId = useServerId();
 
   const [memberSearch, setMemberSearch] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
