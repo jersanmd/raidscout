@@ -1264,7 +1264,7 @@ export function AdminPanelView() {
           ) : (
             <>
               {/* ── Spawn Cron Premium Card ── */}
-              <SpawnCronCard data={botStatus.spawn_cron} connected={botStatus.discord_connected} />
+              <SpawnCronCard data={botStatus.spawn_cron} connected={botStatus.discord_connected} timezone={timezone} />
 
               {/* Status Cards — 2-col on mobile, 4-col on desktop */}
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
@@ -1490,7 +1490,7 @@ export function AdminPanelView() {
 }
 
 // ── Spawn Cron Premium Card ─────────────────────────────────
-function SpawnCronCard({ data, connected }: { data: any; connected: boolean }) {
+function SpawnCronCard({ data, connected, timezone }: { data: any; connected: boolean; timezone: string }) {
   const [timeRange, setTimeRange] = useState("1h");
   const [tooltip, setTooltip] = useState<{ i: number; v: number; x: number; y: number } | null>(null);
   const inMemoryHistory: number[] = data?.tick_history_ms ?? [];
@@ -1546,16 +1546,12 @@ function SpawnCronCard({ data, connected }: { data: any; connected: boolean }) {
 
   // Peak duration
   const peakMs = hasData ? Math.max(...history) : 0;
-  const peakAgo = histData?.metrics ? (() => {
+  const peakTime = histData?.metrics ? (() => {
     let peakIdx = 0; let peakVal = 0;
     histData.metrics.forEach((m: any, i: number) => { if (m.duration_ms > peakVal) { peakVal = m.duration_ms; peakIdx = i; } });
     const peakTs = histData.metrics[peakIdx]?.ts;
     if (!peakTs) return null;
-    const agoMs = Date.now() - peakTs;
-    if (agoMs < 60000) return "just now";
-    if (agoMs < 3600000) return `${Math.round(agoMs / 60000)}m ago`;
-    if (agoMs < 86400000) return `${Math.round(agoMs / 3600000)}h ago`;
-    return `${Math.round(agoMs / 86400000)}d ago`;
+    return new Date(peakTs).toLocaleString("en-US", { timeZone: timezone, month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
   })() : null;
 
   // Label every ~6th tick
@@ -1608,7 +1604,7 @@ function SpawnCronCard({ data, connected }: { data: any; connected: boolean }) {
             <div className="hidden sm:flex items-center gap-1.5 bg-[#18181b] rounded-lg px-2.5 py-1.5 border border-[#27272a]">
               <span className="text-[10px] text-[#71717a] font-mono uppercase tracking-wider">peak</span>
               <span className="text-xs font-bold text-amber-300 font-mono">{(peakMs / 1000).toFixed(2)}<span className="text-[10px] text-[#71717a] ml-0.5">s</span></span>
-              {peakAgo && <span className="text-[9px] text-[#52525b]">{peakAgo}</span>}
+              {peakTime && <span className="text-[9px] text-[#52525b]">{peakTime}</span>}
             </div>
           )}
         </div>
