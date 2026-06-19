@@ -151,23 +151,26 @@ export async function updateCustomActivity(id: string, updates: Record<string, a
   if (error) throw error;
 }
 
-export async function toggleBossEnabled(id: string, enabled: boolean): Promise<void> {
+export async function toggleBossEnabled(id: string, enabled: boolean, serverId?: string): Promise<void> {
   const { error } = await supabase.rpc("toggle_boss_enabled", { p_boss_id: id, p_enabled: enabled });
   if (error) throw error;
+  if (serverId) writeAuditEntry({ action: AuditAction.BOSS_TOGGLE, server_id: serverId, target_id: id, details: { enabled } });
 }
 
-export async function toggleActivityEnabled(id: string, enabled: boolean): Promise<void> {
+export async function toggleActivityEnabled(id: string, enabled: boolean, serverId?: string): Promise<void> {
   const { error } = await supabase.rpc("toggle_activity_enabled", { p_activity_id: id, p_enabled: enabled });
   if (error) throw error;
+  if (serverId) writeAuditEntry({ action: AuditAction.ACTIVITY_TOGGLE, server_id: serverId, target_id: id, details: { enabled } });
 }
 
-export async function finishActivity(activityId: string): Promise<void> {
+export async function finishActivity(activityId: string, serverId?: string): Promise<void> {
   const { data: activity } = await supabase.from("activities").select("schedule_type").eq("id", activityId).single();
   if (!activity) throw new Error("Activity not found");
 
   if (activity.schedule_type === "one_time") {
     const { error } = await supabase.from("activities").update({ is_enabled: false }).eq("id", activityId);
     if (error) throw error;
+    if (serverId) writeAuditEntry({ action: AuditAction.ACTIVITY_TOGGLE, server_id: serverId, target_id: activityId, details: { enabled: false, reason: "one_time_completed" } });
   }
 
   const now = new Date().toISOString();
@@ -177,6 +180,7 @@ export async function finishActivity(activityId: string): Promise<void> {
     end_time: now,
   });
   if (error) throw error;
+  if (serverId) writeAuditEntry({ action: AuditAction.ACTIVITY_FINALIZE, server_id: serverId, target_id: activityId });
 
   // Advance guild rotation
   try { await advanceActivityRotation(activityId); } catch (err) { console.error("[bosses] advanceActivityRotation on start failed:", err); }
