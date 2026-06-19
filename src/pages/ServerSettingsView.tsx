@@ -3343,7 +3343,25 @@ function BossPointsMatrix({
 // ── Server Activity Log Tab (Owner/Mod Audit) ───────────────
 
 export function ServerActivityLogTab({ serverId }: { serverId: string }) {
-  const [actionFilters, setActionFilters] = useState<Set<string>>(new Set());
+  // All visible action types across categories
+  const allActions = useMemo(() =>
+    AUDIT_ACTION_GROUPS
+      .filter(g => !["Admin", "Subscription"].includes(g.label))
+      .flatMap(g => g.actions),
+  []);
+
+  // Load saved filters from localStorage, default to all checked
+  const [actionFilters, setActionFilters] = useState<Set<string>>(() => {
+    try {
+      const saved = localStorage.getItem("rs_audit_filters");
+      if (saved) {
+        const arr = JSON.parse(saved) as string[];
+        return new Set(arr.filter(a => allActions.includes(a as any)));
+      }
+    } catch {}
+    return new Set(allActions);
+  });
+
   const [cursor, setCursor] = useState<string | null>(null);
   const [log, setLog] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -3351,12 +3369,26 @@ export function ServerActivityLogTab({ serverId }: { serverId: string }) {
   const [hasMore, setHasMore] = useState(false);
   const allLog = useRef<any[]>([]);
 
+  const saveFilters = (filters: Set<string>) => {
+    localStorage.setItem("rs_audit_filters", JSON.stringify([...filters]));
+    setActionFilters(filters);
+  };
+
   const toggleAction = (action: string) => {
     setActionFilters(prev => {
       const next = new Set(prev);
       if (next.has(action)) next.delete(action); else next.add(action);
+      localStorage.setItem("rs_audit_filters", JSON.stringify([...next]));
       return next;
     });
+  };
+
+  const clearFilters = () => {
+    saveFilters(new Set());
+  };
+
+  const checkAll = () => {
+    saveFilters(new Set(allActions));
   };
 
   const filteredLog = useMemo(() => {
@@ -3449,8 +3481,10 @@ export function ServerActivityLogTab({ serverId }: { serverId: string }) {
             ))}
           </div>
         ))}
-        {actionFilters.size > 0 && (
-          <button onClick={() => setActionFilters(new Set())} className="text-[#71717a] hover:text-[#fafafa] transition shrink-0">Clear all</button>
+        {actionFilters.size < allActions.length ? (
+          <button onClick={checkAll} className="text-[#71717a] hover:text-[#fafafa] transition shrink-0">Check all</button>
+        ) : (
+          <button onClick={clearFilters} className="text-[#71717a] hover:text-[#fafafa] transition shrink-0">Clear all</button>
         )}
         <span className="text-xs text-[#52525b] ml-auto self-center shrink-0">{filteredLog.length} event{filteredLog.length !== 1 ? "s" : ""}</span>
       </div>
