@@ -54,3 +54,18 @@
 - **Attendance badges** — Killed bosses now show a green `✓✓ N` pill badge when attendance exists. Updates immediately after adding/removing attendance in the modal.
 - **Copy attendance between bosses** — Each killed boss row has a copy icon (📋). Click to enter copy mode, then click any other killed boss to paste the same attendance list. Duplicate members are automatically skipped. ESC exits copy mode and dismisses the confirm dialog. Copy icon hidden when attendance is 0.
 - **Attendance badge fix** — Badges now show correctly for viewers. Batch attendance query switched from direct Supabase client (blocked by RLS) to the `get-attendance` edge function.
+
+## 🖥️ Admin Panel — Infra
+
+- **Spawn cron trend chart — larger** — Increased viewBox to 1200×360 with taller CSS height for better readability. Full-width responsive layout.
+- **Visible tick points** — Every data point now has a dot (not just every Nth). Hover enlarges the dot with an animated glow ring. Click to pin the tooltip for inspection.
+- **Edge-aware tooltip** — Tooltip stays in view near left/right edges instead of going off-screen.
+- **Line animation fix** — Stroke dasharray increased to `pw * 3` so the draw-in animation covers the full zigzag path (was cutting off at ~80%).
+- **Axis labels** — Y-axis titled "sec", X-axis titled "tick" with larger, brighter tick labels.
+
+## 💳 Billing
+
+- **Dark theme** — Entire billing page converted to dark theme matching the rest of the app. Removed white/amber/blue card backgrounds in favor of uniform dark panels.
+- **Notes section** — Added helpful notes: per-server billing, payment processing times, all-inclusive pricing, refund policy, and PayPal security.
+- **PayPal checkout — no shipping** — Added `shipping_preference: "NO_SHIPPING"` so PayPal only asks for name, email, and payment details (no full address).
+- **Email verification fix** — Replaced the flawed >5-second gap heuristic with a simple `email_confirmed_at` presence check. Fixes verification detection on staging where both timestamps are set simultaneously.
