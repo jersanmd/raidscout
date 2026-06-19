@@ -38,12 +38,16 @@ export function useAddAttendance() {
     mutationFn: async ({
       deathRecordId,
       memberId,
+      memberName,
+      bossName,
     }: {
       deathRecordId: string;
       memberId: string;
+      memberName?: string;
+      bossName?: string;
     }) => {
       if (!configured) throw new Error("Supabase not configured");
-      return await addAttendance(deathRecordId, memberId);
+      return await addAttendance(deathRecordId, memberId, memberName, bossName);
     },
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["attendance", variables.deathRecordId] });
@@ -62,12 +66,16 @@ export function useRemoveAttendance() {
     mutationFn: async ({
       attendanceId,
       deathRecordId,
+      memberName,
+      bossName,
     }: {
       attendanceId: string;
       deathRecordId: string;
+      memberName?: string;
+      bossName?: string;
     }) => {
       if (!configured) throw new Error("Supabase not configured");
-      await removeAttendance(attendanceId);
+      await removeAttendance(attendanceId, memberName, bossName);
     },
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["attendance", variables.deathRecordId] });

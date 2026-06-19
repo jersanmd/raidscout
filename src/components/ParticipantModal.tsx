@@ -139,7 +139,7 @@ export function ParticipantModal({
   const [pendingIds, setPendingIds] = useState<Set<string>>(new Set());
   const queryClient = useQueryClient();
   const serverId = useServerId();
-  const toggleAttendance = useCallback(async (memberId: string, isAttending: boolean, readOnly: boolean) => {
+  const toggleAttendance = useCallback(async (memberId: string, memberName: string, isAttending: boolean, readOnly: boolean) => {
     if (readOnly) return;
     setPendingIds(prev => new Set(prev).add(memberId));
     try {
@@ -152,7 +152,7 @@ export function ParticipantModal({
             queryClient.invalidateQueries({ queryKey: ["activity_instances"] });
             queryClient.invalidateQueries({ queryKey: ["activities"] });
           } else {
-            await removeAttendance.mutateAsync({ attendanceId: att.id, deathRecordId });
+            await removeAttendance.mutateAsync({ attendanceId: att.id, deathRecordId, memberName, bossName });
           }
         }
       } else {
@@ -162,7 +162,7 @@ export function ParticipantModal({
           queryClient.invalidateQueries({ queryKey: ["activity_instances"] });
           queryClient.invalidateQueries({ queryKey: ["activities"] });
         } else {
-          await addAttendance.mutateAsync({ deathRecordId, memberId });
+          await addAttendance.mutateAsync({ deathRecordId, memberId, memberName, bossName });
         }
       }
     } finally {
@@ -172,7 +172,7 @@ export function ParticipantModal({
         return next;
       });
     }
-  }, [attendance, activityInstanceId, deathRecordId, addAttendance, removeAttendance, queryClient]);
+  }, [attendance, activityInstanceId, deathRecordId, addAttendance, removeAttendance, queryClient, bossName]);
 
   const [memberSearch, setMemberSearch] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -966,7 +966,7 @@ export function ParticipantModal({
                                     checked={isAttending}
                                     disabled={readOnly}
                                     title={readOnly ? "Only moderators can update participants" : undefined}
-                                    onChange={() => toggleAttendance(m.id, isAttending, readOnly)}
+                                    onChange={() => toggleAttendance(m.id, m.name, isAttending, readOnly)}
                                     className="w-4 h-4 rounded border-[#3f3f46] bg-[#27272a] text-emerald-500 focus:ring-[#27272a] cursor-pointer"
                                   />
                                 )}

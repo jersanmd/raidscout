@@ -33,7 +33,9 @@ export async function fetchAttendanceForDeath(deathRecordId: string): Promise<At
 
 export async function addAttendance(
   deathRecordId: string,
-  memberId: string
+  memberId: string,
+  memberName?: string,
+  bossName?: string
 ): Promise<AttendanceRecord> {
   const sid = getCurrentServerId();
   const { data: { session } } = await supabase.auth.getSession();
@@ -48,7 +50,7 @@ export async function addAttendance(
       .select()
       .single();
     if (error) throw error;
-    writeAuditEntry({ action: AuditAction.ATTENDANCE_ADD, server_id: sid!, target_id: deathRecordId, details: { member_id: memberId } });
+    writeAuditEntry({ action: AuditAction.ATTENDANCE_ADD, server_id: sid!, target_id: deathRecordId, details: { member_name: memberName || memberId, boss_name: bossName || deathRecordId } });
     return data as AttendanceRecord;
   }
 
@@ -61,14 +63,14 @@ export async function addAttendance(
         p_viewer_key: viewerKey,
       });
     if (error) throw error;
-    writeAuditEntry({ action: AuditAction.ATTENDANCE_ADD, server_id: sid!, target_id: deathRecordId, details: { member_id: memberId }, viewer_key: viewerKey });
+    writeAuditEntry({ action: AuditAction.ATTENDANCE_ADD, server_id: sid!, target_id: deathRecordId, details: { member_name: memberName || memberId, boss_name: bossName || deathRecordId }, viewer_key: viewerKey });
     return (data as any[])[0] as AttendanceRecord;
   }
 
   throw new Error("Not authenticated");
 }
 
-export async function removeAttendance(attendanceId: string): Promise<void> {
+export async function removeAttendance(attendanceId: string, memberName?: string, bossName?: string): Promise<void> {
   const sid = getCurrentServerId();
   const { data: { session } } = await supabase.auth.getSession();
   if (session?.user) {
@@ -77,7 +79,7 @@ export async function removeAttendance(attendanceId: string): Promise<void> {
       .delete()
       .eq("id", attendanceId);
     if (error) throw error;
-    writeAuditEntry({ action: AuditAction.ATTENDANCE_REMOVE, server_id: sid!, target_id: attendanceId });
+    writeAuditEntry({ action: AuditAction.ATTENDANCE_REMOVE, server_id: sid!, target_id: attendanceId, details: { member_name: memberName || "Unknown", boss_name: bossName || "Unknown" } });
     return;
   }
 
@@ -89,7 +91,7 @@ export async function removeAttendance(attendanceId: string): Promise<void> {
         p_viewer_key: viewerKey,
       });
     if (error) throw error;
-    writeAuditEntry({ action: AuditAction.ATTENDANCE_REMOVE, server_id: sid!, target_id: attendanceId, viewer_key: viewerKey });
+    writeAuditEntry({ action: AuditAction.ATTENDANCE_REMOVE, server_id: sid!, target_id: attendanceId, details: { member_name: memberName || "Unknown", boss_name: bossName || "Unknown" }, viewer_key: viewerKey });
     return;
   }
 
