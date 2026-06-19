@@ -3373,8 +3373,10 @@ export function ServerActivityLogTab({ serverId }: { serverId: string }) {
   const [hasMore, setHasMore] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
+  const today = new Date().toISOString().slice(0, 10);
+  const sevenDaysAgo = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10);
+  const [dateFrom, setDateFrom] = useState(sevenDaysAgo);
+  const [dateTo, setDateTo] = useState(today);
   const [filtersExpanded, setFiltersExpanded] = useState(true);
   const allLog = useRef<any[]>([]);
 
