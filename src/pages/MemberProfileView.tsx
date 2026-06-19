@@ -649,7 +649,7 @@ export function MemberProfileView() {
             </p>
           </div>
           <div className="bg-[#09090b] rounded-lg p-3">
-            <div className="flex items-center justify-between mb-0.5">
+            <div className="flex items-center justify-between mb-1.5">
               <p className="text-[10px] text-[#71717a] uppercase tracking-wider">Events</p>
               <div className="flex gap-0.5">
                 {(["weekly", "monthly", "all"] as const).map(r => (
@@ -660,27 +660,24 @@ export function MemberProfileView() {
                 ))}
               </div>
             </div>
-            <p className="text-lg font-bold text-[#fafafa] mt-0.5">
-              {eventsDisplay}
-              <span className="text-[#52525b] text-sm font-normal"> / {eventsRange === "weekly" ? totalEventsWeek : eventsRange === "monthly" ? totalEventsMonth : totalEventsSinceJoined} events</span>
+            <p className="text-lg font-bold text-[#fafafa]">
+              {eventsDisplay}<span className="text-[#52525b] text-sm font-normal">/{eventsRange === "weekly" ? totalEventsWeek : eventsRange === "monthly" ? totalEventsMonth : totalEventsSinceJoined}</span>
             </p>
-            <p className="text-[10px] text-[#52525b]">{eventsLabel}{eventsRange !== "all" ? ` (${fmtShortDate(eventsRange === "weekly" ? weekStart : monthStart)} – today)` : ""}</p>
             <p className="text-[10px] text-[#52525b]">
-              <span className="text-[#a1a1aa]">{(() => {
+              {(() => {
                 if (!profile) return "";
                 const start = eventsRange === "weekly" ? weekStart : eventsRange === "monthly" ? monthStart : new Date(0);
                 const hunts = (profile.attendance_history || []).filter((a: any) => new Date(a.created_at).getTime() >= start.getTime()).length;
                 const acts = (profile.activity_attendance || []).filter((a: any) => new Date(a.created_at).getTime() >= start.getTime()).length;
-                return `${hunts} bosses · ${acts} activities`;
-              })()}</span>
+                const parts: string[] = [];
+                if (hunts > 0) parts.push(`${hunts} bosses`);
+                if (acts > 0) parts.push(`${acts} activities`);
+                const label = eventsRange === "weekly" ? `This Week · ${fmtShortDate(weekStart)}–today` : eventsRange === "monthly" ? `This Month · ${fmtShortDate(monthStart)}–today` : "All Time";
+                const detail = parts.length > 0 ? parts.join(" · ") + " · " : "";
+                return `${label}${detail ? " · " + detail : ""}`;
+              })()}
+              {displayAbsences > 0 && <span className="ml-1.5 text-red-400">−{displayAbsences} missed</span>}
             </p>
-            {totalEventsSinceJoined > 0 && (
-              <div className="mt-1 pt-1 border-t border-[#1a1a1e]">
-                <p className="text-[10px] text-[#52525b]">
-                  Absences: <span className="text-red-400 font-medium">{displayAbsences}</span>
-                </p>
-              </div>
-            )}
           </div>
           <div className="bg-[#09090b] rounded-lg p-3 col-span-2 sm:col-span-1">
             <p className="text-[10px] text-[#71717a] uppercase tracking-wider">Items Received</p>
