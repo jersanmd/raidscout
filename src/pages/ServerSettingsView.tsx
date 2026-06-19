@@ -3367,6 +3367,7 @@ export function ServerActivityLogTab({ serverId }: { serverId: string }) {
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(false);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const allLog = useRef<any[]>([]);
 
   const saveFilters = (filters: Set<string>) => {
@@ -3429,6 +3430,7 @@ export function ServerActivityLogTab({ serverId }: { serverId: string }) {
     if (reset) {
       setLoading(true);
       setCursor(null);
+      setFetchError(null);
     }
     try {
       const result = await fetchAuditLog(100, serverId, reset ? null : cursor, null);
@@ -3441,7 +3443,10 @@ export function ServerActivityLogTab({ serverId }: { serverId: string }) {
         setLog(prev => [...prev, ...result]);
         setHasMore(result.length >= 100);
       }
-    } catch { /* ignore */ }
+    } catch (err: any) {
+      console.error("[audit] fetchLog error:", err?.message || err);
+      setFetchError(err?.message || "Failed to load activity log");
+    }
     finally { setLoading(false); setLoadingMore(false); }
   };
 
@@ -3459,7 +3464,9 @@ export function ServerActivityLogTab({ serverId }: { serverId: string }) {
       allLog.current = [...allLog.current, ...result];
       setLog(prev => [...prev, ...result]);
       setHasMore(result.length >= 100);
-    } catch { /* ignore */ }
+    } catch (err: any) {
+      console.error("[audit] loadMore error:", err?.message || err);
+    }
     finally { setLoadingMore(false); }
   };
 
@@ -3491,6 +3498,8 @@ export function ServerActivityLogTab({ serverId }: { serverId: string }) {
 
       {loading && log.length === 0 ? (
         <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 text-[#71717a] animate-spin" /></div>
+      ) : fetchError ? (
+        <p className="text-red-400 text-sm text-center py-12">{fetchError}</p>
       ) : filteredLog.length === 0 ? (
         <p className="text-[#71717a] text-sm text-center py-12">{log.length > 0 ? "No events match the selected filters." : "No activity recorded yet."}</p>
       ) : (
