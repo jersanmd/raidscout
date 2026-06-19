@@ -52,4 +52,5 @@
 ## 🎨 UI — Weekly Schedule
 
 - **Attendance badges** — Killed bosses now show a green `✓✓ N` pill badge when attendance exists. Updates immediately after adding/removing attendance in the modal.
-- **Copy attendance between bosses** — Each killed boss row has a copy icon (📋). Click to enter copy mode, then click any other killed boss to paste the same attendance list. Duplicate members are automatically skipped. Works on both mobile and desktop.
+- **Copy attendance between bosses** — Each killed boss row has a copy icon (📋). Click to enter copy mode, then click any other killed boss to paste the same attendance list. Duplicate members are automatically skipped. ESC exits copy mode and dismisses the confirm dialog. Copy icon hidden when attendance is 0.
+- **Attendance badge fix** — Badges now show correctly for viewers. Batch attendance query switched from direct Supabase client (blocked by RLS) to the `get-attendance` edge function.
