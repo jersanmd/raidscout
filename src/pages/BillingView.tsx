@@ -321,6 +321,31 @@ export function BillingView() {
         )}
       </div>
 
+      {/* ── Notes ── */}
+      <div className="bg-blue-50 border border-blue-200 rounded-xl p-5 space-y-3 shadow-sm">
+        <h3 className="text-sm font-semibold text-blue-800 flex items-center gap-2">
+          <AlertTriangle className="w-4 h-4 text-blue-500" />
+          Note
+        </h3>
+        <ol className="space-y-2.5 list-decimal list-inside">
+          <li className="text-xs text-blue-800 leading-relaxed pl-1">
+            <span className="font-medium">Server access is per-server.</span> Each payment extends <strong>one server</strong> by 30 days. If you own multiple servers, each needs its own subscription. Days stack — pay early to build up a buffer.
+          </li>
+          <li className="text-xs text-blue-800 leading-relaxed pl-1">
+            <span className="font-medium">Payments usually process within minutes.</span> If your balance doesn't update immediately, wait a few minutes and refresh the page. If it's still not showing after 2 hours, check your email for a PayPal receipt or contact us on <a href="https://discord.gg/738AmkeQtU" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline underline-offset-2 hover:text-blue-800 transition">Discord</a>.
+          </li>
+          <li className="text-xs text-blue-800 leading-relaxed pl-1">
+            <span className="font-medium">All features included — no tiers, no hidden fees.</span> $9.99 unlocks everything: boss tracking, Discord bot, leaderboards, analytics, inventory, multi-guild rotation, AI rally scanning, and more. No per-feature upsells.
+          </li>
+          <li className="text-xs text-blue-800 leading-relaxed pl-1">
+            <span className="font-medium">Refunds are available within 7 days</span> of purchase if you haven't used the service. See our <a href="/refund" className="text-blue-600 underline underline-offset-2 hover:text-blue-800 transition">Refund Policy</a> for details.
+          </li>
+          <li className="text-xs text-blue-800 leading-relaxed pl-1">
+            <span className="font-medium">Payments are secure.</span> All transactions are processed by PayPal — we never see or store your card or banking details.
+          </li>
+        </ol>
+      </div>
+
       {/* ── Footer note ── */}
       <p className="text-center text-[11px] text-[#52525b]">
         Payments are processed securely by PayPal. Each payment extends server access by 30 days.
