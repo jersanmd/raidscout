@@ -1,4 +1,4 @@
-import { Suspense, lazy, useEffect, type ComponentType } from "react";
+import { Suspense, lazy, useEffect, useRef, useState, type ComponentType } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
@@ -121,6 +121,21 @@ function AppRoutes() {
   const hasServer = servers.length > 0 && !!currentServer;
   const ready = !serverLoading && !roleLoading;
 
+  // Track whether we've ever seen a server — prevents NoServerView flash
+  // on the very first render after login when data hasn't settled yet.
+  const hasEverHadServer = useRef(false);
+  if (hasServer) hasEverHadServer.current = true;
+
+  // After ready, give the server list a moment to stabilize before showing NoServerView
+  const [showNoServer, setShowNoServer] = useState(false);
+  useEffect(() => {
+    if (ready && !hasServer && !hasEverHadServer.current) {
+      const t = setTimeout(() => setShowNoServer(true), 2000);
+      return () => clearTimeout(t);
+    }
+    if (hasServer) setShowNoServer(false);
+  }, [ready, hasServer]);
+
   // Dynamically set the page title to the current server name
   useEffect(() => {
     document.title = currentServer?.name || "RaidScout";
@@ -144,6 +159,8 @@ function AppRoutes() {
         path="/"
         element={
           !ready ? (
+            <FullScreenLoader message="Preparing your servers..." />
+          ) : !hasServer && !showNoServer ? (
             <FullScreenLoader message="Preparing your servers..." />
           ) : !hasServer && isAdmin && !localStorage.getItem("lordnine-current-server-id") ? (
             <Navigate to="/admin" replace />

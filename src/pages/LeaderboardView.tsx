@@ -729,7 +729,7 @@ export function LeaderboardView() {
             attendees.size,
             dateFmt.format(new Date(death.death_time)),
             timeFmt.format(new Date(death.death_time)),
-            boss?.name || "?",
+            `${boss?.name || "?"}${isAssist ? ` \u2014 ${assistLabel}` : ""}`,
             leaderName,
             salaryYes,
           ];
@@ -751,7 +751,7 @@ export function LeaderboardView() {
           html += `<tr>`;
           if (ri < dataRows.length) {
             const row = dataRows[ri];
-            html += `<td class="${cls}">${row[0]}</td><td class="${cls}">${row[1]}</td><td class="${cls}">${row[2]}</td><td class="boss ${cls}">${row[3]}</td><td class="${cls}">${row[4] || ""}</td><td class="num ${cls}" style="color:${row[5] === 'YES' ? '#34D399' : '#64748B'}">${row[5]}</td>`;
+            html += `<td class="${cls}">${row[0]}</td><td class="${cls}">${row[1]}</td><td class="${cls}">${row[2]}</td><td class="boss ${cls}" style="text-align:left">${row[3]}</td><td class="${cls}">${row[4] || ""}</td><td class="num ${cls}" style="color:${row[5] === 'YES' ? '#34D399' : '#64748B'}">${row[5]}</td>`;
             for (let c = 6; c < row.length; c++) {
               html += `<td class="${cls} ${row[c] > 0 ? 'pts-yes' : 'pts-no'}">${row[c] || ""}</td>`;
             }

@@ -1,5 +1,5 @@
 import { useMemo, useState, useCallback, useEffect } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { useBosses } from "@/hooks/useBosses";
 import { useDeathRecords } from "@/hooks/useDeathRecords";
 import { useAuth } from "@/contexts/AuthContext";
@@ -43,6 +43,33 @@ export function WeeklyScheduleView() {
     refetchBosses();
     refetchDeaths();
   }, []);
+
+  // Batch-fetch attendance counts for death records in the current week
+  const deathRecordIds = useMemo(() =>
+    [...new Set(deathRecords.filter(dr => !dr.is_initial_spawn).map(dr => dr.id))],
+  [deathRecords]);
+  const { data: attendanceCounts } = useQuery({
+    queryKey: ["attendance_counts", deathRecordIds],
+    queryFn: async () => {
+      if (!deathRecordIds.length) return new Map<string, number>();
+      const map = new Map<string, number>();
+      // Batch in groups of 100 to avoid URL limits
+      for (let i = 0; i < deathRecordIds.length; i += 100) {
+        const batch = deathRecordIds.slice(i, i + 100);
+        const { data, error } = await supabase
+          .from("attendance_records")
+          .select("death_record_id")
+          .in("death_record_id", batch);
+        if (error) { console.warn("attendance batch fetch:", error); continue; }
+        for (const r of (data ?? [])) {
+          map.set(r.death_record_id, (map.get(r.death_record_id) || 0) + 1);
+        }
+      }
+      return map;
+    },
+    enabled: deathRecordIds.length > 0,
+    staleTime: 30_000,
+  });
   const queryClient = useQueryClient();
   const [weekOffset, setWeekOffset] = useState(0);
   const [weekLoading, setWeekLoading] = useState(false);
@@ -457,7 +484,20 @@ export function WeeklyScheduleView() {
                         <div className="flex items-center gap-2">
                           <span className={`w-2 h-2 rounded-full ${isDeathEvent ? "bg-[#a1a1aa]" : "bg-[#a1a1aa]"}`} />
                           <span className="text-[#fafafa] text-sm">{s.boss.name}</span>
-                          {isDeathEvent && <span className="text-[10px] text-red-400 inline-flex items-center gap-1">Killed <Users className="w-3 h-3" /></span>}
+                          {isDeathEvent && (
+                            <span className="text-[10px] text-red-400 inline-flex items-center gap-1">
+                              Killed <Users className="w-3 h-3" />
+                              {(() => {
+                                const attCount = s.deathRecord ? (attendanceCounts?.get(s.deathRecord.id) ?? 0) : 0;
+                                if (attCount === 0) return null;
+                                return (
+                                  <span className="inline-flex items-center gap-0.5 ml-1 px-1.5 py-0.5 rounded-full bg-emerald-900/40 border border-emerald-700/50 text-[#6ee7b7] text-[9px] font-bold">
+                                    <CheckCheck className="w-2.5 h-2.5" />{attCount}
+                                  </span>
+                                );
+                              })()}
+                            </span>
+                          )}
                         </div>
                         <div className="text-right">
                           <span className="text-[#a1a1aa] text-sm">{s.nextSpawn?.toLocaleTimeString("en-US", { timeZone: userTz, hour: "2-digit", minute: "2-digit" })}</span>
@@ -604,6 +644,15 @@ export function WeeklyScheduleView() {
                         {isDeathEvent && (
                           <span className="text-[10px] text-red-400 font-medium flex items-center gap-1">
                             Killed <Users className="w-3 h-3" />
+                            {(() => {
+                              const attCount = s.deathRecord ? (attendanceCounts?.get(s.deathRecord.id) ?? 0) : 0;
+                              if (attCount === 0) return null;
+                              return (
+                                <span className="inline-flex items-center gap-0.5 ml-1 px-1.5 py-0.5 rounded-full bg-emerald-900/40 border border-emerald-700/50 text-[#6ee7b7] text-[9px] font-bold">
+                                  <CheckCheck className="w-2.5 h-2.5" />{attCount}
+                                </span>
+                              );
+                            })()}
                           </span>
                         )}
                       </div>

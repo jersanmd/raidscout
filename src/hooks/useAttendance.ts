@@ -46,6 +46,7 @@ export function useAddAttendance() {
     },
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["attendance", variables.deathRecordId] });
+      queryClient.invalidateQueries({ queryKey: ["attendance_counts"] });
       queryClient.invalidateQueries({ queryKey: ["leaderboard"] });
       queryClient.invalidateQueries({ queryKey: ["analytics"] });
     },
@@ -69,6 +70,7 @@ export function useRemoveAttendance() {
     },
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["attendance", variables.deathRecordId] });
+      queryClient.invalidateQueries({ queryKey: ["attendance_counts"] });
       queryClient.invalidateQueries({ queryKey: ["leaderboard"] });
       queryClient.invalidateQueries({ queryKey: ["analytics"] });
     },

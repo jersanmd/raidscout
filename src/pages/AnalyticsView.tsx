@@ -1,22 +1,43 @@
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useRef, useCallback } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { fetchAnalytics, type AnalyticsData, isSupabaseConfigured, fetchGuilds, fetchMembers } from "@/lib/supabase";
+import { fetchAnalytics, type AnalyticsData, isSupabaseConfigured, fetchGuilds, fetchMembers, supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { useServerId } from "@/contexts/ServerContext";
 import { guildColor } from "@/lib/constants";
 import type { Guild, Member } from "@/types";
-import { BarChart3, TrendingUp, Users, Skull, Activity, Loader2, Shield, Download } from "lucide-react";
+import { BarChart3, TrendingUp, Users, Skull, Activity, Loader2, Shield, Swords, HandMetal, ShieldHalf, ShieldCheck, Gavel, Axe, Crosshair, Target, Wand, Heart, Zap, Flame, Snowflake, Star, Crown, Anchor, Footprints, Sword, Tag } from "lucide-react";
 import { useServerTimezone } from "@/hooks/useServerTimezone";
+
+const CLASS_ICONS: { name: string; icon: React.ElementType }[] = [
+  { name: "Sword", icon: Sword }, { name: "Swords", icon: Swords },
+  { name: "HandMetal", icon: HandMetal }, { name: "ShieldIcon", icon: Shield },
+  { name: "ShieldHalf", icon: ShieldHalf }, { name: "ShieldCheck", icon: ShieldCheck },
+  { name: "Gavel", icon: Gavel }, { name: "Axe", icon: Axe },
+  { name: "Crosshair", icon: Crosshair }, { name: "Target", icon: Target },
+  { name: "Wand", icon: Wand }, { name: "Heart", icon: Heart },
+  { name: "Zap", icon: Zap }, { name: "Flame", icon: Flame },
+  { name: "Snowflake", icon: Snowflake }, { name: "Star", icon: Star },
+  { name: "Crown", icon: Crown }, { name: "Anchor", icon: Anchor },
+  { name: "Footprints", icon: Footprints },
+];
+
+function getClassIcon(iconName: string): React.ElementType {
+  return CLASS_ICONS.find(c => c.name === iconName)?.icon ?? Tag;
+}
 
 interface AnalyticsUIData {
   totalKills: number;
   totalAttendance: number;
   activeMembers: number;
-  killsByWeek: { week: string; count: number }[];
+  killsByDate: { date: string; count: number }[];
+  killsByDateDetail: { date: string; count: number; bosses: { name: string; guild: string | null; kills: number }[] }[];
+  killsByGuildSeries: { guild: string | null; data: { date: string; count: number }[] }[];
   topBosses: { name: string; kills: number }[];
+  topBossesByGuild: { name: string; kills: number; avg_attendance: number; by_guild: { guild: string | null; count: number }[] }[];
   topHunters: { name: string; attended: number }[];
   killsByDay: { day: string; count: number }[];
+  killsByDayByGuild: { day: string; count: number; by_guild: { guild: string | null; count: number }[] }[];
   totalActivities: number;
   activityParticipation: number;
 }
@@ -37,14 +58,14 @@ export function AnalyticsView() {
   };
   const [huntersPage, setHuntersPage] = useState(1);
   const HUNTERS_PER_PAGE = 10;
+  const [cpPage, setCpPage] = useState(1);
+  const CP_PER_PAGE = 10;
   const BOSSES_PER_PAGE = 10;
   const [bossesPage, setBossesPage] = useState(1);
-  const WEEKS_PER_PAGE = 5;
-  const [weeksPage, setWeeksPage] = useState(1);
   const tz = useServerTimezone();
 
   // Reset pagination when period changes
-  useEffect(() => { setHuntersPage(1); }, [period]);
+  useEffect(() => { setHuntersPage(1); setCpPage(1); }, [period]);
 
   // Guild & member data for badges — cached via React Query
   const { data: guilds = [] } = useQuery({
@@ -60,6 +81,62 @@ export function AnalyticsView() {
     enabled: !!serverId,
   });
   const memberGuildMap = new Map(members.map(m => [m.name, m.guild_id]));
+  const memberClassMap = new Map<string, string>();
+  for (const m of members) {
+    if (m.class) memberClassMap.set(m.name, m.class);
+  }
+  const { data: { classIcons, classColors } = { classIcons: {}, classColors: {} } } = useQuery({
+    queryKey: ["classMeta", serverId],
+    queryFn: async () => {
+      const { data } = await supabase.from("server_classes").select("name, icon, color").eq("server_id", serverId);
+      const icons: Record<string, string> = {};
+      const colors: Record<string, string> = {};
+      for (const row of (data ?? [])) {
+        icons[row.name] = row.icon;
+        colors[row.name] = row.color || "#a1a1aa";
+      }
+      return { classIcons: icons, classColors: colors };
+    },
+    staleTime: 60_000,
+    enabled: !!serverId,
+  });
+
+  // CP growth data
+  // CP growth — RPC returns 7d, 30d, and all-time growth
+  const { data: cpGrowthMap } = useQuery({
+    queryKey: ["cpGrowth", serverId],
+    queryFn: async () => {
+      const map7 = new Map<string, number>();
+      const map30 = new Map<string, number>();
+      const mapAll = new Map<string, number>();
+      if (!serverId) return { map7, map30, mapAll };
+      const { data, error } = await supabase.rpc("get_member_growth", { p_server_id: serverId });
+      if (error || !data) return { map7, map30, mapAll };
+      for (const r of (data as any[])) {
+        if (r.growth_7d > 0) map7.set(r.member_id, r.growth_7d);
+        if (r.growth_30d > 0) map30.set(r.member_id, r.growth_30d);
+        if (r.growth_all > 0) mapAll.set(r.member_id, r.growth_all);
+      }
+      return { map7, map30, mapAll };
+    },
+    staleTime: 60_000,
+    enabled: !!serverId,
+  });
+
+  // Primary list: all members with CP, sorted highest first
+  const cpList = useMemo(() => {
+    const growthMap = period === "week" ? cpGrowthMap?.map7 ?? new Map()
+      : period === "month" ? cpGrowthMap?.map30 ?? new Map()
+      : cpGrowthMap?.mapAll ?? new Map();
+    return members
+      .filter(m => m.combat_power != null)
+      .map(m => ({
+        member_id: m.id, player_name: m.name,
+        current_cp: m.combat_power ?? 0,
+        growth: growthMap.get(m.id) ?? 0,
+      }))
+      .sort((a, b) => b.current_cp - a.current_cp);
+  }, [members, cpGrowthMap, period]);
 
   const { data, isLoading } = useQuery<AnalyticsUIData>({
     queryKey: ["analytics", period, serverId, tz],
@@ -107,13 +184,14 @@ export function AnalyticsView() {
         totalKills: raw.total_kills,
         totalAttendance: raw.total_attendance,
         activeMembers: raw.active_members,
-        killsByWeek: (raw.kills_by_week ?? []).map((w: any) => ({
-          week: w.week_label ?? w.week,
-          count: w.count,
-        })),
+        killsByDate: raw.kills_by_date ?? [],
+        killsByDateDetail: raw.kills_by_date_detail ?? [],
+        killsByGuildSeries: raw.kills_by_guild_series ?? [],
         topBosses: raw.top_bosses ?? [],
+        topBossesByGuild: raw.top_bosses_by_guild ?? [],
         topHunters: raw.top_hunters ?? [],
         killsByDay: raw.kills_by_day ?? [],
+        killsByDayByGuild: raw.kills_by_day_by_guild ?? [],
         totalActivities: raw.total_activities ?? 0,
         activityParticipation: raw.activity_participation ?? 0,
       };
@@ -124,88 +202,6 @@ export function AnalyticsView() {
     enabled: configured && !!serverId,
   });
 
-  const [exportLoading, setExportLoading] = useState(false);
-
-  const handleExportAnalytics = () => {
-    if (!data) return;
-    setExportLoading(true);
-    try {
-      const periodLabel = period === "week" ? "This Week" : period === "month" ? "This Month" : "All Time";
-      const memberGuildMap = new Map(members.map(m => [m.name, m.guild_id]));
-
-      let c1 = "", c2 = "", c3 = "", c4 = "";
-
-      if (data.killsByWeek.length > 0) {
-        c1 += `<table><tr><th class="hdr" colspan="2">Kills per Week</th></tr><tr class="shdr"><td>Week</td><td style="text-align:center">Kills</td></tr>`;
-        data.killsByWeek.slice(-12).reverse().forEach((w, i) => {
-          c1 += `<tr class="${i % 2 === 0 ? "e" : "o"}"><td class="nm">${w.week}</td><td class="num">${w.count}</td></tr>`;
-        });
-        c1 += `</table>`;
-      }
-
-      c2 += `<table><tr><th class="hdr" colspan="2">Activity by Day</th></tr><tr class="shdr"><td>Day</td><td style="text-align:center">Kills</td></tr>`;
-      data.killsByDay.forEach((d, i) => {
-        c2 += `<tr class="${i % 2 === 0 ? "e" : "o"}"><td class="nm">${d.day}</td><td class="num">${d.count}</td></tr>`;
-      });
-      c2 += `</table>`;
-
-      c3 += `<table><tr><th class="hdr" colspan="3">Most Killed Bosses</th></tr><tr class="shdr"><td>#</td><td>Boss</td><td style="text-align:center">Kills</td></tr>`;
-      data.topBosses.forEach((b, i) => {
-        c3 += `<tr class="${i % 2 === 0 ? "e" : "o"}"><td class="rnk">${i + 1}</td><td class="nm">${b.name}</td><td class="num">${b.kills}</td></tr>`;
-      });
-      c3 += `</table>`;
-
-      c4 += `<table><tr><th class="hdr" colspan="4">Most Active Hunters</th></tr><tr class="shdr"><td>#</td><td>Player</td><td>Guild</td><td style="text-align:center">Att</td></tr>`;
-      data.topHunters.forEach((h, i) => {
-        const gid = memberGuildMap.get(h.name);
-        const guild = gid ? guilds.find(g => g.id === gid) : null;
-        c4 += `<tr class="${i % 2 === 0 ? "e" : "o"}"><td class="rnk">${i + 1}</td><td class="nm">${h.name}</td><td class="gld">${guild?.name || ""}</td><td class="num">${h.attended}</td></tr>`;
-      });
-      c4 += `</table>`;
-
-      const html = `<html><head><meta charset="utf-8"><style>
-        body { background: #0F172A; font-family: -apple-system, sans-serif; padding: 16px; }
-        .title { color: #F8FAFC; font-size: 18px; font-weight: bold; margin-bottom: 4px; }
-        .subtitle { color: #64748B; font-size: 12px; margin-bottom: 16px; }
-        table { border-collapse: collapse; width: 100%; margin-bottom: 0; }
-        th, td { padding: 6px 10px; border: 1px solid #334155; font-size: 11px; }
-        .hdr { background: #7C3AED; color: #fff; font-weight: bold; text-align: left; }
-        .shdr { background: #1E293B; color: #94A3B8; font-weight: bold; }
-        .e { background: #1E293B; color: #E2E8F0; }
-        .o { background: #0F172A; color: #E2E8F0; }
-        .num { text-align: center; font-weight: bold; color: #FBBF24; }
-        .rnk { text-align: center; color: #64748B; width: 30px; }
-        .nm { color: #E2E8F0; }
-        .gld { color: #94A3B8; font-size: 10px; }
-        .sum { background: #1E293B; }
-        .sval { text-align: center; font-weight: bold; font-size: 20px; }
-        .slbl { color: #94A3B8; text-align: center; font-size: 10px; padding-top: 2px; }
-</style></head><body>
-<div class="title">RaidScout Analytics</div>
-<div class="subtitle">${periodLabel} · ${new Date().toLocaleDateString()}</div>
-<table><tr>
-  <td class="sum" style="width:33%"><div class="sval" style="color:#F87171">${data.totalKills}</div><div class="slbl">Total Kills</div></td>
-  <td class="sum" style="width:33%"><div class="sval" style="color:#60A5FA">${data.activeMembers}</div><div class="slbl">Active Members</div></td>
-  <td class="sum" style="width:33%"><div class="sval" style="color:#FBBF24">${data.totalAttendance}</div><div class="slbl">Attendances</div></td>
-</tr></table>
-<table><tr>
-  <td style="width:25%;vertical-align:top;padding:0 6px 0 0">${c1}</td>
-  <td style="width:25%;vertical-align:top;padding:0 6px">${c2}</td>
-  <td style="width:25%;vertical-align:top;padding:0 6px">${c3}</td>
-  <td style="width:25%;vertical-align:top;padding:0 0 0 6px">${c4}</td>
-</tr></table></body></html>`;
-
-      const blob = new Blob([html], { type: "application/vnd.ms-excel;charset=utf-8" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `analytics-${period}-${new Date().toISOString().slice(0,10)}.xls`;
-      a.click();
-      URL.revokeObjectURL(url);
-    } catch (err) { console.error("Export failed:", err); alert("Export failed."); }
-    finally { setExportLoading(false); }
-  };
-
   if (isLoading || !data) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -214,7 +210,6 @@ export function AnalyticsView() {
     );
   }
 
-  const maxWeeklyKills = Math.max(...data.killsByWeek.map((w) => w.count), 1);
   const maxBossKills = Math.max(...data.topBosses.map((b) => b.kills), 1);
   const maxAttended = Math.max(...data.topHunters.map((h) => h.attended), 1);
   const maxDaily = Math.max(...data.killsByDay.map((d) => d.count), 1);
@@ -241,16 +236,6 @@ export function AnalyticsView() {
             </button>
           ))}
         </div>
-        {!isViewer && (
-        <button
-          onClick={handleExportAnalytics}
-          disabled={exportLoading}
-          className="flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-medium bg-[#fafafa] text-[#09090b] hover:bg-[#e4e4e7] transition disabled:opacity-50"
-        >
-          {exportLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Download className="w-3 h-3" />}
-          Export
-        </button>
-        )}
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
@@ -260,28 +245,18 @@ export function AnalyticsView() {
         <StatCard icon={<span className="text-sm">📅</span>} label="Activities" value={data.totalActivities} color="text-[#a1a1aa]" bg="bg-[#18181b] border-[#27272a]" />
       </div>
 
-      {period !== "week" && (
-      <Section title="Kills per Week" icon={<TrendingUp className="w-4 h-4" />}>
-        <div className="space-y-1.5">
-          {data.killsByWeek.slice(-(weeksPage * WEEKS_PER_PAGE)).reverse().map((w) => (
-            <div key={w.week} className="flex items-center gap-2 text-sm">
-              <span className="text-[#a1a1aa] w-20 shrink-0 text-left">{w.week}</span>
-              <div className="flex-1 h-6 bg-[#18181b] rounded overflow-hidden">
-                <div className="h-full bg-gradient-to-r from-[#3f3f46] to-[#52525b] rounded flex items-center justify-end px-2" style={{ width: `${Math.max((w.count / maxWeeklyKills) * 100, 8)}%` }}>
-                  <span className="text-xs text-[#fafafa] font-mono font-bold drop-shadow">{w.count}</span>
-                </div>
-              </div>
-            </div>
-          ))}
-          {data.killsByWeek.length > weeksPage * WEEKS_PER_PAGE && (
-            <button onClick={() => setWeeksPage(p => p + 1)} className="w-full py-1.5 text-xs text-[#a1a1aa] hover:text-[#d4d4d8] hover:bg-[#18181b]/50 rounded transition">Show more ({data.killsByWeek.length - weeksPage * WEEKS_PER_PAGE} remaining)</button>
-          )}
-          {weeksPage > 1 && (
-            <button onClick={() => setWeeksPage(1)} className="w-full py-1.5 text-xs text-[#71717a] hover:text-[#d4d4d8] hover:bg-[#18181b]/50 rounded transition">Show less</button>
-          )}
-        </div>
+      <Section title="Kills per Day" icon={<TrendingUp className="w-4 h-4" />}>
+        {data.killsByDate.length === 0 ? (
+          <p className="text-sm text-[#52525b] text-center py-4">No kill data for this period.</p>
+        ) : (
+          <KillsTrendChart
+            dates={data.killsByDate.map(d => d.date)}
+            series={data.killsByGuildSeries}
+            detail={data.killsByDateDetail}
+            guilds={guilds}
+          />
+        )}
       </Section>
-      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
       <Section title="Most Active Hunters" icon={<Users className="w-4 h-4" />}>
@@ -290,19 +265,28 @@ export function AnalyticsView() {
             const gid = memberGuildMap.get(h.name);
             const guild = gid ? guilds.find(g => g.id === gid) : null;
             const c = guild ? guildColor(guild.name) : null;
+            const cls = memberClassMap.get(h.name);
             return (
             <div key={h.name} className="flex items-center gap-2 text-sm">
               <span className="text-[#a1a1aa] w-5 shrink-0 text-left">{i + 1}.</span>
+              {cls && classIcons[cls] ? (() => { const CIcon = getClassIcon(classIcons[cls]); const color = classColors[cls] || "#a1a1aa"; return <CIcon className="w-3.5 h-3.5 shrink-0" style={{ color }} />; })() : <span className="w-3.5 h-3.5 shrink-0" />}
               <span className="text-[#fafafa] w-24 shrink-0 truncate text-left">{h.name}</span>
-              {guild && c && (
-                <span className={`text-[10px] px-1.5 py-0.5 rounded border shrink-0 ${c.bg} ${c.text} ${c.border}`}>
-                  <Shield className="w-2.5 h-2.5 inline mr-0.5" />{guild.name}
-                </span>
-              )}
+              <span className="w-20 shrink-0 inline-flex items-center">
+                {guild && c && (
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded border shrink-0 ${c.bg} ${c.text} ${c.border}`}>
+                    <Shield className="w-2.5 h-2.5 inline mr-0.5" />{guild.name}
+                  </span>
+                )}
+              </span>
               <div className="flex-1 h-6 bg-[#18181b] rounded overflow-hidden">
-                <div className="h-full bg-gradient-to-r from-[#3f3f46] to-[#52525b] rounded flex items-center justify-end px-2" style={{ width: `${Math.max((h.attended / maxAttended) * 100, 8)}%` }}>
-                  <span className="text-xs text-[#fafafa] font-mono font-bold drop-shadow">{h.attended}</span>
-                </div>
+                {(() => {
+                  const barColor = guild ? resolveBarColor(guild.name, guilds.findIndex(x => x.id === guild.id), guilds) : "#3f3f46";
+                  return (
+                    <div className="h-full rounded flex items-center justify-end px-2" style={{ width: `${Math.max((h.attended / maxAttended) * 100, 8)}%`, backgroundColor: barColor }}>
+                      <span className="text-xs text-white/80 font-mono font-bold drop-shadow-sm">{h.attended}</span>
+                    </div>
+                  );
+                })()}
               </div>
             </div>
           )})}
@@ -325,43 +309,126 @@ export function AnalyticsView() {
         </div>
       </Section>
 
-      <Section title="Most Killed Bosses" icon={<Skull className="w-4 h-4" />}>
+      <Section title="Top Combat Power" icon={<TrendingUp className="w-4 h-4" />}>
         <div className="space-y-1.5">
-          {data.topBosses.slice(0, bossesPage * BOSSES_PER_PAGE).map((b, i) => (
+          {cpList.length === 0 ? (
+            <p className="text-sm text-[#52525b] text-center py-4">No members with CP yet.</p>
+          ) : (<>
+              {cpList.slice(0, cpPage * CP_PER_PAGE).map((e, i) => {
+              const gid = memberGuildMap.get(e.player_name);
+              const guild = gid ? guilds.find(g => g.id === gid) : null;
+              const c = guild ? guildColor(guild.name) : null;
+              const cls = memberClassMap.get(e.player_name);
+              const pct = e.growth > 0 && e.current_cp > e.growth && (e.current_cp - e.growth) > 0 ? ((e.growth / (e.current_cp - e.growth)) * 100) : 0;
+              const maxCp = cpList[0]?.current_cp ?? 1;
+              return (
+              <div key={e.member_id} className="flex items-center gap-2 text-sm">
+                <span className="text-[#a1a1aa] w-5 shrink-0 text-left">{i + 1}.</span>
+                {cls && classIcons[cls] ? (() => { const CIcon = getClassIcon(classIcons[cls]); const color = classColors[cls] || "#a1a1aa"; return <CIcon className="w-3.5 h-3.5 shrink-0" style={{ color }} />; })() : <span className="w-3.5 h-3.5 shrink-0" />}
+                <span className="text-[#fafafa] w-24 shrink-0 truncate text-left">{e.player_name}</span>
+                <span className="w-20 shrink-0 inline-flex items-center">
+                  {guild && c && (
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded border shrink-0 ${c.bg} ${c.text} ${c.border}`}>
+                      <Shield className="w-2.5 h-2.5 inline mr-0.5" />{guild.name}
+                    </span>
+                  )}
+                </span>
+                <div className="flex-1 h-6 bg-[#18181b] rounded overflow-hidden">
+                  {(() => {
+                    const barColor = guild ? resolveBarColor(guild.name, guilds.findIndex(x => x.id === guild.id), guilds) : "#3f3f46";
+                    return (
+                      <div className="h-full rounded flex items-center justify-end px-2 gap-1" style={{ width: `${Math.max((e.current_cp / maxCp) * 100, 8)}%`, backgroundColor: barColor }}>
+                        <span className="text-[11px] text-white/80 font-mono font-bold drop-shadow-sm">{e.current_cp.toLocaleString()}</span>
+                        {e.growth > 0 && (
+                          <>
+                            <span className="text-[9px] text-white/60 font-mono drop-shadow">+{e.growth.toLocaleString()}</span>
+                            {pct > 0 && pct < 500 && (
+                              <span className="text-[8px] text-white/40">+{pct.toFixed(1)}%</span>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    );
+                  })()}
+                </div>
+              </div>
+              )})}
+              {cpList.length > cpPage * CP_PER_PAGE && (
+                <button onClick={() => setCpPage(p => p + 1)} className="w-full py-1.5 text-xs text-[#a1a1aa] hover:text-[#d4d4d8] hover:bg-[#18181b]/50 rounded transition">
+                  Show more ({cpList.length - cpPage * CP_PER_PAGE} remaining)
+                </button>
+              )}
+              {cpPage > 1 && (
+                <button onClick={() => setCpPage(1)} className="w-full py-1.5 text-xs text-[#71717a] hover:text-[#d4d4d8] hover:bg-[#18181b]/50 rounded transition">Show less</button>
+              )}
+            </>)}
+        </div>
+      </Section>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <Section title="Most Killed Bosses" icon={<Skull className="w-4 h-4" />}>
+        <GuildLegend guilds={guilds} series={data.killsByGuildSeries} />
+        <div className="space-y-1.5">
+          {data.topBossesByGuild.slice(0, bossesPage * BOSSES_PER_PAGE).map((b, i) => (
             <div key={b.name} className="flex items-center gap-2 text-sm">
               <span className="text-[#a1a1aa] w-5 shrink-0 text-left">{i + 1}.</span>
               <span className="text-[#fafafa] w-24 shrink-0 truncate text-left">{b.name}</span>
-              <div className="flex-1 h-6 bg-[#18181b] rounded overflow-hidden">
-                <div className="h-full bg-gradient-to-r from-[#3f3f46] to-[#52525b] rounded flex items-center justify-end px-2" style={{ width: `${Math.max((b.kills / maxBossKills) * 100, 8)}%` }}>
-                  <span className="text-xs text-[#fafafa] font-mono font-bold drop-shadow">{b.kills}</span>
-                </div>
+              <span className="w-10 shrink-0">
+                {b.avg_attendance > 0 && (
+                  <span className="inline-flex items-center gap-0.5 text-[10px] text-[#a1a1aa]" title={`Average ${b.avg_attendance} attendees per kill`}>
+                    <Users className="w-3 h-3" />~{b.avg_attendance}
+                  </span>
+                )}
+              </span>
+              <div className="flex-1 h-6 bg-[#18181b] rounded overflow-hidden flex">
+                {b.by_guild.map((g, gi) => {
+                  const color = resolveBarColor(g.guild, gi, guilds);
+                  const pct = Math.max((g.count / maxBossKills) * 100, 1);
+                  return (
+                    <div key={gi} className="h-full flex items-center justify-end px-1.5 relative" style={{ width: `${pct}%`, backgroundColor: color }}>
+                      {pct >= 3 && (
+                        <span className="text-[10px] text-white/80 font-mono font-bold drop-shadow-sm">{g.count}</span>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           ))}
-          {data.topBosses.length > bossesPage * BOSSES_PER_PAGE && (
-            <button onClick={() => setBossesPage(p => p + 1)} className="w-full py-1.5 text-xs text-[#a1a1aa] hover:text-[#d4d4d8] hover:bg-[#18181b]/50 rounded transition">Show more ({data.topBosses.length - bossesPage * BOSSES_PER_PAGE} remaining)</button>
+          {data.topBossesByGuild.length > bossesPage * BOSSES_PER_PAGE && (
+            <button onClick={() => setBossesPage(p => p + 1)} className="w-full py-1.5 text-xs text-[#a1a1aa] hover:text-[#d4d4d8] hover:bg-[#18181b]/50 rounded transition">Show more ({data.topBossesByGuild.length - bossesPage * BOSSES_PER_PAGE} remaining)</button>
           )}
           {bossesPage > 1 && (
             <button onClick={() => setBossesPage(1)} className="w-full py-1.5 text-xs text-[#71717a] hover:text-[#d4d4d8] hover:bg-[#18181b]/50 rounded transition">Show less</button>
           )}
         </div>
       </Section>
-      </div>
 
       <Section title="Activity by Day" icon={<Activity className="w-4 h-4" />}>
+        <GuildLegend guilds={guilds} series={data.killsByGuildSeries} />
         <div className="space-y-1.5">
-          {data.killsByDay.map((d) => (
+          {data.killsByDayByGuild.map((d) => (
             <div key={d.day} className="flex items-center gap-2 text-sm">
               <span className="text-[#a1a1aa] w-12 shrink-0 text-xs">{d.day.slice(0, 3)}</span>
-              <div className="flex-1 h-6 bg-[#18181b] rounded overflow-hidden">
-                <div className="h-full bg-gradient-to-r from-[#3f3f46] to-[#52525b] rounded flex items-center justify-end px-2" style={{ width: `${Math.max((d.count / maxDaily) * 100, 8)}%` }}>
-                  <span className="text-xs text-[#fafafa] font-mono font-bold drop-shadow">{d.count}</span>
-                </div>
+              <div className="flex-1 h-6 bg-[#18181b] rounded overflow-hidden flex">
+                {d.by_guild.map((g, gi) => {
+                  const color = resolveBarColor(g.guild, gi, guilds);
+                  const pct = Math.max((g.count / maxDaily) * 100, 1);
+                  return (
+                    <div key={gi} className="h-full flex items-center justify-end px-1.5 relative" style={{ width: `${pct}%`, backgroundColor: color }}>
+                      {pct >= 3 && (
+                        <span className="text-[10px] text-white/80 font-mono font-bold drop-shadow-sm">{g.count}</span>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           ))}
         </div>
       </Section>
+      </div>
     </div>
   );
 }
@@ -385,10 +452,336 @@ function Section({ title, icon, children }: { title: string; icon: React.ReactNo
   );
 }
 
+// ── Guild color legend for bar charts ─────────────────────
+
+function GuildLegend({ guilds, series }: { guilds: Guild[]; series: { guild: string | null; data: { date: string; count: number }[] }[] }) {
+  return (
+    <div className="flex items-center gap-3 mb-1">
+      {series.map((s, si) => {
+        const label = s.guild ?? "Unguilded";
+        const color = resolveBarColor(s.guild, si, guilds);
+        return (
+          <div key={si} className="flex items-center gap-1">
+            <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ backgroundColor: color }} />
+            <span className="text-[10px] text-[#71717a]">{label}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function emptyAnalytics(): AnalyticsUIData {
   return {
     totalKills: 0, totalAttendance: 0, activeMembers: 0,
-    killsByWeek: [], topBosses: [], topHunters: [], killsByDay: [],
+    killsByDate: [], killsByDateDetail: [], killsByGuildSeries: [], topBosses: [], topBossesByGuild: [], topHunters: [], killsByDay: [], killsByDayByGuild: [],
     totalActivities: 0, activityParticipation: 0,
   };
+}
+
+// ── SVG Multi-Series Trend Chart ───────────────────────────
+
+const GUILD_LINE_COLORS = [
+  "#a78bfa", // violet
+  "#fbbf24", // amber
+  "#34d399", // emerald
+  "#60a5fa", // blue
+  "#f87171", // red
+  "#fb923c", // orange
+  "#a3e635", // lime
+  "#e879f9", // fuchsia
+];
+const UNASSIGNED_COLOR = "#71717a";
+
+function KillsTrendChart({ dates, series, detail, guilds }: {
+  dates: string[];
+  series: { guild: string | null; data: { date: string; count: number }[] }[];
+  detail: { date: string; count: number; bosses: { name: string; guild: string | null; kills: number }[] }[];
+  guilds: Guild[];
+}) {
+  const W = 800, H = 220;
+  const padL = 50, padR = 20, padT = 22, padB = 32;
+  const chartW = W - padL - padR;
+  const chartH = H - padT - padB;
+  const n = dates.length;
+
+  // Global max across all series
+  const maxCount = Math.max(1, ...series.flatMap(s => s.data.map(d => d.count)));
+
+  const [hoverIdx, setHoverIdx] = useState<number | null>(null);
+  const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const tooltipRef = useRef<HTMLDivElement | null>(null);
+
+  const showTooltip = useCallback((i: number) => {
+    if (hideTimer.current) { clearTimeout(hideTimer.current); hideTimer.current = null; }
+    setHoverIdx(i);
+  }, []);
+
+  const hideTooltip = useCallback(() => {
+    hideTimer.current = setTimeout(() => setHoverIdx(null), 150);
+  }, []);
+
+  const cancelHide = useCallback(() => {
+    if (hideTimer.current) { clearTimeout(hideTimer.current); hideTimer.current = null; }
+  }, []);
+
+  // Y-axis ticks
+  const yTicks = [0, Math.round(maxCount / 2), maxCount];
+
+  // Coordinate helpers
+  const xFor = (i: number) => padL + (n > 1 ? (i / (n - 1)) * chartW : chartW / 2);
+  const yFor = (count: number) => padT + chartH - (count / maxCount) * chartH;
+
+  // X-axis labels
+  const xLabelInterval = Math.max(1, Math.ceil(n / 7));
+
+  // Tooltip position (anchored to the max guild count at hovered index) (anchored to the max guild count at hovered index)
+  const maxAtIdx = hoverIdx != null
+    ? Math.max(...series.map(s => s.data[hoverIdx]?.count ?? 0), 1)
+    : 0;
+  const tooltipPct = hoverIdx != null
+    ? { left: `${(xFor(hoverIdx) / W) * 100}%`, top: `${(yFor(maxAtIdx) / H) * 100}%` }
+    : null;
+
+  return (
+    <div className="relative">
+      {/* Legend */}
+      {series.length > 0 && (
+        <div className="flex flex-wrap gap-x-4 gap-y-1 mb-2 px-1">
+          {series.map((s, si) => {
+            const label = s.guild ?? "Unguilded";
+            const g = s.guild ? guilds.find(x => x.name === s.guild) : null;
+            const c = g ? guildColor(g.name) : null;
+            return (
+              <div key={si} className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: resolveSeriesColor(s.guild, si, guilds) }} />
+                {c && s.guild ? (
+                  <span className={`text-[10px] px-1.5 py-0 rounded border ${c.bg} ${c.text} ${c.border}`}>{s.guild}</span>
+                ) : (
+                  <span className="text-[10px] text-[#a1a1aa]">{label}</span>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Tooltip */}
+      {hoverIdx != null && tooltipPct && (
+        <div
+          ref={tooltipRef}
+          className={`absolute z-20 pointer-events-auto ${hoverIdx > n * 0.7 ? "right-0" : hoverIdx < n * 0.15 ? "left-0" : "-translate-x-1/2"}`}
+          style={hoverIdx > n * 0.7
+            ? { right: `${100 - parseFloat(tooltipPct.left)}%`, bottom: `${100 - parseFloat(tooltipPct.top)}%` }
+            : hoverIdx < n * 0.15
+            ? { left: `${Math.max(0, parseFloat(tooltipPct.left) - 2)}%`, bottom: `${100 - parseFloat(tooltipPct.top)}%` }
+            : { left: tooltipPct.left, bottom: `${100 - parseFloat(tooltipPct.top)}%` }
+          }
+          onMouseEnter={cancelHide}
+          onMouseLeave={hideTooltip}
+        >
+          <div className="bg-[#18181b] border border-[#3f3f46] rounded-lg px-3 py-2 text-[11px] shadow-xl max-w-[240px]"
+               style={{ transform: "translateY(-12px)" }}>
+            <div className="flex items-center gap-2 mb-1.5 pb-1.5 border-b border-[#27272a]">
+              <span className="text-[#a1a1aa] text-[10px]">{dates[hoverIdx]}</span>
+            </div>
+            {/* Per-guild counts */}
+            {series.length > 0 && (
+              <div className="mb-1.5 space-y-0.5">
+                {series.map((s, si) => {
+                  const cnt = s.data[hoverIdx]?.count ?? 0;
+                  if (cnt === 0) return null;
+                  const color = resolveSeriesColor(s.guild, si, guilds);
+                  return (
+                    <div key={si} className="flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
+                      <span className="text-[#e4e4e7] text-[10px]">{s.guild ?? "Unguilded"}</span>
+                      <span className="text-[#a1a1aa] font-mono text-[10px] ml-auto">{cnt}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            {/* Boss list */}
+            {(() => {
+              const d = detail.find(x => x.date === dates[hoverIdx]);
+              if (!d || d.bosses.length === 0) return <span className="text-[#52525b] text-[10px]">No boss data</span>;
+              return (
+                <div className="space-y-1 max-h-[140px] overflow-y-auto pr-1 border-t border-[#27272a] pt-1.5">
+                  {d.bosses.map((b, j) => {
+                    const g = b.guild ? guilds.find(x => x.name === b.guild) : null;
+                    const c = g ? guildColor(g.name) : null;
+                    return (
+                      <div key={j} className="flex items-center gap-1.5">
+                        <span className="text-[#52525b] text-[9px] w-4 shrink-0 text-right">{j + 1}.</span>
+                        <span className="text-[#e4e4e7] truncate text-[10px]">{b.name}</span>
+                        {b.kills > 1 && (
+                          <span className="text-[#a1a1aa] font-mono text-[9px] shrink-0">×{b.kills}</span>
+                        )}
+                        {c && (
+                          <span className={`text-[9px] px-1 py-0 rounded border shrink-0 ml-auto ${c.bg} ${c.text} ${c.border}`}>
+                            {g!.name}
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
+          </div>
+        </div>
+      )}
+
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto" preserveAspectRatio="xMidYMid meet">
+        {/* Grid lines */}
+        {yTicks.map((v, i) => {
+          const y = yFor(v);
+          return (
+            <g key={`gy-${i}`}>
+              <line x1={padL} y1={y} x2={W - padR} y2={y} stroke="#27272a" strokeWidth="1" />
+              <text x={padL - 8} y={y + 4} textAnchor="end" className="text-[10px]" fill="#52525b" fontFamily="monospace">{v}</text>
+            </g>
+          );
+        })}
+
+        {/* X-axis labels */}
+        {dates.map((d, i) => {
+          if (i % xLabelInterval !== 0 && i !== n - 1) return null;
+          return (
+            <text key={`gx-${i}`} x={xFor(i)} y={H - 4} textAnchor="middle" className="text-[9px]" fill="#52525b" fontFamily="monospace">{d.slice(5)}</text>
+          );
+        })}
+
+        {/* Per-guild area fills */}
+        {n > 1 && series.map((s, si) => {
+          const color = resolveSeriesColor(s.guild, si, guilds);
+          const linePts = s.data.map((d, i) => `${xFor(i)},${yFor(d.count)}`).join(" ");
+          const areaPts = `${xFor(0)},${padT + chartH} ${linePts} ${xFor(n - 1)},${padT + chartH}`;
+          return (
+            <polygon key={`area-${si}`} points={areaPts} fill={color} fillOpacity="0.12" className="trend-area" />
+          );
+        })}
+
+        {/* Lines */}
+        {n > 1 && series.map((s, si) => (
+          <polyline
+            key={`line-${si}`}
+            points={s.data.map((d, i) => `${xFor(i)},${yFor(d.count)}`).join(" ")}
+            fill="none"
+            stroke={resolveSeriesColor(s.guild, si, guilds)}
+            strokeWidth="2"
+            strokeLinejoin="round"
+            className="trend-line"
+            style={{ animationDelay: `${si * 0.2}s` }}
+          />
+        ))}
+
+        {/* Hover vertical line */}
+        {hoverIdx != null && (
+          <line
+            x1={xFor(hoverIdx)} y1={padT}
+            x2={xFor(hoverIdx)} y2={padT + chartH}
+            stroke="#3f3f46" strokeWidth="1" strokeDasharray="4 3"
+          />
+        )}
+
+        {/* Per-guild data point dots + labels */}
+        {series.map((s, si) => {
+          const color = resolveSeriesColor(s.guild, si, guilds);
+          const labelInterval = n > 20 ? Math.ceil(n / 10) : 2;
+          return dates.map((_, i) => {
+            const cnt = s.data[i]?.count ?? 0;
+            if (cnt === 0 && n > 10) return null; // skip zero dots on dense charts
+            const cx = xFor(i);
+            const cy = yFor(cnt);
+            const isHovered = hoverIdx === i;
+            const showLabel = cnt > 0 && (i % labelInterval === 0 || i === n - 1 || cnt === maxCount);
+            return (
+              <g key={`dp-${si}-${i}`}>
+                {cnt > 0 && (
+                  <>
+                    <circle cx={cx} cy={cy} r="14" fill="transparent"
+                      onMouseEnter={() => showTooltip(i)}
+                      onMouseLeave={hideTooltip}
+                      style={{ cursor: "pointer" }} />
+                    <circle cx={cx} cy={cy} r={isHovered ? 4 : 2.5}
+                      fill={isHovered ? color : "#18181b"}
+                      stroke={color} strokeWidth={isHovered ? 2 : 1.2}
+                      className="trend-dot transition-all duration-150"
+                      style={{ cursor: "pointer", animationDelay: `${0.8 + i * 0.03}s` }}
+                      onMouseEnter={() => showTooltip(i)}
+                      onMouseLeave={hideTooltip} />
+                    {showLabel && (
+                      <text x={cx} y={cy - 7} textAnchor="middle" className="text-[7px]" fill={color} fontFamily="monospace" fontWeight="bold">{cnt}</text>
+                    )}
+                  </>
+                )}
+              </g>
+            );
+          });
+        })}
+      </svg>
+
+        {/* Animation styles */}
+        <style>{`
+          @keyframes dashDraw {
+            to { stroke-dashoffset: 0; }
+          }
+          @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+          }
+          .trend-line {
+            stroke-dasharray: 1200;
+            stroke-dashoffset: 1200;
+            animation: dashDraw 1.2s ease-out forwards;
+          }
+          .trend-area {
+            opacity: 0;
+            animation: fadeIn 0.6s ease-out 0.4s forwards;
+          }
+          .trend-dot {
+            opacity: 0;
+            animation: fadeIn 0.3s ease-out forwards;
+          }
+        `}</style>
+    </div>
+  );
+}
+
+// Resolve a hex color for a guild series (lighter — for trend lines)
+function resolveSeriesColor(guildName: string | null, idx: number, guilds: Guild[]): string {
+  if (!guildName) return UNASSIGNED_COLOR;
+  const g = guilds.find(x => x.name === guildName);
+  if (!g) return GUILD_LINE_COLORS[idx % GUILD_LINE_COLORS.length];
+  const gc = guildColor(g.name);
+  const colorMap: Record<string, string> = {
+    "red": "#f87171", "orange": "#fb923c", "amber": "#fbbf24", "yellow": "#facc15",
+    "lime": "#a3e635", "green": "#34d399", "emerald": "#34d399", "teal": "#2dd4bf",
+    "cyan": "#22d3ee", "sky": "#38bdf8", "blue": "#60a5fa", "indigo": "#818cf8",
+    "violet": "#a78bfa", "purple": "#c084fc", "fuchsia": "#e879f9", "pink": "#f472b6",
+    "rose": "#fb7185",
+  };
+  const rawCls = gc?.text?.replace("text-", "") ?? "";
+  const cls = rawCls.replace(/-\d+$/, "");
+  return colorMap[cls] ?? GUILD_LINE_COLORS[idx % GUILD_LINE_COLORS.length];
+}
+
+// Darker variant for bar chart backgrounds
+function resolveBarColor(guildName: string | null, idx: number, guilds: Guild[]): string {
+  if (!guildName) return "#52525b";
+  const g = guilds.find(x => x.name === guildName);
+  if (!g) return GUILD_LINE_COLORS[idx % GUILD_LINE_COLORS.length];
+  const gc = guildColor(g.name);
+  const darkMap: Record<string, string> = {
+    "red": "#7f1d1d", "orange": "#7c2d12", "amber": "#78350f", "yellow": "#713f12",
+    "lime": "#365314", "green": "#14532d", "emerald": "#064e3b", "teal": "#134e4a",
+    "cyan": "#164e63", "sky": "#0c4a6e", "blue": "#1e3a5f", "indigo": "#312e81",
+    "violet": "#4c1d95", "purple": "#581c87", "fuchsia": "#701a75", "pink": "#831843",
+    "rose": "#881337",
+  };
+  const rawCls = gc?.text?.replace("text-", "") ?? "";
+  const cls = rawCls.replace(/-\d+$/, "");
+  return darkMap[cls] ?? "#3f3f46";
 }

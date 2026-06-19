@@ -1630,63 +1630,98 @@ export function InventoryView() {
           <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-4">
             <h3 className="text-sm font-semibold text-[#fafafa] mb-4 flex items-center gap-2">
               <BarChart3 className="w-4 h-4 text-[#a1a1aa]" />
-              Items by Category
+              Items Distributed per Day
             </h3>
             {(() => {
-              // Group by category, tracking rarity breakdown
-              const catMap = new Map<string, { name: string; rarities: Record<string, number>; total: number }>();
+              // Compute daily distribution counts per category
+              const dateMap = new Map<string, Map<string, number>>(); // date -> category -> count
               distributions.forEach(d => {
+                const date = d.created_at?.slice(0, 10);
+                if (!date) return;
                 const item = items.find(i => i.id === d.item_id);
-                const rarity = (item?.rarity?.toLowerCase() || "common") as ItemRarity;
                 const catId = item?.category_id;
-                let label: string;
+                let catName: string;
                 if (catId) {
                   const cat = (gameCategories as any[]).find((c: any) => c.id === catId);
-                  label = cat ? (cat.parent_id ? `${(gameCategories as any[]).find((p: any) => p.id === cat.parent_id)?.name ?? ""} / ${cat.name}` : cat.name) : "Unknown";
+                  catName = cat?.name ?? "Uncategorized";
                 } else {
-                  label = "Uncategorized";
+                  catName = "Uncategorized";
                 }
-                let entry = catMap.get(label);
-                if (!entry) { entry = { name: label, rarities: {}, total: 0 }; catMap.set(label, entry); }
-                entry.rarities[rarity] = (entry.rarities[rarity] || 0) + d.quantity;
-                entry.total += d.quantity;
+                if (!dateMap.has(date)) dateMap.set(date, new Map());
+                const cm = dateMap.get(date)!;
+                cm.set(catName, (cm.get(catName) || 0) + d.quantity);
               });
-              const catBars = Array.from(catMap.values()).sort((a, b) => b.total - a.total);
-              const globalMax = catBars[0]?.total || 1;
-              return catBars.length === 0 ? (
-                <p className="text-sm text-[#52525b] text-center py-8">No data yet.</p>
-              ) : (
-                <div className="space-y-2.5">
-                  {catBars.map(cat => {
-                    const pct = Math.max(4, (cat.total / globalMax) * 100);
-                    // Build sorted rarity segments (highest rarity first for visual)
-                    const segments = RARITY_ORDER
-                      .filter(r => cat.rarities[r])
-                      .map(r => ({ rarity: r, count: cat.rarities[r], color: RARITY_COLORS[r] }));
-                    return (
-                      <div key={cat.name} className="flex items-center gap-3">
-                        <p className="text-xs text-[#fafafa] w-32 shrink-0 truncate">{cat.name}</p>
-                        <div className="flex-1 min-w-0">
-                          <div className="h-6 bg-[#09090b] rounded-full overflow-hidden flex">
-                            {segments.map((seg, j) => {
-                              const segPct = (seg.count / cat.total) * pct;
-                              const showLabel = segPct > 8;
-                              return (
-                                <div key={seg.rarity} className="h-full transition-all flex items-center justify-center" style={{ width: `${segPct}%`, backgroundColor: seg.color + "30" }}>
-                                  {showLabel && (
-                                    <span className="text-[10px] font-medium capitalize truncate px-1" style={{ color: seg.color }}>
-                                      {seg.rarity} ({seg.count})
-                                    </span>
-                                  )}
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                        <span className="text-[10px] font-mono font-semibold text-[#a1a1aa] w-8 text-right shrink-0">{cat.total}</span>
+
+              // Build sorted dates and categories
+              const dates = [...dateMap.keys()].sort();
+              const allCategories = [...new Set([...dateMap.values()].flatMap(m => [...m.keys()]))].sort();
+
+              if (dates.length === 0) return <p className="text-sm text-[#52525b] text-center py-8">No data yet.</p>;
+
+              // Build series data per category
+              const CAT_COLORS = ["#a78bfa", "#fbbf24", "#34d399", "#60a5fa", "#f87171", "#fb923c", "#e879f9", "#2dd4bf"];
+              const series = allCategories.map((cat, ci) => ({
+                label: cat,
+                color: CAT_COLORS[ci % CAT_COLORS.length],
+                data: dates.map(date => ({ date, count: dateMap.get(date)?.get(cat) || 0 })),
+              }));
+
+              const W = 800, H = 200, padL = 50, padR = 20, padT = 22, padB = 32;
+              const chartW = W - padL - padR, chartH = H - padT - padB;
+              const n = dates.length;
+              const maxCount = Math.max(1, ...series.flatMap(s => s.data.map(d => d.count)));
+              const xFor = (i: number) => padL + (n > 1 ? (i / (n - 1)) * chartW : chartW / 2);
+              const yFor = (c: number) => padT + chartH - (c / maxCount) * chartH;
+              const xLabelInterval = Math.max(1, Math.ceil(n / 7));
+
+              return (
+                <div>
+                  {/* Legend */}
+                  <div className="flex flex-wrap gap-x-4 gap-y-1 mb-2">
+                    {series.map((s, si) => (
+                      <div key={si} className="flex items-center gap-1.5">
+                        <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: s.color }} />
+                        <span className="text-[10px] text-[#a1a1aa]">{s.label}</span>
                       </div>
-                    );
-                  })}
+                    ))}
+                  </div>
+                  <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto" preserveAspectRatio="xMidYMid meet">
+                    {/* Grid lines */}
+                    {[0, Math.round(maxCount / 2), maxCount].map((v, i) => {
+                      const y = yFor(v);
+                      return (
+                        <g key={`gy-${i}`}>
+                          <line x1={padL} y1={y} x2={W - padR} y2={y} stroke="#27272a" strokeWidth="1" />
+                          <text x={padL - 8} y={y + 4} textAnchor="end" className="text-[10px]" fill="#52525b" fontFamily="monospace">{v}</text>
+                        </g>
+                      );
+                    })}
+                    {/* X-axis labels */}
+                    {dates.map((d, i) => {
+                      if (i % xLabelInterval !== 0 && i !== n - 1) return null;
+                      return <text key={`gx-${i}`} x={xFor(i)} y={H - 4} textAnchor="middle" className="text-[9px]" fill="#52525b" fontFamily="monospace">{d.slice(5)}</text>;
+                    })}
+                    {/* Area fills */}
+                    {series.map((s, si) => {
+                      const linePts = s.data.map((d, i) => `${xFor(i)},${yFor(d.count)}`).join(" ");
+                      const areaPts = `${xFor(0)},${padT + chartH} ${linePts} ${xFor(n - 1)},${padT + chartH}`;
+                      return <polygon key={`area-${si}`} points={areaPts} fill={s.color} fillOpacity="0.12" />;
+                    })}
+                    {/* Lines */}
+                    {series.map((s, si) => (
+                      <polyline key={`line-${si}`} points={s.data.map((d, i) => `${xFor(i)},${yFor(d.count)}`).join(" ")} fill="none" stroke={s.color} strokeWidth="2" strokeLinejoin="round" />
+                    ))}
+                    {/* Dots */}
+                    {series.map((s, si) => (
+                      dates.map((_, i) => {
+                        const cnt = s.data[i]?.count ?? 0;
+                        if (cnt === 0) return null;
+                        return <circle key={`dp-${si}-${i}`} cx={xFor(i)} cy={yFor(cnt)} r="2.5" fill="#18181b" stroke={s.color} strokeWidth="1.2">
+                          <title>{dates[i]}: {s.label} ×{cnt}</title>
+                        </circle>;
+                      })
+                    ))}
+                  </svg>
                 </div>
               );
             })()}
@@ -1745,7 +1780,7 @@ export function InventoryView() {
                             <span className="text-xs font-mono font-semibold text-[#a1a1aa] shrink-0 ml-2">x{stat.total_quantity}</span>
                           </div>
                           <div className="h-1 bg-[#27272a] rounded-full overflow-hidden">
-                            <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: rc }} />
+                            <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: rc, opacity: 0.65 }} />
                           </div>
                         </div>
                       </button>
@@ -1798,19 +1833,15 @@ export function InventoryView() {
                     return (
                       <button key={r.member_id} onClick={() => setSelectedRecipient(r)} className="w-full flex items-center gap-3 py-1.5 group hover:bg-[#27272a]/30 rounded px-1 -mx-1 transition">
                         <span className="text-[10px] font-mono text-[#3f3f46] w-4 shrink-0 text-right">{i + 1}</span>
-                        <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 text-[10px] font-bold ${
-                          i === 0 ? 'bg-amber-500/20 text-amber-400' :
-                          i === 1 ? 'bg-slate-400/20 text-slate-300' :
-                          i === 2 ? 'bg-orange-600/20 text-orange-400' :
-                          'bg-[#27272a] text-[#71717a]'
-                        }`}>
-                          {i + 1}
+                        <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0" style={{ backgroundColor: cc + "20" }}>
+                          {ci && getClassIcon(ci) ? (() => { const CIcon = getClassIcon(ci)!; return <CIcon className="w-3.5 h-3.5" style={{ color: cc }} />; })() : (
+                            <span className="text-[10px] font-bold text-[#71717a]">{i + 1}</span>
+                          )}
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between mb-0.5">
                             <div className="flex items-center gap-2 min-w-0">
                               <p className="text-xs truncate flex items-center gap-1 text-[#fafafa]">
-                                {ci && getClassIcon(ci) && (() => { const CIcon = getClassIcon(ci)!; return <CIcon className="w-3 h-3 shrink-0" style={{ color: cc }} />; })()}
                                 {r.player_name}
                               </p>
                               {gc && g && (
