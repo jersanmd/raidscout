@@ -7,6 +7,7 @@
 import { WebSocket } from "ws";
 import * as http from "http";
 import { TOKEN, setBotUserId, botUserId } from "./bot/config";
+import { SUPABASE_URL, SUPABASE_KEY } from "./bot/config";
 import { installLogging } from "./bot/logging";
 import { LOG_BUFFER } from "./bot/logging";
 import { handleGuildJoin } from "./bot/guild-join";
@@ -163,6 +164,32 @@ http.createServer(async (req, res) => {
     const logs = LOG_BUFFER.slice(-limit).reverse();
     res.writeHead(200, headers);
     return res.end(JSON.stringify({ logs }));
+  }
+
+  // GET /tick-metrics?range=1h — historical tick durations from Supabase
+  if (req.method === "GET" && url.pathname === "/tick-metrics") {
+    const range = url.searchParams.get("range") || "1h";
+    const rangeMs: Record<string, number> = {
+      "1h": 3600000, "3h": 10800000, "6h": 21600000,
+      "12h": 43200000, "1d": 86400000, "3d": 259200000,
+      "5d": 432000000, "7d": 604800000, "14d": 1209600000, "30d": 2592000000,
+    };
+    const since = Date.now() - (rangeMs[range] || 3600000);
+
+    try {
+      const resp = await fetch(
+        `${SUPABASE_URL}/rest/v1/tick_metrics?select=created_at,duration_ms&created_at=gte.${new Date(since).toISOString()}&order=created_at.asc&limit=5000`,
+        { headers: { apikey: SUPABASE_KEY!, Authorization: `Bearer ${SUPABASE_KEY!}` } }
+      );
+      if (!resp.ok) throw new Error(`Supabase returned ${resp.status}`);
+      const rows = (await resp.json()) as any[];
+      const metrics = rows.map((r: any) => ({ ts: new Date(r.created_at).getTime(), duration_ms: r.duration_ms }));
+      res.writeHead(200, headers);
+      return res.end(JSON.stringify({ ok: true, metrics }));
+    } catch (err: any) {
+      res.writeHead(500, headers);
+      return res.end(JSON.stringify({ ok: false, error: err.message }));
+    }
   }
 
   // GET /health — Fly.io health check
