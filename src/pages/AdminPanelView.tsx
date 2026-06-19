@@ -1581,12 +1581,16 @@ function SpawnCronCard({ data, connected }: { data: any; connected: boolean }) {
           </select>
         </div>
         <div className="flex items-center gap-4">
-          <span className="text-[10px] text-[#52525b] font-mono">
-            avg <span className="text-[#a1a1aa]">{(avg / 1000).toFixed(2)}s</span>
-          </span>
-          <span className={`text-[10px] font-mono ${trend === "up" ? "text-emerald-400" : trend === "down" ? "text-rose-400" : "text-[#52525b]"}`}>
-            {trend === "up" ? "▲" : trend === "down" ? "▼" : "─"} {(latest / 1000).toFixed(2)}s
-          </span>
+          <div className="flex items-center gap-1.5 bg-[#18181b] rounded-lg px-3 py-1.5 border border-[#27272a]">
+            <span className="text-[10px] text-[#71717a] font-mono uppercase tracking-wider">avg</span>
+            <span className="text-sm font-bold text-[#fafafa] font-mono">{(avg / 1000).toFixed(2)}<span className="text-[10px] text-[#71717a] ml-0.5">s</span></span>
+          </div>
+          <div className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 border ${trend === "up" ? "bg-emerald-500/10 border-emerald-500/20" : trend === "down" ? "bg-rose-500/10 border-rose-500/20" : "bg-[#18181b] border-[#27272a]"}`}>
+            <span className={`text-xs ${trend === "up" ? "text-emerald-400" : trend === "down" ? "text-rose-400" : "text-[#71717a]"}`}>
+              {trend === "up" ? "▲" : trend === "down" ? "▼" : "─"}
+            </span>
+            <span className={`text-sm font-bold font-mono ${trend === "up" ? "text-emerald-300" : trend === "down" ? "text-rose-300" : "text-[#a1a1aa]"}`}>{(latest / 1000).toFixed(2)}<span className="text-[10px] opacity-60 ml-0.5">s</span></span>
+          </div>
         </div>
       </div>
 
