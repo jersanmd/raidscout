@@ -3407,12 +3407,13 @@ export function ServerActivityLogTab({ serverId }: { serverId: string }) {
       const q = searchQuery.toLowerCase();
       result = result.filter(e => {
         if (formatActionLabel(e.action).toLowerCase().includes(q)) return true;
-        const d = e.details || {};
-        const detailText = d.boss_name || d.activity_name || d.item_name || d.player_name || d.member_name
-          || d.target_email || d.game_name || d.server_name || d.note_preview || d.setting || "";
-        if (String(detailText).toLowerCase().includes(q)) return true;
         const actor = e.actor_email || e.details?.discord_user || "";
         if (actor.toLowerCase().includes(q)) return true;
+        // Search all detail values (skip discord_user and internal keys)
+        const d = e.details || {};
+        for (const v of Object.values(d)) {
+          if (v != null && String(v).toLowerCase().includes(q)) return true;
+        }
         return false;
       });
     }
