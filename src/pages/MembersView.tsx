@@ -1023,7 +1023,7 @@ export function MembersView() {
       {toast && <ToastMessage toast={toast} onDismiss={() => setToast(null)} />}
 
       {/* Tab bar */}
-      <div className="flex items-center gap-1 border-b border-[#27272a] pb-2 overflow-x-auto">
+      <div className="flex flex-wrap items-center gap-1 border-b border-[#27272a] pb-2">
         <button
           onClick={() => setMembersTab("members")}
           className={`px-3 py-1.5 rounded-t-md text-xs font-medium transition whitespace-nowrap shrink-0 ${

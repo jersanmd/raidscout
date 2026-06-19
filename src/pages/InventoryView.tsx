@@ -571,7 +571,7 @@ export function InventoryView() {
       ) : (
         <>
       {/* Tabs */}
-      <div className="flex items-center gap-1 border-b border-[#27272a] pb-2 overflow-x-auto">
+      <div className="flex flex-wrap items-center gap-1 border-b border-[#27272a] pb-2">
         {visibleTabs.map(t => (
           <button
             key={t}
