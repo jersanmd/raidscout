@@ -1518,7 +1518,7 @@ export function InventoryView() {
         }).filter(Boolean))].sort();
         return (
         <div className="space-y-4">
-          <div className="flex items-center justify-between gap-3">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3">
             <div className="flex items-center gap-2 min-w-0">
               <h3 className="text-sm font-semibold text-[#fafafa] flex items-center gap-2 shrink-0">
                 <Users className="w-4 h-4 text-[#a1a1aa]" />
@@ -1552,7 +1552,7 @@ export function InventoryView() {
                 <option value="rarity">Rarity ↑</option>
                 <option value="rarity-desc">Rarity ↓</option>
               </select>
-              <div className="relative ml-auto">
+              <div className="relative sm:ml-auto">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#52525b]" />
                 <input
                   value={recipientSearch}
