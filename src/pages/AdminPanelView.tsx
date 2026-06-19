@@ -923,7 +923,7 @@ export function AdminPanelView() {
           const d = entry.details || {};
           switch (entry.action) {
             case "boss_kill": return `${d.boss_name || "?"} — ${d.attendees ?? 0} attendees${d.guild ? ` (${d.guild})` : ""}`;
-            case "attendance_copy": return `Copied ${d.copied ?? 0} attendees${d.source_boss ? ` from "${d.source_boss}"` : ""}${d.target_boss ? ` to "${d.target_boss}"` : ""}${d.skipped ? ` (${d.skipped} skipped)` : ""}`;
+            case "attendance_copy": return `Copied ${d.copied ?? 0} from ${d.from_boss || "?"}${d.from_time ? ` (${d.from_time})` : ""} → ${d.to_boss || "?"}${d.to_time ? ` (${d.to_time})` : ""}${d.skipped ? ` (${d.skipped} skipped)` : ""}`;
             case "attendance_add": return `${d.member_name || "?"} attended ${d.boss_name || "?"}${d.death_time ? ` (${d.death_time})` : ""}`;
             case "attendance_remove": return `${d.member_name || "?"} removed from ${d.boss_name || "?"}${d.death_time ? ` (${d.death_time})` : ""}`;
             case "member_cp_add": case "member_cp_update": return `${d.player_name || "?"}: ${d.old_cp != null ? Number(d.old_cp).toLocaleString() : "—"} → ${d.new_cp != null ? Number(d.new_cp).toLocaleString() : "?"}`;

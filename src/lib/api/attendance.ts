@@ -171,12 +171,25 @@ export async function copyAttendanceToDeath(
   }));
 
   const { data: { session } } = await supabase.auth.getSession();
+
+  // Fetch boss names and death times for audit
+  let sourceBoss = sourceDeathRecordId, targetBoss = targetDeathRecordId, sourceTime = "", targetTime = "";
+  try {
+    const { data: drs } = await supabase.from("death_records").select("id,death_time,boss_id,bosses(name)").in("id", [sourceDeathRecordId, targetDeathRecordId]);
+    for (const dr of (drs || [])) {
+      const bossName = (dr as any).bosses?.name || "?";
+      const dt = (dr as any).death_time ? new Date((dr as any).death_time).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "";
+      if (dr.id === sourceDeathRecordId) { sourceBoss = bossName; sourceTime = dt; }
+      if (dr.id === targetDeathRecordId) { targetBoss = bossName; targetTime = dt; }
+    }
+  } catch { /* non-critical */ }
+
   if (session?.user) {
     const { error } = await supabase
       .from("attendance_records")
       .insert(rows);
     if (error) throw error;
-    writeAuditEntry({ action: AuditAction.ATTENDANCE_COPY, server_id: sid!, details: { copied: rows.length, skipped, attendees: rows.length } });
+    writeAuditEntry({ action: AuditAction.ATTENDANCE_COPY, server_id: sid!, details: { copied: rows.length, skipped, from_boss: sourceBoss, from_time: sourceTime, to_boss: targetBoss, to_time: targetTime } });
     return { copied: rows.length, skipped };
   }
 
@@ -193,7 +206,7 @@ export async function copyAttendanceToDeath(
         });
       if (!error) copied++;
     }
-    writeAuditEntry({ action: AuditAction.ATTENDANCE_COPY, server_id: sid!, details: { copied, skipped: rows.length - copied, attendees: copied }, viewer_key: viewerKey });
+    writeAuditEntry({ action: AuditAction.ATTENDANCE_COPY, server_id: sid!, details: { copied, skipped: rows.length - copied, from_boss: sourceBoss, from_time: sourceTime, to_boss: targetBoss, to_time: targetTime }, viewer_key: viewerKey });
     return { copied, skipped: rows.length - copied };
   }
 
