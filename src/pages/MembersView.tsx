@@ -2012,6 +2012,7 @@ export function MembersView() {
                                   const cls = e.target.value || null;
                                   try {
                                     await supabase.from("members").update({ class: cls }).eq("id", m.id);
+                                    writeAuditEntry({ action: AuditAction.MEMBER_CLASS_SET, server_id: serverId!, target_id: m.id, details: { member_name: m.name, class: cls || "none" } });
                                     invalidate();
                                   } catch {}
                                 }}
@@ -2213,6 +2214,7 @@ export function MembersView() {
                                         const newActive = !(member.is_active !== false);
                                         try {
                                           await supabase.from("members").update({ is_active: newActive }).eq("id", member.id);
+                                          writeAuditEntry({ action: AuditAction.MEMBER_ACTIVE_TOGGLE, server_id: serverId!, target_id: member.id, details: { member_name: member.name, is_active: newActive } });
                                           invalidate();
                                         } catch (err: any) {
                                           setToast({ type: "error", message: err?.message || "Failed to update member" });
@@ -2257,6 +2259,7 @@ export function MembersView() {
                               const newActive = !(member.is_active !== false);
                               try {
                                 await supabase.from("members").update({ is_active: newActive }).eq("id", member.id);
+                                writeAuditEntry({ action: AuditAction.MEMBER_ACTIVE_TOGGLE, server_id: serverId!, target_id: member.id, details: { member_name: member.name, is_active: newActive } });
                                 invalidate();
                               } catch (err: any) {
                                 setToast({ type: "error", message: err?.message || "Failed to update member" });

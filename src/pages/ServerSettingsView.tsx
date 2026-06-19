@@ -3457,6 +3457,8 @@ export function ServerActivityLogTab({ serverId, timezone = "UTC" }: { serverId:
       case "member_cp_delete": return `Deleted CP update for ${d.player_name || "?"}`;
       case "member_add": return d.member_name || "—";
       case "member_remove": return d.member_name || "Member removed";
+      case "member_class_set": return `${d.member_name || "?"}: class set to ${d.class || "none"}`;
+      case "member_active_toggle": return `${d.member_name || "?"} marked ${d.is_active ? "active" : "inactive"}`;
       case "member_note_add": return d.note_preview || "—";
       case "member_note_delete": return `Deleted note`;
       case "member_progress_update": return d.member_name ? `${d.member_name}: progress updated` : "Progress updated";
@@ -3486,9 +3488,17 @@ export function ServerActivityLogTab({ serverId, timezone = "UTC" }: { serverId:
       case "party_unlink": return `${d.party_name || "?"} unlinked`;
       case "party_member_add": return `${d.member_name || "?"} added to party`;
       case "party_member_remove": return `${d.member_name || "?"} removed from party`;
+      case "party_leaders_set": return `Party leaders set for ${d.boss_name || "?"}: ${d.leaders || "—"}`;
       case "class_create": case "class_update": case "class_delete": return d.class_name || d.name || "—";
       case "rally_image_delete": return `Deleted screenshot`;
       case "leaderboard_finalize": return `${d.period || "?"}: ${d.rankings ?? 0} players`;
+      case "leaderboard_reset": return `Leaderboard reset (${d.period || "?"})`;
+      case "leaderboard_adjust_points": return `${d.points != null ? (d.points > 0 ? "+" : "") + d.points + " pts" : "?"}${d.reason ? ` — ${d.reason}` : ""}`;
+      case "leaderboard_reset_guild": return `Guild points reset: ${d.deleted_attendance ?? 0} attendance, ${d.deleted_adjustments ?? 0} adjustments`;
+      case "point_rule_create": case "point_rule_update": return `Point rule ${d.rule_type || "?"}: ${d.enabled !== undefined ? (d.enabled ? "enabled" : "disabled") : "updated"}`;
+      case "point_rule_delete": return `Point rule deleted`;
+      case "death_guild_set": return `Display guild set to ${d.guild_name || "?"}`;
+      case "death_guild_clear": return `Display guild cleared`;
       case "settings_update": {
         const entries = Object.entries(d).filter(([k]) => k !== "discord_user");
         return entries.map(([k,v]) => `${k.replace(/_/g, " ")}: ${v}`).join(", ") || "Settings updated";

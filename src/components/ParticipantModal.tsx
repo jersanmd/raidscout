@@ -25,6 +25,7 @@ import {
   saveActivityScanResults,
 } from "@/lib/supabase";
 import { guildColor } from "@/lib/constants";
+import { writeAuditEntry, AuditAction } from "@/lib/api/audit";
 import {
   Loader2,
   X,
@@ -271,6 +272,10 @@ export function ParticipantModal({
           .from("death_records")
           .update({ party_leaders: updated })
           .eq("id", deathRecordId);
+      }
+      const leaders = Object.values(updated).filter(Boolean);
+      if (leaders.length > 0) {
+        writeAuditEntry({ action: AuditAction.PARTY_LEADERS_SET, server_id: serverId!, target_id: deathRecordId, details: { boss_name: bossName, leaders: leaders.join(", ") } });
       }
     } catch (err) { console.error("[ParticipantModal] savePartyLeaders failed:", err); }
   };

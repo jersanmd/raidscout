@@ -42,6 +42,8 @@ export const AuditAction = {
   // Members
   MEMBER_ADD: "member_add",
   MEMBER_REMOVE: "member_remove",
+  MEMBER_CLASS_SET: "member_class_set",
+  MEMBER_ACTIVE_TOGGLE: "member_active_toggle",
   MEMBER_CP_ADD: "member_cp_add",
   MEMBER_CP_UPDATE: "member_cp_update",
   MEMBER_CP_DELETE: "member_cp_delete",
@@ -60,6 +62,7 @@ export const AuditAction = {
   PARTY_UNLINK: "party_unlink",
   PARTY_MEMBER_ADD: "party_member_add",
   PARTY_MEMBER_REMOVE: "party_member_remove",
+  PARTY_LEADERS_SET: "party_leaders_set",
   CLASS_CREATE: "class_create",
   CLASS_UPDATE: "class_update",
   CLASS_DELETE: "class_delete",
@@ -79,6 +82,9 @@ export const AuditAction = {
 
   // Leaderboard
   LEADERBOARD_FINALIZE: "leaderboard_finalize",
+  LEADERBOARD_RESET: "leaderboard_reset",
+  LEADERBOARD_ADJUST_POINTS: "leaderboard_adjust_points",
+  LEADERBOARD_RESET_GUILD: "leaderboard_reset_guild",
 
   // Settings
   SETTINGS_UPDATE: "settings_update",
@@ -87,6 +93,13 @@ export const AuditAction = {
   VIEWER_EDIT_TOGGLE: "viewer_edit_toggle",
   VIEWER_MARK_DIED_TOGGLE: "viewer_mark_died_toggle",
   SEED_FROM_GAME: "seed_from_game",
+  POINT_RULE_CREATE: "point_rule_create",
+  POINT_RULE_UPDATE: "point_rule_update",
+  POINT_RULE_DELETE: "point_rule_delete",
+
+  // Death Records
+  DEATH_GUILD_SET: "death_guild_set",
+  DEATH_GUILD_CLEAR: "death_guild_clear",
 
   // Subscription
   SUBSCRIPTION_EXTEND: "subscription_extend",

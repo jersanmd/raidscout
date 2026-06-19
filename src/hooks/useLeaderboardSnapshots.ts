@@ -8,6 +8,7 @@ import {
   supabase,
 } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
+import { writeAuditEntry, AuditAction } from "@/lib/api/audit";
 import { useServerId } from "@/contexts/ServerContext";
 import type { LeaderboardSnapshot, SnapshotRanking } from "@/types";
 
@@ -82,6 +83,7 @@ export function useLeaderboardSnapshots() {
             { key: resetKey, value: now, server_id: serverId },
             { onConflict: "key, server_id" }
           );
+          writeAuditEntry({ action: AuditAction.LEADERBOARD_RESET, server_id: serverId, details: { period } });
         } catch (err) {
           console.error("Failed to save snapshot to Supabase:", err);
         }

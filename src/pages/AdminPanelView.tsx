@@ -954,6 +954,9 @@ export function AdminPanelView() {
             case "maintenance_on": return d.ends_at ? `Until ${new Date(d.ends_at).toLocaleString()}` : "—";
             case "maintenance_off": return "Turned off";
             case "leaderboard_finalize": return `${d.period || "?"}: ${d.rankings ?? 0} players`;
+            case "leaderboard_reset": return `Leaderboard reset (${d.period || "?"})`;
+            case "leaderboard_adjust_points": return `${d.points != null ? (d.points > 0 ? "+" : "") + d.points + " pts" : "?"}`;
+            case "leaderboard_reset_guild": return `Guild reset: ${d.deleted_attendance ?? 0} att, ${d.deleted_adjustments ?? 0} adj`;
             case "settings_update": {
               const entries = Object.entries(d).filter(([k]) => k !== "discord_user");
               return entries.map(([k,v]) => `${k.replace(/_/g, " ")}: ${v}`).join(", ") || "Settings updated";

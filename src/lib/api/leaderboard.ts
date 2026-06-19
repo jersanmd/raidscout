@@ -86,7 +86,9 @@ export async function resetGuildPoints(
     .eq("server_id", serverId);
   if (adjErr) throw adjErr;
 
-  return { deletedAttendance: attCount ?? 0, deletedAdjustments: adjCount ?? 0 };
+  const result = { deletedAttendance: attCount ?? 0, deletedAdjustments: adjCount ?? 0 };
+  writeAuditEntry({ action: AuditAction.LEADERBOARD_RESET_GUILD, server_id: serverId, target_id: guildId, details: { deleted_attendance: result.deletedAttendance, deleted_adjustments: result.deletedAdjustments } });
+  return result;
 }
 
 export async function adjustMemberPoints(
@@ -103,6 +105,7 @@ export async function adjustMemberPoints(
       p_reason: reason,
     });
   if (error) throw error;
+  writeAuditEntry({ action: AuditAction.LEADERBOARD_ADJUST_POINTS, server_id: serverId, target_id: memberId, details: { points, reason } });
   return data as string;
 }
 

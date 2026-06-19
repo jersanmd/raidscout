@@ -1,4 +1,5 @@
 import { supabase, getCurrentServerId } from "./client";
+import { writeAuditEntry, AuditAction } from "./audit";
 import type { PointRule } from "@/types";
 
 // ── Point Rules ─────────────────────────────────────────────
@@ -27,26 +28,30 @@ export async function createPointRule(
     .select()
     .single();
   if (error) throw error;
+  writeAuditEntry({ action: AuditAction.POINT_RULE_CREATE, server_id: serverId, target_id: data.id, details: { rule_type: ruleType } });
   return data as PointRule;
 }
 
 export async function updatePointRule(
   ruleId: string,
   updates: { config?: Record<string, unknown>; enabled?: boolean },
+  serverId?: string | null,
 ): Promise<void> {
   const { error } = await supabase
     .from("point_rules")
     .update({ ...updates, updated_at: new Date().toISOString() })
     .eq("id", ruleId);
   if (error) throw error;
+  if (serverId) writeAuditEntry({ action: AuditAction.POINT_RULE_UPDATE, server_id: serverId, target_id: ruleId, details: updates });
 }
 
-export async function deletePointRule(ruleId: string): Promise<void> {
+export async function deletePointRule(ruleId: string, serverId?: string | null): Promise<void> {
   const { error } = await supabase
     .from("point_rules")
     .delete()
     .eq("id", ruleId);
   if (error) throw error;
+  if (serverId) writeAuditEntry({ action: AuditAction.POINT_RULE_DELETE, server_id: serverId, target_id: ruleId });
 }
 
 export async function getPointMultiplier(
