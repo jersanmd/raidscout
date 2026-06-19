@@ -3343,12 +3343,27 @@ function BossPointsMatrix({
 // ── Server Activity Log Tab (Owner/Mod Audit) ───────────────
 
 export function ServerActivityLogTab({ serverId }: { serverId: string }) {
-  const [actionFilter, setActionFilter] = useState<string>("all");
+  const [actionFilters, setActionFilters] = useState<Set<string>>(new Set());
+  const [showActionPicker, setShowActionPicker] = useState(false);
   const [cursor, setCursor] = useState<string | null>(null);
   const [log, setLog] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(false);
+  const allLog = useRef<any[]>([]);
+
+  const toggleAction = (action: string) => {
+    setActionFilters(prev => {
+      const next = new Set(prev);
+      if (next.has(action)) next.delete(action); else next.add(action);
+      return next;
+    });
+  };
+
+  const filteredLog = useMemo(() => {
+    if (actionFilters.size === 0) return log;
+    return log.filter(e => actionFilters.has(e.action));
+  }, [log, actionFilters]);
 
   const formatActionLabel = (action: string): string =>
     action.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
@@ -3385,11 +3400,13 @@ export function ServerActivityLogTab({ serverId }: { serverId: string }) {
       setCursor(null);
     }
     try {
-      const result = await fetchAuditLog(100, serverId, reset ? null : cursor, actionFilter !== "all" ? actionFilter : null);
+      const result = await fetchAuditLog(100, serverId, reset ? null : cursor, null);
       if (reset) {
+        allLog.current = result;
         setLog(result);
         setHasMore(result.length >= 100);
       } else {
+        allLog.current = [...allLog.current, ...result];
         setLog(prev => [...prev, ...result]);
         setHasMore(result.length >= 100);
       }
@@ -3397,7 +3414,7 @@ export function ServerActivityLogTab({ serverId }: { serverId: string }) {
     finally { setLoading(false); setLoadingMore(false); }
   };
 
-  useEffect(() => { fetchLog(true); }, [actionFilter, serverId]);
+  useEffect(() => { fetchLog(true); }, [serverId]);
 
   const loadMore = async () => {
     if (loadingMore || log.length === 0) return;
@@ -3407,7 +3424,8 @@ export function ServerActivityLogTab({ serverId }: { serverId: string }) {
     setCursor(newCursor);
     setLoadingMore(true);
     try {
-      const result = await fetchAuditLog(100, serverId, newCursor, actionFilter !== "all" ? actionFilter : null);
+      const result = await fetchAuditLog(100, serverId, newCursor, null);
+      allLog.current = [...allLog.current, ...result];
       setLog(prev => [...prev, ...result]);
       setHasMore(result.length >= 100);
     } catch { /* ignore */ }
@@ -3417,25 +3435,50 @@ export function ServerActivityLogTab({ serverId }: { serverId: string }) {
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
-        <span className="text-xs text-[#71717a]">Action</span>
-        <select value={actionFilter} onChange={e => setActionFilter(e.target.value)}
-          className="bg-[#0d0d11] border border-[#1e1e2a] rounded-lg px-2.5 py-1.5 text-xs text-[#fafafa] outline-none focus:border-[#52525b]">
-          <option value="all">All Actions</option>
-          {AUDIT_ACTION_GROUPS.filter(g => !["Admin", "Subscription"].includes(g.label)).map(g => (
-            <optgroup key={g.label} label={g.label}>
-              {g.actions.map(a => (
-                <option key={a} value={a}>{formatActionLabel(a)}</option>
-              ))}
-            </optgroup>
-          ))}
-        </select>
-        <span className="text-xs text-[#52525b] ml-auto">{log.length} event{log.length !== 1 ? "s" : ""}</span>
+        {/* Action filter checkboxes */}
+        <div className="relative">
+          <button onClick={() => setShowActionPicker(!showActionPicker)}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-[#0d0d11] border border-[#1e1e2a] text-[#a1a1aa] hover:text-[#fafafa] hover:border-[#52525b] transition">
+            <span>Actions</span>
+            {actionFilters.size > 0 && <span className="min-w-[18px] h-[18px] rounded-full bg-violet-500/20 text-[10px] font-bold text-violet-300 flex items-center justify-center px-1">{actionFilters.size}</span>}
+            <ChevronDown className={`w-3 h-3 transition ${showActionPicker ? "rotate-180" : ""}`} />
+          </button>
+          {showActionPicker && (
+            <>
+              <div className="fixed inset-0 z-40" onClick={() => setShowActionPicker(false)} />
+              <div className="absolute z-50 top-full mt-1 left-0 bg-[#18181b] border border-[#27272a] rounded-lg shadow-xl max-h-64 overflow-y-auto w-56">
+                <div className="p-1.5 space-y-0.5">
+                  {AUDIT_ACTION_GROUPS.filter(g => !["Admin", "Subscription"].includes(g.label)).map(g => (
+                    <div key={g.label}>
+                      <div className="text-[9px] font-semibold text-[#52525b] uppercase tracking-wider px-2 py-1">{g.label}</div>
+                      {g.actions.map(a => (
+                        <button key={a} onClick={() => toggleAction(a)}
+                          className={`w-full flex items-center gap-2 px-2 py-1 rounded text-[11px] text-left transition ${actionFilters.has(a) ? "text-violet-300 bg-violet-500/10" : "text-[#a1a1aa] hover:text-[#fafafa]"}`}>
+                          <span className={`shrink-0 w-3.5 h-3.5 rounded border flex items-center justify-center ${actionFilters.has(a) ? "bg-violet-500 border-violet-500" : "border-[#3f3f46]"}`}>
+                            {actionFilters.has(a) && <Check className="w-2.5 h-2.5 text-white" />}
+                          </span>
+                          {formatActionLabel(a)}
+                        </button>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+                {actionFilters.size > 0 && (
+                  <div className="border-t border-[#1e1e2a] px-3 py-1.5">
+                    <button onClick={() => setActionFilters(new Set())} className="text-[10px] text-[#71717a] hover:text-[#fafafa] transition">Clear filters</button>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+        <span className="text-xs text-[#52525b] ml-auto">{filteredLog.length} event{filteredLog.length !== 1 ? "s" : ""}</span>
       </div>
 
       {loading && log.length === 0 ? (
         <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 text-[#71717a] animate-spin" /></div>
-      ) : log.length === 0 ? (
-        <p className="text-[#71717a] text-sm text-center py-12">No activity recorded yet.</p>
+      ) : filteredLog.length === 0 ? (
+        <p className="text-[#71717a] text-sm text-center py-12">{log.length > 0 ? "No events match the selected filters." : "No activity recorded yet."}</p>
       ) : (
         <div className="border border-[#1e1e2a] rounded-xl overflow-hidden">
           {/* Desktop header */}
@@ -3445,7 +3488,7 @@ export function ServerActivityLogTab({ serverId }: { serverId: string }) {
             <div className="col-span-2">Actor</div>
             <div className="col-span-3">Timestamp</div>
           </div>
-          {log.map((entry: any) => {
+          {filteredLog.map((entry: any) => {
             const { dot, text: txt } = actionColor(entry.action);
             const isViewer = !!entry.viewer_key;
             const actor = isViewer ? `viewer ${entry.viewer_key?.substring(0,8)}…` : (entry.actor_email || entry.details?.discord_user || entry.actor_id?.substring(0,8) + "…");
