@@ -80,8 +80,17 @@ BEGIN
     SELECT 1 FROM public.server_members
     WHERE server_id = p_server_id
       AND user_id = auth.uid()
-  ) AND p_viewer_key IS NULL THEN
-    RAISE EXCEPTION 'You are not authorized to write audit entries for this server';
+  ) THEN
+    -- Viewer path: validate viewer_key belongs to this server
+    IF p_viewer_key IS NOT NULL AND EXISTS (
+      SELECT 1 FROM public.servers
+      WHERE id = p_server_id AND viewer_key = p_viewer_key
+    ) THEN
+      -- Valid viewer key — allow the write
+      NULL;
+    ELSE
+      RAISE EXCEPTION 'You are not authorized to write audit entries for this server';
+    END IF;
   END IF;
 
   INSERT INTO public.admin_audit_log (actor_id, action, target_type, target_id, server_id, details, viewer_key)
@@ -107,7 +116,9 @@ CREATE OR REPLACE FUNCTION get_audit_log(
   p_server_id UUID DEFAULT NULL,
   p_limit INT DEFAULT 200,
   p_cursor BIGINT DEFAULT NULL,
-  p_action_filter TEXT DEFAULT NULL
+  p_action_filter TEXT DEFAULT NULL,
+  p_since TIMESTAMPTZ DEFAULT NULL,
+  p_until TIMESTAMPTZ DEFAULT NULL
 ) RETURNS TABLE (
   id BIGINT,
   actor_id UUID,
@@ -137,6 +148,8 @@ AS $$
   WHERE (p_server_id IS NULL OR a.server_id = p_server_id)
     AND (p_cursor IS NULL OR a.id < p_cursor)
     AND (p_action_filter IS NULL OR a.action = p_action_filter)
+    AND (p_since IS NULL OR a.created_at >= p_since)
+    AND (p_until IS NULL OR a.created_at <= p_until)
   ORDER BY a.id DESC
   LIMIT p_limit;
 $$;

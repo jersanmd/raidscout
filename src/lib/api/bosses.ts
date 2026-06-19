@@ -94,6 +94,7 @@ export async function createCustomBoss(
     p_image_url: data.image_url ?? null,
   });
   if (error) throw error;
+  writeAuditEntry({ action: AuditAction.BOSS_CREATE, server_id: serverId, target_id: id as string, details: { boss_name: data.name } });
   return { id: id as string } as Boss;
 }
 
@@ -116,10 +117,11 @@ export async function createCustomActivity(
     p_image_url: data.image_url ?? null,
   });
   if (error) throw error;
+  writeAuditEntry({ action: AuditAction.ACTIVITY_CREATE, server_id: serverId, target_id: id as string, details: { activity_name: data.name } });
   return { id: id as string } as Activity;
 }
 
-export async function updateCustomBoss(id: string, updates: Record<string, any>): Promise<void> {
+export async function updateCustomBoss(id: string, updates: Record<string, any>, serverId?: string): Promise<void> {
   const { error } = await supabase.rpc("update_custom_boss", {
     p_boss_id: id,
     p_name: updates.name ?? null,
@@ -133,9 +135,10 @@ export async function updateCustomBoss(id: string, updates: Record<string, any>)
     p_image_url: updates.image_url ?? null,
   });
   if (error) throw error;
+  if (serverId) writeAuditEntry({ action: AuditAction.BOSS_UPDATE, server_id: serverId, target_id: id, details: updates });
 }
 
-export async function updateCustomActivity(id: string, updates: Record<string, any>): Promise<void> {
+export async function updateCustomActivity(id: string, updates: Record<string, any>, serverId?: string): Promise<void> {
   const { error } = await supabase.rpc("update_custom_activity", {
     p_activity_id: id,
     p_name: updates.name ?? null,
@@ -149,6 +152,7 @@ export async function updateCustomActivity(id: string, updates: Record<string, a
     p_image_url: updates.image_url ?? null,
   });
   if (error) throw error;
+  if (serverId) writeAuditEntry({ action: AuditAction.ACTIVITY_UPDATE, server_id: serverId, target_id: id, details: updates });
 }
 
 export async function toggleBossEnabled(id: string, enabled: boolean, serverId?: string): Promise<void> {
@@ -183,14 +187,15 @@ export async function finishActivity(activityId: string, serverId?: string): Pro
   if (serverId) writeAuditEntry({ action: AuditAction.ACTIVITY_FINALIZE, server_id: serverId, target_id: activityId });
 
   // Advance guild rotation
-  try { await advanceActivityRotation(activityId); } catch (err) { console.error("[bosses] advanceActivityRotation on start failed:", err); }
+  try { await advanceActivityRotation(activityId, serverId); } catch (err) { console.error("[bosses] advanceActivityRotation on start failed:", err); }
 }
 
 /** Record an activity end with a custom time and attendance. */
 export async function recordActivityEnd(
   activityId: string,
   endTime: Date,
-  attendeeIds: string[]
+  attendeeIds: string[],
+  serverId?: string | null
 ): Promise<string> {
   const { data: activity } = await supabase.from("activities").select("schedule_type").eq("id", activityId).single();
   if (!activity) throw new Error("Activity not found");
@@ -227,7 +232,7 @@ export async function recordActivityEnd(
   }
 
   // Advance guild rotation
-  try { await advanceActivityRotation(activityId); } catch (err) { console.error("[bosses] advanceActivityRotation on end failed:", err); }
+  try { await advanceActivityRotation(activityId, serverId); } catch (err) { console.error("[bosses] advanceActivityRotation on end failed:", err); }
 
   return instance.id;
 }

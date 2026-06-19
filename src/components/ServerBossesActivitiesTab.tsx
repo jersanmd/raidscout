@@ -148,10 +148,12 @@ export function ServerBossesActivitiesTab({ mode = "all" }: { mode?: "all" | "bo
       if (deleteTarget.type === "boss") {
         const { error } = await supabase.rpc("soft_delete_boss", { p_boss_id: deleteTarget.id });
         if (error) throw error;
+        writeAuditEntry({ action: AuditAction.BOSS_DELETE, server_id: serverId, target_id: deleteTarget.id, details: { boss_name: deleteTarget.name } });
       } else if (deleteTarget.type === "activity") {
         const { data, error } = await supabase.from("activities").update({ deleted_at: new Date().toISOString(), is_enabled: false }).eq("id", deleteTarget.id).select("id");
         if (error) throw error;
         if (!data || data.length === 0) throw new Error("No rows updated — you may not have permission.");
+        writeAuditEntry({ action: AuditAction.ACTIVITY_DELETE, server_id: serverId, target_id: deleteTarget.id, details: { activity_name: deleteTarget.name } });
       }
       const queryKey = deleteTarget.type === "boss" ? "bosses-all" : "activities-all";
       queryClient.invalidateQueries({ queryKey: [queryKey, serverId] });
@@ -565,11 +567,11 @@ export function ServerBossesActivitiesTab({ mode = "all" }: { mode?: "all" | "bo
                     const assignments = Object.entries(scheduleDays)
                       .filter(([, gid]) => gid !== null && gid !== undefined)
                       .map(([day, gid]) => ({ guild_id: gid as string, day_of_week: parseInt(day) }));
-                    if (assignments.length > 0) await setActivityGuilds(activityId, assignments, "schedule");
+                    if (assignments.length > 0) await setActivityGuilds(activityId, assignments, "schedule", serverId);
                   } else {
                     if (selectedGuildIds.length === 0) return;
                     const assignments = selectedGuildIds.map((gid, i) => ({ guild_id: gid, sort_order: i + 1 }));
-                    await setActivityGuilds(activityId, assignments, guildMode);
+                    await setActivityGuilds(activityId, assignments, guildMode, serverId);
                   }
                 } catch (err) {
                   console.error("[ServerBossesActivitiesTab] Activity guild assignment failed:", err);

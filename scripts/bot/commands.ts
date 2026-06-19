@@ -780,6 +780,8 @@ export async function handleMessage(msg: any) {
         const aliveUntil = new Date(Math.min(nextSlot.getTime() - 3600_000, recentSlot.getTime() + 4 * 3600_000));
         const wasKilled = recentDeaths?.[0] && new Date(recentDeaths[0].death_time) >= recentSlot;
         isAlive = !wasKilled && aliveNow >= recentSlot && aliveNow < aliveUntil;
+        // Track the slot start for the cooldown check below
+        (aliveNow as any)._recentSlot = recentSlot;
       }
     }
     if (!isAlive) {
@@ -789,11 +791,28 @@ export async function handleMessage(msg: any) {
     }
     if (recentDeaths?.length && !overrideDeathTime) {
       const lastKill = new Date(recentDeaths[0].death_time);
-      const cooldownEnd = new Date(lastKill.getTime() + 2 * 3600_000);
-      if (new Date() < cooldownEnd) {
-        discordFetch(`https://discord.com/api/v10/channels/${channelId}/messages/${msg.id}/reactions/${encodeURIComponent("❌")}/@me`, { method: "PUT", headers: { Authorization: `Bot ${TOKEN}` } }).catch(() => {});
-        const killedAt = Math.floor(lastKill.getTime() / 1000);
-        return reply(`⏳ **${boss.name}** already declared dead at <t:${killedAt}:t>.${timeStr ? `\n-# Wrong time? Use \`${matchedPrefix}editkilltime ${boss.name} HH:MM\` to fix it.` : ""}`);
+      // Only block if the last death was in the CURRENT spawn window
+      const killsInThisWindow = (() => {
+        if (boss.spawn_type === "fixed_schedule" && (aliveNow as any)._recentSlot) {
+          return lastKill >= (aliveNow as any)._recentSlot;
+        }
+        if (boss.spawn_type === "fixed_hours") {
+          const respawnSecs = (boss.respawn_hours ?? 0) * 3600;
+          // If the boss has already respawned (respawn time elapsed), this is a new window
+          return (lastKill.getTime() + respawnSecs * 1000) > Date.now();
+        }
+        // daily / other: fall back to 2h cooldown
+        return true;
+      })();
+      if (!killsInThisWindow) {
+        // Death is from a previous spawn window — allow the kill
+      } else {
+        const cooldownEnd = new Date(lastKill.getTime() + 2 * 3600_000);
+        if (new Date() < cooldownEnd) {
+          discordFetch(`https://discord.com/api/v10/channels/${channelId}/messages/${msg.id}/reactions/${encodeURIComponent("❌")}/@me`, { method: "PUT", headers: { Authorization: `Bot ${TOKEN}` } }).catch(() => {});
+          const killedAt = Math.floor(lastKill.getTime() / 1000);
+          return reply(`⏳ **${boss.name}** already declared dead at <t:${killedAt}:t>.${timeStr ? `\n-# Wrong time? Use \`${matchedPrefix}editkilltime ${boss.name} HH:MM\` to fix it.` : ""}`);
+        }
       }
     }
 

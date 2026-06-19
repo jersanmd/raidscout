@@ -1,4 +1,5 @@
 import { supabase, getCurrentServerId } from "./client";
+import { writeAuditEntry, AuditAction } from "./audit";
 import type { ActivityGuild, ActivityAssist } from "@/types";
 
 export async function fetchActivityGuilds(serverId?: string | null): Promise<ActivityGuild[]> {
@@ -32,7 +33,8 @@ export async function fetchAllActivityGuildsForServer(serverId?: string | null):
 export async function setActivityGuilds(
   activityId: string,
   assignments: { guild_id: string; sort_order?: number; day_of_week?: number }[],
-  mode: "rotation" | "schedule" | "daily" | "all" = "rotation"
+  mode: "rotation" | "schedule" | "daily" | "all" = "rotation",
+  serverId?: string | null
 ): Promise<void> {
   await supabase.from("activity_guilds").delete().eq("activity_id", activityId);
   if (assignments.length > 0) {
@@ -46,9 +48,10 @@ export async function setActivityGuilds(
     const { error } = await supabase.from("activity_guilds").insert(rows);
     if (error) throw error;
   }
+  if (serverId) writeAuditEntry({ action: AuditAction.ACTIVITY_GUILDS_SET, server_id: serverId, target_id: activityId, details: { mode, guilds: assignments } });
 }
 
-export async function advanceActivityRotation(activityId: string): Promise<void> {
+export async function advanceActivityRotation(activityId: string, serverId?: string | null): Promise<void> {
   // Increment rotation by inserting a dummy instance with a counter reference
   // The caller should already have marked the activity as finished
   const { data: ags } = await supabase
@@ -65,6 +68,7 @@ export async function advanceActivityRotation(activityId: string): Promise<void>
     await supabase.from("activity_guilds").update({ sort_order: ags[i + 1].sort_order }).eq("id", ags[i].id);
   }
   await supabase.from("activity_guilds").update({ sort_order: first.sort_order }).eq("id", ags[ags.length - 1].id);
+  if (serverId) writeAuditEntry({ action: AuditAction.ACTIVITY_ROTATION_ADVANCE, server_id: serverId, target_id: activityId, details: { guilds: ags.map(a => a.guild_id) } });
 }
 
 export async function upsertActivityGuildPoints(

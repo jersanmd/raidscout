@@ -248,10 +248,11 @@ export function Layout() {
         {currentServer && !isViewer && (
           <button
             onClick={(e) => { e.stopPropagation(); setShowActivityLog(true); }}
-            className="relative flex items-center justify-center p-1.5 rounded-md text-[#fafafa]/70 hover:text-[#fafafa] hover:bg-[#18181b] transition"
+            className="relative flex items-center gap-1.5 px-2 py-1.5 rounded-md text-[#fafafa]/70 hover:text-[#fafafa] hover:bg-[#18181b] transition text-xs font-medium"
             title="Activity Log"
           >
             <ScrollText className="w-4 h-4" />
+            <span className="hidden sm:inline">Activity</span>
           </button>
         )}
         {/* Notification bell */}

@@ -33,13 +33,10 @@ export async function fetchAuditLog(
   // If 3rd param is a string that looks like a date, interpret as time-range query
   const isTimeRange = typeof sinceOrCursor === "string" && /^\d{4}-\d{2}-\d{2}/.test(sinceOrCursor);
   if (isTimeRange) {
-    const data = await fetchAuditLogRpc(limit, serverId, null, null);
-    const sinceMs = sinceOrCursor ? new Date(sinceOrCursor as string).getTime() : 0;
-    const untilMs = untilOrActionFilter ? new Date(untilOrActionFilter).getTime() : Infinity;
-    return data.filter((e) => {
-      const ts = new Date(e.created_at).getTime();
-      return ts >= sinceMs && ts <= untilMs;
-    });
+    // Pass time range to server-side filtering
+    const since = sinceOrCursor ? new Date(sinceOrCursor as string).toISOString() : null;
+    const until = untilOrActionFilter ? new Date(untilOrActionFilter).toISOString() : null;
+    return fetchAuditLogRpc(limit, serverId, null, null, since, until);
   }
   // Otherwise pass through to RPC-based pagination (cursor = id)
   const cursor = sinceOrCursor != null ? Number(sinceOrCursor) : null;

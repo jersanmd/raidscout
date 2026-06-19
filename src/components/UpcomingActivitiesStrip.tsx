@@ -35,12 +35,18 @@ export function UpcomingActivitiesStrip() {
     enabled: !!serverId,
   });
 
-  const getActivityOwnerGuild = (activityId: string): string | undefined => {
+  const getActivityOwnerGuilds = (activityId: string): string[] => {
     const ags = activityGuilds
       .filter(ag => ag.activity_id === activityId)
       .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
-    if (ags.length === 0) return undefined;
-    return guilds.find(g => g.id === ags[0].guild_id)?.name;
+    if (ags.length === 0) return [];
+    // Mode "all" — show all assigned guild badges
+    if (ags[0].mode === "all") {
+      return ags.map(ag => guilds.find(g => g.id === ag.guild_id)?.name).filter(Boolean) as string[];
+    }
+    // Other modes — single guild
+    const name = guilds.find(g => g.id === ags[0].guild_id)?.name;
+    return name ? [name] : [];
   };
 
   const upcoming = useMemo(() => {
@@ -72,7 +78,7 @@ export function UpcomingActivitiesStrip() {
             activity={info.activity}
             startTime={info.startTime}
             formatTime={formatTime}
-            ownerGuildName={getActivityOwnerGuild(info.activity.id)}
+            ownerGuildNames={getActivityOwnerGuilds(info.activity.id)}
           />
         ))}
         {Array.from({ length: Math.max(0, 3 - upcoming.length) }).map((_, i) => (
@@ -89,12 +95,12 @@ function UpcomingActivitySlot({
   activity,
   startTime,
   formatTime,
-  ownerGuildName,
+  ownerGuildNames,
 }: {
   activity: { id: string; name: string; image_url?: string | null };
   startTime: Date;
   formatTime: (d: Date) => string;
-  ownerGuildName?: string;
+  ownerGuildNames?: string[];
 }) {
   const timer = useTimer(startTime);
   const threatLevel: "critical" | "warning" | "normal" = timer.isPast
@@ -119,13 +125,20 @@ function UpcomingActivitySlot({
           <span className={`font-medium text-sm truncate ${threatLevel === "critical" ? "text-red-400" : threatLevel === "warning" ? "text-amber-400" : "text-[#fafafa]"}`}>
             {activity.name}
           </span>
-          {ownerGuildName && (() => { const c = guildColor(ownerGuildName); return (
-            <span className={`flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded border shrink-0 ${c.bg} ${c.text} ${c.border}`}>
-              <Shield className="w-3 h-3" />
-              {ownerGuildName}
-            </span>
-          ); })()}
         </div>
+        {ownerGuildNames && ownerGuildNames.length > 0 && (
+          <div className="flex items-center gap-1 flex-wrap mt-1">
+            {ownerGuildNames.map((guildName) => {
+              const c = guildColor(guildName);
+              return (
+                <span key={guildName} className={`flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded border shrink-0 ${c.bg} ${c.text} ${c.border}`}>
+                  <Shield className="w-2.5 h-2.5" />
+                  {guildName}
+                </span>
+              );
+            })}
+          </div>
+        )}
         <div className="flex items-center gap-2 mt-0.5">
           <span className="text-xs text-[#52525b] font-mono">{formatTime(startTime)}</span>
           <span className={`inline-flex items-center gap-1 text-[10px] ${threatLevel === "critical" ? "text-red-400" : threatLevel === "warning" ? "text-amber-400" : "text-[#71717a]"}`}>

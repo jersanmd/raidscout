@@ -59,7 +59,7 @@ export function ActivityGuildsTab() {
     setSavingId(activityId);
     try {
       if (mode === "none") {
-        await setActivityGuilds(activityId, [], "rotation");
+        await setActivityGuilds(activityId, [], "rotation", serverId);
         // Clear pending mode when setting to none
         setPendingModes(prev => { const next = { ...prev }; delete next[activityId]; return next; });
       } else {
@@ -70,7 +70,7 @@ export function ActivityGuildsTab() {
           sort_order: mode === "rotation" || mode === "daily" ? i : undefined,
           day_of_week: mode === "schedule" ? (ag.day_of_week ?? undefined) : undefined,
         }));
-        await setActivityGuilds(activityId, assignments.length > 0 ? assignments : [], mode);
+        await setActivityGuilds(activityId, assignments.length > 0 ? assignments : [], mode, serverId);
       }
       queryClient.invalidateQueries({ queryKey: ["activity-guilds", serverId] });
     } catch { /* ignore */ }
@@ -87,7 +87,7 @@ export function ActivityGuildsTab() {
         sort_order: mode === "rotation" || mode === "daily" ? i : undefined,
         day_of_week: mode === "schedule" ? (ag.day_of_week ?? undefined) : undefined,
       })), { guild_id: guildId, sort_order: mode === "rotation" || mode === "daily" ? existing.length : undefined }];
-      await setActivityGuilds(activityId, assignments, mode);
+      await setActivityGuilds(activityId, assignments, mode, serverId);
       queryClient.invalidateQueries({ queryKey: ["activity-guilds", serverId] });
       setPendingModes(prev => { const next = { ...prev }; delete next[activityId]; return next; });
     } catch { /* ignore */ }
@@ -103,7 +103,7 @@ export function ActivityGuildsTab() {
         sort_order: mode === "rotation" || mode === "daily" ? i : undefined,
         day_of_week: mode === "schedule" ? (ag.day_of_week ?? undefined) : undefined,
       }));
-      await setActivityGuilds(activityId, assignments, mode);
+      await setActivityGuilds(activityId, assignments, mode, serverId);
       queryClient.invalidateQueries({ queryKey: ["activity-guilds", serverId] });
       setPendingModes(prev => { const next = { ...prev }; delete next[activityId]; return next; });
     } catch { /* ignore */ }
@@ -120,7 +120,7 @@ export function ActivityGuildsTab() {
       await setActivityGuilds(activityId, existing.map(ag => ({
         guild_id: ag.guild_id,
         day_of_week: ag.day_of_week ?? undefined,
-      })), "schedule");
+      })), "schedule", serverId);
       queryClient.invalidateQueries({ queryKey: ["activity-guilds", serverId] });
       setPendingModes(prev => { const next = { ...prev }; delete next[activityId]; return next; });
     } catch { /* ignore */ }
@@ -132,9 +132,9 @@ export function ActivityGuildsTab() {
     try {
       const existing = activityGuilds.filter(ag => ag.activity_id === activityId && ag.mode === "all");
       if (add) {
-        await setActivityGuilds(activityId, [...existing, { guild_id: guildId } as any], "all");
+        await setActivityGuilds(activityId, [...existing, { guild_id: guildId } as any], "all", serverId);
       } else {
-        await setActivityGuilds(activityId, existing.filter(ag => ag.guild_id !== guildId).map(ag => ({ guild_id: ag.guild_id })), "all");
+        await setActivityGuilds(activityId, existing.filter(ag => ag.guild_id !== guildId).map(ag => ({ guild_id: ag.guild_id })), "all", serverId);
       }
       queryClient.invalidateQueries({ queryKey: ["activity-guilds", serverId] });
       setPendingModes(prev => { const next = { ...prev }; delete next[activityId]; return next; });

@@ -49,6 +49,26 @@
 
 - **PayPal checkout streamlined** — Digital purchase detection means PayPal only asks for name, email, and payment details — no full address required.
 
+## 📋 Audit Log
+
+- **43 action types** — Every server owner/moderator/admin action now recorded: bosses, activities, members, CP, gear, items, parties, classes, settings, invites, viewer keys, Discord bot commands, admin operations.
+- **Dual access** — Admin Panel audit tab (all servers) + per-server Activity Log modal for owners and moderators.
+- **Activity Log button** — Header now shows "📜 Activity" label button next to the notification bell.
+- **Cursor pagination** — ID-based pagination with "Load more" button.
+- **Time-range filter** — Server-side date range filtering with `p_since`/`p_until`.
+- **Actor email** — Resolved from `auth.users` via SECURITY DEFINER RPC.
+- **Viewer audit** — Viewers with valid keys can write audit entries for boss kills.
+- **Discord bot audit** — All 9 bot commands write audit entries.
+- **Seed data** — ~80 sample entries across all action types for testing.
+
+## 🧩 Activity Guild Badges
+
+- **Multi-guild badges** — Upcoming Activities strip now shows all assigned guild badges (mode "all") on a separate line below the activity name.
+
+## 🐛 Bug Fix — Bot Cooldown
+
+- **Spawn-window-aware cooldown** — "Already declared dead" check no longer blocks kills from a previous spawn window.
+
 ## 🏷️ Leaderboard
 
 - **Export assist info** — Boss names in Excel exports include assist status.

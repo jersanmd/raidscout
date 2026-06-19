@@ -5,6 +5,7 @@ import { useMembers } from "@/hooks/useMembers";
 import { useAuth } from "@/contexts/AuthContext";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { updateMemberName, deleteMember, upsertMember, isSupabaseConfigured, fetchGuilds, setMemberGuild, bulkAddMembers, supabase, fetchStaticParties, createParty, deleteParty, addMemberToParty, removeMemberFromParty, type StaticParty, sendCpReminder, createProgressThread, addBackdatedCpUpdate, fetchMemberCpHistory, editCpUpdate, deleteCpUpdate } from "@/lib/supabase";
+import { writeAuditEntry, AuditAction } from "@/lib/api/audit";
 import { useServerId, useHasPermission, useServer } from "@/contexts/ServerContext";
 import { ExpiredGate } from "@/components/ExpiredGate";
 import type { Guild, Member, CpUpdate } from "@/types";
@@ -551,6 +552,8 @@ export function MembersView() {
     if (error) {
       setClasses(prev => prev.filter(c => c !== name));
       console.error("Failed to add class:", error);
+    } else {
+      writeAuditEntry({ action: AuditAction.CLASS_CREATE, server_id: serverId, target_id: name, details: { icon, color } });
     }
   };
 
@@ -559,6 +562,7 @@ export function MembersView() {
     setClasses(prev => prev.filter(c => c !== name));
     const { error } = await supabase.from("server_classes").delete().eq("server_id", serverId).eq("name", name);
     if (error) console.error("Failed to remove class:", error);
+    else writeAuditEntry({ action: AuditAction.CLASS_DELETE, server_id: serverId, target_id: name });
   };
 
   // Class delete confirmation

@@ -56,11 +56,11 @@ export function AddActivityModal({ open, onClose }: Props) {
         const assignments = Object.entries(scheduleDays)
           .filter(([, gid]) => gid !== null && gid !== undefined)
           .map(([day, gid]) => ({ guild_id: gid as string, day_of_week: parseInt(day) }));
-        if (assignments.length > 0) await setActivityGuilds(activityId, assignments, "schedule");
+        if (assignments.length > 0) await setActivityGuilds(activityId, assignments, "schedule", currentServer?.id);
       } else {
         if (selectedGuildIds.length === 0) { setSubmitting(false); return; }
         const assignments = selectedGuildIds.map((gid, i) => ({ guild_id: gid, sort_order: i + 1 }));
-        await setActivityGuilds(activityId, assignments, guildMode);
+        await setActivityGuilds(activityId, assignments, guildMode, currentServer?.id);
       }
     } catch (err) {
       console.error("[AddActivityModal] Guild assignment failed:", err);

@@ -3614,7 +3614,6 @@ export function ServerActivityLogTab({ serverId, timezone = "UTC" }: { serverId:
         })}
         </div>
         )}
-        <span className="text-xs text-[#52525b]">{filteredLog.length} event{filteredLog.length !== 1 ? "s" : ""}</span>
       </div>
 
       {loading && log.length === 0 ? (

@@ -249,13 +249,17 @@ export async function fetchAuditLog(
   limit = 200,
   serverId?: string | null,
   cursor?: number | null,
-  actionFilter?: string | null
+  actionFilter?: string | null,
+  since?: string | null,
+  until?: string | null
 ): Promise<AuditEntry[]> {
   const { data, error } = await supabase.rpc("get_audit_log", {
     p_server_id: serverId || null,
     p_limit: limit,
     p_cursor: cursor || null,
     p_action_filter: actionFilter || null,
+    p_since: since || null,
+    p_until: until || null,
   });
   if (error) throw error;
   return (data as AuditEntry[]) ?? [];

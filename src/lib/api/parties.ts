@@ -1,4 +1,5 @@
 import { supabase, getCurrentServerId } from "./client";
+import { writeAuditEntry, AuditAction } from "./audit";
 
 // ── Static Parties ─────────────────────────────────────────
 
@@ -31,12 +32,14 @@ export async function createParty(name: string, guildId: string | null, bossId: 
     p_boss_id: bossId, p_activity_id: activityId,
   });
   if (error) throw error;
+  writeAuditEntry({ action: AuditAction.PARTY_CREATE, server_id: sid, target_id: data as string, details: { name: name.trim(), guild_id: guildId, boss_id: bossId, activity_id: activityId } });
   return data as string;
 }
 
-export async function deleteParty(partyId: string): Promise<void> {
+export async function deleteParty(partyId: string, serverId?: string): Promise<void> {
   const { error } = await supabase.rpc("delete_static_party", { p_party_id: partyId });
   if (error) throw error;
+  if (serverId) writeAuditEntry({ action: AuditAction.PARTY_DELETE, server_id: serverId, target_id: partyId });
 }
 
 export async function addMemberToParty(partyId: string, memberId: string): Promise<void> {
