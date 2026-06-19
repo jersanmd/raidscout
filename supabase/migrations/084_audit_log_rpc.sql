@@ -7,6 +7,7 @@ DROP POLICY IF EXISTS "Admins can read audit log" ON admin_audit_log;
 DROP POLICY IF EXISTS "Authenticated users can insert audit entries" ON admin_audit_log;
 
 -- 2. New read policy: admins (all servers) + owners/moderators (their server only)
+DROP POLICY IF EXISTS "Admins and server staff can read audit log" ON admin_audit_log;
 CREATE POLICY "Admins and server staff can read audit log" ON admin_audit_log
   FOR SELECT USING (
     EXISTS (SELECT 1 FROM user_roles WHERE user_id = auth.uid() AND role = 'admin')
@@ -20,6 +21,7 @@ CREATE POLICY "Admins and server staff can read audit log" ON admin_audit_log
   );
 
 -- 3. New write policy: only admins can insert directly
+DROP POLICY IF EXISTS "Only admins can insert audit entries" ON admin_audit_log;
 CREATE POLICY "Only admins can insert audit entries" ON admin_audit_log
   FOR INSERT WITH CHECK (
     EXISTS (SELECT 1 FROM user_roles WHERE user_id = auth.uid() AND role = 'admin')
