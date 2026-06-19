@@ -973,7 +973,7 @@ export function ParticipantModal({
                                         return next;
                                       });
                                     }
-                                  }}
+                                  }}}
                                   className="w-4 h-4 rounded border-[#3f3f46] bg-[#27272a] text-emerald-500 focus:ring-[#27272a] cursor-pointer"
                                 />
                                 )}
