@@ -3346,7 +3346,7 @@ export function ServerActivityLogTab({ serverId }: { serverId: string }) {
   // All visible action types across categories
   const allActions = useMemo(() =>
     AUDIT_ACTION_GROUPS
-      .filter(g => !["Admin", "Subscription"].includes(g.label))
+      .filter(g => !["Admin", "Subscription", "Server"].includes(g.label))
       .flatMap(g => g.actions),
   []);
 
