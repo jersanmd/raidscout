@@ -219,19 +219,19 @@ export function AnalyticsView() {
 
   return (
     <div className="max-w-[100%] 2xl:max-w-[1600px] mx-auto px-4 py-6 space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0">
         <div className="flex items-center gap-3">
           <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-[#18181b] border border-[#27272a]">
             <BarChart3 className="w-5 h-5 text-[#fafafa]" />
           </div>
           <h2 className="text-xl font-bold text-[#fafafa]">Analytics</h2>
         </div>
-        <div className="flex bg-[#18181b] rounded-lg p-0.5">
+        <div className="flex bg-[#18181b] rounded-lg p-0.5 self-start sm:self-auto">
           {(["week", "month", "all"] as const).map((p) => (
             <button
               key={p}
               onClick={() => { setPeriod(p); setHuntersPage(1); }}
-              className={`px-3 py-1.5 rounded-md text-xs font-medium transition ${
+              className={`px-2.5 sm:px-3 py-1.5 rounded-md text-[11px] sm:text-xs font-medium transition ${
                 period === p ? "bg-[#27272a] text-[#fafafa]" : "text-[#a1a1aa] hover:text-[#e4e4e7]"
               }`}
             >
