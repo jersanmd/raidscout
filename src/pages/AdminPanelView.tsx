@@ -1615,15 +1615,19 @@ function SpawnCronCard({ data, connected }: { data: any; connected: boolean }) {
             </filter>
           </defs>
 
+          {/* Y-axis title */}
+          <text x={LX - 4} y={TY - 2} textAnchor="end" fill="#52525b" fontSize="9" fontFamily="monospace" fontWeight="bold">sec</text>
           {/* Grid */}
           {yTicks.map(v => (
             <g key={`g-${v}`}>
               <line x1={LX} y1={yPos(v)} x2={W - RX} y2={yPos(v)} stroke="#1e1e2a" strokeWidth="0.5" />
-              <text x={LX - 5} y={yPos(v) + 3} textAnchor="end" fill="#3f3f46" fontSize="9" fontFamily="monospace">{(v / 1000).toFixed(1)}</text>
+              <text x={LX - 6} y={yPos(v) + 3.5} textAnchor="end" fill="#71717a" fontSize="9" fontFamily="monospace">{(v / 1000).toFixed(1)}</text>
             </g>
           ))}
           {/* X-axis */}
           <line x1={LX} y1={TY + ph} x2={W - RX} y2={TY + ph} stroke="#1e1e2a" strokeWidth="0.5" />
+          {/* X-axis title */}
+          <text x={W - RX + 2} y={TY + ph + 14} textAnchor="start" fill="#52525b" fontSize="9" fontFamily="monospace" fontWeight="bold">tick</text>
 
           {/* Average line */}
           {hasData && (
@@ -1689,7 +1693,7 @@ function SpawnCronCard({ data, connected }: { data: any; connected: boolean }) {
               {history.map((_, i) => {
                 if (i % labelStep !== 0 && i !== history.length - 1) return null;
                 return (
-                  <text key={`xl-${i}`} x={xPos(i)} y={TY + ph + 15} textAnchor="middle" fill="#3f3f46" fontSize="8" fontFamily="monospace">
+                  <text key={`xl-${i}`} x={xPos(i)} y={TY + ph + 15} textAnchor="middle" fill="#71717a" fontSize="9.5" fontFamily="monospace">
                     {i + 1}
                   </text>
                 );
