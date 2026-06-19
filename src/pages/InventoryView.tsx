@@ -14,6 +14,7 @@ import {
   fetchManualOwnership, setManualOwnership, removeManualOwnership,
 } from "@/lib/supabase";
 import { useServerId, useServer } from "@/contexts/ServerContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { ExpiredGate } from "@/components/ExpiredGate";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { useToast } from "@/contexts/ToastContext";
@@ -69,6 +70,7 @@ const getClassIcon = (iconName: string) => {
 export function InventoryView() {
   const serverId = useServerId();
   const { currentServer } = useServer();
+  const { isViewer } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const configured = isSupabaseConfigured();
@@ -85,6 +87,19 @@ export function InventoryView() {
   };
 
   if (currentServer?.isExpired) return <ExpiredGate page="Inventory" />;
+
+  // Viewers can only see history, recipients, and analytics
+  const VIEWER_TABS = ["history", "recipients", "analytics"] as const;
+  const visibleTabs = isViewer
+    ? (["history", "recipients", "analytics"] as const)
+    : (["catalog", "collections", "history", "recipients", "analytics"] as const);
+
+  // Redirect viewer from restricted tabs
+  useEffect(() => {
+    if (isViewer && (tab === "catalog" || tab === "collections")) {
+      setTab("history");
+    }
+  }, [isViewer, tab]);
 
   // ── Collections state ──
   const [collectionMode, setCollectionMode] = useState<"list" | "view" | "matrix">("list");
@@ -557,7 +572,7 @@ export function InventoryView() {
         <>
       {/* Tabs */}
       <div className="flex items-center gap-1 border-b border-[#27272a] pb-2">
-        {(["catalog", "collections", "history", "recipients", "analytics"] as const).map(t => (
+        {visibleTabs.map(t => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -1408,6 +1423,7 @@ export function InventoryView() {
                             )}
                           </div>
                         </div>
+                        {!isViewer && (
                         <button
                           onClick={() => { setDeleteConfirm({ distId: d.id, itemName: item?.name ?? "Unknown" }); setDeleteConfirmName(""); }}
                           className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-[#52525b] hover:text-red-400 hover:bg-red-400/10 transition-all shrink-0"
@@ -1415,6 +1431,7 @@ export function InventoryView() {
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
+                        )}
                       </div>
                     );
                   })}
