@@ -3417,16 +3417,46 @@ export function ServerActivityLogTab({ serverId }: { serverId: string }) {
   const formatDetails = (entry: any): string => {
     const d = entry.details || {};
     switch (entry.action) {
-      case "boss_kill": return `${d.boss_name || "?"} — ${d.attendees ?? 0} attendees`;
-      case "attendance_copy": return `Copied ${d.copied ?? 0} attendees`;
-      case "member_cp_add": case "member_cp_update": return `${d.player_name || "?"}: ${d.old_cp ?? "—"} → ${d.new_cp ?? "?"}`;
+      case "boss_kill": return `${d.boss_name || "?"} — ${d.attendees ?? 0} attendees${d.guild ? ` (${d.guild})` : ""}`;
+      case "attendance_copy": return `Copied ${d.copied ?? 0} attendees${d.source_boss ? ` from "${d.source_boss}"` : ""}${d.target_boss ? ` to "${d.target_boss}"` : ""}${d.skipped ? ` (${d.skipped} skipped)` : ""}`;
+      case "member_cp_add": case "member_cp_update": return `${d.player_name || "?"}: ${d.old_cp != null ? Number(d.old_cp).toLocaleString() : "—"} → ${d.new_cp != null ? Number(d.new_cp).toLocaleString() : "?"}`;
+      case "member_cp_delete": return `Deleted CP update for ${d.player_name || "?"}`;
+      case "member_add": return d.member_name || "—";
+      case "member_remove": return d.member_name || d.target_id?.substring(0,8) + "…" || "—";
       case "member_note_add": return d.note_preview || "—";
-      case "moderator_add": return d.target_email || "—";
-      case "moderator_remove": return d.target_user_id?.substring(0,8) + "…" || "—";
+      case "member_note_delete": return `Deleted note`;
+      case "member_progress_update": return d.member_name ? `${d.member_name}: progress updated` : "Progress updated";
+      case "moderator_add": return d.target_email || d.target_user_id?.substring(0,8) + "…" || "—";
+      case "moderator_remove": return d.target_email || d.target_user_id?.substring(0,8) + "…" || "—";
+      case "mod_perms_update": return d.target_email || d.target_user_id?.substring(0,8) + "…" || "—";
       case "ownership_transfer": return `Owner changed`;
-      case "settings_update": return Object.entries(d).map(([k,v]) => `${k}: ${v}`).join(", ") || "—";
-      case "leaderboard_finalize": return `${d.period}: ${d.rankings ?? 0} players`;
-      default: return Object.entries(d).slice(0, 2).map(([k,v]) => `${k}: ${v}`).join(", ") || "—";
+      case "boss_create": case "boss_update": case "boss_delete": return d.boss_name || d.name || "—";
+      case "boss_toggle": return `${d.boss_name || d.name || "?"} ${d.enabled ? "enabled" : "disabled"}`;
+      case "boss_time_edit": return `${d.boss_name || d.activity_name || "?"}: time changed${d.new_time ? ` to ${d.new_time}` : ""}`;
+      case "activity_create": case "activity_update": case "activity_delete": return d.activity_name || d.name || "—";
+      case "activity_toggle": return `${d.activity_name || d.name || "?"} ${d.enabled ? "enabled" : "disabled"}${d.reason ? ` (${d.reason})` : ""}`;
+      case "activity_finalize": case "activity_guilds_set": case "activity_rotation_advance": return d.activity_name || "—";
+      case "gear_equip": return `Slot ${d.slot_id?.substring(0,8) || "?"} equipped${d.enhancement ? ` (+${d.enhancement})` : ""}`;
+      case "gear_unequip": return `Slot ${d.slot_id?.substring(0,8) || "?"} unequipped`;
+      case "item_create": case "item_update": case "item_delete": return `${d.item_name || d.name || "?"}${d.type ? ` (${d.type})` : ""}`;
+      case "item_distribute": return `${d.item_name || "?"} → ${d.player_name || "?"}${d.quantity ? ` x${d.quantity}` : ""}`;
+      case "item_approve": case "item_reject": return d.item_name || "—";
+      case "party_create": case "party_update": case "party_delete": return d.party_name || d.name || "—";
+      case "class_create": case "class_update": case "class_delete": return d.class_name || d.name || "—";
+      case "rally_image_delete": return `Deleted screenshot`;
+      case "leaderboard_finalize": return `${d.period || "?"}: ${d.rankings ?? 0} players`;
+      case "settings_update": {
+        const entries = Object.entries(d).filter(([k]) => k !== "discord_user");
+        return entries.map(([k,v]) => `${k.replace(/_/g, " ")}: ${v}`).join(", ") || "Settings updated";
+      }
+      case "invite_regenerate": return "Regenerated invite code";
+      case "viewer_key_regenerate": return "Regenerated viewer key";
+      case "seed_from_game": return `${d.game_name || "?"}: ${d.bosses ?? 0} bosses, ${d.activities ?? 0} activities seeded`;
+      case "force_spawn": return `${d.boss_name || `${d.boss_count ?? 0} bosses`} force-spawned`;
+      case "subscription_extend": return `+${d.days ?? 30} days`;
+      case "game_create": case "game_update": case "game_delete": return d.game_name || "—";
+      case "server_create": case "server_delete": case "server_restore": return d.server_name || "—";
+      default: return Object.entries(d).filter(([k]) => k !== "discord_user").slice(0, 2).map(([k,v]) => `${k}: ${v}`).join(", ") || "—";
     }
   };
 

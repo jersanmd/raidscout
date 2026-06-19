@@ -909,22 +909,36 @@ export function AdminPanelView() {
         const formatDetails = (entry: any): string => {
           const d = entry.details || {};
           switch (entry.action) {
-            case "boss_kill": return d.boss_name || "Unknown boss";
-            case "attendance_copy": return `Copied ${d.copied ?? 0} attendees (${d.skipped ?? 0} skipped)`;
-            case "member_cp_add": case "member_cp_update": return `${d.player_name || "?"}: ${d.old_cp ?? "—"} → ${d.new_cp ?? "?"}`;
-            case "member_cp_delete": return `Deleted CP update`;
+            case "boss_kill": return `${d.boss_name || "?"} — ${d.attendees ?? 0} attendees${d.guild ? ` (${d.guild})` : ""}`;
+            case "attendance_copy": return `Copied ${d.copied ?? 0} attendees${d.source_boss ? ` from "${d.source_boss}"` : ""}${d.target_boss ? ` to "${d.target_boss}"` : ""}${d.skipped ? ` (${d.skipped} skipped)` : ""}`;
+            case "member_cp_add": case "member_cp_update": return `${d.player_name || "?"}: ${d.old_cp != null ? Number(d.old_cp).toLocaleString() : "—"} → ${d.new_cp != null ? Number(d.new_cp).toLocaleString() : "?"}`;
+            case "member_cp_delete": return `Deleted CP update for ${d.player_name || "?"}`;
+            case "member_add": return d.member_name || "—";
+            case "member_remove": return d.member_name || d.target_id?.substring(0,8) + "…" || "—";
             case "member_note_add": return d.note_preview || "—";
             case "member_note_delete": return "Deleted note";
             case "moderator_add": return d.target_email || d.target_user_id?.substring(0,8) + "…" || "—";
-            case "moderator_remove": return d.target_user_id?.substring(0,8) + "…" || "—";
+            case "moderator_remove": return d.target_email || d.target_user_id?.substring(0,8) + "…" || "—";
             case "ownership_transfer": return `${d.old_owner_id?.substring(0,8)}… → ${d.new_owner_id?.substring(0,8)}…`;
-            case "force_spawn": return `${d.boss_count ?? 0} bosses in "${d.server_name || "?"}"`;
-            case "subscription_extend": return `+${d.days ?? 30} days`;
+            case "boss_toggle": return `${d.boss_name || d.name || "?"} ${d.enabled ? "enabled" : "disabled"}`;
+            case "boss_time_edit": return `${d.boss_name || d.activity_name || "?"}: time changed${d.new_time ? ` to ${d.new_time}` : ""}`;
+            case "activity_toggle": return `${d.activity_name || d.name || "?"} ${d.enabled ? "enabled" : "disabled"}`;
+            case "gear_equip": return `Slot equipped`;
+            case "gear_unequip": return `Slot unequipped`;
+            case "item_create": case "item_update": case "item_delete": return d.item_name || d.name || "—";
+            case "item_distribute": return `${d.item_name || "?"} → ${d.player_name || "?"}`;
+            case "force_spawn": return `${d.boss_name || `${d.boss_count ?? 0} bosses`} in "${d.server_name || "?"}"`;
+            case "subscription_extend": return `+${d.days ?? 30} days for "${d.server_name || "?"}"`;
             case "maintenance_on": return d.ends_at ? `Until ${new Date(d.ends_at).toLocaleString()}` : "—";
-            case "leaderboard_finalize": return `${d.period}: ${d.rankings ?? 0} players`;
-            case "settings_update": case "server_create": case "server_delete": case "server_restore":
-              return d.server_name || Object.entries(d).map(([k,v]) => `${k}: ${v}`).join(", ") || "—";
-            default: return Object.entries(d).slice(0, 2).map(([k,v]) => `${k}: ${v}`).join(", ") || "—";
+            case "maintenance_off": return "Turned off";
+            case "leaderboard_finalize": return `${d.period || "?"}: ${d.rankings ?? 0} players`;
+            case "settings_update": {
+              const entries = Object.entries(d).filter(([k]) => k !== "discord_user");
+              return entries.map(([k,v]) => `${k.replace(/_/g, " ")}: ${v}`).join(", ") || "Settings updated";
+            }
+            case "server_create": case "server_delete": case "server_restore": return d.server_name || "—";
+            case "game_create": case "game_update": case "game_delete": return d.game_name || "—";
+            default: return Object.entries(d).filter(([k]) => k !== "discord_user").slice(0, 2).map(([k,v]) => `${k}: ${v}`).join(", ") || "—";
           }
         };
 
