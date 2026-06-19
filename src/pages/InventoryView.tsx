@@ -2422,7 +2422,29 @@ function ItemTrendChart({ dates, series }: {
   dates: string[];
   series: { label: string; color: string; data: { date: string; count: number }[] }[];
 }) {
-  const W = 800, H = 210, padL = 50, padR = 20, padT = 22, padB = 32;
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [containerW, setContainerW] = useState(800);
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([entry]) => {
+      if (entry) setContainerW(entry.contentRect.width);
+    });
+    ro.observe(el);
+    setContainerW(el.clientWidth);
+    return () => ro.disconnect();
+  }, []);
+
+  const W = Math.max(containerW || 800, 400);
+  const isNarrow = W < 600;
+  const H = isNarrow ? 270 : 210;
+  const fontSize = isNarrow ? 12 : 10;
+  const fontSizeSm = isNarrow ? 11 : 9;
+  const fontSizeXs = isNarrow ? 9 : 7;
+  const dotR = isNarrow ? 5 : 3.5;
+  const strokeW = isNarrow ? 2.5 : 2;
+  const hitR = isNarrow ? 28 : 20;
+  const padL = 50, padR = isNarrow ? 10 : 20, padT = 22, padB = isNarrow ? 40 : 32;
   const chartW = W - padL - padR, chartH = H - padT - padB;
   const n = dates.length;
   const maxCount = Math.max(1, ...series.flatMap(s => s.data.map(d => d.count)));
@@ -2450,7 +2472,7 @@ function ItemTrendChart({ dates, series }: {
     : null;
 
   return (
-    <div className="relative">
+    <div ref={containerRef} className="relative">
       {/* Legend */}
       <div className="flex flex-wrap gap-x-4 gap-y-1 mb-2">
         {series.map((s, si) => (
@@ -2497,13 +2519,13 @@ function ItemTrendChart({ dates, series }: {
           return (
             <g key={`gy-${i}`}>
               <line x1={padL} y1={y} x2={W - padR} y2={y} stroke="#27272a" strokeWidth="1" />
-              <text x={padL - 8} y={y + 4} textAnchor="end" className="text-[10px]" fill="#52525b" fontFamily="monospace">{v}</text>
+              <text x={padL - 8} y={y + 4} textAnchor="end" fontSize={fontSize} fill="#52525b" fontFamily="monospace">{v}</text>
             </g>
           );
         })}
         {dates.map((d, i) => {
           if (i % xLabelInterval !== 0 && i !== n - 1) return null;
-          return <text key={`gx-${i}`} x={xFor(i)} y={H - 4} textAnchor="middle" className="text-[9px]" fill="#52525b" fontFamily="monospace">{d.slice(5)}</text>;
+          return <text key={`gx-${i}`} x={xFor(i)} y={H - 4} textAnchor="middle" fontSize={fontSizeSm} fill="#52525b" fontFamily="monospace">{d.slice(5)}</text>;
         })}
         {/* Hover line */}
         {hoverIdx != null && (
@@ -2517,7 +2539,7 @@ function ItemTrendChart({ dates, series }: {
         })}
         {/* Lines */}
         {n > 1 && series.map((s, si) => (
-          <polyline key={`line-${si}`} points={s.data.map((d, i) => `${xFor(i)},${yFor(d.count)}`).join(" ")} fill="none" stroke={s.color} strokeWidth="2" strokeLinejoin="round" className="trend-line" style={{ animationDelay: `${si * 0.2}s` }} />
+          <polyline key={`line-${si}`} points={s.data.map((d, i) => `${xFor(i)},${yFor(d.count)}`).join(" ")} fill="none" stroke={s.color} strokeWidth={strokeW} strokeLinejoin="round" className="trend-line" style={{ animationDelay: `${si * 0.2}s` }} />
         ))}
         {/* Dots */}
         {series.map((s, si) =>
@@ -2526,8 +2548,8 @@ function ItemTrendChart({ dates, series }: {
             if (cnt === 0) return null;
             return (
               <g key={`dp-${si}-${i}`}>
-                <circle cx={xFor(i)} cy={yFor(cnt)} r="12" fill="transparent" onMouseEnter={() => showTip(i)} onMouseLeave={hideTip} style={{ cursor: "pointer" }} />
-                <circle cx={xFor(i)} cy={yFor(cnt)} r="2.5" fill="#18181b" stroke={s.color} strokeWidth="1.2" className="trend-dot" style={{ animationDelay: `${0.8 + i * 0.03}s` }} />
+                <circle cx={xFor(i)} cy={yFor(cnt)} r={hitR} fill="transparent" onMouseEnter={() => showTip(i)} onMouseLeave={hideTip} onClick={() => hovered === i ? setHovered(null) : showTip(i)} style={{ cursor: "pointer" }} />
+                <circle cx={xFor(i)} cy={yFor(cnt)} r={dotR} fill="#18181b" stroke={s.color} strokeWidth="1.5" className="trend-dot" style={{ animationDelay: `${0.8 + i * 0.03}s` }} />
               </g>
             );
           })

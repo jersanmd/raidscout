@@ -5,7 +5,7 @@ import { fetchAllServers, fetchAllUsers, fetchAuditLog, fetchServerStats, fetchD
 import { useServer } from "@/contexts/ServerContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
-import { Loader2, Shield, Server, Users, Eye, ChevronDown, ChevronUp, ClipboardList, HardDrive, BarChart3, Crosshair, Skull, Activity, Radio, Clock, Trash2, RefreshCw, LogOut, Gamepad2, Globe, Search, AlertTriangle, Crown, ScrollText, CheckCircle, XCircle, UserPlus } from "lucide-react";
+import { Loader2, Shield, Server, Users, Eye, ChevronDown, ChevronUp, ClipboardList, HardDrive, BarChart3, Crosshair, Skull, Activity, Radio, Clock, Trash2, RefreshCw, LogOut, Gamepad2, Globe, Search, AlertTriangle, Crown, ScrollText, CheckCircle, XCircle, UserPlus, DollarSign } from "lucide-react";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { AdminGamesTab } from "@/components/AdminGamesTab";
 import { useUserTimezone } from "@/hooks/useUserTimezone";
@@ -13,12 +13,12 @@ import { TIMEZONES } from "@/lib/timezones";
 
 export function AdminPanelView() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const tabParam = searchParams.get("tab") as "servers" | "users" | "audit" | "games" | "infra" | "database" | "cron" | "deleted" | null;
-  const [tab, setTabState] = useState<"servers" | "users" | "audit" | "games" | "infra" | "database" | "cron" | "deleted">(
+  const tabParam = searchParams.get("tab") as "servers" | "users" | "audit" | "games" | "infra" | "database" | "cron" | "deleted" | "payments" | null;
+  const [tab, setTabState] = useState<"servers" | "users" | "audit" | "games" | "infra" | "database" | "cron" | "deleted" | "payments">(
     tabParam || "infra"
   );
 
-  const setTab = (t: "servers" | "users" | "audit" | "games" | "infra" | "database" | "cron" | "deleted") => {
+  const setTab = (t: "servers" | "users" | "audit" | "games" | "infra" | "database" | "cron" | "deleted" | "payments") => {
     setTabState(t);
     const params = new URLSearchParams(searchParams);
     params.set("tab", t);
@@ -134,6 +134,18 @@ export function AdminPanelView() {
 
       console.log("[admin] server roles:", { owners: owners.size, moderators: moderators.size });
       return { owners, moderators };
+    },
+    staleTime: 30_000,
+    enabled: userRole === "admin",
+  });
+
+  // Payments — cross-server purchase history
+  const { data: payments = [], isLoading: paymentsLoading } = useQuery({
+    queryKey: ["admin", "payments"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("payments").select("*").order("created_at", { ascending: false }).limit(500);
+      if (error) throw error;
+      return data || [];
     },
     staleTime: 30_000,
     enabled: userRole === "admin",
@@ -369,6 +381,7 @@ export function AdminPanelView() {
             { id: "database", icon: HardDrive, label: "Database" },
             { id: "cron", icon: Clock, label: "Test Cron" },
             { id: "deleted", icon: Trash2, label: "Deleted" },
+            { id: "payments", icon: DollarSign, label: "Payments" },
           ] as const).map(({ id, icon: Icon, label }) => (
             <button
               key={id}
@@ -1332,6 +1345,83 @@ export function AdminPanelView() {
         );
       })()}
 
+      {/* Payments Tab */}
+      {tab === "payments" && (() => {
+        const completedRevenue = payments.filter((p: any) => p.status === "completed").reduce((sum: number, p: any) => sum + (p.amount || 0), 0);
+        const refundedAmount = payments.filter((p: any) => p.status === "refunded").reduce((sum: number, p: any) => sum + (p.amount || 0), 0);
+        const completedCount = payments.filter((p: any) => p.status === "completed").length;
+        const refundedCount = payments.filter((p: any) => p.status === "refunded").length;
+        return (
+        <div className="space-y-4">
+          {/* Summary cards */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <div className="bg-[#0d0d11] border border-[#1e1e2a] rounded-lg p-3">
+              <p className="text-[10px] text-[#71717a] uppercase tracking-wider">Revenue</p>
+              <p className="text-lg font-semibold text-emerald-400 mt-0.5">${completedRevenue.toFixed(2)}</p>
+              {refundedAmount > 0 && <p className="text-[10px] text-red-400">-${refundedAmount.toFixed(2)} refunded</p>}
+            </div>
+            <div className="bg-[#0d0d11] border border-[#1e1e2a] rounded-lg p-3">
+              <p className="text-[10px] text-[#71717a] uppercase tracking-wider">Transactions</p>
+              <p className="text-lg font-semibold text-[#fafafa] mt-0.5">{payments.length}</p>
+              <p className="text-[10px] text-[#52525b]">{completedCount} completed{refundedCount > 0 ? `, ${refundedCount} refunded` : ""}</p>
+            </div>
+            <div className="bg-[#0d0d11] border border-[#1e1e2a] rounded-lg p-3">
+              <p className="text-[10px] text-[#71717a] uppercase tracking-wider">Net Revenue</p>
+              <p className="text-lg font-semibold text-[#fafafa] mt-0.5">${(completedRevenue - refundedAmount).toFixed(2)}</p>
+            </div>
+            <div className="bg-[#0d0d11] border border-[#1e1e2a] rounded-lg p-3">
+              <p className="text-[10px] text-[#71717a] uppercase tracking-wider">Avg / Payment</p>
+              <p className="text-lg font-semibold text-[#fafafa] mt-0.5">${completedCount > 0 ? (completedRevenue / completedCount).toFixed(2) : "0.00"}</p>
+            </div>
+          </div>
+
+          {/* Payments table — all transactions */}
+          <div className="bg-[#0d0d11] border border-[#1e1e2a] rounded-lg overflow-hidden">
+            {paymentsLoading ? (
+              <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 text-[#71717a] animate-spin" /></div>
+            ) : payments.length === 0 ? (
+              <p className="text-[#71717a] text-sm text-center py-12">No payments yet.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="border-b border-[#1e1e2a] text-[#71717a]">
+                      <th className="text-left px-3 py-2 font-medium">Date</th>
+                      <th className="text-left px-3 py-2 font-medium">Server</th>
+                      <th className="text-left px-3 py-2 font-medium">Payer</th>
+                      <th className="text-right px-3 py-2 font-medium">Amount</th>
+                      <th className="text-right px-3 py-2 font-medium">Days</th>
+                      <th className="text-right px-3 py-2 font-medium">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {payments.map((p: any) => {
+                      const serverName = servers.find((s: any) => s.id === p.server_id)?.name || p.server_id?.slice(0, 8) || "—";
+                      return (
+                        <tr key={p.id} className="border-b border-[#1e1e2a]/50 hover:bg-[#18181b]/50 transition">
+                          <td className="px-3 py-2 text-[#a1a1aa] whitespace-nowrap">{new Date(p.created_at).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}</td>
+                          <td className="px-3 py-2 text-[#fafafa] whitespace-nowrap">{serverName}</td>
+                          <td className="px-3 py-2 text-[#a1a1aa] max-w-[120px] truncate">{p.payer_email || "—"}</td>
+                          <td className="px-3 py-2 text-right whitespace-nowrap"><span className={p.status === "refunded" ? "text-red-400" : "text-[#fafafa]"}>${p.amount}</span></td>
+                          <td className="px-3 py-2 text-right whitespace-nowrap"><span className={p.status === "refunded" ? "text-red-400" : "text-[#a1a1aa]"}>+{p.days_added}d</span></td>
+                          <td className="px-3 py-2 text-right whitespace-nowrap">
+                            <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium ${p.status === "completed" ? "bg-emerald-500/10 text-emerald-400" : "bg-red-500/10 text-red-400"}`}>
+                              {p.status === "completed" ? <CheckCircle className="w-2.5 h-2.5" /> : <XCircle className="w-2.5 h-2.5" />}
+                              {p.status}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+        );
+      })()}
+
       {/* Infra Tab */}
       {tab === "infra" && (
         <div className="space-y-3 sm:space-y-4">
@@ -1349,7 +1439,7 @@ export function AdminPanelView() {
               </button>
             </div>
             {/* Terminal body */}
-            <div ref={logScrollRef} className="h-[36rem] sm:h-96 overflow-y-auto font-mono text-[10px] sm:text-[11px] leading-relaxed p-1.5 sm:p-2">
+            <div ref={logScrollRef} className="h-[36rem] sm:h-96 overflow-y-auto overflow-x-hidden font-mono text-[10px] sm:text-[11px] leading-relaxed p-1.5 sm:p-2">
               {logsLoading ? (
                 <div className="flex justify-center py-6"><Loader2 className="w-4 h-4 text-[#52525b] animate-spin" /></div>
               ) : !botLogs?.logs?.length ? (
@@ -1361,7 +1451,7 @@ export function AdminPanelView() {
                     <span className={`shrink-0 w-8 sm:w-10 text-right select-none text-[10px] sm:text-[11px] ${
                       l.level === "error" ? "text-[#ff5f57]" : l.level === "warn" ? "text-[#febc2e]" : "text-[#52525b]"
                     }`}>{l.level}</span>
-                    <span className={`whitespace-normal sm:truncate text-[10px] sm:text-[11px] ${
+                    <span className={`whitespace-normal break-all sm:truncate text-[10px] sm:text-[11px] ${
                       l.level === "error" ? "text-[#ff5f57]" : l.level === "warn" ? "text-[#febc2e]" : "text-[#a1a1aa]"
                     }`}>{l.msg}</span>
                   </div>
@@ -1644,9 +1734,38 @@ function SpawnCronCard({ data, connected, timezone }: { data: any; connected: bo
   const bosses = data?.bosses_checked ?? 0;
   const hasData = history.length > 1;
 
-  const W = 1200, H = 360, LX = 52, RX = 36, TY = 16, BY = 32;
-  const max = hasData ? Math.max(...history, 500) : 5000;
-  const min = hasData ? Math.min(...history, 0) : 0;
+  const chartRef = useRef<HTMLDivElement | null>(null);
+  const [chartW, setChartW] = useState(1200);
+  useEffect(() => {
+    const el = chartRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([entry]) => {
+      if (entry) setChartW(entry.contentRect.width);
+    });
+    ro.observe(el);
+    setChartW(el.clientWidth);
+    return () => ro.disconnect();
+  }, []);
+
+  const W = chartW || 350;
+  const isNarrow = W < 640;
+  const H = isNarrow ? Math.round(W * 2 / 3) : Math.round(W * 0.3);
+  const LX = isNarrow ? 40 : 52, RX = isNarrow ? 20 : 36, TY = 16, BY = isNarrow ? 28 : 32;
+  const fontSize = isNarrow ? 11 : 9;
+  const fontSizeSm = isNarrow ? 9.5 : 7.5;
+  const fontSizeLg = isNarrow ? 10 : 9.5;
+  const lineW = isNarrow ? 2.5 : 1.8;
+  const glowW = isNarrow ? 7 : 5;
+  const hitW = isNarrow ? 44 : 36;
+  const dotR = isNarrow ? 3 : 2;
+  const dotHoverR = isNarrow ? 5 : 3.5;
+  const lastDotR = isNarrow ? 5 : 3.5;
+  const lastGlowR = isNarrow ? 8 : 6;
+  const dataMin = hasData ? Math.min(...history) : 0;
+  const dataMax = hasData ? Math.max(...history) : 5000;
+  const padding = (dataMax - dataMin) * 0.1 || 100;
+  const min = Math.max(0, dataMin - padding);
+  const max = dataMax + padding;
   const rng = max - min || 1;
   const pw = W - LX - RX;
   const ph = H - TY - BY;
@@ -1661,7 +1780,7 @@ function SpawnCronCard({ data, connected, timezone }: { data: any; connected: bo
   const yTicks: number[] = [];
   let yStep = rng > 4000 ? 1000 : rng > 2000 ? 500 : rng > 1000 ? 250 : 200;
   // Scale up step if there would be too many grid lines
-  while ((rng / yStep) > 8) yStep *= 2;
+  while ((rng / yStep) > (isNarrow ? 5 : 8)) yStep *= 2;
   for (let v = Math.ceil(min / yStep) * yStep; v <= max; v += yStep) yTicks.push(v);
   if (yTicks.length < 2) yTicks.push(min, max);
 
@@ -1687,7 +1806,7 @@ function SpawnCronCard({ data, connected, timezone }: { data: any; connected: bo
   }, [histData, timezone]);
 
   // Label every ~6th tick
-  const labelStep = Math.max(1, Math.floor(history.length / 6));
+  const labelStep = Math.max(1, Math.floor(history.length / (isNarrow ? 3 : 6)));
 
   return (
     <div className="relative rounded-xl bg-[#0d0d11] border border-[#1e1e2a]">
@@ -1743,7 +1862,7 @@ function SpawnCronCard({ data, connected, timezone }: { data: any; connected: bo
       </div>
 
       {/* Chart */}
-      <div className="relative w-full aspect-[10/3] min-h-[180px] sm:min-h-[260px]">
+      <div ref={chartRef} className="relative w-full max-w-[900px] aspect-[3/2] sm:aspect-[10/3] min-h-[350px] sm:min-h-[260px] mx-auto">
         <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-full" preserveAspectRatio="xMidYMid meet">
           <style>{`
             @keyframes drawIn { from { stroke-dashoffset: var(--d); } to { stroke-dashoffset: 0; } }
@@ -1768,18 +1887,16 @@ function SpawnCronCard({ data, connected, timezone }: { data: any; connected: bo
           </defs>
 
           {/* Y-axis title */}
-          <text x={LX - 4} y={TY - 2} textAnchor="end" fill="#52525b" fontSize="9" fontFamily="monospace" fontWeight="bold">sec</text>
+          <text x={LX - 4} y={TY - 2} textAnchor="end" fill="#52525b" fontSize={fontSize} fontFamily="monospace" fontWeight="bold">sec</text>
           {/* Grid */}
           {yTicks.map(v => (
             <g key={`g-${v}`}>
               <line x1={LX} y1={yPos(v)} x2={W - RX} y2={yPos(v)} stroke="#1e1e2a" strokeWidth="0.5" />
-              <text x={LX - 6} y={yPos(v) + 3.5} textAnchor="end" fill="#71717a" fontSize="9" fontFamily="monospace">{(v / 1000).toFixed(1)}</text>
+              <text x={LX - 6} y={yPos(v) + 3.5} textAnchor="end" fill="#71717a" fontSize={fontSize} fontFamily="monospace">{(v / 1000).toFixed(1)}</text>
             </g>
           ))}
           {/* X-axis */}
           <line x1={LX} y1={TY + ph} x2={W - RX} y2={TY + ph} stroke="#1e1e2a" strokeWidth="0.5" />
-          {/* X-axis title */}
-          <text x={W - RX + 2} y={TY + ph + 14} textAnchor="start" fill="#52525b" fontSize="9" fontFamily="monospace" fontWeight="bold">tick</text>
 
           {/* Average line */}
           {hasData && (
@@ -1791,10 +1908,10 @@ function SpawnCronCard({ data, connected, timezone }: { data: any; connected: bo
               {/* Area */}
               <polygon points={`${xPos(0)},${TY + ph} ${pts} ${xPos(history.length - 1)},${TY + ph}`} fill="url(#areaGrad)" className="area" />
               {/* Glow line */}
-              <polyline points={pts} fill="none" stroke="#8b5cf6" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" opacity="0"
+              <polyline points={pts} fill="none" stroke="#8b5cf6" strokeWidth={glowW} strokeLinecap="round" strokeLinejoin="round" opacity="0"
                 filter="url(#glow)" className="glow" style={{ '--d': 99999 } as React.CSSProperties} />
               {/* Main line */}
-              <polyline points={pts} fill="none" stroke="#a78bfa" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"
+              <polyline points={pts} fill="none" stroke="#a78bfa" strokeWidth={lineW} strokeLinecap="round" strokeLinejoin="round"
                 className="cline" style={{ '--d': 99999 } as React.CSSProperties} />
 
               {/* Data points — always visible, hoverable, clickable */}
@@ -1810,32 +1927,32 @@ function SpawnCronCard({ data, connected, timezone }: { data: any; connected: bo
                 return (
                   <g key={`p-${i}`}>
                     {/* Invisible hit area */}
-                    <rect x={x - 18} y={y - 18} width="36" height="36" fill="transparent"
+                    <rect x={x - hitW / 2} y={y - hitW / 2} width={hitW} height={hitW} fill="transparent"
                       onMouseEnter={onEnter} onMouseLeave={onLeave} onClick={onClick}
                       style={{ cursor: "pointer" }} />
                     {/* Hover ring */}
                     {isHovered && (
-                      <circle cx={x} cy={y} r="8" fill="none" stroke="#a78bfa" strokeWidth="1" opacity="0.5">
-                        <animate attributeName="r" from="6" to="10" dur="0.8s" repeatCount="indefinite" />
+                      <circle cx={x} cy={y} r={isNarrow ? "10" : "8"} fill="none" stroke="#a78bfa" strokeWidth="1" opacity="0.5">
+                        <animate attributeName="r" from={isNarrow ? "8" : "6"} to={isNarrow ? "12" : "10"} dur="0.8s" repeatCount="indefinite" />
                         <animate attributeName="opacity" from="0.5" to="0" dur="0.8s" repeatCount="indefinite" />
                       </circle>
                     )}
                     {/* Dot */}
                     {isLast ? (
                       <>
-                        <circle cx={x} cy={y} r="6" fill="#8b5cf6" opacity="0.25" className="ldot" />
-                        <circle cx={x} cy={y} r="3.5" fill="#c4b5fd" stroke="#0d0d11" strokeWidth="1.5" />
+                        <circle cx={x} cy={y} r={lastGlowR} fill="#8b5cf6" opacity="0.25" className="ldot" />
+                        <circle cx={x} cy={y} r={lastDotR} fill="#c4b5fd" stroke="#0d0d11" strokeWidth="1.5" />
                       </>
                     ) : (
-                      <circle cx={x} cy={y} r={isHovered ? "3.5" : "2"} fill={isHovered ? "#c4b5fd" : "#a78bfa"} stroke="#0d0d11" strokeWidth={isHovered ? "2" : "1"} />
+                      <circle cx={x} cy={y} r={isHovered ? dotHoverR : dotR} fill={isHovered ? "#c4b5fd" : "#a78bfa"} stroke="#0d0d11" strokeWidth={isHovered ? "2" : "1"} />
                     )}
                     {/* Value label on hover */}
                     {isHovered && !isLast && (
-                      <text x={x} y={y - 10} textAnchor="middle" fill="#fafafa" fontSize="8.5" fontFamily="monospace" fontWeight="bold">{lbl}s</text>
+                      <text x={x} y={y - 10} textAnchor="middle" fill="#fafafa" fontSize={fontSizeLg} fontFamily="monospace" fontWeight="bold">{lbl}s</text>
                     )}
                     {/* Always-visible label for Nth ticks */}
                     {!isHovered && (i % labelStep === 0 || isLast) && !isLast && (
-                      <text x={x} y={y - 8} textAnchor="middle" fill="#71717a" fontSize="7.5" fontFamily="monospace">{lbl}</text>
+                      <text x={x} y={y - 8} textAnchor="middle" fill="#71717a" fontSize={fontSizeSm} fontFamily="monospace">{lbl}</text>
                     )}
                   </g>
                 );
@@ -1845,7 +1962,7 @@ function SpawnCronCard({ data, connected, timezone }: { data: any; connected: bo
               {history.map((_, i) => {
                 if (i % labelStep !== 0 && i !== history.length - 1) return null;
                 return (
-                  <text key={`xl-${i}`} x={xPos(i)} y={TY + ph + 15} textAnchor="middle" fill="#71717a" fontSize="9.5" fontFamily="monospace">
+                  <text key={`xl-${i}`} x={xPos(i)} y={TY + ph + 15} textAnchor="middle" fill="#71717a" fontSize={fontSizeLg} fontFamily="monospace">
                     {i + 1}
                   </text>
                 );

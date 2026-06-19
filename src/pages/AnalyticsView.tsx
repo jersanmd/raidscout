@@ -570,8 +570,30 @@ function KillsTrendChart({ dates, series, detail, guilds }: {
   detail: { date: string; count: number; bosses: { name: string; guild: string | null; kills: number }[] }[];
   guilds: Guild[];
 }) {
-  const W = 800, H = 220;
-  const padL = 50, padR = 20, padT = 22, padB = 32;
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [containerW, setContainerW] = useState(800);
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([entry]) => {
+      if (entry) setContainerW(entry.contentRect.width);
+    });
+    ro.observe(el);
+    setContainerW(el.clientWidth);
+    return () => ro.disconnect();
+  }, []);
+
+  const W = Math.max(containerW || 800, 400);
+  const isNarrow = W < 600;
+  const H = isNarrow ? 280 : 220;
+  const fontSize = isNarrow ? 12 : 10;
+  const fontSizeSm = isNarrow ? 11 : 9;
+  const fontSizeXs = isNarrow ? 9 : 7;
+  const dotR = isNarrow ? 5 : 3.5;
+  const dotHoverR = isNarrow ? 7 : 5;
+  const hitR = isNarrow ? 28 : 20;
+  const strokeW = isNarrow ? 2.5 : 2;
+  const padL = 50, padR = isNarrow ? 10 : 20, padT = 22, padB = isNarrow ? 40 : 32;
   const chartW = W - padL - padR;
   const chartH = H - padT - padB;
   const n = dates.length;
@@ -615,7 +637,7 @@ function KillsTrendChart({ dates, series, detail, guilds }: {
     : null;
 
   return (
-    <div className="relative">
+    <div ref={containerRef} className="relative">
       {/* Legend */}
       {series.length > 0 && (
         <div className="flex flex-wrap gap-x-4 gap-y-1 mb-2 px-1">
@@ -711,7 +733,7 @@ function KillsTrendChart({ dates, series, detail, guilds }: {
           return (
             <g key={`gy-${i}`}>
               <line x1={padL} y1={y} x2={W - padR} y2={y} stroke="#27272a" strokeWidth="1" />
-              <text x={padL - 8} y={y + 4} textAnchor="end" className="text-[10px]" fill="#52525b" fontFamily="monospace">{v}</text>
+              <text x={padL - 8} y={y + 4} textAnchor="end" fontSize={fontSize} fill="#52525b" fontFamily="monospace">{v}</text>
             </g>
           );
         })}
@@ -720,7 +742,7 @@ function KillsTrendChart({ dates, series, detail, guilds }: {
         {dates.map((d, i) => {
           if (i % xLabelInterval !== 0 && i !== n - 1) return null;
           return (
-            <text key={`gx-${i}`} x={xFor(i)} y={H - 4} textAnchor="middle" className="text-[9px]" fill="#52525b" fontFamily="monospace">{d.slice(5)}</text>
+            <text key={`gx-${i}`} x={xFor(i)} y={H - 4} textAnchor="middle" fontSize={fontSizeSm} fill="#52525b" fontFamily="monospace">{d.slice(5)}</text>
           );
         })}
 
@@ -741,7 +763,7 @@ function KillsTrendChart({ dates, series, detail, guilds }: {
             points={s.data.map((d, i) => `${xFor(i)},${yFor(d.count)}`).join(" ")}
             fill="none"
             stroke={resolveSeriesColor(s.guild, si, guilds)}
-            strokeWidth="2"
+            strokeWidth={strokeW}
             strokeLinejoin="round"
             className="trend-line"
             style={{ animationDelay: `${si * 0.2}s` }}
@@ -772,19 +794,21 @@ function KillsTrendChart({ dates, series, detail, guilds }: {
               <g key={`dp-${si}-${i}`}>
                 {cnt > 0 && (
                   <>
-                    <circle cx={cx} cy={cy} r="14" fill="transparent"
+                    <circle cx={cx} cy={cy} r={hitR} fill="transparent"
                       onMouseEnter={() => showTooltip(i)}
                       onMouseLeave={hideTooltip}
+                      onClick={() => hoverIdx === i ? setHoverIdx(null) : showTooltip(i)}
                       style={{ cursor: "pointer" }} />
-                    <circle cx={cx} cy={cy} r={isHovered ? 4 : 2.5}
+                    <circle cx={cx} cy={cy} r={isHovered ? dotHoverR : dotR}
                       fill={isHovered ? color : "#18181b"}
-                      stroke={color} strokeWidth={isHovered ? 2 : 1.2}
+                      stroke={color} strokeWidth={isHovered ? 2 : 1.5}
                       className="trend-dot transition-all duration-150"
                       style={{ cursor: "pointer", animationDelay: `${0.8 + i * 0.03}s` }}
                       onMouseEnter={() => showTooltip(i)}
-                      onMouseLeave={hideTooltip} />
+                      onMouseLeave={hideTooltip}
+                      onClick={() => hoverIdx === i ? setHoverIdx(null) : showTooltip(i)} />
                     {showLabel && (
-                      <text x={cx} y={cy - 7} textAnchor="middle" className="text-[7px]" fill={color} fontFamily="monospace" fontWeight="bold">{cnt}</text>
+                      <text x={cx} y={cy - (isNarrow ? 10 : 7)} textAnchor="middle" fontSize={fontSizeXs} fill={color} fontFamily="monospace" fontWeight="bold">{cnt}</text>
                     )}
                   </>
                 )}

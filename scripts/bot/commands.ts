@@ -345,6 +345,7 @@ export async function handleMessage(msg: any) {
       method: "POST", headers: { apikey: SUPABASE_KEY!, Authorization: `Bearer ${SUPABASE_KEY!}`, "Content-Type": "application/json" },
       body: JSON.stringify({ activity_id: act.id, start_time: now.toISOString() }),
     });
+    writeBotAudit({ action: "force_spawn", server_id: serverId, discord_user: author, target_id: act.id, details: { activity_name: act.name } });
     return reply(`✅ **${act.name}** activity started now.`);
   }
 
@@ -753,6 +754,7 @@ export async function handleMessage(msg: any) {
       broadcastNotification(serverId, {}, channelId, activityKillText);
       await reply(`✅ **${activity.name}** completed${timeLabel}`);
       await cmdLog(cmd, "ok", `activity:${activity.name}`);
+      writeBotAudit({ action: "activity_finalize", server_id: serverId, discord_user: author, target_id: activity.id, details: { activity_name: activity.name } });
       return;
     }
 

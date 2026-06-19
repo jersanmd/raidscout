@@ -268,7 +268,18 @@ Deep-dive pages for every member in your guild:
 
 Daily changelogs track every feature, fix, and improvement. Available at `/changelog` on the site and in the `docs/` folder. Each entry is organized into categories (New Features, UI, Fixes, Bot, Security, Architecture) and automatically loaded from Markdown files. Expand/collapse individual entries or use "Expand all" / "Collapse all" to browse.
 
-### 📅 Weekly Schedule View
+### � Audit Log & Admin Panel
+
+Every action taken by server owners, moderators, and admins is recorded permanently:
+
+- **43 action types** — Boss kills, activity completions, member management, CP updates, gear changes, item distribution, class changes, settings modifications, Discord bot commands, and admin operations.
+- **Dual access** — Server owners and moderators view their server's log via the Activity Log modal. Admins see all servers in the Admin Panel's Audit tab.
+- **Time-range + action filters** — Filter by date range and specific action types with server-side filtering.
+- **Admin Payments tab** — Cross-server revenue dashboard with completed/refunded breakdown, total net revenue, and transaction history table.
+- **Bot terminal** — Live log viewer with color-coded error/warn/info levels and auto-scroll.
+- **Spawn Cron monitor** — Real-time tick duration chart with historical data (1h to 30d), average/peak/latest metrics, and responsive SVG chart.
+
+### �📅 Weekly Schedule View
 
 A 7-day calendar grid showing **every boss, every day, with guild ownership**:
 

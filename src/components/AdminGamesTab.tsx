@@ -396,7 +396,7 @@ export function AdminGamesTab() {
                   <div className="flex flex-col items-center justify-center py-10 gap-2"><Loader2 className="w-6 h-6 animate-spin text-[#a1a1aa]" /><span className="text-xs text-[#71717a]">Loading...</span></div>
                 ) : (
                   <>
-                    <div className="flex items-center gap-0.5 px-4 pt-3 pb-0 border-b border-[#1e1e2a] overflow-x-auto">
+                    <div className="flex items-center gap-0.5 px-4 pt-3 pb-0 border-b border-[#1e1e2a] flex-wrap">
                       {TABS.map(t => {
                         const isActive = expandedTab === t.key;
                         const Icon = t.icon;

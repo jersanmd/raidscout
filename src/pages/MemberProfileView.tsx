@@ -928,7 +928,7 @@ export function MemberProfileView() {
             {weeklyPerf.length > 1 ? (
               <div style={{ height: 180, minHeight: 180, minWidth: 200 }}>
                 <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={weeklyPerf} margin={{ top: 24, right: 0, left: 0, bottom: 0 }}>
+                  <AreaChart data={weeklyPerf} margin={{ top: 24, right: 36, left: 0, bottom: 0 }}>
                     <defs>
                       <linearGradient id="perfGrad2" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="0%" stopColor="#a855f7" stopOpacity={0.3}/>
@@ -1013,7 +1013,7 @@ export function MemberProfileView() {
         {weeklyPerf.length > 1 ? (
           <div style={{ height: 180, minHeight: 180, minWidth: 200 }}>
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={weeklyPerf} margin={{ top: 24, right: 0, left: 0, bottom: 0 }}>
+              <AreaChart data={weeklyPerf} margin={{ top: 24, right: 36, left: 0, bottom: 0 }}>
                 <defs>
                   <linearGradient id="perfGrad" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%" stopColor="#a855f7" stopOpacity={0.3}/>
