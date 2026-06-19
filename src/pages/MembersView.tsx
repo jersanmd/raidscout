@@ -1024,19 +1024,17 @@ export function MembersView() {
 
       {/* Tab bar */}
       <div className="flex items-center gap-1 border-b border-[#27272a] pb-2">
-        {!isViewer && (
-          <button
-            onClick={() => setMembersTab("members")}
-            className={`px-3 py-1.5 rounded-t-md text-xs font-medium transition ${
-              membersTab === "members"
-                ? "bg-[#18181b] text-[#fafafa] border border-[#27272a] border-b-transparent"
-                : "text-[#71717a] hover:text-[#d4d4d8]"
-            }`}
-          >
-            <Users className="w-3.5 h-3.5 inline mr-1" />
-            Members
-          </button>
-        )}
+        <button
+          onClick={() => setMembersTab("members")}
+          className={`px-3 py-1.5 rounded-t-md text-xs font-medium transition ${
+            membersTab === "members"
+              ? "bg-[#18181b] text-[#fafafa] border border-[#27272a] border-b-transparent"
+              : "text-[#71717a] hover:text-[#d4d4d8]"
+          }`}
+        >
+          <Users className="w-3.5 h-3.5 inline mr-1" />
+          Members{isViewer ? " (View Only)" : ""}
+        </button>
         <button
           onClick={() => setMembersTab("progress")}
           className={`px-3 py-1.5 rounded-t-md text-xs font-medium transition ${
