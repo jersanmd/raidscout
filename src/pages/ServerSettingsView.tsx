@@ -3377,7 +3377,9 @@ export function ServerActivityLogTab({ serverId, timezone = "UTC" }: { serverId:
   const sevenDaysAgo = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10);
   const [dateFrom, setDateFrom] = useState(sevenDaysAgo);
   const [dateTo, setDateTo] = useState(today);
-  const [filtersExpanded, setFiltersExpanded] = useState(true);
+  const [filtersExpanded, setFiltersExpanded] = useState(() => {
+    return localStorage.getItem("rs_audit_filters_expanded") !== "false";
+  });
   const allLog = useRef<any[]>([]);
 
   const saveFilters = (filters: Set<string>) => {
@@ -3574,7 +3576,7 @@ export function ServerActivityLogTab({ serverId, timezone = "UTC" }: { serverId:
       {/* Action filter — collapsible checkboxes */}
       <div className="text-[10px]">
         <div className="flex items-center gap-2 mb-1">
-          <button onClick={() => setFiltersExpanded(!filtersExpanded)}
+          <button onClick={() => setFiltersExpanded(prev => { const next = !prev; localStorage.setItem("rs_audit_filters_expanded", String(next)); return next; })}
             className="flex items-center gap-1.5 px-2 py-1 rounded border border-[#1e1e2a] text-[#a1a1aa] hover:text-[#fafafa] hover:border-[#3f3f46] transition">
             <Eye className="w-3 h-3" />
             <span className="text-xs font-medium">{filtersExpanded ? "Hide Filters" : "Show Filters"}</span>
