@@ -3344,7 +3344,6 @@ function BossPointsMatrix({
 
 export function ServerActivityLogTab({ serverId }: { serverId: string }) {
   const [actionFilters, setActionFilters] = useState<Set<string>>(new Set());
-  const [showActionPicker, setShowActionPicker] = useState(false);
   const [cursor, setCursor] = useState<string | null>(null);
   const [log, setLog] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -3434,45 +3433,26 @@ export function ServerActivityLogTab({ serverId }: { serverId: string }) {
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap items-center gap-2">
-        {/* Action filter checkboxes */}
-        <div className="relative">
-          <button onClick={() => setShowActionPicker(!showActionPicker)}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-[#0d0d11] border border-[#1e1e2a] text-[#a1a1aa] hover:text-[#fafafa] hover:border-[#52525b] transition">
-            <span>Actions</span>
-            {actionFilters.size > 0 && <span className="min-w-[18px] h-[18px] rounded-full bg-violet-500/20 text-[10px] font-bold text-violet-300 flex items-center justify-center px-1">{actionFilters.size}</span>}
-            <ChevronDown className={`w-3 h-3 transition ${showActionPicker ? "rotate-180" : ""}`} />
-          </button>
-          {showActionPicker && (
-            <>
-              <div className="fixed inset-0 z-40" onClick={() => setShowActionPicker(false)} />
-              <div className="absolute z-50 top-full mt-1 left-0 bg-[#18181b] border border-[#27272a] rounded-lg shadow-xl max-h-64 overflow-y-auto w-56">
-                <div className="p-1.5 space-y-0.5">
-                  {AUDIT_ACTION_GROUPS.filter(g => !["Admin", "Subscription"].includes(g.label)).map(g => (
-                    <div key={g.label}>
-                      <div className="text-[9px] font-semibold text-[#52525b] uppercase tracking-wider px-2 py-1">{g.label}</div>
-                      {g.actions.map(a => (
-                        <button key={a} onClick={() => toggleAction(a)}
-                          className={`w-full flex items-center gap-2 px-2 py-1 rounded text-[11px] text-left transition ${actionFilters.has(a) ? "text-violet-300 bg-violet-500/10" : "text-[#a1a1aa] hover:text-[#fafafa]"}`}>
-                          <span className={`shrink-0 w-3.5 h-3.5 rounded border flex items-center justify-center ${actionFilters.has(a) ? "bg-violet-500 border-violet-500" : "border-[#3f3f46]"}`}>
-                            {actionFilters.has(a) && <Check className="w-2.5 h-2.5 text-white" />}
-                          </span>
-                          {formatActionLabel(a)}
-                        </button>
-                      ))}
-                    </div>
-                  ))}
-                </div>
-                {actionFilters.size > 0 && (
-                  <div className="border-t border-[#1e1e2a] px-3 py-1.5">
-                    <button onClick={() => setActionFilters(new Set())} className="text-[10px] text-[#71717a] hover:text-[#fafafa] transition">Clear filters</button>
-                  </div>
-                )}
-              </div>
-            </>
-          )}
-        </div>
-        <span className="text-xs text-[#52525b] ml-auto">{filteredLog.length} event{filteredLog.length !== 1 ? "s" : ""}</span>
+      {/* Action filter — inline checkboxes grouped by category */}
+      <div className="flex flex-wrap items-start gap-x-4 gap-y-1 max-h-32 overflow-y-auto text-[10px]">
+        {AUDIT_ACTION_GROUPS.filter(g => !["Admin", "Subscription"].includes(g.label)).map(g => (
+          <div key={g.label} className="flex items-center gap-1.5 flex-wrap">
+            <span className="text-[#52525b] font-semibold shrink-0">{g.label}</span>
+            {g.actions.map(a => (
+              <button key={a} onClick={() => toggleAction(a)}
+                className={`flex items-center gap-1 px-1.5 py-0.5 rounded border transition ${actionFilters.has(a) ? "border-violet-500/50 text-violet-300 bg-violet-500/10" : "border-[#1e1e2a] text-[#71717a] hover:border-[#3f3f46] hover:text-[#a1a1aa]"}`}>
+                <span className={`shrink-0 w-3 h-3 rounded border flex items-center justify-center ${actionFilters.has(a) ? "bg-violet-500 border-violet-500" : "border-[#3f3f46]"}`}>
+                  {actionFilters.has(a) && <Check className="w-2 h-2 text-white" />}
+                </span>
+                <span className="whitespace-nowrap">{formatActionLabel(a)}</span>
+              </button>
+            ))}
+          </div>
+        ))}
+        {actionFilters.size > 0 && (
+          <button onClick={() => setActionFilters(new Set())} className="text-[#71717a] hover:text-[#fafafa] transition shrink-0">Clear all</button>
+        )}
+        <span className="text-xs text-[#52525b] ml-auto self-center shrink-0">{filteredLog.length} event{filteredLog.length !== 1 ? "s" : ""}</span>
       </div>
 
       {loading && log.length === 0 ? (
