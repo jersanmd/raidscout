@@ -67,7 +67,3 @@ $$;
 
 GRANT EXECUTE ON FUNCTION get_member_growth(uuid) TO authenticated;
 GRANT EXECUTE ON FUNCTION get_member_growth(uuid) TO anon;
-
-
-GRANT EXECUTE ON FUNCTION get_member_growth(uuid) TO authenticated;
-GRANT EXECUTE ON FUNCTION get_member_growth(uuid) TO anon;

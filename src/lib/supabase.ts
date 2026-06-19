@@ -168,6 +168,7 @@ export {
   addAttendance,
   removeAttendance,
   clearAllData,
+  copyAttendanceToDeath,
 } from "./api/attendance";
 
 // Leaderboard

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -1675,54 +1675,7 @@ export function InventoryView() {
               const xLabelInterval = Math.max(1, Math.ceil(n / 7));
 
               return (
-                <div>
-                  {/* Legend */}
-                  <div className="flex flex-wrap gap-x-4 gap-y-1 mb-2">
-                    {series.map((s, si) => (
-                      <div key={si} className="flex items-center gap-1.5">
-                        <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: s.color }} />
-                        <span className="text-[10px] text-[#a1a1aa]">{s.label}</span>
-                      </div>
-                    ))}
-                  </div>
-                  <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto" preserveAspectRatio="xMidYMid meet">
-                    {/* Grid lines */}
-                    {[0, Math.round(maxCount / 2), maxCount].map((v, i) => {
-                      const y = yFor(v);
-                      return (
-                        <g key={`gy-${i}`}>
-                          <line x1={padL} y1={y} x2={W - padR} y2={y} stroke="#27272a" strokeWidth="1" />
-                          <text x={padL - 8} y={y + 4} textAnchor="end" className="text-[10px]" fill="#52525b" fontFamily="monospace">{v}</text>
-                        </g>
-                      );
-                    })}
-                    {/* X-axis labels */}
-                    {dates.map((d, i) => {
-                      if (i % xLabelInterval !== 0 && i !== n - 1) return null;
-                      return <text key={`gx-${i}`} x={xFor(i)} y={H - 4} textAnchor="middle" className="text-[9px]" fill="#52525b" fontFamily="monospace">{d.slice(5)}</text>;
-                    })}
-                    {/* Area fills */}
-                    {series.map((s, si) => {
-                      const linePts = s.data.map((d, i) => `${xFor(i)},${yFor(d.count)}`).join(" ");
-                      const areaPts = `${xFor(0)},${padT + chartH} ${linePts} ${xFor(n - 1)},${padT + chartH}`;
-                      return <polygon key={`area-${si}`} points={areaPts} fill={s.color} fillOpacity="0.12" />;
-                    })}
-                    {/* Lines */}
-                    {series.map((s, si) => (
-                      <polyline key={`line-${si}`} points={s.data.map((d, i) => `${xFor(i)},${yFor(d.count)}`).join(" ")} fill="none" stroke={s.color} strokeWidth="2" strokeLinejoin="round" />
-                    ))}
-                    {/* Dots */}
-                    {series.map((s, si) => (
-                      dates.map((_, i) => {
-                        const cnt = s.data[i]?.count ?? 0;
-                        if (cnt === 0) return null;
-                        return <circle key={`dp-${si}-${i}`} cx={xFor(i)} cy={yFor(cnt)} r="2.5" fill="#18181b" stroke={s.color} strokeWidth="1.2">
-                          <title>{dates[i]}: {s.label} ×{cnt}</title>
-                        </circle>;
-                      })
-                    ))}
-                  </svg>
-                </div>
+                <ItemTrendChart dates={dates} series={series} />
               );
             })()}
           </div>
@@ -2415,6 +2368,136 @@ export function InventoryView() {
         </>
       )}
 
+    </div>
+  );
+}
+
+// ── Item Trend Chart (Inventory Analytics) ──────────────────
+
+function ItemTrendChart({ dates, series }: {
+  dates: string[];
+  series: { label: string; color: string; data: { date: string; count: number }[] }[];
+}) {
+  const W = 800, H = 210, padL = 50, padR = 20, padT = 22, padB = 32;
+  const chartW = W - padL - padR, chartH = H - padT - padB;
+  const n = dates.length;
+  const maxCount = Math.max(1, ...series.flatMap(s => s.data.map(d => d.count)));
+  const xFor = (i: number) => padL + (n > 1 ? (i / (n - 1)) * chartW : chartW / 2);
+  const yFor = (c: number) => padT + chartH - (c / maxCount) * chartH;
+  const xLabelInterval = Math.max(1, Math.ceil(n / 7));
+
+  const [hoverIdx, setHoverIdx] = useState<number | null>(null);
+  const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showTip = useCallback((i: number) => {
+    if (hideTimer.current) { clearTimeout(hideTimer.current); hideTimer.current = null; }
+    setHoverIdx(i);
+  }, []);
+  const hideTip = useCallback(() => {
+    hideTimer.current = setTimeout(() => setHoverIdx(null), 150);
+  }, []);
+  const cancelHide = useCallback(() => {
+    if (hideTimer.current) { clearTimeout(hideTimer.current); hideTimer.current = null; }
+  }, []);
+
+  const maxAtIdx = hoverIdx != null ? Math.max(...series.map(s => s.data[hoverIdx]?.count ?? 0), 1) : 0;
+  const tooltipPct = hoverIdx != null
+    ? { left: `${(xFor(hoverIdx) / W) * 100}%`, top: `${(yFor(maxAtIdx) / H) * 100}%` }
+    : null;
+
+  return (
+    <div className="relative">
+      {/* Legend */}
+      <div className="flex flex-wrap gap-x-4 gap-y-1 mb-2">
+        {series.map((s, si) => (
+          <div key={si} className="flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: s.color }} />
+            <span className="text-[10px] text-[#a1a1aa]">{s.label}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Tooltip */}
+      {hoverIdx != null && tooltipPct && (
+        <div className={`absolute z-20 pointer-events-auto ${hoverIdx > n * 0.7 ? "right-0" : hoverIdx < n * 0.15 ? "left-0" : "-translate-x-1/2"}`}
+          style={hoverIdx > n * 0.7
+            ? { right: `${100 - parseFloat(tooltipPct.left)}%`, bottom: `${100 - parseFloat(tooltipPct.top)}%` }
+            : hoverIdx < n * 0.15
+            ? { left: `${Math.max(0, parseFloat(tooltipPct.left) - 2)}%`, bottom: `${100 - parseFloat(tooltipPct.top)}%` }
+            : { left: tooltipPct.left, bottom: `${100 - parseFloat(tooltipPct.top)}%` }
+          }
+          onMouseEnter={cancelHide} onMouseLeave={hideTip}>
+          <div className="bg-[#18181b] border border-[#3f3f46] rounded-lg px-3 py-2 text-[11px] shadow-xl max-w-[200px]" style={{ transform: "translateY(-12px)" }}>
+            <div className="text-[#a1a1aa] text-[10px] mb-1.5 pb-1 border-b border-[#27272a]">{dates[hoverIdx]}</div>
+            <div className="space-y-0.5">
+              {series.map((s, si) => {
+                const cnt = s.data[hoverIdx]?.count ?? 0;
+                if (cnt === 0) return null;
+                return (
+                  <div key={si} className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: s.color }} />
+                    <span className="text-[#e4e4e7] text-[10px]">{s.label}</span>
+                    <span className="text-[#a1a1aa] font-mono text-[10px] ml-auto">{cnt}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto" preserveAspectRatio="xMidYMid meet">
+        {/* Grid */}
+        {[0, Math.round(maxCount / 2), maxCount].map((v, i) => {
+          const y = yFor(v);
+          return (
+            <g key={`gy-${i}`}>
+              <line x1={padL} y1={y} x2={W - padR} y2={y} stroke="#27272a" strokeWidth="1" />
+              <text x={padL - 8} y={y + 4} textAnchor="end" className="text-[10px]" fill="#52525b" fontFamily="monospace">{v}</text>
+            </g>
+          );
+        })}
+        {dates.map((d, i) => {
+          if (i % xLabelInterval !== 0 && i !== n - 1) return null;
+          return <text key={`gx-${i}`} x={xFor(i)} y={H - 4} textAnchor="middle" className="text-[9px]" fill="#52525b" fontFamily="monospace">{d.slice(5)}</text>;
+        })}
+        {/* Hover line */}
+        {hoverIdx != null && (
+          <line x1={xFor(hoverIdx)} y1={padT} x2={xFor(hoverIdx)} y2={padT + chartH} stroke="#3f3f46" strokeWidth="1" strokeDasharray="4 3" />
+        )}
+        {/* Area fills */}
+        {series.map((s, si) => {
+          const linePts = s.data.map((d, i) => `${xFor(i)},${yFor(d.count)}`).join(" ");
+          const areaPts = n > 1 ? `${xFor(0)},${padT + chartH} ${linePts} ${xFor(n - 1)},${padT + chartH}` : "";
+          return <polygon key={`area-${si}`} points={areaPts} fill={s.color} fillOpacity="0.12" className="trend-area" />;
+        })}
+        {/* Lines */}
+        {n > 1 && series.map((s, si) => (
+          <polyline key={`line-${si}`} points={s.data.map((d, i) => `${xFor(i)},${yFor(d.count)}`).join(" ")} fill="none" stroke={s.color} strokeWidth="2" strokeLinejoin="round" className="trend-line" style={{ animationDelay: `${si * 0.2}s` }} />
+        ))}
+        {/* Dots */}
+        {series.map((s, si) =>
+          dates.map((_, i) => {
+            const cnt = s.data[i]?.count ?? 0;
+            if (cnt === 0) return null;
+            return (
+              <g key={`dp-${si}-${i}`}>
+                <circle cx={xFor(i)} cy={yFor(cnt)} r="12" fill="transparent" onMouseEnter={() => showTip(i)} onMouseLeave={hideTip} style={{ cursor: "pointer" }} />
+                <circle cx={xFor(i)} cy={yFor(cnt)} r="2.5" fill="#18181b" stroke={s.color} strokeWidth="1.2" className="trend-dot" style={{ animationDelay: `${0.8 + i * 0.03}s` }} />
+              </g>
+            );
+          })
+        )}
+        <defs>
+          <style>{`
+            @keyframes dashDraw { to { stroke-dashoffset: 0; } }
+            @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+            .trend-line { stroke-dasharray: 1200; stroke-dashoffset: 1200; animation: dashDraw 1.2s ease-out forwards; }
+            .trend-area { opacity: 0; animation: fadeIn 0.6s ease-out 0.4s forwards; }
+            .trend-dot { opacity: 0; animation: fadeIn 0.3s ease-out forwards; }
+          `}</style>
+        </defs>
+      </svg>
     </div>
   );
 }

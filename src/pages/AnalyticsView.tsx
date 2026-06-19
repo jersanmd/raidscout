@@ -67,6 +67,9 @@ export function AnalyticsView() {
   // Reset pagination when period changes
   useEffect(() => { setHuntersPage(1); setCpPage(1); }, [period]);
 
+  // Detail modal state for bar clicks
+  const [detailModal, setDetailModal] = useState<{ title: string; rows: { label: string; value: string; color?: string }[] } | null>(null);
+
   // Guild & member data for badges — cached via React Query
   const { data: guilds = [] } = useQuery({
     queryKey: ["guilds", serverId],
@@ -278,11 +281,23 @@ export function AnalyticsView() {
                   </span>
                 )}
               </span>
-              <div className="flex-1 h-6 bg-[#18181b] rounded overflow-hidden">
+              <div className="flex-1 h-6 bg-[#18181b] rounded overflow-hidden group/bar cursor-pointer"
+                onClick={() => {
+                  const gName = guild?.name ?? "Unguilded";
+                  setDetailModal({
+                    title: `${h.name} — ${h.attended} attendances`,
+                    rows: [
+                      { label: "Player", value: h.name },
+                      { label: "Guild", value: gName, color: guild ? resolveBarColor(guild.name, guilds.findIndex(x => x.id === guild.id), guilds) : undefined },
+                      { label: "Total Attendance", value: String(h.attended) },
+                    ],
+                  });
+                }}
+              >
                 {(() => {
                   const barColor = guild ? resolveBarColor(guild.name, guilds.findIndex(x => x.id === guild.id), guilds) : "#3f3f46";
                   return (
-                    <div className="h-full rounded flex items-center justify-end px-2" style={{ width: `${Math.max((h.attended / maxAttended) * 100, 8)}%`, backgroundColor: barColor }}>
+                    <div className="h-full rounded flex items-center justify-end px-2 transition-all duration-200 group-hover/bar:brightness-125" style={{ width: `${Math.max((h.attended / maxAttended) * 100, 8)}%`, backgroundColor: barColor }}>
                       <span className="text-xs text-white/80 font-mono font-bold drop-shadow-sm">{h.attended}</span>
                     </div>
                   );
@@ -333,11 +348,13 @@ export function AnalyticsView() {
                     </span>
                   )}
                 </span>
-                <div className="flex-1 h-6 bg-[#18181b] rounded overflow-hidden">
+                <div className="flex-1 h-6 bg-[#18181b] rounded overflow-hidden group/bar cursor-pointer"
+                  onClick={() => navigate(`/members/${e.member_id}`)}
+                >
                   {(() => {
                     const barColor = guild ? resolveBarColor(guild.name, guilds.findIndex(x => x.id === guild.id), guilds) : "#3f3f46";
                     return (
-                      <div className="h-full rounded flex items-center justify-end px-2 gap-1" style={{ width: `${Math.max((e.current_cp / maxCp) * 100, 8)}%`, backgroundColor: barColor }}>
+                      <div className="h-full rounded flex items-center justify-end px-2 gap-1 transition-all duration-200 group-hover/bar:brightness-125" style={{ width: `${Math.max((e.current_cp / maxCp) * 100, 8)}%`, backgroundColor: barColor }}>
                         <span className="text-[11px] text-white/80 font-mono font-bold drop-shadow-sm">{e.current_cp.toLocaleString()}</span>
                         {e.growth > 0 && (
                           <>
@@ -381,12 +398,28 @@ export function AnalyticsView() {
                   </span>
                 )}
               </span>
-              <div className="flex-1 h-6 bg-[#18181b] rounded overflow-hidden flex">
+              <div className="flex-1 h-6 bg-[#18181b] rounded overflow-hidden flex group/bar cursor-pointer"
+                onClick={() => {
+                  const rows: { label: string; value: string; color?: string }[] = [
+                    { label: "Boss", value: b.name },
+                    { label: "Total Kills", value: String(b.kills) },
+                  ];
+                  if (b.avg_attendance > 0) rows.push({ label: "Avg Attendance", value: `~${b.avg_attendance}` });
+                  b.by_guild.forEach(g => {
+                    rows.push({
+                      label: g.guild ?? "Unguilded",
+                      value: String(g.count),
+                      color: resolveBarColor(g.guild, guilds.findIndex(x => x.name === g.guild), guilds),
+                    });
+                  });
+                  setDetailModal({ title: `${b.name} — Breakdown`, rows });
+                }}
+              >
                 {b.by_guild.map((g, gi) => {
                   const color = resolveBarColor(g.guild, gi, guilds);
                   const pct = Math.max((g.count / maxBossKills) * 100, 1);
                   return (
-                    <div key={gi} className="h-full flex items-center justify-end px-1.5 relative" style={{ width: `${pct}%`, backgroundColor: color }}>
+                    <div key={gi} className="h-full flex items-center justify-end px-1.5 relative transition-all duration-200 group-hover/bar:brightness-110" style={{ width: `${pct}%`, backgroundColor: color }}>
                       {pct >= 3 && (
                         <span className="text-[10px] text-white/80 font-mono font-bold drop-shadow-sm">{g.count}</span>
                       )}
@@ -411,12 +444,27 @@ export function AnalyticsView() {
           {data.killsByDayByGuild.map((d) => (
             <div key={d.day} className="flex items-center gap-2 text-sm">
               <span className="text-[#a1a1aa] w-12 shrink-0 text-xs">{d.day.slice(0, 3)}</span>
-              <div className="flex-1 h-6 bg-[#18181b] rounded overflow-hidden flex">
+              <div className="flex-1 h-6 bg-[#18181b] rounded overflow-hidden flex group/bar cursor-pointer"
+                onClick={() => {
+                  const rows: { label: string; value: string; color?: string }[] = [
+                    { label: "Day", value: d.day },
+                    { label: "Total Kills", value: String(d.count) },
+                  ];
+                  d.by_guild.forEach(g => {
+                    rows.push({
+                      label: g.guild ?? "Unguilded",
+                      value: String(g.count),
+                      color: resolveBarColor(g.guild, guilds.findIndex(x => x.name === g.guild), guilds),
+                    });
+                  });
+                  setDetailModal({ title: `${d.day} — Breakdown`, rows });
+                }}
+              >
                 {d.by_guild.map((g, gi) => {
                   const color = resolveBarColor(g.guild, gi, guilds);
                   const pct = Math.max((g.count / maxDaily) * 100, 1);
                   return (
-                    <div key={gi} className="h-full flex items-center justify-end px-1.5 relative" style={{ width: `${pct}%`, backgroundColor: color }}>
+                    <div key={gi} className="h-full flex items-center justify-end px-1.5 relative transition-all duration-200 group-hover/bar:brightness-110" style={{ width: `${pct}%`, backgroundColor: color }}>
                       {pct >= 3 && (
                         <span className="text-[10px] text-white/80 font-mono font-bold drop-shadow-sm">{g.count}</span>
                       )}
@@ -429,6 +477,29 @@ export function AnalyticsView() {
         </div>
       </Section>
       </div>
+
+      {/* Detail Modal */}
+      {detailModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={() => setDetailModal(null)}>
+          <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-5 w-full max-w-xs mx-4 shadow-xl" onClick={e => e.stopPropagation()}>
+            <h3 className="text-sm font-semibold text-[#fafafa] mb-3">{detailModal.title}</h3>
+            <div className="space-y-1.5">
+              {detailModal.rows.map((r, i) => (
+                <div key={i} className="flex items-center justify-between text-xs">
+                  <span className="text-[#a1a1aa] flex items-center gap-1.5">
+                    {r.color && <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: r.color }} />}
+                    {r.label}
+                  </span>
+                  <span className="text-[#fafafa] font-mono font-bold">{r.value}</span>
+                </div>
+              ))}
+            </div>
+            <button onClick={() => setDetailModal(null)} className="mt-4 w-full py-1.5 text-xs text-[#a1a1aa] hover:text-[#fafafa] bg-[#27272a] rounded-lg transition">
+              Close
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

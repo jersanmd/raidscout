@@ -3,6 +3,7 @@ import {
   fetchAttendanceForDeath,
   addAttendance,
   removeAttendance,
+  copyAttendanceToDeath,
   fetchLeaderboard,
   fetchLeaderboardByPeriod,
   isSupabaseConfigured,
@@ -76,6 +77,33 @@ export function useRemoveAttendance() {
     },
     onError: (error) => {
       console.error("Failed to remove attendance:", error);
+    },
+  });
+}
+
+export function useCopyAttendance() {
+  const queryClient = useQueryClient();
+  const configured = isSupabaseConfigured();
+
+  return useMutation({
+    mutationFn: async ({
+      sourceDeathRecordId,
+      targetDeathRecordId,
+    }: {
+      sourceDeathRecordId: string;
+      targetDeathRecordId: string;
+    }) => {
+      if (!configured) throw new Error("Supabase not configured");
+      return await copyAttendanceToDeath(sourceDeathRecordId, targetDeathRecordId);
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["attendance", variables.targetDeathRecordId] });
+      queryClient.invalidateQueries({ queryKey: ["attendance_counts"] });
+      queryClient.invalidateQueries({ queryKey: ["leaderboard"] });
+      queryClient.invalidateQueries({ queryKey: ["analytics"] });
+    },
+    onError: (error) => {
+      console.error("Failed to copy attendance:", error);
     },
   });
 }

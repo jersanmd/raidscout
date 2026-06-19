@@ -21,12 +21,13 @@ import {
   supabase,
   recordActivityEnd,
 } from "@/lib/supabase";
-import { Loader2, Users, X, Calendar, CheckCheck } from "lucide-react";
+import { Loader2, Users, X, Calendar, CheckCheck, Copy, CopyCheck } from "lucide-react";
 import { SavingOverlay } from "@/components/SavingOverlay";
 import { useUserTimezone } from "@/hooks/useUserTimezone";
 import { useRecordDeath } from "@/hooks/useRecordDeath";
 import { getOwnerGuildName as getOwnerGuildNameLib } from "@/lib/rotation";
 import { useActivities } from "@/hooks/useActivities";
+import { useCopyAttendance } from "@/hooks/useAttendance";
 import { calculateActivityInfo } from "@/lib/activityCalculator";
 import type { WeekDaySpawns, SpawnInfo, Boss, BossGuild, Guild, ActivityInstance, ActivityInfo, Activity } from "@/types";
 
@@ -113,6 +114,52 @@ export function WeeklyScheduleView() {
 
   // Global saving overlay
   const [savingMessage, setSavingMessage] = useState<string | null>(null);
+
+  // Copy attendance mode
+  const [copySource, setCopySource] = useState<{ deathRecordId: string; bossName: string; deathDate: string } | null>(null);
+  const [copyConfirm, setCopyConfirm] = useState<{ bossName: string; deathRecordId: string } | null>(null);
+  const [copyToast, setCopyToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
+  const copyAttendance = useCopyAttendance();
+
+  const handleCopyStart = useCallback((deathRecordId: string, bossName: string, deathDate: string) => {
+    setCopySource({ deathRecordId, bossName, deathDate });
+  }, []);
+
+  const handleCopyCancel = useCallback(() => {
+    setCopySource(null);
+    setCopyConfirm(null);
+  }, []);
+
+  const handleCopyTargetClick = useCallback((deathRecordId: string, bossName: string) => {
+    if (!copySource) return;
+    if (deathRecordId === copySource.deathRecordId) {
+      setCopyToast({ type: "error", message: "Can't copy to the same boss." });
+      return;
+    }
+    setCopyConfirm({ deathRecordId, bossName });
+  }, [copySource]);
+
+  const handleCopyConfirm = useCallback(async () => {
+    if (!copySource || !copyConfirm) return;
+    try {
+      const result = await copyAttendance.mutateAsync({
+        sourceDeathRecordId: copySource.deathRecordId,
+        targetDeathRecordId: copyConfirm.deathRecordId,
+      });
+      setCopyToast({ type: "success", message: `Copied ${result.copied} attendance${result.copied !== 1 ? "s" : ""}${result.skipped > 0 ? ` (${result.skipped} already present)` : ""}.` });
+    } catch (err: any) {
+      setCopyToast({ type: "error", message: err?.message ?? "Failed to copy attendance." });
+    }
+    setCopySource(null);
+    setCopyConfirm(null);
+  }, [copySource, copyConfirm, copyAttendance]);
+
+  // Auto-dismiss toast
+  useEffect(() => {
+    if (!copyToast) return;
+    const t = setTimeout(() => setCopyToast(null), 3500);
+    return () => clearTimeout(t);
+  }, [copyToast]);
 
   // Edit death time modal
   const [editDeath, setEditDeath] = useState<{ deathRecordId: string; bossName: string; deathTime: string } | null>(null);
@@ -405,6 +452,47 @@ export function WeeklyScheduleView() {
       {/* Saving overlay � blocks all interaction */}
       {savingMessage && <SavingOverlay message={savingMessage} />}
 
+      {/* Copy-mode banner */}
+      {copySource && (
+        <div className="mb-4 p-3 rounded-lg bg-blue-900/20 border border-blue-700/40 flex items-center justify-between">
+          <div className="flex items-center gap-2 text-sm text-[#d4d4d8]">
+            <CopyCheck className="w-4 h-4 text-blue-400" />
+            <span>Copying attendance from <span className="font-semibold text-[#fafafa]">{copySource.bossName}</span> ({copySource.deathDate}). Click a killed boss to paste.</span>
+          </div>
+          <button onClick={handleCopyCancel} className="shrink-0 p-1 rounded hover:bg-[#27272a] text-[#a1a1aa] hover:text-[#fafafa] transition">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
+      {/* Copy toast */}
+      {copyToast && (
+        <div className={`mb-4 p-2.5 rounded-lg text-xs font-medium flex items-center gap-2 ${copyToast.type === "success" ? "bg-emerald-900/20 border border-emerald-700/40 text-emerald-400" : "bg-red-900/20 border border-red-700/40 text-red-400"}`}>
+          {copyToast.type === "success" ? <CheckCheck className="w-3.5 h-3.5" /> : <X className="w-3.5 h-3.5" />}
+          {copyToast.message}
+        </div>
+      )}
+
+      {/* Copy confirm dialog */}
+      {copyConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={() => setCopyConfirm(null)}>
+          <div className="bg-[#18181b] border border-[#3f3f46] rounded-xl p-6 max-w-sm w-full mx-4 shadow-2xl" onClick={e => e.stopPropagation()}>
+            <h3 className="text-[#fafafa] font-semibold mb-2">Copy Attendance</h3>
+            <p className="text-sm text-[#a1a1aa] mb-4">
+              Copy all attendance from <span className="text-[#fafafa] font-medium">{copySource?.bossName}</span> to <span className="text-[#fafafa] font-medium">{copyConfirm.bossName}</span>?
+            </p>
+            <p className="text-[11px] text-[#71717a] mb-5">Members already on the target will be skipped.</p>
+            <div className="flex gap-3 justify-end">
+              <button onClick={() => setCopyConfirm(null)} disabled={copyAttendance.isPending} className="px-4 py-2 rounded-lg text-sm bg-[#27272a] text-[#d4d4d8] hover:bg-[#3f3f46] transition">Cancel</button>
+              <button onClick={handleCopyConfirm} disabled={copyAttendance.isPending} className="px-4 py-2 rounded-lg text-sm bg-blue-600 text-white hover:bg-blue-500 disabled:opacity-60 transition flex items-center gap-2">
+                {copyAttendance.isPending && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                Copy
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-xl font-bold text-[#fafafa]">Weekly Schedule</h2>
         <div className="flex items-center gap-3">
@@ -467,16 +555,22 @@ export function WeeklyScheduleView() {
                       const s = item.data as SpawnInfo;
                       const isDeathEvent = s.deathRecord !== null && !s.deathRecord.is_initial_spawn && s.nextSpawn?.getTime() === new Date(s.deathRecord.death_time).getTime();
                       const isScheduleBoss = s.boss.spawn_type === "fixed_schedule";
+                      const isCopyTarget = copySource !== null && isDeathEvent && !!s.deathRecord && s.deathRecord.id !== copySource.deathRecordId;
+                      const isCopySource = copySource?.deathRecordId === s.deathRecord?.id;
                       return (
                       <div key={`boss-m-${s.boss.id}-${item.idx}`}
                         onClick={() => {
-                          if (isDeathEvent && s.deathRecord && !currentServer?.isExpired) {
+                          if (isCopyTarget) {
+                            handleCopyTargetClick(s.deathRecord!.id, s.boss.name);
+                          } else if (isDeathEvent && s.deathRecord && !currentServer?.isExpired) {
                             setSelectedDeath({ deathRecordId: s.deathRecord.id, bossName: s.boss.name, deathTime: s.deathRecord.death_time, ownerGuildId: s.deathRecord.display_owner_guild_id ?? s.deathRecord.owner_guild_id });
                           } else if ((!isViewer || viewerCanMarkDied) && !currentServer?.isExpired) {
                             setMarkBoss({ boss: s.boss, spawnTime: isScheduleBoss ? s.nextSpawn ?? undefined : undefined });
                           }
                         }}
                         className={`flex items-center justify-between py-1.5 px-2 rounded-lg transition-all duration-200 ${
+                          isCopySource ? "bg-blue-900/20 border border-blue-700/50" :
+                          isCopyTarget ? "bg-[#0d0d10] border border-blue-700/30 cursor-pointer hover:bg-blue-900/20 hover:border-blue-600/50" :
                           isDeathEvent ? "bg-[#0d0d10] border border-[#27272a] cursor-pointer hover:bg-[#18181b]" :
                           (isViewer && !viewerCanMarkDied) ? "bg-[#18181b] cursor-default opacity-60" :
                           "bg-[#1c1c20] border border-[#27272a] cursor-pointer hover:bg-[#27272a] hover:border-[#52525b] hover:scale-[1.01]"
@@ -499,15 +593,29 @@ export function WeeklyScheduleView() {
                             </span>
                           )}
                         </div>
-                        <div className="text-right">
-                          <span className="text-[#a1a1aa] text-sm">{s.nextSpawn?.toLocaleTimeString("en-US", { timeZone: userTz, hour: "2-digit", minute: "2-digit" })}</span>
-                          {(() => {
-                            let gName: string | null | undefined;
-                            if (isDeathEvent && s.deathRecord) { gName = guilds.find(g => g.id === (s.deathRecord!.display_owner_guild_id ?? s.deathRecord!.owner_guild_id))?.name; }
-                            else { gName = getOwnerGuildName(s.boss.id, day.day); }
-                            if (!gName) return null;
-                            return <div className={`text-[10px] font-medium ${guildColor(gName).text}`}>{gName}</div>;
-                          })()}
+                        <div className="flex items-center gap-2">
+                          <div className="text-right">
+                            <span className="text-[#a1a1aa] text-sm">{s.nextSpawn?.toLocaleTimeString("en-US", { timeZone: userTz, hour: "2-digit", minute: "2-digit" })}</span>
+                            {(() => {
+                              let gName: string | null | undefined;
+                              if (isDeathEvent && s.deathRecord) { gName = guilds.find(g => g.id === (s.deathRecord!.display_owner_guild_id ?? s.deathRecord!.owner_guild_id))?.name; }
+                              else { gName = getOwnerGuildName(s.boss.id, day.day); }
+                              if (!gName) return null;
+                              return <div className={`text-[10px] font-medium ${guildColor(gName).text}`}>{gName}</div>;
+                            })()}
+                          </div>
+                          {isDeathEvent && s.deathRecord && !isCopyTarget && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleCopyStart(s.deathRecord!.id, s.boss.name, new Date(s.deathRecord!.death_time).toLocaleDateString("en-US", { month: "short", day: "numeric" })); }}
+                              className="p-1 rounded hover:bg-[#27272a] text-[#52525b] hover:text-[#a1a1aa] transition"
+                              title="Copy attendance to another boss"
+                            >
+                              <Copy className="w-3 h-3" />
+                            </button>
+                          )}
+                          {isCopyTarget && (
+                            <span className="text-[10px] text-blue-400 font-medium">Paste here</span>
+                          )}
                         </div>
                       </div>
                     );} else {
@@ -597,11 +705,15 @@ export function WeeklyScheduleView() {
                       const s = item.data as SpawnInfo;
                       const isDeathEvent = s.deathRecord !== null && !s.deathRecord.is_initial_spawn && s.nextSpawn?.getTime() === new Date(s.deathRecord.death_time).getTime();
                       const isScheduleBoss = s.boss.spawn_type === "fixed_schedule";
+                      const isCopyTarget = copySource !== null && isDeathEvent && !!s.deathRecord && s.deathRecord.id !== copySource.deathRecordId;
+                      const isCopySource = copySource?.deathRecordId === s.deathRecord?.id;
                       return (
                       <div
                         key={`boss-${s.boss.id}-${item.idx}`}
                         onClick={() => {
-                          if (isDeathEvent && s.deathRecord && !currentServer?.isExpired) {
+                          if (isCopyTarget) {
+                            handleCopyTargetClick(s.deathRecord!.id, s.boss.name);
+                          } else if (isDeathEvent && s.deathRecord && !currentServer?.isExpired) {
                             setSelectedDeath({
                               deathRecordId: s.deathRecord.id,
                               bossName: s.boss.name,
@@ -616,6 +728,8 @@ export function WeeklyScheduleView() {
                           }
                         }}
                         className={`text-xs rounded px-1.5 py-1 transition-all duration-200 ${
+                          isCopySource ? "bg-blue-900/20 border border-blue-700/50" :
+                          isCopyTarget ? "bg-[#0d0d10] border border-blue-700/30 cursor-pointer hover:bg-blue-900/20 hover:border-blue-600/50" :
                           isDeathEvent
                             ? "bg-[#0d0d10] border border-[#27272a] cursor-pointer hover:bg-[#18181b]"
                             : (isViewer && !viewerCanMarkDied)
@@ -625,20 +739,34 @@ export function WeeklyScheduleView() {
                       >
                         <div className="flex items-center justify-between">
                           <span className="text-[#fafafa] font-medium truncate">{s.boss.name}</span>
-                          <div className="text-right shrink-0 ml-1">
-                            <div className="text-[#a1a1aa]">
-                              {s.nextSpawn?.toLocaleTimeString("en-US", { timeZone: userTz, hour: "2-digit", minute: "2-digit" })}
+                          <div className="flex items-center gap-1.5 shrink-0 ml-1">
+                            {isDeathEvent && s.deathRecord && !isCopyTarget && (
+                              <button
+                                onClick={(e) => { e.stopPropagation(); handleCopyStart(s.deathRecord!.id, s.boss.name, new Date(s.deathRecord!.death_time).toLocaleDateString("en-US", { month: "short", day: "numeric" })); }}
+                                className="p-0.5 rounded hover:bg-[#3f3f46] text-[#52525b] hover:text-[#a1a1aa] transition"
+                                title="Copy attendance to another boss"
+                              >
+                                <Copy className="w-3 h-3" />
+                              </button>
+                            )}
+                            {isCopyTarget && (
+                              <span className="text-[9px] text-blue-400 font-medium">Paste</span>
+                            )}
+                            <div className="text-right">
+                              <div className="text-[#a1a1aa]">
+                                {s.nextSpawn?.toLocaleTimeString("en-US", { timeZone: userTz, hour: "2-digit", minute: "2-digit" })}
+                              </div>
+                              {(() => {
+                                let gName: string | null | undefined;
+                                if (isDeathEvent && s.deathRecord) {
+                                  gName = guilds.find(g => g.id === (s.deathRecord!.display_owner_guild_id ?? s.deathRecord!.owner_guild_id))?.name;
+                                } else {
+                                  gName = getOwnerGuildName(s.boss.id, day.day);
+                                }
+                                if (!gName) return null;
+                                return <div className={`text-[9px] font-medium ${guildColor(gName).text}`}>{gName}</div>;
+                              })()}
                             </div>
-                            {(() => {
-                              let gName: string | null | undefined;
-                              if (isDeathEvent && s.deathRecord) {
-                                gName = guilds.find(g => g.id === (s.deathRecord!.display_owner_guild_id ?? s.deathRecord!.owner_guild_id))?.name;
-                              } else {
-                                gName = getOwnerGuildName(s.boss.id, day.day);
-                              }
-                              if (!gName) return null;
-                              return <div className={`text-[9px] font-medium ${guildColor(gName).text}`}>{gName}</div>;
-                            })()}
                           </div>
                         </div>
                         {isDeathEvent && (

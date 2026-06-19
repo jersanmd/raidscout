@@ -108,3 +108,62 @@ export async function clearAllData(): Promise<void> {
     .neq("id", "00000000-0000-0000-0000-000000000000");
   if (memErr) throw memErr;
 }
+
+/**
+ * Copy all attendance records from one death record to another.
+ * Skips members that already have attendance on the target.
+ * Returns the number of records copied.
+ */
+export async function copyAttendanceToDeath(
+  sourceDeathRecordId: string,
+  targetDeathRecordId: string,
+): Promise<{ copied: number; skipped: number }> {
+  const sid = getCurrentServerId();
+
+  // Fetch source attendance
+  const sourceAttendance = await fetchAttendanceForDeath(sourceDeathRecordId);
+  if (!sourceAttendance.length) return { copied: 0, skipped: 0 };
+
+  // Fetch existing target attendance to avoid duplicates
+  const targetAttendance = await fetchAttendanceForDeath(targetDeathRecordId);
+  const existingMemberIds = new Set(targetAttendance.map(a => a.member_id));
+
+  // Filter out members already on target
+  const toInsert = sourceAttendance.filter(a => !existingMemberIds.has(a.member_id));
+  const skipped = sourceAttendance.length - toInsert.length;
+
+  if (!toInsert.length) return { copied: 0, skipped };
+
+  const rows = toInsert.map(a => ({
+    death_record_id: targetDeathRecordId,
+    member_id: a.member_id,
+    server_id: sid,
+  }));
+
+  const { data: { session } } = await supabase.auth.getSession();
+  if (session?.user) {
+    const { error } = await supabase
+      .from("attendance_records")
+      .insert(rows);
+    if (error) throw error;
+    return { copied: rows.length, skipped };
+  }
+
+  const viewerKey = getCurrentViewerKey();
+  if (viewerKey) {
+    // Insert one at a time via viewer RPC (there's no bulk viewer RPC)
+    let copied = 0;
+    for (const r of rows) {
+      const { error } = await supabase
+        .rpc("viewer_add_attendance", {
+          p_death_record_id: r.death_record_id,
+          p_member_id: r.member_id,
+          p_viewer_key: viewerKey,
+        });
+      if (!error) copied++;
+    }
+    return { copied, skipped: rows.length - copied };
+  }
+
+  throw new Error("Not authenticated");
+}
