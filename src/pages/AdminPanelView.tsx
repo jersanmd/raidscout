@@ -1661,10 +1661,10 @@ function SpawnCronCard({ data, connected, timezone }: { data: any; connected: bo
               <polygon points={`${xPos(0)},${TY + ph} ${pts} ${xPos(history.length - 1)},${TY + ph}`} fill="url(#areaGrad)" className="area" />
               {/* Glow line */}
               <polyline points={pts} fill="none" stroke="#8b5cf6" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" opacity="0"
-                filter="url(#glow)" className="glow" style={{ '--d': pw * 3 } as React.CSSProperties} />
+                filter="url(#glow)" className="glow" style={{ '--d': 99999 } as React.CSSProperties} />
               {/* Main line */}
               <polyline points={pts} fill="none" stroke="#a78bfa" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"
-                className="cline" style={{ '--d': pw * 3 } as React.CSSProperties} />
+                className="cline" style={{ '--d': 99999 } as React.CSSProperties} />
 
               {/* Data points — always visible, hoverable, clickable */}
               {history.map((v, i) => {

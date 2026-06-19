@@ -96,6 +96,10 @@ export function startSpawnCron() {
   if (cronStarted) return;
   cronStarted = true;
 
+  // Staging runs at 60s to reduce Supabase load; production at 30s
+  const isStaging = process.env.FLY_APP_NAME === "raidscout-staging";
+  const TICK_MS = isStaging ? 60_000 : 30_000;
+
   // Preload dedup cache from DB so restarts don't re-fire notifications
   // Fire-and-forget is fine — first tick is 30s away and preload takes <1s
   preloadDedupFromDb().catch((err) => logError("cron", "preloadDedupFromDb failed", err));
@@ -113,9 +117,9 @@ export function startSpawnCron() {
     } finally {
       tickRunning = false;
     }
-  }, 30_000);
+  }, TICK_MS);
 
-  console.log("Spawn cron started (30s tick)");
+  console.log(`Spawn cron started (${TICK_MS / 1000}s tick)`);
 }
 
 async function runSpawnCron() {
