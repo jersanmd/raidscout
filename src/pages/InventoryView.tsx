@@ -2212,9 +2212,9 @@ export function InventoryView() {
         const item = items.find(i => i.id === selectedDistItem.item_id);
         const rc = item?.rarity ? RARITY_COLORS[item.rarity.toLowerCase() as ItemRarity] : "#a1a1aa";
         return (
-          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setSelectedDistItem(null)}>
-            <div className="bg-[#09090b] border border-[#27272a] rounded-t-xl sm:rounded-xl p-4 sm:p-5 w-full max-w-sm mx-0 sm:mx-4 max-h-[75vh] overflow-y-auto animate-slide-up" onClick={(e) => e.stopPropagation()}>
-              <div className="flex items-center justify-between mb-3">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setSelectedDistItem(null)}>
+            <div className="bg-[#09090b] border border-[#27272a] rounded-xl p-4 sm:p-5 w-full max-w-sm max-h-[80vh] overflow-y-auto animate-slide-up" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between mb-3 sticky top-0 bg-[#09090b] pb-2 -mx-1 px-1 z-10">
                 <h3 className="text-sm font-semibold truncate mr-2" style={{ color: rc }}>{selectedDistItem.item_name}</h3>
                 <button onClick={() => setSelectedDistItem(null)} className="text-[#52525b] hover:text-[#fafafa] shrink-0"><X className="w-4 h-4" /></button>
               </div>
