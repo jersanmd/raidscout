@@ -103,7 +103,7 @@ $$;
 CREATE OR REPLACE FUNCTION get_audit_log(
   p_server_id UUID DEFAULT NULL,
   p_limit INT DEFAULT 200,
-  p_cursor TIMESTAMPTZ DEFAULT NULL,
+  p_cursor BIGINT DEFAULT NULL,
   p_action_filter TEXT DEFAULT NULL
 ) RETURNS TABLE (
   id BIGINT,
@@ -132,9 +132,9 @@ AS $$
     a.created_at
   FROM admin_audit_log a
   WHERE (p_server_id IS NULL OR a.server_id = p_server_id)
-    AND (p_cursor IS NULL OR a.created_at < p_cursor)
+    AND (p_cursor IS NULL OR a.id < p_cursor)
     AND (p_action_filter IS NULL OR a.action = p_action_filter)
-  ORDER BY a.created_at DESC, a.id DESC
+  ORDER BY a.id DESC
   LIMIT p_limit;
 $$;
 

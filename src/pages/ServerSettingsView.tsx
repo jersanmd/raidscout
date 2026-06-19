@@ -3362,7 +3362,7 @@ export function ServerActivityLogTab({ serverId }: { serverId: string }) {
     return new Set(allActions);
   });
 
-  const [cursor, setCursor] = useState<string | null>(null);
+  const [cursor, setCursor] = useState<number | null>(null);
   const [log, setLog] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -3450,7 +3450,7 @@ export function ServerActivityLogTab({ serverId }: { serverId: string }) {
   const loadMore = async () => {
     if (loadingMore || log.length === 0) return;
     const last = log[log.length - 1];
-    const newCursor = last?.created_at;
+    const newCursor = last?.id;
     if (!newCursor) return;
     setCursor(newCursor);
     setLoadingMore(true);

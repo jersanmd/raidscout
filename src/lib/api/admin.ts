@@ -1,5 +1,5 @@
 import { supabase } from "./client";
-import { fetchAuditLog as fetchAuditLogRpc } from "./audit";
+import { fetchAuditLog as fetchAuditLogRpc, type AuditEntry } from "./audit";
 
 // ── Admin Queries ──────────────────────────────────────────
 
@@ -23,23 +23,28 @@ export async function fetchAllUsers(): Promise<any[]> {
   return data;
 }
 
-/** Fetch audit log via the new RPC (joins auth.users for actor_email). */
+/** Fetch audit log with time-range support (backward compat). Delegates to the cursor-based RPC. */
 export async function fetchAuditLog(
   limit = 200,
   serverId?: string | null,
-  since?: string | null,
-  until?: string | null
+  sinceOrCursor?: string | number | null,
+  untilOrActionFilter?: string | null
 ): Promise<any[]> {
-  // If time range filtering is needed, we fetch a larger set and filter client-side
-  // (the RPC supports cursor + action filter; time-based is handled here for backward compat)
-  const data = await fetchAuditLogRpc(limit, serverId, null, null);
-  if (!since && !until) return data;
-  const sinceMs = since ? new Date(since).getTime() : 0;
-  const untilMs = until ? new Date(until).getTime() : Infinity;
-  return data.filter((e) => {
-    const ts = new Date(e.created_at).getTime();
-    return ts >= sinceMs && ts <= untilMs;
-  });
+  // If 3rd param is a string that looks like a date, interpret as time-range query
+  const isTimeRange = typeof sinceOrCursor === "string" && /^\d{4}-\d{2}-\d{2}/.test(sinceOrCursor);
+  if (isTimeRange) {
+    const data = await fetchAuditLogRpc(limit, serverId, null, null);
+    const sinceMs = sinceOrCursor ? new Date(sinceOrCursor as string).getTime() : 0;
+    const untilMs = untilOrActionFilter ? new Date(untilOrActionFilter).getTime() : Infinity;
+    return data.filter((e) => {
+      const ts = new Date(e.created_at).getTime();
+      return ts >= sinceMs && ts <= untilMs;
+    });
+  }
+  // Otherwise pass through to RPC-based pagination (cursor = id)
+  const cursor = sinceOrCursor != null ? Number(sinceOrCursor) : null;
+  const actionFilter = untilOrActionFilter || null;
+  return fetchAuditLogRpc(limit, serverId, cursor || null, actionFilter);
 }
 
 export async function fetchServerStats(serverId: string): Promise<{

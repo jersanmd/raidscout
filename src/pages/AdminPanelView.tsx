@@ -49,7 +49,7 @@ export function AdminPanelView() {
   const [auditCustomSince, setAuditCustomSince] = useState("");
   const [auditCustomUntil, setAuditCustomUntil] = useState("");
   const [auditActionFilter, setAuditActionFilter] = useState<string>("all");
-  const [auditCursor, setAuditCursor] = useState<string | null>(null);
+  const [auditCursor, setAuditCursor] = useState<number | null>(null);
   const [auditLogAccum, setAuditLogAccum] = useState<any[]>([]);
   const [auditHasMore, setAuditHasMore] = useState(false);
   const [auditLoadingMore, setAuditLoadingMore] = useState(false);
@@ -262,8 +262,8 @@ export function AdminPanelView() {
   const handleLoadMoreAudit = async () => {
     if (auditLoadingMore || auditLog.length === 0) return;
     const lastEntry = auditLog[auditLog.length - 1];
-    if (!lastEntry?.created_at) return;
-    const newCursor = lastEntry.created_at;
+    if (!lastEntry?.id) return;
+    const newCursor = lastEntry.id;
     setAuditLoadingMore(true);
     try {
       const serverId = auditServerFilter !== "all" ? auditServerFilter : null;

@@ -244,11 +244,11 @@ export async function writeAuditEntry(entry: {
     );
 }
 
-/** Fetch audit log entries with cursor pagination and optional action filter. */
+/** Fetch audit log entries with cursor pagination (by id) and optional action filter. */
 export async function fetchAuditLog(
   limit = 200,
   serverId?: string | null,
-  cursor?: string | null,
+  cursor?: number | null,
   actionFilter?: string | null
 ): Promise<AuditEntry[]> {
   const { data, error } = await supabase.rpc("get_audit_log", {
