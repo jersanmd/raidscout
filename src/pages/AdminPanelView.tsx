@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchAllServers, fetchAllUsers, fetchAuditLog, fetchServerStats, fetchDatabaseStats, fetchPlanUsage, fetchCronStatus, restoreServer, addServerModerator, supabase } from "@/lib/supabase";
 import { useServer } from "@/contexts/ServerContext";
@@ -12,8 +12,30 @@ import { useUserTimezone } from "@/hooks/useUserTimezone";
 import { TIMEZONES } from "@/lib/timezones";
 
 export function AdminPanelView() {
-  const [tab, setTab] = useState<"servers" | "users" | "audit" | "games" | "infra" | "database" | "cron" | "deleted">("infra");
-  const [serverSubtab, setServerSubtab] = useState<"servers" | "database" | "cron" | "deleted">("servers");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabParam = searchParams.get("tab") as "servers" | "users" | "audit" | "games" | "infra" | "database" | "cron" | "deleted" | null;
+  const [tab, setTabState] = useState<"servers" | "users" | "audit" | "games" | "infra" | "database" | "cron" | "deleted">(
+    tabParam || "infra"
+  );
+  const subtabParam = searchParams.get("subtab") as "servers" | "database" | "cron" | "deleted" | null;
+  const [serverSubtab, setServerSubtabState] = useState<"servers" | "database" | "cron" | "deleted">(
+    subtabParam || "servers"
+  );
+
+  const setTab = (t: "servers" | "users" | "audit" | "games" | "infra" | "database" | "cron" | "deleted") => {
+    setTabState(t);
+    const params = new URLSearchParams(searchParams);
+    params.set("tab", t);
+    setSearchParams(params, { replace: true });
+  };
+
+  const setServerSubtab = (t: "servers" | "database" | "cron" | "deleted") => {
+    setServerSubtabState(t);
+    const params = new URLSearchParams(searchParams);
+    params.set("subtab", t);
+    setSearchParams(params, { replace: true });
+  };
+
   const { setCurrentServer, currentServer } = useServer();
   const { userRole, user, signOut } = useAuth();
   const { toast } = useToast();
