@@ -366,8 +366,8 @@ export function Layout() {
 
       {/* Activity Log Modal */}
       {showActivityLog && currentServer && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/70 backdrop-blur-sm overflow-y-auto pt-10 pb-10" onClick={() => setShowActivityLog(false)}>
-          <div className="bg-[#0d0d11] border border-[#27272a] rounded-xl w-full max-w-6xl mx-4 shadow-2xl" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm overflow-y-auto p-4" onClick={() => setShowActivityLog(false)}>
+          <div className="bg-[#0d0d11] border border-[#27272a] rounded-xl w-full max-w-6xl mx-4 shadow-2xl max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between px-5 py-3 border-b border-[#1e1e2a]">
               <div className="flex items-center gap-2">
                 <ScrollText className="w-4 h-4 text-[#a1a1aa]" />
@@ -377,7 +377,7 @@ export function Layout() {
                 <X className="w-4 h-4" />
               </button>
             </div>
-            <div className="p-5 max-h-[70vh] overflow-y-auto">
+            <div className="p-5 overflow-y-auto flex-1">
               <ServerActivityLogTab serverId={currentServer.id} />
             </div>
           </div>
