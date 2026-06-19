@@ -43,7 +43,10 @@ export async function addAttendance(
   let deathTime: string | undefined;
   try {
     const { data: dr } = await supabase.from("death_records").select("death_time").eq("id", deathRecordId).single();
-    if (dr) deathTime = (dr as any).death_time;
+    if (dr && (dr as any).death_time) {
+      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      deathTime = new Date((dr as any).death_time).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", timeZone: tz });
+    }
   } catch { /* non-critical */ }
   if (session?.user) {
     const { data, error } = await supabase
@@ -85,7 +88,10 @@ export async function removeAttendance(attendanceId: string, memberName?: string
     const { data: att } = await supabase.from("attendance_records").select("death_record_id").eq("id", attendanceId).single();
     if (att) {
       const { data: dr } = await supabase.from("death_records").select("death_time").eq("id", (att as any).death_record_id).single();
-      if (dr) deathTime = (dr as any).death_time;
+      if (dr && (dr as any).death_time) {
+        const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        deathTime = new Date((dr as any).death_time).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", timeZone: tz });
+      }
     }
   } catch { /* non-critical */ }
   if (session?.user) {
