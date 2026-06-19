@@ -1,4 +1,5 @@
 import { supabase, getCurrentServerId, getCurrentViewerKey } from "./client";
+import { writeAuditEntry, AuditAction } from "./audit";
 
 // ── Server Management ──────────────────────────────────────
 
@@ -15,7 +16,9 @@ export async function createServer(name: string, gameId: string | null, seed: bo
     });
 
   if (error) throw error;
-  return { id: data as string, name: name.trim() };
+  const serverId = data as string;
+  writeAuditEntry({ action: AuditAction.SERVER_CREATE, server_id: serverId, details: { server_name: name.trim(), game_id: gameId } });
+  return { id: serverId, name: name.trim() };
 }
 
 export async function updateServerName(serverId: string, name: string): Promise<void> {
@@ -24,6 +27,7 @@ export async function updateServerName(serverId: string, name: string): Promise<
     .update({ name: name.trim() })
     .eq("id", serverId);
   if (error) throw error;
+  writeAuditEntry({ action: AuditAction.SETTINGS_UPDATE, server_id: serverId, details: { setting: "server_name", value: name.trim() } });
 }
 
 export async function deleteServer(serverId: string): Promise<void> {
@@ -31,21 +35,25 @@ export async function deleteServer(serverId: string): Promise<void> {
     .from("servers")
     .update({ deleted_at: new Date().toISOString() })
     .eq("id", serverId)
-    .select("id");
+    .select("id, name");
   if (error) throw error;
   if (!data || data.length === 0) throw new Error("Server not found or you lack permission to delete it.");
+  writeAuditEntry({ action: AuditAction.SERVER_DELETE, server_id: serverId, details: { server_name: (data[0] as any).name } });
 }
 
 export async function restoreServer(serverId: string): Promise<void> {
   const { error } = await supabase
     .rpc("restore_server", { p_server_id: serverId });
   if (error) throw error;
+  writeAuditEntry({ action: AuditAction.SERVER_RESTORE, server_id: serverId });
 }
 
 export async function transferServerOwnership(serverId: string, newOwnerId: string): Promise<void> {
+  const { data: { user } } = await supabase.auth.getUser();
   const { error } = await supabase
     .rpc("transfer_server_ownership", { s_id: serverId, new_owner_id: newOwnerId });
   if (error) throw error;
+  writeAuditEntry({ action: AuditAction.OWNERSHIP_TRANSFER, server_id: serverId, details: { old_owner_id: user?.id, new_owner_id: newOwnerId } });
 }
 
 export async function transferServerOwnershipByEmail(serverId: string, email: string): Promise<void> {
@@ -70,7 +78,9 @@ export async function addServerModerator(serverId: string, email: string): Promi
     throw new Error(`Could not find user with email "${email}". Ask them to sign up first.`);
   }
 
-  await addServerModeratorById(serverId, data as string);
+  const targetUserId = data as string;
+  await addServerModeratorById(serverId, targetUserId);
+  writeAuditEntry({ action: AuditAction.MODERATOR_ADD, server_id: serverId, details: { target_email: email.toLowerCase().trim(), target_user_id: targetUserId } });
 }
 
 export async function addServerModeratorById(serverId: string, userId: string): Promise<void> {
@@ -87,6 +97,7 @@ export async function removeServerModerator(serverId: string, userId: string): P
     .eq("server_id", serverId)
     .eq("user_id", userId);
   if (error) throw error;
+  writeAuditEntry({ action: AuditAction.MODERATOR_REMOVE, server_id: serverId, details: { target_user_id: userId } });
 }
 
 // ── Server Members ──────────────────────────────────────────
@@ -231,6 +242,7 @@ export async function updateModeratorPermissions(
       .insert({ server_id: serverId, user_id: userId, ...permissions });
     if (error) throw error;
   }
+  writeAuditEntry({ action: AuditAction.MOD_PERMS_UPDATE, server_id: serverId, details: { target_user_id: userId, permissions } });
 }
 
 // ── Viewer Toggles ──────────────────────────────────────────

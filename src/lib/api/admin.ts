@@ -1,4 +1,5 @@
 import { supabase } from "./client";
+import { fetchAuditLog as fetchAuditLogRpc } from "./audit";
 
 // ── Admin Queries ──────────────────────────────────────────
 
@@ -22,20 +23,23 @@ export async function fetchAllUsers(): Promise<any[]> {
   return data;
 }
 
-export async function fetchAuditLog(limit = 200, serverId?: string | null, since?: string | null, until?: string | null): Promise<any[]> {
-  let query = supabase
-    .from("admin_audit_log")
-    .select("*")
-    .order("created_at", { ascending: false })
-    .limit(limit);
-
-  if (serverId) query = query.eq("server_id", serverId);
-  if (since) query = query.gte("created_at", since);
-  if (until) query = query.lte("created_at", until);
-
-  const { data, error } = await query;
-  if (error) throw error;
-  return data ?? [];
+/** Fetch audit log via the new RPC (joins auth.users for actor_email). */
+export async function fetchAuditLog(
+  limit = 200,
+  serverId?: string | null,
+  since?: string | null,
+  until?: string | null
+): Promise<any[]> {
+  // If time range filtering is needed, we fetch a larger set and filter client-side
+  // (the RPC supports cursor + action filter; time-based is handled here for backward compat)
+  const data = await fetchAuditLogRpc(limit, serverId, null, null);
+  if (!since && !until) return data;
+  const sinceMs = since ? new Date(since).getTime() : 0;
+  const untilMs = until ? new Date(until).getTime() : Infinity;
+  return data.filter((e) => {
+    const ts = new Date(e.created_at).getTime();
+    return ts >= sinceMs && ts <= untilMs;
+  });
 }
 
 export async function fetchServerStats(serverId: string): Promise<{

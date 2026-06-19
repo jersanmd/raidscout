@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { fetchAllServers, fetchAllUsers, fetchAuditLog, fetchServerStats, fetchDatabaseStats, fetchPlanUsage, fetchCronStatus, restoreServer, addServerModerator, supabase } from "@/lib/supabase";
+import { fetchAllServers, fetchAllUsers, fetchAuditLog, fetchServerStats, fetchDatabaseStats, fetchPlanUsage, fetchCronStatus, restoreServer, addServerModerator, supabase, writeAuditEntry, AuditAction } from "@/lib/supabase";
 import { useServer } from "@/contexts/ServerContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
@@ -66,6 +66,7 @@ export function AdminPanelView() {
     try {
       const { data, error } = await supabase.rpc("admin_forcespawn_all", { p_server_id: serverId });
       if (error) throw error;
+      writeAuditEntry({ action: AuditAction.FORCE_SPAWN, server_id: serverId, details: { server_name: serverName, boss_count: data } });
       toast("success", `Force-spawned ${data} bosses in "${serverName}".`);
     } catch (err: any) {
       toast("error", err?.message || "Force spawn failed.");
@@ -1339,8 +1340,10 @@ export function AdminPanelView() {
                         const endISO = new Date(`${maintEndDate}T${maintEndTime}:00`).toISOString();
                         await supabase.from("app_settings").upsert({ key: "maintenance_end", value: endISO }, { onConflict: "key" });
                         await supabase.from("app_settings").upsert({ key: "maintenance_mode", value: "true" }, { onConflict: "key" });
+                        writeAuditEntry({ action: AuditAction.MAINTENANCE_ON, server_id: "00000000-0000-0000-0000-000000000000", details: { ends_at: endISO } });
                       } else {
                         await supabase.from("app_settings").upsert({ key: "maintenance_mode", value: "false" }, { onConflict: "key" });
+                        writeAuditEntry({ action: AuditAction.MAINTENANCE_OFF, server_id: "00000000-0000-0000-0000-000000000000" });
                       }
                       setMaintenance(!maintenance);
                     }}
@@ -1423,6 +1426,7 @@ export function AdminPanelView() {
           try {
             const { error } = await supabase.rpc("extend_server_subscription", { p_server_id: extendConfirm.serverId, p_days: 30 });
             if (error) throw error;
+            writeAuditEntry({ action: AuditAction.SUBSCRIPTION_EXTEND, server_id: extendConfirm.serverId, details: { server_name: extendConfirm.serverName, days: 30 } });
             // Compute new date locally and set state override for instant UI update
             const now = new Date();
             const cached = (queryClient.getQueryData(["admin", "servers"]) as any[]) ?? [];

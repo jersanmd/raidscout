@@ -247,6 +247,15 @@ export {
   fetchCronStatus,
 } from "./api/admin";
 
+// Audit log
+export {
+  AuditAction,
+  AUDIT_ACTION_GROUPS,
+  writeAuditEntry,
+  fetchAuditLog as fetchAuditLogPaginated,
+} from "./api/audit";
+export type { AuditEntry } from "./api/audit";
+
 // Activity guilds
 export {
   fetchActivityGuilds,

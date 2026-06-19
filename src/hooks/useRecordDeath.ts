@@ -4,12 +4,14 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
 import {
   getCurrentServerId,
+  getCurrentViewerKey,
   notifyDiscord,
   supabase,
   advanceBossRotation,
   uploadRallyImage,
   addRallyImageToDeath,
 } from "@/lib/supabase";
+import { writeAuditEntry, AuditAction } from "@/lib/supabase";
 
 interface RecordDeathOptions {
   bossId: string;
@@ -109,7 +111,24 @@ export function useRecordDeath(
       }
     }
 
-    // 6. Invalidate queries
+    // 6. Audit log
+    const serverId = getCurrentServerId();
+    if (serverId) {
+      writeAuditEntry({
+        action: AuditAction.BOSS_KILL,
+        server_id: serverId,
+        target_id: bossId,
+        details: {
+          boss_name: bossName,
+          death_record_id: deathRecordId,
+          attendees: attendeeIds.length,
+          guild: ownerGuildName,
+        },
+        viewer_key: isViewer ? (getCurrentViewerKey() ?? undefined) : undefined,
+      });
+    }
+
+    // 7. Invalidate queries
     queryClient.invalidateQueries({ queryKey: ["death_records"] });
     queryClient.invalidateQueries({ queryKey: ["leaderboard"] });
     queryClient.invalidateQueries({ queryKey: ["members"] });

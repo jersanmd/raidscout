@@ -1,4 +1,5 @@
 import { supabase, supabaseUrl, supabaseKey, getCurrentServerId, getCurrentViewerKey } from "./client";
+import { writeAuditEntry, AuditAction } from "./audit";
 import type { AttendanceRecord } from "@/types";
 
 // ── Attendance ──────────────────────────────────────────────
@@ -146,6 +147,7 @@ export async function copyAttendanceToDeath(
       .from("attendance_records")
       .insert(rows);
     if (error) throw error;
+    writeAuditEntry({ action: AuditAction.ATTENDANCE_COPY, server_id: sid!, details: { source_death: sourceDeathRecordId, target_death: targetDeathRecordId, copied: rows.length, skipped } });
     return { copied: rows.length, skipped };
   }
 
@@ -162,6 +164,7 @@ export async function copyAttendanceToDeath(
         });
       if (!error) copied++;
     }
+    writeAuditEntry({ action: AuditAction.ATTENDANCE_COPY, server_id: sid!, details: { source_death: sourceDeathRecordId, target_death: targetDeathRecordId, copied, skipped: rows.length - copied }, viewer_key: viewerKey });
     return { copied, skipped: rows.length - copied };
   }
 

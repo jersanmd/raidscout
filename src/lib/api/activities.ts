@@ -1,4 +1,5 @@
 import { supabase } from "./client";
+import { writeAuditEntry, AuditAction } from "./audit";
 
 // ── Activity Parties ────────────────────────────────────────
 
@@ -18,7 +19,7 @@ export async function markActivityAttendance(activityInstanceId: string, memberI
   if (error) throw error;
 }
 
-export async function finalizeActivity(activityId: string): Promise<string> {
+export async function finalizeActivity(activityId: string, serverId?: string): Promise<string> {
   const now = new Date().toISOString();
   const { data, error } = await supabase
     .from("activity_instances")
@@ -26,6 +27,9 @@ export async function finalizeActivity(activityId: string): Promise<string> {
     .select("id")
     .single();
   if (error) throw error;
+  if (serverId) {
+    writeAuditEntry({ action: AuditAction.ACTIVITY_FINALIZE, server_id: serverId, target_id: activityId, details: { instance_id: data.id } });
+  }
   return data.id;
 }
 

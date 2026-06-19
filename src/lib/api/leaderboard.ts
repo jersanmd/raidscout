@@ -1,7 +1,8 @@
 import { supabase, getCurrentServerId } from "./client";
+import { supabaseUrl, supabaseKey } from "./client";
+import { writeAuditEntry, AuditAction } from "./audit";
 import type { LeaderboardEntry } from "@/types";
 import type { MemberBossKill, MemberActivityAttendance } from "../../../shared/types";
-import { supabaseUrl, supabaseKey } from "./client";
 
 // ── Leaderboard ─────────────────────────────────────────────
 
@@ -306,6 +307,7 @@ export async function saveLeaderboardSnapshot(
     .single();
 
   if (error) throw error;
+  writeAuditEntry({ action: AuditAction.LEADERBOARD_FINALIZE, server_id: serverId, details: { period, rankings: rankings.length } });
   return data.id;
 }
 

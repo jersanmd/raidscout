@@ -1,6 +1,7 @@
 // ── Member Management & Inventory API ──────────────────────
 
 import { supabase, getCurrentServerId } from "./client";
+import { writeAuditEntry, AuditAction } from "./audit";
 import type {
   CpUpdate,
   CpUpdateStatus,
@@ -109,6 +110,7 @@ export async function submitCpUpdate(update: {
     .select()
     .single();
   if (error) throw error;
+  writeAuditEntry({ action: AuditAction.MEMBER_CP_ADD, server_id: sid, target_id: memberId, details: { player_name: update.player_name.trim(), old_cp: oldCp, new_cp: update.new_cp } });
   return data as CpUpdate;
 }
 
@@ -238,12 +240,15 @@ export async function editCpUpdate(
 
 // ── Delete CP Update Entry ──────────────────────────────────
 
-export async function deleteCpUpdate(updateId: string, memberId: string): Promise<void> {
+export async function deleteCpUpdate(updateId: string, memberId: string, serverId?: string): Promise<void> {
   const { error } = await supabase
     .from("cp_updates")
     .delete()
     .eq("id", updateId);
   if (error) throw error;
+  if (serverId) {
+    writeAuditEntry({ action: AuditAction.MEMBER_CP_DELETE, server_id: serverId, target_id: memberId, details: { cp_update_id: updateId } });
+  }
 
   // Recalculate member's combat_power from the latest remaining entry
   const { data: latest } = await supabase
@@ -290,12 +295,16 @@ export async function addMemberNote(note: {
     .select()
     .single();
   if (error) throw error;
+  writeAuditEntry({ action: AuditAction.MEMBER_NOTE_ADD, server_id: note.server_id, target_id: note.member_id, details: { note_preview: note.note.substring(0, 50) } });
   return data as MemberNote;
 }
 
-export async function deleteMemberNote(noteId: string): Promise<void> {
+export async function deleteMemberNote(noteId: string, serverId?: string): Promise<void> {
   const { error } = await supabase.from("member_notes").delete().eq("id", noteId);
   if (error) throw error;
+  if (serverId) {
+    writeAuditEntry({ action: AuditAction.MEMBER_NOTE_DELETE, server_id: serverId, target_id: noteId });
+  }
 }
 
 // ── Member Profile (aggregated) ─────────────────────────────
