@@ -50,7 +50,7 @@ export function WeeklyScheduleView() {
   const deathRecordIds = useMemo(() =>
     [...new Set(deathRecords.filter(dr => !dr.is_initial_spawn).map(dr => dr.id))],
   [deathRecords]);
-  const { data: attendanceCounts } = useQuery({
+  const { data: attendanceCounts, isLoading: attendanceLoading } = useQuery({
     queryKey: ["attendance_counts", deathRecordIds],
     queryFn: async () => {
       if (!deathRecordIds.length) return new Map<string, number>();
@@ -460,7 +460,7 @@ export function WeeklyScheduleView() {
     return days;
   }, [bosses, deathRecords, weekOffset, activities, activityInstances]);
 
-  const isLoading = bossesLoading || recordsLoading || guildsLoading;
+  const isLoading = bossesLoading || recordsLoading || guildsLoading || attendanceLoading;
 
   if (isLoading) {
     return (
