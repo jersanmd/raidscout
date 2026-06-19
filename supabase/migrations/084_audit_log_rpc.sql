@@ -61,9 +61,12 @@ DECLARE
   v_id BIGINT;
   v_details JSONB;
 BEGIN
-  -- Discord bot (service_role) bypasses auth checks
-  IF auth.role() = 'service_role' AND p_discord_actor IS NOT NULL THEN
-    v_details := p_details || jsonb_build_object('discord_user', p_discord_actor);
+  -- Service role (bot, seed scripts) bypasses auth checks entirely
+  IF auth.role() = 'service_role' THEN
+    v_details := p_details;
+    IF p_discord_actor IS NOT NULL THEN
+      v_details := v_details || jsonb_build_object('discord_user', p_discord_actor);
+    END IF;
     INSERT INTO public.admin_audit_log (actor_id, action, target_type, target_id, server_id, details, viewer_key)
     VALUES (NULL, p_action, p_target_type, p_target_id, p_server_id, v_details, p_viewer_key)
     RETURNING id INTO v_id;
