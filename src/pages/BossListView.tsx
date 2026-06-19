@@ -366,13 +366,15 @@ export function BossListView() {
           return;
         }
         await supabase.from("death_records").update({ owner_guild_id: targetGuildId }).eq("id", lastDeath.id);
-        writeAuditEntry({ action: AuditAction.BOSS_ROTATION_ADVANCE, server_id: getCurrentServerId()!, target_id: bossId, details: { mode: "daily", target_guild: targetGuildName } });
+        const bossName = spawns.find(s => s.boss.id === bossId)?.boss.name || bossId;
+        writeAuditEntry({ action: AuditAction.BOSS_ROTATION_ADVANCE, server_id: getCurrentServerId()!, target_id: bossId, details: { boss_name: bossName, mode: "daily", target_guild: targetGuildName } });
         setToast({ type: "success", message: `Rotation set to ${targetGuildName}.` });
       } else {
         // Rotation (per kill) mode: set rotation_counter directly
         const targetGuildName = info.guilds[targetIndex]?.name;
         await setBossRotation(bossId, targetIndex);
-        writeAuditEntry({ action: AuditAction.BOSS_ROTATION_ADVANCE, server_id: getCurrentServerId()!, target_id: bossId, details: { mode: "rotation", target_index: targetIndex } });
+        const bossName2 = spawns.find(s => s.boss.id === bossId)?.boss.name || bossId;
+        writeAuditEntry({ action: AuditAction.BOSS_ROTATION_ADVANCE, server_id: getCurrentServerId()!, target_id: bossId, details: { boss_name: bossName2, mode: "rotation", target_index: targetIndex } });
         setToast({ type: "success", message: `Rotation set to ${targetGuildName ?? "next guild"}.` });
       }
       await queryClient.invalidateQueries({ queryKey: ["bosses"] });
@@ -466,7 +468,8 @@ export function BossListView() {
         const tz = currentServer?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
         const schedule = { time: timeStr, start_date: dateStr, utc_start: toUtcTime(dateStr, timeStr, tz) };
         await supabase.from("activities").update({ schedule }).eq("id", activityId);
-        writeAuditEntry({ action: AuditAction.ACTIVITY_TIME_EDIT, server_id: getCurrentServerId()!, target_id: activityId, details: { schedule } });
+        const actName = activities.find(a => a.id === activityId)?.name || activityId;
+        writeAuditEntry({ action: AuditAction.ACTIVITY_TIME_EDIT, server_id: getCurrentServerId()!, target_id: activityId, details: { activity_name: actName, schedule } });
         await queryClient.invalidateQueries({ queryKey: ["activities"] });
         await queryClient.invalidateQueries({ queryKey: ["activity_instances"] });
         setToast({ type: "success", message: "Activity time updated!" });

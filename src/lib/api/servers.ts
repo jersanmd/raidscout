@@ -45,15 +45,21 @@ export async function restoreServer(serverId: string): Promise<void> {
   const { error } = await supabase
     .rpc("restore_server", { p_server_id: serverId });
   if (error) throw error;
-  writeAuditEntry({ action: AuditAction.SERVER_RESTORE, server_id: serverId });
+  // Fetch server name for audit
+  let serverName = serverId;
+  try {
+    const { data } = await supabase.from("servers").select("name").eq("id", serverId).single();
+    if (data) serverName = (data as any).name;
+  } catch { /* ignore */ }
+  writeAuditEntry({ action: AuditAction.SERVER_RESTORE, server_id: serverId, details: { server_name: serverName } });
 }
 
-export async function transferServerOwnership(serverId: string, newOwnerId: string): Promise<void> {
+export async function transferServerOwnership(serverId: string, newOwnerId: string, newOwnerEmail?: string): Promise<void> {
   const { data: { user } } = await supabase.auth.getUser();
   const { error } = await supabase
     .rpc("transfer_server_ownership", { s_id: serverId, new_owner_id: newOwnerId });
   if (error) throw error;
-  writeAuditEntry({ action: AuditAction.OWNERSHIP_TRANSFER, server_id: serverId, details: { old_owner_id: user?.id, new_owner_id: newOwnerId } });
+  writeAuditEntry({ action: AuditAction.OWNERSHIP_TRANSFER, server_id: serverId, details: { old_owner_email: user?.email || user?.id, new_owner_email: newOwnerEmail || newOwnerId } });
 }
 
 export async function transferServerOwnershipByEmail(serverId: string, email: string): Promise<void> {
@@ -90,14 +96,14 @@ export async function addServerModeratorById(serverId: string, userId: string): 
   if (error) throw error;
 }
 
-export async function removeServerModerator(serverId: string, userId: string): Promise<void> {
+export async function removeServerModerator(serverId: string, userId: string, userEmail?: string): Promise<void> {
   const { error } = await supabase
     .from("server_members")
     .delete()
     .eq("server_id", serverId)
     .eq("user_id", userId);
   if (error) throw error;
-  writeAuditEntry({ action: AuditAction.MODERATOR_REMOVE, server_id: serverId, details: { target_user_id: userId } });
+  writeAuditEntry({ action: AuditAction.MODERATOR_REMOVE, server_id: serverId, details: { target_email: userEmail || userId } });
 }
 
 // ── Server Members ──────────────────────────────────────────

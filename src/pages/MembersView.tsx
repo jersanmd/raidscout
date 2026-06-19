@@ -562,7 +562,7 @@ export function MembersView() {
     setClasses(prev => prev.filter(c => c !== name));
     const { error } = await supabase.from("server_classes").delete().eq("server_id", serverId).eq("name", name);
     if (error) console.error("Failed to remove class:", error);
-    else writeAuditEntry({ action: AuditAction.CLASS_DELETE, server_id: serverId, target_id: name });
+    else writeAuditEntry({ action: AuditAction.CLASS_DELETE, server_id: serverId, target_id: name, details: { class_name: name } });
   };
 
   // Class delete confirmation

@@ -118,8 +118,8 @@ export async function updateMemberName(id: string, name: string): Promise<void> 
   if (error) throw error;
 }
 
-export async function deleteMember(id: string, serverId?: string): Promise<void> {
+export async function removeMember(id: string, serverId?: string, memberName?: string): Promise<void> {
   const { error } = await supabase.from("members").delete().eq("id", id);
   if (error) throw error;
-  if (serverId) writeAuditEntry({ action: AuditAction.MEMBER_REMOVE, server_id: serverId, target_id: id });
+  if (serverId) writeAuditEntry({ action: AuditAction.MEMBER_REMOVE, server_id: serverId, target_id: id, details: { member_name: memberName || id } });
 }

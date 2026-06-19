@@ -532,7 +532,7 @@ export async function createItem(item: {
 export async function deleteItem(itemId: string, serverId?: string): Promise<void> {
   const { error } = await supabase.from("items").delete().eq("id", itemId);
   if (error) throw error;
-  if (serverId) writeAuditEntry({ action: AuditAction.ITEM_DELETE, server_id: serverId, target_id: itemId });
+  if (serverId) writeAuditEntry({ action: AuditAction.ITEM_DELETE, server_id: serverId, target_id: itemId, details: { item_name: itemName || itemId } });
 }
 
 export async function updateItem(itemId: string, updates: {
@@ -573,7 +573,7 @@ export async function createDistribution(dist: {
   player_name: string;
   quantity: number;
   reason: string;
-}): Promise<Distribution> {
+}, itemName?: string): Promise<Distribution> {
   const { data: userData } = await supabase.auth.getUser();
   const { data, error } = await supabase
     .from("distributions")
@@ -589,7 +589,7 @@ export async function createDistribution(dist: {
     .select()
     .single();
   if (error) throw error;
-  writeAuditEntry({ action: AuditAction.ITEM_DISTRIBUTE, server_id: dist.server_id, target_id: dist.member_id, details: { player_name: dist.player_name.trim(), item_id: dist.item_id, quantity: dist.quantity } });
+  writeAuditEntry({ action: AuditAction.ITEM_DISTRIBUTE, server_id: dist.server_id, target_id: dist.member_id, details: { item_name: itemName || dist.item_id, player_name: dist.player_name.trim(), quantity: dist.quantity } });
   return data as Distribution;
 }
 

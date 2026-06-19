@@ -69,7 +69,14 @@ export async function advanceActivityRotation(activityId: string, serverId?: str
     await supabase.from("activity_guilds").update({ sort_order: ags[i + 1].sort_order }).eq("id", ags[i].id);
   }
   await supabase.from("activity_guilds").update({ sort_order: first.sort_order }).eq("id", ags[ags.length - 1].id);
-  if (serverId) writeAuditEntry({ action: AuditAction.ACTIVITY_ROTATION, server_id: serverId, target_id: activityId, details: { activity_name: activityName || activityId, rotated_to: ags[1]?.guild_id || "?" } });
+  if (serverId) {
+    let guildName = ags[1]?.guild_id || "?";
+    try {
+      const { data: g } = await supabase.from("guilds").select("name").eq("id", ags[1]?.guild_id).single();
+      if (g) guildName = (g as any).name;
+    } catch { /* use ID as fallback */ }
+    writeAuditEntry({ action: AuditAction.ACTIVITY_ROTATION, server_id: serverId, target_id: activityId, details: { activity_name: activityName || activityId, rotated_to: guildName } });
+  }
 }
 
 export async function upsertActivityGuildPoints(

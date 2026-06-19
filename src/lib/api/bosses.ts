@@ -34,22 +34,22 @@ export async function setBossRotation(bossId: string, index: number): Promise<nu
   return data as number;
 }
 
-export async function advanceBossRotation(bossId: string, serverId?: string | null): Promise<number> {
+export async function advanceBossRotation(bossId: string, serverId?: string | null, bossName?: string | null): Promise<number> {
   const { data, error } = await supabase
     .rpc("advance_boss_rotation", { p_boss_id: bossId });
   if (error) throw error;
-  if (serverId) writeAuditEntry({ action: AuditAction.BOSS_ROTATION_ADVANCE, server_id: serverId, target_id: bossId });
+  if (serverId) writeAuditEntry({ action: AuditAction.BOSS_ROTATION_ADVANCE, server_id: serverId, target_id: bossId, details: { boss_name: bossName || bossId } });
   return data as number;
 }
 
-export async function adjustBossRotation(bossId: string, direction: number): Promise<number> {
+export async function adjustBossRotation(bossId: string, direction: number, bossName?: string): Promise<number> {
   const { data, error } = await supabase.rpc("adjust_boss_rotation", {
     p_boss_id: bossId,
     p_direction: direction,
   });
   if (error) throw new Error(error.message);
   const sid = getCurrentServerId();
-  if (sid) writeAuditEntry({ action: AuditAction.BOSS_TIME_EDIT, server_id: sid, target_id: bossId, details: { direction } });
+  if (sid) writeAuditEntry({ action: AuditAction.BOSS_TIME_EDIT, server_id: sid, target_id: bossId, details: { boss_name: bossName || bossId, direction } });
   return data as number;
 }
 
@@ -245,11 +245,12 @@ export async function recordActivityEnd(
 export async function setBossSpawnTime(bossId: string, spawnDate: Date): Promise<void> {
   const { data: bossData, error: bossErr } = await supabase
     .from("bosses")
-    .select("respawn_hours, server_id")
+    .select("name, respawn_hours, server_id")
     .eq("id", bossId)
     .single();
   if (bossErr) throw bossErr;
 
+  const bossName = (bossData as any)?.name || bossId;
   const respawnHours = (bossData as any)?.respawn_hours ?? 0;
   const serverId = (bossData as any)?.server_id ?? getCurrentServerId();
   const newDeathTime = new Date(spawnDate.getTime() - respawnHours * 3600000);
@@ -264,7 +265,8 @@ export async function setBossSpawnTime(bossId: string, spawnDate: Date): Promise
     .from("boss_spawn_overrides")
     .insert({ boss_id: bossId, server_id: serverId, death_time: newDeathTime.toISOString() });
   if (error) throw error;
-  if (serverId) writeAuditEntry({ action: AuditAction.BOSS_SPAWN_SET, server_id: serverId, target_id: bossId, details: { spawn_date: spawnDate.toISOString() } });
+  const dt = spawnDate.toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+  if (serverId) writeAuditEntry({ action: AuditAction.BOSS_SPAWN_SET, server_id: serverId, target_id: bossId, details: { boss_name: bossName, spawn_date: dt } });
 }
 
 export async function fetchSpawnOverrides(serverId: string): Promise<{ boss_id: string; death_time: string }[]> {
@@ -329,7 +331,8 @@ export async function setBossGuilds(
   bossId: string,
   assignments: { guild_id: string; sort_order?: number; day_of_week?: number }[],
   mode: "rotation" | "schedule" | "daily" = "rotation",
-  serverId?: string | null
+  serverId?: string | null,
+  bossName?: string | null
 ): Promise<void> {
   const { data: existing } = await supabase
     .from("boss_guilds")
@@ -373,7 +376,7 @@ export async function setBossGuilds(
     });
     if (error) console.warn("Failed to re-insert points-only row:", error);
   }
-  if (serverId) writeAuditEntry({ action: AuditAction.BOSS_GUILDS_SET, server_id: serverId, target_id: bossId, details: { mode, guilds: assignments } });
+  if (serverId) writeAuditEntry({ action: AuditAction.BOSS_GUILDS_SET, server_id: serverId, target_id: bossId, details: { boss_name: bossName || bossId, mode, guild_count: assignments.length } });
 }
 
 export async function upsertBossGuildPoints(
