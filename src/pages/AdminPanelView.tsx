@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchAllServers, fetchAllUsers, fetchAuditLog, fetchServerStats, fetchDatabaseStats, fetchPlanUsage, fetchCronStatus, restoreServer, addServerModerator, supabase } from "@/lib/supabase";
@@ -1496,6 +1496,9 @@ function SpawnCronCard({ data, connected, timezone }: { data: any; connected: bo
   const [tooltip, setTooltip] = useState<{ i: number; v: number; x: number; y: number } | null>(null);
   const inMemoryHistory: number[] = data?.tick_history_ms ?? [];
 
+  // Persist peak timestamp across refetches so it doesn't flicker
+  const peakRef = useRef<{ ms: number; time: string } | null>(null);
+
   // Fetch historical metrics from bot
   const BOT_URL = (import.meta as any).env?.DEV || (typeof window !== "undefined" && (window.location.hostname.includes("staging") || window.location.hostname.endsWith(".vercel.app"))) ? "https://raidscout-staging.fly.dev" : "https://raidscout-bot.fly.dev";
   const { data: histData } = useQuery({
@@ -1547,15 +1550,20 @@ function SpawnCronCard({ data, connected, timezone }: { data: any; connected: bo
   const prev = history.length > 1 ? history[history.length - 2] : latest;
   const trend = latest > prev ? "up" : latest < prev ? "down" : "flat";
 
-  // Peak duration
+  // Peak duration — persisted across refetches to avoid flicker
   const peakMs = hasData ? Math.max(...history) : 0;
-  const peakTime = histData?.metrics ? (() => {
-    let peakIdx = 0; let peakVal = 0;
-    histData.metrics.forEach((m: any, i: number) => { if (m.duration_ms > peakVal) { peakVal = m.duration_ms; peakIdx = i; } });
-    const peakTs = histData.metrics[peakIdx]?.ts;
-    if (!peakTs) return null;
-    return new Date(peakTs).toLocaleString("en-US", { timeZone: timezone, month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
-  })() : null;
+  const peakTime = useMemo(() => {
+    if (histData?.metrics) {
+      let peakIdx = 0; let peakVal = 0;
+      histData.metrics.forEach((m: any, i: number) => { if (m.duration_ms > peakVal) { peakVal = m.duration_ms; peakIdx = i; } });
+      const peakTs = histData.metrics[peakIdx]?.ts;
+      if (peakTs) {
+        const time = new Date(peakTs).toLocaleString("en-US", { timeZone: timezone, month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+        peakRef.current = { ms: peakVal, time };
+      }
+    }
+    return peakRef.current;
+  }, [histData, timezone]);
 
   // Label every ~6th tick
   const labelStep = Math.max(1, Math.floor(history.length / 6));
@@ -1603,11 +1611,11 @@ function SpawnCronCard({ data, connected, timezone }: { data: any; connected: bo
             </span>
             <span className={`text-sm font-bold font-mono ${trend === "up" ? "text-emerald-300" : trend === "down" ? "text-rose-300" : "text-[#a1a1aa]"}`}>{(latest / 1000).toFixed(2)}<span className="text-[10px] opacity-60 ml-0.5">s</span></span>
           </div>
-          {peakMs > 0 && (
+          {peakTime && (
             <div className="hidden sm:flex items-center gap-1.5 bg-[#18181b] rounded-lg px-2.5 py-1.5 border border-[#27272a]">
               <span className="text-[10px] text-[#71717a] font-mono uppercase tracking-wider">peak</span>
-              <span className="text-xs font-bold text-amber-300 font-mono">{(peakMs / 1000).toFixed(2)}<span className="text-[10px] text-[#71717a] ml-0.5">s</span></span>
-              {peakTime && <span className="text-[9px] text-[#52525b]">{peakTime}</span>}
+              <span className="text-xs font-bold text-amber-300 font-mono">{(peakTime.ms / 1000).toFixed(2)}<span className="text-[10px] text-[#71717a] ml-0.5">s</span></span>
+              <span className="text-[9px] text-[#52525b]">{peakTime.time}</span>
             </div>
           )}
         </div>
