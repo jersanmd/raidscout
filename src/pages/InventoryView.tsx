@@ -2213,12 +2213,10 @@ export function InventoryView() {
         const rc = item?.rarity ? RARITY_COLORS[item.rarity.toLowerCase() as ItemRarity] : "#a1a1aa";
         return (
           <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setSelectedDistItem(null)}>
-            <div className="bg-[#09090b] border border-[#27272a] rounded-t-xl sm:rounded-xl p-5 w-full max-w-sm mx-0 sm:mx-4 max-h-[70vh] overflow-y-auto animate-slide-up" onClick={(e) => e.stopPropagation()}>
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2">
-                  <h3 className="text-sm font-semibold" style={{ color: rc }}>{selectedDistItem.item_name}</h3>
-                </div>
-                <button onClick={() => setSelectedDistItem(null)} className="text-[#52525b] hover:text-[#fafafa]"><X className="w-4 h-4" /></button>
+            <div className="bg-[#09090b] border border-[#27272a] rounded-t-xl sm:rounded-xl p-4 sm:p-5 w-full max-w-sm mx-0 sm:mx-4 max-h-[75vh] overflow-y-auto animate-slide-up" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-semibold truncate mr-2" style={{ color: rc }}>{selectedDistItem.item_name}</h3>
+                <button onClick={() => setSelectedDistItem(null)} className="text-[#52525b] hover:text-[#fafafa] shrink-0"><X className="w-4 h-4" /></button>
               </div>
               {recipients.length === 0 ? (
                 <p className="text-xs text-[#71717a] text-center py-6">No recipients found.</p>
@@ -2232,15 +2230,15 @@ export function InventoryView() {
                     const g = m?.guild_id ? guilds.find(g => g.id === m.guild_id) : null;
                     const gc = g ? guildColor(g.name) : null;
                     return (
-                      <div key={r.member_id} className="flex items-center gap-3 p-2 rounded-lg bg-[#18181b] border border-[#27272a]">
+                      <div key={r.member_id} className="flex items-center gap-2 p-2 rounded-lg bg-[#18181b] border border-[#27272a]">
                         <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 text-[10px] font-bold" style={{ backgroundColor: cc + "20" }}>
                           {CIcon ? <CIcon className="w-3.5 h-3.5" style={{ color: cc }} /> : <span style={{ color: cc }}>{r.player_name[0]}</span>}
                         </div>
-                        <div className="flex-1 min-w-0 flex items-center gap-2">
+                        <div className="flex-1 min-w-0 flex flex-wrap items-center gap-x-2 gap-y-0.5">
                           <p className="text-xs truncate" style={{ color: cc }}>{r.player_name}</p>
                           {gc && g && (
-                            <span className={`flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded border shrink-0 ${gc.bg} ${gc.text} ${gc.border}`}>
-                              <Shield className="w-3 h-3" />
+                            <span className={`flex items-center gap-1 text-[9px] font-medium px-1.5 py-0.5 rounded border shrink-0 ${gc.bg} ${gc.text} ${gc.border}`}>
+                              <Shield className="w-2.5 h-2.5" />
                               {g.name}
                             </span>
                           )}
