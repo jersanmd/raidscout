@@ -1641,33 +1641,46 @@ function SpawnCronCard({ data, connected }: { data: any; connected: boolean }) {
               <polyline points={pts} fill="none" stroke="#a78bfa" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"
                 className="cline" style={{ '--d': pw * 1.5 } as React.CSSProperties} />
 
-              {/* Data points */}
+              {/* Data points — always visible, hoverable, clickable */}
               {history.map((v, i) => {
                 const isLast = i === history.length - 1;
-                const show = i % labelStep === 0 || isLast;
                 const x = xPos(i), y = yPos(v);
                 const lbl = (v / 1000).toFixed(2);
+                const isHovered = tooltip?.i === i;
                 const onEnter = () => setTooltip({ i, v, x, y });
-                const onLeave = () => setTooltip(null);
-
-                if (!show) return (
-                  <circle key={`d-${i}`} cx={x} cy={y} r="6" fill="transparent"
-                    onMouseEnter={onEnter} onMouseLeave={onLeave} />
-                );
+                const onLeave = () => setTooltip(t => t?.i === i ? null : t);
+                const onClick = () => setTooltip(t => t?.i === i ? null : { i, v, x, y });
 
                 return (
                   <g key={`p-${i}`}>
-                    <rect x={x - 14} y={y - 14} width="28" height="28" fill="transparent"
-                      onMouseEnter={onEnter} onMouseLeave={onLeave} />
-                    {isLast ? (
-                      <circle cx={x} cy={y} r="5" fill="#8b5cf6" opacity="0.2" className="ldot" />
-                    ) : (
-                      <>
-                        <circle cx={x} cy={y} r="2" fill="#a78bfa" stroke="#0d0d11" strokeWidth="1" />
-                        <text x={x} y={y - 7} textAnchor="middle" fill="#71717a" fontSize="7.5" fontFamily="monospace">{lbl}</text>
-                      </>
+                    {/* Invisible hit area */}
+                    <rect x={x - 18} y={y - 18} width="36" height="36" fill="transparent"
+                      onMouseEnter={onEnter} onMouseLeave={onLeave} onClick={onClick}
+                      style={{ cursor: "pointer" }} />
+                    {/* Hover ring */}
+                    {isHovered && (
+                      <circle cx={x} cy={y} r="8" fill="none" stroke="#a78bfa" strokeWidth="1" opacity="0.5">
+                        <animate attributeName="r" from="6" to="10" dur="0.8s" repeatCount="indefinite" />
+                        <animate attributeName="opacity" from="0.5" to="0" dur="0.8s" repeatCount="indefinite" />
+                      </circle>
                     )}
-                    {isLast && <circle cx={x} cy={y} r="2.5" fill="#c4b5fd" stroke="#0d0d11" strokeWidth="1.5" />}
+                    {/* Dot */}
+                    {isLast ? (
+                      <>
+                        <circle cx={x} cy={y} r="6" fill="#8b5cf6" opacity="0.25" className="ldot" />
+                        <circle cx={x} cy={y} r="3.5" fill="#c4b5fd" stroke="#0d0d11" strokeWidth="1.5" />
+                      </>
+                    ) : (
+                      <circle cx={x} cy={y} r={isHovered ? "3.5" : "2"} fill={isHovered ? "#c4b5fd" : "#a78bfa"} stroke="#0d0d11" strokeWidth={isHovered ? "2" : "1"} />
+                    )}
+                    {/* Value label on hover */}
+                    {isHovered && !isLast && (
+                      <text x={x} y={y - 10} textAnchor="middle" fill="#fafafa" fontSize="8.5" fontFamily="monospace" fontWeight="bold">{lbl}s</text>
+                    )}
+                    {/* Always-visible label for Nth ticks */}
+                    {!isHovered && (i % labelStep === 0 || isLast) && !isLast && (
+                      <text x={x} y={y - 8} textAnchor="middle" fill="#71717a" fontSize="7.5" fontFamily="monospace">{lbl}</text>
+                    )}
                   </g>
                 );
               })}
@@ -1693,13 +1706,29 @@ function SpawnCronCard({ data, connected }: { data: any; connected: boolean }) {
         </svg>
       </div>
 
-      {/* Hover tooltip */}
-      {tooltip && (
-        <div className="absolute z-20 pointer-events-none px-2 py-1 rounded bg-[#1e1e2a] border border-[#3f3f46] text-[10px] font-mono text-[#fafafa] shadow-lg"
-          style={{ left: `${((tooltip.x - LX) / pw) * 100}%`, top: `${((tooltip.y - TY) / ph) * 100}%`, transform: 'translate(-50%, -120%)' }}>
-          Tick {tooltip.i + 1}: {(tooltip.v / 1000).toFixed(2)}s
-        </div>
-      )}
+      {/* Hover tooltip — edge-aware positioning */}
+      {tooltip && (() => {
+        const pctX = ((tooltip.x - LX) / pw) * 100;
+        const pctY = ((tooltip.y - TY) / ph) * 100;
+        // Edge detection: flip if near right or left edges
+        const nearRight = pctX > 70;
+        const nearLeft = pctX < 15;
+        const xStyle = nearRight ? { right: `${100 - pctX}%` }
+          : nearLeft ? { left: `${Math.max(0, pctX)}%` }
+          : { left: `${pctX}%`, transform: "translate(-50%, -120%)" };
+        const arrowStyle = nearRight ? { right: "12px" }
+          : nearLeft ? { left: "12px" }
+          : { left: "50%", transform: "translateX(-50%)" };
+
+        return (
+          <div className="absolute z-20 pointer-events-none px-2.5 py-1.5 rounded-lg bg-[#18181b] border border-[#3f3f46] shadow-xl"
+            style={{ top: `${pctY}%`, ...xStyle }}>
+            <div className="text-[10px] font-mono text-[#fafafa] whitespace-nowrap">
+              Tick {tooltip.i + 1}: <span className="text-[#a78bfa] font-bold">{(tooltip.v / 1000).toFixed(2)}s</span>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Stats bar */}
       <div className="relative flex items-center justify-center gap-6 sm:gap-10 px-4 pb-4 pt-1 border-t border-[#1e1e2a]">
