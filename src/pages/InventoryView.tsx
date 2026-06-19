@@ -2548,7 +2548,7 @@ function ItemTrendChart({ dates, series }: {
             if (cnt === 0) return null;
             return (
               <g key={`dp-${si}-${i}`}>
-                <circle cx={xFor(i)} cy={yFor(cnt)} r={hitR} fill="transparent" onMouseEnter={() => showTip(i)} onMouseLeave={hideTip} onClick={() => hovered === i ? setHovered(null) : showTip(i)} style={{ cursor: "pointer" }} />
+                <circle cx={xFor(i)} cy={yFor(cnt)} r={hitR} fill="transparent" onMouseEnter={() => showTip(i)} onMouseLeave={hideTip} onClick={() => hoverIdx === i ? setHoverIdx(null) : showTip(i)} style={{ cursor: "pointer" }} />
                 <circle cx={xFor(i)} cy={yFor(cnt)} r={dotR} fill="#18181b" stroke={s.color} strokeWidth="1.5" className="trend-dot" style={{ animationDelay: `${0.8 + i * 0.03}s` }} />
               </g>
             );
