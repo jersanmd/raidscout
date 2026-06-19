@@ -903,7 +903,7 @@ export function AdminPanelView() {
 
         // Dynamic action display helpers
         const formatActionLabel = (action: string): string => {
-          return action
+          return (action ?? "")
             .replace(/_/g, " ")
             .replace(/\b\w/g, c => c.toUpperCase());
         };

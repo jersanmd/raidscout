@@ -3405,7 +3405,7 @@ export function ServerActivityLogTab({ serverId, timezone = "UTC" }: { serverId:
   };
 
   const formatActionLabel = (action: string): string =>
-    action.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+    action?.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase()) ?? action ?? "";
 
   const filteredLog = useMemo(() => {
     let result = actionFilters.size === 0 ? log : log.filter(e => actionFilters.has(e.action));
