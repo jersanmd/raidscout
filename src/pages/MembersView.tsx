@@ -1288,11 +1288,11 @@ export function MembersView() {
             <span>View Only — CP updates are submitted via Discord using <code className="px-1 py-0.5 bg-blue-500/10 rounded text-blue-300">!updatestats</code> in the progress channel.</span>
           </div>
         )}
-        <div className="flex items-center gap-3 flex-wrap">
-          <p className="text-sm text-[#a1a1aa] flex-1">
+        <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+          <p className="text-sm text-[#a1a1aa] w-full sm:w-auto sm:flex-1">
             Track member combat power growth and manage profiles.
           </p>
-          <div className="relative w-48">
+          <div className="relative w-36 sm:w-48">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#52525b]" />
             <input
               type="text"
@@ -1362,7 +1362,7 @@ export function MembersView() {
               ) : (
                 <Megaphone className="w-3.5 h-3.5" />
               )}
-              Demand Combat Power Update Now
+              Demand<span className="hidden sm:inline"> Combat Power</span> Update<span className="hidden sm:inline"> Now</span>
             </button>
           )}
         </div>
