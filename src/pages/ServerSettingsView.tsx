@@ -3394,8 +3394,8 @@ export function ServerActivityLogTab({ serverId }: { serverId: string }) {
 
   const filteredLog = useMemo(() => {
     if (actionFilters.size === 0) return log;
-    return log.filter(e => actionFilters.has(e.action));
-  }, [log, actionFilters]);
+    return log.filter(e => actionFilters.has(e.action) || !allActions.includes(e.action));
+  }, [log, actionFilters, allActions]);
 
   const formatActionLabel = (action: string): string =>
     action.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
