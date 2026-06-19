@@ -408,10 +408,16 @@ export function GearTrackingTab() {
             });
           }
           await supabase.from("member_gear").update(body).eq("id", existing.id);
-          writeAuditEntry({ action: itemId ? AuditAction.GEAR_EQUIP : AuditAction.GEAR_UNEQUIP, server_id: serverId!, target_id: memberId, details: { slot_id: slotId, item_id: itemId, enhancement: enh } });
+          const itemName = itemId ? catalog.find(c => c.id === itemId)?.name : undefined;
+          const memberName2 = members.find(m => m.id === memberId)?.name;
+          writeAuditEntry({ action: itemId ? AuditAction.GEAR_EQUIP : AuditAction.GEAR_UNEQUIP, server_id: serverId!, target_id: memberId, details: { member_name: memberName2 || memberId, item_name: itemName || itemId || "—", enhancement: enh } });
         } else {
           await supabase.from("member_gear").insert(body);
-          if (itemId) writeAuditEntry({ action: AuditAction.GEAR_EQUIP, server_id: serverId!, target_id: memberId, details: { slot_id: slotId, item_id: itemId, enhancement: enh } });
+          if (itemId) {
+            const itemName = catalog.find(c => c.id === itemId)?.name;
+            const memberName3 = members.find(m => m.id === memberId)?.name;
+            writeAuditEntry({ action: AuditAction.GEAR_EQUIP, server_id: serverId!, target_id: memberId, details: { member_name: memberName3 || memberId, item_name: itemName || itemId, enhancement: enh } });
+          }
         }
       }
       setEditingGear(prev => { const next = { ...prev }; delete next[memberId]; return next; });

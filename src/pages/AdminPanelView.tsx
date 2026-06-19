@@ -945,8 +945,8 @@ export function AdminPanelView() {
             case "activity_finalize": case "activity_end_record": return `${d.activity_name || "?"} completed${d.attendees ? ` (${d.attendees} attendees)` : ""}${d.end_time ? ` at ${d.end_time}` : ""}`;
             case "activity_guilds_set": return `Activity guilds updated${d.activity_name ? ` for "${d.activity_name}"` : ""}${d.guild_count ? ` (${d.guild_count} guilds, ${d.mode})` : ""}`;
             case "activity_rotation_advance": return `Activity rotation advanced${d.activity_name ? ` for "${d.activity_name}"` : ""}`;
-            case "gear_equip": return `Slot equipped`;
-            case "gear_unequip": return `Slot unequipped`;
+            case "gear_equip": return `${d.member_name || "?"} equipped ${d.item_name || "?"}${d.enhancement ? ` (+${d.enhancement})` : ""}`;
+            case "gear_unequip": return `${d.member_name || "?"} unequipped ${d.item_name || "?"}`;
             case "item_create": case "item_update": case "item_delete": return d.item_name || d.name || "—";
             case "item_distribute": return `${d.item_name || "?"} → ${d.player_name || "?"}`;
             case "force_spawn": return `${d.boss_name || `${d.boss_count ?? 0} bosses`} in "${d.server_name || "?"}"`;
