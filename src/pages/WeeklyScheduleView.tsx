@@ -578,7 +578,7 @@ export function WeeklyScheduleView() {
                       const s = item.data as SpawnInfo;
                       const isDeathEvent = s.deathRecord !== null && !s.deathRecord.is_initial_spawn && s.nextSpawn?.getTime() === new Date(s.deathRecord.death_time).getTime();
                       const isScheduleBoss = s.boss.spawn_type === "fixed_schedule";
-                      const isCopyTarget = copySource !== null && isDeathEvent && !!s.deathRecord && s.deathRecord.id !== copySource.deathRecordId;
+                      const isCopyTarget = copySource !== null && isDeathEvent && !!s.deathRecord && s.deathRecord.id !== copySource.deathRecordId && !isViewer;
                       const isCopySource = copySource?.deathRecordId === s.deathRecord?.id;
                       const attCount = s.deathRecord ? (attendanceCounts?.get(s.deathRecord.id) ?? 0) : 0;
                       return (
@@ -624,7 +624,7 @@ export function WeeklyScheduleView() {
                               return <div className={`text-[10px] font-medium ${guildColor(gName).text}`}>{gName}</div>;
                             })()}
                           </div>
-                          {isDeathEvent && s.deathRecord && !isCopyTarget && attCount > 0 && (
+                          {isDeathEvent && s.deathRecord && !isCopyTarget && attCount > 0 && !isViewer && (
                             <button
                               onClick={(e) => { e.stopPropagation(); handleCopyStart(s.deathRecord!.id, s.boss.name, new Date(s.deathRecord!.death_time).toLocaleDateString("en-US", { month: "short", day: "numeric" })); }}
                               className="p-1 rounded hover:bg-[#27272a] text-[#52525b] hover:text-[#a1a1aa] transition"
@@ -633,7 +633,7 @@ export function WeeklyScheduleView() {
                               <Copy className="w-3 h-3" />
                             </button>
                           )}
-                          {isCopyTarget && (
+                          {isCopyTarget && !isViewer && (
                             <span className="text-[10px] text-blue-400 font-medium">Paste here</span>
                           )}
                         </div>
@@ -725,7 +725,7 @@ export function WeeklyScheduleView() {
                       const s = item.data as SpawnInfo;
                       const isDeathEvent = s.deathRecord !== null && !s.deathRecord.is_initial_spawn && s.nextSpawn?.getTime() === new Date(s.deathRecord.death_time).getTime();
                       const isScheduleBoss = s.boss.spawn_type === "fixed_schedule";
-                      const isCopyTarget = copySource !== null && isDeathEvent && !!s.deathRecord && s.deathRecord.id !== copySource.deathRecordId;
+                      const isCopyTarget = copySource !== null && isDeathEvent && !!s.deathRecord && s.deathRecord.id !== copySource.deathRecordId && !isViewer;
                       const isCopySource = copySource?.deathRecordId === s.deathRecord?.id;
                       const attCount = s.deathRecord ? (attendanceCounts?.get(s.deathRecord.id) ?? 0) : 0;
                       return (
@@ -761,7 +761,7 @@ export function WeeklyScheduleView() {
                         <div className="flex items-center justify-between">
                           <span className="text-[#fafafa] font-medium truncate">{s.boss.name}</span>
                           <div className="flex items-center gap-1.5 shrink-0 ml-1">
-                            {isDeathEvent && s.deathRecord && !isCopyTarget && attCount > 0 && (
+                            {isDeathEvent && s.deathRecord && !isCopyTarget && attCount > 0 && !isViewer && (
                               <button
                                 onClick={(e) => { e.stopPropagation(); handleCopyStart(s.deathRecord!.id, s.boss.name, new Date(s.deathRecord!.death_time).toLocaleDateString("en-US", { month: "short", day: "numeric" })); }}
                                 className="p-0.5 rounded hover:bg-[#3f3f46] text-[#52525b] hover:text-[#a1a1aa] transition"
@@ -770,7 +770,7 @@ export function WeeklyScheduleView() {
                                 <Copy className="w-3 h-3" />
                               </button>
                             )}
-                            {isCopyTarget && (
+                            {isCopyTarget && !isViewer && (
                               <span className="text-[9px] text-blue-400 font-medium">Paste</span>
                             )}
                             <div className="text-right">
