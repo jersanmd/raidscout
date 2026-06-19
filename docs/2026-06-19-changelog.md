@@ -1,4 +1,4 @@
-# June 19, 2026 — Changelog (v1.14.1)
+# June 19, 2026 — Changelog (v0.15.1)
 
 ## 🆕 New Features
 
