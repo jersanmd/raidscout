@@ -2238,7 +2238,6 @@ export function InventoryView() {
                         </div>
                         <div className="flex-1 min-w-0 flex items-center gap-2">
                           <p className="text-xs truncate" style={{ color: cc }}>{r.player_name}</p>
-                          {m?.class && <span className="text-[10px] px-1.5 py-0.5 rounded font-medium capitalize shrink-0" style={{ backgroundColor: cc + "18", color: cc }}>{m.class}</span>}
                           {gc && g && (
                             <span className={`flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded border shrink-0 ${gc.bg} ${gc.text} ${gc.border}`}>
                               <Shield className="w-3 h-3" />
