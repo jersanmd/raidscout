@@ -1520,7 +1520,7 @@ function SpawnCronCard({ data, connected }: { data: any; connected: boolean }) {
   const bosses = data?.bosses_checked ?? 0;
   const hasData = history.length > 1;
 
-  const W = 800, H = 220, LX = 42, RX = 30, TY = 12, BY = 28;
+  const W = 800, H = 300, LX = 42, RX = 30, TY = 12, BY = 28;
   const max = hasData ? Math.max(...history, 500) : 5000;
   const min = hasData ? Math.min(...history, 0) : 0;
   const rng = max - min || 1;
@@ -1592,7 +1592,7 @@ function SpawnCronCard({ data, connected }: { data: any; connected: boolean }) {
 
       {/* Chart */}
       <div className="relative">
-        <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-52 sm:h-60" preserveAspectRatio="xMidYMid meet">
+        <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-64 sm:h-80" preserveAspectRatio="xMidYMid meet">
           <style>{`
             @keyframes drawIn { from { stroke-dashoffset: var(--d); } to { stroke-dashoffset: 0; } }
             @keyframes fadeUp { from { opacity: 0; } to { opacity: 1; } }
