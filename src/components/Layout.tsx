@@ -378,7 +378,7 @@ export function Layout() {
               </button>
             </div>
             <div className="p-5 overflow-y-auto flex-1">
-              <ServerActivityLogTab serverId={currentServer.id} />
+              <ServerActivityLogTab serverId={currentServer.id} timezone={timezone} />
             </div>
           </div>
         </div>

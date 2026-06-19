@@ -3342,7 +3342,7 @@ function BossPointsMatrix({
 
 // ── Server Activity Log Tab (Owner/Mod Audit) ───────────────
 
-export function ServerActivityLogTab({ serverId }: { serverId: string }) {
+export function ServerActivityLogTab({ serverId, timezone = "UTC" }: { serverId: string; timezone?: string }) {
   // Action types hidden from the owner filter (still appear in log)
   const HIDDEN_ACTIONS = new Set(["boss_toggle", "activity_toggle"]);
 
@@ -3534,6 +3534,13 @@ export function ServerActivityLogTab({ serverId }: { serverId: string }) {
     finally { setLoadingMore(false); }
   };
 
+  const formatTime = (iso: string, showTime = true) => {
+    const d = new Date(iso);
+    const date = d.toLocaleDateString("en-US", { timeZone: timezone, month: "2-digit", day: "2-digit", year: "numeric" });
+    if (!showTime) return date;
+    return `${date} ${d.toLocaleTimeString("en-US", { timeZone: timezone, hour: "2-digit", minute: "2-digit" })}`;
+  };
+
   return (
     <div className="space-y-3">
       {/* Search + date filter toolbar */}
@@ -3635,7 +3642,7 @@ export function ServerActivityLogTab({ serverId }: { serverId: string }) {
                     <span className="text-[10px] text-[#71717a] truncate block">{actor}</span>
                   </div>
                   <div className="col-span-3 min-w-0">
-                    <span className="text-[10px] text-[#71717a] font-mono">{new Date(entry.created_at).toLocaleDateString("en-US", { month: "2-digit", day: "2-digit", year: "numeric" })} {new Date(entry.created_at).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}</span>
+                    <span className="text-[10px] text-[#71717a] font-mono">{formatTime(entry.created_at)}</span>
                   </div>
                 </div>
                 {/* Mobile card */}
@@ -3648,7 +3655,7 @@ export function ServerActivityLogTab({ serverId }: { serverId: string }) {
                   <div className="text-[11px] text-[#d4d4d8]">{formatDetails(entry)}</div>
                   <div className="flex items-center justify-between text-[10px]">
                     <span className="text-[#52525b]">{actor}</span>
-                    <span className="text-[#71717a] font-mono">{new Date(entry.created_at).toLocaleDateString("en-US", { month: "2-digit", day: "2-digit", year: "numeric" })}</span>
+                    <span className="text-[#71717a] font-mono">{formatTime(entry.created_at, false)}</span>
                   </div>
                 </div>
               </div>
