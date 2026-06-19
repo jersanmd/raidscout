@@ -144,7 +144,8 @@ export function AdminPanelView() {
     enabled: userRole === "admin" && tab === "cron",
   });
 
-  const BOT_URL = "https://raidscout-bot.fly.dev";
+  const isLocalOrStaging = import.meta.env.DEV || (typeof window !== "undefined" && (window.location.hostname.includes("staging") || window.location.hostname.endsWith(".vercel.app")));
+  const BOT_URL = isLocalOrStaging ? "https://raidscout-staging.fly.dev" : "https://raidscout-bot.fly.dev";
   const { data: botStatus, isLoading: botLoading, refetch: refetchBot } = useQuery({
     queryKey: ["admin", "bot"],
     queryFn: async () => {
@@ -1496,7 +1497,7 @@ function SpawnCronCard({ data, connected, timezone }: { data: any; connected: bo
   const inMemoryHistory: number[] = data?.tick_history_ms ?? [];
 
   // Fetch historical metrics from bot
-  const BOT_URL = "https://raidscout-bot.fly.dev";
+  const BOT_URL = (import.meta as any).env?.DEV || (typeof window !== "undefined" && (window.location.hostname.includes("staging") || window.location.hostname.endsWith(".vercel.app"))) ? "https://raidscout-staging.fly.dev" : "https://raidscout-bot.fly.dev";
   const { data: histData } = useQuery({
     queryKey: ["tick-metrics", timeRange],
     queryFn: async () => {
