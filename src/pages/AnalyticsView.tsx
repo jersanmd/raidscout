@@ -337,30 +337,30 @@ export function AnalyticsView() {
               const pct = e.growth > 0 && e.current_cp > e.growth && (e.current_cp - e.growth) > 0 ? ((e.growth / (e.current_cp - e.growth)) * 100) : 0;
               const maxCp = cpList[0]?.current_cp ?? 1;
               return (
-              <div key={e.member_id} className="flex items-center gap-2 text-sm">
-                <span className="text-[#a1a1aa] w-5 shrink-0 text-left">{i + 1}.</span>
-                {cls && classIcons[cls] ? (() => { const CIcon = getClassIcon(classIcons[cls]); const color = classColors[cls] || "#a1a1aa"; return <CIcon className="w-3.5 h-3.5 shrink-0" style={{ color }} />; })() : <span className="w-3.5 h-3.5 shrink-0" />}
-                <span className="text-[#fafafa] w-24 shrink-0 truncate text-left">{e.player_name}</span>
-                <span className="w-20 shrink-0 inline-flex items-center">
+              <div key={e.member_id} className="flex items-center gap-1.5 sm:gap-2 text-sm">
+                <span className="text-[#a1a1aa] w-4 sm:w-5 shrink-0 text-left text-xs sm:text-sm">{i + 1}.</span>
+                {cls && classIcons[cls] ? (() => { const CIcon = getClassIcon(classIcons[cls]); const color = classColors[cls] || "#a1a1aa"; return <CIcon className="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0" style={{ color }} />; })() : <span className="w-3 sm:w-3.5 shrink-0" />}
+                <span className="text-[#fafafa] w-16 sm:w-24 shrink-0 truncate text-left text-xs sm:text-sm">{e.player_name}</span>
+                <span className="w-14 sm:w-20 shrink-0 inline-flex items-center">
                   {guild && c && (
-                    <span className={`text-[10px] px-1.5 py-0.5 rounded border shrink-0 ${c.bg} ${c.text} ${c.border}`}>
-                      <Shield className="w-2.5 h-2.5 inline mr-0.5" />{guild.name}
+                    <span className={`text-[9px] sm:text-[10px] px-1 sm:px-1.5 py-0.5 rounded border shrink-0 truncate ${c.bg} ${c.text} ${c.border}`}>
+                      <Shield className="w-2 h-2 sm:w-2.5 sm:h-2.5 inline mr-0.5" />{guild.name}
                     </span>
                   )}
                 </span>
-                <div className="flex-1 h-6 bg-[#18181b] rounded overflow-hidden group/bar cursor-pointer"
+                <div className="flex-1 h-5 sm:h-6 bg-[#18181b] rounded overflow-hidden group/bar cursor-pointer min-w-[40px]"
                   onClick={() => navigate(`/members/${e.member_id}`)}
                 >
                   {(() => {
                     const barColor = guild ? resolveBarColor(guild.name, guilds.findIndex(x => x.id === guild.id), guilds) : "#3f3f46";
                     return (
-                      <div className="h-full rounded flex items-center justify-end px-2 gap-1 transition-all duration-200 group-hover/bar:brightness-125" style={{ width: `${Math.max((e.current_cp / maxCp) * 100, 8)}%`, backgroundColor: barColor }}>
-                        <span className="text-[11px] text-white/80 font-mono font-bold drop-shadow-sm">{e.current_cp.toLocaleString()}</span>
+                      <div className="h-full rounded flex items-center justify-end px-1.5 sm:px-2 gap-1 transition-all duration-200 group-hover/bar:brightness-125" style={{ width: `${Math.max((e.current_cp / maxCp) * 100, 8)}%`, backgroundColor: barColor }}>
+                        <span className="text-[10px] sm:text-[11px] text-white/80 font-mono font-bold drop-shadow-sm truncate">{e.current_cp.toLocaleString()}</span>
                         {e.growth > 0 && (
                           <>
-                            <span className="text-[9px] text-white/60 font-mono drop-shadow">+{e.growth.toLocaleString()}</span>
+                            <span className="text-[8px] sm:text-[9px] text-white/60 font-mono drop-shadow hidden sm:inline">+{e.growth.toLocaleString()}</span>
                             {pct > 0 && pct < 500 && (
-                              <span className="text-[8px] text-white/40">+{pct.toFixed(1)}%</span>
+                              <span className="text-[7px] sm:text-[8px] text-white/40 hidden sm:inline">+{pct.toFixed(1)}%</span>
                             )}
                           </>
                         )}
