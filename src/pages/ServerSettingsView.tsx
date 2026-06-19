@@ -3573,17 +3573,23 @@ export function ServerActivityLogTab({ serverId, timezone = "UTC" }: { serverId:
 
       {/* Action filter — collapsible checkboxes */}
       <div className="text-[10px]">
-        <button onClick={() => setFiltersExpanded(!filtersExpanded)}
-          className="flex items-center gap-1.5 text-[#71717a] hover:text-[#fafafa] transition mb-1">
-          <ChevronDown className={`w-3 h-3 transition ${filtersExpanded ? "rotate-180" : ""}`} />
-          <span>Actions</span>
-          {actionFilters.size < allActions.length && <span className="text-[#52525b]">({actionFilters.size}/{allActions.length})</span>}
+        <div className="flex items-center gap-2 mb-1">
+          <button onClick={() => setFiltersExpanded(!filtersExpanded)}
+            className="flex items-center gap-1.5 px-2 py-1 rounded border border-[#1e1e2a] text-[#a1a1aa] hover:text-[#fafafa] hover:border-[#3f3f46] transition">
+            <Eye className="w-3 h-3" />
+            <span className="text-xs font-medium">{filtersExpanded ? "Hide Filters" : "Show Filters"}</span>
+            <ChevronDown className={`w-3 h-3 transition ${filtersExpanded ? "rotate-180" : ""}`} />
+          </button>
           {actionFilters.size < allActions.length ? (
-            <span onClick={e => { e.stopPropagation(); checkAll(); }} className="text-violet-400 hover:text-violet-300 ml-1">Check all</span>
+            <button onClick={checkAll} className="px-2 py-1 rounded border border-violet-500/30 text-[11px] text-violet-400 hover:text-violet-300 hover:bg-violet-500/10 transition">
+              Check All ({allActions.length - actionFilters.size})
+            </button>
           ) : (
-            <span onClick={e => { e.stopPropagation(); clearFilters(); }} className="text-[#52525b] hover:text-[#fafafa] ml-1">Clear all</span>
+            <button onClick={clearFilters} className="px-2 py-1 rounded border border-[#3f3f46] text-[11px] text-[#71717a] hover:text-[#fafafa] hover:border-[#52525b] transition">
+              Clear Filters
+            </button>
           )}
-        </button>
+        </div>
         {filtersExpanded && (
           <div className="flex flex-wrap items-start gap-x-4 gap-y-1">
         {AUDIT_ACTION_GROUPS.filter(g => !["Admin", "Subscription", "Server"].includes(g.label)).map(g => {
