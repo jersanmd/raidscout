@@ -195,6 +195,7 @@ export async function addBackdatedCpUpdate(update: {
     .update({ combat_power: latestEntry?.new_cp ?? update.new_cp })
     .eq("id", update.member_id);
 
+  writeAuditEntry({ action: AuditAction.MEMBER_CP_UPDATE, server_id: sid, target_id: update.member_id, details: { player_name: update.player_name, new_cp: update.new_cp, backdated: update.submitted_at } });
   return data as CpUpdate;
 }
 
@@ -236,6 +237,7 @@ export async function editCpUpdate(
   if (latest?.id === updateId) {
     await supabase.from("members").update({ combat_power: newCp }).eq("id", memberId);
   }
+  writeAuditEntry({ action: AuditAction.MEMBER_CP_UPDATE, server_id: getCurrentServerId() || "", target_id: memberId, details: { cp_update_id: updateId, new_cp: newCp } });
 }
 
 // ── Delete CP Update Entry ──────────────────────────────────
@@ -523,12 +525,14 @@ export async function createItem(item: {
     .select()
     .single();
   if (error) throw error;
+  writeAuditEntry({ action: AuditAction.ITEM_CREATE, server_id: item.server_id, target_id: data.id, details: { item_name: item.name.trim(), rarity: item.rarity || "common" } });
   return data as Item;
 }
 
-export async function deleteItem(itemId: string): Promise<void> {
+export async function deleteItem(itemId: string, serverId?: string): Promise<void> {
   const { error } = await supabase.from("items").delete().eq("id", itemId);
   if (error) throw error;
+  if (serverId) writeAuditEntry({ action: AuditAction.ITEM_DELETE, server_id: serverId, target_id: itemId });
 }
 
 export async function updateItem(itemId: string, updates: {
@@ -536,12 +540,13 @@ export async function updateItem(itemId: string, updates: {
   description?: string;
   rarity?: ItemRarity;
   image_url?: string;
-}): Promise<void> {
+}, serverId?: string): Promise<void> {
   const { error } = await supabase
     .from("items")
     .update(updates)
     .eq("id", itemId);
   if (error) throw error;
+  if (serverId) writeAuditEntry({ action: AuditAction.ITEM_UPDATE, server_id: serverId, target_id: itemId, details: updates });
 }
 
 // ── Distributions ───────────────────────────────────────────
@@ -584,6 +589,7 @@ export async function createDistribution(dist: {
     .select()
     .single();
   if (error) throw error;
+  writeAuditEntry({ action: AuditAction.ITEM_DISTRIBUTE, server_id: dist.server_id, target_id: dist.member_id, details: { player_name: dist.player_name.trim(), item_id: dist.item_id, quantity: dist.quantity } });
   return data as Distribution;
 }
 

@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams, Link as RouterLink } from "react-router-d
 import { useQueryClient } from "@tanstack/react-query";
 import { useServer } from "@/contexts/ServerContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { fetchAuditLog, AUDIT_ACTION_GROUPS, deleteServer, transferServerOwnership, removeServerModerator, addServerModerator, supabase, fetchServerMembers, type ServerMember, fetchGuilds, createGuild, updateGuildName, deleteGuild, fetchBossGuilds, setBossGuilds, fetchAllBossGuildsForServer, upsertBossGuildPoints, batchSetGuildSalary, fetchBosses, setBossPoints, setBossSalary, notifyDiscord, fetchModeratorPermissions, updateModeratorPermissions, updateThreadConfig, fetchPointRules, createPointRule, updatePointRule, deletePointRule, fetchBossAssists, toggleBossAssist, fetchAllActivitiesForServer, fetchAllActivityGuildsForServer, upsertActivityGuildPoints, fetchActivityAssists, toggleActivityAssist, type ModeratorPermissions, DEFAULT_MODERATOR_PERMISSIONS } from "@/lib/supabase";
+import { fetchAuditLog, AUDIT_ACTION_GROUPS, writeAuditEntry, AuditAction, deleteServer, transferServerOwnership, removeServerModerator, addServerModerator, supabase, fetchServerMembers, type ServerMember, fetchGuilds, createGuild, updateGuildName, deleteGuild, fetchBossGuilds, setBossGuilds, fetchAllBossGuildsForServer, upsertBossGuildPoints, batchSetGuildSalary, fetchBosses, setBossPoints, setBossSalary, notifyDiscord, fetchModeratorPermissions, updateModeratorPermissions, updateThreadConfig, fetchPointRules, createPointRule, updatePointRule, deletePointRule, fetchBossAssists, toggleBossAssist, fetchAllActivitiesForServer, fetchAllActivityGuildsForServer, upsertActivityGuildPoints, fetchActivityAssists, toggleActivityAssist, type ModeratorPermissions, DEFAULT_MODERATOR_PERMISSIONS } from "@/lib/supabase";
 import type { Guild, BossGuild, Boss, PointRule, BossAssist, Activity, ActivityGuild, ActivityAssist } from "@/types";
 import { Loader2, Trash2, Crown, ArrowLeft, Server, Check, Key, Copy, RefreshCw, Plus, LogIn, Users, Bell, Link as LinkIcon, Settings, AlertTriangle, X, Shield, Pencil, Swords, ChevronUp, ChevronDown, CheckSquare, Square, Eye, EyeOff, UserPlus, Minus, Trophy, Send, Save, MessageCircle, Zap, Calendar, Search, Skull, CreditCard, Lock, Mail, MailCheck, MailWarning, ScrollText } from "lucide-react";
 import { ServerBossesActivitiesTab } from "@/components/ServerBossesActivitiesTab";
@@ -636,6 +636,7 @@ export function ServerSettingsView() {
       // Update current server in-memory so UI refreshes immediately
       setCurrentServer({ ...currentServer, invite_code: newCode });
       await refreshServers();
+      writeAuditEntry({ action: AuditAction.INVITE_REGENERATE, server_id: currentServer.id });
       toast("success", "Invite code regenerated!");
     } catch (err: any) {
       toast("error", err?.message ?? "Failed to regenerate");
@@ -647,6 +648,7 @@ export function ServerSettingsView() {
       const { data, error: rpcErr } = await supabase.rpc("regenerate_viewer_key", { s_id: currentServer.id });
       if (rpcErr) throw rpcErr;
       setViewerKey(data as string);
+      writeAuditEntry({ action: AuditAction.VIEWER_KEY_REGENERATE, server_id: currentServer.id });
       toast("success", "Viewer key regenerated!");
     } catch (err: any) {
       toast("error", err?.message ?? "Failed to regenerate viewer key");
@@ -3345,7 +3347,6 @@ function BossPointsMatrix({
 
 function ServerActivityLogTab({ serverId }: { serverId: string }) {
   const [actionFilter, setActionFilter] = useState<string>("all");
-  const [timeRange, setTimeRange] = useState<string>("7d");
   const [cursor, setCursor] = useState<string | null>(null);
   const [log, setLog] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -3381,7 +3382,7 @@ function ServerActivityLogTab({ serverId }: { serverId: string }) {
     }
   };
 
-  const fetchLog = async (reset = false) => {
+  const fetchLog = async (reset: boolean) => {
     if (reset) {
       setLoading(true);
       setCursor(null);
@@ -3399,16 +3400,21 @@ function ServerActivityLogTab({ serverId }: { serverId: string }) {
     finally { setLoading(false); setLoadingMore(false); }
   };
 
-  useEffect(() => { fetchLog(true); }, [actionFilter]);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { fetchLog(true); }, []);
+  useEffect(() => { fetchLog(true); }, [actionFilter, serverId]);
 
   const loadMore = async () => {
-    if (loadingMore || !log.length) return;
+    if (loadingMore || log.length === 0) return;
     const last = log[log.length - 1];
-    setCursor(last?.created_at);
+    const newCursor = last?.created_at;
+    if (!newCursor) return;
+    setCursor(newCursor);
     setLoadingMore(true);
-    fetchLog(false);
+    try {
+      const result = await fetchAuditLog(100, serverId, newCursor, actionFilter !== "all" ? actionFilter : null);
+      setLog(prev => [...prev, ...result]);
+      setHasMore(result.length >= 100);
+    } catch { /* ignore */ }
+    finally { setLoadingMore(false); }
   };
 
   return (

@@ -11,6 +11,7 @@ import {
   fetchItemRarities, createItemRarity, deleteItemRarity, updateItemRarity,
   fetchGearSlots, createGearSlot, deleteGearSlot, updateGearSlot,
   fetchGearSlotCategories, assignGearSlotCategory, removeGearSlotCategory,
+  writeAuditEntry, AuditAction,
 } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
@@ -228,6 +229,7 @@ export function AdminGamesTab() {
     let iconUrl: string | undefined;
     if (iconFile) { try { iconUrl = await uploadGameIcon(s, iconFile); } catch {} }
     await createGame(newGame.name.trim(), s, newGame.supported_spawn_types, iconUrl);
+    writeAuditEntry({ action: AuditAction.GAME_CREATE, server_id: "00000000-0000-0000-0000-000000000000", details: { game_name: newGame.name.trim(), game_slug: s } });
     setShowAddGame(false); setNewGame({ name: "", slug: "", supported_spawn_types: ["fixed_hours", "fixed_schedule"] }); setIconFile(null); setIconPreview(null);
     queryClient.invalidateQueries({ queryKey: ["admin", "games"] });
   };
@@ -235,6 +237,7 @@ export function AdminGamesTab() {
     if (!editingGame?.id || !editingGame.name?.trim()) return;
     const types = Array.isArray(editingGame.supported_spawn_types) ? editingGame.supported_spawn_types : [];
     await updateGame(editingGame.id, { name: editingGame.name.trim(), slug: editingGame.slug?.trim().toLowerCase(), supported_spawn_types: types, icon_url: editingGame.icon_url?.trim() || null, is_visible: editingGame.is_visible });
+    writeAuditEntry({ action: AuditAction.GAME_UPDATE, server_id: "00000000-0000-0000-0000-000000000000", target_id: editingGame.id, details: { game_name: editingGame.name.trim() } });
     setEditingGame(null); queryClient.invalidateQueries({ queryKey: ["admin", "games"] });
   };
   const handleToggleVisibility = async (game: Game) => {
@@ -247,7 +250,7 @@ export function AdminGamesTab() {
     queryClient.invalidateQueries({ queryKey: ["admin", "games"] });
     setVisibilityConfirm(null);
   };
-  const handleDeleteGame = async () => { if (!deleteConfirm || deleteConfirm.type !== "game") return; await deleteGame(deleteConfirm.id); setDeleteConfirm(null); setExpandedGame(null); queryClient.invalidateQueries({ queryKey: ["admin", "games"] }); };
+  const handleDeleteGame = async () => { if (!deleteConfirm || deleteConfirm.type !== "game") return; await deleteGame(deleteConfirm.id); writeAuditEntry({ action: AuditAction.GAME_DELETE, server_id: "00000000-0000-0000-0000-000000000000", target_id: deleteConfirm.id, details: { game_name: deleteConfirm.name } }); setDeleteConfirm(null); setExpandedGame(null); queryClient.invalidateQueries({ queryKey: ["admin", "games"] }); };
   const handleDeleteBoss = async () => { if (!deleteConfirm || deleteConfirm.type !== "boss") return; await deleteBossTemplate(deleteConfirm.id); setDeleteConfirm(null); refreshTemplates(); };
   const handleDeleteActivity = async () => { if (!deleteConfirm || deleteConfirm.type !== "activity") return; await deleteActivityTemplate(deleteConfirm.id); setDeleteConfirm(null); refreshTemplates(); };
   const handleDeleteItem = async () => { if (!deleteConfirm || deleteConfirm.type !== "item") return; await deleteItemCatalogItem(deleteConfirm.id); setDeleteConfirm(null); refreshTemplates(); };

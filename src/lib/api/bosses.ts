@@ -1,4 +1,5 @@
 import { supabase, getCurrentServerId } from "./client";
+import { writeAuditEntry, AuditAction } from "./audit";
 import type { Boss, Activity } from "@/types";
 import { supabaseUrl, supabaseKey } from "./client";
 import type { BossGuild } from "@/types";
@@ -46,6 +47,8 @@ export async function adjustBossRotation(bossId: string, direction: number): Pro
     p_direction: direction,
   });
   if (error) throw new Error(error.message);
+  const sid = getCurrentServerId();
+  if (sid) writeAuditEntry({ action: AuditAction.BOSS_TIME_EDIT, server_id: sid, target_id: bossId, details: { direction } });
   return data as number;
 }
 

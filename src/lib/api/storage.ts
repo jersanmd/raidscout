@@ -1,4 +1,5 @@
 import { supabase, supabaseUrl, supabaseKey, getCurrentServerId } from "./client";
+import { writeAuditEntry, AuditAction } from "./audit";
 
 // ── Rally Image Storage ─────────────────────────────────────
 
@@ -79,6 +80,10 @@ export async function removeRallyImageFromDeath(deathRecordId: string, urlToRemo
     .update({ rally_image_url: filtered.length > 0 ? JSON.stringify(filtered) : null })
     .eq("id", deathRecordId);
   if (error) console.error("Failed to remove rally image:", error);
+  else {
+    const sid = getCurrentServerId();
+    if (sid) writeAuditEntry({ action: AuditAction.RALLY_IMAGE_DELETE, server_id: sid, target_id: deathRecordId });
+  }
 
   // Also delete from storage
   try {

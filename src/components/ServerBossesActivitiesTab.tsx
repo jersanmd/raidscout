@@ -9,6 +9,7 @@ import {
   updateCustomBoss, updateCustomActivity,
   toggleBossEnabled, toggleActivityEnabled,
   supabase, fetchGames, fetchGuilds, setBossGuilds, setActivityGuilds,
+  writeAuditEntry, AuditAction,
 } from "@/lib/supabase";
 import { AddBossForm } from "@/components/AddBossForm";
 import { BossImage } from "@/components/BossImage";
@@ -174,7 +175,8 @@ export function ServerBossesActivitiesTab({ mode = "all" }: { mode?: "all" | "bo
     try {
       const { data, error } = await supabase.rpc("seed_from_game", { p_server_id: serverId, p_game_id: selectedGameId });
       if (error) throw error;
-      setSeedResult(`Seeded ${data.b} bosses and ${data.a} activities from templates.`);
+      writeAuditEntry({ action: AuditAction.SEED_FROM_GAME, server_id: serverId, details: { game_id: selectedGameId, bosses: (data as any).b, activities: (data as any).a } });
+      setSeedResult(`Seeded ${(data as any).b} bosses and ${(data as any).a} activities from templates.`);
       queryClient.invalidateQueries({ queryKey: ["bosses-all", serverId] });
       queryClient.invalidateQueries({ queryKey: ["bosses"] });
       queryClient.invalidateQueries({ queryKey: ["activities-all", serverId] });

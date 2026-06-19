@@ -248,23 +248,29 @@ export function AdminPanelView() {
   // Accumulate: use raw data on new fetch, reset if filters changed
   const auditLog = useMemo(() => {
     if (auditLogRaw.length === 0) return auditLogAccum;
-    // If we have a cursor (load more), append. Otherwise replace.
     if (auditCursor) return auditLogAccum;
-    setAuditHasMore(auditLogRaw.length >= 200);
     return auditLogRaw;
-  }, [auditLogRaw]);
+  }, [auditLogRaw, auditLogAccum, auditCursor]);
+
+  // Set hasMore when raw data arrives (no cursor = fresh fetch)
+  useEffect(() => {
+    if (auditLogRaw.length > 0 && !auditCursor) {
+      setAuditHasMore(auditLogRaw.length >= 200);
+    }
+  }, [auditLogRaw, auditCursor]);
 
   const handleLoadMoreAudit = async () => {
-    if (auditLoadingMore || !auditLog.length) return;
+    if (auditLoadingMore || auditLog.length === 0) return;
     const lastEntry = auditLog[auditLog.length - 1];
     if (!lastEntry?.created_at) return;
+    const newCursor = lastEntry.created_at;
     setAuditLoadingMore(true);
     try {
       const serverId = auditServerFilter !== "all" ? auditServerFilter : null;
       const actionFilter = auditActionFilter !== "all" ? auditActionFilter : null;
-      const more = await fetchAuditLog(200, serverId, lastEntry.created_at, actionFilter);
+      const more = await fetchAuditLog(200, serverId, newCursor, actionFilter);
       setAuditHasMore(more.length >= 200);
-      setAuditCursor(lastEntry.created_at);
+      setAuditCursor(newCursor);
       setAuditLogAccum(prev => [...prev, ...more]);
     } catch { /* ignore */ }
     finally { setAuditLoadingMore(false); }

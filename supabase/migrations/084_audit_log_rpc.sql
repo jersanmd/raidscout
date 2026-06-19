@@ -36,19 +36,23 @@ CREATE OR REPLACE FUNCTION write_audit_entry(
 ) RETURNS BIGINT
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path = ''
 AS $$
 DECLARE
   v_id BIGINT;
 BEGIN
   -- Verify the caller is authorized for this server
+  -- Admins can write for any server
+  -- Server members (owner/moderator) can write for their server
+  -- Viewers: allowed if p_viewer_key is provided (caller is the viewer)
   IF NOT EXISTS (
+    SELECT 1 FROM user_roles WHERE user_id = auth.uid() AND role = 'admin'
+  ) AND NOT EXISTS (
     SELECT 1 FROM server_members
     WHERE server_id = p_server_id
       AND user_id = auth.uid()
-  ) AND NOT EXISTS (
-    SELECT 1 FROM user_roles WHERE user_id = auth.uid() AND role = 'admin'
-  ) THEN
-    RAISE EXCEPTION 'You are not a member of this server';
+  ) AND p_viewer_key IS NULL THEN
+    RAISE EXCEPTION 'You are not authorized to write audit entries for this server';
   END IF;
 
   INSERT INTO admin_audit_log (actor_id, action, target_type, target_id, server_id, details, viewer_key)
@@ -60,6 +64,7 @@ END;
 $$;
 
 -- 5. Read RPC: joins auth.users for actor email, supports cursor pagination + action filter
+-- SECURITY DEFINER with auth guard: admins see all; owners/mods see their server only
 CREATE OR REPLACE FUNCTION get_audit_log(
   p_server_id UUID DEFAULT NULL,
   p_limit INT DEFAULT 200,
@@ -77,9 +82,26 @@ CREATE OR REPLACE FUNCTION get_audit_log(
   viewer_key TEXT,
   created_at TIMESTAMPTZ
 )
-LANGUAGE sql
+LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path = ''
 AS $$
+BEGIN
+  -- Auth guard: admins see all; server members see their own server
+  IF NOT EXISTS (SELECT 1 FROM user_roles WHERE user_id = auth.uid() AND role = 'admin') THEN
+    -- Non-admin: must specify a server AND be a member of it
+    IF p_server_id IS NULL THEN
+      RAISE EXCEPTION 'Server ID is required for non-admin users';
+    END IF;
+    IF NOT EXISTS (
+      SELECT 1 FROM server_members
+      WHERE server_id = p_server_id AND user_id = auth.uid()
+    ) THEN
+      RAISE EXCEPTION 'You are not a member of this server';
+    END IF;
+  END IF;
+
+  RETURN QUERY
   SELECT
     a.id,
     a.actor_id,
@@ -98,7 +120,12 @@ AS $$
     AND (p_action_filter IS NULL OR a.action = p_action_filter)
   ORDER BY a.created_at DESC, a.id DESC
   LIMIT p_limit;
+END;
 $$;
+
+-- 7. Index for audit log queries
+CREATE INDEX IF NOT EXISTS idx_audit_server_created ON admin_audit_log(server_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_audit_action ON admin_audit_log(action);
 
 -- 6. Force-spawn RPC: add admin auth check
 CREATE OR REPLACE FUNCTION admin_forcespawn_all(p_server_id UUID)
