@@ -198,7 +198,7 @@ export async function recordActivityEnd(
   attendeeIds: string[],
   serverId?: string | null
 ): Promise<string> {
-  const { data: activity } = await supabase.from("activities").select("schedule_type").eq("id", activityId).single();
+  const { data: activity } = await supabase.from("activities").select("name, schedule_type").eq("id", activityId).single();
   if (!activity) throw new Error("Activity not found");
 
   if (activity.schedule_type === "one_time") {

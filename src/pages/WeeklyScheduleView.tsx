@@ -203,7 +203,7 @@ export function WeeklyScheduleView() {
       // We'll use the RPC with a special case — pass null to clear
       if (guildId) {
         await setDeathDisplayGuild(editGuildDeath.deathRecordId, guildId);
-        writeAuditEntry({ action: AuditAction.DEATH_GUILD_SET, server_id: serverId!, target_id: editGuildDeath.deathRecordId, details: { guild_name: guilds.find(g => g.id === guildId)?.name || guildId } });
+        writeAuditEntry({ action: AuditAction.DEATH_GUILD_SET, server_id: getCurrentServerId()!, target_id: editGuildDeath.deathRecordId, details: { guild_name: guilds.find(g => g.id === guildId)?.name || guildId } });
       } else {
         // Clear the override by setting to null via a raw update
         const { error } = await supabase
@@ -211,7 +211,7 @@ export function WeeklyScheduleView() {
           .update({ display_owner_guild_id: null })
           .eq("id", editGuildDeath.deathRecordId);
         if (error) throw error;
-        writeAuditEntry({ action: AuditAction.DEATH_GUILD_CLEAR, server_id: serverId!, target_id: editGuildDeath.deathRecordId });
+        writeAuditEntry({ action: AuditAction.DEATH_GUILD_CLEAR, server_id: getCurrentServerId()!, target_id: editGuildDeath.deathRecordId });
       }
       queryClient.invalidateQueries({ queryKey: ["death_records"] });
       setEditToast({ type: "success", message: "Guild updated!" });

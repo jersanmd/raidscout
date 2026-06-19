@@ -532,7 +532,7 @@ export async function createItem(item: {
 export async function deleteItem(itemId: string, serverId?: string): Promise<void> {
   const { error } = await supabase.from("items").delete().eq("id", itemId);
   if (error) throw error;
-  if (serverId) writeAuditEntry({ action: AuditAction.ITEM_DELETE, server_id: serverId, target_id: itemId, details: { item_name: itemName || itemId } });
+  if (serverId) writeAuditEntry({ action: AuditAction.ITEM_DELETE, server_id: serverId, target_id: itemId, details: { item_name: itemId } });
 }
 
 export async function updateItem(itemId: string, updates: {

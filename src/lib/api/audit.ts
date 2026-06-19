@@ -178,7 +178,6 @@ export const AUDIT_ACTION_GROUPS: { label: string; actions: AuditActionType[] }[
     label: "Parties & Classes",
     actions: [
       AuditAction.PARTY_CREATE,
-      AuditAction.PARTY_UPDATE,
       AuditAction.PARTY_DELETE,
       AuditAction.CLASS_CREATE,
       AuditAction.CLASS_UPDATE,
