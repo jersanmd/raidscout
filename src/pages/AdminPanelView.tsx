@@ -1533,9 +1533,11 @@ function SpawnCronCard({ data, connected, timezone }: { data: any; connected: bo
 
   const pts = hasData ? history.map((v, i) => `${xPos(i)},${yPos(v)}`).join(" ") : "";
 
-  // Y ticks
+  // Y ticks — limit to ~8 lines for readability
   const yTicks: number[] = [];
-  const yStep = rng > 4000 ? 1000 : rng > 2000 ? 500 : rng > 1000 ? 250 : 200;
+  let yStep = rng > 4000 ? 1000 : rng > 2000 ? 500 : rng > 1000 ? 250 : 200;
+  // Scale up step if there would be too many grid lines
+  while ((rng / yStep) > 8) yStep *= 2;
   for (let v = Math.ceil(min / yStep) * yStep; v <= max; v += yStep) yTicks.push(v);
   if (yTicks.length < 2) yTicks.push(min, max);
 
