@@ -1052,6 +1052,7 @@ export function MemberProfileView() {
       )}
 
       {/* ── Notes ── */}
+      {(!isViewer || profile.notes.length > 0) && (
       <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-4 sm:p-5">
           <div className="flex items-center gap-2 mb-3">
             <ScrollText className="w-4 h-4 text-purple-400"/>
@@ -1084,6 +1085,7 @@ export function MemberProfileView() {
             </div>
           )}
         </div>
+      )}
 
       {/* CP Update Detail Modal */}
       {selectedUpdate && (
