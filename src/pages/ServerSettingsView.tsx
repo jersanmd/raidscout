@@ -3451,7 +3451,7 @@ function ServerActivityLogTab({ serverId }: { serverId: string }) {
           {log.map((entry: any) => {
             const { dot, text: txt } = actionColor(entry.action);
             const isViewer = !!entry.viewer_key;
-            const actor = isViewer ? `viewer ${entry.viewer_key?.substring(0,8)}…` : (entry.actor_email || entry.actor_id?.substring(0,8) + "…");
+            const actor = isViewer ? `viewer ${entry.viewer_key?.substring(0,8)}…` : (entry.actor_email || entry.details?.discord_user || entry.actor_id?.substring(0,8) + "…");
             return (
               <div key={entry.id} className="border-b border-[#1e1e2a]/50 last:border-b-0 hover:bg-[#0d0d11]/20 transition">
                 <div className="hidden sm:grid grid-cols-12 gap-3 px-4 py-2.5 items-center">

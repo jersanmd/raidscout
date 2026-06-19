@@ -4,6 +4,7 @@
 import { TOKEN, SUPABASE_URL, SUPABASE_KEY, SITE_URL, botUserId } from "./config";
 import { discordFetch } from "./discord-api";
 import { supabaseQuery, supabaseQuerySafe, supabaseRpc, logError } from "./supabase";
+import { writeBotAudit } from "./supabase";
 import { getGuildPrefixes, resolveServerId, resolveServerTimezone, bustPrefixCache } from "./server-cache";
 import { addHours, computeOwnerGuild, getScheduleTz, scheduleSlotToUTC, findNextScheduleSlot } from "./spawn-utils";
 import { fetchPartyList } from "./party-utils";
@@ -238,6 +239,7 @@ export async function handleMessage(msg: any) {
         body: JSON.stringify({ notification_channel_id: msg.channel_id }),
       });
     }
+    writeBotAudit({ action: "settings_update", server_id: serverId, discord_user: author, details: { setting: "notification_channel" } });
     return reply("✅ This channel will now receive boss kill, spawn, and activity notifications.");
   }
 
@@ -252,6 +254,7 @@ export async function handleMessage(msg: any) {
       });
       bustPrefixCache(guildId);
     }
+    writeBotAudit({ action: "settings_update", server_id: serverId, discord_user: author, details: { setting: "command_channel" } });
     return reply("✅ Bot commands will now only work in this channel.");
   }
 
@@ -265,6 +268,7 @@ export async function handleMessage(msg: any) {
         body: JSON.stringify({ progress_channel_id: msg.channel_id }),
       });
     }
+    writeBotAudit({ action: "settings_update", server_id: serverId, discord_user: author, details: { setting: "progress_channel" } });
       return reply("✅ Progress reports, `!updatestats` and `!editstats` commands will now work in this channel. Use the **Demand Update** button on RaidScout to create progress threads here.");
   }
 
@@ -278,6 +282,7 @@ export async function handleMessage(msg: any) {
         body: JSON.stringify({ thread_channel_id: msg.channel_id }),
       });
     }
+    writeBotAudit({ action: "settings_update", server_id: serverId, discord_user: author, details: { setting: "thread_channel" } });
     return reply("✅ Auto-threads for spawn events will be created in this channel.");
   }
 
@@ -328,6 +333,7 @@ export async function handleMessage(msg: any) {
         method: "POST", headers: { apikey: SUPABASE_KEY!, Authorization: `Bearer ${SUPABASE_KEY!}`, "Content-Type": "application/json" },
         body: JSON.stringify({ server_id: serverId, boss_id: boss.id, death_time: deathTime }),
       });
+      writeBotAudit({ action: "force_spawn", server_id: serverId, discord_user: author, target_id: boss.id, details: { boss_name: boss.name } });
       return reply(`✅ **${boss.name}** has been force-spawned.`);
     }
     // Activity fallback — start it now
@@ -378,6 +384,7 @@ export async function handleMessage(msg: any) {
         count++;
       } catch (err) { console.error("[bot] forcespawnall create override failed:", b.id, err); }
     }
+    writeBotAudit({ action: "force_spawn", server_id: serverId, discord_user: author, details: { boss_count: count } });
     return reply(`✅ **${count}** fixed-timer bosses force-spawned.`);
   }
 
@@ -836,6 +843,7 @@ export async function handleMessage(msg: any) {
     const replyFields: any[] = [{ name: "Death Time", value: `<t:${unix}:f>`, inline: true }, { name: "Recorded By", value: author, inline: true }];
     if (nextSpawnField) replyFields.push(nextSpawnField);
     await cmdLog(cmd, "ok", `${boss.name} → ${guildName || "unknown"}`);
+    writeBotAudit({ action: "boss_kill", server_id: serverId, discord_user: author, target_id: boss.id, details: { boss_name: boss.name, guild: guildName || "unknown" } });
     return replyEmbed(`☠️ ${boss.name} Killed by ${guildName || author}`, timeStr ? `Wrong time? Use \`${matchedPrefix}editkilltime ${boss.name} HH:MM\` to fix it.` : "", 0xef4444, replyFields);
   }
 
@@ -933,6 +941,7 @@ export async function handleMessage(msg: any) {
     ];
     if (nextSpawnUnix > 0) replyFields.push({ name: "Next Spawn", value: `<t:${nextSpawnUnix}:f>`, inline: true });
     await cmdLog(cmd, "ok", `${boss.name} → ${timeStr}`);
+    writeBotAudit({ action: "boss_time_edit", server_id: serverId, discord_user: author, target_id: boss.id, details: { boss_name: boss.name, new_time: timeStr } });
     return replyEmbed(`✏️ ${boss.name} Kill Time Updated`, `Time changed to **${timeStr}**`, 0x3b82f6, replyFields);
   }
 
@@ -950,6 +959,7 @@ export async function handleMessage(msg: any) {
       body: JSON.stringify({ start_time: newDeathTime.toISOString(), end_time: newDeathTime.toISOString() }),
     });
     await cmdLog(cmd, "ok", `${act.name} → ${timeStr}`);
+    writeBotAudit({ action: "boss_time_edit", server_id: serverId, discord_user: author, target_id: act.id, details: { activity_name: act.name, new_time: timeStr } });
     return replyEmbed(`✏️ ${act.name} Time Updated`, `Time changed to **${timeStr}**`, 0x3b82f6, []);
   }
 
@@ -1139,6 +1149,7 @@ export async function handleMessage(msg: any) {
         : `${SITE_URL}${memberPath}`;
       const profileLink = `🔗 Click here to check your member page on RaidScout: <${profileUrl}>`;
       await cmdLog(cmd, "ok", `${resolvedName} → ${cpValue.toLocaleString()} CP`);
+      writeBotAudit({ action: "member_cp_update", server_id: serverId, discord_user: author, target_id: memberId, details: { player_name: resolvedName, new_cp: cpValue } });
       return reply(`✅ **${resolvedName}** CP updated to **${cpValue.toLocaleString()}**.${screenshotNote}\n${profileLink}`);
     } catch (err: any) {
       console.error("[bot] updatestats error:", err);

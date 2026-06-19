@@ -129,6 +129,30 @@ export async function supabaseDelete(table: string, column: string, value: strin
   } catch (err: any) { logError("db", `DELETE ${table} failed`, err, { [column]: value }); return false; }
 }
 
+// ── Audit log helper for bot commands ───────────────────────
+export async function writeBotAudit(params: {
+  action: string;
+  server_id: string;
+  discord_user: string;
+  target_type?: string;
+  target_id?: string;
+  details?: Record<string, any>;
+}): Promise<void> {
+  try {
+    await supabaseRpc("write_audit_entry", {
+      p_action: params.action,
+      p_server_id: params.server_id,
+      p_target_type: params.target_type || null,
+      p_target_id: params.target_id || null,
+      p_details: params.details || {},
+      p_discord_actor: params.discord_user,
+    });
+  } catch (err: any) {
+    // Don't block bot commands on audit failure
+    console.error("[bot-audit] write failed:", err?.message || err);
+  }
+}
+
 export async function supabasePost(table: string, body: Record<string, any>): Promise<boolean> {
   try {
     const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}`, {

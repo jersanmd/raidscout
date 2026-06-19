@@ -1010,7 +1010,7 @@ export function AdminPanelView() {
                 const detailText = formatDetails(entry);
                 const actor = isViewer
                   ? `viewer ${entry.viewer_key?.substring(0,8)}…`
-                  : entry.actor_email || entry.actor_id?.substring(0,8) + "…";
+                  : entry.actor_email || entry.details?.discord_user || entry.actor_id?.substring(0,8) + "…";
 
                 return (
                 <div key={entry.id} className="border-b border-[#1e1e2a]/50 last:border-b-0 hover:bg-[#0d0d11]/20 transition">

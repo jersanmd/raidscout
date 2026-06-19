@@ -221,6 +221,7 @@ export async function writeAuditEntry(entry: {
   target_id?: string;
   details?: Record<string, any>;
   viewer_key?: string;
+  discord_actor?: string;
 }): Promise<void> {
   // Fire-and-forget: don't block the caller on audit failure
   supabase
@@ -231,6 +232,7 @@ export async function writeAuditEntry(entry: {
       p_target_id: entry.target_id || null,
       p_details: entry.details || {},
       p_viewer_key: entry.viewer_key || null,
+      p_discord_actor: entry.discord_actor || null,
     })
     .then(
       ({ error }) => {

@@ -43,14 +43,15 @@ CREATE POLICY "Only admins can insert audit entries" ON admin_audit_log
     EXISTS (SELECT 1 FROM user_roles WHERE user_id = auth.uid() AND role = 'admin')
   );
 
--- 4. SECURITY DEFINER wrapper for non-admin writes (owners, moderators, viewers)
+-- 4. SECURITY DEFINER wrapper for writes (owners, moderators, viewers, Discord bot)
 CREATE OR REPLACE FUNCTION write_audit_entry(
   p_action TEXT,
   p_server_id UUID,
   p_target_type TEXT DEFAULT NULL,
   p_target_id TEXT DEFAULT NULL,
   p_details JSONB DEFAULT '{}',
-  p_viewer_key TEXT DEFAULT NULL
+  p_viewer_key TEXT DEFAULT NULL,
+  p_discord_actor TEXT DEFAULT NULL
 ) RETURNS BIGINT
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -58,11 +59,18 @@ SET search_path = ''
 AS $$
 DECLARE
   v_id BIGINT;
+  v_details JSONB;
 BEGIN
+  -- Discord bot (service_role) bypasses auth checks
+  IF auth.role() = 'service_role' AND p_discord_actor IS NOT NULL THEN
+    v_details := p_details || jsonb_build_object('discord_user', p_discord_actor);
+    INSERT INTO public.admin_audit_log (actor_id, action, target_type, target_id, server_id, details, viewer_key)
+    VALUES (NULL, p_action, p_target_type, p_target_id, p_server_id, v_details, p_viewer_key)
+    RETURNING id INTO v_id;
+    RETURN v_id;
+  END IF;
+
   -- Verify the caller is authorized for this server
-  -- Admins can write for any server
-  -- Server members (owner/moderator) can write for their server
-  -- Viewers: allowed if p_viewer_key is provided (caller is the viewer)
   IF NOT EXISTS (
     SELECT 1 FROM public.user_roles WHERE user_id = auth.uid() AND role = 'admin'
   ) AND NOT EXISTS (
