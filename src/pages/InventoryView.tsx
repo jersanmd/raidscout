@@ -1171,7 +1171,7 @@ export function InventoryView() {
                     value={matrixPlayerSearch}
                     onChange={(e) => setMatrixPlayerSearch(e.target.value)}
                     placeholder="Search player…"
-                    className="w-48 pl-9 pr-9 py-2 text-sm bg-[#18181b] border border-[#27272a] rounded-xl text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#52525b]"
+                    className="w-36 sm:w-48 pl-9 pr-9 py-2 text-sm bg-[#18181b] border border-[#27272a] rounded-xl text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#52525b]"
                   />
                   {matrixPlayerSearch && (
                     <button onClick={() => setMatrixPlayerSearch("")} className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded text-[#52525b] hover:text-[#a1a1aa]">
@@ -1526,7 +1526,7 @@ export function InventoryView() {
               </h3>
               <span className="text-xs text-[#52525b] font-mono shrink-0">{filteredPlayers.length} / {players.length} players</span>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <select
                 value={recipientGuildFilter}
                 onChange={(e) => {
@@ -1558,7 +1558,7 @@ export function InventoryView() {
                   value={recipientSearch}
                   onChange={(e) => setRecipientSearch(e.target.value)}
                   placeholder="Search player..."
-                  className="w-48 pl-9 pr-9 py-2.5 text-sm bg-[#18181b] border border-[#27272a] rounded-xl text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#52525b]"
+                  className="w-36 sm:w-48 pl-9 pr-9 py-2.5 text-sm bg-[#18181b] border border-[#27272a] rounded-xl text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#52525b]"
                 />
                 {recipientSearch && (
                   <button onClick={() => setRecipientSearch("")} className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded text-[#52525b] hover:text-[#a1a1aa]">
