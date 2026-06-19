@@ -34,10 +34,11 @@ export async function setBossRotation(bossId: string, index: number): Promise<nu
   return data as number;
 }
 
-export async function advanceBossRotation(bossId: string): Promise<number> {
+export async function advanceBossRotation(bossId: string, serverId?: string | null): Promise<number> {
   const { data, error } = await supabase
     .rpc("advance_boss_rotation", { p_boss_id: bossId });
   if (error) throw error;
+  if (serverId) writeAuditEntry({ action: AuditAction.BOSS_ROTATION_ADVANCE, server_id: serverId, target_id: bossId });
   return data as number;
 }
 
@@ -234,6 +235,8 @@ export async function recordActivityEnd(
   // Advance guild rotation
   try { await advanceActivityRotation(activityId, serverId); } catch (err) { console.error("[bosses] advanceActivityRotation on end failed:", err); }
 
+  if (serverId) writeAuditEntry({ action: AuditAction.ACTIVITY_END_RECORD, server_id: serverId, target_id: activityId, details: { end_time: endTime.toISOString(), attendees: attendeeIds.length } });
+
   return instance.id;
 }
 
@@ -261,6 +264,7 @@ export async function setBossSpawnTime(bossId: string, spawnDate: Date): Promise
     .from("boss_spawn_overrides")
     .insert({ boss_id: bossId, server_id: serverId, death_time: newDeathTime.toISOString() });
   if (error) throw error;
+  if (serverId) writeAuditEntry({ action: AuditAction.BOSS_SPAWN_SET, server_id: serverId, target_id: bossId, details: { spawn_date: spawnDate.toISOString() } });
 }
 
 export async function fetchSpawnOverrides(serverId: string): Promise<{ boss_id: string; death_time: string }[]> {
@@ -324,7 +328,8 @@ export async function fetchAllBossGuildsForServer(serverId?: string | null): Pro
 export async function setBossGuilds(
   bossId: string,
   assignments: { guild_id: string; sort_order?: number; day_of_week?: number }[],
-  mode: "rotation" | "schedule" | "daily" = "rotation"
+  mode: "rotation" | "schedule" | "daily" = "rotation",
+  serverId?: string | null
 ): Promise<void> {
   const { data: existing } = await supabase
     .from("boss_guilds")
@@ -368,6 +373,7 @@ export async function setBossGuilds(
     });
     if (error) console.warn("Failed to re-insert points-only row:", error);
   }
+  if (serverId) writeAuditEntry({ action: AuditAction.BOSS_GUILDS_SET, server_id: serverId, target_id: bossId, details: { mode, guilds: assignments } });
 }
 
 export async function upsertBossGuildPoints(

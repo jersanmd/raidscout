@@ -21,6 +21,9 @@ export const AuditAction = {
   BOSS_DELETE: "boss_delete",
   BOSS_TOGGLE: "boss_toggle",
   BOSS_TIME_EDIT: "boss_time_edit",
+  BOSS_ROTATION_ADVANCE: "boss_rotation_advance",
+  BOSS_GUILDS_SET: "boss_guilds_set",
+  BOSS_SPAWN_SET: "boss_spawn_set",
   ATTENDANCE_COPY: "attendance_copy",
   ATTENDANCE_ADD: "attendance_add",
   ATTENDANCE_REMOVE: "attendance_remove",
@@ -31,6 +34,7 @@ export const AuditAction = {
   ACTIVITY_DELETE: "activity_delete",
   ACTIVITY_TOGGLE: "activity_toggle",
   ACTIVITY_FINALIZE: "activity_finalize",
+  ACTIVITY_END_RECORD: "activity_end_record",
   ACTIVITY_GUILDS_SET: "activity_guilds_set",
   ACTIVITY_ROTATION: "activity_rotation_advance",
 
@@ -50,8 +54,11 @@ export const AuditAction = {
 
   // Parties & Classes
   PARTY_CREATE: "party_create",
-  PARTY_UPDATE: "party_update",
   PARTY_DELETE: "party_delete",
+  PARTY_ASSIGN: "party_assign",
+  PARTY_UNLINK: "party_unlink",
+  PARTY_MEMBER_ADD: "party_member_add",
+  PARTY_MEMBER_REMOVE: "party_member_remove",
   CLASS_CREATE: "class_create",
   CLASS_UPDATE: "class_update",
   CLASS_DELETE: "class_delete",

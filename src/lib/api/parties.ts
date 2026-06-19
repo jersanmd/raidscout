@@ -42,30 +42,34 @@ export async function deleteParty(partyId: string, serverId?: string): Promise<v
   if (serverId) writeAuditEntry({ action: AuditAction.PARTY_DELETE, server_id: serverId, target_id: partyId });
 }
 
-export async function addMemberToParty(partyId: string, memberId: string): Promise<void> {
+export async function addMemberToParty(partyId: string, memberId: string, serverId?: string | null): Promise<void> {
   const { error } = await supabase.rpc("add_member_to_party", {
     p_party_id: partyId, p_member_id: memberId,
   });
   if (error) throw error;
+  if (serverId) writeAuditEntry({ action: AuditAction.PARTY_MEMBER_ADD, server_id: serverId, target_id: partyId, details: { member_id: memberId } });
 }
 
-export async function removeMemberFromParty(memberId: string): Promise<void> {
+export async function removeMemberFromParty(memberId: string, serverId?: string | null): Promise<void> {
   const { error } = await supabase.rpc("remove_member_from_party", { p_member_id: memberId });
   if (error) throw error;
+  if (serverId) writeAuditEntry({ action: AuditAction.PARTY_MEMBER_REMOVE, server_id: serverId, target_id: memberId });
 }
 
 /** Assign a party to a specific boss */
-export async function assignPartyToBoss(partyId: string, bossId: string): Promise<void> {
+export async function assignPartyToBoss(partyId: string, bossId: string, serverId?: string | null): Promise<void> {
   const { error } = await supabase.rpc("assign_party_to_boss", {
     p_party_id: partyId, p_boss_id: bossId,
   });
   if (error) throw error;
+  if (serverId) writeAuditEntry({ action: AuditAction.PARTY_ASSIGN, server_id: serverId, target_id: partyId, details: { boss_id: bossId } });
 }
 
 /** Unlink a party from its boss/activity */
-export async function unlinkParty(partyId: string): Promise<void> {
+export async function unlinkParty(partyId: string, serverId?: string | null): Promise<void> {
   const { error } = await supabase.rpc("unlink_party", {
     p_party_id: partyId,
   });
   if (error) throw error;
+  if (serverId) writeAuditEntry({ action: AuditAction.PARTY_UNLINK, server_id: serverId, target_id: partyId });
 }
