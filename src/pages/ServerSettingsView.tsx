@@ -3393,8 +3393,8 @@ export function ServerActivityLogTab({ serverId }: { serverId: string }) {
   };
 
   const filteredLog = useMemo(() => {
-    if (actionFilters.size === 0) return log;
-    return log.filter(e => actionFilters.has(e.action) || !allActions.includes(e.action));
+    if (actionFilters.size === 0 || actionFilters.size >= allActions.length) return log;
+    return log.filter(e => actionFilters.has(e.action));
   }, [log, actionFilters, allActions]);
 
   const formatActionLabel = (action: string): string =>
