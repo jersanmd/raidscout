@@ -35,6 +35,7 @@ export async function addAttendance(
   deathRecordId: string,
   memberId: string
 ): Promise<AttendanceRecord> {
+  const sid = getCurrentServerId();
   const { data: { session } } = await supabase.auth.getSession();
   if (session?.user) {
     const { data, error } = await supabase
@@ -42,11 +43,12 @@ export async function addAttendance(
       .insert({
         death_record_id: deathRecordId,
         member_id: memberId,
-        server_id: getCurrentServerId(),
+        server_id: sid,
       })
       .select()
       .single();
     if (error) throw error;
+    writeAuditEntry({ action: AuditAction.ATTENDANCE_ADD, server_id: sid!, target_id: deathRecordId, details: { member_id: memberId } });
     return data as AttendanceRecord;
   }
 
@@ -59,6 +61,7 @@ export async function addAttendance(
         p_viewer_key: viewerKey,
       });
     if (error) throw error;
+    writeAuditEntry({ action: AuditAction.ATTENDANCE_ADD, server_id: sid!, target_id: deathRecordId, details: { member_id: memberId }, viewer_key: viewerKey });
     return (data as any[])[0] as AttendanceRecord;
   }
 
@@ -66,6 +69,7 @@ export async function addAttendance(
 }
 
 export async function removeAttendance(attendanceId: string): Promise<void> {
+  const sid = getCurrentServerId();
   const { data: { session } } = await supabase.auth.getSession();
   if (session?.user) {
     const { error } = await supabase
@@ -73,6 +77,7 @@ export async function removeAttendance(attendanceId: string): Promise<void> {
       .delete()
       .eq("id", attendanceId);
     if (error) throw error;
+    writeAuditEntry({ action: AuditAction.ATTENDANCE_REMOVE, server_id: sid!, target_id: attendanceId });
     return;
   }
 
@@ -84,6 +89,7 @@ export async function removeAttendance(attendanceId: string): Promise<void> {
         p_viewer_key: viewerKey,
       });
     if (error) throw error;
+    writeAuditEntry({ action: AuditAction.ATTENDANCE_REMOVE, server_id: sid!, target_id: attendanceId, viewer_key: viewerKey });
     return;
   }
 

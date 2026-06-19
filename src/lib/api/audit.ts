@@ -22,6 +22,8 @@ export const AuditAction = {
   BOSS_TOGGLE: "boss_toggle",
   BOSS_TIME_EDIT: "boss_time_edit",
   ATTENDANCE_COPY: "attendance_copy",
+  ATTENDANCE_ADD: "attendance_add",
+  ATTENDANCE_REMOVE: "attendance_remove",
 
   // Activities
   ACTIVITY_CREATE: "activity_create",
@@ -114,6 +116,8 @@ export const AUDIT_ACTION_GROUPS: { label: string; actions: AuditActionType[] }[
       AuditAction.BOSS_TOGGLE,
       AuditAction.BOSS_TIME_EDIT,
       AuditAction.ATTENDANCE_COPY,
+      AuditAction.ATTENDANCE_ADD,
+      AuditAction.ATTENDANCE_REMOVE,
     ],
   },
   {
