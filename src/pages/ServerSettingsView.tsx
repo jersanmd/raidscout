@@ -3398,6 +3398,9 @@ export function ServerActivityLogTab({ serverId }: { serverId: string }) {
     saveFilters(new Set(allActions));
   };
 
+  const formatActionLabel = (action: string): string =>
+    action.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+
   const filteredLog = useMemo(() => {
     let result = actionFilters.size === 0 ? log : log.filter(e => actionFilters.has(e.action));
     if (searchQuery) {
@@ -3415,9 +3418,6 @@ export function ServerActivityLogTab({ serverId }: { serverId: string }) {
     }
     return result;
   }, [log, actionFilters, searchQuery]);
-
-  const formatActionLabel = (action: string): string =>
-    action.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
 
   const actionColor = (action: string): { dot: string; text: string } => {
     if (action.includes("delete") || action.includes("remove")) return { dot: "bg-red-400", text: "text-red-300" };
