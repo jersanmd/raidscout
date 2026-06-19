@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { fetchAllServers, fetchAllUsers, fetchAuditLog, fetchServerStats, fetchDatabaseStats, fetchPlanUsage, fetchCronStatus, restoreServer, addServerModerator, supabase, writeAuditEntry, AuditAction } from "@/lib/supabase";
+import { fetchAllServers, fetchAllUsers, fetchAuditLog, fetchServerStats, fetchDatabaseStats, fetchPlanUsage, fetchCronStatus, restoreServer, addServerModerator, supabase, writeAuditEntry, AuditAction, AUDIT_ACTION_GROUPS } from "@/lib/supabase";
 import { useServer } from "@/contexts/ServerContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
@@ -48,6 +48,11 @@ export function AdminPanelView() {
   const [auditTimeRange, setAuditTimeRange] = useState<string>("1d");
   const [auditCustomSince, setAuditCustomSince] = useState("");
   const [auditCustomUntil, setAuditCustomUntil] = useState("");
+  const [auditActionFilter, setAuditActionFilter] = useState<string>("all");
+  const [auditCursor, setAuditCursor] = useState<string | null>(null);
+  const [auditLogAccum, setAuditLogAccum] = useState<any[]>([]);
+  const [auditHasMore, setAuditHasMore] = useState(false);
+  const [auditLoadingMore, setAuditLoadingMore] = useState(false);
   const [serverFilter, setServerFilter] = useState<"all" | "bot">("all");
   const [serverSearch, setServerSearch] = useState("");
   const [userSearch, setUserSearch] = useState("");
@@ -199,9 +204,9 @@ export function AdminPanelView() {
     enabled: userRole === "admin" && tab === "deleted",
   });
 
-  const { data: auditLog = [], isLoading: auditLoading } = useQuery({
-    queryKey: ["admin", "audit", auditTimeRange, auditCustomSince, auditCustomUntil],
-    queryFn: () => {
+  const { data: auditLogRaw = [], isLoading: auditLoading } = useQuery({
+    queryKey: ["admin", "audit", auditServerFilter, auditTimeRange, auditCustomSince, auditCustomUntil, auditActionFilter],
+    queryFn: async () => {
       let since: string | null = null;
       let until: string | null = null;
       
@@ -214,15 +219,56 @@ export function AdminPanelView() {
         since = new Date(Date.now() - d * 86400_000).toISOString();
       }
       
-      // Default to first server if "all" is selected
       const serverId = auditServerFilter !== "all" ? auditServerFilter : null;
-      return fetchAuditLog(500, serverId, since, until);
+      const actionFilter = auditActionFilter !== "all" ? auditActionFilter : null;
+      const result = await fetchAuditLog(200, serverId, null, actionFilter);
+      
+      // Client-side time filter (RPC doesn't support time range natively)
+      if (since || until) {
+        const sinceMs = since ? new Date(since).getTime() : 0;
+        const untilMs = until ? new Date(until).getTime() : Infinity;
+        return result.filter((e: any) => {
+          const ts = new Date(e.created_at).getTime();
+          return ts >= sinceMs && ts <= untilMs;
+        });
+      }
+      return result;
     },
     staleTime: 15_000,
     enabled: userRole === "admin" && tab === "audit",
   });
 
-  // Auto-select first server when opening audit tab
+  // Reset accumulator and cursor when filters change
+  useEffect(() => {
+    setAuditCursor(null);
+    setAuditLogAccum([]);
+    setAuditHasMore(false);
+  }, [auditServerFilter, auditTimeRange, auditCustomSince, auditCustomUntil, auditActionFilter]);
+
+  // Accumulate: use raw data on new fetch, reset if filters changed
+  const auditLog = useMemo(() => {
+    if (auditLogRaw.length === 0) return auditLogAccum;
+    // If we have a cursor (load more), append. Otherwise replace.
+    if (auditCursor) return auditLogAccum;
+    setAuditHasMore(auditLogRaw.length >= 200);
+    return auditLogRaw;
+  }, [auditLogRaw]);
+
+  const handleLoadMoreAudit = async () => {
+    if (auditLoadingMore || !auditLog.length) return;
+    const lastEntry = auditLog[auditLog.length - 1];
+    if (!lastEntry?.created_at) return;
+    setAuditLoadingMore(true);
+    try {
+      const serverId = auditServerFilter !== "all" ? auditServerFilter : null;
+      const actionFilter = auditActionFilter !== "all" ? auditActionFilter : null;
+      const more = await fetchAuditLog(200, serverId, lastEntry.created_at, actionFilter);
+      setAuditHasMore(more.length >= 200);
+      setAuditCursor(lastEntry.created_at);
+      setAuditLogAccum(prev => [...prev, ...more]);
+    } catch { /* ignore */ }
+    finally { setAuditLoadingMore(false); }
+  };
 
   // Load stats for all servers when bot filter is active
   useEffect(() => {
@@ -238,11 +284,6 @@ export function AdminPanelView() {
       }
     });
   }, [serverFilter, tab, servers]);
-  useEffect(() => {
-    if (tab === "audit" && auditServerFilter === "all" && servers.length > 0) {
-      setAuditServerFilter(servers[0].id);
-    }
-  }, [tab, servers, auditServerFilter]);
 
   return (
     <div className="min-h-screen bg-[#09090b] flex flex-col">
@@ -841,48 +882,80 @@ export function AdminPanelView() {
           serverMap[s.id] = s.name;
         }
 
-        const filteredLog = auditServerFilter === "all"
-          ? auditLog
-          : auditLog.filter((e: any) => e.server_id === auditServerFilter);
+        // Dynamic action display helpers
+        const formatActionLabel = (action: string): string => {
+          return action
+            .replace(/_/g, " ")
+            .replace(/\b\w/g, c => c.toUpperCase());
+        };
+        const actionColor = (action: string): { dot: string; text: string } => {
+          if (action.includes("delete") || action.includes("remove")) return { dot: "bg-red-400", text: "text-red-300" };
+          if (action.includes("create") || action.includes("add")) return { dot: "bg-emerald-400", text: "text-emerald-300" };
+          if (action.includes("transfer") || action.includes("ownership")) return { dot: "bg-violet-400", text: "text-violet-300" };
+          if (action.includes("kill") || action.includes("death")) return { dot: "bg-rose-400", text: "text-rose-300" };
+          if (action.includes("force") || action.includes("maintenance")) return { dot: "bg-amber-400", text: "text-amber-300" };
+          if (action.includes("update") || action.includes("edit") || action.includes("setting")) return { dot: "bg-[#71717a]", text: "text-[#a1a1aa]" };
+          if (action.includes("finalize")) return { dot: "bg-sky-400", text: "text-sky-300" };
+          if (action.includes("extend") || action.includes("subscription")) return { dot: "bg-cyan-400", text: "text-cyan-300" };
+          return { dot: "bg-[#52525b]", text: "text-[#a1a1aa]" };
+        };
 
-        const actionLabel: Record<string, string> = {
-          set_role: 'Role Changed', delete_role: 'Role Removed',
-          transfer_ownership: 'Ownership Transferred', delete_server: 'Server Deleted',
-          record_death: 'Boss Killed', add_member: 'Member Added',
-          update_settings: 'Settings Updated',
-        };
-        const actionDot: Record<string, string> = {
-          set_role: 'bg-amber-400', delete_role: 'bg-red-400',
-          transfer_ownership: 'bg-violet-400', delete_server: 'bg-red-500',
-          record_death: 'bg-rose-400', add_member: 'bg-emerald-400',
-          update_settings: 'bg-[#71717a]',
-        };
-        const actionText: Record<string, string> = {
-          set_role: 'text-amber-300', delete_role: 'text-red-300',
-          transfer_ownership: 'text-violet-300', delete_server: 'text-red-400',
-          record_death: 'text-rose-300', add_member: 'text-emerald-300',
-          update_settings: 'text-[#a1a1aa]',
+        const formatDetails = (entry: any): string => {
+          const d = entry.details || {};
+          switch (entry.action) {
+            case "boss_kill": return d.boss_name || "Unknown boss";
+            case "attendance_copy": return `Copied ${d.copied ?? 0} attendees (${d.skipped ?? 0} skipped)`;
+            case "member_cp_add": case "member_cp_update": return `${d.player_name || "?"}: ${d.old_cp ?? "—"} → ${d.new_cp ?? "?"}`;
+            case "member_cp_delete": return `Deleted CP update`;
+            case "member_note_add": return d.note_preview || "—";
+            case "member_note_delete": return "Deleted note";
+            case "moderator_add": return d.target_email || d.target_user_id?.substring(0,8) + "…" || "—";
+            case "moderator_remove": return d.target_user_id?.substring(0,8) + "…" || "—";
+            case "ownership_transfer": return `${d.old_owner_id?.substring(0,8)}… → ${d.new_owner_id?.substring(0,8)}…`;
+            case "force_spawn": return `${d.boss_count ?? 0} bosses in "${d.server_name || "?"}"`;
+            case "subscription_extend": return `+${d.days ?? 30} days`;
+            case "maintenance_on": return d.ends_at ? `Until ${new Date(d.ends_at).toLocaleString()}` : "—";
+            case "leaderboard_finalize": return `${d.period}: ${d.rankings ?? 0} players`;
+            case "settings_update": case "server_create": case "server_delete": case "server_restore":
+              return d.server_name || Object.entries(d).map(([k,v]) => `${k}: ${v}`).join(", ") || "—";
+            default: return Object.entries(d).slice(0, 2).map(([k,v]) => `${k}: ${v}`).join(", ") || "—";
+          }
         };
 
         return (
         <div className="space-y-3">
           {/* Toolbar */}
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2">
             {servers.length > 0 && (
               <div className="flex items-center gap-1.5">
                 <span className="text-xs text-[#71717a]">Server</span>
                 <select value={auditServerFilter} onChange={(e) => setAuditServerFilter(e.target.value)}
-                  className="bg-[#0d0d11] border border-[#1e1e2a] rounded-lg px-3 py-2 text-sm text-[#fafafa] outline-none focus:border-[#52525b]">
+                  className="bg-[#0d0d11] border border-[#1e1e2a] rounded-lg px-2.5 py-1.5 text-xs text-[#fafafa] outline-none focus:border-[#52525b]">
                   <option value="all">All Servers</option>
                   {[...servers].sort((a: any, b: any) => ((a as any).game_name || "ZZZ").localeCompare((b as any).game_name || "ZZZ") || a.name.localeCompare(b.name)).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                 </select>
               </div>
             )}
-            <div className="flex items-center gap-0.5">
+            {/* Action filter */}
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-[#71717a]">Action</span>
+              <select value={auditActionFilter} onChange={(e) => setAuditActionFilter(e.target.value)}
+                className="bg-[#0d0d11] border border-[#1e1e2a] rounded-lg px-2.5 py-1.5 text-xs text-[#fafafa] outline-none focus:border-[#52525b]">
+                <option value="all">All Actions</option>
+                {AUDIT_ACTION_GROUPS.map(g => (
+                  <optgroup key={g.label} label={g.label}>
+                    {g.actions.map(a => (
+                      <option key={a} value={a}>{formatActionLabel(a)}</option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
+            </div>
+            <div className="flex items-center gap-0.5 ml-auto sm:ml-0">
               <span className="text-xs text-[#71717a] mr-1">Time</span>
               {["1d","3d","5d","7d","1month","all"].map(range => (
                 <button key={range} onClick={() => setAuditTimeRange(range)}
-                  className={`px-2.5 py-1.5 rounded-md text-xs font-medium transition ${
+                  className={`px-2 py-1 rounded-md text-xs font-medium transition ${
                     auditTimeRange === range && auditTimeRange !== "custom"
                       ? "bg-[#27272a] text-[#fafafa]" : "text-[#a1a1aa] hover:text-[#fafafa] hover:bg-[#0d0d11]"
                   }`}>
@@ -890,82 +963,95 @@ export function AdminPanelView() {
                 </button>
               ))}
               <button onClick={() => setAuditTimeRange("custom")}
-                className={`px-2.5 py-1.5 rounded-md text-xs font-medium transition ${
+                className={`px-2 py-1 rounded-md text-xs font-medium transition ${
                   auditTimeRange === "custom" ? "bg-[#27272a] text-[#fafafa]" : "text-[#a1a1aa] hover:text-[#fafafa] hover:bg-[#0d0d11]"
                 }`}>Custom</button>
               {auditTimeRange === "custom" && (
                 <div className="flex items-center gap-1 ml-1">
                   <input type="date" value={auditCustomSince} onChange={(e) => setAuditCustomSince(e.target.value)}
-                    className="bg-[#0d0d11] border border-[#1e1e2a] rounded px-2.5 py-1.5 text-xs text-[#fafafa] outline-none focus:border-[#52525b]" />
+                    className="bg-[#0d0d11] border border-[#1e1e2a] rounded px-2 py-1 text-xs text-[#fafafa] outline-none focus:border-[#52525b]" />
                   <span className="text-xs text-[#52525b]">—</span>
                   <input type="date" value={auditCustomUntil} onChange={(e) => setAuditCustomUntil(e.target.value)}
-                    className="bg-[#0d0d11] border border-[#1e1e2a] rounded px-2.5 py-1.5 text-xs text-[#fafafa] outline-none focus:border-[#52525b]" />
+                    className="bg-[#0d0d11] border border-[#1e1e2a] rounded px-2 py-1 text-xs text-[#fafafa] outline-none focus:border-[#52525b]" />
                 </div>
               )}
             </div>
-            <span className="text-xs text-[#52525b] ml-auto">{filteredLog.length} event{filteredLog.length !== 1 ? "s" : ""}</span>
+            <span className="text-xs text-[#52525b]">{auditLog.length} event{auditLog.length !== 1 ? "s" : ""}</span>
           </div>
 
           {/* Log Stream */}
-          {auditLoading ? (
+          {auditLoading && auditLog.length === 0 ? (
             <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 text-[#71717a] animate-spin" /></div>
-          ) : filteredLog.length === 0 ? (
+          ) : auditLog.length === 0 ? (
             <p className="text-[#71717a] text-sm text-center py-12">
               {auditServerFilter !== "all" ? `No events for "${serverMap[auditServerFilter] || auditServerFilter}".` : "No audit events yet."}
             </p>
           ) : (
             <div className="border border-[#1e1e2a] rounded-xl overflow-hidden">
-              {/* Header */}
+              {/* Desktop header */}
               <div className="hidden sm:grid grid-cols-12 gap-3 px-4 py-2 border-b border-[#1e1e2a] bg-[#0d0d11]/50 text-[10px] font-semibold text-[#71717a] uppercase tracking-wider">
                 <div className="col-span-3">Event</div>
                 <div className="col-span-2">Server</div>
                 <div className="col-span-3">Details</div>
-                <div className="col-span-3">Timestamp</div>
-                <div className="col-span-1"></div>
+                <div className="col-span-2">Actor</div>
+                <div className="col-span-2">Timestamp</div>
               </div>
               {/* Rows */}
-              {filteredLog.map((entry: any) => {
-                const serverName = entry.server_id ? serverMap[entry.server_id] || entry.details?.server_name || entry.details?.name : null;
+              {auditLog.map((entry: any) => {
+                const serverName = entry.server_id ? serverMap[entry.server_id] || entry.details?.server_name : null;
                 const isViewer = !!entry.viewer_key;
-                const dot = actionDot[entry.action] || 'bg-[#52525b]';
-                const txt = actionText[entry.action] || 'text-[#a1a1aa]';
-                const detailText = entry.action === 'record_death' && entry.details?.boss_name
-                  ? entry.details.boss_name
-                  : entry.action === 'add_member' && entry.details?.name
-                    ? entry.details.name
-                    : entry.action === 'transfer_ownership' && entry.details?.old_owner
-                      ? `${entry.details.old_owner?.substring(0,8)}… → ${entry.details.new_owner?.substring(0,8)}…`
-                      : entry.action === 'set_role' && entry.details
-                        ? `${entry.details.old_role ? entry.details.old_role + ' → ' : ''}${entry.details.role || entry.details.new_role}`
-                        : entry.action === 'update_settings'
-                          ? Object.entries(entry.details || {}).map(([k,v]) => `${k}: ${v}`).join(', ')
-                          : '—';
+                const { dot, text: txt } = actionColor(entry.action);
+                const detailText = formatDetails(entry);
                 const actor = isViewer
                   ? `viewer ${entry.viewer_key?.substring(0,8)}…`
-                  : entry.actor_id?.substring(0,8) + '…';
+                  : entry.actor_email || entry.actor_id?.substring(0,8) + "…";
 
                 return (
-                <div key={entry.id} className="grid grid-cols-12 gap-3 px-4 py-2.5 items-center border-b border-[#1e1e2a]/50 last:border-b-0 hover:bg-[#0d0d11]/20 transition group">
-                  <div className="col-span-3 flex items-center gap-2 min-w-0">
-                    <span className={`shrink-0 w-1.5 h-1.5 rounded-full ${dot}`} />
-                    <span className={`text-xs font-medium truncate ${txt}`}>{actionLabel[entry.action] || entry.action}</span>
+                <div key={entry.id} className="border-b border-[#1e1e2a]/50 last:border-b-0 hover:bg-[#0d0d11]/20 transition">
+                  {/* Desktop row */}
+                  <div className="hidden sm:grid grid-cols-12 gap-3 px-4 py-2.5 items-center">
+                    <div className="col-span-3 flex items-center gap-2 min-w-0">
+                      <span className={`shrink-0 w-1.5 h-1.5 rounded-full ${dot}`} />
+                      <span className={`text-xs font-medium truncate ${txt}`}>{formatActionLabel(entry.action)}</span>
+                    </div>
+                    <div className="col-span-2 min-w-0">
+                      {serverName ? <span className="text-[11px] text-[#a1a1aa] truncate block">{serverName}</span> : <span className="text-[#52525b]">—</span>}
+                    </div>
+                    <div className="col-span-3 min-w-0">
+                      <span className="text-[11px] text-[#d4d4d8] truncate block">{detailText}</span>
+                    </div>
+                    <div className="col-span-2 min-w-0">
+                      <span className="text-[10px] text-[#71717a] truncate block">{actor}</span>
+                      {isViewer && <span className="text-[9px] text-[#52525b] ml-1">viewer</span>}
+                    </div>
+                    <div className="col-span-2 min-w-0">
+                      <span className="text-[10px] text-[#71717a] font-mono tabular-nums">{new Date(entry.created_at).toLocaleString()}</span>
+                    </div>
                   </div>
-                  <div className="col-span-2 min-w-0">
-                    {serverName ? <span className="text-[11px] text-[#a1a1aa] truncate block">{serverName}</span> : <span className="text-[#52525b]">—</span>}
-                  </div>
-                  <div className="col-span-3 min-w-0">
-                    <span className="text-[11px] text-[#d4d4d8] truncate block">{detailText}</span>
-                  </div>
-                  <div className="col-span-3 min-w-0">
-                    <span className="text-[10px] text-[#71717a] font-mono tabular-nums">{new Date(entry.created_at).toLocaleString()}</span>
-                    <span className="text-[10px] text-[#52525b] font-mono ml-2 opacity-0 group-hover:opacity-100 transition hidden sm:inline">by {actor}</span>
-                  </div>
-                  <div className="col-span-1 text-right">
-                    {isViewer && <span className="text-[9px] text-[#71717a]">viewer</span>}
+                  {/* Mobile card */}
+                  <div className="sm:hidden px-3 py-2 space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className={`shrink-0 w-1.5 h-1.5 rounded-full ${dot}`} />
+                      <span className={`text-xs font-medium ${txt}`}>{formatActionLabel(entry.action)}</span>
+                      {isViewer && <span className="text-[9px] text-[#52525b] ml-auto">viewer</span>}
+                    </div>
+                    <div className="text-[11px] text-[#d4d4d8]">{detailText}</div>
+                    <div className="flex items-center justify-between text-[10px]">
+                      <span className="text-[#a1a1aa]">{serverName || "—"}</span>
+                      <span className="text-[#71717a] font-mono">{new Date(entry.created_at).toLocaleString()}</span>
+                    </div>
+                    <div className="text-[10px] text-[#52525b]">{actor}</div>
                   </div>
                 </div>
                 );
               })}
+              {/* Load More */}
+              {auditHasMore && (
+                <button onClick={handleLoadMoreAudit} disabled={auditLoadingMore}
+                  className="w-full px-4 py-2 text-xs text-[#a1a1aa] hover:text-[#fafafa] hover:bg-[#0d0d11]/50 transition disabled:opacity-40">
+                  {auditLoadingMore ? <Loader2 className="w-4 h-4 mx-auto animate-spin" /> : "Load More"}
+                </button>
+              )}
             </div>
           )}
         </div>

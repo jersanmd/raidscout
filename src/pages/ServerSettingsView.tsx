@@ -3,9 +3,9 @@ import { useNavigate, useSearchParams, Link as RouterLink } from "react-router-d
 import { useQueryClient } from "@tanstack/react-query";
 import { useServer } from "@/contexts/ServerContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { deleteServer, transferServerOwnership, removeServerModerator, addServerModerator, supabase, fetchServerMembers, type ServerMember, fetchGuilds, createGuild, updateGuildName, deleteGuild, fetchBossGuilds, setBossGuilds, fetchAllBossGuildsForServer, upsertBossGuildPoints, batchSetGuildSalary, fetchBosses, setBossPoints, setBossSalary, notifyDiscord, fetchModeratorPermissions, updateModeratorPermissions, updateThreadConfig, fetchPointRules, createPointRule, updatePointRule, deletePointRule, fetchBossAssists, toggleBossAssist, fetchAllActivitiesForServer, fetchAllActivityGuildsForServer, upsertActivityGuildPoints, fetchActivityAssists, toggleActivityAssist, type ModeratorPermissions, DEFAULT_MODERATOR_PERMISSIONS } from "@/lib/supabase";
+import { fetchAuditLog, AUDIT_ACTION_GROUPS, deleteServer, transferServerOwnership, removeServerModerator, addServerModerator, supabase, fetchServerMembers, type ServerMember, fetchGuilds, createGuild, updateGuildName, deleteGuild, fetchBossGuilds, setBossGuilds, fetchAllBossGuildsForServer, upsertBossGuildPoints, batchSetGuildSalary, fetchBosses, setBossPoints, setBossSalary, notifyDiscord, fetchModeratorPermissions, updateModeratorPermissions, updateThreadConfig, fetchPointRules, createPointRule, updatePointRule, deletePointRule, fetchBossAssists, toggleBossAssist, fetchAllActivitiesForServer, fetchAllActivityGuildsForServer, upsertActivityGuildPoints, fetchActivityAssists, toggleActivityAssist, type ModeratorPermissions, DEFAULT_MODERATOR_PERMISSIONS } from "@/lib/supabase";
 import type { Guild, BossGuild, Boss, PointRule, BossAssist, Activity, ActivityGuild, ActivityAssist } from "@/types";
-import { Loader2, Trash2, Crown, ArrowLeft, Server, Check, Key, Copy, RefreshCw, Plus, LogIn, Users, Bell, Link as LinkIcon, Settings, AlertTriangle, X, Shield, Pencil, Swords, ChevronUp, ChevronDown, CheckSquare, Square, Eye, EyeOff, UserPlus, Minus, Trophy, Send, Save, MessageCircle, Zap, Calendar, Search, Skull, CreditCard, Lock, Mail, MailCheck, MailWarning } from "lucide-react";
+import { Loader2, Trash2, Crown, ArrowLeft, Server, Check, Key, Copy, RefreshCw, Plus, LogIn, Users, Bell, Link as LinkIcon, Settings, AlertTriangle, X, Shield, Pencil, Swords, ChevronUp, ChevronDown, CheckSquare, Square, Eye, EyeOff, UserPlus, Minus, Trophy, Send, Save, MessageCircle, Zap, Calendar, Search, Skull, CreditCard, Lock, Mail, MailCheck, MailWarning, ScrollText } from "lucide-react";
 import { ServerBossesActivitiesTab } from "@/components/ServerBossesActivitiesTab";
 import { ActivityGuildsTab } from "@/components/server/ActivityGuildsTab";
 import { ActivityPointsMatrix } from "@/components/server/ActivityPointsMatrix";
@@ -206,7 +206,7 @@ export function ServerSettingsView() {
   const [savingPerms, setSavingPerms] = useState<string | null>(null); // user_id being saved
   const [searchParams] = useSearchParams();
   const tabParam = searchParams.get("tab");
-  const initialTab = (tabParam === "general" || tabParam === "members" || tabParam === "integrations" || tabParam === "danger" || tabParam === "boss-points" || tabParam === "bosses" || tabParam === "activities" || tabParam === "activity-points" || tabParam === "activity-guilds" || tabParam === "boss-guilds" || tabParam === "guilds" || tabParam === "account")
+  const initialTab = (tabParam === "general" || tabParam === "members" || tabParam === "integrations" || tabParam === "danger" || tabParam === "boss-points" || tabParam === "bosses" || tabParam === "activities" || tabParam === "activity-points" || tabParam === "activity-guilds" || tabParam === "boss-guilds" || tabParam === "guilds" || tabParam === "account" || tabParam === "activity-log")
     ? tabParam
     : "general";
   const [tab, setTab] = useState<string>(initialTab);
@@ -1024,8 +1024,8 @@ export function ServerSettingsView() {
 
       {/* Mobile tab bar */}
       <div className="sm:hidden flex flex-wrap items-center gap-1 pb-1 mt-2">
-        {(["general","guilds","bosses","boss-points","boss-guilds","activities","activity-points","activity-guilds","members","integrations","account",...(isOwner?["danger"]:[])] as string[]).map((key) => {
-          const labels: Record<string,string> = {general:"General",guilds:"Guilds",bosses:"Bosses","boss-points":"Boss Points","boss-guilds":"Boss Guild Assignments",activities:"Activities","activity-points":"Activity Points","activity-guilds":"Activity Guild Assignments",members:"Moderator/Permissions",integrations:"Integrations",account:"Account",danger:"Danger"};
+        {(["general","guilds","bosses","boss-points","boss-guilds","activities","activity-points","activity-guilds","members","integrations","account","activity-log",...(isOwner?["danger"]:[])] as string[]).map((key) => {
+          const labels: Record<string,string> = {general:"General",guilds:"Guilds",bosses:"Bosses","boss-points":"Boss Points","boss-guilds":"Boss Guild Assignments",activities:"Activities","activity-points":"Activity Points","activity-guilds":"Activity Guild Assignments",members:"Moderator/Permissions",integrations:"Integrations",account:"Account","activity-log":"Activity Log",danger:"Danger"};
           const locked = isExpired && GATED_TABS.has(key);
           return <button key={key} onClick={() => { if (!locked) setTabAndUrl(key); }}
             disabled={locked}
@@ -1057,9 +1057,9 @@ export function ServerSettingsView() {
           </div>
           {showCreateModal && <CreateServerModal onClose={() => setShowCreateModal(false)} />}
           <nav className="bg-[#18181b] border border-[#27272a] rounded-xl p-1 space-y-0.5">
-            {(["general","guilds","bosses","boss-points","boss-guilds","activities","activity-points","activity-guilds","members","integrations","account",...(isOwner?["danger"]:[])] as string[]).map((key) => {
-              const icons: Record<string,React.ComponentType<{className?:string}>> = {general:Settings,guilds:Shield,bosses:Skull,"boss-points":Trophy,"boss-guilds":Swords,activities:Calendar,"activity-points":Trophy,"activity-guilds":Calendar,members:Users,integrations:Bell,account:Key,danger:AlertTriangle};
-              const labels: Record<string,string> = {general:"General",guilds:"Guilds",bosses:"Bosses","boss-points":"Boss Points","boss-guilds":"Boss Guild Assignments",activities:"Activities","activity-points":"Activity Points","activity-guilds":"Activity Guild Assignments",members:"Moderator/Permissions",integrations:"Integrations",account:"Account",danger:"Danger"};
+            {(["general","guilds","bosses","boss-points","boss-guilds","activities","activity-points","activity-guilds","members","integrations","account","activity-log",...(isOwner?["danger"]:[])] as string[]).map((key) => {
+              const icons: Record<string,React.ComponentType<{className?:string}>> = {general:Settings,guilds:Shield,bosses:Skull,"boss-points":Trophy,"boss-guilds":Swords,activities:Calendar,"activity-points":Trophy,"activity-guilds":Calendar,members:Users,integrations:Bell,account:Key,"activity-log":ScrollText,danger:AlertTriangle};
+              const labels: Record<string,string> = {general:"General",guilds:"Guilds",bosses:"Bosses","boss-points":"Boss Points","boss-guilds":"Boss Guild Assignments",activities:"Activities","activity-points":"Activity Points","activity-guilds":"Activity Guild Assignments",members:"Moderator/Permissions",integrations:"Integrations",account:"Account","activity-log":"Activity Log",danger:"Danger"};
               const Icon = icons[key];
               const locked = isExpired && GATED_TABS.has(key);
               return <button key={key} onClick={() => { if (!locked) setTabAndUrl(key); }}
@@ -2699,6 +2699,9 @@ export function ServerSettingsView() {
         </div>
       )}
 
+      {/* Activity Log Tab — Server Audit */}
+      {tab === "activity-log" && <ServerActivityLogTab serverId={currentServer.id} />}
+
       {/* Bosses Tab */}
       {tab === "bosses" && <ServerBossesActivitiesTab mode="bosses" />}
 
@@ -3334,6 +3337,156 @@ function BossPointsMatrix({
       <p className="text-[10px] text-[#52525b] mt-2 text-center">
         Points default to server-wide value if not overridden. Salary is per-guild.
       </p>
+    </div>
+  );
+}
+
+// ── Server Activity Log Tab (Owner/Mod Audit) ───────────────
+
+function ServerActivityLogTab({ serverId }: { serverId: string }) {
+  const [actionFilter, setActionFilter] = useState<string>("all");
+  const [timeRange, setTimeRange] = useState<string>("7d");
+  const [cursor, setCursor] = useState<string | null>(null);
+  const [log, setLog] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
+
+  const formatActionLabel = (action: string): string =>
+    action.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+
+  const actionColor = (action: string): { dot: string; text: string } => {
+    if (action.includes("delete") || action.includes("remove")) return { dot: "bg-red-400", text: "text-red-300" };
+    if (action.includes("create") || action.includes("add")) return { dot: "bg-emerald-400", text: "text-emerald-300" };
+    if (action.includes("transfer") || action.includes("ownership")) return { dot: "bg-violet-400", text: "text-violet-300" };
+    if (action.includes("kill")) return { dot: "bg-rose-400", text: "text-rose-300" };
+    if (action.includes("finalize")) return { dot: "bg-sky-400", text: "text-sky-300" };
+    if (action.includes("extend") || action.includes("subscription")) return { dot: "bg-cyan-400", text: "text-cyan-300" };
+    return { dot: "bg-[#71717a]", text: "text-[#a1a1aa]" };
+  };
+
+  const formatDetails = (entry: any): string => {
+    const d = entry.details || {};
+    switch (entry.action) {
+      case "boss_kill": return `${d.boss_name || "?"} — ${d.attendees ?? 0} attendees`;
+      case "attendance_copy": return `Copied ${d.copied ?? 0} attendees`;
+      case "member_cp_add": case "member_cp_update": return `${d.player_name || "?"}: ${d.old_cp ?? "—"} → ${d.new_cp ?? "?"}`;
+      case "member_note_add": return d.note_preview || "—";
+      case "moderator_add": return d.target_email || "—";
+      case "moderator_remove": return d.target_user_id?.substring(0,8) + "…" || "—";
+      case "ownership_transfer": return `Owner changed`;
+      case "settings_update": return Object.entries(d).map(([k,v]) => `${k}: ${v}`).join(", ") || "—";
+      case "leaderboard_finalize": return `${d.period}: ${d.rankings ?? 0} players`;
+      default: return Object.entries(d).slice(0, 2).map(([k,v]) => `${k}: ${v}`).join(", ") || "—";
+    }
+  };
+
+  const fetchLog = async (reset = false) => {
+    if (reset) {
+      setLoading(true);
+      setCursor(null);
+    }
+    try {
+      const result = await fetchAuditLog(100, serverId, reset ? null : cursor, actionFilter !== "all" ? actionFilter : null);
+      if (reset) {
+        setLog(result);
+        setHasMore(result.length >= 100);
+      } else {
+        setLog(prev => [...prev, ...result]);
+        setHasMore(result.length >= 100);
+      }
+    } catch { /* ignore */ }
+    finally { setLoading(false); setLoadingMore(false); }
+  };
+
+  useEffect(() => { fetchLog(true); }, [actionFilter]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { fetchLog(true); }, []);
+
+  const loadMore = async () => {
+    if (loadingMore || !log.length) return;
+    const last = log[log.length - 1];
+    setCursor(last?.created_at);
+    setLoadingMore(true);
+    fetchLog(false);
+  };
+
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-xs text-[#71717a]">Action</span>
+        <select value={actionFilter} onChange={e => setActionFilter(e.target.value)}
+          className="bg-[#0d0d11] border border-[#1e1e2a] rounded-lg px-2.5 py-1.5 text-xs text-[#fafafa] outline-none focus:border-[#52525b]">
+          <option value="all">All Actions</option>
+          {AUDIT_ACTION_GROUPS.filter(g => !["Admin", "Subscription"].includes(g.label)).map(g => (
+            <optgroup key={g.label} label={g.label}>
+              {g.actions.map(a => (
+                <option key={a} value={a}>{formatActionLabel(a)}</option>
+              ))}
+            </optgroup>
+          ))}
+        </select>
+        <span className="text-xs text-[#52525b] ml-auto">{log.length} event{log.length !== 1 ? "s" : ""}</span>
+      </div>
+
+      {loading && log.length === 0 ? (
+        <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 text-[#71717a] animate-spin" /></div>
+      ) : log.length === 0 ? (
+        <p className="text-[#71717a] text-sm text-center py-12">No activity recorded yet.</p>
+      ) : (
+        <div className="border border-[#1e1e2a] rounded-xl overflow-hidden">
+          {/* Desktop header */}
+          <div className="hidden sm:grid grid-cols-12 gap-3 px-4 py-2 border-b border-[#1e1e2a] bg-[#0d0d11]/50 text-[10px] font-semibold text-[#71717a] uppercase tracking-wider">
+            <div className="col-span-3">Event</div>
+            <div className="col-span-4">Details</div>
+            <div className="col-span-2">Actor</div>
+            <div className="col-span-3">Timestamp</div>
+          </div>
+          {log.map((entry: any) => {
+            const { dot, text: txt } = actionColor(entry.action);
+            const isViewer = !!entry.viewer_key;
+            const actor = isViewer ? `viewer ${entry.viewer_key?.substring(0,8)}…` : (entry.actor_email || entry.actor_id?.substring(0,8) + "…");
+            return (
+              <div key={entry.id} className="border-b border-[#1e1e2a]/50 last:border-b-0 hover:bg-[#0d0d11]/20 transition">
+                <div className="hidden sm:grid grid-cols-12 gap-3 px-4 py-2.5 items-center">
+                  <div className="col-span-3 flex items-center gap-2 min-w-0">
+                    <span className={`shrink-0 w-1.5 h-1.5 rounded-full ${dot}`} />
+                    <span className={`text-xs font-medium truncate ${txt}`}>{formatActionLabel(entry.action)}</span>
+                  </div>
+                  <div className="col-span-4 min-w-0">
+                    <span className="text-[11px] text-[#d4d4d8] truncate block">{formatDetails(entry)}</span>
+                  </div>
+                  <div className="col-span-2 min-w-0">
+                    <span className="text-[10px] text-[#71717a] truncate block">{actor}</span>
+                  </div>
+                  <div className="col-span-3 min-w-0">
+                    <span className="text-[10px] text-[#71717a] font-mono">{new Date(entry.created_at).toLocaleString()}</span>
+                  </div>
+                </div>
+                {/* Mobile card */}
+                <div className="sm:hidden px-3 py-2 space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className={`shrink-0 w-1.5 h-1.5 rounded-full ${dot}`} />
+                    <span className={`text-xs font-medium ${txt}`}>{formatActionLabel(entry.action)}</span>
+                    {isViewer && <span className="text-[9px] text-[#52525b] ml-auto">viewer</span>}
+                  </div>
+                  <div className="text-[11px] text-[#d4d4d8]">{formatDetails(entry)}</div>
+                  <div className="flex items-center justify-between text-[10px]">
+                    <span className="text-[#52525b]">{actor}</span>
+                    <span className="text-[#71717a] font-mono">{new Date(entry.created_at).toLocaleString()}</span>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+          {hasMore && (
+            <button onClick={loadMore} disabled={loadingMore}
+              className="w-full px-4 py-2 text-xs text-[#a1a1aa] hover:text-[#fafafa] hover:bg-[#0d0d11]/50 transition disabled:opacity-40">
+              {loadingMore ? <Loader2 className="w-4 h-4 mx-auto animate-spin" /> : "Load More"}
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }
