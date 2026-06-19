@@ -21,6 +21,7 @@ import {
   supabase,
   recordActivityEnd,
 } from "@/lib/supabase";
+import { supabaseUrl, supabaseKey } from "@/lib/api/client";
 import { Loader2, Users, X, Calendar, CheckCheck, Copy, CopyCheck } from "lucide-react";
 import { SavingOverlay } from "@/components/SavingOverlay";
 import { useUserTimezone } from "@/hooks/useUserTimezone";
@@ -54,16 +55,27 @@ export function WeeklyScheduleView() {
     queryFn: async () => {
       if (!deathRecordIds.length) return new Map<string, number>();
       const map = new Map<string, number>();
-      // Batch in groups of 100 to avoid URL limits
+      const sid = getCurrentServerId();
+      // Batch via edge function to bypass RLS (works for viewers too)
       for (let i = 0; i < deathRecordIds.length; i += 100) {
         const batch = deathRecordIds.slice(i, i + 100);
-        const { data, error } = await supabase
-          .from("attendance_records")
-          .select("death_record_id")
-          .in("death_record_id", batch);
-        if (error) { console.warn("attendance batch fetch:", error); continue; }
-        for (const r of (data ?? [])) {
-          map.set(r.death_record_id, (map.get(r.death_record_id) || 0) + 1);
+        try {
+          const resp = await fetch(`${supabaseUrl}/functions/v1/get-attendance`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${supabaseKey}`,
+              "apikey": supabaseKey,
+            },
+            body: JSON.stringify({ death_record_ids: batch, server_id: sid }),
+          });
+          if (!resp.ok) { console.warn("attendance batch edge fn error:", resp.status); continue; }
+          const data = await resp.json();
+          for (const r of (data ?? [])) {
+            map.set(r.death_record_id, (map.get(r.death_record_id) || 0) + 1);
+          }
+        } catch (err) {
+          console.warn("attendance batch fetch failed:", err);
         }
       }
       return map;
