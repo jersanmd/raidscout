@@ -3372,6 +3372,8 @@ export function ServerActivityLogTab({ serverId }: { serverId: string }) {
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filtersExpanded, setFiltersExpanded] = useState(true);
   const allLog = useRef<any[]>([]);
 
   const saveFilters = (filters: Set<string>) => {
@@ -3397,9 +3399,22 @@ export function ServerActivityLogTab({ serverId }: { serverId: string }) {
   };
 
   const filteredLog = useMemo(() => {
-    if (actionFilters.size === 0) return log;
-    return log.filter(e => actionFilters.has(e.action));
-  }, [log, actionFilters]);
+    let result = actionFilters.size === 0 ? log : log.filter(e => actionFilters.has(e.action));
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter(e => {
+        if (formatActionLabel(e.action).toLowerCase().includes(q)) return true;
+        const d = e.details || {};
+        const detailText = d.boss_name || d.activity_name || d.item_name || d.player_name || d.member_name
+          || d.target_email || d.game_name || d.server_name || d.note_preview || d.setting || "";
+        if (String(detailText).toLowerCase().includes(q)) return true;
+        const actor = e.actor_email || e.details?.discord_user || "";
+        if (actor.toLowerCase().includes(q)) return true;
+        return false;
+      });
+    }
+    return result;
+  }, [log, actionFilters, searchQuery]);
 
   const formatActionLabel = (action: string): string =>
     action.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
@@ -3506,8 +3521,39 @@ export function ServerActivityLogTab({ serverId }: { serverId: string }) {
 
   return (
     <div className="space-y-3">
-      {/* Action filter — inline checkboxes grouped by category */}
-      <div className="flex flex-wrap items-start gap-x-4 gap-y-1 max-h-32 overflow-y-auto text-[10px]">
+      {/* Search + filter toolbar */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-1.5 bg-[#0d0d11] border border-[#1e1e2a] rounded-lg px-2.5 py-1.5 flex-1 min-w-[200px]">
+          <Search className="w-3.5 h-3.5 text-[#52525b] shrink-0" />
+          <input
+            type="text"
+            placeholder="Search events..."
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            className="bg-transparent text-xs text-[#fafafa] outline-none flex-1 placeholder:text-[#52525b]"
+          />
+          {searchQuery && (
+            <button onClick={() => setSearchQuery("")} className="text-[#52525b] hover:text-[#fafafa]"><X className="w-3 h-3" /></button>
+          )}
+        </div>
+        <span className="text-xs text-[#52525b] shrink-0">{filteredLog.length} event{filteredLog.length !== 1 ? "s" : ""}</span>
+      </div>
+
+      {/* Action filter — collapsible checkboxes */}
+      <div className="text-[10px]">
+        <button onClick={() => setFiltersExpanded(!filtersExpanded)}
+          className="flex items-center gap-1.5 text-[#71717a] hover:text-[#fafafa] transition mb-1">
+          <ChevronDown className={`w-3 h-3 transition ${filtersExpanded ? "rotate-180" : ""}`} />
+          <span>Actions</span>
+          {actionFilters.size < allActions.length && <span className="text-[#52525b]">({actionFilters.size}/{allActions.length})</span>}
+          {actionFilters.size < allActions.length ? (
+            <span onClick={e => { e.stopPropagation(); checkAll(); }} className="text-violet-400 hover:text-violet-300 ml-1">Check all</span>
+          ) : (
+            <span onClick={e => { e.stopPropagation(); clearFilters(); }} className="text-[#52525b] hover:text-[#fafafa] ml-1">Clear all</span>
+          )}
+        </button>
+        {filtersExpanded && (
+          <div className="flex flex-wrap items-start gap-x-4 gap-y-1">
         {AUDIT_ACTION_GROUPS.filter(g => !["Admin", "Subscription", "Server"].includes(g.label)).map(g => {
           const actions = g.actions.filter(a => !HIDDEN_ACTIONS.has(a));
           if (actions.length === 0) return null;
@@ -3526,12 +3572,9 @@ export function ServerActivityLogTab({ serverId }: { serverId: string }) {
           </div>
           );
         })}
-        {actionFilters.size < allActions.length ? (
-          <button onClick={checkAll} className="text-[#71717a] hover:text-[#fafafa] transition shrink-0">Check all</button>
-        ) : (
-          <button onClick={clearFilters} className="text-[#71717a] hover:text-[#fafafa] transition shrink-0">Clear all</button>
+        </div>
         )}
-        <span className="text-xs text-[#52525b] ml-auto self-center shrink-0">{filteredLog.length} event{filteredLog.length !== 1 ? "s" : ""}</span>
+        <span className="text-xs text-[#52525b]">{filteredLog.length} event{filteredLog.length !== 1 ? "s" : ""}</span>
       </div>
 
       {loading && log.length === 0 ? (
