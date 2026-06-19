@@ -32,7 +32,7 @@ async function main() {
     }
     const data = await res.json();
     if (!data.users || !data.users.length) break;
-    prodUsers.push(...data.users.map(u => ({ id: u.id, email: u.email })));
+    prodUsers.push(...data.users.map(u => ({ id: u.id, email: u.email, created_at: u.created_at })));
     if (data.users.length < 100) break;
     page++;
   }
@@ -58,12 +58,12 @@ async function main() {
   const idMap = new Map(); // oldId → newId
 
   for (let i = 0; i < prodUsers.length; i++) {
-    const { id: oldId, email } = prodUsers[i];
+    const { id: oldId, email, created_at } = prodUsers[i];
     try {
       const res = await fetch(`${STAGING_URL}/auth/v1/admin/users`, {
         method: "POST",
         headers: { apikey: STAGING_KEY, Authorization: `Bearer ${STAGING_KEY}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password: DEFAULT_PASSWORD, email_confirm: true }),
+        body: JSON.stringify({ email, password: DEFAULT_PASSWORD, email_confirm: true, created_at }),
       });
       if (res.ok) {
         const u = await res.json();
@@ -81,6 +81,14 @@ async function main() {
             const existing = (data.users || []).find(u => u.email === email);
             if (existing) {
               idMap.set(oldId, existing.id);
+              // Update created_at to match production for email verification accuracy
+              if (created_at) {
+                fetch(`${STAGING_URL}/auth/v1/admin/users/${existing.id}`, {
+                  method: "PUT",
+                  headers: { apikey: STAGING_KEY, Authorization: `Bearer ${STAGING_KEY}`, "Content-Type": "application/json" },
+                  body: JSON.stringify({ created_at }),
+                }).catch(() => {});
+              }
               if ((i + 1) % 10 === 0) process.stdout.write(`\r  Mapped ${i + 1}/${prodUsers.length}...`);
             }
           }
