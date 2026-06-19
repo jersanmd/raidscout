@@ -935,7 +935,9 @@ export function MemberProfileView() {
                         <stop offset="100%" stopColor="#a855f7" stopOpacity={0}/>
                       </linearGradient>
                     </defs>
-                    <XAxis dataKey="label" tick={{ fontSize: 9, fill: "#52525b" }} axisLine={false} tickLine={false} interval={1}/>
+                    <XAxis dataKey="label" tick={{ fontSize: 9, fill: "#52525b" }} axisLine={false} tickLine={false} interval={1}
+                      tickFormatter={(label: string, index: number) => weeklyPerf[index]?.score > 0 ? label : ""}
+                    />
                     <Tooltip
                       contentStyle={{ background: "#18181b", border: "1px solid #27272a", borderRadius: 8, fontSize: 12 }}
                       labelStyle={{ color: "#a1a1aa" }}
