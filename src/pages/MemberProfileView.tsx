@@ -639,16 +639,22 @@ export function MemberProfileView() {
             <div><p className="text-[10px] text-[#71717a] uppercase tracking-wider">Score</p><p className="text-xs text-[#52525b]">/100</p></div>
           </div>
           <div className="bg-[#09090b] rounded-lg p-3">
-            <p className="text-[10px] text-[#71717a] uppercase tracking-wider">Current CP</p>
+            <p className="text-[10px] text-[#71717a] uppercase tracking-wider">Combat Power</p>
             <p className="text-lg font-bold text-[#fafafa] mt-0.5">{fmtCp(profile.current_cp)}</p>
+            {(() => {
+              const growth = profile.cp_growth_30d ?? 0;
+              const prevCp = profile.current_cp != null && growth > 0 ? profile.current_cp - growth : 0;
+              const pct = prevCp > 0 ? ((growth / prevCp) * 100) : 0;
+              return (
+                <p className={`text-[11px] font-medium mt-0.5 ${growth > 0 ? "text-green-400" : growth < 0 ? "text-red-400" : "text-[#52525b]"}`}>
+                  {growth > 0 ? "+" : ""}{growth.toLocaleString()}
+                  {pct > 0 && pct < 500 && <span className="ml-1 opacity-60">{pct.toFixed(1)}%</span>}
+                  <span className="text-[#52525b] font-normal ml-0.5">30d</span>
+                </p>
+              );
+            })()}
           </div>
-          <div className="bg-[#09090b] rounded-lg p-3">
-            <p className="text-[10px] text-[#71717a] uppercase tracking-wider">30d Growth</p>
-            <p className={`text-lg font-bold mt-0.5 ${(profile.cp_growth_30d ?? 0) > 0 ? "text-green-400" : (profile.cp_growth_30d ?? 0) < 0 ? "text-red-400" : "text-[#a1a1aa]"}`}>
-              {profile.cp_growth_30d != null ? `${profile.cp_growth_30d > 0 ? "+" : ""}${profile.cp_growth_30d.toLocaleString()}` : "—"}
-            </p>
-          </div>
-          <div className="bg-[#09090b] rounded-lg p-3">
+          <div className="bg-[#09090b] rounded-lg p-3 col-span-2 sm:col-span-1">
             <div className="flex items-center justify-between mb-1.5">
               <p className="text-[10px] text-[#71717a] uppercase tracking-wider">Events</p>
               <div className="flex gap-0.5">
