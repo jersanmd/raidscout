@@ -3373,6 +3373,8 @@ export function ServerActivityLogTab({ serverId }: { serverId: string }) {
   const [hasMore, setHasMore] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   const [filtersExpanded, setFiltersExpanded] = useState(true);
   const allLog = useRef<any[]>([]);
 
@@ -3403,6 +3405,16 @@ export function ServerActivityLogTab({ serverId }: { serverId: string }) {
 
   const filteredLog = useMemo(() => {
     let result = actionFilters.size === 0 ? log : log.filter(e => actionFilters.has(e.action));
+    // Date filter
+    if (dateFrom || dateTo) {
+      const fromMs = dateFrom ? new Date(dateFrom).getTime() : 0;
+      const toMs = dateTo ? new Date(dateTo + "T23:59:59").getTime() : Infinity;
+      result = result.filter(e => {
+        const ts = new Date(e.created_at).getTime();
+        return ts >= fromMs && ts <= toMs;
+      });
+    }
+    // Search filter
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       result = result.filter(e => {
@@ -3418,7 +3430,7 @@ export function ServerActivityLogTab({ serverId }: { serverId: string }) {
       });
     }
     return result;
-  }, [log, actionFilters, searchQuery]);
+  }, [log, actionFilters, searchQuery, dateFrom, dateTo]);
 
   const actionColor = (action: string): { dot: string; text: string } => {
     if (action.includes("delete") || action.includes("remove")) return { dot: "bg-red-400", text: "text-red-300" };
@@ -3522,7 +3534,7 @@ export function ServerActivityLogTab({ serverId }: { serverId: string }) {
 
   return (
     <div className="space-y-3">
-      {/* Search + filter toolbar */}
+      {/* Search + date filter toolbar */}
       <div className="flex items-center gap-2 flex-wrap">
         <div className="flex items-center gap-1.5 bg-[#0d0d11] border border-[#1e1e2a] rounded-lg px-2.5 py-1.5 flex-1 min-w-[200px]">
           <Search className="w-3.5 h-3.5 text-[#52525b] shrink-0" />
@@ -3535,6 +3547,16 @@ export function ServerActivityLogTab({ serverId }: { serverId: string }) {
           />
           {searchQuery && (
             <button onClick={() => setSearchQuery("")} className="text-[#52525b] hover:text-[#fafafa]"><X className="w-3 h-3" /></button>
+          )}
+        </div>
+        <div className="flex items-center gap-1 text-xs text-[#52525b]">
+          <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
+            className="bg-[#0d0d11] border border-[#1e1e2a] rounded px-2 py-1 text-[#fafafa] outline-none focus:border-[#52525b] w-28" />
+          <span>—</span>
+          <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
+            className="bg-[#0d0d11] border border-[#1e1e2a] rounded px-2 py-1 text-[#fafafa] outline-none focus:border-[#52525b] w-28" />
+          {(dateFrom || dateTo) && (
+            <button onClick={() => { setDateFrom(""); setDateTo(""); }} className="text-[#52525b] hover:text-[#fafafa]"><X className="w-3 h-3" /></button>
           )}
         </div>
         <span className="text-xs text-[#52525b] shrink-0">{filteredLog.length} event{filteredLog.length !== 1 ? "s" : ""}</span>
