@@ -1373,27 +1373,26 @@ export function AdminPanelView() {
 
       {/* Mobile: bottom navigation */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-[#09090b]/95 backdrop-blur-xl border-t border-[#1e1e2a] safe-area-bottom">
-        <div className="flex items-center justify-around h-14 max-w-lg mx-auto">
-          <button onClick={() => setTab("infra")} className={`flex flex-col items-center justify-center gap-0.5 px-2 py-1.5 min-w-[64px] rounded-lg transition-colors ${tab === "infra" ? "text-[#fafafa]" : "text-[#52525b]"}`}>
-            <Radio className="w-5 h-5" />
-            <span className="text-[10px] font-medium">Infra</span>
-          </button>
-          <button onClick={() => setTab("games")} className={`flex flex-col items-center justify-center gap-0.5 px-2 py-1.5 min-w-[64px] rounded-lg transition-colors ${tab === "games" ? "text-[#fafafa]" : "text-[#52525b]"}`}>
-            <Gamepad2 className="w-5 h-5" />
-            <span className="text-[10px] font-medium">Games</span>
-          </button>
-          <button onClick={() => setTab("servers")} className={`flex flex-col items-center justify-center gap-0.5 px-2 py-1.5 min-w-[64px] rounded-lg transition-colors ${tab === "servers" ? "text-[#fafafa]" : "text-[#52525b]"}`}>
-            <Server className="w-5 h-5" />
-            <span className="text-[10px] font-medium">Servers</span>
-          </button>
-          <button onClick={() => setTab("users")} className={`flex flex-col items-center justify-center gap-0.5 px-2 py-1.5 min-w-[64px] rounded-lg transition-colors ${tab === "users" ? "text-[#fafafa]" : "text-[#52525b]"}`}>
-            <Users className="w-5 h-5" />
-            <span className="text-[10px] font-medium">Owners</span>
-          </button>
-          <button onClick={() => setTab("audit")} className={`flex flex-col items-center justify-center gap-0.5 px-2 py-1.5 min-w-[64px] rounded-lg transition-colors ${tab === "audit" ? "text-[#fafafa]" : "text-[#52525b]"}`}>
-            <ClipboardList className="w-5 h-5" />
-            <span className="text-[10px] font-medium">Audit</span>
-          </button>
+        <div className="flex items-center justify-around gap-0.5 h-14 max-w-full mx-auto overflow-x-auto px-1">
+          {([
+            { id: "infra" as const, icon: Radio, label: "Infra" },
+            { id: "games" as const, icon: Gamepad2, label: "Games" },
+            { id: "servers" as const, icon: Server, label: "Servers" },
+            { id: "users" as const, icon: Users, label: "Users" },
+            { id: "audit" as const, icon: ClipboardList, label: "Audit" },
+            { id: "database" as const, icon: HardDrive, label: "DB" },
+            { id: "cron" as const, icon: Clock, label: "Cron" },
+            { id: "deleted" as const, icon: Trash2, label: "Del" },
+          ]).map(({ id, icon: Icon, label }) => (
+            <button
+              key={id}
+              onClick={() => setTab(id)}
+              className={`flex flex-col items-center justify-center gap-0.5 px-1.5 py-1 min-w-[44px] rounded-lg transition-colors shrink-0 ${tab === id ? "text-[#fafafa]" : "text-[#52525b]"}`}
+            >
+              <Icon className="w-4 h-4" />
+              <span className="text-[9px] font-medium leading-none">{label}</span>
+            </button>
+          ))}
         </div>
       </nav>
       </div>{/* close flex sidebar+content */}
