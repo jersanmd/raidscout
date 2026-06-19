@@ -475,6 +475,9 @@ export function WeeklyScheduleView() {
       {/* Saving overlay � blocks all interaction */}
       {savingMessage && <SavingOverlay message={savingMessage} />}
 
+      {/* Copy-in-progress overlay */}
+      {copyAttendance.isPending && <SavingOverlay message="Copying attendance..." />}
+
       {/* Copy-mode banner */}
       {copySource && (
         <div className="mb-4 p-3 rounded-lg bg-blue-900/20 border border-blue-700/40 flex items-center justify-between">
