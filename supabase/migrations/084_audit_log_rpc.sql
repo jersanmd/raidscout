@@ -123,7 +123,7 @@ BEGIN
   SELECT
     a.id,
     a.actor_id,
-    u.email AS actor_email,
+    NULL::text AS actor_email,
     a.action,
     a.target_type,
     a.target_id,
@@ -132,7 +132,6 @@ BEGIN
     a.viewer_key,
     a.created_at
   FROM public.admin_audit_log a
-  LEFT JOIN auth.users u ON a.actor_id = u.id
   WHERE (p_server_id IS NULL OR a.server_id = p_server_id)
     AND (p_cursor IS NULL OR a.created_at < p_cursor)
     AND (p_action_filter IS NULL OR a.action = p_action_filter)
