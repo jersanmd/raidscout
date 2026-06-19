@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -523,8 +523,11 @@ export function InventoryView() {
     new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
 
   // Group distributions by date for history view
-  const groupedDistributions = distributions
-    .filter(d => {
+  const HISTORY_PAGE_SIZE = 10; // date groups per page
+  const [historyPage, setHistoryPage] = useState(1);
+
+  const filteredDistributions = useMemo(() => {
+    return distributions.filter(d => {
       if (histSearch || histRarityFilter) {
         const item = items.find(i => i.id === d.item_id);
         if (histSearch) {
@@ -534,13 +537,28 @@ export function InventoryView() {
         if (histRarityFilter && item?.rarity?.toLowerCase() !== histRarityFilter) return false;
       }
       return true;
-    })
-    .reduce<Record<string, Distribution[]>>((acc, d) => {
-    const date = new Date(d.distributed_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-    if (!acc[date]) acc[date] = [];
-    acc[date].push(d);
-    return acc;
-  }, {});
+    });
+  }, [distributions, histSearch, histRarityFilter, items]);
+
+  const groupedDistributions = useMemo(() => {
+    return filteredDistributions.reduce<Record<string, Distribution[]>>((acc, d) => {
+      const date = new Date(d.distributed_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+      if (!acc[date]) acc[date] = [];
+      acc[date].push(d);
+      return acc;
+    }, {});
+  }, [filteredDistributions]);
+
+  // Show all when searching, paginate otherwise
+  const isSearching = !!(histSearch || histRarityFilter);
+  const groupEntries = Object.entries(groupedDistributions) as [string, Distribution[]][];
+  const visibleEntries: [string, Distribution[]][] = isSearching
+    ? groupEntries
+    : groupEntries.slice(0, historyPage * HISTORY_PAGE_SIZE);
+  const hasMore = !isSearching && visibleEntries.length < groupEntries.length;
+
+  // Reset page when search/filter changes
+  useEffect(() => { setHistoryPage(1); }, [histSearch, histRarityFilter]);
 
   const isDataReady = !membersLoading && !guildsLoading && !classesLoading;
 
@@ -1371,14 +1389,15 @@ export function InventoryView() {
           <div className="space-y-4">
           {distLoading ? (
             <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 text-[#71717a] animate-spin" /></div>
-          ) : Object.keys(groupedDistributions).length === 0 ? (
+          ) : groupEntries.length === 0 ? (
             <div className="text-center py-16">
               <History className="w-12 h-12 text-[#27272a] mx-auto mb-3" />
-              <p className="text-sm text-[#52525b]">No distributions yet.</p>
+              <p className="text-sm text-[#52525b]">{histSearch || histRarityFilter ? "No matches." : "No distributions yet."}</p>
               <p className="text-xs text-[#3f3f46] mt-1">Items given to players will appear here.</p>
             </div>
           ) : (
-            Object.entries(groupedDistributions).map(([date, dists]) => (
+            <>
+            {visibleEntries.map(([date, dists]) => (
               <div key={date}>
                 <div className="flex items-center gap-3 mb-3">
                   <div className="h-px flex-1 bg-[#27272a]" />
@@ -1437,8 +1456,19 @@ export function InventoryView() {
                   })}
                 </div>
               </div>
-            ))
+            ))}
+          {hasMore && (
+            <div className="flex justify-center pt-2">
+              <button
+                onClick={() => setHistoryPage(p => p + 1)}
+                className="px-4 py-2 rounded-lg text-xs font-medium bg-[#18181b] border border-[#27272a] text-[#a1a1aa] hover:bg-[#27272a] hover:text-[#fafafa] transition"
+              >
+                Load More ({groupEntries.length - visibleEntries.length} remaining)
+              </button>
+            </div>
           )}
+          </>
+        )}
         </div>
         </div>
       )}
