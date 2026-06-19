@@ -51,7 +51,7 @@ function parseRallyImageArray(raw: string | null | undefined): string[] {
 }
 
 /** Add a rally image URL to a death record (stores as JSON array). */
-export async function addRallyImageToDeath(deathRecordId: string, newUrl: string): Promise<void> {
+export async function addRallyImageToDeath(deathRecordId: string, newUrl: string, serverId?: string | null): Promise<void> {
   const { data } = await supabase
     .from("death_records")
     .select("rally_image_url")
@@ -64,6 +64,7 @@ export async function addRallyImageToDeath(deathRecordId: string, newUrl: string
     .update({ rally_image_url: JSON.stringify(existing) })
     .eq("id", deathRecordId);
   if (error) console.error("Failed to add rally image:", error);
+  else if (serverId) writeAuditEntry({ action: AuditAction.RALLY_IMAGE_ADD, server_id: serverId, target_id: deathRecordId });
 }
 
 /** Remove a rally image URL from a death record. */
@@ -108,12 +109,13 @@ export async function fetchDeathRallyImages(deathRecordId: string): Promise<stri
 import type { ScanResults } from "@/types";
 
 /** Save AI scan results to a death record */
-export async function saveDeathScanResults(deathRecordId: string, results: ScanResults): Promise<void> {
+export async function saveDeathScanResults(deathRecordId: string, results: ScanResults, serverId?: string | null): Promise<void> {
   const { error } = await supabase
     .from("death_records")
     .update({ scan_results: results })
     .eq("id", deathRecordId);
   if (error) console.error("Failed to save scan results:", error);
+  else if (serverId) writeAuditEntry({ action: AuditAction.RALLY_SCAN_SAVE, server_id: serverId, target_id: deathRecordId });
 }
 
 /** Load AI scan results from a death record */

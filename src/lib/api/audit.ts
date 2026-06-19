@@ -74,6 +74,8 @@ export const AuditAction = {
 
   // Rally / Screenshots
   RALLY_IMAGE_DELETE: "rally_image_delete",
+  RALLY_IMAGE_ADD: "rally_image_add",
+  RALLY_SCAN_SAVE: "rally_scan_save",
 
   // Leaderboard
   LEADERBOARD_FINALIZE: "leaderboard_finalize",
