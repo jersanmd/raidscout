@@ -17,22 +17,11 @@ export function AdminPanelView() {
   const [tab, setTabState] = useState<"servers" | "users" | "audit" | "games" | "infra" | "database" | "cron" | "deleted">(
     tabParam || "infra"
   );
-  const subtabParam = searchParams.get("subtab") as "servers" | "database" | "cron" | "deleted" | null;
-  const [serverSubtab, setServerSubtabState] = useState<"servers" | "database" | "cron" | "deleted">(
-    subtabParam || "servers"
-  );
 
   const setTab = (t: "servers" | "users" | "audit" | "games" | "infra" | "database" | "cron" | "deleted") => {
     setTabState(t);
     const params = new URLSearchParams(searchParams);
     params.set("tab", t);
-    setSearchParams(params, { replace: true });
-  };
-
-  const setServerSubtab = (t: "servers" | "database" | "cron" | "deleted") => {
-    setServerSubtabState(t);
-    const params = new URLSearchParams(searchParams);
-    params.set("subtab", t);
     setSearchParams(params, { replace: true });
   };
 
@@ -335,7 +324,7 @@ export function AdminPanelView() {
           ] as const).map(({ id, icon: Icon, label }) => (
             <button
               key={id}
-              onClick={() => { setTab(id); if (["servers","database","cron","deleted"].includes(id)) setServerSubtab(id as any); }}
+              onClick={() => setTab(id)}
               className={`flex items-center gap-2 px-3 py-2 rounded-md text-xs font-medium transition text-left ${tab === id ? "bg-[#1e1e2a] text-[#fafafa]" : "text-[#a1a1aa] hover:text-[#e4e4e7] hover:bg-[#1e1e2a]/50"}`}
             >
               <Icon className="w-3.5 h-3.5 shrink-0" />
@@ -1393,7 +1382,7 @@ export function AdminPanelView() {
             <Gamepad2 className="w-5 h-5" />
             <span className="text-[10px] font-medium">Games</span>
           </button>
-          <button onClick={() => { setTab("servers"); setServerSubtab("servers"); }} className={`flex flex-col items-center justify-center gap-0.5 px-2 py-1.5 min-w-[64px] rounded-lg transition-colors ${tab === "servers" || tab === "database" || tab === "cron" || tab === "deleted" ? "text-[#fafafa]" : "text-[#52525b]"}`}>
+          <button onClick={() => setTab("servers")} className={`flex flex-col items-center justify-center gap-0.5 px-2 py-1.5 min-w-[64px] rounded-lg transition-colors ${tab === "servers" ? "text-[#fafafa]" : "text-[#52525b]"}`}>
             <Server className="w-5 h-5" />
             <span className="text-[10px] font-medium">Servers</span>
           </button>
