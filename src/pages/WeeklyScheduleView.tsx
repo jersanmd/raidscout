@@ -161,6 +161,17 @@ export function WeeklyScheduleView() {
     return () => clearTimeout(t);
   }, [copyToast]);
 
+  // ESC to exit copy mode or close confirm modal
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      if (copyConfirm) { setCopyConfirm(null); return; }
+      if (copySource) { handleCopyCancel(); }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [copySource, copyConfirm]);
+
   // Edit death time modal
   const [editDeath, setEditDeath] = useState<{ deathRecordId: string; bossName: string; deathTime: string } | null>(null);
   const [editDeathDate, setEditDeathDate] = useState("");
@@ -557,6 +568,7 @@ export function WeeklyScheduleView() {
                       const isScheduleBoss = s.boss.spawn_type === "fixed_schedule";
                       const isCopyTarget = copySource !== null && isDeathEvent && !!s.deathRecord && s.deathRecord.id !== copySource.deathRecordId;
                       const isCopySource = copySource?.deathRecordId === s.deathRecord?.id;
+                      const attCount = s.deathRecord ? (attendanceCounts?.get(s.deathRecord.id) ?? 0) : 0;
                       return (
                       <div key={`boss-m-${s.boss.id}-${item.idx}`}
                         onClick={() => {
@@ -581,15 +593,11 @@ export function WeeklyScheduleView() {
                           {isDeathEvent && (
                             <span className="text-[10px] text-red-400 inline-flex items-center gap-1">
                               Killed <Users className="w-3 h-3" />
-                              {(() => {
-                                const attCount = s.deathRecord ? (attendanceCounts?.get(s.deathRecord.id) ?? 0) : 0;
-                                if (attCount === 0) return null;
-                                return (
-                                  <span className="inline-flex items-center gap-0.5 ml-1 px-1.5 py-0.5 rounded-full bg-emerald-900/40 border border-emerald-700/50 text-[#6ee7b7] text-[9px] font-bold">
-                                    <CheckCheck className="w-2.5 h-2.5" />{attCount}
-                                  </span>
-                                );
-                              })()}
+                              {attCount > 0 && (
+                                <span className="inline-flex items-center gap-0.5 ml-1 px-1.5 py-0.5 rounded-full bg-emerald-900/40 border border-emerald-700/50 text-[#6ee7b7] text-[9px] font-bold">
+                                  <CheckCheck className="w-2.5 h-2.5" />{attCount}
+                                </span>
+                              )}
                             </span>
                           )}
                         </div>
@@ -604,7 +612,7 @@ export function WeeklyScheduleView() {
                               return <div className={`text-[10px] font-medium ${guildColor(gName).text}`}>{gName}</div>;
                             })()}
                           </div>
-                          {isDeathEvent && s.deathRecord && !isCopyTarget && (
+                          {isDeathEvent && s.deathRecord && !isCopyTarget && attCount > 0 && (
                             <button
                               onClick={(e) => { e.stopPropagation(); handleCopyStart(s.deathRecord!.id, s.boss.name, new Date(s.deathRecord!.death_time).toLocaleDateString("en-US", { month: "short", day: "numeric" })); }}
                               className="p-1 rounded hover:bg-[#27272a] text-[#52525b] hover:text-[#a1a1aa] transition"
@@ -707,6 +715,7 @@ export function WeeklyScheduleView() {
                       const isScheduleBoss = s.boss.spawn_type === "fixed_schedule";
                       const isCopyTarget = copySource !== null && isDeathEvent && !!s.deathRecord && s.deathRecord.id !== copySource.deathRecordId;
                       const isCopySource = copySource?.deathRecordId === s.deathRecord?.id;
+                      const attCount = s.deathRecord ? (attendanceCounts?.get(s.deathRecord.id) ?? 0) : 0;
                       return (
                       <div
                         key={`boss-${s.boss.id}-${item.idx}`}
@@ -740,7 +749,7 @@ export function WeeklyScheduleView() {
                         <div className="flex items-center justify-between">
                           <span className="text-[#fafafa] font-medium truncate">{s.boss.name}</span>
                           <div className="flex items-center gap-1.5 shrink-0 ml-1">
-                            {isDeathEvent && s.deathRecord && !isCopyTarget && (
+                            {isDeathEvent && s.deathRecord && !isCopyTarget && attCount > 0 && (
                               <button
                                 onClick={(e) => { e.stopPropagation(); handleCopyStart(s.deathRecord!.id, s.boss.name, new Date(s.deathRecord!.death_time).toLocaleDateString("en-US", { month: "short", day: "numeric" })); }}
                                 className="p-0.5 rounded hover:bg-[#3f3f46] text-[#52525b] hover:text-[#a1a1aa] transition"
@@ -772,15 +781,11 @@ export function WeeklyScheduleView() {
                         {isDeathEvent && (
                           <span className="text-[10px] text-red-400 font-medium flex items-center gap-1">
                             Killed <Users className="w-3 h-3" />
-                            {(() => {
-                              const attCount = s.deathRecord ? (attendanceCounts?.get(s.deathRecord.id) ?? 0) : 0;
-                              if (attCount === 0) return null;
-                              return (
-                                <span className="inline-flex items-center gap-0.5 ml-1 px-1.5 py-0.5 rounded-full bg-emerald-900/40 border border-emerald-700/50 text-[#6ee7b7] text-[9px] font-bold">
-                                  <CheckCheck className="w-2.5 h-2.5" />{attCount}
-                                </span>
-                              );
-                            })()}
+                            {attCount > 0 && (
+                              <span className="inline-flex items-center gap-0.5 ml-1 px-1.5 py-0.5 rounded-full bg-emerald-900/40 border border-emerald-700/50 text-[#6ee7b7] text-[9px] font-bold">
+                                <CheckCheck className="w-2.5 h-2.5" />{attCount}
+                              </span>
+                            )}
                           </span>
                         )}
                       </div>
