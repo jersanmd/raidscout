@@ -39,6 +39,12 @@ export async function addAttendance(
 ): Promise<AttendanceRecord> {
   const sid = getCurrentServerId();
   const { data: { session } } = await supabase.auth.getSession();
+  // Fetch death time for audit detail
+  let deathTime: string | undefined;
+  try {
+    const { data: dr } = await supabase.from("death_records").select("death_time").eq("id", deathRecordId).single();
+    if (dr) deathTime = (dr as any).death_time;
+  } catch { /* non-critical */ }
   if (session?.user) {
     const { data, error } = await supabase
       .from("attendance_records")
@@ -50,7 +56,7 @@ export async function addAttendance(
       .select()
       .single();
     if (error) throw error;
-    writeAuditEntry({ action: AuditAction.ATTENDANCE_ADD, server_id: sid!, target_id: deathRecordId, details: { member_name: memberName || memberId, boss_name: bossName || deathRecordId } });
+    writeAuditEntry({ action: AuditAction.ATTENDANCE_ADD, server_id: sid!, target_id: deathRecordId, details: { member_name: memberName || memberId, boss_name: bossName || deathRecordId, death_time: deathTime } });
     return data as AttendanceRecord;
   }
 
@@ -63,7 +69,7 @@ export async function addAttendance(
         p_viewer_key: viewerKey,
       });
     if (error) throw error;
-    writeAuditEntry({ action: AuditAction.ATTENDANCE_ADD, server_id: sid!, target_id: deathRecordId, details: { member_name: memberName || memberId, boss_name: bossName || deathRecordId }, viewer_key: viewerKey });
+    writeAuditEntry({ action: AuditAction.ATTENDANCE_ADD, server_id: sid!, target_id: deathRecordId, details: { member_name: memberName || memberId, boss_name: bossName || deathRecordId, death_time: deathTime }, viewer_key: viewerKey });
     return (data as any[])[0] as AttendanceRecord;
   }
 
@@ -73,13 +79,22 @@ export async function addAttendance(
 export async function removeAttendance(attendanceId: string, memberName?: string, bossName?: string): Promise<void> {
   const sid = getCurrentServerId();
   const { data: { session } } = await supabase.auth.getSession();
+  // Fetch death time for audit detail (look up via attendance record)
+  let deathTime: string | undefined;
+  try {
+    const { data: att } = await supabase.from("attendance_records").select("death_record_id").eq("id", attendanceId).single();
+    if (att) {
+      const { data: dr } = await supabase.from("death_records").select("death_time").eq("id", (att as any).death_record_id).single();
+      if (dr) deathTime = (dr as any).death_time;
+    }
+  } catch { /* non-critical */ }
   if (session?.user) {
     const { error } = await supabase
       .from("attendance_records")
       .delete()
       .eq("id", attendanceId);
     if (error) throw error;
-    writeAuditEntry({ action: AuditAction.ATTENDANCE_REMOVE, server_id: sid!, target_id: attendanceId, details: { member_name: memberName || "Unknown", boss_name: bossName || "Unknown" } });
+    writeAuditEntry({ action: AuditAction.ATTENDANCE_REMOVE, server_id: sid!, target_id: attendanceId, details: { member_name: memberName || "Unknown", boss_name: bossName || "Unknown", death_time: deathTime } });
     return;
   }
 
@@ -91,7 +106,7 @@ export async function removeAttendance(attendanceId: string, memberName?: string
         p_viewer_key: viewerKey,
       });
     if (error) throw error;
-    writeAuditEntry({ action: AuditAction.ATTENDANCE_REMOVE, server_id: sid!, target_id: attendanceId, details: { member_name: memberName || "Unknown", boss_name: bossName || "Unknown" }, viewer_key: viewerKey });
+    writeAuditEntry({ action: AuditAction.ATTENDANCE_REMOVE, server_id: sid!, target_id: attendanceId, details: { member_name: memberName || "Unknown", boss_name: bossName || "Unknown", death_time: deathTime }, viewer_key: viewerKey });
     return;
   }
 
