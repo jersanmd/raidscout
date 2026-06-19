@@ -81,7 +81,17 @@ BEGIN
 END;
 $$;
 
--- 5. Read RPC: simple SQL function — RLS policies handle access control
+-- 5. Helper: resolve user email (needs SECURITY DEFINER to access auth.users)
+CREATE OR REPLACE FUNCTION get_user_email(uid UUID)
+RETURNS TEXT
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+  SELECT email FROM auth.users WHERE id = uid;
+$$;
+
+-- 6. Read RPC: simple SQL function — RLS policies handle access control
 CREATE OR REPLACE FUNCTION get_audit_log(
   p_server_id UUID DEFAULT NULL,
   p_limit INT DEFAULT 200,
@@ -104,7 +114,7 @@ AS $$
   SELECT
     a.id,
     a.actor_id,
-    NULL::text AS actor_email,
+    get_user_email(a.actor_id) AS actor_email,
     a.action,
     a.target_type,
     a.target_id,
