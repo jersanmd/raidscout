@@ -1000,7 +1000,7 @@ export function DeathRecordModal({ boss, onClose, onSubmit, defaultDeathTime, hi
  : "border-slate-600"
  }`}
  >
- {selectedIds.has(m.id) && <Check className="w-3 h-3 text-[#fafafa]" />}
+ {selectedIds.has(m.id) ? (submitting ? <Loader2 className="w-3 h-3 animate-spin text-[#fafafa]" /> : <Check className="w-3 h-3 text-[#fafafa]" />) : null}
  </div>
  <span>{m.name}</span>
  </button>
