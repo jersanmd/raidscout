@@ -1045,7 +1045,7 @@ export function AdminPanelView() {
                       {isViewer && <span className="text-[9px] text-[#52525b] ml-1">viewer</span>}
                     </div>
                     <div className="col-span-2 min-w-0">
-                      <span className="text-[10px] text-[#71717a] font-mono tabular-nums">{new Date(entry.created_at).toLocaleString()}</span>
+                      <span className="text-[10px] text-[#71717a] font-mono tabular-nums">{new Date(entry.created_at).toLocaleDateString("en-US", { month: "2-digit", day: "2-digit", year: "numeric" })} {new Date(entry.created_at).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}</span>
                     </div>
                   </div>
                   {/* Mobile card */}
@@ -1058,7 +1058,7 @@ export function AdminPanelView() {
                     <div className="text-[11px] text-[#d4d4d8]">{detailText}</div>
                     <div className="flex items-center justify-between text-[10px]">
                       <span className="text-[#a1a1aa]">{serverName || "—"}</span>
-                      <span className="text-[#71717a] font-mono">{new Date(entry.created_at).toLocaleString()}</span>
+                      <span className="text-[#71717a] font-mono">{new Date(entry.created_at).toLocaleDateString("en-US", { month: "2-digit", day: "2-digit", year: "numeric" })}</span>
                     </div>
                     <div className="text-[10px] text-[#52525b]">{actor}</div>
                   </div>

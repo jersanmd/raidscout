@@ -3635,7 +3635,7 @@ export function ServerActivityLogTab({ serverId }: { serverId: string }) {
                     <span className="text-[10px] text-[#71717a] truncate block">{actor}</span>
                   </div>
                   <div className="col-span-3 min-w-0">
-                    <span className="text-[10px] text-[#71717a] font-mono">{new Date(entry.created_at).toLocaleString()}</span>
+                    <span className="text-[10px] text-[#71717a] font-mono">{new Date(entry.created_at).toLocaleDateString("en-US", { month: "2-digit", day: "2-digit", year: "numeric" })} {new Date(entry.created_at).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}</span>
                   </div>
                 </div>
                 {/* Mobile card */}
@@ -3648,7 +3648,7 @@ export function ServerActivityLogTab({ serverId }: { serverId: string }) {
                   <div className="text-[11px] text-[#d4d4d8]">{formatDetails(entry)}</div>
                   <div className="flex items-center justify-between text-[10px]">
                     <span className="text-[#52525b]">{actor}</span>
-                    <span className="text-[#71717a] font-mono">{new Date(entry.created_at).toLocaleString()}</span>
+                    <span className="text-[#71717a] font-mono">{new Date(entry.created_at).toLocaleDateString("en-US", { month: "2-digit", day: "2-digit", year: "numeric" })}</span>
                   </div>
                 </div>
               </div>
