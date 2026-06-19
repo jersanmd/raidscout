@@ -81,8 +81,7 @@ BEGIN
 END;
 $$;
 
--- 5. Read RPC: joins auth.users for actor email, supports cursor pagination + action filter
--- SECURITY DEFINER with auth guard: admins see all; owners/mods see their server only
+-- 5. Read RPC: simple SQL function — RLS policies handle access control
 CREATE OR REPLACE FUNCTION get_audit_log(
   p_server_id UUID DEFAULT NULL,
   p_limit INT DEFAULT 200,
@@ -100,26 +99,8 @@ CREATE OR REPLACE FUNCTION get_audit_log(
   viewer_key TEXT,
   created_at TIMESTAMPTZ
 )
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = ''
+LANGUAGE sql
 AS $$
-BEGIN
-  -- Auth guard: admins see all; server members see their own server
-  IF NOT EXISTS (SELECT 1 FROM public.user_roles WHERE user_id = auth.uid() AND role = 'admin') THEN
-    -- Non-admin: must specify a server AND be a member of it
-    IF p_server_id IS NULL THEN
-      RAISE EXCEPTION 'Server ID is required for non-admin users';
-    END IF;
-    IF NOT EXISTS (
-      SELECT 1 FROM public.server_members
-      WHERE server_id = p_server_id AND user_id = auth.uid()
-    ) THEN
-      RAISE EXCEPTION 'You are not a member of this server';
-    END IF;
-  END IF;
-
-  RETURN QUERY
   SELECT
     a.id,
     a.actor_id,
@@ -131,13 +112,12 @@ BEGIN
     a.server_id,
     a.viewer_key,
     a.created_at
-  FROM public.admin_audit_log a
+  FROM admin_audit_log a
   WHERE (p_server_id IS NULL OR a.server_id = p_server_id)
     AND (p_cursor IS NULL OR a.created_at < p_cursor)
     AND (p_action_filter IS NULL OR a.action = p_action_filter)
   ORDER BY a.created_at DESC, a.id DESC
   LIMIT p_limit;
-END;
 $$;
 
 -- 7. Index for audit log queries
