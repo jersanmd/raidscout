@@ -1,4 +1,5 @@
 import { supabase, getCurrentServerId, getCurrentViewerKey } from "./client";
+import { writeAuditEntry, AuditAction } from "./audit";
 import type { Member } from "@/types";
 
 // ── Members ─────────────────────────────────────────────────
@@ -49,6 +50,7 @@ export async function upsertMember(name: string, guildId?: string | null, combat
       .single();
 
     if (error) throw error;
+    writeAuditEntry({ action: AuditAction.MEMBER_ADD, server_id: getCurrentServerId()!, target_id: data.id, details: { member_name: trimmed, class: memberClass } });
     return data as Member;
   }
 

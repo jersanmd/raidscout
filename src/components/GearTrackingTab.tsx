@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { supabase, isSupabaseConfigured } from "@/lib/supabase";
+import { supabase, isSupabaseConfigured, writeAuditEntry, AuditAction } from "@/lib/supabase";
 import { useServerId, useHasPermission } from "@/contexts/ServerContext";
 import { useMembers } from "@/hooks/useMembers";
 import { fetchGuilds } from "@/lib/supabase";
@@ -367,6 +367,7 @@ export function GearTrackingTab() {
       description: newItem.description.trim() || null,
     });
     if (error) { setToast({ type: "error", message: error.message }); return; }
+    writeAuditEntry({ action: AuditAction.ITEM_CREATE, server_id: serverId!, details: { item_name: newItem.name.trim(), category: newItem.category.trim(), type: "gear_catalog" } });
     setNewItem({ name: "", category: "", rarity: "legendary", description: "" });
     setShowAddItem(false);
     queryClient.invalidateQueries({ queryKey: ["gearCatalog", serverId] });
@@ -374,6 +375,7 @@ export function GearTrackingTab() {
 
   const deleteCatalogItem = async (id: string) => {
     await supabase.from("gear_catalog").delete().eq("id", id);
+    writeAuditEntry({ action: AuditAction.ITEM_DELETE, server_id: serverId!, target_id: id, details: { type: "gear_catalog" } });
     queryClient.invalidateQueries({ queryKey: ["gearCatalog", serverId] });
     queryClient.invalidateQueries({ queryKey: ["memberGear", serverId] });
   };
@@ -406,8 +408,10 @@ export function GearTrackingTab() {
             });
           }
           await supabase.from("member_gear").update(body).eq("id", existing.id);
+          writeAuditEntry({ action: itemId ? AuditAction.GEAR_EQUIP : AuditAction.GEAR_UNEQUIP, server_id: serverId!, target_id: memberId, details: { slot_id: slotId, item_id: itemId, enhancement: enh } });
         } else {
           await supabase.from("member_gear").insert(body);
+          if (itemId) writeAuditEntry({ action: AuditAction.GEAR_EQUIP, server_id: serverId!, target_id: memberId, details: { slot_id: slotId, item_id: itemId, enhancement: enh } });
         }
       }
       setEditingGear(prev => { const next = { ...prev }; delete next[memberId]; return next; });
