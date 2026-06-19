@@ -46,16 +46,16 @@ BEGIN
   -- Server members (owner/moderator) can write for their server
   -- Viewers: allowed if p_viewer_key is provided (caller is the viewer)
   IF NOT EXISTS (
-    SELECT 1 FROM user_roles WHERE user_id = auth.uid() AND role = 'admin'
+    SELECT 1 FROM public.user_roles WHERE user_id = auth.uid() AND role = 'admin'
   ) AND NOT EXISTS (
-    SELECT 1 FROM server_members
+    SELECT 1 FROM public.server_members
     WHERE server_id = p_server_id
       AND user_id = auth.uid()
   ) AND p_viewer_key IS NULL THEN
     RAISE EXCEPTION 'You are not authorized to write audit entries for this server';
   END IF;
 
-  INSERT INTO admin_audit_log (actor_id, action, target_type, target_id, server_id, details, viewer_key)
+  INSERT INTO public.admin_audit_log (actor_id, action, target_type, target_id, server_id, details, viewer_key)
   VALUES (auth.uid(), p_action, p_target_type, p_target_id, p_server_id, p_details, p_viewer_key)
   RETURNING id INTO v_id;
 
@@ -88,13 +88,13 @@ SET search_path = ''
 AS $$
 BEGIN
   -- Auth guard: admins see all; server members see their own server
-  IF NOT EXISTS (SELECT 1 FROM user_roles WHERE user_id = auth.uid() AND role = 'admin') THEN
+  IF NOT EXISTS (SELECT 1 FROM public.user_roles WHERE user_id = auth.uid() AND role = 'admin') THEN
     -- Non-admin: must specify a server AND be a member of it
     IF p_server_id IS NULL THEN
       RAISE EXCEPTION 'Server ID is required for non-admin users';
     END IF;
     IF NOT EXISTS (
-      SELECT 1 FROM server_members
+      SELECT 1 FROM public.server_members
       WHERE server_id = p_server_id AND user_id = auth.uid()
     ) THEN
       RAISE EXCEPTION 'You are not a member of this server';
@@ -113,7 +113,7 @@ BEGIN
     a.server_id,
     a.viewer_key,
     a.created_at
-  FROM admin_audit_log a
+  FROM public.admin_audit_log a
   LEFT JOIN auth.users u ON a.actor_id = u.id
   WHERE (p_server_id IS NULL OR a.server_id = p_server_id)
     AND (p_cursor IS NULL OR a.created_at < p_cursor)
@@ -124,34 +124,35 @@ END;
 $$;
 
 -- 7. Index for audit log queries
-CREATE INDEX IF NOT EXISTS idx_audit_server_created ON admin_audit_log(server_id, created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_audit_action ON admin_audit_log(action);
+CREATE INDEX IF NOT EXISTS idx_audit_server_created ON public.admin_audit_log(server_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_audit_action ON public.admin_audit_log(action);
 
 -- 6. Force-spawn RPC: add admin auth check
-CREATE OR REPLACE FUNCTION admin_forcespawn_all(p_server_id UUID)
+CREATE OR REPLACE FUNCTION public.admin_forcespawn_all(p_server_id UUID)
 RETURNS INT
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path = ''
 AS $$
 DECLARE
   v_count INT;
 BEGIN
   -- Auth check: only admins
-  IF NOT EXISTS (SELECT 1 FROM user_roles WHERE user_id = auth.uid() AND role = 'admin') THEN
+  IF NOT EXISTS (SELECT 1 FROM public.user_roles WHERE user_id = auth.uid() AND role = 'admin') THEN
     RAISE EXCEPTION 'Only admins can force-spawn bosses';
   END IF;
 
-  DELETE FROM boss_spawn_overrides WHERE server_id = p_server_id;
+  DELETE FROM public.boss_spawn_overrides WHERE server_id = p_server_id;
 
   WITH forced AS (
-    INSERT INTO boss_spawn_overrides (server_id, boss_id, spawn_window_start, spawn_window_end, is_initial_spawn)
+    INSERT INTO public.boss_spawn_overrides (server_id, boss_id, spawn_window_start, spawn_window_end, is_initial_spawn)
     SELECT
       p_server_id,
       b.id,
       NOW(),
       NOW() + (COALESCE(b.spawn_window_hours, 1) || ' hours')::INTERVAL,
       FALSE
-    FROM bosses b
+    FROM public.bosses b
     WHERE b.server_id = p_server_id AND b.spawn_type = 'fixed_hours'
     RETURNING 1
   )

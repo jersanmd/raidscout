@@ -223,7 +223,7 @@ export async function writeAuditEntry(entry: {
   viewer_key?: string;
 }): Promise<void> {
   // Fire-and-forget: don't block the caller on audit failure
-  void supabase
+  supabase
     .rpc("write_audit_entry", {
       p_action: entry.action,
       p_server_id: entry.server_id,
@@ -232,9 +232,14 @@ export async function writeAuditEntry(entry: {
       p_details: entry.details || {},
       p_viewer_key: entry.viewer_key || null,
     })
-    .then(({ error }) => {
-      if (error) console.warn("[audit] write failed:", error.message);
-    });
+    .then(
+      ({ error }) => {
+        if (error) console.warn("[audit] write failed:", error.message, error.code);
+      },
+      (err: any) => {
+        console.warn("[audit] RPC error:", err?.message || err);
+      },
+    );
 }
 
 /** Fetch audit log entries with cursor pagination and optional action filter. */
