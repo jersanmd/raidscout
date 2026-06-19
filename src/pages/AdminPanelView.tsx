@@ -1611,30 +1611,30 @@ function SpawnCronCard({ data, connected, timezone }: { data: any; connected: bo
             <option value="30d">30 Days</option>
           </select>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5 bg-[#18181b] rounded-lg px-3 py-1.5 border border-[#27272a]">
-            <span className="text-[10px] text-[#71717a] font-mono uppercase tracking-wider">avg</span>
-            <span className="text-sm font-bold text-[#fafafa] font-mono">{(avg / 1000).toFixed(2)}<span className="text-[10px] text-[#71717a] ml-0.5">s</span></span>
+        <div className="flex items-center gap-1.5 sm:gap-3 flex-wrap">
+          <div className="flex items-center gap-1 sm:gap-1.5 bg-[#18181b] rounded-lg px-2 sm:px-3 py-1 sm:py-1.5 border border-[#27272a]">
+            <span className="text-[9px] sm:text-[10px] text-[#71717a] font-mono uppercase tracking-wider">avg</span>
+            <span className="text-xs sm:text-sm font-bold text-[#fafafa] font-mono">{(avg / 1000).toFixed(2)}<span className="text-[9px] sm:text-[10px] text-[#71717a] ml-0.5">s</span></span>
           </div>
-          <div className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 border ${trend === "up" ? "bg-emerald-500/10 border-emerald-500/20" : trend === "down" ? "bg-rose-500/10 border-rose-500/20" : "bg-[#18181b] border-[#27272a]"}`}>
-            <span className={`text-xs ${trend === "up" ? "text-emerald-400" : trend === "down" ? "text-rose-400" : "text-[#71717a]"}`}>
+          <div className={`flex items-center gap-1 sm:gap-1.5 rounded-lg px-2 sm:px-3 py-1 sm:py-1.5 border ${trend === "up" ? "bg-emerald-500/10 border-emerald-500/20" : trend === "down" ? "bg-rose-500/10 border-rose-500/20" : "bg-[#18181b] border-[#27272a]"}`}>
+            <span className={`text-[10px] sm:text-xs ${trend === "up" ? "text-emerald-400" : trend === "down" ? "text-rose-400" : "text-[#71717a]"}`}>
               {trend === "up" ? "▲" : trend === "down" ? "▼" : "─"}
             </span>
-            <span className={`text-sm font-bold font-mono ${trend === "up" ? "text-emerald-300" : trend === "down" ? "text-rose-300" : "text-[#a1a1aa]"}`}>{(latest / 1000).toFixed(2)}<span className="text-[10px] opacity-60 ml-0.5">s</span></span>
+            <span className={`text-xs sm:text-sm font-bold font-mono ${trend === "up" ? "text-emerald-300" : trend === "down" ? "text-rose-300" : "text-[#a1a1aa]"}`}>{(latest / 1000).toFixed(2)}<span className="text-[9px] sm:text-[10px] opacity-60 ml-0.5">s</span></span>
           </div>
           {peakTime && (
-            <div className="hidden sm:flex items-center gap-1.5 bg-[#18181b] rounded-lg px-2.5 py-1.5 border border-[#27272a]">
-              <span className="text-[10px] text-[#71717a] font-mono uppercase tracking-wider">peak</span>
-              <span className="text-xs font-bold text-amber-300 font-mono">{(peakTime.ms / 1000).toFixed(2)}<span className="text-[10px] text-[#71717a] ml-0.5">s</span></span>
-              <span className="text-[9px] text-[#52525b]">{peakTime.time}</span>
+            <div className="flex items-center gap-1 bg-[#18181b] rounded-lg px-2 py-1 border border-[#27272a]">
+              <span className="text-[9px] text-[#71717a] font-mono uppercase tracking-wider">peak</span>
+              <span className="text-[11px] sm:text-xs font-bold text-amber-300 font-mono">{(peakTime.ms / 1000).toFixed(2)}<span className="text-[9px] text-[#71717a] ml-0.5">s</span></span>
+              <span className="text-[8px] text-[#52525b] hidden sm:inline">{peakTime.time}</span>
             </div>
           )}
         </div>
       </div>
 
       {/* Chart */}
-      <div className="relative">
-        <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-80 sm:h-96" preserveAspectRatio="xMidYMid meet">
+      <div className="relative w-full aspect-[10/3] min-h-[180px] sm:min-h-[260px]">
+        <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-full" preserveAspectRatio="xMidYMid meet">
           <style>{`
             @keyframes drawIn { from { stroke-dashoffset: var(--d); } to { stroke-dashoffset: 0; } }
             @keyframes fadeUp { from { opacity: 0; } to { opacity: 1; } }
@@ -1777,7 +1777,7 @@ function SpawnCronCard({ data, connected, timezone }: { data: any; connected: bo
       })()}
 
       {/* Stats bar */}
-      <div className="relative flex items-center justify-center gap-6 sm:gap-10 px-4 pb-4 pt-1 border-t border-[#1e1e2a]">
+      <div className="relative flex items-center justify-center gap-3 sm:gap-10 px-3 sm:px-4 pb-3 sm:pb-4 pt-1 border-t border-[#1e1e2a]">
         <div className="text-center">
           <p className="text-[10px] text-[#52525b] uppercase tracking-wider">Duration</p>
           <p className="text-sm font-bold text-[#fafafa] font-mono">
