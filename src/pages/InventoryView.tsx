@@ -1330,7 +1330,7 @@ export function InventoryView() {
                 value={histSearch}
                 onChange={(e) => setHistSearch(e.target.value)}
                 placeholder="Search by item or player name..."
-                className="w-full pl-9 pr-9 py-2.5 bg-[#18181b] border border-[#27272a] rounded-xl text-sm text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#52525b]"
+                className="w-full pl-9 pr-9 py-2 sm:py-2.5 bg-[#18181b] border border-[#27272a] rounded-xl text-xs sm:text-sm text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#52525b]"
               />
               {histSearch && (
                 <button onClick={() => setHistSearch("")} className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded text-[#52525b] hover:text-[#a1a1aa]">
@@ -1534,7 +1534,7 @@ export function InventoryView() {
                   setRecipientGuildFilter(val);
                   try { localStorage.setItem("raidscout-recipient-guild", val); } catch {}
                 }}
-                className="text-sm bg-[#18181b] border border-[#27272a] rounded-xl text-[#fafafa] px-3 py-2.5 focus:outline-none focus:border-[#52525b]"
+                className="text-xs sm:text-sm bg-[#18181b] border border-[#27272a] rounded-xl text-[#fafafa] px-2.5 sm:px-3 py-1.5 sm:py-2.5 focus:outline-none focus:border-[#52525b]"
               >
                 <option value="">All Guilds</option>
                 {guildNames.map(g => (
@@ -1544,7 +1544,7 @@ export function InventoryView() {
               <select
                 value={recipientSort}
                 onChange={(e) => setRecipientSort(e.target.value)}
-                className="text-sm bg-[#18181b] border border-[#27272a] rounded-xl text-[#fafafa] px-3 py-2.5 focus:outline-none focus:border-[#52525b]"
+                className="text-xs sm:text-sm bg-[#18181b] border border-[#27272a] rounded-xl text-[#fafafa] px-2.5 sm:px-3 py-1.5 sm:py-2.5 focus:outline-none focus:border-[#52525b]"
               >
                 <option value="chrono">Chronological</option>
                 <option value="name-asc">Name A→Z</option>
@@ -1558,7 +1558,7 @@ export function InventoryView() {
                   value={recipientSearch}
                   onChange={(e) => setRecipientSearch(e.target.value)}
                   placeholder="Search player..."
-                  className="w-36 sm:w-48 pl-9 pr-9 py-2.5 text-sm bg-[#18181b] border border-[#27272a] rounded-xl text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#52525b]"
+                  className="w-36 sm:w-48 pl-9 pr-9 py-1.5 sm:py-2.5 text-xs sm:text-sm bg-[#18181b] border border-[#27272a] rounded-xl text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#52525b]"
                 />
                 {recipientSearch && (
                   <button onClick={() => setRecipientSearch("")} className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded text-[#52525b] hover:text-[#a1a1aa]">
