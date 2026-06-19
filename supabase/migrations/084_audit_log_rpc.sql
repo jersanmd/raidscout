@@ -2,6 +2,18 @@
 -- Replaces direct table access with SECURITY DEFINER wrappers.
 -- Owners & moderators can now read their server's audit log.
 
+-- 0. Ensure id column has its BIGSERIAL default (may have been lost)
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'admin_audit_log'
+      AND column_name = 'id' AND column_default IS NULL
+  ) THEN
+    EXECUTE 'ALTER TABLE public.admin_audit_log ALTER COLUMN id SET DEFAULT nextval(''public.admin_audit_log_id_seq''::regclass)';
+  END IF;
+END $$;
+
 -- 1. Drop old policies
 DROP POLICY IF EXISTS "Admins can read audit log" ON admin_audit_log;
 DROP POLICY IF EXISTS "Authenticated users can insert audit entries" ON admin_audit_log;
