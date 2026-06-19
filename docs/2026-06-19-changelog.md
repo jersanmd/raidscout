@@ -2,7 +2,7 @@
 
 ## 🆕 New Features
 
-- **Copy attendance between bosses** — Each killed boss row in the Weekly Schedule has a copy icon. Click to enter copy mode, then click any other killed boss to paste the same attendance list. Duplicate members are automatically skipped. ESC exits copy mode and dismisses confirm dialogs. Copy icon hidden when attendance is 0.
+- **Copy attendance between bosses** — Each killed boss row in the Weekly Schedule has a copy icon. Click to enter copy mode, then click any other killed boss to paste the same attendance list. Duplicate members are automatically skipped. ESC exits copy mode and dismisses confirm dialogs. Copy icon hidden when attendance is 0 or in viewer mode.
 
 ## 🎨 UI
 
@@ -14,6 +14,8 @@
 - **Server sidebar** — Selected server no longer shows the role badge. Guild subscription badges appear on every server. Servers sorted alphabetically.
 - **Top bar** — Cleaner desktop header without redundant server info.
 - **Billing page refreshed** — Dark theme consistent with the rest of the app. Added helpful notes about per-server billing, payment processing, all-inclusive pricing, refund policy, and PayPal security.
+- **Viewer mode expanded** — Shared server links can now browse Inventory (History, Recipients, Analytics) and Members (Members list, Progress, Gear Tracking). All editing and management features remain hidden.
+- **Mobile responsiveness** — Tab bars now scroll horizontally on small screens. Payment history uses stacked card layout on mobile. Plan status card and chart headers wrap properly on narrow screens.
 
 ## 🐛 Bug Fixes
 
