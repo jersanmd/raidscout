@@ -4,14 +4,18 @@
 
 -- 0. Ensure id column has its BIGSERIAL default (may have been lost)
 DO $$
+DECLARE
+  v_max BIGINT;
 BEGIN
-  IF EXISTS (
-    SELECT 1 FROM information_schema.columns
-    WHERE table_schema = 'public' AND table_name = 'admin_audit_log'
-      AND column_name = 'id' AND column_default IS NULL
-  ) THEN
-    EXECUTE 'ALTER TABLE public.admin_audit_log ALTER COLUMN id SET DEFAULT nextval(''public.admin_audit_log_id_seq''::regclass)';
+  -- Create sequence if missing
+  IF NOT EXISTS (SELECT 1 FROM pg_class WHERE relname = 'admin_audit_log_id_seq' AND relkind = 'S') THEN
+    SELECT COALESCE(MAX(id), 0) INTO v_max FROM public.admin_audit_log;
+    EXECUTE 'CREATE SEQUENCE public.admin_audit_log_id_seq START WITH ' || (v_max + 1);
   END IF;
+  -- Set default
+  ALTER TABLE public.admin_audit_log ALTER COLUMN id SET DEFAULT nextval('public.admin_audit_log_id_seq'::regclass);
+  -- Set as owned by the column so it's dropped with the table
+  ALTER SEQUENCE public.admin_audit_log_id_seq OWNED BY public.admin_audit_log.id;
 END $$;
 
 -- 1. Drop old policies
