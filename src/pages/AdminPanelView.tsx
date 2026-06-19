@@ -1592,7 +1592,7 @@ function SpawnCronCard({ data, connected }: { data: any; connected: boolean }) {
 
       {/* Chart */}
       <div className="relative">
-        <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-40 sm:h-48" preserveAspectRatio="none">
+        <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-52 sm:h-60" preserveAspectRatio="xMidYMid meet">
           <style>{`
             @keyframes drawIn { from { stroke-dashoffset: var(--d); } to { stroke-dashoffset: 0; } }
             @keyframes fadeUp { from { opacity: 0; } to { opacity: 1; } }
