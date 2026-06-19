@@ -914,12 +914,12 @@ export function AdminPanelView() {
             case "member_cp_add": case "member_cp_update": return `${d.player_name || "?"}: ${d.old_cp != null ? Number(d.old_cp).toLocaleString() : "—"} → ${d.new_cp != null ? Number(d.new_cp).toLocaleString() : "?"}`;
             case "member_cp_delete": return `Deleted CP update for ${d.player_name || "?"}`;
             case "member_add": return d.member_name || "—";
-            case "member_remove": return d.member_name || d.target_id?.substring(0,8) + "…" || "—";
+            case "member_remove": return d.member_name || "Member removed";
             case "member_note_add": return d.note_preview || "—";
             case "member_note_delete": return "Deleted note";
-            case "moderator_add": return d.target_email || d.target_user_id?.substring(0,8) + "…" || "—";
-            case "moderator_remove": return d.target_email || d.target_user_id?.substring(0,8) + "…" || "—";
-            case "ownership_transfer": return `${d.old_owner_id?.substring(0,8)}… → ${d.new_owner_id?.substring(0,8)}…`;
+            case "moderator_add": return d.target_email || "Moderator added";
+            case "moderator_remove": return d.target_email || "Moderator removed";
+            case "ownership_transfer": return "Owner changed";
             case "boss_toggle": return `${d.boss_name || d.name || "?"} ${d.enabled ? "enabled" : "disabled"}`;
             case "boss_time_edit": return `${d.boss_name || d.activity_name || "?"}: time changed${d.new_time ? ` to ${d.new_time}` : ""}`;
             case "activity_toggle": return `${d.activity_name || d.name || "?"} ${d.enabled ? "enabled" : "disabled"}`;
@@ -1023,8 +1023,8 @@ export function AdminPanelView() {
                 const { dot, text: txt } = actionColor(entry.action);
                 const detailText = formatDetails(entry);
                 const actor = isViewer
-                  ? `viewer ${entry.viewer_key?.substring(0,8)}…`
-                  : entry.actor_email || entry.details?.discord_user || entry.actor_id?.substring(0,8) + "…";
+                  ? `Viewer`
+                  : entry.actor_email || entry.details?.discord_user || "—";
 
                 return (
                 <div key={entry.id} className="border-b border-[#1e1e2a]/50 last:border-b-0 hover:bg-[#0d0d11]/20 transition">

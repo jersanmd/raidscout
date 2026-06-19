@@ -3422,12 +3422,12 @@ export function ServerActivityLogTab({ serverId }: { serverId: string }) {
       case "member_cp_add": case "member_cp_update": return `${d.player_name || "?"}: ${d.old_cp != null ? Number(d.old_cp).toLocaleString() : "—"} → ${d.new_cp != null ? Number(d.new_cp).toLocaleString() : "?"}`;
       case "member_cp_delete": return `Deleted CP update for ${d.player_name || "?"}`;
       case "member_add": return d.member_name || "—";
-      case "member_remove": return d.member_name || d.target_id?.substring(0,8) + "…" || "—";
+      case "member_remove": return d.member_name || "Member removed";
       case "member_note_add": return d.note_preview || "—";
       case "member_note_delete": return `Deleted note`;
       case "member_progress_update": return d.member_name ? `${d.member_name}: progress updated` : "Progress updated";
-      case "moderator_add": return d.target_email || d.target_user_id?.substring(0,8) + "…" || "—";
-      case "moderator_remove": return d.target_email || d.target_user_id?.substring(0,8) + "…" || "—";
+      case "moderator_add": return d.target_email || "Moderator added";
+      case "moderator_remove": return d.target_email || "Moderator removed";
       case "mod_perms_update": return d.target_email || d.target_user_id?.substring(0,8) + "…" || "—";
       case "ownership_transfer": return `Owner changed`;
       case "boss_create": case "boss_update": case "boss_delete": return d.boss_name || d.name || "—";
@@ -3436,8 +3436,8 @@ export function ServerActivityLogTab({ serverId }: { serverId: string }) {
       case "activity_create": case "activity_update": case "activity_delete": return d.activity_name || d.name || "—";
       case "activity_toggle": return `${d.activity_name || d.name || "?"} ${d.enabled ? "enabled" : "disabled"}${d.reason ? ` (${d.reason})` : ""}`;
       case "activity_finalize": case "activity_guilds_set": case "activity_rotation_advance": return d.activity_name || "—";
-      case "gear_equip": return `Slot ${d.slot_id?.substring(0,8) || "?"} equipped${d.enhancement ? ` (+${d.enhancement})` : ""}`;
-      case "gear_unequip": return `Slot ${d.slot_id?.substring(0,8) || "?"} unequipped`;
+      case "gear_equip": return `Gear equipped${d.enhancement ? ` (+${d.enhancement})` : ""}`;
+      case "gear_unequip": return `Gear unequipped`;
       case "item_create": case "item_update": case "item_delete": return `${d.item_name || d.name || "?"}${d.type ? ` (${d.type})` : ""}`;
       case "item_distribute": return `${d.item_name || "?"} → ${d.player_name || "?"}${d.quantity ? ` x${d.quantity}` : ""}`;
       case "item_approve": case "item_reject": return d.item_name || "—";
@@ -3552,7 +3552,7 @@ export function ServerActivityLogTab({ serverId }: { serverId: string }) {
           {filteredLog.map((entry: any) => {
             const { dot, text: txt } = actionColor(entry.action);
             const isViewer = !!entry.viewer_key;
-            const actor = isViewer ? `viewer ${entry.viewer_key?.substring(0,8)}…` : (entry.actor_email || entry.details?.discord_user || entry.actor_id?.substring(0,8) + "…");
+            const actor = isViewer ? `Viewer` : (entry.actor_email || entry.details?.discord_user || "—");
             return (
               <div key={entry.id} className="border-b border-[#1e1e2a]/50 last:border-b-0 hover:bg-[#0d0d11]/20 transition">
                 <div className="hidden sm:grid grid-cols-12 gap-3 px-4 py-2.5 items-center">
