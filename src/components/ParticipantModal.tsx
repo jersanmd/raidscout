@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import {
@@ -137,6 +137,40 @@ export function ParticipantModal({
   const addAttendance = useAddAttendance();
   const removeAttendance = useRemoveAttendance();
   const [pendingIds, setPendingIds] = useState<Set<string>>(new Set());
+  const toggleAttendance = useCallback(async (memberId: string, isAttending: boolean, readOnly: boolean) => {
+    if (readOnly) return;
+    setPendingIds(prev => new Set(prev).add(memberId));
+    try {
+      if (isAttending) {
+        const att = attendance.find((a) => a.member_id === memberId);
+        if (att) {
+          if (activityInstanceId) {
+            await markActivityAttendance(activityInstanceId, memberId, false);
+            queryClient.invalidateQueries({ queryKey: ["activity_attendance", activityInstanceId] });
+            queryClient.invalidateQueries({ queryKey: ["activity_instances"] });
+            queryClient.invalidateQueries({ queryKey: ["activities"] });
+          } else {
+            await removeAttendance.mutateAsync({ attendanceId: att.id, deathRecordId });
+          }
+        }
+      } else {
+        if (activityInstanceId) {
+          await markActivityAttendance(activityInstanceId, memberId, true);
+          queryClient.invalidateQueries({ queryKey: ["activity_attendance", activityInstanceId] });
+          queryClient.invalidateQueries({ queryKey: ["activity_instances"] });
+          queryClient.invalidateQueries({ queryKey: ["activities"] });
+        } else {
+          await addAttendance.mutateAsync({ deathRecordId, memberId });
+        }
+      }
+    } finally {
+      setPendingIds(prev => {
+        const next = new Set(prev);
+        next.delete(memberId);
+        return next;
+      });
+    }
+  }, [attendance, activityInstanceId, deathRecordId, addAttendance, removeAttendance, queryClient]);
   const queryClient = useQueryClient();
   const serverId = useServerId();
 
@@ -931,51 +965,10 @@ export function ParticipantModal({
                                     type="checkbox"
                                     checked={isAttending}
                                     disabled={readOnly}
-                                  title={
-                                    readOnly
-                                      ? "Only moderators can update participants"
-                                      : undefined
-                                  }
-                                  onChange={async () => {
-                                    if (readOnly) return;
-                                    const memberId = m.id;
-                                    setPendingIds(prev => new Set(prev).add(memberId));
-                                    try {
-                                      if (isAttending) {
-                                        const att = attendance.find(
-                                          (a) => a.member_id === memberId,
-                                        );
-                                        if (att) {
-                                          if (activityInstanceId) {
-                                            await markActivityAttendance(activityInstanceId, memberId, false);
-                                            queryClient.invalidateQueries({ queryKey: ["activity_attendance", activityInstanceId] });                                        queryClient.invalidateQueries({ queryKey: ["activity_instances"] });
-                                        queryClient.invalidateQueries({ queryKey: ["activities"] });                                        } else {
-                                            await removeAttendance.mutateAsync({
-                                              attendanceId: att.id,
-                                              deathRecordId,
-                                            });
-                                          }
-                                        }
-                                      } else {
-                                        if (activityInstanceId) {
-                                          await markActivityAttendance(activityInstanceId, memberId, true);
-                                          queryClient.invalidateQueries({ queryKey: ["activity_attendance", activityInstanceId] });                                        queryClient.invalidateQueries({ queryKey: ["activity_instances"] });
-                                        queryClient.invalidateQueries({ queryKey: ["activities"] });                                      } else {
-                                          await addAttendance.mutateAsync({
-                                            deathRecordId,
-                                            memberId,
-                                          });
-                                      }
-                                    } finally {
-                                      setPendingIds(prev => {
-                                        const next = new Set(prev);
-                                        next.delete(memberId);
-                                        return next;
-                                      });
-                                    }
-                                  }}}
-                                  className="w-4 h-4 rounded border-[#3f3f46] bg-[#27272a] text-emerald-500 focus:ring-[#27272a] cursor-pointer"
-                                />
+                                    title={readOnly ? "Only moderators can update participants" : undefined}
+                                    onChange={() => toggleAttendance(m.id, isAttending, readOnly)}
+                                    className="w-4 h-4 rounded border-[#3f3f46] bg-[#27272a] text-emerald-500 focus:ring-[#27272a] cursor-pointer"
+                                  />
                                 )}
                                 <span className="truncate">{m.name}</span>
                               </label>
