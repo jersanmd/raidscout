@@ -1544,6 +1544,20 @@ function SpawnCronCard({ data, connected }: { data: any; connected: boolean }) {
   const prev = history.length > 1 ? history[history.length - 2] : latest;
   const trend = latest > prev ? "up" : latest < prev ? "down" : "flat";
 
+  // Peak duration
+  const peakMs = hasData ? Math.max(...history) : 0;
+  const peakAgo = histData?.metrics ? (() => {
+    let peakIdx = 0; let peakVal = 0;
+    histData.metrics.forEach((m: any, i: number) => { if (m.duration_ms > peakVal) { peakVal = m.duration_ms; peakIdx = i; } });
+    const peakTs = histData.metrics[peakIdx]?.ts;
+    if (!peakTs) return null;
+    const agoMs = Date.now() - peakTs;
+    if (agoMs < 60000) return "just now";
+    if (agoMs < 3600000) return `${Math.round(agoMs / 60000)}m ago`;
+    if (agoMs < 86400000) return `${Math.round(agoMs / 3600000)}h ago`;
+    return `${Math.round(agoMs / 86400000)}d ago`;
+  })() : null;
+
   // Label every ~6th tick
   const labelStep = Math.max(1, Math.floor(history.length / 6));
 
@@ -1579,7 +1593,7 @@ function SpawnCronCard({ data, connected }: { data: any; connected: boolean }) {
             <option value="30d">30 Days</option>
           </select>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
           <div className="flex items-center gap-1.5 bg-[#18181b] rounded-lg px-3 py-1.5 border border-[#27272a]">
             <span className="text-[10px] text-[#71717a] font-mono uppercase tracking-wider">avg</span>
             <span className="text-sm font-bold text-[#fafafa] font-mono">{(avg / 1000).toFixed(2)}<span className="text-[10px] text-[#71717a] ml-0.5">s</span></span>
@@ -1590,6 +1604,13 @@ function SpawnCronCard({ data, connected }: { data: any; connected: boolean }) {
             </span>
             <span className={`text-sm font-bold font-mono ${trend === "up" ? "text-emerald-300" : trend === "down" ? "text-rose-300" : "text-[#a1a1aa]"}`}>{(latest / 1000).toFixed(2)}<span className="text-[10px] opacity-60 ml-0.5">s</span></span>
           </div>
+          {peakMs > 0 && (
+            <div className="hidden sm:flex items-center gap-1.5 bg-[#18181b] rounded-lg px-2.5 py-1.5 border border-[#27272a]">
+              <span className="text-[10px] text-[#71717a] font-mono uppercase tracking-wider">peak</span>
+              <span className="text-xs font-bold text-amber-300 font-mono">{(peakMs / 1000).toFixed(2)}<span className="text-[10px] text-[#71717a] ml-0.5">s</span></span>
+              {peakAgo && <span className="text-[9px] text-[#52525b]">{peakAgo}</span>}
+            </div>
+          )}
         </div>
       </div>
 
