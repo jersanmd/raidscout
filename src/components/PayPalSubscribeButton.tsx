@@ -77,6 +77,10 @@ export function PayPalSubscribeButton({
           description: "RaidScout Server — 30 Days",
           custom_id: serverId,
         }],
+        application_context: {
+          shipping_preference: "NO_SHIPPING",
+          user_action: "PAY_NOW",
+        },
       });
     };
 
