@@ -571,12 +571,12 @@ export function InventoryView() {
       ) : (
         <>
       {/* Tabs */}
-      <div className="flex items-center gap-1 border-b border-[#27272a] pb-2">
+      <div className="flex items-center gap-1 border-b border-[#27272a] pb-2 overflow-x-auto">
         {visibleTabs.map(t => (
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`px-3 py-1.5 rounded-t-md text-xs font-medium transition ${
+            className={`px-3 py-1.5 rounded-t-md text-xs font-medium transition whitespace-nowrap shrink-0 ${
               tab === t ? "bg-[#18181b] text-[#fafafa] border border-[#27272a] border-b-transparent" : "text-[#71717a] hover:text-[#d4d4d8]"
             }`}
           >

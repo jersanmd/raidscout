@@ -1553,7 +1553,7 @@ function SpawnCronCard({ data, connected }: { data: any; connected: boolean }) {
       <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-violet-400/40 to-transparent" />
 
       {/* Header bar */}
-      <div className="relative flex items-center justify-between px-4 sm:px-5 pt-3 pb-1">
+      <div className="relative flex flex-wrap items-center justify-between px-4 sm:px-5 pt-3 pb-1 gap-2">
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2">
             <span className={`w-2 h-2 rounded-full ${connected ? 'bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.5)]' : 'bg-[#52525b]'}`} />

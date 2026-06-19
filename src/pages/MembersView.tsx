@@ -1023,10 +1023,10 @@ export function MembersView() {
       {toast && <ToastMessage toast={toast} onDismiss={() => setToast(null)} />}
 
       {/* Tab bar */}
-      <div className="flex items-center gap-1 border-b border-[#27272a] pb-2">
+      <div className="flex items-center gap-1 border-b border-[#27272a] pb-2 overflow-x-auto">
         <button
           onClick={() => setMembersTab("members")}
-          className={`px-3 py-1.5 rounded-t-md text-xs font-medium transition ${
+          className={`px-3 py-1.5 rounded-t-md text-xs font-medium transition whitespace-nowrap shrink-0 ${
             membersTab === "members"
               ? "bg-[#18181b] text-[#fafafa] border border-[#27272a] border-b-transparent"
               : "text-[#71717a] hover:text-[#d4d4d8]"
@@ -1037,7 +1037,7 @@ export function MembersView() {
         </button>
         <button
           onClick={() => setMembersTab("progress")}
-          className={`px-3 py-1.5 rounded-t-md text-xs font-medium transition ${
+          className={`px-3 py-1.5 rounded-t-md text-xs font-medium transition whitespace-nowrap shrink-0 ${
             membersTab === "progress"
               ? "bg-[#18181b] text-[#fafafa] border border-[#27272a] border-b-transparent"
               : "text-[#71717a] hover:text-[#d4d4d8]"
@@ -1048,7 +1048,7 @@ export function MembersView() {
         </button>
         <button
           onClick={() => setMembersTab("gear")}
-          className={`px-3 py-1.5 rounded-t-md text-xs font-medium transition ${
+          className={`px-3 py-1.5 rounded-t-md text-xs font-medium transition whitespace-nowrap shrink-0 ${
             membersTab === "gear"
               ? "bg-[#18181b] text-[#fafafa] border border-[#27272a] border-b-transparent"
               : "text-[#71717a] hover:text-[#d4d4d8]"
@@ -1060,7 +1060,7 @@ export function MembersView() {
         {!isViewer && canManageRaidMembers && (
           <button
             onClick={() => setMembersTab("parties")}
-            className={`px-3 py-1.5 rounded-t-md text-xs font-medium transition ${
+            className={`px-3 py-1.5 rounded-t-md text-xs font-medium transition whitespace-nowrap shrink-0 ${
             membersTab === "parties"
               ? "bg-[#18181b] text-[#fafafa] border border-[#27272a] border-b-transparent"
               : "text-[#71717a] hover:text-[#d4d4d8]"
@@ -1073,7 +1073,7 @@ export function MembersView() {
         {!isViewer && canManageRaidMembers && (
         <button
           onClick={() => setMembersTab("classes")}
-          className={`px-3 py-1.5 rounded-t-md text-xs font-medium transition ${
+          className={`px-3 py-1.5 rounded-t-md text-xs font-medium transition whitespace-nowrap shrink-0 ${
             membersTab === "classes"
               ? "bg-[#18181b] text-[#fafafa] border border-[#27272a] border-b-transparent"
               : "text-[#71717a] hover:text-[#d4d4d8]"

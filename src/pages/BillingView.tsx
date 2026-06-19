@@ -109,7 +109,7 @@ export function BillingView() {
       {/* ── Plan Status Banner ── */}
       <div className={`relative overflow-hidden rounded-2xl border ${stateConfig.cardBg} shadow-sm`}>
         <div className="p-6">
-          <div className="flex items-center justify-between gap-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 sm:gap-6">
             {/* Left: icon + info */}
             <div className="flex items-center gap-5">
               <div className={`w-16 h-16 rounded-2xl flex items-center justify-center ${stateConfig.iconBg} ring-4 ${stateConfig.ring}`}>
@@ -254,22 +254,30 @@ export function BillingView() {
               <span className="col-span-2 text-right">Receipt</span>
             </div>
             {payments.map((p) => (
-              <div key={p.id} className="grid grid-cols-12 gap-3 items-center px-3 py-2.5 rounded-lg hover:bg-[#18181b] transition-colors">
-                <span className="col-span-3 text-xs text-[#d4d4d8] font-medium">
-                  {new Date(p.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
-                  <span className="block text-[10px] text-[#52525b] font-normal">
+              <div key={p.id} className="flex flex-col sm:grid sm:grid-cols-12 gap-1.5 sm:gap-3 items-start sm:items-center px-3 py-2.5 rounded-lg hover:bg-[#18181b] transition-colors">
+                <div className="sm:col-span-3 flex items-center justify-between sm:block">
+                  <span className="text-xs text-[#d4d4d8] font-medium">
+                    {new Date(p.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                  </span>
+                  <span className="text-[10px] text-[#52525b] font-normal sm:hidden">
                     {new Date(p.created_at).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}
                   </span>
-                </span>
-                <span className="col-span-2 text-xs text-[#fafafa] font-semibold">${p.amount}</span>
-                <span className="col-span-2 text-xs text-[#d4d4d8]">+{p.days_added}d</span>
-                <span className="col-span-3 text-xs text-[#d4d4d8]">
+                </div>
+                <div className="sm:col-span-2 flex items-center gap-2">
+                  <span className="text-[10px] text-[#52525b] sm:hidden">Amount:</span>
+                  <span className="text-xs text-[#fafafa] font-semibold">${p.amount}</span>
+                </div>
+                <div className="sm:col-span-2 flex items-center gap-2">
+                  <span className="text-[10px] text-[#52525b] sm:hidden">Days:</span>
+                  <span className="text-xs text-[#d4d4d8]">+{p.days_added}d</span>
+                </div>
+                <div className="sm:col-span-3">
                   <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold ${
                     p.status === "completed" ? "bg-emerald-500/10 text-emerald-300 border border-emerald-500/20" : "bg-red-500/10 text-red-300 border border-red-500/20"
                   }`}>
                     {p.status === "completed" ? "Completed" : "Refunded"}
                   </span>
-                </span>
+                </div>
                 <span className="col-span-2 text-right">
                   {p.paypal_order_id ? (
                     <a
