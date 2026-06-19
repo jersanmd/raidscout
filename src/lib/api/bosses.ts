@@ -136,7 +136,7 @@ export async function updateCustomBoss(id: string, updates: Record<string, any>,
     p_image_url: updates.image_url ?? null,
   });
   if (error) throw error;
-  if (serverId) writeAuditEntry({ action: AuditAction.BOSS_UPDATE, server_id: serverId, target_id: id, details: updates });
+  if (serverId) writeAuditEntry({ action: AuditAction.BOSS_UPDATE, server_id: serverId, target_id: id, details: { boss_name: updates.name || id, changed: Object.keys(updates).filter(k => k !== "name").join(", ") } });
 }
 
 export async function updateCustomActivity(id: string, updates: Record<string, any>, serverId?: string): Promise<void> {
@@ -153,29 +153,29 @@ export async function updateCustomActivity(id: string, updates: Record<string, a
     p_image_url: updates.image_url ?? null,
   });
   if (error) throw error;
-  if (serverId) writeAuditEntry({ action: AuditAction.ACTIVITY_UPDATE, server_id: serverId, target_id: id, details: updates });
+  if (serverId) writeAuditEntry({ action: AuditAction.ACTIVITY_UPDATE, server_id: serverId, target_id: id, details: { activity_name: updates.name || id, changed: Object.keys(updates).filter(k => k !== "name").join(", ") } });
 }
 
-export async function toggleBossEnabled(id: string, enabled: boolean, serverId?: string): Promise<void> {
+export async function toggleBossEnabled(id: string, enabled: boolean, serverId?: string, bossName?: string): Promise<void> {
   const { error } = await supabase.rpc("toggle_boss_enabled", { p_boss_id: id, p_enabled: enabled });
   if (error) throw error;
-  if (serverId) writeAuditEntry({ action: AuditAction.BOSS_TOGGLE, server_id: serverId, target_id: id, details: { enabled } });
+  if (serverId) writeAuditEntry({ action: AuditAction.BOSS_TOGGLE, server_id: serverId, target_id: id, details: { boss_name: bossName || id, enabled } });
 }
 
-export async function toggleActivityEnabled(id: string, enabled: boolean, serverId?: string): Promise<void> {
+export async function toggleActivityEnabled(id: string, enabled: boolean, serverId?: string, activityName?: string): Promise<void> {
   const { error } = await supabase.rpc("toggle_activity_enabled", { p_activity_id: id, p_enabled: enabled });
   if (error) throw error;
-  if (serverId) writeAuditEntry({ action: AuditAction.ACTIVITY_TOGGLE, server_id: serverId, target_id: id, details: { enabled } });
+  if (serverId) writeAuditEntry({ action: AuditAction.ACTIVITY_TOGGLE, server_id: serverId, target_id: id, details: { activity_name: activityName || id, enabled } });
 }
 
-export async function finishActivity(activityId: string, serverId?: string): Promise<void> {
+export async function finishActivity(activityId: string, serverId?: string, activityName?: string): Promise<void> {
   const { data: activity } = await supabase.from("activities").select("schedule_type").eq("id", activityId).single();
   if (!activity) throw new Error("Activity not found");
 
   if (activity.schedule_type === "one_time") {
     const { error } = await supabase.from("activities").update({ is_enabled: false }).eq("id", activityId);
     if (error) throw error;
-    if (serverId) writeAuditEntry({ action: AuditAction.ACTIVITY_TOGGLE, server_id: serverId, target_id: activityId, details: { enabled: false, reason: "one_time_completed" } });
+    if (serverId) writeAuditEntry({ action: AuditAction.ACTIVITY_TOGGLE, server_id: serverId, target_id: activityId, details: { activity_name: activityName || activityId, enabled: false, reason: "one_time_completed" } });
   }
 
   const now = new Date().toISOString();
@@ -185,7 +185,7 @@ export async function finishActivity(activityId: string, serverId?: string): Pro
     end_time: now,
   });
   if (error) throw error;
-  if (serverId) writeAuditEntry({ action: AuditAction.ACTIVITY_FINALIZE, server_id: serverId, target_id: activityId });
+  if (serverId) writeAuditEntry({ action: AuditAction.ACTIVITY_FINALIZE, server_id: serverId, target_id: activityId, details: { activity_name: activityName || activityId } });
 
   // Advance guild rotation
   try { await advanceActivityRotation(activityId, serverId); } catch (err) { console.error("[bosses] advanceActivityRotation on start failed:", err); }
@@ -235,7 +235,7 @@ export async function recordActivityEnd(
   // Advance guild rotation
   try { await advanceActivityRotation(activityId, serverId); } catch (err) { console.error("[bosses] advanceActivityRotation on end failed:", err); }
 
-  if (serverId) writeAuditEntry({ action: AuditAction.ACTIVITY_END_RECORD, server_id: serverId, target_id: activityId, details: { end_time: endTime.toISOString(), attendees: attendeeIds.length } });
+  if (serverId) writeAuditEntry({ action: AuditAction.ACTIVITY_END_RECORD, server_id: serverId, target_id: activityId, details: { activity_name: activity?.name || activityId, end_time: endTime.toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }), attendees: attendeeIds.length } });
 
   return instance.id;
 }

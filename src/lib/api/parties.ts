@@ -24,7 +24,7 @@ export async function fetchStaticParties(serverId?: string | null): Promise<Stat
   return (data || []) as StaticParty[];
 }
 
-export async function createParty(name: string, guildId: string | null, bossId: string | null = null, activityId: string | null = null): Promise<string> {
+export async function createParty(name: string, guildId: string | null, bossId: string | null = null, activityId: string | null = null, bossName?: string | null, activityName?: string | null): Promise<string> {
   const sid = getCurrentServerId();
   if (!sid) throw new Error("No server selected");
   const { data, error } = await supabase.rpc("create_static_party", {
@@ -32,44 +32,44 @@ export async function createParty(name: string, guildId: string | null, bossId: 
     p_boss_id: bossId, p_activity_id: activityId,
   });
   if (error) throw error;
-  writeAuditEntry({ action: AuditAction.PARTY_CREATE, server_id: sid, target_id: data as string, details: { name: name.trim(), guild_id: guildId, boss_id: bossId, activity_id: activityId } });
+  writeAuditEntry({ action: AuditAction.PARTY_CREATE, server_id: sid, target_id: data as string, details: { party_name: name.trim(), boss_name: bossName || bossId || "—", activity_name: activityName || activityId || "—" } });
   return data as string;
 }
 
-export async function deleteParty(partyId: string, serverId?: string): Promise<void> {
+export async function deleteParty(partyId: string, serverId?: string, partyName?: string): Promise<void> {
   const { error } = await supabase.rpc("delete_static_party", { p_party_id: partyId });
   if (error) throw error;
-  if (serverId) writeAuditEntry({ action: AuditAction.PARTY_DELETE, server_id: serverId, target_id: partyId });
+  if (serverId) writeAuditEntry({ action: AuditAction.PARTY_DELETE, server_id: serverId, target_id: partyId, details: { party_name: partyName || partyId } });
 }
 
-export async function addMemberToParty(partyId: string, memberId: string, serverId?: string | null): Promise<void> {
+export async function addMemberToParty(partyId: string, memberId: string, serverId?: string | null, memberName?: string): Promise<void> {
   const { error } = await supabase.rpc("add_member_to_party", {
     p_party_id: partyId, p_member_id: memberId,
   });
   if (error) throw error;
-  if (serverId) writeAuditEntry({ action: AuditAction.PARTY_MEMBER_ADD, server_id: serverId, target_id: partyId, details: { member_id: memberId } });
+  if (serverId) writeAuditEntry({ action: AuditAction.PARTY_MEMBER_ADD, server_id: serverId, target_id: partyId, details: { member_name: memberName || memberId } });
 }
 
-export async function removeMemberFromParty(memberId: string, serverId?: string | null): Promise<void> {
+export async function removeMemberFromParty(memberId: string, serverId?: string | null, memberName?: string): Promise<void> {
   const { error } = await supabase.rpc("remove_member_from_party", { p_member_id: memberId });
   if (error) throw error;
-  if (serverId) writeAuditEntry({ action: AuditAction.PARTY_MEMBER_REMOVE, server_id: serverId, target_id: memberId });
+  if (serverId) writeAuditEntry({ action: AuditAction.PARTY_MEMBER_REMOVE, server_id: serverId, target_id: memberId, details: { member_name: memberName || memberId } });
 }
 
 /** Assign a party to a specific boss */
-export async function assignPartyToBoss(partyId: string, bossId: string, serverId?: string | null): Promise<void> {
+export async function assignPartyToBoss(partyId: string, bossId: string, serverId?: string | null, partyName?: string, bossName?: string): Promise<void> {
   const { error } = await supabase.rpc("assign_party_to_boss", {
     p_party_id: partyId, p_boss_id: bossId,
   });
   if (error) throw error;
-  if (serverId) writeAuditEntry({ action: AuditAction.PARTY_ASSIGN, server_id: serverId, target_id: partyId, details: { boss_id: bossId } });
+  if (serverId) writeAuditEntry({ action: AuditAction.PARTY_ASSIGN, server_id: serverId, target_id: partyId, details: { party_name: partyName || partyId, boss_name: bossName || bossId } });
 }
 
 /** Unlink a party from its boss/activity */
-export async function unlinkParty(partyId: string, serverId?: string | null): Promise<void> {
+export async function unlinkParty(partyId: string, serverId?: string | null, partyName?: string): Promise<void> {
   const { error } = await supabase.rpc("unlink_party", {
     p_party_id: partyId,
   });
   if (error) throw error;
-  if (serverId) writeAuditEntry({ action: AuditAction.PARTY_UNLINK, server_id: serverId, target_id: partyId });
+  if (serverId) writeAuditEntry({ action: AuditAction.PARTY_UNLINK, server_id: serverId, target_id: partyId, details: { party_name: partyName || partyId } });
 }

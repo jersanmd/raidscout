@@ -176,7 +176,7 @@ export async function copyAttendanceToDeath(
       .from("attendance_records")
       .insert(rows);
     if (error) throw error;
-    writeAuditEntry({ action: AuditAction.ATTENDANCE_COPY, server_id: sid!, details: { source_death: sourceDeathRecordId, target_death: targetDeathRecordId, copied: rows.length, skipped } });
+    writeAuditEntry({ action: AuditAction.ATTENDANCE_COPY, server_id: sid!, details: { copied: rows.length, skipped, attendees: rows.length } });
     return { copied: rows.length, skipped };
   }
 
@@ -193,7 +193,7 @@ export async function copyAttendanceToDeath(
         });
       if (!error) copied++;
     }
-    writeAuditEntry({ action: AuditAction.ATTENDANCE_COPY, server_id: sid!, details: { source_death: sourceDeathRecordId, target_death: targetDeathRecordId, copied, skipped: rows.length - copied }, viewer_key: viewerKey });
+    writeAuditEntry({ action: AuditAction.ATTENDANCE_COPY, server_id: sid!, details: { copied, skipped: rows.length - copied, attendees: copied }, viewer_key: viewerKey });
     return { copied, skipped: rows.length - copied };
   }
 
