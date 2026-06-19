@@ -33,6 +33,7 @@ export const AuditAction = {
   ACTIVITY_UPDATE: "activity_update",
   ACTIVITY_DELETE: "activity_delete",
   ACTIVITY_TOGGLE: "activity_toggle",
+  ACTIVITY_TIME_EDIT: "activity_time_edit",
   ACTIVITY_FINALIZE: "activity_finalize",
   ACTIVITY_END_RECORD: "activity_end_record",
   ACTIVITY_GUILDS_SET: "activity_guilds_set",
@@ -81,6 +82,8 @@ export const AuditAction = {
   SETTINGS_UPDATE: "settings_update",
   INVITE_REGENERATE: "invite_regenerate",
   VIEWER_KEY_REGENERATE: "viewer_key_regenerate",
+  VIEWER_EDIT_TOGGLE: "viewer_edit_toggle",
+  VIEWER_MARK_DIED_TOGGLE: "viewer_mark_died_toggle",
   SEED_FROM_GAME: "seed_from_game",
 
   // Subscription
