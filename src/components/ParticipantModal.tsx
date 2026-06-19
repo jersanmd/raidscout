@@ -136,6 +136,7 @@ export function ParticipantModal({
   const { data: members = [] } = useMembers();
   const addAttendance = useAddAttendance();
   const removeAttendance = useRemoveAttendance();
+  const [pendingIds, setPendingIds] = useState<Set<string>>(new Set());
   const queryClient = useQueryClient();
   const serverId = useServerId();
 
@@ -923,10 +924,13 @@ export function ParticipantModal({
                                 }
                                 className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded transition text-sm ${readOnly ? "cursor-default" : "cursor-pointer"} ${isAttending ? "bg-[#27272a] text-emerald-300 border border-[#27272a]" : "text-[#a1a1aa] hover:bg-[#27272a] border border-transparent"}`}
                               >
-                                <input
-                                  type="checkbox"
-                                  checked={isAttending}
-                                  disabled={readOnly}
+                                {pendingIds.has(m.id) ? (
+                                  <Loader2 className="w-4 h-4 animate-spin text-emerald-500 shrink-0" />
+                                ) : (
+                                  <input
+                                    type="checkbox"
+                                    checked={isAttending}
+                                    disabled={readOnly}
                                   title={
                                     readOnly
                                       ? "Only moderators can update participants"
@@ -934,35 +938,45 @@ export function ParticipantModal({
                                   }
                                   onChange={async () => {
                                     if (readOnly) return;
-                                    if (isAttending) {
-                                      const att = attendance.find(
-                                        (a) => a.member_id === m.id,
-                                      );
-                                      if (att) {
-                                        if (activityInstanceId) {
-                                          await markActivityAttendance(activityInstanceId, m.id, false);
-                                          queryClient.invalidateQueries({ queryKey: ["activity_attendance", activityInstanceId] });                                        queryClient.invalidateQueries({ queryKey: ["activity_instances"] });
+                                    const memberId = m.id;
+                                    setPendingIds(prev => new Set(prev).add(memberId));
+                                    try {
+                                      if (isAttending) {
+                                        const att = attendance.find(
+                                          (a) => a.member_id === memberId,
+                                        );
+                                        if (att) {
+                                          if (activityInstanceId) {
+                                            await markActivityAttendance(activityInstanceId, memberId, false);
+                                            queryClient.invalidateQueries({ queryKey: ["activity_attendance", activityInstanceId] });                                        queryClient.invalidateQueries({ queryKey: ["activity_instances"] });
                                         queryClient.invalidateQueries({ queryKey: ["activities"] });                                        } else {
-                                          removeAttendance.mutate({
-                                            attendanceId: att.id,
-                                            deathRecordId,
-                                          });
+                                            await removeAttendance.mutateAsync({
+                                              attendanceId: att.id,
+                                              deathRecordId,
+                                            });
+                                          }
                                         }
-                                      }
-                                    } else {
-                                      if (activityInstanceId) {
-                                        await markActivityAttendance(activityInstanceId, m.id, true);
-                                        queryClient.invalidateQueries({ queryKey: ["activity_attendance", activityInstanceId] });                                        queryClient.invalidateQueries({ queryKey: ["activity_instances"] });
+                                      } else {
+                                        if (activityInstanceId) {
+                                          await markActivityAttendance(activityInstanceId, memberId, true);
+                                          queryClient.invalidateQueries({ queryKey: ["activity_attendance", activityInstanceId] });                                        queryClient.invalidateQueries({ queryKey: ["activity_instances"] });
                                         queryClient.invalidateQueries({ queryKey: ["activities"] });                                      } else {
-                                        addAttendance.mutate({
-                                          deathRecordId,
-                                          memberId: m.id,
-                                        });
+                                          await addAttendance.mutateAsync({
+                                            deathRecordId,
+                                            memberId,
+                                          });
                                       }
+                                    } finally {
+                                      setPendingIds(prev => {
+                                        const next = new Set(prev);
+                                        next.delete(memberId);
+                                        return next;
+                                      });
                                     }
                                   }}
                                   className="w-4 h-4 rounded border-[#3f3f46] bg-[#27272a] text-emerald-500 focus:ring-[#27272a] cursor-pointer"
                                 />
+                                )}
                                 <span className="truncate">{m.name}</span>
                               </label>
                             );
