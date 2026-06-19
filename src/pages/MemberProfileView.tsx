@@ -965,13 +965,14 @@ export function MemberProfileView() {
             )}
           </div>
         ) : (
-          <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-4 sm:p-5">
-            <div className="flex items-center gap-2 mb-3">
+          <div className="bg-[#18181b] border border-[#27272a] rounded-xl overflow-hidden">
+            <div className="px-4 py-3 border-b border-[#27272a] flex items-center gap-2">
               <Package className="w-4 h-4 text-amber-400"/>
               <h2 className="text-xs font-semibold text-[#a1a1aa] uppercase tracking-wider">Loot History</h2>
               <span className="text-[10px] text-[#52525b] ml-auto">{profile.loot_count} items</span>
             </div>
-            <div className="space-y-1 max-h-96 overflow-y-auto">
+            <div className="p-3 sm:p-4 max-h-96 overflow-y-auto">
+              <div className="space-y-1">
               {(profile.loot_history || []).map((loot: any, i: number) => {
                 const itemImage = loot.items?.image_url;
                 const rarity = loot.items?.rarity?.toLowerCase();
@@ -995,6 +996,7 @@ export function MemberProfileView() {
                 </div>
                 );
               })}
+              </div>
             </div>
           </div>
         )}
