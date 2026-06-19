@@ -85,11 +85,7 @@ export function BillingView() {
   const StatusIcon = stateConfig.icon;
 
   // Email verification check (same logic as ConfirmEmailSection in ServerSettingsView)
-  const confirmedAt = user?.email_confirmed_at || user?.confirmed_at;
-  const createdAt = user?.created_at;
-  const isEmailVerified = confirmedAt && createdAt
-    ? Math.abs(new Date(confirmedAt).getTime() - new Date(createdAt).getTime()) > 5000
-    : false;
+  const isEmailVerified = !!(user?.email_confirmed_at || user?.confirmed_at);
 
   return (
     <>

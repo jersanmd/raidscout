@@ -2894,12 +2894,7 @@ function ConfirmEmailSection() {
   const [confirmed, setConfirmed] = useState(false);
 
   const confirmedAt = user?.email_confirmed_at || user?.confirmed_at;
-  const createdAt = user?.created_at;
-  const isActuallyConfirmed = confirmed || (
-    confirmedAt && createdAt
-      ? Math.abs(new Date(confirmedAt).getTime() - new Date(createdAt).getTime()) > 5000
-      : false
-  );
+  const isActuallyConfirmed = confirmed || !!confirmedAt;
 
   const handleResend = async () => {
     if (!user?.email) return;

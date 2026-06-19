@@ -760,8 +760,7 @@ export function AdminPanelView() {
                     <div className="col-span-2">
                       {(() => {
                         const confirmedAt = u.email_confirmed_at;
-                        const createdAt = u.created_at;
-                        if (confirmedAt && createdAt && Math.abs(new Date(confirmedAt).getTime() - new Date(createdAt).getTime()) > 5000) {
+                        if (confirmedAt) {
                           return <span className="text-[10px] text-emerald-400 font-medium flex items-center gap-1"><CheckCircle className="w-3 h-3" /> Verified</span>;
                         }
                         return <span className="text-[10px] text-[#71717a] flex items-center gap-1"><XCircle className="w-3 h-3" /> Unverified</span>;
