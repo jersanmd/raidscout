@@ -969,7 +969,7 @@ export function MemberProfileView() {
             <div className="px-4 py-3 border-b border-[#27272a] flex items-center gap-2">
               <Package className="w-4 h-4 text-amber-400"/>
               <h2 className="text-xs font-semibold text-[#a1a1aa] uppercase tracking-wider">Loot History</h2>
-              <span className="text-[10px] text-[#52525b] ml-auto">{profile.loot_count} items</span>
+              <span className="text-[10px] text-[#52525b] ml-auto">{(profile.loot_history || []).length} items</span>
             </div>
             <div className="p-3 sm:p-4 max-h-96 overflow-y-auto">
               <div className="space-y-1">
