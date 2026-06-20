@@ -22,7 +22,7 @@ import {
   recordActivityEnd,
 } from "@/lib/supabase";
 import { supabaseUrl, supabaseKey } from "@/lib/api/client";
-import { Loader2, Users, X, Calendar, CheckCheck, Copy, CopyCheck } from "lucide-react";
+import { Loader2, Users, X, Calendar, CheckCheck, Copy, CopyCheck, Check } from "lucide-react";
 import { SavingOverlay } from "@/components/SavingOverlay";
 import { useUserTimezone } from "@/hooks/useUserTimezone";
 import { useRecordDeath } from "@/hooks/useRecordDeath";
@@ -192,7 +192,7 @@ export function WeeklyScheduleView() {
   const [editToast, setEditToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
   // Edit display guild on death record
-  const [editGuildDeath, setEditGuildDeath] = useState<{ deathRecordId: string; bossName: string } | null>(null);
+  const [editGuildDeath, setEditGuildDeath] = useState<{ deathRecordId: string; bossName: string; currentGuildId: string | null } | null>(null);
   const [editGuildSaving, setEditGuildSaving] = useState(false);
 
   const handleSetDisplayGuild = async (guildId: string | null) => {
@@ -869,7 +869,7 @@ export function WeeklyScheduleView() {
             setEditDeath({ deathRecordId: selectedDeath.deathRecordId, bossName: selectedDeath.bossName, deathTime: selectedDeath.deathTime });
           } : undefined}
           onChangeGuild={!isViewer ? () => {
-            setEditGuildDeath({ deathRecordId: selectedDeath.deathRecordId, bossName: selectedDeath.bossName });
+            setEditGuildDeath({ deathRecordId: selectedDeath.deathRecordId, bossName: selectedDeath.bossName, currentGuildId: selectedDeath.ownerGuildId });
           } : undefined}
         />
       )}
@@ -989,18 +989,21 @@ export function WeeklyScheduleView() {
               <button
                 onClick={() => handleSetDisplayGuild(null)}
                 disabled={editGuildSaving}
-                className="w-full text-left px-3 py-2 rounded-md text-sm text-[#a1a1aa] hover:bg-[#27272a] transition"
+                className={`w-full text-left px-3 py-2 rounded-md text-sm transition flex items-center gap-2 ${editGuildDeath.currentGuildId === null ? "bg-violet-500/10 text-violet-300 font-medium" : "text-[#a1a1aa] hover:bg-[#27272a]"}`}
               >
+                {editGuildDeath.currentGuildId === null && <Check className="w-3.5 h-3.5 shrink-0" />}
                 None (use rotation)
               </button>
               {guilds.map((g) => {
+                const isSelected = editGuildDeath.currentGuildId === g.id;
                 return (
                   <button
                     key={g.id}
                     onClick={() => handleSetDisplayGuild(g.id)}
                     disabled={editGuildSaving}
-                    className="w-full text-left px-3 py-2 rounded-md text-sm transition flex items-center gap-2 text-[#d4d4d8] hover:bg-[#27272a]"
+                    className={`w-full text-left px-3 py-2 rounded-md text-sm transition flex items-center gap-2 ${isSelected ? "bg-violet-500/10 text-violet-300 font-medium" : "text-[#d4d4d8] hover:bg-[#27272a]"}`}
                   >
+                    {isSelected && <Check className="w-3.5 h-3.5 shrink-0" />}
                     {g.name}
                   </button>
                 );
