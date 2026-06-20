@@ -191,6 +191,13 @@ export function WeeklyScheduleView() {
   const [editDeathSaving, setEditDeathSaving] = useState(false);
   const [editToast, setEditToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
+  // Auto-dismiss toast after 3s
+  useEffect(() => {
+    if (!editToast) return;
+    const t = setTimeout(() => setEditToast(null), 3000);
+    return () => clearTimeout(t);
+  }, [editToast]);
+
   // Edit display guild on death record
   const [editGuildDeath, setEditGuildDeath] = useState<{ deathRecordId: string; bossName: string; currentGuildId: string | null } | null>(null);
   const [editGuildSaving, setEditGuildSaving] = useState(false);
@@ -961,10 +968,18 @@ export function WeeklyScheduleView() {
         </div>
       )}
 
-      {/* Edit death time toast */}
+      {/* Toast for guild/time edits */}
       {editToast && (
-        <div className="fixed bottom-4 right-4 z-50">
-          <div className={`px-4 py-2 rounded-lg text-sm text-[#fafafa] shadow-lg ${editToast.type === "success" ? "bg-[#18181b] border border-[#27272a]" : "bg-[#18181b] border border-[#27272a]"}`}>
+        <div className="fixed bottom-4 right-4 z-50 animate-in fade-in slide-in-from-bottom-2 duration-200">
+          <div className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium shadow-lg border ${
+            editToast.type === "success"
+              ? "bg-emerald-950/90 border-emerald-800 text-emerald-200"
+              : "bg-red-950/90 border-red-800 text-red-200"
+          }`}>
+            {editToast.type === "success"
+              ? <CheckCheck className="w-4 h-4 text-emerald-400 shrink-0" />
+              : <X className="w-4 h-4 text-red-400 shrink-0" />
+            }
             {editToast.message}
           </div>
         </div>
