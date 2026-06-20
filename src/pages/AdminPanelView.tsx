@@ -980,6 +980,14 @@ export function AdminPanelView() {
             case "subscription_extend": return `+${d.days ?? 30} days for "${d.server_name || "?"}"`;
             case "maintenance_on": return d.ends_at ? `Until ${new Date(d.ends_at).toLocaleString()}` : "—";
             case "maintenance_off": return "Turned off";
+            case "discord_link_add": return `Linked Discord ${d.discord_guild_id || "?"}${d.label ? ` ("${d.label}")` : ""}`;
+            case "discord_link_remove": return `Unlinked Discord ${d.discord_guild_id || "?"}`;
+            case "discord_link_edit": return `Edited Discord link ${d.discord_guild_id || "?"}`;
+            case "discord_channels_set": return `Channels: alert ${d.alert || "—"}, cmd ${d.command || "—"}, progress ${d.progress || "—"}`;
+            case "discord_channel_clear": return `Cleared ${d.field || "?"} channel`;
+            case "discord_threads_set": return `Threads configured: ${d.guild_count ?? 0} guilds`;
+            case "discord_aliases_set": return `${d.count ?? 0} aliases updated`;
+            case "discord_ping_set": return `Ping set to "${d.ping || "(default)"}"`;
             case "leaderboard_finalize": return `${d.period || "?"}: ${d.rankings ?? 0} players`;
             case "leaderboard_reset": return `Leaderboard reset (${d.period || "?"})`;
             case "leaderboard_adjust_points": return `${d.points != null ? (d.points > 0 ? "+" : "") + d.points + " pts" : "?"}`;

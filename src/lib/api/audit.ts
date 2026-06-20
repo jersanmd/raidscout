@@ -136,6 +136,16 @@ export const AuditAction = {
   GAME_CREATE: "game_create",
   GAME_UPDATE: "game_update",
   GAME_DELETE: "game_delete",
+
+  // Discord Integrations
+  DISCORD_LINK_ADD: "discord_link_add",
+  DISCORD_LINK_REMOVE: "discord_link_remove",
+  DISCORD_LINK_EDIT: "discord_link_edit",
+  DISCORD_CHANNELS_SET: "discord_channels_set",
+  DISCORD_CHANNEL_CLEAR: "discord_channel_clear",
+  DISCORD_THREADS_SET: "discord_threads_set",
+  DISCORD_ALIASES_SET: "discord_aliases_set",
+  DISCORD_PING_SET: "discord_ping_set",
 } as const;
 
 export type AuditActionType = (typeof AuditAction)[keyof typeof AuditAction];
@@ -262,6 +272,19 @@ export const AUDIT_ACTION_GROUPS: { label: string; actions: AuditActionType[] }[
       AuditAction.GUILD_CREATE,
       AuditAction.GUILD_UPDATE,
       AuditAction.GUILD_DELETE,
+    ],
+  },
+  {
+    label: "Discord Integrations",
+    actions: [
+      AuditAction.DISCORD_LINK_ADD,
+      AuditAction.DISCORD_LINK_REMOVE,
+      AuditAction.DISCORD_LINK_EDIT,
+      AuditAction.DISCORD_CHANNELS_SET,
+      AuditAction.DISCORD_CHANNEL_CLEAR,
+      AuditAction.DISCORD_THREADS_SET,
+      AuditAction.DISCORD_ALIASES_SET,
+      AuditAction.DISCORD_PING_SET,
     ],
   },
   {

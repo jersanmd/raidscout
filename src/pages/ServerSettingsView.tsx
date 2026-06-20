@@ -815,6 +815,7 @@ export function ServerSettingsView() {
     try {
       const { error } = await supabase.from("discord_configs").delete().eq("id", id);
       if (error) throw error;
+      writeAuditEntry({ action: AuditAction.DISCORD_LINK_REMOVE, server_id: currentServer.id, target_id: id, details: { discord_guild_id: discordToRemove.label || id } });
       setDiscordLinks(prev => prev.filter(d => d.id !== id));
       notifyDiscordUpdated();
       queryClient.invalidateQueries({ queryKey: ["discord_configs", currentServer.id] });
@@ -2493,6 +2494,7 @@ export function ServerSettingsView() {
                                   const vals = channelValues[link.id]; if (!vals) return;
                                   await supabase.from("discord_configs").update({ notification_channel_id: vals.notif.trim() || undefined, command_channel_id: vals.cmd.trim() || undefined, progress_channel_id: vals.progress?.trim() || undefined }).eq("id", link.id);
                                   setDiscordLinks(prev => prev.map(d => d.id === link.id ? { ...d, notification_channel_id: vals.notif.trim() || undefined, command_channel_id: vals.cmd.trim() || undefined, progress_channel_id: vals.progress?.trim() || undefined } : d));
+                                  writeAuditEntry({ action: AuditAction.DISCORD_CHANNELS_SET, server_id: currentServer!.id, target_id: link.id, details: { alert: vals.notif.trim() || null, command: vals.cmd.trim() || null, progress: vals.progress?.trim() || null } });
                                   setChannelValues(prev => { const n = { ...prev }; delete n[link.id]; return n; });
                                 }} className="text-xs px-2 py-1 rounded bg-green-600 text-[#fafafa] hover:bg-green-500 transition font-medium flex items-center gap-1">
                                   <Check className="w-3 h-3" />Save
@@ -2525,9 +2527,9 @@ export function ServerSettingsView() {
                             </div>
                           ) : (
                             <div className="flex gap-4 text-xs flex-wrap items-center">
-                              <span className="text-[#71717a]">Alerts: {link.notification_channel_id ? <><code className="text-[#d4d4d8] font-mono">{link.notification_channel_id}</code> <button onClick={() => setChannelToClear({ linkId: link.id, field: "notification_channel_id", value: link.notification_channel_id!, label: "Alert Channel" })} className="inline-flex items-center text-[#a1a1aa] hover:text-[#f87171] transition" title="Clear alert channel"><X className="w-3 h-3"/></button></> : <span className="italic text-[#52525b]">not set</span>}</span>
-                              <span className="text-[#71717a]">Commands: {link.command_channel_id ? <><code className="text-[#d4d4d8] font-mono">{link.command_channel_id}</code> <button onClick={() => setChannelToClear({ linkId: link.id, field: "command_channel_id", value: link.command_channel_id!, label: "Command Channel" })} className="inline-flex items-center text-[#a1a1aa] hover:text-[#f87171] transition" title="Clear command channel"><X className="w-3 h-3"/></button></> : <span className="italic text-[#52525b]">not set</span>}</span>
-                              <span className="text-[#71717a]">Progress: {link.progress_channel_id ? <><code className="text-[#d4d4d8] font-mono">{link.progress_channel_id}</code> <button onClick={() => setChannelToClear({ linkId: link.id, field: "progress_channel_id", value: link.progress_channel_id!, label: "Progress Channel" })} className="inline-flex items-center text-[#a1a1aa] hover:text-[#f87171] transition" title="Clear progress channel"><X className="w-3 h-3"/></button></> : <span className="italic text-[#52525b]">not set</span>}</span>
+                              <span className="text-[#71717a]">Alerts: {link.notification_channel_id ? <><code className="text-[#d4d4d8] font-mono">{link.notification_channel_id}</code> <button onClick={async () => { await supabase.from("discord_configs").update({ notification_channel_id: null }).eq("id", link.id); setDiscordLinks(prev => prev.map(d => d.id === link.id ? { ...d, notification_channel_id: undefined } : d)); writeAuditEntry({ action: AuditAction.DISCORD_CHANNEL_CLEAR, server_id: currentServer!.id, target_id: link.id, details: { field: "alert", value: link.notification_channel_id } }); }} className="inline-flex items-center text-[#a1a1aa] hover:text-[#f87171] transition" title="Clear alert channel"><X className="w-3 h-3"/></button></> : <span className="italic text-[#52525b]">not set</span>}</span>
+                              <span className="text-[#71717a]">Commands: {link.command_channel_id ? <><code className="text-[#d4d4d8] font-mono">{link.command_channel_id}</code> <button onClick={async () => { await supabase.from("discord_configs").update({ command_channel_id: null }).eq("id", link.id); setDiscordLinks(prev => prev.map(d => d.id === link.id ? { ...d, command_channel_id: undefined } : d)); writeAuditEntry({ action: AuditAction.DISCORD_CHANNEL_CLEAR, server_id: currentServer!.id, target_id: link.id, details: { field: "command", value: link.command_channel_id } }); }} className="inline-flex items-center text-[#a1a1aa] hover:text-[#f87171] transition" title="Clear command channel"><X className="w-3 h-3"/></button></> : <span className="italic text-[#52525b]">not set</span>}</span>
+                              <span className="text-[#71717a]">Progress: {link.progress_channel_id ? <><code className="text-[#d4d4d8] font-mono">{link.progress_channel_id}</code> <button onClick={async () => { await supabase.from("discord_configs").update({ progress_channel_id: null }).eq("id", link.id); setDiscordLinks(prev => prev.map(d => d.id === link.id ? { ...d, progress_channel_id: undefined } : d)); writeAuditEntry({ action: AuditAction.DISCORD_CHANNEL_CLEAR, server_id: currentServer!.id, target_id: link.id, details: { field: "progress", value: link.progress_channel_id } }); }} className="inline-flex items-center text-[#a1a1aa] hover:text-[#f87171] transition" title="Clear progress channel"><X className="w-3 h-3"/></button></> : <span className="italic text-[#52525b]">not set</span>}</span>
                             </div>
                           )}
                         </div>
@@ -2549,6 +2551,7 @@ export function ServerSettingsView() {
                                   const vals = threadValues[link.id]; if (!vals) return;
                                   await updateThreadConfig(link.id, vals.channelId.trim() || null, vals.guilds);
                                   setDiscordLinks(prev => prev.map(d => d.id === link.id ? { ...d, thread_channel_id: vals.channelId.trim() || undefined, thread_guilds: vals.guilds } : d));
+                                  writeAuditEntry({ action: AuditAction.DISCORD_THREADS_SET, server_id: currentServer!.id, target_id: link.id, details: { channel: vals.channelId.trim() || null, guild_count: vals.guilds.length } });
                                   setThreadValues(prev => { const n = { ...prev }; delete n[link.id]; return n; });
                                   toast("success", "Auto-thread settings saved");
                                 }} className="text-xs px-2 py-1 rounded bg-green-600 text-[#fafafa] hover:bg-green-500 transition font-medium flex items-center gap-1">
@@ -2591,7 +2594,7 @@ export function ServerSettingsView() {
                           ) : (
                             <div className="text-xs text-[#71717a]">
                               Threads: {link.thread_channel_id ? (
-                                <><code className="text-[#d4d4d8] font-mono">{link.thread_channel_id}</code> <span className="text-[#a1a1aa]">({((link.thread_guilds || []).map(gid => guilds.find(g => g.id === gid)?.name).filter(Boolean).join(", ")) || "no guilds"})</span> <button onClick={() => setChannelToClear({ linkId: link.id, field: "thread_channel_id", value: link.thread_channel_id!, label: "Thread Channel" })} className="inline-flex items-center text-[#a1a1aa] hover:text-[#f87171] transition" title="Clear thread channel"><X className="w-3 h-3"/></button></>
+                                <><code className="text-[#d4d4d8] font-mono">{link.thread_channel_id}</code> <span className="text-[#a1a1aa]">({((link.thread_guilds || []).map(gid => guilds.find(g => g.id === gid)?.name).filter(Boolean).join(", ")) || "no guilds"})</span> <button onClick={async () => { await supabase.from("discord_configs").update({ thread_channel_id: null }).eq("id", link.id); setDiscordLinks(prev => prev.map(d => d.id === link.id ? { ...d, thread_channel_id: undefined } : d)); writeAuditEntry({ action: AuditAction.DISCORD_CHANNEL_CLEAR, server_id: currentServer!.id, target_id: link.id, details: { field: "thread", value: link.thread_channel_id } }); }} className="inline-flex items-center text-[#a1a1aa] hover:text-[#f87171] transition" title="Clear thread channel"><X className="w-3 h-3"/></button></>
                               ) : (
                                 <span className="italic text-[#52525b]">not set</span>
                               )}
@@ -2627,6 +2630,7 @@ export function ServerSettingsView() {
                                   await supabase.from("discord_configs").update({ notification_prefix: val || null }).eq("id", link.id);
                                   setDiscordLinks(prev => prev.map(d => d.id === link.id ? { ...d, notification_prefix: val } : d));
                                   setPingValues(prev => { const n = { ...prev }; delete n[link.id]; return n; });
+                                  writeAuditEntry({ action: AuditAction.DISCORD_PING_SET, server_id: currentServer!.id, target_id: link.id, details: { ping: val || "(default)" } });
                                   toast("success", val ? `Ping set to "${val}"` : "Ping reset to default");
                                 }}
                                 className="text-xs px-2 py-1 rounded-r bg-[#fafafa] text-[#09090b] hover:bg-[#e4e4e7] transition font-medium">Save</button>
@@ -2674,6 +2678,7 @@ export function ServerSettingsView() {
                                 const { error } = await supabase.from("discord_configs").update({ command_aliases: editAliases }).eq("id", editAliasLinkId);
                                 if (error) { toast("error", error.message); return; }
                                 setDiscordLinks(prev => prev.map(d => d.id === editAliasLinkId ? { ...d, command_aliases: editAliases } : d));
+                                writeAuditEntry({ action: AuditAction.DISCORD_ALIASES_SET, server_id: currentServer!.id, target_id: editAliasLinkId, details: { count: Object.values(editAliases).filter(Boolean).length } });
                                 setEditAliasLinkId(null); toast("success", "Aliases saved!");
                               }} className="px-4 py-2 rounded-lg text-xs font-medium bg-[#fafafa] text-[#09090b] hover:bg-[#e4e4e7] transition flex items-center gap-1.5">
                                 <Check className="w-3.5 h-3.5" /> Save Aliases
@@ -3623,6 +3628,14 @@ export function ServerActivityLogTab({ serverId, timezone = "UTC" }: { serverId:
       case "subscription_extend": return `+${d.days ?? 30} days`;
       case "game_create": case "game_update": case "game_delete": return d.game_name || "—";
       case "server_create": case "server_delete": case "server_restore": return d.server_name || "—";
+      case "discord_link_add": return `Linked Discord server ${d.discord_guild_id || "?"}${d.label ? ` ("${d.label}")` : ""} · prefix "${d.prefix || "!"}"`;
+      case "discord_link_remove": return `Unlinked Discord server ${d.discord_guild_id || "?"}`;
+      case "discord_link_edit": return `Updated Discord link ${d.discord_guild_id || "?"}${d.label ? ` ("${d.label}")` : ""}${d.prefix ? ` · prefix "${d.prefix}"` : ""}`;
+      case "discord_channels_set": return `Channels updated${d.alert ? ` · alert: ${d.alert}` : ""}${d.command ? ` · command: ${d.command}` : ""}${d.progress ? ` · progress: ${d.progress}` : ""}`;
+      case "discord_channel_clear": return `Cleared ${d.field || "?"} channel${d.value ? ` (was: ${d.value})` : ""}`;
+      case "discord_threads_set": return `Auto-threads configured${d.channel ? ` · channel: ${d.channel}` : ""}${d.guild_count ? ` · ${d.guild_count} guilds` : ""}`;
+      case "discord_aliases_set": return `${d.count ?? 0} command aliases updated`;
+      case "discord_ping_set": return `Notification ping set to "${d.ping || "(default)"}"`;
       default: return Object.entries(d).filter(([k]) => k !== "discord_user").slice(0, 2).map(([k,v]) => `${k}: ${v}`).join(", ") || "—";
     }
   };
