@@ -85,22 +85,31 @@ export function MemberProfileView() {
   // Compute week/month start in the server's timezone
   const weekStart = (() => {
     const now = new Date();
-    const local = now.toLocaleString("en-US", { timeZone: serverTz });
-    const d = new Date(local);
-    // Monday 00:00 in server timezone
-    const day = d.getDay(); // 0=Sun, 1=Mon ... 6=Sat
-    const mondayOffset = day === 0 ? 6 : day - 1; // days back to Monday
-    d.setDate(d.getDate() - mondayOffset);
-    d.setHours(0,0,0,0);
-    return d;
+    const serverStr = now.toLocaleString("sv-SE", { timeZone: serverTz, hour12: false });
+    const [sDate, sTime] = serverStr.split(" ");
+    const [sy, sm, sd] = sDate.split("-").map(Number);
+    const [sh, smm] = sTime.split(":").map(Number);
+    const utcStr = now.toLocaleString("sv-SE", { timeZone: "UTC", hour12: false });
+    const [uDate, uTime] = utcStr.split(" ");
+    const [uy, um, ud] = uDate.split("-").map(Number);
+    const [uh, umm] = uTime.split(":").map(Number);
+    const offsetMs = Date.UTC(sy, sm - 1, sd, sh, smm, 0) - Date.UTC(uy, um - 1, ud, uh, umm, 0);
+    const dayOfWeek = new Date(Date.UTC(sy, sm - 1, sd) - offsetMs).getUTCDay();
+    const mondayOffset = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+    return new Date(Date.UTC(sy, sm - 1, sd - mondayOffset, 0, 0, 0) - offsetMs);
   })();
   const monthStart = (() => {
     const now = new Date();
-    const local = now.toLocaleString("en-US", { timeZone: serverTz });
-    const d = new Date(local);
-    d.setDate(1);
-    d.setHours(0,0,0,0);
-    return d;
+    const serverStr = now.toLocaleString("sv-SE", { timeZone: serverTz, hour12: false });
+    const [sDate, sTime] = serverStr.split(" ");
+    const [sy, sm, sd] = sDate.split("-").map(Number);
+    const [sh, smm] = sTime.split(":").map(Number);
+    const utcStr = now.toLocaleString("sv-SE", { timeZone: "UTC", hour12: false });
+    const [uDate, uTime] = utcStr.split(" ");
+    const [uy, um, ud] = uDate.split("-").map(Number);
+    const [uh, umm] = uTime.split(":").map(Number);
+    const offsetMs = Date.UTC(sy, sm - 1, sd, sh, smm, 0) - Date.UTC(uy, um - 1, ud, uh, umm, 0);
+    return new Date(Date.UTC(sy, sm - 1, 1, 0, 0, 0) - offsetMs);
   })();
   const queryClient = useQueryClient();
   const configured = isSupabaseConfigured();
@@ -139,12 +148,28 @@ export function MemberProfileView() {
       }
       return (ownedKills ?? 0) + assistedKills + (activities ?? 0);
     },
-    enabled: !!memberId && !!profile?.created_at && !!serverId && configured,
+    enabled: !!serverId && !!memberId && configured,
   });
 
   // Total events this week and month (guild-owned bosses + guild activities)
   const weekStartISO = weekStart.toISOString();
   const monthStartISO = monthStart.toISOString();
+
+  // Server-scoped weekly attendance for this member (uses same RPC as MembersView progress tab)
+  const { data: memberAttendanceWeek = 0 } = useQuery({
+    queryKey: ["memberAttendanceWeek", serverId, weekStartISO, memberId],
+    queryFn: async () => {
+      if (!serverId || !memberId) return 0;
+      const { data } = await supabase.rpc("get_weekly_attendance", {
+        p_server_id: serverId,
+        p_since: weekStartISO,
+      });
+      const rows = (data || []) as { member_id: string; count: number }[];
+      return rows.find(r => r.member_id === memberId)?.count ?? 0;
+    },
+    enabled: !!serverId && !!memberId && configured,
+  });
+
   const { data: totalEventsWeek = 0 } = useQuery({
     queryKey: ["totalEventsWeek", serverId, weekStartISO, profile?.guild_id],
     queryFn: async () => {
@@ -295,11 +320,19 @@ export function MemberProfileView() {
   const approvedUpdates = useMemo(() =>
     profile ? profile.cp_history.filter((u: CpUpdate) => u.status === "approved") : [],
   [profile]);
+
+  // Helper: get event time (death_time or end_time), fallback to created_at
+  const attEventTime = (a: any) => {
+    if (a.death_records?.death_time) return new Date(a.death_records.death_time).getTime();
+    if (a.activity_instances?.end_time) return new Date(a.activity_instances.end_time).getTime();
+    return new Date(a.created_at).getTime();
+  };
+
   const lastAttended = useMemo(() => {
     if (!profile) return null;
     const dates: number[] = [];
-    (profile.attendance_history || []).forEach((a: any) => dates.push(new Date(a.created_at).getTime()));
-    (profile.activity_attendance || []).forEach((a: any) => dates.push(new Date(a.created_at).getTime()));
+    (profile.attendance_history || []).forEach((a: any) => dates.push(attEventTime(a)));
+    (profile.activity_attendance || []).forEach((a: any) => dates.push(attEventTime(a)));
     return dates.length > 0 ? new Date(Math.max(...dates)).toISOString() : null;
   }, [profile]);
   const totalEvents = profile ? (profile.attendance_history?.length || 0) + (profile.activity_attendance?.length || 0) : 0;
@@ -307,40 +340,42 @@ export function MemberProfileView() {
   // 7-day and 30-day event counts (computed fresh each render)
   const events7d = (() => {
     if (!profile) return 0;
-    const now = Date.now();
-    const cutoff = now - 7 * 86400000;
-    const hunts = (profile.attendance_history || []).filter((a: any) => new Date(a.created_at).getTime() >= cutoff).length;
-    const acts = (profile.activity_attendance || []).filter((a: any) => new Date(a.created_at).getTime() >= cutoff).length;
+    const cutoff = Date.now() - 7 * 86400000;
+    const hunts = (profile.attendance_history || []).filter((a: any) => attEventTime(a) >= cutoff).length;
+    const acts = (profile.activity_attendance || []).filter((a: any) => attEventTime(a) >= cutoff).length;
     return hunts + acts;
   })();
   const events30d = (() => {
     if (!profile) return 0;
-    const now = Date.now();
-    const cutoff = now - 30 * 86400000;
-    const hunts = (profile.attendance_history || []).filter((a: any) => new Date(a.created_at).getTime() >= cutoff).length;
-    const acts = (profile.activity_attendance || []).filter((a: any) => new Date(a.created_at).getTime() >= cutoff).length;
+    const cutoff = Date.now() - 30 * 86400000;
+    const hunts = (profile.attendance_history || []).filter((a: any) => attEventTime(a) >= cutoff).length;
+    const acts = (profile.activity_attendance || []).filter((a: any) => attEventTime(a) >= cutoff).length;
     return hunts + acts;
   })();
   const [eventsRange, setEventsRange] = useState<"weekly" | "monthly" | "all">("weekly");
 
   const weekEvents = useMemo(() => {
     if (!profile) return 0;
-    const hunts = (profile.attendance_history || []).filter((a: any) => new Date(a.created_at).getTime() >= weekStart.getTime()).length;
-    const acts = (profile.activity_attendance || []).filter((a: any) => new Date(a.created_at).getTime() >= weekStart.getTime()).length;
+    const cutoff = weekStart.getTime();
+    const hunts = (profile.attendance_history || []).filter((a: any) => attEventTime(a) >= cutoff).length;
+    const acts = (profile.activity_attendance || []).filter((a: any) => attEventTime(a) >= cutoff).length;
     return hunts + acts;
   }, [profile, weekStart]);
   const monthEvents = useMemo(() => {
     if (!profile) return 0;
-    const hunts = (profile.attendance_history || []).filter((a: any) => new Date(a.created_at).getTime() >= monthStart.getTime()).length;
-    const acts = (profile.activity_attendance || []).filter((a: any) => new Date(a.created_at).getTime() >= monthStart.getTime()).length;
+    const cutoff = monthStart.getTime();
+    const hunts = (profile.attendance_history || []).filter((a: any) => attEventTime(a) >= cutoff).length;
+    const acts = (profile.activity_attendance || []).filter((a: any) => attEventTime(a) >= cutoff).length;
     return hunts + acts;
   }, [profile, monthStart]);
 
-  const eventsDisplay = eventsRange === "weekly" ? weekEvents : eventsRange === "monthly" ? monthEvents : totalEvents;
+  // Use the server-scoped RPC value for weekly display (matches MembersView progress tab)
+  const serverWeekEvents = memberAttendanceWeek;
+  const eventsDisplay = eventsRange === "weekly" ? serverWeekEvents : eventsRange === "monthly" ? monthEvents : totalEvents;
   const eventsLabel = eventsRange === "weekly" ? "This Week" : eventsRange === "monthly" ? "This Month" : "All Time";
   const fmtShortDate = (d: Date) => d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-  // Period-specific absences
-  const weekAbsences = Math.max(0, totalEventsWeek - weekEvents);
+  // Period-specific absences (use server-scoped value for weekly)
+  const weekAbsences = Math.max(0, totalEventsWeek - serverWeekEvents);
   const monthAbsences = Math.max(0, totalEventsMonth - monthEvents);
   const allAbsences = Math.max(0, totalEventsSinceJoined - totalEvents);
   const displayAbsences = eventsRange === "weekly" ? weekAbsences : eventsRange === "monthly" ? monthAbsences : allAbsences;
@@ -388,7 +423,7 @@ export function MemberProfileView() {
     const growth = profile.cp_growth_30d ?? 0;
     s += Math.min(30, Math.max(0, growth / 100));
     s += Math.max(0, 20 - daysSinceActive * 1.5);
-    const recent = (profile.attendance_history || []).filter((a: any) => new Date(a.created_at).getTime() > Date.now() - 14 * 86400000);
+    const recent = (profile.attendance_history || []).filter((a: any) => attEventTime(a) > Date.now() - 14 * 86400000);
     s += Math.min(10, recent.length * 2);
     return Math.round(Math.min(100, Math.max(0, s)));
   }, [profile, totalEvents, daysSinceActive]);
@@ -436,15 +471,15 @@ export function MemberProfileView() {
       lines.push({ text: `CP has been steady — keep pushing to grow stronger.`, colorClass: "text-[#a1a1aa]" });
     }
 
-    // Attendance commentary — based on weekly performance
+    // Attendance commentary — based on weekly performance (uses server-scoped RPC value)
     if (totalEventsWeek > 0) {
-      const pct = Math.round((weekEvents / totalEventsWeek) * 100);
+      const pct = Math.round((serverWeekEvents / totalEventsWeek) * 100);
       if (pct >= 80) {
-        lines.push({ text: `Excellent attendance — ${weekEvents}/${totalEventsWeek} events this week (${pct}%).`, colorClass: "text-green-400" });
+        lines.push({ text: `Excellent attendance — ${serverWeekEvents}/${totalEventsWeek} events this week (${pct}%).`, colorClass: "text-green-400" });
       } else if (pct >= 50) {
-        lines.push({ text: `Good attendance — ${weekEvents}/${totalEventsWeek} events this week (${pct}%).`, colorClass: "text-amber-400" });
-      } else if (weekEvents > 0) {
-        lines.push({ text: `Low attendance — only ${weekEvents}/${totalEventsWeek} events this week (${pct}%).`, colorClass: "text-[#a1a1aa]" });
+        lines.push({ text: `Good attendance — ${serverWeekEvents}/${totalEventsWeek} events this week (${pct}%).`, colorClass: "text-amber-400" });
+      } else if (serverWeekEvents > 0) {
+        lines.push({ text: `Low attendance — only ${serverWeekEvents}/${totalEventsWeek} events this week (${pct}%).`, colorClass: "text-[#a1a1aa]" });
       } else {
         lines.push({ text: `Missed all ${totalEventsWeek} events this week — time to catch up!`, colorClass: "text-red-400" });
       }
@@ -499,9 +534,9 @@ export function MemberProfileView() {
       const start = now - (w + 1) * 7 * 86400000;
       const end = now - w * 7 * 86400000;
       const attCount = (profile.attendance_history || []).filter((a: any) => {
-        const t = new Date(a.created_at).getTime(); return t >= start && t < end;
+        const t = attEventTime(a); return t >= start && t < end;
       }).length + (profile.activity_attendance || []).filter((a: any) => {
-        const t = new Date(a.created_at).getTime(); return t >= start && t < end;
+        const t = attEventTime(a); return t >= start && t < end;
       }).length;
       const weekUps = approvedUpdates.filter((u: CpUpdate) => {
         const t = new Date(u.submitted_at).getTime(); return t >= start && t < end;
@@ -541,8 +576,8 @@ export function MemberProfileView() {
         label: bucketDays >= 7
           ? new Date(start).toLocaleDateString("en-US", { month: "short", day: "numeric" })
           : new Date(start).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
-        hunts: (profile.attendance_history || []).filter((a: any) => { const t = new Date(a.created_at).getTime(); return t >= start && t < end; }).length,
-        activities: (profile.activity_attendance || []).filter((a: any) => { const t = new Date(a.created_at).getTime(); return t >= start && t < end; }).length,
+        hunts: (profile.attendance_history || []).filter((a: any) => { const t = attEventTime(a); return t >= start && t < end; }).length,
+        activities: (profile.activity_attendance || []).filter((a: any) => { const t = attEventTime(a); return t >= start && t < end; }).length,
         loot: (profile.loot_history || []).filter((l: any) => { const t = new Date(l.distributed_at).getTime(); return t >= start && t < end; }).length,
       });
     }

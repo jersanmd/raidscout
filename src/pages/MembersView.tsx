@@ -129,17 +129,27 @@ export function MembersView() {
     }
   };
 
-  // Server timezone for week boundary (matches MemberProfileView)
+  // Server timezone for week boundary
   const serverTz = currentServer?.timezone || "UTC";
   const weekStartISO = (() => {
     const now = new Date();
-    const local = now.toLocaleString("en-US", { timeZone: serverTz });
-    const d = new Date(local);
-    const day = d.getDay();
-    const mondayOffset = day === 0 ? 6 : day - 1;
-    d.setDate(d.getDate() - mondayOffset);
-    d.setHours(0, 0, 0, 0);
-    return d.toISOString();
+    // Get server-local wall-clock date/time
+    const serverStr = now.toLocaleString("sv-SE", { timeZone: serverTz, hour12: false });
+    const [sDate, sTime] = serverStr.split(" ");
+    const [sy, sm, sd] = sDate.split("-").map(Number);
+    const [sh, smm, ss] = sTime.split(":").map(Number);
+    // Get UTC date/time for the same instant
+    const utcStr = now.toLocaleString("sv-SE", { timeZone: "UTC", hour12: false });
+    const [uDate, uTime] = utcStr.split(" ");
+    const [uy, um, ud] = uDate.split("-").map(Number);
+    const [uh, umm, us2] = uTime.split(":").map(Number);
+    // Compute offset: server wall-clock ms - UTC wall-clock ms
+    const offsetMs = Date.UTC(sy, sm - 1, sd, sh, smm, ss) - Date.UTC(uy, um - 1, ud, uh, umm, us2);
+    // Monday 00:00 in server TZ as UTC
+    const dayOfWeek = new Date(Date.UTC(sy, sm - 1, sd) - offsetMs).getUTCDay();
+    const mondayOffset = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+    const mondayUtc = Date.UTC(sy, sm - 1, sd - mondayOffset, 0, 0, 0) - offsetMs;
+    return new Date(mondayUtc).toISOString();
   })();
 
   // Fetch member scores & growth from RPC
@@ -159,18 +169,20 @@ export function MembersView() {
     enabled: !!serverId && configured,
   });
 
-  // Fetch weekly attendance counts per member (numerator — same as MemberProfileView)
+  // Fetch weekly attendance counts per member (numerator — uses RPC for consistency with profile page)
   const { data: weeklyStats = {} } = useQuery<Record<string, number>>({
     queryKey: ["weeklyAttendance", serverId, weekStartISO],
     queryFn: async () => {
       if (!serverId || !configured) return {};
-      const [{ data: attendance }, { data: activityAttendance }] = await Promise.all([
-        supabase.from("attendance_records").select("member_id").eq("server_id", serverId).gte("created_at", weekStartISO),
-        supabase.from("activity_attendance").select("member_id").eq("server_id", serverId).gte("created_at", weekStartISO),
-      ]);
+      const { data, error } = await supabase.rpc("get_weekly_attendance", {
+        p_server_id: serverId,
+        p_since: weekStartISO,
+      });
+      if (error || !data) return {};
       const attended: Record<string, number> = {};
-      (attendance || []).forEach((a: any) => { attended[a.member_id] = (attended[a.member_id] || 0) + 1; });
-      (activityAttendance || []).forEach((a: any) => { attended[a.member_id] = (attended[a.member_id] || 0) + 1; });
+      (data as { member_id: string; count: number }[]).forEach(r => {
+        attended[r.member_id] = (attended[r.member_id] || 0) + r.count;
+      });
       return attended;
     },
     staleTime: 120_000,
