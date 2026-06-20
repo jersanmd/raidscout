@@ -20,7 +20,7 @@ export function AddActivityModal({ open, onClose }: Props) {
   useEscapeKey(onClose, open);
 
   const [guilds, setGuilds] = useState<Guild[]>([]);
-  const [guildMode, setGuildMode] = useState<"none" | "rotation" | "daily" | "schedule">("rotation");
+  const [guildMode, setGuildMode] = useState<"none" | "rotation" | "daily" | "schedule" | "all">("rotation");
   const [selectedGuildIds, setSelectedGuildIds] = useState<string[]>([]);
   const [scheduleDays, setScheduleDays] = useState<Record<number, string | null>>({});
   const [submitting, setSubmitting] = useState(false);
@@ -45,6 +45,7 @@ export function AddActivityModal({ open, onClose }: Props) {
     queryClient.invalidateQueries({ queryKey: ["activities", currentServer.id] });
     queryClient.invalidateQueries({ queryKey: ["activity_instances", currentServer.id] });
     queryClient.invalidateQueries({ queryKey: ["activities-all", currentServer.id] });
+    queryClient.invalidateQueries({ queryKey: ["activity_guilds"] });
     onClose();
   };
 
@@ -57,6 +58,9 @@ export function AddActivityModal({ open, onClose }: Props) {
           .filter(([, gid]) => gid !== null && gid !== undefined)
           .map(([day, gid]) => ({ guild_id: gid as string, day_of_week: parseInt(day) }));
         if (assignments.length > 0) await setActivityGuilds(activityId, assignments, "schedule", currentServer?.id);
+      } else if (guildMode === "all") {
+        const assignments = guilds.map(g => ({ guild_id: g.id }));
+        await setActivityGuilds(activityId, assignments, "all", currentServer?.id);
       } else {
         if (selectedGuildIds.length === 0) { setSubmitting(false); return; }
         const assignments = selectedGuildIds.map((gid, i) => ({ guild_id: gid, sort_order: i + 1 }));
@@ -70,7 +74,7 @@ export function AddActivityModal({ open, onClose }: Props) {
   };
 
   const addGuild = (guildId: string) => {
-    if (!guildId || selectedGuildIds.includes(guildId)) return;
+    if (!guildId) return;
     setSelectedGuildIds(prev => [...prev, guildId]);
   };
   const removeGuild = (guildId: string) => setSelectedGuildIds(prev => prev.filter(id => id !== guildId));
@@ -90,7 +94,7 @@ export function AddActivityModal({ open, onClose }: Props) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/60" onClick={onClose} />
-      <div className="relative bg-[#18181b] border border-[#27272a] rounded-xl w-full max-w-lg shadow-2xl max-h-[90vh] flex flex-col">
+      <div className="relative bg-[#09090b] border border-[#27272a] rounded-xl w-full max-w-2xl shadow-2xl max-h-[90vh] flex flex-col">
         <div className="flex items-center justify-between p-4 border-b border-[#27272a]">
           <h2 className="text-base font-semibold text-[#fafafa]">Add Custom Activity</h2>
           <button
@@ -127,16 +131,17 @@ export function AddActivityModal({ open, onClose }: Props) {
                 <select
                   value={guildMode}
                   onChange={(e) => {
-                    setGuildMode(e.target.value as "none" | "rotation" | "daily" | "schedule");
+                    setGuildMode(e.target.value as "none" | "rotation" | "daily" | "schedule" | "all");
                     setSelectedGuildIds([]);
                     setScheduleDays({});
                   }}
-                  className="flex-1 bg-[#09090b] border border-[#3f3f46] rounded px-2 py-1.5 text-xs text-[#fafafa] outline-none focus:ring-1 focus:ring-[#52525b]"
+                  className="flex-1 bg-[#18181b] border border-[#3f3f46] rounded px-2 py-1.5 text-xs text-[#fafafa] outline-none focus:ring-1 focus:ring-[#52525b]"
                 >
                   <option value="none">None</option>
-                  <option value="rotation">Rotation (per kill)</option>
+                  <option value="rotation">Rotation (per finish)</option>
                   <option value="daily">Daily (per day)</option>
                   <option value="schedule">Schedule</option>
+                  <option value="all">All Guilds</option>
                 </select>
               </div>
 
@@ -146,7 +151,7 @@ export function AddActivityModal({ open, onClose }: Props) {
                   {selectedGuildIds.map((gid, idx) => {
                     const guild = guilds.find(g => g.id === gid);
                     return (
-                      <div key={gid} className="flex items-center gap-1 bg-[#09090b]/50 rounded px-2 py-1.5">
+                      <div key={`${gid}-${idx}`} className="flex items-center gap-1 bg-[#09090b]/50 rounded px-2 py-1.5">
                         <span className="text-[10px] text-[#71717a] w-4">{idx + 1}.</span>
                         <span className="text-xs text-[#e4e4e7] flex-1">{guild?.name ?? "Unknown"}</span>
                         <button onClick={() => moveGuild(gid, "up")} disabled={idx === 0} className="p-0.5 text-[#71717a] hover:text-[#a1a1aa] disabled:opacity-30"><ChevronUp className="w-3 h-3" /></button>
@@ -155,16 +160,14 @@ export function AddActivityModal({ open, onClose }: Props) {
                       </div>
                     );
                   })}
-                  {availableGuilds.length > 0 && (
                     <select
                       value=""
                       onChange={(e) => addGuild(e.target.value)}
-                      className="w-full bg-[#09090b] border border-[#3f3f46] rounded px-2 py-1.5 text-xs text-[#a1a1aa] outline-none focus:ring-1 focus:ring-[#52525b]"
+                      className="w-full bg-[#18181b] border border-[#3f3f46] rounded px-2 py-1.5 text-xs text-[#a1a1aa] outline-none focus:ring-1 focus:ring-[#52525b]"
                     >
                       <option value="">+ Add guild...</option>
-                      {availableGuilds.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+                      {guilds.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
                     </select>
-                  )}
                 </div>
               )}
 
@@ -177,7 +180,7 @@ export function AddActivityModal({ open, onClose }: Props) {
                       <select
                         value={scheduleDays[i] ?? ""}
                         onChange={(e) => setScheduleDays(prev => ({ ...prev, [i]: e.target.value || null }))}
-                        className="flex-1 bg-[#09090b] border border-[#3f3f46] rounded px-2 py-1.5 text-xs text-[#a1a1aa] outline-none focus:ring-1 focus:ring-[#52525b]"
+                        className="flex-1 bg-[#18181b] border border-[#3f3f46] rounded px-2 py-1.5 text-xs text-[#a1a1aa] outline-none focus:ring-1 focus:ring-[#52525b]"
                       >
                         <option value="">—</option>
                         {guilds.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}

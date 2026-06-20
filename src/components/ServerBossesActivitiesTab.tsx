@@ -127,14 +127,16 @@ export function ServerBossesActivitiesTab({ mode = "all" }: { mode?: "all" | "bo
   };
   const availableGuilds = guilds.filter(g => !selectedGuildIds.includes(g.id));
 
-  const handleToggleBoss = async (id: string, enabled: boolean) => {
-    await toggleBossEnabled(id, enabled);
+  const handleToggleBoss = async (id: string, enabled: boolean, bossName?: string) => {
+    await toggleBossEnabled(id, enabled, serverId, bossName);
+    toast("success", `${bossName || "Boss"} ${enabled ? "enabled" : "disabled"}`);
     queryClient.invalidateQueries({ queryKey: ["bosses-all", serverId] });
     queryClient.invalidateQueries({ queryKey: ["bosses"] });
   };
 
-  const handleToggleActivity = async (id: string, enabled: boolean) => {
-    await toggleActivityEnabled(id, enabled);
+  const handleToggleActivity = async (id: string, enabled: boolean, activityName?: string) => {
+    await toggleActivityEnabled(id, enabled, serverId, activityName);
+    toast("success", `${activityName || "Activity"} ${enabled ? "enabled" : "disabled"}`);
     queryClient.invalidateQueries({ queryKey: ["activities-all", serverId] });
     queryClient.invalidateQueries({ queryKey: ["activities"] });
     queryClient.invalidateQueries({ queryKey: ["activity-guilds", serverId] });
@@ -431,7 +433,7 @@ export function ServerBossesActivitiesTab({ mode = "all" }: { mode?: "all" | "bo
                 {canManage && (
                   <div className="flex items-center gap-1 shrink-0">
                     <button
-                      onClick={() => handleToggleBoss(boss.id, !boss.is_enabled)}
+                      onClick={() => handleToggleBoss(boss.id, !boss.is_enabled, boss.name)}
                       className="p-1 rounded hover:bg-[#27272a] transition"
                       title={boss.is_enabled ? "Disable" : "Enable"}
                     >
@@ -714,13 +716,12 @@ export function ServerBossesActivitiesTab({ mode = "all" }: { mode?: "all" | "bo
                   </div>
                   <span className="text-xs text-[#71717a]">
                     {activity.schedule_type} · {activity.points_per_participant}pts
-                    {activity.party_size ? ` · Party: ${activity.party_size}` : ""}
                   </span>
                 </div>
                 {canManage && (
                   <div className="flex items-center gap-1 shrink-0">
                     <button
-                      onClick={() => handleToggleActivity(activity.id, !activity.is_enabled)}
+                      onClick={() => handleToggleActivity(activity.id, !activity.is_enabled, activity.name)}
                       className="p-1 rounded hover:bg-[#27272a] transition"
                       title={activity.is_enabled ? "Disable" : "Enable"}
                     >
@@ -760,7 +761,6 @@ export function ServerBossesActivitiesTab({ mode = "all" }: { mode?: "all" | "bo
                       schedule: activity.schedule ?? null,
                       duration_minutes: activity.duration_minutes ?? null,
                       points_per_participant: activity.points_per_participant,
-                      party_size: activity.party_size ?? null,
                       category: (activity as any).category ?? null,
                       tags: (activity as any).tags ?? [],
                       image_url: activity.image_url ?? null,

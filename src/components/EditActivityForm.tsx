@@ -75,7 +75,6 @@ export function EditActivityForm({ activity, gameSlug, serverId, timezone, onSav
     return String(mins % 60);
   });
   const [pointsPerParticipant, setPointsPerParticipant] = useState(activity.points_per_participant);
-  const [partySize, setPartySize] = useState<number | null>(activity.party_size ?? null);
   const [category, setCategory] = useState(activity.category || "");
   const [tags, setTags] = useState<string[]>(activity.tags ?? []);
   const [imageUrl, setImageUrl] = useState<string | null>(activity.image_url ?? null);
@@ -101,13 +100,13 @@ export function EditActivityForm({ activity, gameSlug, serverId, timezone, onSav
         schedule: processedSchedule ?? null,
         duration_minutes: scheduleType === "fixed_hours" ? (parseInt(recurHours) || 0) * 60 + (parseInt(recurMinutes) || 0) : null,
         points_per_participant: isNaN(Number(pointsPerParticipant)) ? 1 : Number(pointsPerParticipant),
-        party_size: partySize,
+        party_size: null,
         category: category || null,
         tags,
       };
       if (imageUrl !== null) payload.image_url = imageUrl;
 
-      if (isServerMode) { await updateCustomActivity(activity.id, payload); } else { await updateActivityTemplate(activity.id, payload); }
+      if (isServerMode) { await updateCustomActivity(activity.id, payload, serverId); } else { await updateActivityTemplate(activity.id, payload); }
       onSaved();
     } finally {
       setSaving(false);
@@ -204,10 +203,6 @@ export function EditActivityForm({ activity, gameSlug, serverId, timezone, onSav
             </div>
           </div>
         )}
-        <div>
-          <label className="block text-xs text-[#71717a] mb-0.5">Party Size</label>
-          <input value={partySize ?? ""} onChange={e => setPartySize(e.target.value ? Number(e.target.value) : null)} type="number" className="w-full px-2.5 py-2 bg-[#09090b] border border-[#3f3f46] rounded text-sm text-[#fafafa] placeholder-[#52525b] focus:outline-none focus:ring-1 focus:ring-[#52525b]" />
-        </div>
         <div>
           <label className="block text-xs text-[#71717a] mb-0.5">Points per Participant</label>
           <input value={pointsPerParticipant} onChange={e => setPointsPerParticipant(e.target.value === "" ? 0 : Number(e.target.value))} type="number" className="w-full px-2.5 py-2 bg-[#09090b] border border-[#3f3f46] rounded text-sm text-[#fafafa] focus:outline-none focus:ring-1 focus:ring-[#52525b]" />

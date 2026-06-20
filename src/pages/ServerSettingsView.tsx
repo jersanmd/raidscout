@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams, Link as RouterLink } from "react-router-d
 import { useQueryClient } from "@tanstack/react-query";
 import { useServer } from "@/contexts/ServerContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { fetchAuditLog, AUDIT_ACTION_GROUPS, writeAuditEntry, AuditAction, deleteServer, transferServerOwnership, removeServerModerator, addServerModerator, supabase, fetchServerMembers, type ServerMember, fetchGuilds, createGuild, updateGuildName, deleteGuild, fetchBossGuilds, setBossGuilds, fetchAllBossGuildsForServer, upsertBossGuildPoints, batchSetGuildSalary, fetchBosses, setBossPoints, setBossSalary, notifyDiscord, fetchModeratorPermissions, updateModeratorPermissions, updateThreadConfig, fetchPointRules, createPointRule, updatePointRule, deletePointRule, fetchBossAssists, toggleBossAssist, fetchAllActivitiesForServer, fetchAllActivityGuildsForServer, upsertActivityGuildPoints, fetchActivityAssists, toggleActivityAssist, type ModeratorPermissions, DEFAULT_MODERATOR_PERMISSIONS } from "@/lib/supabase";
+import { fetchAuditLog, AUDIT_ACTION_GROUPS, writeAuditEntry, AuditAction, deleteServer, transferServerOwnership, removeServerModerator, addServerModerator, supabase, fetchServerMembers, type ServerMember, fetchGuilds, createGuild, updateGuildName, deleteGuild, fetchBossGuilds, setBossGuilds, fetchAllBossGuildsForServer, upsertBossGuildPoints, batchSetGuildSalary, fetchBosses, fetchAllBossesForServer, setBossPoints, setBossSalary, notifyDiscord, fetchModeratorPermissions, updateModeratorPermissions, updateThreadConfig, fetchPointRules, createPointRule, updatePointRule, deletePointRule, fetchBossAssists, toggleBossAssist, fetchAllActivitiesForServer, fetchAllActivityGuildsForServer, upsertActivityGuildPoints, fetchActivityAssists, toggleActivityAssist, type ModeratorPermissions, DEFAULT_MODERATOR_PERMISSIONS } from "@/lib/supabase";
 import type { Guild, BossGuild, Boss, PointRule, BossAssist, Activity, ActivityGuild, ActivityAssist } from "@/types";
 import { Loader2, Trash2, Crown, ArrowLeft, Server, Check, Key, Copy, RefreshCw, Plus, LogIn, Users, Bell, Link as LinkIcon, Settings, AlertTriangle, X, Shield, Pencil, Swords, ChevronUp, ChevronDown, CheckSquare, Square, Eye, EyeOff, UserPlus, Minus, Trophy, Send, Save, MessageCircle, Zap, Calendar, Search, Skull, CreditCard, Lock, Mail, MailCheck, MailWarning, ScrollText } from "lucide-react";
 import { ServerBossesActivitiesTab } from "@/components/ServerBossesActivitiesTab";
@@ -106,7 +106,7 @@ export function ServerSettingsView() {
       // Fetch bosses + guild assignments + boss points matrix
       setBossGuildsLoading(true);
       Promise.all([
-        fetchBosses(currentServer.id).catch(err => { console.error("Failed to fetch bosses:", err); return [] as Boss[]; }),
+        fetchAllBossesForServer(currentServer.id).catch(err => { console.error("Failed to fetch bosses:", err); return [] as Boss[]; }),
         fetchBossGuilds(currentServer.id).catch(err => { console.error("Failed to fetch boss guilds:", err); return [] as BossGuild[]; }),
         fetchAllBossGuildsForServer(currentServer.id).catch(err => { console.error("Failed to fetch all boss guilds:", err); return [] as BossGuild[]; }),
       ]).then(([b, bg, abg]) => {
@@ -357,7 +357,7 @@ export function ServerSettingsView() {
     try {
       if (mode === "none") {
         for (const bossId of selectedBossIds) {
-          await setBossGuilds(bossId, []);
+          await setBossGuilds(bossId, [], "rotation", currentServer?.id);
           setBossModes(prev => ({ ...prev, [bossId]: "none" }));
           setBossGuildsState(prev => prev.filter(bg => bg.boss_id !== bossId));
         }
@@ -365,7 +365,7 @@ export function ServerSettingsView() {
         return;
       }
       for (const bossId of selectedBossIds) {
-        await setBossGuilds(bossId, []);
+        await setBossGuilds(bossId, [], "rotation", currentServer?.id);
         setBossModes(prev => ({ ...prev, [bossId]: mode }));
         setBossGuildsState(prev => prev.filter(bg => bg.boss_id !== bossId));
       }
@@ -390,7 +390,7 @@ export function ServerSettingsView() {
       for (const bossId of selectedBossIds) {
         // Apply the full ordered list to each boss (replaces existing rotation)
         const newAssignments = newList.map((gid, i) => ({ guild_id: gid, sort_order: i + 1 }));
-        await setBossGuilds(bossId, newAssignments);
+        await setBossGuilds(bossId, newAssignments, "rotation", currentServer?.id);
         setBossModes(prev => ({ ...prev, [bossId]: "rotation" }));
       }
       const updated = await fetchBossGuilds(currentServer!.id);
@@ -410,7 +410,7 @@ export function ServerSettingsView() {
     try {
       for (const bossId of selectedBossIds) {
         const newAssignments = newList.map((gid, i) => ({ guild_id: gid, sort_order: i + 1 }));
-        await setBossGuilds(bossId, newAssignments, "daily");
+        await setBossGuilds(bossId, newAssignments, "daily", currentServer?.id);
         setBossModes(prev => ({ ...prev, [bossId]: "daily" }));
       }
       const updated = await fetchBossGuilds(currentServer!.id);
@@ -431,7 +431,7 @@ export function ServerSettingsView() {
         const existing = getBossGuildsForBoss(bossId).filter(bg => bg.day_of_week !== null && bg.day_of_week !== dayOfWeek);
         const newAssignments = existing.map(bg => ({ guild_id: bg.guild_id, day_of_week: bg.day_of_week! }));
         if (guildId) newAssignments.push({ guild_id: guildId, day_of_week: dayOfWeek });
-        await setBossGuilds(bossId, newAssignments, "schedule");
+        await setBossGuilds(bossId, newAssignments, "schedule", currentServer?.id);
         setBossModes(prev => ({ ...prev, [bossId]: newAssignments.length > 0 ? "schedule" : "none" }));
       }
       const updated = await fetchBossGuilds(currentServer!.id);
@@ -666,6 +666,8 @@ export function ServerSettingsView() {
         end_hour: newRuleEndHour,
         multiplier: newRuleMultiplier,
       });
+      const guildName = guilds.find(g => g.id === newRuleGuildId)?.name || newRuleGuildId;
+      writeAuditEntry({ action: AuditAction.POINT_RULE_CREATE, server_id: currentServer.id, target_id: rule.id, details: { guild_name: guildName, start_hour: newRuleStartHour, end_hour: newRuleEndHour, multiplier: newRuleMultiplier } });
       setPointRules(prev => [...prev, rule]);
       setShowAddRule(false);
       setNewRuleGuildId("");
@@ -683,6 +685,11 @@ export function ServerSettingsView() {
   const handleToggleRule = async (ruleId: string, enabled: boolean) => {
     try {
       await updatePointRule(ruleId, { enabled });
+      const rule = pointRules.find(r => r.id === ruleId);
+      if (rule) {
+        const guildName = guilds.find(g => g.id === rule.guild_id)?.name || rule.guild_id;
+        writeAuditEntry({ action: AuditAction.POINT_RULE_UPDATE, server_id: currentServer!.id, target_id: ruleId, details: { guild_name: guildName, enabled } });
+      }
       setPointRules(prev => prev.map(r => r.id === ruleId ? { ...r, enabled } : r));
     } catch (err: any) {
       toast("error", err?.message ?? "Failed to toggle rule");
@@ -691,7 +698,12 @@ export function ServerSettingsView() {
 
   const handleDeleteRule = async (ruleId: string) => {
     try {
+      const rule = pointRules.find(r => r.id === ruleId);
       await deletePointRule(ruleId);
+      if (rule) {
+        const guildName = guilds.find(g => g.id === rule.guild_id)?.name || rule.guild_id;
+        writeAuditEntry({ action: AuditAction.POINT_RULE_DELETE, server_id: currentServer!.id, target_id: ruleId, details: { guild_name: guildName } });
+      }
       setPointRules(prev => prev.filter(r => r.id !== ruleId));
       toast("success", "Rule deleted");
     } catch (err: any) {
@@ -825,6 +837,7 @@ export function ServerSettingsView() {
     setAddingGuild(true);
     try {
       const g = await createGuild(name, currentServer.id);
+      writeAuditEntry({ action: AuditAction.GUILD_CREATE, server_id: currentServer.id, target_id: g.id, details: { guild_name: name } });
       setGuilds(prev => [...prev, g].sort((a, b) => a.name.localeCompare(b.name)));
       setNewGuildName("");
       toast("success", `Guild "${name}" created`);
@@ -845,6 +858,7 @@ export function ServerSettingsView() {
     }
     try {
       await updateGuildName(id, name);
+      writeAuditEntry({ action: AuditAction.GUILD_UPDATE, server_id: currentServer.id, target_id: id, details: { guild_name: name, old_name: oldName } });
       setGuilds(prev => prev.map(g => g.id === id ? { ...g, name } : g).sort((a, b) => a.name.localeCompare(b.name)));
       setEditingGuildId(null);
       toast("success", `Guild renamed to "${name}"`);
@@ -856,6 +870,7 @@ export function ServerSettingsView() {
   const handleDeleteGuild = async (id: string, name: string) => {
     try {
       await deleteGuild(id);
+      writeAuditEntry({ action: AuditAction.GUILD_DELETE, server_id: currentServer.id, target_id: id, details: { guild_name: name } });
       setGuilds(prev => prev.filter(g => g.id !== id));
       toast("success", `Guild "${name}" deleted`);
     } catch (err: any) {
@@ -887,7 +902,7 @@ export function ServerSettingsView() {
     try {
       // Clear local state immediately so stale rows don't leak into schedule handlers
       setBossGuildsState(prev => prev.filter(bg => bg.boss_id !== bossId));
-      await setBossGuilds(bossId, []);
+      await setBossGuilds(bossId, [], "rotation", currentServer?.id);
     } catch (err: any) {
       toast("error", err?.message ?? "Failed to set mode");
       // Revert the mode change on error
@@ -903,7 +918,7 @@ export function ServerSettingsView() {
       const existing = getBossGuildsForBoss(bossId).filter(bg => bg.sort_order !== null && bg.sort_order > 0);
       const nextOrder = existing.length > 0 ? Math.max(...existing.map(bg => bg.sort_order ?? 0)) + 1 : 1;
       const newAssignments = [...existing.map(bg => ({ guild_id: bg.guild_id, sort_order: bg.sort_order! })), { guild_id: guildId, sort_order: nextOrder }];
-      await setBossGuilds(bossId, newAssignments, "rotation");
+      await setBossGuilds(bossId, newAssignments, "rotation", currentServer?.id);
       const updated = await fetchBossGuilds(currentServer!.id);
       setBossGuildsState(updated);
       setBossModes(prev => ({ ...prev, [bossId]: "rotation" }));
@@ -918,7 +933,7 @@ export function ServerSettingsView() {
     // Remove the specific entry by its ID (supports duplicate guilds in rotation)
     const existing = getBossGuildsForBoss(bossId).filter(bg => bg.id !== entryId);
     const reordered = existing.map((bg, i) => ({ guild_id: bg.guild_id, sort_order: i + 1 }));
-    await setBossGuilds(bossId, reordered, "rotation");
+    await setBossGuilds(bossId, reordered, "rotation", currentServer?.id);
     const updated = await fetchBossGuilds(currentServer!.id);
     setBossGuildsState(updated);
     if (reordered.length === 0) setBossModes(prev => ({ ...prev, [bossId]: "none" }));
@@ -933,7 +948,7 @@ export function ServerSettingsView() {
     const swapIdx = direction === "up" ? idx - 1 : idx + 1;
     [existing[idx], existing[swapIdx]] = [existing[swapIdx], existing[idx]];
     const reordered = existing.map((bg, i) => ({ guild_id: bg.guild_id, sort_order: i + 1 }));
-    await setBossGuilds(bossId, reordered, "rotation");
+    await setBossGuilds(bossId, reordered, "rotation", currentServer?.id);
     const updated = await fetchBossGuilds(currentServer!.id);
     setBossGuildsState(updated);
   };
@@ -945,7 +960,7 @@ export function ServerSettingsView() {
       const existing = getBossGuildsForBoss(bossId);
       const nextOrder = existing.length > 0 ? Math.max(...existing.map(bg => bg.sort_order ?? 0)) + 1 : 1;
       const newAssignments = [...existing.map(bg => ({ guild_id: bg.guild_id, sort_order: bg.sort_order! })), { guild_id: guildId, sort_order: nextOrder }];
-      await setBossGuilds(bossId, newAssignments, "daily");
+      await setBossGuilds(bossId, newAssignments, "daily", currentServer?.id);
       const updated = await fetchBossGuilds(currentServer!.id);
       setBossGuildsState(updated);
       setBossModes(prev => ({ ...prev, [bossId]: "daily" }));
@@ -959,7 +974,7 @@ export function ServerSettingsView() {
   const handleRemoveDailyGuild = async (bossId: string, entryId: string) => {
     const existing = getBossGuildsForBoss(bossId).filter(bg => bg.id !== entryId);
     const reordered = existing.map((bg, i) => ({ guild_id: bg.guild_id, sort_order: i + 1 }));
-    await setBossGuilds(bossId, reordered, "daily");
+    await setBossGuilds(bossId, reordered, "daily", currentServer?.id);
     const updated = await fetchBossGuilds(currentServer!.id);
     setBossGuildsState(updated);
     if (reordered.length === 0) setBossModes(prev => ({ ...prev, [bossId]: "none" }));
@@ -974,7 +989,7 @@ export function ServerSettingsView() {
     const swapIdx = direction === "up" ? idx - 1 : idx + 1;
     [existing[idx], existing[swapIdx]] = [existing[swapIdx], existing[idx]];
     const reordered = existing.map((bg, i) => ({ guild_id: bg.guild_id, sort_order: i + 1 }));
-    await setBossGuilds(bossId, reordered, "daily");
+    await setBossGuilds(bossId, reordered, "daily", currentServer?.id);
     const updated = await fetchBossGuilds(currentServer!.id);
     setBossGuildsState(updated);
   };
@@ -1001,7 +1016,7 @@ export function ServerSettingsView() {
     setBossModes(prev => ({ ...prev, [bossId]: newAssignments.length > 0 ? "schedule" : "none" }));
 
     try {
-      await setBossGuilds(bossId, newAssignments, "schedule");
+      await setBossGuilds(bossId, newAssignments, "schedule", currentServer?.id);
       // Trust the optimistic update — don't refetch (edge function may return stale data)
     } catch (err: any) {
       // Revert on failure
@@ -1394,13 +1409,8 @@ export function ServerSettingsView() {
               )}
             </div>
             <p className="text-xs text-[#71717a]">
-              Assign guilds to bosses and set custom points per boss.
-              Rotation mode alternates guilds each spawn.
+              Assign guilds to bosses. Rotation mode alternates guilds each spawn.
               Schedule mode assigns a guild per day of the week.
-            </p>
-            <p className="text-xs text-[#a1a1aa]/80 flex items-center gap-1">
-              <Trophy className="w-3 h-3" />
-              The <span className="text-[#fafafa] font-mono">- 1 +</span> controls set <strong>boss points</strong> — each attendee earns this many points per kill on the leaderboard.
             </p>
             <div className="flex items-center gap-3 text-xs flex-wrap">
               <div className="flex items-center gap-3 text-[#71717a]">
@@ -1408,17 +1418,16 @@ export function ServerSettingsView() {
                 <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-violet-400" /> Fixed Schedule</span>
                 <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-amber-400" /> One-time</span>
               </div>
-              <div className="flex-1" />
-              <div className="relative">
-                <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-[#52525b]" />
-                <input
-                  type="text"
-                  placeholder="Search bosses..."
-                  value={bossSearch}
-                  onChange={(e) => setBossSearch(e.target.value)}
-                  className="w-40 bg-[#18181b] border border-[#27272a] rounded pl-7 pr-2 py-1 text-xs text-[#fafafa] placeholder-[#52525b] outline-none focus:border-[#52525b] transition"
-                />
-              </div>
+            </div>
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#52525b]" />
+              <input
+                type="text"
+                placeholder="Search bosses..."
+                value={bossSearch}
+                onChange={(e) => setBossSearch(e.target.value)}
+                className="w-full pl-8 pr-3 py-2 bg-[#18181b] border border-[#27272a] rounded-lg text-xs text-[#fafafa] placeholder-[#52525b] focus:outline-none focus:border-[#52525b]"
+              />
             </div>
 
             {bossGuildsLoading ? (
@@ -1458,6 +1467,9 @@ export function ServerSettingsView() {
                           boss.spawn_type === "one_time" ? "bg-amber-400" :
                           "bg-emerald-400"
                         }`} title={boss.spawn_type === "fixed_schedule" ? "Fixed Schedule" : boss.spawn_type === "one_time" ? "One-time" : "Fixed Hours"} />
+                        {boss.image_url ? (
+                          <img src={boss.image_url} alt={boss.name} className="w-5 h-5 rounded object-cover border border-[#27272a] shrink-0" />
+                        ) : null}
                         <span className="text-xs text-[#fafafa] font-medium flex-1 truncate">{boss.name}</span>
                         <span className={`text-xs px-1.5 py-0.5 rounded ${
                           mode === "rotation" ? "text-[#a1a1aa] bg-[#18181b]" :
@@ -1469,57 +1481,6 @@ export function ServerSettingsView() {
                            mode === "daily" ? `Daily (${bossAssignments.length})` :
                            mode === "schedule" ? "Schedule" : "None"}
                         </span>
-                        {/* Boss Points */}
-                        <span className="flex items-center gap-0.5 shrink-0" onClick={(e) => e.stopPropagation()}>
-                          <span
-                            onClick={async () => {
-                              const val = Math.max(0, (boss.boss_points ?? 1) - 1);
-                              try {
-                                await setBossPoints(boss.id, val);
-                                queryClient.invalidateQueries({ queryKey: ["bosses"] });
-                                setBosses(prev => prev.map(b => b.id === boss.id ? { ...b, boss_points: val } : b));
-                              } catch (err: any) {
-                                toast("error", err?.message ?? "Failed to update points");
-                              }
-                            }}
-                            className={`p-0.5 rounded cursor-pointer transition ${(boss.boss_points ?? 1) <= 0 ? "text-[#3f3f46] cursor-default" : "text-[#71717a] hover:text-[#f87171]"}`}
-                            role="button"
-                            tabIndex={0}
-                            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.currentTarget.click(); } }}
-                          >
-                            <Minus className="w-3 h-3" />
-                          </span>
-                          <span className="text-xs text-[#fafafa] font-mono w-5 text-center tabular-nums">{boss.boss_points ?? 1}</span>
-                          <span
-                            onClick={async () => {
-                              const val = Math.min(99, (boss.boss_points ?? 1) + 1);
-                              try {
-                                await setBossPoints(boss.id, val);
-                                queryClient.invalidateQueries({ queryKey: ["bosses"] });
-                                setBosses(prev => prev.map(b => b.id === boss.id ? { ...b, boss_points: val } : b));
-                              } catch (err: any) {
-                                toast("error", err?.message ?? "Failed to update points");
-                              }
-                            }}
-                            className={`p-0.5 rounded cursor-pointer transition ${(boss.boss_points ?? 1) >= 99 ? "text-[#3f3f46] cursor-default" : "text-[#71717a] hover:text-[#a1a1aa]"}`}
-                            role="button"
-                            tabIndex={0}
-                            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.currentTarget.click(); } }}
-                          >
-                            <Plus className="w-3 h-3" />
-                          </span>
-                        </span>
-                        <span className="text-[#52525b] mx-1">|</span>
-                        {/* Salary toggle (deprecated — per-guild salary now in Boss Points tab) */}
-                        <label className="flex items-center gap-1 cursor-not-allowed shrink-0 opacity-40" title="Salary is now per-guild — use the Boss Points tab">
-                          <input
-                            type="checkbox"
-                            checked={(boss as any).has_salary === true}
-                            disabled
-                            className="w-3 h-3 rounded border-[#3f3f46] bg-[#18181b] text-[#52525b]"
-                          />
-                          <span className="text-[10px] text-[#52525b]">Sal</span>
-                        </label>
                         {!bossMultiMode && (isExpanded ? <ChevronUp className="w-4 h-4 text-[#71717a]" /> : <ChevronDown className="w-4 h-4 text-[#71717a]" />)}
                       </button>
 
@@ -1996,6 +1957,7 @@ export function ServerSettingsView() {
               setSavingCell(cellKey);
               try {
                 await upsertBossGuildPoints(bossId, guildId, points, undefined);
+                writeAuditEntry({ action: AuditAction.BOSS_GUILD_POINTS_EDIT, server_id: currentServer!.id, target_id: bossId, details: { boss_name: sortedBosses.find(b => b.id === bossId)?.name || bossId, guild_name: guilds.find(g => g.id === guildId)?.name || guildId, points } });
                 setAllBossGuilds(prev => {
                   const existing = prev.find(bg => bg.boss_id === bossId && bg.guild_id === guildId);
                   if (existing) {
@@ -2013,6 +1975,7 @@ export function ServerSettingsView() {
               setSavingCell(cellKey);
               try {
                 await upsertBossGuildPoints(bossId, guildId, undefined, hasSalary);
+                writeAuditEntry({ action: AuditAction.BOSS_GUILD_SALARY_EDIT, server_id: currentServer!.id, target_id: bossId, details: { boss_name: sortedBosses.find(b => b.id === bossId)?.name || bossId, guild_name: guilds.find(g => g.id === guildId)?.name || guildId, has_salary: hasSalary } });
                 setAllBossGuilds(prev => {
                   const existing = prev.find(bg => bg.boss_id === bossId && bg.guild_id === guildId);
                   if (existing) {
@@ -2028,6 +1991,7 @@ export function ServerSettingsView() {
             onBatchSalaryChange={async (guildId, bossIds, hasSalary) => {
               try {
                 await batchSetGuildSalary(guildId, bossIds, hasSalary);
+                writeAuditEntry({ action: AuditAction.BOSS_GUILD_SALARY_BATCH, server_id: currentServer!.id, target_id: guildId, details: { guild_name: guilds.find(g => g.id === guildId)?.name || guildId, boss_count: bossIds.length, has_salary: hasSalary } });
                 const updated = await fetchAllBossGuildsForServer(currentServer!.id);
                 setAllBossGuilds(updated);
               } catch (err: any) {
@@ -2037,6 +2001,7 @@ export function ServerSettingsView() {
             onAssistToggle={async (bossId, ownerGuildId, assistantGuildId) => {
               try {
                 const added = await toggleBossAssist(bossId, ownerGuildId, assistantGuildId, currentServer!.id);
+                writeAuditEntry({ action: AuditAction.BOSS_ASSIST_TOGGLE, server_id: currentServer!.id, target_id: bossId, details: { boss_name: sortedBosses.find(b => b.id === bossId)?.name || bossId, owner_guild: guilds.find(g => g.id === ownerGuildId)?.name, assistant_guild: guilds.find(g => g.id === assistantGuildId)?.name, added } });
                 if (added) {
                   setBossAssists(prev => [...prev, { id: "", boss_id: bossId, owner_guild_id: ownerGuildId, assistant_guild_id: assistantGuildId, server_id: currentServer!.id, created_at: new Date().toISOString() } as BossAssist]);
                 } else {
@@ -2053,6 +2018,95 @@ export function ServerSettingsView() {
 
       {/* Activity Points Tab */}
       {tab === "activity-points" && (
+        <>
+          {/* Point Rules — shared with Boss Points */}
+          <section className="bg-[#09090b] border border-[#27272a] rounded-xl p-4 space-y-4 mb-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-[#a1a1aa] uppercase tracking-wider flex items-center gap-1.5">
+                <Zap className="w-3 h-3" /> Point Rules
+              </h3>
+              <button
+                onClick={() => setShowAddRule(!showAddRule)}
+                className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-[#fafafa] text-[#09090b] hover:bg-[#e4e4e7] transition"
+              >
+                <Plus className="w-3 h-3" />
+                Add Rule
+              </button>
+            </div>
+            <p className="text-xs text-[#71717a]">
+              Time-based multipliers that boost guild points during specific hours (server timezone). Applies to both bosses and activities.
+            </p>
+
+            {/* Add Rule Form */}
+            {showAddRule && (
+              <div className="bg-[#18181b]/50 border border-[#27272a] rounded-lg p-3 space-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                  <div>
+                    <label className="text-[10px] text-[#71717a] block mb-1">Guild</label>
+                    <select value={newRuleGuildId} onChange={e => setNewRuleGuildId(e.target.value)} className="w-full bg-[#18181b] border border-[#27272a] rounded-lg px-2.5 py-1.5 text-xs text-[#fafafa]">
+                      <option value="">Select guild...</option>
+                      {guilds.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-[#71717a] block mb-1">Start Hour</label>
+                    <select value={newRuleStartHour} onChange={e => setNewRuleStartHour(Number(e.target.value))} className="w-full bg-[#18181b] border border-[#27272a] rounded-lg px-2.5 py-1.5 text-xs text-[#fafafa]">
+                      {Array.from({ length: 24 }, (_, i) => <option key={i} value={i}>{i.toString().padStart(2, "0")}:00</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-[#71717a] block mb-1">End Hour</label>
+                    <select value={newRuleEndHour} onChange={e => setNewRuleEndHour(Number(e.target.value))} className="w-full bg-[#18181b] border border-[#27272a] rounded-lg px-2.5 py-1.5 text-xs text-[#fafafa]">
+                      {Array.from({ length: 24 }, (_, i) => <option key={i} value={i}>{i.toString().padStart(2, "0")}:00</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-[#71717a] block mb-1">Multiplier</label>
+                    <select value={newRuleMultiplier} onChange={e => setNewRuleMultiplier(Number(e.target.value))} className="w-full bg-[#18181b] border border-[#27272a] rounded-lg px-2.5 py-1.5 text-xs text-[#fafafa]">
+                      {[1.5, 2, 2.5, 3, 4, 5].map(m => <option key={m} value={m}>{m}x</option>)}
+                    </select>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={handleAddPointRule} disabled={!newRuleGuildId || savingRule} className="flex-1 px-3 py-1.5 rounded-lg text-xs font-medium bg-[#fafafa] text-[#09090b] hover:bg-[#e4e4e7] disabled:opacity-50 transition">
+                    {savingRule ? "Saving..." : "Save Rule"}
+                  </button>
+                  <button onClick={() => setShowAddRule(false)} className="px-3 py-1.5 rounded-lg text-xs text-[#a1a1aa] hover:text-[#fafafa] transition">Cancel</button>
+                </div>
+              </div>
+            )}
+
+            {/* Existing Rules */}
+            {rulesLoading ? (
+              <div className="flex items-center justify-center py-3"><Loader2 className="w-4 h-4 text-[#71717a] animate-spin" /></div>
+            ) : pointRules.length === 0 ? (
+              <p className="text-xs text-[#52525b]">No point rules yet. Add one above to boost guild points during specific hours.</p>
+            ) : (
+              <div className="space-y-2">
+                {pointRules.map(rule => {
+                  const guild = guilds.find(g => g.id === rule.guild_id);
+                  const cfg = rule.config;
+                  return (
+                    <div key={rule.id} className={`flex items-center justify-between bg-[#18181b]/30 rounded-lg px-3 py-2.5 gap-3 ${!rule.enabled ? "opacity-50" : ""}`}>
+                      <div className="flex items-center gap-3 min-w-0">
+                        <label className="flex items-center gap-2 cursor-pointer shrink-0">
+                          <input type="checkbox" checked={rule.enabled} onChange={() => handleToggleRule(rule.id, !rule.enabled)} className="w-3.5 h-3.5 rounded border-[#3f3f46] bg-[#18181b] text-[#a1a1aa] focus:ring-[#52525b]/50 cursor-pointer" />
+                        </label>
+                        <span className="text-xs font-medium text-[#fafafa] truncate">{guild?.name || "Unknown"}</span>
+                        <span className="text-[10px] text-[#71717a] shrink-0">{String(cfg.start_hour).padStart(2, "0")}:00 – {String(cfg.end_hour).padStart(2, "0")}:00</span>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="text-xs font-mono text-[#a1a1aa] font-bold">{cfg.multiplier}x</span>
+                        <button onClick={() => handleDeleteRule(rule.id)} className="p-1 rounded text-[#71717a] hover:text-[#f87171] hover:bg-red-900/20 transition" title="Delete rule">
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </section>
         <div className="space-y-4">
           <section className="bg-[#09090b] border border-[#27272a] rounded-xl p-3 sm:p-4 space-y-3">
             <h3 className="text-xs font-semibold text-[#a1a1aa] uppercase tracking-wider flex items-center gap-1.5">
@@ -2072,6 +2126,7 @@ export function ServerSettingsView() {
                   setSavingCell(cellKey);
                   try {
                     await upsertActivityGuildPoints(activityId, guildId, points, undefined);
+                    writeAuditEntry({ action: AuditAction.ACTIVITY_GUILD_POINTS_EDIT, server_id: currentServer!.id, target_id: activityId, details: { activity_name: activities.find(a => a.id === activityId)?.name || activityId, guild_name: guilds.find(g => g.id === guildId)?.name || guildId, points } });
                     setAllActivityGuilds(prev => {
                       const existing = prev.find(ag => ag.activity_id === activityId && ag.guild_id === guildId);
                       if (existing) return prev.map(ag => ag.activity_id === activityId && ag.guild_id === guildId ? { ...ag, points } : ag);
@@ -2087,6 +2142,7 @@ export function ServerSettingsView() {
                   setSavingCell(cellKey);
                   try {
                     await upsertActivityGuildPoints(activityId, guildId, undefined, hasSalary);
+                    writeAuditEntry({ action: AuditAction.ACTIVITY_GUILD_SALARY_EDIT, server_id: currentServer!.id, target_id: activityId, details: { activity_name: activities.find(a => a.id === activityId)?.name || activityId, guild_name: guilds.find(g => g.id === guildId)?.name || guildId, has_salary: hasSalary } });
                     setAllActivityGuilds(prev => {
                       const existing = prev.find(ag => ag.activity_id === activityId && ag.guild_id === guildId);
                       if (existing) return prev.map(ag => ag.activity_id === activityId && ag.guild_id === guildId ? { ...ag, has_salary: hasSalary } : ag);
@@ -2100,6 +2156,7 @@ export function ServerSettingsView() {
                 onAssistToggle={async (activityId, ownerGuildId, assistantGuildId) => {
                   try {
                     const added = await toggleActivityAssist(activityId, ownerGuildId, assistantGuildId, currentServer!.id);
+                    writeAuditEntry({ action: AuditAction.ACTIVITY_ASSIST_TOGGLE, server_id: currentServer!.id, target_id: activityId, details: { activity_name: activities.find(a => a.id === activityId)?.name || activityId, owner_guild: guilds.find(g => g.id === ownerGuildId)?.name, assistant_guild: guilds.find(g => g.id === assistantGuildId)?.name, added } });
                     if (added) {
                       setActivityAssists(prev => [...prev, { id: "", activity_id: activityId, owner_guild_id: ownerGuildId, assistant_guild_id: assistantGuildId, server_id: currentServer!.id, created_at: new Date().toISOString() } as ActivityAssist]);
                     } else {
@@ -2113,6 +2170,7 @@ export function ServerSettingsView() {
             )}
           </section>
         </div>
+        </>
       )}
 
       {/* Members Tab */}
@@ -3344,12 +3402,12 @@ function BossPointsMatrix({
 
 export function ServerActivityLogTab({ serverId, timezone = "UTC" }: { serverId: string; timezone?: string }) {
   // Action types hidden from the owner filter (still appear in log)
-  const HIDDEN_ACTIONS = new Set(["boss_toggle", "activity_toggle"]);
+  const HIDDEN_ACTIONS = new Set<string>([]);
 
   // All visible action types across categories
   const allActions = useMemo(() =>
     AUDIT_ACTION_GROUPS
-      .filter(g => !["Admin", "Subscription", "Server"].includes(g.label))
+      .filter(g => !["Subscription", "Server"].includes(g.label))
       .flatMap(g => g.actions)
       .filter(a => !HIDDEN_ACTIONS.has(a)),
   []);
@@ -3466,26 +3524,38 @@ export function ServerActivityLogTab({ serverId, timezone = "UTC" }: { serverId:
       case "moderator_remove": return d.target_email || "Moderator removed";
       case "mod_perms_update": return d.target_email || d.target_user_id?.substring(0,8) + "…" || "—";
       case "ownership_transfer": return `Owner changed`;
-      case "boss_create": case "boss_update": case "boss_delete": return d.boss_name || d.name || "—";
+      case "boss_create": case "boss_update": return `${d.boss_name || d.name || "—"}${d.spawn_type ? ` · ${d.spawn_type}` : ""}${d.respawn_hours ? ` · ${d.respawn_hours}h` : ""}${d.points != null ? ` · ${d.points}pts` : ""}${d.changes ? ` · ${d.changes}` : ""}`;
+      case "boss_delete": return d.boss_name || d.name || "—";
       case "boss_toggle": return `${d.boss_name || "?"} ${d.enabled ? "enabled" : "disabled"}`;
-      case "boss_time_edit": return `${d.boss_name || "?"}: time changed${d.new_time ? ` to ${d.new_time}` : ""}${d.direction ? ` (${d.direction > 0 ? "+" : ""}${d.direction})` : ""}`;
+      case "boss_time_edit": return `${d.boss_name || d.activity_name || "?"}: ${d.old_time && d.new_time ? `${d.old_time} → ${d.new_time}` : d.new_time ? `changed to ${d.new_time}` : "time changed"}${d.direction ? ` (${d.direction > 0 ? "+" : ""}${d.direction})` : ""}`;
       case "boss_rotation_advance": return `${d.boss_name || "?"}: rotation advanced${d.target_guild ? ` to ${d.target_guild}` : ""}${d.mode ? ` (${d.mode})` : ""}`;
       case "boss_guilds_set": return `Boss guilds updated${d.boss_name ? ` for "${d.boss_name}"` : ""}${d.guild_count ? ` (${d.guild_count} guilds, ${d.mode})` : ""}`;
       case "boss_spawn_set": return `${d.boss_name || "?"}: spawn set to ${d.spawn_date || "?"}`;
-      case "activity_create": case "activity_update": case "activity_delete": return d.activity_name || d.name || "—";
+      case "activity_create": case "activity_update": return `${d.activity_name || d.name || "—"}${d.schedule_type ? ` · ${d.schedule_type}` : ""}${d.points != null ? ` · ${d.points}pts` : ""}${d.party_size ? ` · ${d.party_size}p` : ""}${d.changes ? ` · ${d.changes}` : ""}`;
+      case "activity_delete": return d.activity_name || d.name || "—";
       case "activity_toggle": return `${d.activity_name || "?"} ${d.enabled ? "enabled" : "disabled"}${d.reason ? ` (${d.reason})` : ""}`;
       case "activity_time_edit": return `Activity time edited${d.activity_name ? ` for "${d.activity_name}"` : ""}`;
       case "activity_finalize": case "activity_end_record": return `${d.activity_name || "?"} completed${d.attendees ? ` (${d.attendees} attendees)` : ""}${d.end_time ? ` at ${d.end_time}` : ""}`;
       case "activity_guilds_set": return `Activity guilds updated${d.activity_name ? ` for "${d.activity_name}"` : ""}${d.guild_count ? ` (${d.guild_count} guilds, ${d.mode})` : ""}`;
       case "activity_rotation_advance": return `Activity rotation advanced${d.activity_name ? ` for "${d.activity_name}"` : ""}${d.rotated_to ? ` → ${d.rotated_to}` : ""}`;
+      case "boss_guild_points_edit": return `${d.boss_name || "?"} · ${d.guild_name || "?"}: points → ${d.points ?? "—"}`;
+      case "boss_guild_salary_edit": return `${d.boss_name || "?"} · ${d.guild_name || "?"}: salary ${d.has_salary ? "ON" : "OFF"}`;
+      case "boss_guild_salary_batch": return `${d.guild_name || "?"}: salary ${d.has_salary ? "ON" : "OFF"} for ${d.boss_count ?? 0} bosses`;
+      case "boss_assist_toggle": return `${d.boss_name || "?"}: ${d.assistant_guild || "?"} ${d.added ? "added as" : "removed from"} assist${d.owner_guild ? ` (owner: ${d.owner_guild})` : ""}`;
+      case "activity_guild_points_edit": return `${d.activity_name || "?"} · ${d.guild_name || "?"}: points → ${d.points ?? "—"}`;
+      case "activity_guild_salary_edit": return `${d.activity_name || "?"} · ${d.guild_name || "?"}: salary ${d.has_salary ? "ON" : "OFF"}`;
+      case "activity_assist_toggle": return `${d.activity_name || "?"}: ${d.assistant_guild || "?"} ${d.added ? "added as" : "removed from"} assist${d.owner_guild ? ` (owner: ${d.owner_guild})` : ""}`;
+      case "guild_create": return `Guild "${d.guild_name || "?"}" created`;
+      case "guild_update": return `Guild "${d.old_name || "?"}" → "${d.guild_name || "?"}"`;
+      case "guild_delete": return `Guild "${d.guild_name || "?"}" deleted`;
       case "gear_equip": return `${d.member_name || "?"} equipped ${d.item_name || "?"}${d.enhancement ? ` (+${d.enhancement})` : ""}`;
       case "gear_unequip": return `${d.member_name || "?"} unequipped ${d.item_name || "?"}`;
       case "item_create": case "item_update": case "item_delete": return `${d.item_name || d.name || "?"}${d.type ? ` (${d.type})` : ""}`;
       case "item_distribute": return `${d.item_name || "?"} → ${d.player_name || "?"}${d.quantity ? ` x${d.quantity}` : ""}`;
       case "item_approve": case "item_reject": return d.item_name || "—";
-      case "party_create": case "party_delete": return d.party_name || d.name || "—";
-      case "party_assign": return `${d.party_name || "?"}${d.guild_name ? ` (${d.guild_name})` : ""} assigned to ${d.boss_name || "?"}`;
-      case "party_unlink": return `${d.party_name || "?"}${d.guild_name ? ` (${d.guild_name})` : ""} unlinked`;
+      case "party_create": case "party_delete": return `${d.party_name || d.name || "—"}${d.guild_name ? ` (${d.guild_name})` : ""}`;
+      case "party_assign": return `${d.party_name || "?"}${d.guild_name ? ` (${d.guild_name})` : ""} assigned to ${d.boss_name || d.activity_name || "?"}`;
+      case "party_unlink": return `${d.party_name || "?"}${d.guild_name ? ` (${d.guild_name})` : ""} unlinked from ${d.boss_name || "?"}`;
       case "party_member_add": return `${d.member_name || "?"} added to party`;
       case "party_member_remove": return `${d.member_name || "?"} removed from party`;
       case "party_leaders_set": return `Party leaders set for ${d.boss_name || "?"}: ${d.leaders || "—"}`;
@@ -3495,8 +3565,8 @@ export function ServerActivityLogTab({ serverId, timezone = "UTC" }: { serverId:
       case "leaderboard_reset": return `Leaderboard reset (${d.period || "?"})`;
       case "leaderboard_adjust_points": return `${d.points != null ? (d.points > 0 ? "+" : "") + d.points + " pts" : "?"}${d.reason ? ` — ${d.reason}` : ""}`;
       case "leaderboard_reset_guild": return `Guild points reset: ${d.deleted_attendance ?? 0} attendance, ${d.deleted_adjustments ?? 0} adjustments`;
-      case "point_rule_create": case "point_rule_update": return `Point rule ${d.rule_type || "?"}: ${d.enabled !== undefined ? (d.enabled ? "enabled" : "disabled") : "updated"}`;
-      case "point_rule_delete": return `Point rule deleted`;
+      case "point_rule_create": case "point_rule_update": return `Point rule for ${d.guild_name || "?"}: ${d.enabled !== undefined ? (d.enabled ? "enabled" : "disabled") : `${d.multiplier ?? "?"}x · ${d.start_hour ?? "?"}:00–${d.end_hour ?? "?"}:00`}`;
+      case "point_rule_delete": return `Point rule for ${d.guild_name || "?"} deleted`;
       case "death_guild_set": return `Display guild set to ${d.guild_name || "?"}`;
       case "death_guild_clear": return `Display guild cleared`;
       case "death_time_edit": return `${d.boss_name || "?"}: death time edited`;
@@ -3504,10 +3574,12 @@ export function ServerActivityLogTab({ serverId, timezone = "UTC" }: { serverId:
         const entries = Object.entries(d).filter(([k]) => k !== "discord_user");
         return entries.map(([k,v]) => `${k.replace(/_/g, " ")}: ${v}`).join(", ") || "Settings updated";
       }
+      case "viewer_edit_toggle": return `Viewer can edit spawns: ${d.enabled ? "ON" : "OFF"}`;
+      case "viewer_mark_died_toggle": return `Viewer can mark died: ${d.enabled ? "ON" : "OFF"}`;
       case "invite_regenerate": return "Regenerated invite code";
       case "viewer_key_regenerate": return "Regenerated viewer key";
       case "seed_from_game": return `${d.game_name || "?"}: ${d.bosses ?? 0} bosses, ${d.activities ?? 0} activities seeded`;
-      case "force_spawn": return `${d.boss_name || `${d.boss_count ?? 0} bosses`} force-spawned`;
+      case "force_spawn": return `${d.boss_name || d.activity_name || `${d.boss_count ?? 0} bosses`} force-spawned`;
       case "subscription_extend": return `+${d.days ?? 30} days`;
       case "game_create": case "game_update": case "game_delete": return d.game_name || "—";
       case "server_create": case "server_delete": case "server_restore": return d.server_name || "—";

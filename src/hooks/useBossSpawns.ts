@@ -1,8 +1,9 @@
-import { useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMemo, useEffect } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useBosses } from "./useBosses";
 import { useDeathRecords } from "./useDeathRecords";
 import { fetchSpawnOverrides } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase";
 import { useServerId } from "@/contexts/ServerContext";
 import type { Boss, DeathRecord, BossWithSpawn } from "@/types";
 import { calculateSpawnInfo } from "@/lib/spawnCalculator";
@@ -11,6 +12,7 @@ export function useBossSpawns(filterText: string = "", filterType: string = "all
   const { data: bosses = [], isLoading: bossesLoading } = useBosses();
   const { data: deathRecords = [], isLoading: recordsLoading } = useDeathRecords();
   const serverId = useServerId();
+  const queryClient = useQueryClient();
 
   const { data: overrides = [] } = useQuery({
     queryKey: ["spawn_overrides", serverId],
@@ -18,6 +20,25 @@ export function useBossSpawns(filterText: string = "", filterType: string = "all
     staleTime: 10_000,
     enabled: !!serverId,
   });
+
+  // Realtime subscription for boss_spawn_overrides (forcespawn)
+  useEffect(() => {
+    if (!serverId) return;
+    const channelName = `spawn-overrides-${serverId}-${Date.now()}`;
+    const channel = supabase
+      .channel(channelName)
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "boss_spawn_overrides" }, () => {
+        queryClient.invalidateQueries({ queryKey: ["spawn_overrides", serverId] });
+      })
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "boss_spawn_overrides" }, () => {
+        queryClient.invalidateQueries({ queryKey: ["spawn_overrides", serverId] });
+      })
+      .on("postgres_changes", { event: "DELETE", schema: "public", table: "boss_spawn_overrides" }, () => {
+        queryClient.invalidateQueries({ queryKey: ["spawn_overrides", serverId] });
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel).catch(() => {}); };
+  }, [serverId, queryClient]);
 
   const overrideMap = useMemo(() => {
     const map = new Map<string, { death_time: string }>();

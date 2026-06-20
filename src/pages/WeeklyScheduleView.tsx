@@ -31,7 +31,8 @@ import { useActivities } from "@/hooks/useActivities";
 import { writeAuditEntry, AuditAction } from "@/lib/api/audit";
 import { useCopyAttendance } from "@/hooks/useAttendance";
 import { calculateActivityInfo } from "@/lib/activityCalculator";
-import type { WeekDaySpawns, SpawnInfo, Boss, BossGuild, Guild, ActivityInstance, ActivityInfo, Activity } from "@/types";
+import { fetchDeathsInWindow } from "@/lib/api/deaths";
+import type { WeekDaySpawns, SpawnInfo, Boss, BossGuild, Guild, ActivityInstance, ActivityInfo, Activity, DeathRecord } from "@/types";
 
 export function WeeklyScheduleView() {
   const { currentServer } = useServer();
@@ -47,62 +48,83 @@ export function WeeklyScheduleView() {
     refetchDeaths();
   }, []);
 
+  const queryClient = useQueryClient();
+  const [weekOffset, setWeekOffset] = useState(0);
+  const [weekLoading, setWeekLoading] = useState(false);
+  useEffect(() => { setWeekLoading(false); }, [weekOffset]);
+
+  // Compute the Monday of the displayed week (matches useMemo below)
+  const weekMonday = useMemo(() => {
+    const now = new Date();
+    const ref = new Date(now);
+    ref.setDate(ref.getDate() + weekOffset * 7);
+    const dow = ref.getDay();
+    const dist = dow === 0 ? 6 : dow - 1;
+    const mon = new Date(ref);
+    mon.setDate(ref.getDate() - dist);
+    mon.setHours(0, 0, 0, 0);
+    return mon;
+  }, [weekOffset]);
+
+  // Sunday 23:59:59 of the displayed week
+  const weekSunday = useMemo(() => {
+    const sun = new Date(weekMonday);
+    sun.setDate(sun.getDate() + 6);
+    sun.setHours(23, 59, 59, 999);
+    return sun;
+  }, [weekMonday]);
+
+  // Fetch ALL deaths in the displayed week (not just latest per boss)
+  const { data: windowDeaths = [] } = useQuery<DeathRecord[]>({
+    queryKey: ["deaths_in_window", currentServer?.id, weekMonday.toISOString()],
+    queryFn: async () => {
+      if (!currentServer?.id) return [];
+      return await fetchDeathsInWindow(weekMonday, weekSunday, currentServer.id);
+    },
+    staleTime: 30_000,
+    enabled: !!currentServer?.id,
+  });
+
+  // Merge: latest-per-boss (for spawn calc) + all-in-window (for per-day death events)
+  const allDeathRecords = useMemo(() => {
+    const seen = new Map<string, DeathRecord>();
+    for (const dr of deathRecords) seen.set(dr.id, dr);
+    for (const dr of windowDeaths) { if (!seen.has(dr.id)) seen.set(dr.id, dr); }
+    return [...seen.values()];
+  }, [deathRecords, windowDeaths]);
+
   // Batch-fetch attendance counts for death records in the current week
   const deathRecordIds = useMemo(() =>
-    [...new Set(deathRecords.filter(dr => !dr.is_initial_spawn).map(dr => dr.id))],
-  [deathRecords]);
+    [...new Set(allDeathRecords.filter(dr => !dr.is_initial_spawn).map(dr => dr.id))],
+  [allDeathRecords]);
   const { data: attendanceCounts, isLoading: attendanceLoading } = useQuery({
     queryKey: ["attendance_counts", deathRecordIds],
     queryFn: async () => {
       if (!deathRecordIds.length) return new Map<string, number>();
       const map = new Map<string, number>();
       const sid = getCurrentServerId();
-      // Batch via edge function to bypass RLS (works for viewers too)
       for (let i = 0; i < deathRecordIds.length; i += 100) {
         const batch = deathRecordIds.slice(i, i + 100);
         try {
           const resp = await fetch(`${supabaseUrl}/functions/v1/get-attendance`, {
             method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "Authorization": `Bearer ${supabaseKey}`,
-              "apikey": supabaseKey,
-            },
+            headers: { "Content-Type": "application/json", "Authorization": `Bearer ${supabaseKey}`, "apikey": supabaseKey },
             body: JSON.stringify({ death_record_ids: batch, server_id: sid }),
           });
           if (!resp.ok) { console.warn("attendance batch edge fn error:", resp.status); continue; }
           const data = await resp.json();
-          for (const r of (data ?? [])) {
-            map.set(r.death_record_id, (map.get(r.death_record_id) || 0) + 1);
-          }
-        } catch (err) {
-          console.warn("attendance batch fetch failed:", err);
-        }
+          for (const r of (data ?? [])) { map.set(r.death_record_id, (map.get(r.death_record_id) || 0) + 1); }
+        } catch (err) { console.warn("attendance batch fetch failed:", err); }
       }
       return map;
     },
     enabled: deathRecordIds.length > 0,
     staleTime: 30_000,
   });
-  const queryClient = useQueryClient();
-  const [weekOffset, setWeekOffset] = useState(0);
-  const [weekLoading, setWeekLoading] = useState(false);
-  useEffect(() => { setWeekLoading(false); }, [weekOffset]);
 
-  // Disable Previous Week if no death records exist before the displayed week
-  // Always allow navigating back from future weeks
-  const prevWeekDisabled = useMemo(() => {
-    if (weekOffset > 0) return false; // future weeks: always allow going back
-    const now = new Date();
-    const refDate = new Date(now);
-    refDate.setDate(refDate.getDate() + weekOffset * 7);
-    const dayOfWeek = refDate.getDay();
-    const daysFromMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
-    const monday = new Date(refDate);
-    monday.setDate(refDate.getDate() - daysFromMonday);
-    monday.setHours(0, 0, 0, 0);
-    return !deathRecords.some(dr => !dr.is_initial_spawn && new Date(dr.death_time) < monday);
-  }, [deathRecords, weekOffset]);
+  // No limit on scrolling back — user can go as far as their data exists
+  const prevWeekDisabled = false;
+  const nextWeekDisabled = weekOffset >= 4;
 
   // Selected death for participant modal
   const [selectedDeath, setSelectedDeath] = useState<{
@@ -321,6 +343,7 @@ export function WeeklyScheduleView() {
 
   const weekDays = useMemo(() => {
     const now = new Date();
+    // deathMap: latest per boss (for spawn calculation in step 2)
     const deathMap = new Map([...deathRecords].reverse().map((d) => [d.boss_id, d]));
     const bossMap = new Map(bosses.map((b) => [b.id, b]));
 
@@ -345,7 +368,7 @@ export function WeeklyScheduleView() {
       const addedBossIds = new Set<string>();
 
       // ── 1. Death events (from history) for ALL boss types ──
-      for (const dr of deathRecords) {
+      for (const dr of allDeathRecords) {
         if (dr.is_initial_spawn) continue;
         if (new Date(dr.death_time).toDateString() !== date.toDateString()) continue;
         const boss = bossMap.get(dr.boss_id);
@@ -434,9 +457,7 @@ export function WeeklyScheduleView() {
     }
 
     for (const a of activities) {
-      // Include enabled activities + finished ones (one_time gets disabled after finish)
       const info = calculateActivityInfo(a, lastInstanceMap.get(a.id) ?? null);
-      if (!a.is_enabled && !lastInstanceMap.get(a.id)?.end_time) continue;
       const activityDate = info.startTime;
       // Find which day this activity falls on
       for (const day of days) {
@@ -471,7 +492,7 @@ export function WeeklyScheduleView() {
     }
 
     return days;
-  }, [bosses, deathRecords, weekOffset, activities, activityInstances]);
+  }, [bosses, deathRecords, allDeathRecords, weekOffset, activities, activityInstances]);
 
   const isLoading = bossesLoading || recordsLoading || guildsLoading || attendanceLoading;
 
@@ -537,7 +558,7 @@ export function WeeklyScheduleView() {
         <div className="flex items-center gap-3">
           <button onClick={() => { setWeekLoading(true); setWeekOffset(w => w - 1); }} disabled={prevWeekDisabled} className="px-3 py-1.5 rounded-lg text-xs bg-[#18181b] border border-[#27272a] text-[#d4d4d8] hover:bg-[#27272a] disabled:opacity-30 disabled:cursor-not-allowed transition">← Previous Week</button>
           <span className="text-sm text-[#a1a1aa] font-medium">{weekOffset === 0 ? "This Week" : weekOffset === 1 ? "Next Week" : weekOffset > 0 ? `${weekOffset} weeks ahead` : weekOffset === -1 ? "Last Week" : `${Math.abs(weekOffset)} weeks ago`}</span>
-          <button onClick={() => { setWeekLoading(true); setWeekOffset(w => w + 1); }} disabled={weekOffset >= 4} className="px-3 py-1.5 rounded-lg text-xs bg-[#18181b] border border-[#27272a] text-[#d4d4d8] hover:bg-[#27272a] disabled:opacity-30 disabled:cursor-not-allowed transition">Next Week →</button>
+          <button onClick={() => { setWeekLoading(true); setWeekOffset(w => w + 1); }} disabled={nextWeekDisabled} className="px-3 py-1.5 rounded-lg text-xs bg-[#18181b] border border-[#27272a] text-[#d4d4d8] hover:bg-[#27272a] disabled:opacity-30 disabled:cursor-not-allowed transition">Next Week →</button>
         </div>
       </div>
 

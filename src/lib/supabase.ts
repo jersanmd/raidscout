@@ -147,6 +147,7 @@ export {
   addMemberToParty,
   removeMemberFromParty,
   assignPartyToBoss,
+  assignPartyToActivity,
   unlinkParty,
 } from "./api/parties";
 export type { StaticParty } from "./api/parties";

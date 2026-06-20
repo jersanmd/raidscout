@@ -97,8 +97,12 @@ function UpcomingSlot({
 
   return (
     <div className={`relative flex items-center gap-3 p-4 ${threatLevel === "critical" ? "boss-card-urgent" : threatLevel === "warning" ? "boss-card-warning" : ""}`}>
-      {/* Minimal monochrome avatar */}
-      <BossImage bossName={spawn.boss.name} size="sm" />
+      {/* Boss image or generated icon */}
+      {spawn.boss.image_url ? (
+        <img src={spawn.boss.image_url} alt={spawn.boss.name} className="w-14 h-14 rounded-xl object-cover border border-[#27272a] shrink-0" />
+      ) : (
+        <BossImage bossName={spawn.boss.name} size="sm" />
+      )}
 
       {/* Name + time */}
       <div className="min-w-0 flex-1">

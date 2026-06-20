@@ -95,7 +95,7 @@ export async function createCustomBoss(
     p_image_url: data.image_url ?? null,
   });
   if (error) throw error;
-  writeAuditEntry({ action: AuditAction.BOSS_CREATE, server_id: serverId, target_id: id as string, details: { boss_name: data.name } });
+  writeAuditEntry({ action: AuditAction.BOSS_CREATE, server_id: serverId, target_id: id as string, details: { boss_name: data.name, spawn_type: data.spawn_type, respawn_hours: data.respawn_hours, points: data.boss_points, category: data.category } });
   return { id: id as string } as Boss;
 }
 
@@ -118,11 +118,20 @@ export async function createCustomActivity(
     p_image_url: data.image_url ?? null,
   });
   if (error) throw error;
-  writeAuditEntry({ action: AuditAction.ACTIVITY_CREATE, server_id: serverId, target_id: id as string, details: { activity_name: data.name } });
+  writeAuditEntry({ action: AuditAction.ACTIVITY_CREATE, server_id: serverId, target_id: id as string, details: { activity_name: data.name, schedule_type: data.schedule_type, points: data.points_per_participant, duration: data.duration_minutes, party_size: data.party_size, category: data.category } });
   return { id: id as string } as Activity;
 }
 
 export async function updateCustomBoss(id: string, updates: Record<string, any>, serverId?: string): Promise<void> {
+  // Fetch old values for audit diff
+  let old: any = {};
+  try {
+    const { data } = await supabase.from("bosses")
+      .select("name, spawn_type, respawn_hours, boss_points, category")
+      .eq("id", id).single();
+    old = data || {};
+  } catch { /* non-critical */ }
+
   const { error } = await supabase.rpc("update_custom_boss", {
     p_boss_id: id,
     p_name: updates.name ?? null,
@@ -136,10 +145,29 @@ export async function updateCustomBoss(id: string, updates: Record<string, any>,
     p_image_url: updates.image_url ?? null,
   });
   if (error) throw error;
-  if (serverId) writeAuditEntry({ action: AuditAction.BOSS_UPDATE, server_id: serverId, target_id: id, details: { boss_name: updates.name || id, changed: Object.keys(updates).filter(k => k !== "name").join(", ") } });
+
+  const newName = updates.name || old.name || id;
+  const fieldLabels: Record<string, string> = { name: "name", spawn_type: "spawn type", respawn_hours: "respawn", boss_points: "points", category: "category" };
+  const changes: string[] = [];
+  for (const [k, label] of Object.entries(fieldLabels)) {
+    const newVal = updates[k];
+    if (newVal != null && String(newVal) !== String(old[k] ?? "")) {
+      changes.push(`${label}: ${old[k] ?? "—"} → ${newVal}`);
+    }
+  }
+  writeAuditEntry({ action: AuditAction.BOSS_UPDATE, server_id: serverId!, target_id: id, details: { boss_name: newName, changes: changes.join(", ") || "fields updated" } });
 }
 
 export async function updateCustomActivity(id: string, updates: Record<string, any>, serverId?: string): Promise<void> {
+  // Fetch old values for audit diff
+  let old: any = {};
+  try {
+    const { data } = await supabase.from("activities")
+      .select("name, schedule_type, points_per_participant, party_size, duration_minutes, category")
+      .eq("id", id).single();
+    old = data || {};
+  } catch { /* non-critical */ }
+
   const { error } = await supabase.rpc("update_custom_activity", {
     p_activity_id: id,
     p_name: updates.name ?? null,
@@ -153,19 +181,29 @@ export async function updateCustomActivity(id: string, updates: Record<string, a
     p_image_url: updates.image_url ?? null,
   });
   if (error) throw error;
-  if (serverId) writeAuditEntry({ action: AuditAction.ACTIVITY_UPDATE, server_id: serverId, target_id: id, details: { activity_name: updates.name || id, changed: Object.keys(updates).filter(k => k !== "name").join(", ") } });
+
+  const newName = updates.name || old.name || id;
+  const fieldLabels: Record<string, string> = { name: "name", schedule_type: "schedule type", points_per_participant: "points", party_size: "party size", duration_minutes: "duration", category: "category" };
+  const changes: string[] = [];
+  for (const [k, label] of Object.entries(fieldLabels)) {
+    const newVal = updates[k];
+    if (newVal != null && String(newVal) !== String(old[k] ?? "")) {
+      changes.push(`${label}: ${old[k] ?? "—"} → ${newVal}`);
+    }
+  }
+  writeAuditEntry({ action: AuditAction.ACTIVITY_UPDATE, server_id: serverId!, target_id: id, details: { activity_name: newName, changes: changes.join(", ") || "fields updated" } });
 }
 
 export async function toggleBossEnabled(id: string, enabled: boolean, serverId?: string, bossName?: string): Promise<void> {
   const { error } = await supabase.rpc("toggle_boss_enabled", { p_boss_id: id, p_enabled: enabled });
   if (error) throw error;
-  if (serverId) writeAuditEntry({ action: AuditAction.BOSS_TOGGLE, server_id: serverId, target_id: id, details: { boss_name: bossName || id, enabled } });
+  writeAuditEntry({ action: AuditAction.BOSS_TOGGLE, server_id: serverId!, target_id: id, details: { boss_name: bossName || id, enabled } });
 }
 
 export async function toggleActivityEnabled(id: string, enabled: boolean, serverId?: string, activityName?: string): Promise<void> {
   const { error } = await supabase.rpc("toggle_activity_enabled", { p_activity_id: id, p_enabled: enabled });
   if (error) throw error;
-  if (serverId) writeAuditEntry({ action: AuditAction.ACTIVITY_TOGGLE, server_id: serverId, target_id: id, details: { activity_name: activityName || id, enabled } });
+  writeAuditEntry({ action: AuditAction.ACTIVITY_TOGGLE, server_id: serverId!, target_id: id, details: { activity_name: activityName || id, enabled } });
 }
 
 export async function finishActivity(activityId: string, serverId?: string, activityName?: string): Promise<void> {
@@ -376,7 +414,16 @@ export async function setBossGuilds(
     });
     if (error) console.warn("Failed to re-insert points-only row:", error);
   }
-  if (serverId) writeAuditEntry({ action: AuditAction.BOSS_GUILDS_SET, server_id: serverId, target_id: bossId, details: { boss_name: bossName || bossId, mode, guild_count: assignments.length } });
+  if (serverId) {
+    let name = bossName || null;
+    if (!name) {
+      try {
+        const { data } = await supabase.from("bosses").select("name").eq("id", bossId).single();
+        name = (data as any)?.name || null;
+      } catch { /* use null as fallback */ }
+    }
+    writeAuditEntry({ action: AuditAction.BOSS_GUILDS_SET, server_id: serverId, target_id: bossId, details: { boss_name: name || bossId, mode, guild_count: assignments.length } });
+  }
 }
 
 export async function upsertBossGuildPoints(

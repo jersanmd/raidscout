@@ -49,7 +49,16 @@ export async function setActivityGuilds(
     const { error } = await supabase.from("activity_guilds").insert(rows);
     if (error) throw error;
   }
-  if (serverId) writeAuditEntry({ action: AuditAction.ACTIVITY_GUILDS_SET, server_id: serverId, target_id: activityId, details: { activity_name: activityName || activityId, mode, guild_count: assignments.length } });
+  if (serverId) {
+    let name = activityName || null;
+    if (!name) {
+      try {
+        const { data } = await supabase.from("activities").select("name").eq("id", activityId).single();
+        name = (data as any)?.name || null;
+      } catch { /* use null as fallback */ }
+    }
+    writeAuditEntry({ action: AuditAction.ACTIVITY_GUILDS_SET, server_id: serverId, target_id: activityId, details: { activity_name: name || activityId, mode, guild_count: assignments.length } });
+  }
 }
 
 export async function advanceActivityRotation(activityId: string, serverId?: string | null, activityName?: string | null): Promise<void> {

@@ -97,7 +97,7 @@ export function EditBossForm({ boss, gameSlug, serverId, onSaved, onCancel }: Pr
           tags,
         };
         if (imageUrl !== null) serverPayload.image_url = imageUrl;
-        await updateCustomBoss(boss.id, serverPayload);
+        await updateCustomBoss(boss.id, serverPayload, serverId);
       } else {
         // boss_templates table: uses points, no image_url
         const templatePayload: Record<string, any> = {

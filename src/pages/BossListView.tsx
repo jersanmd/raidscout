@@ -22,6 +22,7 @@ import {
   toggleViewerCanEdit,
   toggleViewerCanMarkDied,
   setBossRotation,
+  setDeathDisplayGuild,
   subscribeToServerSettings,
   cleanupChannel,
 } from "@/lib/supabase";
@@ -340,6 +341,36 @@ export function BossListView() {
     return getRotationInfo(bossId, bossGuilds, guilds, deathRecords, spawns, currentServer?.timezone);
   }, [bossGuilds, guilds, deathRecords, spawns, currentServer?.timezone]);
 
+  // Compute rotation info for an activity
+  const activityRotationInfo = useCallback((activityId: string): { guilds: { name: string; color: { bg: string; text: string; border: string } }[]; currentIndex: number; mode: string } | null => {
+    const ags = activityGuilds.filter(ag => ag.activity_id === activityId).sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+    if (ags.length === 0) return null;
+    const mode = ags[0]?.mode || "rotation";
+    // "All Guilds" mode — show a single "All Guilds" badge
+    if (mode === "all") {
+      return {
+        guilds: [{ name: "All Guilds", color: { bg: "bg-[#27272a]", text: "text-[#a1a1aa]", border: "border-[#3f3f46]" } }],
+        currentIndex: 0,
+        mode: "all",
+      };
+    }
+    const guildsList = ags.map(ag => {
+      const g = guilds.find(g => g.id === ag.guild_id);
+      const name = g?.name || "?";
+      return { name, color: guildColor(name) };
+    });
+    // Compute current index based on mode
+    let currentIndex = 0;
+    if (mode === "daily") {
+      const dayIndex = Math.floor(Date.now() / 86400000);
+      currentIndex = ((dayIndex % guildsList.length) + guildsList.length) % guildsList.length;
+    } else if (mode === "rotation") {
+      const instanceCount = activityInstances.filter(ai => ai.activity_id === activityId && ai.end_time).length;
+      currentIndex = ((instanceCount % guildsList.length) + guildsList.length) % guildsList.length;
+    }
+    return { guilds: guildsList, currentIndex, mode };
+  }, [activityGuilds, guilds, activityInstances]);
+
   // Set boss rotation to a specific guild index
   const handleSetRotation = useCallback(async (bossId: string, targetIndex: number) => {
     const info = bossRotationInfo(bossId);
@@ -365,7 +396,7 @@ export function BossListView() {
           setToast({ type: "error", message: "No death record found for this boss. Record a kill first." });
           return;
         }
-        await supabase.from("death_records").update({ owner_guild_id: targetGuildId }).eq("id", lastDeath.id);
+        await setDeathDisplayGuild(lastDeath.id, targetGuildId);
         const bossName = spawns.find(s => s.boss.id === bossId)?.boss.name || bossId;
         writeAuditEntry({ action: AuditAction.BOSS_ROTATION_ADVANCE, server_id: getCurrentServerId()!, target_id: bossId, details: { boss_name: bossName, mode: "daily", target_guild: targetGuildName } });
         setToast({ type: "success", message: `Rotation set to ${targetGuildName}.` });
@@ -374,7 +405,7 @@ export function BossListView() {
         const targetGuildName = info.guilds[targetIndex]?.name;
         await setBossRotation(bossId, targetIndex);
         const bossName2 = spawns.find(s => s.boss.id === bossId)?.boss.name || bossId;
-        writeAuditEntry({ action: AuditAction.BOSS_ROTATION_ADVANCE, server_id: getCurrentServerId()!, target_id: bossId, details: { boss_name: bossName2, mode: "rotation", target_index: targetIndex } });
+        writeAuditEntry({ action: AuditAction.BOSS_ROTATION_ADVANCE, server_id: getCurrentServerId()!, target_id: bossId, details: { boss_name: bossName2, mode: "per kill", target_guild: targetGuildName } });
         setToast({ type: "success", message: `Rotation set to ${targetGuildName ?? "next guild"}.` });
       }
       await queryClient.invalidateQueries({ queryKey: ["bosses"] });
@@ -714,14 +745,14 @@ export function BossListView() {
               <span className="text-[11px] text-[#a1a1aa]">Allow editing spawn time</span>
               <div className="relative">
                 <input type="checkbox" checked={viewerCanEdit} onChange={handleToggleViewerEdit} className="sr-only peer" />
-                <div className="w-8 h-4 bg-[#27272a] rounded-full peer-checked:bg-[#fafafa] transition after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:w-3 after:h-3 after:bg-white after:rounded-full after:transition peer-checked:after:translate-x-4" />
+                <div className="w-8 h-4 bg-[#27272a] rounded-full peer-checked:bg-white transition after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:w-3 after:h-3 after:bg-white after:rounded-full after:transition peer-checked:after:translate-x-4" />
               </div>
             </label>
             <label className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#18181b] border border-[#27272a] cursor-pointer hover:border-[#3f3f46] transition">
               <span className="text-[11px] text-[#a1a1aa]">Allow marking as died</span>
               <div className="relative">
                 <input type="checkbox" checked={viewerCanMarkDied} onChange={handleToggleViewerMarkDied} className="sr-only peer" />
-                <div className="w-8 h-4 bg-[#27272a] rounded-full peer-checked:bg-[#fafafa] transition after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:w-3 after:h-3 after:bg-white after:rounded-full after:transition peer-checked:after:translate-x-4" />
+                <div className="w-8 h-4 bg-[#27272a] rounded-full peer-checked:bg-white transition after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:w-3 after:h-3 after:bg-white after:rounded-full after:transition peer-checked:after:translate-x-4" />
               </div>
             </label>
           </div>
@@ -851,6 +882,7 @@ export function BossListView() {
                     const a = (s as any)._activity;
                     const lastInst = (s as any)._lastInstance;
                     const hideScheduleTime = a.schedule_type === "fixed_hours" && lastInst?.end_time != null;
+                    const actRot = activityRotationInfo(a.id);
                     return (
                       <LazyCard key={a.id}>
                       <BossCard
@@ -865,16 +897,11 @@ export function BossListView() {
                         viewerCanMarkDied={viewerCanMarkDied}
                         justKilled={false}
                         hasGuilds={activityGuilds.some(ag => ag.activity_id === a.id)}
-                        ownerGuildName={(() => {
-                          const ag = activityGuilds.filter(x => x.activity_id === a.id).sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
-                          if (ag.length === 0) return undefined;
-                          return guilds.find(g => g.id === ag[0].guild_id)?.name;
-                        })()}
-                        ownerGuildNames={(() => {
-                          const ag = activityGuilds.filter(x => x.activity_id === a.id).sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
-                          if (ag.length <= 1) return undefined;
-                          return ag.map(x => guilds.find(g => g.id === x.guild_id)?.name).filter(Boolean) as string[];
-                        })()}
+                        ownerGuildName={actRot?.guilds[actRot.currentIndex]?.name}
+                        ownerGuildNames={undefined}
+                        rotationGuilds={actRot?.guilds}
+                        rotationCurrentIndex={actRot?.currentIndex}
+                        rotationMode={actRot?.mode}
                         hideScheduleTime={hideScheduleTime}
                       />
                       </LazyCard>

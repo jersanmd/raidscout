@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useServer, useHasPermission } from "@/contexts/ServerContext";
 import { CountdownTimer } from "./CountdownTimer";
@@ -9,7 +10,7 @@ import { useUserTimezone, formatInTimezone } from "@/hooks/useUserTimezone";
 import { utcSlotToLocal } from "@/lib/scheduleTimezone";
 import { useTimer } from "@/hooks/useTimer";
 import { guildColor } from "@/lib/constants";
-import { fetchStaticParties, assignPartyToBoss, createParty, deleteParty, addMemberToParty, removeMemberFromParty, fetchGuilds, type StaticParty } from "@/lib/supabase";
+import { fetchStaticParties, assignPartyToBoss, assignPartyToActivity, createParty, deleteParty, addMemberToParty, removeMemberFromParty, fetchGuilds, type StaticParty } from "@/lib/supabase";
 import { useServerId } from "@/contexts/ServerContext";
 import { useMembers } from "@/hooks/useMembers";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
@@ -60,6 +61,7 @@ interface BossCardProps {
 export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, onCriticalSpawn, onSpawned, compact = false, multiMode = false, selected = false, onToggleSelect, ownerGuildName, ownerGuildId, ownerGuildNames, rotationGuilds, rotationCurrentIndex, rotationMode, onSetRotation, viewerCanEdit, viewerCanMarkDied, hasGuilds, justKilled, activity, onFinishActivity, onRecordEnd, onEditActivityTime, hideScheduleTime = false }: BossCardProps) {
   const { isViewer } = useAuth();
   const { currentServer } = useServer();
+  const navigate = useNavigate();
   const { timezone: tz } = useUserTimezone(currentServer?.timezone);
   const [showModal, setShowModal] = useState(false);
   const [showEditSpawnModal, setShowEditSpawnModal] = useState(false);
@@ -257,81 +259,51 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
                   {displayOwner}
                 </span>
               ); })()}
-              {isActivity && (activity as any).category && (
-                <span className="text-[10px] text-[#52525b] font-mono truncate max-w-[120px]">{(activity as any).category}</span>
-              )}
             </div>
 
             {/* Row 2: Activity schedule info / Boss countdown */}
             {isActivity ? (
               <div className="space-y-1">
-                {nextSpawn && status === "countdown" ? (
+                {nextSpawn ? (
                   <div className="space-y-1">
                     {!compact && (
                       <div className="flex items-baseline gap-2">
-                        <CountdownTimer target={nextSpawn} bossName={activity.name} onUrgent={onUrgentSpawn} onCritical={onCriticalSpawn} onSpawned={onSpawned} />
+                        <CountdownTimer target={nextSpawn} bossName={activity.name} onUrgent={onUrgentSpawn} onCritical={onCriticalSpawn} onSpawned={onSpawned} isActivity />
                       </div>
                     )}
                     <div className="flex items-center gap-1.5 text-[11px]">
-                      <span className="text-[#71717a] font-mono uppercase tracking-wider">NEXT</span>
+                      <span className="text-[#71717a] font-mono uppercase tracking-wider">{status === "alive" ? "ACTIVE" : "NEXT"}</span>
                       <span className="text-[#a1a1aa] font-mono">{formatDateTime(nextSpawn)}</span>
                     </div>
+                    {/* Recurrence / schedule info */}
+                    {activity.schedule_type === "fixed_hours" && activity.duration_minutes ? (
+                      <div className="text-[10px] text-[#52525b] font-mono">
+                        Every {activity.duration_minutes >= 60 ? `${Math.floor(activity.duration_minutes / 60)}h${activity.duration_minutes % 60 > 0 ? ` ${activity.duration_minutes % 60}m` : ""}` : `${activity.duration_minutes}m`}
+                      </div>
+                    ) : Array.isArray(activity.schedule) && activity.schedule.length > 0 ? (
+                      <div className="text-[10px] text-[#52525b] font-mono">
+                        {activity.schedule
+                          .map((s: any) => {
+                            const local = utcSlotToLocal(s.day, s.time, tz);
+                            return `${["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][local.day]} ${local.time}`;
+                          })
+                          .join("  ·  ")}
+                      </div>
+                    ) : null}
                   </div>
-                ) : status === "alive" ? (
-                  <div className="text-[11px] text-emerald-400 font-semibold">● Running now</div>
                 ) : null}
-                {status !== "alive" && !hideScheduleTime && (
+                {status !== "alive" && !hideScheduleTime && !nextSpawn && (
                   <>
-                {Array.isArray(activity.schedule) && activity.schedule.length > 0 ? (
-                  <div className="flex items-center gap-1.5 text-[11px]">
-                    <span className="text-[#71717a] font-mono uppercase tracking-wider">SCHEDULE</span>
-                    <span className="text-[#a1a1aa] font-mono">
-                      {activity.schedule
-                        .map((s) => {
-                          const local = utcSlotToLocal(s.day, s.time, tz);
-                          return `${["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][local.day]} ${local.time}`;
-                        })
-                        .join("  ·  ")}
-                    </span>
-                  </div>
-                ) : typeof activity.schedule === "object" && activity.schedule !== null && !Array.isArray(activity.schedule) && "time" in activity.schedule ? (
-                  /* New format: {time: "HH:MM", start_date: "YYYY-MM-DD"} */
-                  <div className="flex items-center gap-1.5 text-[11px]">
-                    <span className="text-[#71717a] font-mono uppercase tracking-wider">TIME</span>
-                    <span className="text-[#a1a1aa] font-mono">{(activity.schedule as any).time}</span>
-                    {(activity.schedule as any).start_date && (
-                      <span className="text-[#a1a1aa] font-mono">{(activity.schedule as any).start_date}</span>
-                    )}
-                  </div>
-                ) : typeof activity.schedule === "string" && activity.schedule ? (
-                  <div className="flex items-center gap-1.5 text-[11px]">
-                    <span className="text-[#71717a] font-mono uppercase tracking-wider">TIME</span>
-                    <span className="text-[#a1a1aa] font-mono">{activity.schedule}</span>
-                  </div>
-                ) : !nextSpawn ? (
-                  activity.schedule_type === "fixed_hours" ? (
+                {activity.schedule_type === "fixed_hours" ? (
                     <div className="text-[11px] text-[#a1a1aa] font-mono">Fixed Hours</div>
                   ) : activity.schedule_type === "fixed_schedule" ? (
                     <div className="text-[11px] text-[#a1a1aa] font-mono">Fixed Schedule</div>
                   ) : (
                     <div className="text-[11px] text-[#a1a1aa] font-mono">One Time</div>
                   )
-                ) : null}
+                }
                 </>
                 )}
-                {/* Party size + points */}
-                <div className="flex items-center gap-2 text-[10px] text-[#52525b] font-mono">
-                  {activity.party_size && (
-                    <span className="flex items-center gap-1">
-                      <Users className="w-3 h-3" />
-                      {activity.party_size}
-                    </span>
-                  )}
-                  <span className="flex items-center gap-1">
-                    <Star className="w-3 h-3" />
-                    {activity.points_per_participant}pt
-                  </span>
-                </div>
               </div>
             ) : (
               <>
@@ -354,6 +326,19 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
                       </span>
                       <span className="text-[#a1a1aa] font-mono">{formatDateTime(nextSpawn)}</span>
                     </div>
+                    {/* Respawn / schedule info */}
+                    {boss.spawn_type === "fixed_schedule" && boss.schedule && Array.isArray(boss.schedule) && boss.schedule.length > 0 ? (
+                      <div className="text-[10px] text-[#52525b] font-mono">
+                        {boss.schedule
+                          .map((s: any) => {
+                            const local = utcSlotToLocal(s.day, s.time, tz);
+                            return `${["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][local.day]} ${local.time}`;
+                          })
+                          .join("  ·  ")}
+                      </div>
+                    ) : boss.respawn_hours ? (
+                      <div className="text-[10px] text-[#52525b] font-mono">+{boss.respawn_hours}h respawn</div>
+                    ) : null}
                   </div>
                 ) : (
                   <div className="flex items-center gap-1.5 text-[11px]">
@@ -361,29 +346,6 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
                   </div>
                 )}
 
-                {/* Row 3: Respawn / schedule info */}
-                {(boss.respawn_hours || boss.schedule) && (
-                <div className="flex items-center gap-2 text-[10px] text-[#52525b] font-mono">
-                  {boss.respawn_hours && <span>+{boss.respawn_hours}h respawn</span>}
-                  {boss.schedule && (() => {
-                    // Fixed-hours bosses have { time, start_date, utc_start } — skip schedule display
-                    if (!Array.isArray(boss.schedule)) return null;
-                    const days = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
-                    return (
-                    <span>
-                      {boss.schedule
-                        .map((s) => {
-                          const [h, m] = s.time.split(":").map(Number);
-                          const local = new Date(Date.UTC(2026, 0, 1, h, m))
-                            .toLocaleTimeString("en-US", { timeZone: tz, hour: "2-digit", minute: "2-digit", hour12: true });
-                          return `${days[s.day]} ${local}`;
-                        })
-                        .join("  ·  ")}
-                    </span>
-                    );
-                  })()}
-                </div>
-                )}
               </>
             )}
           </div>
@@ -407,6 +369,19 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
               >
                 <Pencil className="w-3 h-3" />
                 Edit Time
+              </button>
+            )}
+            {onFinishActivity && (!isViewer || viewerCanMarkDied) && !currentServer?.isExpired && (
+            <button
+                onClick={() => { setShowPartyModal(true); setShowAllStatic(false); }}
+                className={`flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-lg border text-[11px] font-medium active:scale-95 transition-all duration-200 whitespace-nowrap relative ${parties.some(p => p.activity_id === activity?.id) ? "bg-emerald-900/20 border-emerald-800/50 text-emerald-400" : "bg-[#18181b] border-[#27272a] text-[#a1a1aa] hover:bg-[#27272a] hover:text-[#fafafa]"}`}
+              >
+                {parties.some(p => p.activity_id === activity?.id) ? (
+                  <CheckCircle className="w-3 h-3" />
+                ) : (
+                  <Users className="w-3 h-3" />
+                )}
+                Party
               </button>
             )}
             {onFinishActivity && (!isViewer || viewerCanMarkDied) && !currentServer?.isExpired && (
@@ -463,18 +438,57 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
           </div>
         )}
 
-        {/* No guild assigned notice — bosses only */}
+        {/* No guild assigned — bosses only */}
         {!compact && !multiMode && !isViewer && !isActivity && !hasGuilds && canRotateGuilds && (
           <div className="mt-2 pt-2 border-t border-white/[0.05] relative z-[1]">
-            <span className="text-[10px] text-[#a1a1aa]/60 flex items-center gap-1">
-              <Shield className="w-3 h-3" />
-              No guild assigned — set up in Server Settings → Boss Guilds
+            <span className="text-[10px] text-[#71717a] font-mono uppercase tracking-wider">Guild</span>
+            <div className="flex items-center gap-1 mt-1.5">
+              <button
+                onClick={() => navigate(`/server-settings?tab=boss-guilds`)}
+                className="flex-1 text-center px-2 py-1 rounded text-[10px] font-semibold border border-dashed border-[#3f3f46] text-[#a1a1aa] hover:text-[#fafafa] hover:border-[#52525b] hover:bg-[#27272a] transition"
+              >
+                <span className="flex items-center justify-center gap-1">
+                  <Shield className="w-3 h-3" />
+                  Assign Guild
+                </span>
+              </button>
+            </div>
+          </div>
+        )}
+        {/* Placeholder — bosses with no guilds, no permission (keeps card height consistent) */}
+        {!compact && !multiMode && !isViewer && !isActivity && !hasGuilds && !canRotateGuilds && (
+          <div className="mt-2 pt-2 border-t border-white/[0.05] relative z-[1]">
+            <span className="text-[10px] text-[#3f3f46] font-mono uppercase tracking-wider">Guild</span>
+            <div className="flex items-center gap-1 mt-1.5">
+              <span className="flex-1 text-center px-2 py-1 rounded text-[10px] font-semibold text-[#3f3f46]">—</span>
+            </div>
+          </div>
+        )}
+
+        {/* Rotation guild row — activities */}
+        {!compact && !multiMode && !isViewer && isActivity && rotationGuilds && rotationGuilds.length > 0 && (
+          <div className="mt-2 pt-2 border-t border-white/[0.05] relative z-[1]">
+            <span className="text-[10px] text-[#71717a] font-mono uppercase tracking-wider">
+              Rotation {rotationMode ? `· ${rotationMode}` : ""}
             </span>
+            <div className="flex items-center gap-1 mt-1.5 flex-wrap">
+              {rotationGuilds.map((g, i) => {
+                const isCurrent = i === rotationCurrentIndex;
+                return (
+                  <div
+                    key={i}
+                    className={`flex-1 text-center px-2 py-1 rounded text-[10px] font-semibold border ${isCurrent ? `${g.color.bg} ${g.color.text} ${g.color.border} shadow-sm` : "bg-[#18181b] border-[#27272a] text-[#52525b]"}`}
+                  >
+                    {g.name}
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
 
         {/* Rotation guild row — bosses only */}
-        {!compact && !multiMode && !isViewer && !isActivity && rotationGuilds && rotationGuilds.length > 1 && canRotateGuilds && (
+        {!compact && !multiMode && !isViewer && !isActivity && rotationGuilds && rotationGuilds.length > 0 && canRotateGuilds && (
           <div className="mt-2 pt-2 border-t border-white/[0.05] relative z-[1]">
             <span className="text-[10px] text-[#71717a] font-mono uppercase tracking-wider">
               Rotation {rotationMode ? `· ${rotationMode}` : ""}
@@ -573,9 +587,25 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
               const box = newPartyBoxes[i];
               if (box.length === 0) continue;
               const guildId = newPartyGuildFilter || null;
-              const partyId = await createParty(`Party ${i + 1}`, guildId, boss.id);
+              // Compute actual guild names from the members in this box
+              const boxGuildNames = [...new Set(box
+                .map(mid => members.find(m => m.id === mid)?.guild_id)
+                .filter(Boolean)
+                .map(gid => guilds.find(g => g.id === gid)?.name)
+                .filter(Boolean))]
+                .join(", ");
+              const partyId = await createParty(
+                isActivity ? `${activity!.name} Party ${i + 1}` : `${boss.name} Party ${i + 1}`,
+                guildId,
+                isActivity ? null : boss.id,
+                isActivity ? activity!.id : null,
+                isActivity ? activity!.name : boss.name,
+                isActivity ? activity!.name : null,
+                boxGuildNames || undefined
+              );
               for (const memberId of box) {
-                await addMemberToParty(partyId, memberId).catch(() => {});
+                const m = members.find(mem => mem.id === memberId);
+                await addMemberToParty(partyId, memberId, serverId, m?.name).catch(() => {});
               }
             }
             // Refresh parties list
@@ -596,7 +626,7 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
             {/* Header */}
             <div className="flex items-center justify-between p-4 border-b border-[#27272a] shrink-0">
               <div>
-                <h3 className="text-sm font-semibold text-[#fafafa]">Create Parties for {boss.name}</h3>
+                <h3 className="text-sm font-semibold text-[#fafafa]">Create Parties for {isActivity ? activity?.name : boss.name}</h3>
                 <p className="text-[11px] text-[#71717a]">Drag members into party boxes, then save to assign</p>
               </div>
               <button onClick={() => { setShowCustomPartyModal(false); setNewPartyBoxes([]); }} className="p-1.5 rounded-lg text-[#71717a] hover:text-[#fafafa] hover:bg-[#27272a] transition">
@@ -844,7 +874,7 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
             <div className="flex items-center justify-between p-4 border-b border-[#27272a] shrink-0">
               <div>
                 <h3 className="text-sm font-semibold text-[#fafafa]">Party Assignment</h3>
-                <p className="text-[11px] text-[#71717a]">{boss.name}</p>
+                <p className="text-[11px] text-[#71717a]">{isActivity ? activity?.name : boss.name}</p>
               </div>
               <button onClick={() => setShowPartyModal(false)} className="p-1.5 rounded-lg text-[#71717a] hover:text-[#fafafa] hover:bg-[#27272a] transition">
                 <X className="w-4 h-4" />
@@ -854,7 +884,7 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
             {/* Party list */}
             <div className="flex-1 overflow-y-auto p-4">
               {(() => {
-                const linked = parties.filter(p => p.boss_id === boss.id);
+                const linked = parties.filter(p => isActivity ? p.activity_id === activity?.id : p.boss_id === boss.id);
                 const nonEmpty = parties.filter(p => p.member_ids.length > 0);
 
                 // If this boss has custom parties AND user hasn't toggled to show all
@@ -863,17 +893,28 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
                     const partyMembers = party.member_ids.map(id => members.find(m => m.id === id)).filter(Boolean) as Member[];
                     const g = party.guild_name ? { name: party.guild_name } : null;
                     const c = g ? guildColor(g.name) : null;
+                    // Compute unique guilds from party members
+                    const memberGuilds = [...new Set(partyMembers.map(m => m.guild_id).filter(Boolean))];
+                    const memberGuildNames = memberGuilds
+                      .map(gid => guilds.find(g => g.id === gid)?.name)
+                      .filter(Boolean) as string[];
                     return (
                       <div key={party.id} className="rounded-lg border border-emerald-800/50 bg-emerald-900/10 p-2.5">
                         <div className="flex items-center justify-between mb-1.5">
                           <div className="flex items-center gap-1.5 min-w-0">
                             <CheckCircle className="w-3 h-3 text-emerald-400 shrink-0" />
                             <span className="text-[11px] font-medium text-[#fafafa] truncate">{party.name}</span>
-                            {g && c && (
+                            {memberGuildNames.length === 1 ? (
+                              <span className={`shrink-0 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] border ${guildColor(memberGuildNames[0]).bg} ${guildColor(memberGuildNames[0]).text} ${guildColor(memberGuildNames[0]).border}`}>
+                                <Shield className="w-2.5 h-2.5" />{memberGuildNames[0]}
+                              </span>
+                            ) : memberGuildNames.length > 1 ? (
+                              <span className="shrink-0 text-[9px] text-[#71717a]">({memberGuildNames.join(", ")})</span>
+                            ) : g && c ? (
                               <span className={`shrink-0 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] border ${c.bg} ${c.text} ${c.border}`}>
                                 <Shield className="w-2.5 h-2.5" />{g.name}
                               </span>
-                            )}
+                            ) : null}
                           </div>
                           <span className="text-[10px] text-[#52525b] shrink-0 ml-1">{partyMembers.length}</span>
                         </div>
@@ -892,7 +933,7 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
                         <button
                           onClick={async () => {
                             const { unlinkParty } = await import("@/lib/supabase");
-                            await unlinkParty(party.id, serverId, party.name, party.guild_name).catch(() => {});
+                            await unlinkParty(party.id, serverId, party.name, party.guild_name, boss.name).catch(() => {});
                             setParties(prev => prev.map(p => p.id === party.id ? { ...p, boss_id: null } : p));
                           }}
                           className="w-full text-center px-2 py-1 text-[10px] text-[#71717a] hover:text-[#f87171] rounded hover:bg-[#27272a] transition">
@@ -950,16 +991,34 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
                 const guildKeys = Object.keys(grouped);
 
                 const renderStaticParty = (party: StaticParty) => {
-                  const isLinked = party.boss_id === boss.id;
+                  const isLinked = isActivity
+                    ? party.activity_id === activity?.id
+                    : party.boss_id === boss.id;
                   const partyMembers = party.member_ids.map(id => members.find(m => m.id === id)).filter(Boolean) as Member[];
                   const g = party.guild_name ? { name: party.guild_name } : null;
                   const c = g ? guildColor(g.name) : null;
+                  // Compute unique guilds from party members
+                  const memberGuilds = [...new Set(partyMembers.map(m => m.guild_id).filter(Boolean))];
+                  const memberGuildNames = memberGuilds
+                    .map(gid => guilds.find(g => g.id === gid)?.name)
+                    .filter(Boolean) as string[];
                   return (
                     <div key={party.id} className={`rounded-lg border p-2.5 transition ${isLinked ? "border-emerald-800/50 bg-emerald-900/10" : "border-[#27272a] bg-[#09090b]/50"}`}>
                       <div className="flex items-center justify-between mb-1.5">
                         <div className="flex items-center gap-1.5 min-w-0">
                           {isLinked && <CheckCircle className="w-3 h-3 text-emerald-400 shrink-0" />}
                           <span className="text-[11px] font-medium text-[#fafafa] truncate">{party.name}</span>
+                          {memberGuildNames.length === 1 ? (
+                            <span className={`shrink-0 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] border ${guildColor(memberGuildNames[0]).bg} ${guildColor(memberGuildNames[0]).text} ${guildColor(memberGuildNames[0]).border}`}>
+                              <Shield className="w-2.5 h-2.5" />{memberGuildNames[0]}
+                            </span>
+                          ) : memberGuildNames.length > 1 ? (
+                            <span className="shrink-0 text-[9px] text-[#71717a]">({memberGuildNames.join(", ")})</span>
+                          ) : g && c ? (
+                            <span className={`shrink-0 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] border ${c.bg} ${c.text} ${c.border}`}>
+                              <Shield className="w-2.5 h-2.5" />{g.name}
+                            </span>
+                          ) : null}
                         </div>
                         <span className="text-[10px] text-[#52525b] shrink-0 ml-1">{partyMembers.length}</span>
                       </div>
@@ -975,18 +1034,23 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
                         <button
                           onClick={async () => {
                             const { unlinkParty } = await import("@/lib/supabase");
-                            await unlinkParty(party.id, serverId, party.name, party.guild_name).catch(() => {});
-                            setParties(prev => prev.map(p => p.id === party.id ? { ...p, boss_id: null } : p));
+                            await unlinkParty(party.id, serverId, party.name, party.guild_name, isActivity ? activity?.name : boss.name).catch(() => {});
+                            setParties(prev => prev.map(p => p.id === party.id ? { ...p, boss_id: null, activity_id: null } : p));
                           }}
                           className="w-full text-center px-2 py-1 text-[10px] text-[#71717a] hover:text-[#f87171] rounded hover:bg-[#27272a] transition">Unlink</button>
                       ) : (
                         <button
                           onClick={async () => {
                             if (!serverId) return;
-                            await assignPartyToBoss(party.id, boss.id, serverId, party.name, boss.name, party.guild_name).catch(() => {});
-                            setParties(prev => prev.map(p => p.id === party.id ? { ...p, boss_id: boss.id, boss_name: boss.name } : p));
+                            if (isActivity && activity) {
+                              await assignPartyToActivity(party.id, activity.id, serverId, party.name, activity.name, party.guild_name).catch(() => {});
+                              setParties(prev => prev.map(p => p.id === party.id ? { ...p, activity_id: activity.id, activity_name: activity.name } : p));
+                            } else {
+                              await assignPartyToBoss(party.id, boss.id, serverId, party.name, boss.name, party.guild_name).catch(() => {});
+                              setParties(prev => prev.map(p => p.id === party.id ? { ...p, boss_id: boss.id, boss_name: boss.name } : p));
+                            }
                           }}
-                          className="w-full text-center px-2 py-1.5 rounded text-[10px] font-medium bg-[#fafafa] text-[#09090b] hover:bg-[#e4e4e7] transition">Assign to {boss.name}</button>
+                          className="w-full text-center px-2 py-1.5 rounded text-[10px] font-medium bg-[#fafafa] text-[#09090b] hover:bg-[#e4e4e7] transition">Assign to {isActivity ? activity?.name : boss.name}</button>
                       )}
                     </div>
                   );

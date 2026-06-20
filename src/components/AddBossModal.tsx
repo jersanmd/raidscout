@@ -43,6 +43,8 @@ export function AddBossModal({ open, onClose }: Props) {
     queryClient.invalidateQueries({ queryKey: ["spawn_overrides", currentServer.id] });
     queryClient.invalidateQueries({ queryKey: ["bosses"] });
     queryClient.invalidateQueries({ queryKey: ["bosses-all", currentServer.id] });
+    queryClient.invalidateQueries({ queryKey: ["boss_guilds"] });
+    queryClient.invalidateQueries({ queryKey: ["guilds"] });
     onClose();
   };
 
@@ -58,7 +60,7 @@ export function AddBossModal({ open, onClose }: Props) {
             day_of_week: parseInt(day),
           }));
         if (assignments.length > 0) {
-          await setBossGuilds(bossId, assignments, "schedule");
+          await setBossGuilds(bossId, assignments, "schedule", currentServer?.id);
         }
       } else {
         if (selectedGuildIds.length === 0) { setSubmitting(false); return; }
@@ -66,7 +68,7 @@ export function AddBossModal({ open, onClose }: Props) {
           guild_id: gid,
           sort_order: i + 1,
         }));
-        await setBossGuilds(bossId, assignments, guildMode);
+        await setBossGuilds(bossId, assignments, guildMode, currentServer?.id);
       }
     } catch (err) {
       console.error("[AddBossModal] Guild assignment failed:", err);
@@ -76,32 +78,33 @@ export function AddBossModal({ open, onClose }: Props) {
   };
 
   const addGuild = (guildId: string) => {
-    if (!guildId || selectedGuildIds.includes(guildId)) return;
+    if (!guildId) return;
     setSelectedGuildIds(prev => [...prev, guildId]);
   };
 
-  const removeGuild = (guildId: string) => {
-    setSelectedGuildIds(prev => prev.filter(id => id !== guildId));
+  const removeGuild = (index: number) => {
+    setSelectedGuildIds(prev => prev.filter((_, i) => i !== index));
   };
 
-  const moveGuild = (guildId: string, direction: "up" | "down") => {
+  const moveGuild = (index: number, direction: "up" | "down") => {
     setSelectedGuildIds(prev => {
-      const idx = prev.indexOf(guildId);
-      if (idx === -1) return prev;
+      if (index < 0 || index >= prev.length) return prev;
       const next = [...prev];
-      const target = direction === "up" ? idx - 1 : idx + 1;
+      const target = direction === "up" ? index - 1 : index + 1;
       if (target < 0 || target >= next.length) return prev;
-      [next[idx], next[target]] = [next[target], next[idx]];
+      [next[index], next[target]] = [next[target], next[index]];
       return next;
     });
   };
 
-  const availableGuilds = guilds.filter(g => !selectedGuildIds.includes(g.id));
+  const availableGuilds = guildMode === "schedule"
+    ? guilds.filter(g => !selectedGuildIds.includes(g.id))
+    : guilds;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/60" onClick={onClose} />
-      <div className="relative bg-[#18181b] border border-[#27272a] rounded-xl w-full max-w-2xl shadow-2xl max-h-[90vh] flex flex-col">
+      <div className="relative bg-[#09090b] border border-[#27272a] rounded-xl w-full max-w-2xl shadow-2xl max-h-[90vh] flex flex-col">
         <div className="flex items-center justify-between p-4 border-b border-[#27272a]">
           <h2 className="text-base font-semibold text-[#fafafa]">Add Custom Boss</h2>
           <button
@@ -139,7 +142,7 @@ export function AddBossModal({ open, onClose }: Props) {
                     setSelectedGuildIds([]);
                     setScheduleDays({});
                   }}
-                  className="flex-1 bg-[#09090b] border border-[#3f3f46] rounded px-2 py-1.5 text-xs text-[#fafafa] outline-none focus:ring-1 focus:ring-[#52525b]"
+                  className="flex-1 bg-[#18181b] border border-[#3f3f46] rounded px-2 py-1.5 text-xs text-[#fafafa] outline-none focus:ring-1 focus:ring-[#52525b]"
                 >
                   <option value="none">None</option>
                   <option value="rotation">Rotation (per kill)</option>
@@ -158,12 +161,12 @@ export function AddBossModal({ open, onClose }: Props) {
                     selectedGuildIds.map((gid, idx) => {
                       const guild = guilds.find(g => g.id === gid);
                       return (
-                        <div key={gid} className="flex items-center gap-1 bg-[#09090b]/50 rounded px-2 py-1.5">
+                        <div key={`${idx}-${gid}`} className="flex items-center gap-1 bg-[#09090b]/50 rounded px-2 py-1.5">
                           <span className="text-[10px] text-[#71717a] w-4">{idx + 1}.</span>
                           <span className="text-xs text-[#e4e4e7] flex-1">{guild?.name ?? "Unknown"}</span>
-                          <button onClick={() => moveGuild(gid, "up")} disabled={idx === 0} className="p-0.5 text-[#71717a] hover:text-[#a1a1aa] disabled:opacity-30"><ChevronUp className="w-3 h-3" /></button>
-                          <button onClick={() => moveGuild(gid, "down")} disabled={idx === selectedGuildIds.length - 1} className="p-0.5 text-[#71717a] hover:text-[#a1a1aa] disabled:opacity-30"><ChevronDown className="w-3 h-3" /></button>
-                          <button onClick={() => removeGuild(gid)} className="p-0.5 text-[#71717a] hover:text-[#f87171]"><X className="w-3 h-3" /></button>
+                          <button onClick={() => moveGuild(idx, "up")} disabled={idx === 0} className="p-0.5 text-[#71717a] hover:text-[#a1a1aa] disabled:opacity-30"><ChevronUp className="w-3 h-3" /></button>
+                          <button onClick={() => moveGuild(idx, "down")} disabled={idx === selectedGuildIds.length - 1} className="p-0.5 text-[#71717a] hover:text-[#a1a1aa] disabled:opacity-30"><ChevronDown className="w-3 h-3" /></button>
+                          <button onClick={() => removeGuild(idx)} className="p-0.5 text-[#71717a] hover:text-[#f87171]"><X className="w-3 h-3" /></button>
                         </div>
                       );
                     })
@@ -172,7 +175,7 @@ export function AddBossModal({ open, onClose }: Props) {
                     <select
                       value=""
                       onChange={(e) => addGuild(e.target.value)}
-                      className="w-full bg-[#09090b] border border-[#3f3f46] rounded px-2 py-1.5 text-xs text-[#a1a1aa] outline-none focus:ring-1 focus:ring-[#52525b]"
+                      className="w-full bg-[#18181b] border border-[#3f3f46] rounded px-2 py-1.5 text-xs text-[#a1a1aa] outline-none focus:ring-1 focus:ring-[#52525b]"
                     >
                       <option value="">+ Add guild...</option>
                       {availableGuilds.map(g => (
@@ -193,7 +196,7 @@ export function AddBossModal({ open, onClose }: Props) {
                       <select
                         value={scheduleDays[i] ?? ""}
                         onChange={(e) => setScheduleDays(prev => ({ ...prev, [i]: e.target.value || null }))}
-                        className="flex-1 bg-[#09090b] border border-[#3f3f46] rounded px-2 py-1.5 text-xs text-[#a1a1aa] outline-none focus:ring-1 focus:ring-[#52525b]"
+                        className="flex-1 bg-[#18181b] border border-[#3f3f46] rounded px-2 py-1.5 text-xs text-[#a1a1aa] outline-none focus:ring-1 focus:ring-[#52525b]"
                       >
                         <option value="">—</option>
                         {guilds.map(g => (

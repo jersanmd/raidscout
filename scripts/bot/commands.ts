@@ -305,11 +305,30 @@ export async function handleMessage(msg: any) {
     if (!parties.length) return reply(`📋 **${targetLabel}** -- No party assigned yet.`);
 
     const fields = parties.map(p => ({
-      name: `🎯 ${p.name} (${p.members.length})`, value: p.members.join("\n") || "_No members_", inline: true
+      name: `${p.name} (${p.members.length})`, value: p.members.join("\n") || "_No members_", inline: true
     }));
+
+    // Split fields across multiple embeds if they exceed Discord limits (25 fields or 6000 chars)
+    const embeds: any[] = [];
+    let currentFields: any[] = [];
+    let totalChars = 0;
+    for (const f of fields) {
+      const fieldChars = f.name.length + f.value.length;
+      if (currentFields.length >= 25 || totalChars + fieldChars > 6000) {
+        embeds.push({ title: `📋 Party Setup -- ${targetLabel}${embeds.length > 0 ? ` (cont.)` : ""}`, fields: currentFields, color: 0x8b5cf6, footer: embeds.length === 0 ? { text: "Powered by RaidScout" } : undefined });
+        currentFields = [];
+        totalChars = 0;
+      }
+      currentFields.push(f);
+      totalChars += fieldChars;
+    }
+    if (currentFields.length > 0) {
+      embeds.push({ title: `📋 Party Setup -- ${targetLabel}${embeds.length > 0 ? ` (cont.)` : ""}`, fields: currentFields, color: 0x8b5cf6, footer: embeds.length === 0 ? { text: "Powered by RaidScout" } : undefined });
+    }
+
     await discordFetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
       method: "POST", headers: { Authorization: `Bot ${TOKEN}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ embeds: [{ title: `📋 Party Setup -- ${targetLabel}`, fields, color: 0x8b5cf6, footer: { text: "Powered by RaidScout" } }] }),
+      body: JSON.stringify({ embeds }),
     });
     await cmdLog(cmd, "ok", `${targetLabel} → ${parties.length} parties`);
     return;
@@ -345,7 +364,7 @@ export async function handleMessage(msg: any) {
       method: "POST", headers: { apikey: SUPABASE_KEY!, Authorization: `Bearer ${SUPABASE_KEY!}`, "Content-Type": "application/json" },
       body: JSON.stringify({ activity_id: act.id, start_time: now.toISOString() }),
     });
-    writeBotAudit({ action: "force_spawn", server_id: serverId, discord_user: author, target_id: act.id, details: { activity_name: act.name } });
+    writeBotAudit({ action: "force_spawn", server_id: serverId, discord_user: author, target_id: act.id, details: { activity_name: act.name } }).catch(() => {});
     return reply(`✅ **${act.name}** activity started now.`);
   }
 
@@ -430,7 +449,7 @@ export async function handleMessage(msg: any) {
       snap = await supabaseRpc("bot_server_snapshot", { p_server_id: serverId });
     } catch { snap = null; }
 
-    let tz: string, bosses: any[], deaths: any[], guilds: any[], overrides: any[], serverBossGuilds: any[], activities: any[];
+    let tz: string, bosses: any[], deaths: any[], guilds: any[], overrides: any[], serverBossGuilds: any[], activities: any[], activityGuilds: any[];
     if (snap) {
       tz = snap.timezone || "Asia/Manila";
       bosses = snap.bosses || [];
@@ -439,6 +458,7 @@ export async function handleMessage(msg: any) {
       overrides = snap.overrides || [];
       serverBossGuilds = snap.boss_guilds || [];
       activities = snap.activities || [];
+      activityGuilds = snap.activity_guilds || [];
     } else {
       // REST fallback
       tz = await resolveServerTimezone(serverId);
@@ -452,12 +472,14 @@ export async function handleMessage(msg: any) {
       const serverGuildIds = new Set((guilds || []).map((g: any) => g.id));
       serverBossGuilds = (allBossGuilds || []).filter((bg: any) => serverGuildIds.has(bg.guild_id));
       activities = await supabaseQuerySafe(`activities?server_id=eq.${serverId}&is_enabled=not.is.false&deleted_at=is.null`);
+      const allActivityGuilds = await supabaseQuerySafe(`activity_guilds?select=activity_id,guild_id,sort_order,day_of_week,mode`);
+      activityGuilds = (allActivityGuilds || []).filter((ag: any) => serverGuildIds.has(ag.guild_id));
     }
     const overrideMap = new Map((overrides || []).map((o: any) => [o.boss_id, o.death_time]));
     const filterGuild = filter ? guilds.find((g: any) => g.name.toLowerCase() === filter.toLowerCase()) : null;
     const now = new Date();
     const cutoff = addHours(now, 24);
-    const upcoming: { name: string; time: string; unix: number; guild: string }[] = [];
+    const upcoming: { name: string; time: string; unix: number; guild: string; isActivity?: boolean }[] = [];
 
     for (const boss of bosses) {
       if (filter && !boss.name.toLowerCase().includes(filter.toLowerCase())) {
@@ -471,8 +493,17 @@ export async function handleMessage(msg: any) {
       if (boss.spawn_type === "fixed_hours") {
         const overrideDeathTime = overrideMap.get(boss.id);
         const effectiveDeathTime = overrideDeathTime ?? lastDeath?.death_time ?? null;
-        spawn = effectiveDeathTime ? addHours(new Date(effectiveDeathTime), boss.respawn_hours ?? 0) : now;
-        if (spawn <= now) spawn = now;
+        if (effectiveDeathTime) {
+          spawn = addHours(new Date(effectiveDeathTime), boss.respawn_hours ?? 0);
+          if (spawn <= now) spawn = now;
+        } else {
+          // No death record — check utc_start from schedule for initial spawn time
+          const utcStart = (boss.schedule && typeof boss.schedule === "object" && !Array.isArray(boss.schedule) && boss.schedule.utc_start)
+            ? boss.schedule.utc_start
+            : null;
+          spawn = utcStart ? new Date(utcStart) : now;
+          if (spawn <= now) spawn = now;
+        }
       } else if (boss.spawn_type === "fixed_schedule" && boss.schedule) {
         const schedTz = getScheduleTz(boss, tz);
         // Only check alive window if there's a death record (boss actually spawned before)
@@ -565,26 +596,56 @@ export async function handleMessage(msg: any) {
           startTime = new Date(testUtc - offsetMs);
         }
         if (startTime) {
-          if (startTime <= now && !utcStart) startTime.setUTCDate(startTime.getUTCDate() + 1);
-          if (lastInst?.end_time && recurMs > 0 && act.schedule_type === "fixed_hours") {
+          // Match website logic (activityCalculator.ts):
+          // - Started but not finished → stay on current occurrence
+          // - Finished → advance from end_time by recurrence
+          // - Never started → use original start time (don't auto-advance)
+          if (!lastInst?.end_time && lastInst?.start_time && recurMs > 0) {
+            // Started but never finished — stay on the current occurrence
+            startTime = new Date(lastInst.start_time);
+          } else if (lastInst?.end_time && recurMs > 0 && act.schedule_type === "fixed_hours") {
+            // Finished — advance from end_time by recurrence
             const baseTime = new Date(lastInst.end_time);
             const elapsed = now.getTime() - baseTime.getTime();
-            const intervals = Math.ceil(elapsed / recurMs);
+            const intervals = Math.max(1, Math.ceil(elapsed / recurMs));
             startTime = new Date(baseTime.getTime() + intervals * recurMs);
             if (startTime.getTime() <= now.getTime()) startTime = new Date(startTime.getTime() + recurMs);
           }
-          if (!lastInst?.end_time && lastInst?.start_time && recurMs > 0) {
-            startTime = new Date(lastInst.start_time);
-          }
+          // Otherwise: use original start time as-is (may be in past = ACTIVE NOW, or future = countdown)
         }
       }
       if (startTime && (startTime.getTime() <= cutoff.getTime() || filter)) {
         const unix = Math.floor(startTime.getTime() / 1000);
+        // Compute guild for activity based on rotation mode (match website)
+        const actGuilds = activityGuilds
+          .filter((ag: any) => ag.activity_id === act.id)
+          .sort((a: any, b: any) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+        let actGuildName = "";
+        if (actGuilds.length > 0) {
+          const mode = actGuilds[0].mode;
+          if (mode === "all") {
+            actGuildName = "All Guilds";
+          } else if (mode === "schedule") {
+            const dow = new Date().getDay();
+            const match = actGuilds.find((ag: any) => ag.day_of_week === dow);
+            actGuildName = match ? (guilds.find((g: any) => g.id === match.guild_id)?.name || "") : "";
+          } else if (mode === "daily") {
+            const dayIndex = Math.floor(Date.now() / 86400000);
+            const idx = ((dayIndex % actGuilds.length) + actGuilds.length) % actGuilds.length;
+            actGuildName = guilds.find((g: any) => g.id === actGuilds[idx].guild_id)?.name || "";
+          } else {
+            // rotation mode: current guild based on instance count
+            const instanceCount = activityInstances.filter((ai: any) => ai.activity_id === act.id && ai.end_time).length;
+            const idx = ((instanceCount % actGuilds.length) + actGuilds.length) % actGuilds.length;
+            actGuildName = guilds.find((g: any) => g.id === actGuilds[idx].guild_id)?.name || "";
+          }
+        }
         upcoming.push({
-          name: `📋 ${act.name}`,
+          name: act.name,
           time: startTime <= now ? "**ACTIVE NOW**" : `<t:${unix}:t>`,
           unix,
-          guild: "",
+          guild: actGuildName,
+          isActivity: true,
         });
       }
     }
@@ -594,8 +655,10 @@ export async function handleMessage(msg: any) {
       return reply(filter ? `No spawn data for **${filter}**.` : "No bosses spawning in 24h.");
     }
     upcoming.sort((a, b) => {
-      if (a.time === "**ALIVE NOW**" && b.time !== "**ALIVE NOW**") return -1;
-      if (b.time === "**ALIVE NOW**" && a.time !== "**ALIVE NOW**") return 1;
+      const aNow = a.time === "**ALIVE NOW**" || a.time === "**ACTIVE NOW**";
+      const bNow = b.time === "**ALIVE NOW**" || b.time === "**ACTIVE NOW**";
+      if (aNow && !bNow) return -1;
+      if (bNow && !aNow) return 1;
       return a.unix - b.unix;
     });
 
@@ -632,8 +695,8 @@ export async function handleMessage(msg: any) {
       lines.push("");
       lines.push(group.label);
       for (const b of group.items) {
-        const timeDisplay = b.time === "**ALIVE NOW**" ? "Alive now" : `<t:${b.unix}:t>`;
-        const relative = b.time === "**ALIVE NOW**" ? "" : b.name.startsWith("📋") ? "" : ` (<t:${b.unix}:R>)`;
+        const timeDisplay = b.time === "**ALIVE NOW**" || b.time === "**ACTIVE NOW**" ? (b.time === "**ACTIVE NOW**" ? "Active now" : "Alive now") : `<t:${b.unix}:t>`;
+        const relative = b.time === "**ALIVE NOW**" || b.time === "**ACTIVE NOW**" ? "" : ` (<t:${b.unix}:R>)`;
         const guild = b.guild ? ` -- ${b.guild}` : "";
         const prefix = b.time === "**ALIVE NOW**" ? "🟢 " : "";
         lines.push(`${globalIdx}. ${prefix}**${b.name}**${guild} -- ${timeDisplay}${relative}`);
@@ -674,7 +737,6 @@ export async function handleMessage(msg: any) {
       let alreadyCompleted = false;
 
       // For fixed_schedule activities: check if we're within a new active window.
-      // Even if a previous instance was completed, a new schedule slot means the activity is active again.
       if (activity.schedule_type === "fixed_schedule" && Array.isArray(activity.schedule)) {
         const actTz = (activity.is_custom || activity.template_id) ? "UTC" : "Asia/Manila";
         const schedule = activity.schedule;
@@ -701,11 +763,40 @@ export async function handleMessage(msg: any) {
           }
         }
       } else {
-        // Non-schedule activities (one_time): use instance state directly
+        // Non-schedule activities (one_time, fixed_hours): check schedule-based active window
         alreadyCompleted = !!(latestInst?.end_time);
+        if (!isRunning) {
+          // Compute start time from schedule to check if activity should be active
+          const raw = activity.schedule;
+          const schedObj = (typeof raw === "object" && raw !== null && !Array.isArray(raw)) ? raw as { time: string; start_date?: string; utc_start?: string } : null;
+          const utcStart = schedObj?.utc_start ?? null;
+          const timeStr2 = schedObj?.time ?? (typeof raw === "string" ? raw : null);
+          let computedStart: Date | null = null;
+          const tz = await resolveServerTimezone(serverId);
+          const now2 = new Date();
+          if (utcStart) {
+            computedStart = new Date(utcStart);
+          } else if (timeStr2) {
+            const [h, m] = timeStr2.split(":").map(Number);
+            const localDate = now2.toLocaleDateString("en-CA", { timeZone: tz });
+            const [y, mo, d] = localDate.split("-").map(Number);
+            const testUtc = Date.UTC(y, mo - 1, d, h, m);
+            const testLocal = new Intl.DateTimeFormat("en-US", { timeZone: tz, hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(testUtc));
+            const [tlH, tlM] = testLocal.split(":").map(Number);
+            const offsetMs = ((tlH - h) * 60 + (tlM - m)) * 60_000;
+            computedStart = new Date(testUtc - offsetMs);
+          }
+          if (computedStart && now2 >= computedStart) {
+            // Check if this occurrence was already completed
+            if (!latestInst?.end_time || new Date(latestInst.end_time) < computedStart) {
+              isRunning = true;
+              alreadyCompleted = false;
+            }
+          }
+        }
       }
 
-      if (!isRunning) {
+      if (!isRunning && !timeStr) {
         await cmdLog(cmd, "fail", `${activity.name} not active`);
         discordFetch(`https://discord.com/api/v10/channels/${channelId}/messages/${msg.id}/reactions/${encodeURIComponent("❌")}/@me`, { method: "PUT", headers: { Authorization: `Bot ${TOKEN}` } }).catch(() => {});
         if (alreadyCompleted) {
@@ -962,8 +1053,10 @@ export async function handleMessage(msg: any) {
     ];
     if (nextSpawnUnix > 0) replyFields.push({ name: "Next Spawn", value: `<t:${nextSpawnUnix}:f>`, inline: true });
     await cmdLog(cmd, "ok", `${boss.name} → ${timeStr}`);
-    writeBotAudit({ action: "boss_time_edit", server_id: serverId, discord_user: author, target_id: boss.id, details: { boss_name: boss.name, new_time: timeStr } });
-    return replyEmbed(`✏️ ${boss.name} Kill Time Updated`, `Time changed to **${timeStr}**`, 0x3b82f6, replyFields);
+    const oldTimeStr = new Date(deathRecord.death_time).toLocaleString("en-US", { timeZone: tz, month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: true });
+    const newTimeStr = newDeathTime.toLocaleString("en-US", { timeZone: tz, month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: true });
+    writeBotAudit({ action: "boss_time_edit", server_id: serverId, discord_user: author, target_id: boss.id, details: { boss_name: boss.name, old_time: oldTimeStr, new_time: newTimeStr } });
+    return replyEmbed(`✏️ ${boss.name} Kill Time Updated`, `Time changed from **${oldTimeStr}** to **${newTimeStr}**`, 0x3b82f6, replyFields);
   }
 
     // Activity fallback — update the latest instance
@@ -980,8 +1073,10 @@ export async function handleMessage(msg: any) {
       body: JSON.stringify({ start_time: newDeathTime.toISOString(), end_time: newDeathTime.toISOString() }),
     });
     await cmdLog(cmd, "ok", `${act.name} → ${timeStr}`);
-    writeBotAudit({ action: "boss_time_edit", server_id: serverId, discord_user: author, target_id: act.id, details: { activity_name: act.name, new_time: timeStr } });
-    return replyEmbed(`✏️ ${act.name} Time Updated`, `Time changed to **${timeStr}**`, 0x3b82f6, []);
+    const oldTimeStr2 = new Date(inst.start_time).toLocaleString("en-US", { timeZone: tz, month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: true });
+    const newTimeStr2 = newDeathTime.toLocaleString("en-US", { timeZone: tz, month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: true });
+    writeBotAudit({ action: "boss_time_edit", server_id: serverId, discord_user: author, target_id: act.id, details: { activity_name: act.name, old_time: oldTimeStr2, new_time: newTimeStr2 } });
+    return replyEmbed(`✏️ ${act.name} Time Updated`, `Time changed from **${oldTimeStr2}** to **${newTimeStr2}**`, 0x3b82f6, []);
   }
 
   // ── ping (debug) ──

@@ -73,7 +73,7 @@ export function calculateActivityInfo(
         // After finish: advance from finish time (or base time) by recurrence to find next upcoming
         const baseTime = lastInstance.end_time ? new Date(lastInstance.end_time) : startTime;
         const elapsed = now.getTime() - baseTime.getTime();
-        const intervals = Math.ceil(elapsed / effectiveRecurMs);
+        const intervals = Math.max(1, Math.ceil(elapsed / effectiveRecurMs));
         startTime = new Date(baseTime.getTime() + intervals * effectiveRecurMs);
         if (startTime.getTime() <= now.getTime()) {
           startTime = new Date(startTime.getTime() + effectiveRecurMs);

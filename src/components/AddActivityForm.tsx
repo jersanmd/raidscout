@@ -43,7 +43,6 @@ export function AddActivityForm({ gameId, gameSlug, serverId, timezone, onCreate
   const [recurHours, setRecurHours] = useState("2");
   const [recurMinutes, setRecurMinutes] = useState("0");
   const [pointsPerParticipant, setPointsPerParticipant] = useState(1);
-  const [partySize, setPartySize] = useState("5");
   const [category, setCategory] = useState("");
   const [tags, setTags] = useState<string[]>([]);
   const [scheduleSlots, setScheduleSlots] = useState<ScheduleSlot[]>([]);
@@ -73,7 +72,7 @@ export function AddActivityForm({ gameId, gameSlug, serverId, timezone, onCreate
           schedule: sched,
           duration_minutes: scheduleType === "fixed_hours" ? (parseInt(recurHours) || 0) * 60 + (parseInt(recurMinutes) || 0) : null,
           points_per_participant: isNaN(Number(pointsPerParticipant)) ? 1 : Number(pointsPerParticipant),
-          party_size: partySize ? Number(partySize) : null,
+          party_size: null,
           category: category || null, tags,
           image_url: imageUrl || null,
         });
@@ -92,7 +91,7 @@ export function AddActivityForm({ gameId, gameSlug, serverId, timezone, onCreate
             : undefined,
         duration_minutes: scheduleType === "fixed_hours" ? (parseInt(recurHours) || 0) * 60 + (parseInt(recurMinutes) || 0) : null,
         points_per_participant: isNaN(Number(pointsPerParticipant)) ? 1 : Number(pointsPerParticipant),
-        party_size: partySize ? Number(partySize) : null,
+        party_size: null,
         category: category || null,
         tags,
         image_url: imageUrl,
@@ -115,11 +114,11 @@ export function AddActivityForm({ gameId, gameSlug, serverId, timezone, onCreate
       <div className="grid grid-cols-2 gap-2">
         <div>
           <label className="block text-xs text-[#71717a] mb-0.5">Name *</label>
-          <input value={name} onChange={e => setName(e.target.value)} required className="w-full px-2.5 py-2 bg-[#09090b] border border-[#3f3f46] rounded text-sm text-[#fafafa] focus:outline-none focus:ring-1 focus:ring-[#52525b]" />
+          <input value={name} onChange={e => setName(e.target.value)} required className="w-full px-2.5 py-2 bg-[#18181b] border border-[#3f3f46] rounded text-sm text-[#fafafa] focus:outline-none focus:ring-1 focus:ring-[#52525b]" />
         </div>
         <div>
           <label className="block text-xs text-[#71717a] mb-0.5">Schedule Type</label>
-          <select value={scheduleType} onChange={e => { setScheduleType(e.target.value); setScheduleSlots([]); }} className="w-full px-2.5 py-2 bg-[#09090b] border border-[#3f3f46] rounded text-sm text-[#fafafa] focus:outline-none focus:ring-1 focus:ring-[#52525b]">
+          <select value={scheduleType} onChange={e => { setScheduleType(e.target.value); setScheduleSlots([]); }} className="w-full px-2.5 py-2 bg-[#18181b] border border-[#3f3f46] rounded text-sm text-[#fafafa] focus:outline-none focus:ring-1 focus:ring-[#52525b]">
             <option value="fixed_hours">Fixed Hours</option>
             <option value="fixed_schedule">Fixed Schedule</option>
             <option value="one_time">One Time</option>
@@ -129,17 +128,17 @@ export function AddActivityForm({ gameId, gameSlug, serverId, timezone, onCreate
           <>
           <div>
             <label className="block text-xs text-[#71717a] mb-0.5">Start Date</label>
-            <input type="date" min={todayStr} value={startDate} onChange={e => setStartDate(e.target.value)} className="w-full px-2.5 py-2 bg-[#09090b] border border-[#3f3f46] rounded text-sm text-[#fafafa] focus:outline-none focus:ring-1 focus:ring-[#52525b] [color-scheme:dark]" />
+            <input type="date" min={todayStr} value={startDate} onChange={e => setStartDate(e.target.value)} className="w-full px-2.5 py-2 bg-[#18181b] border border-[#3f3f46] rounded text-sm text-[#fafafa] focus:outline-none focus:ring-1 focus:ring-[#52525b] [color-scheme:dark]" />
           </div>
           <div>
             <label className="block text-xs text-[#71717a] mb-0.5">Start Time</label>
             <div className="flex items-center gap-1">
-              <select value={startHours} onChange={e => setStartHours(e.target.value)} className="w-20 px-2.5 py-2 bg-[#09090b] border border-[#3f3f46] rounded text-sm text-[#fafafa] focus:outline-none focus:ring-1 focus:ring-[#52525b]">
+              <select value={startHours} onChange={e => setStartHours(e.target.value)} className="w-20 px-2.5 py-2 bg-[#18181b] border border-[#3f3f46] rounded text-sm text-[#fafafa] focus:outline-none focus:ring-1 focus:ring-[#52525b]">
                 {Array.from({ length: 24 }, (_, i) => i)
                   .filter(h => !isToday || h >= nowHour)
                   .map(h => <option key={h} value={h}>{String(h).padStart(2,"0")}h</option>)}
               </select>
-              <select value={startMinutes} onChange={e => setStartMinutes(e.target.value)} className="w-16 px-2.5 py-2 bg-[#09090b] border border-[#3f3f46] rounded text-sm text-[#fafafa] focus:outline-none focus:ring-1 focus:ring-[#52525b]">
+              <select value={startMinutes} onChange={e => setStartMinutes(e.target.value)} className="w-16 px-2.5 py-2 bg-[#18181b] border border-[#3f3f46] rounded text-sm text-[#fafafa] focus:outline-none focus:ring-1 focus:ring-[#52525b]">
                 {Array.from({ length: 60 }, (_, i) => i)
                   .filter(m => !isToday || Number(startHours) > nowHour || m >= nowMin)
                   .map(m => <option key={m} value={m}>{String(m).padStart(2,"0")}m</option>)}
@@ -150,9 +149,9 @@ export function AddActivityForm({ gameId, gameSlug, serverId, timezone, onCreate
             <div>
               <label className="block text-xs text-[#71717a] mb-0.5">Recurs every</label>
               <div className="flex items-center gap-1">
-                <input type="number" min="0" max="168" value={recurHours} onChange={e => setRecurHours(e.target.value)} className="w-16 px-2.5 py-2 bg-[#09090b] border border-[#3f3f46] rounded text-sm text-[#fafafa] focus:outline-none focus:ring-1 focus:ring-[#52525b]" />
+                <input type="number" min="0" max="168" value={recurHours} onChange={e => setRecurHours(e.target.value)} className="w-16 px-2.5 py-2 bg-[#18181b] border border-[#3f3f46] rounded text-sm text-[#fafafa] focus:outline-none focus:ring-1 focus:ring-[#52525b]" />
                 <span className="text-xs text-[#71717a]">h</span>
-                <select value={recurMinutes} onChange={e => setRecurMinutes(e.target.value)} className="w-16 px-2.5 py-2 bg-[#09090b] border border-[#3f3f46] rounded text-sm text-[#fafafa] focus:outline-none focus:ring-1 focus:ring-[#52525b]">
+                <select value={recurMinutes} onChange={e => setRecurMinutes(e.target.value)} className="w-16 px-2.5 py-2 bg-[#18181b] border border-[#3f3f46] rounded text-sm text-[#fafafa] focus:outline-none focus:ring-1 focus:ring-[#52525b]">
                   {Array.from({ length: 60 }, (_, i) => i).map(m => <option key={m} value={m}>{m}m</option>)}
                 </select>
               </div>
@@ -170,14 +169,14 @@ export function AddActivityForm({ gameId, gameSlug, serverId, timezone, onCreate
                     const updated = [...scheduleSlots];
                     updated[i] = { ...updated[i], day: Number(e.target.value) };
                     setScheduleSlots(updated);
-                  }} className="w-16 px-2.5 py-2 bg-[#09090b] border border-[#3f3f46] rounded text-sm text-[#fafafa] focus:outline-none focus:ring-1 focus:ring-[#52525b]">
+                  }} className="w-16 px-2.5 py-2 bg-[#18181b] border border-[#3f3f46] rounded text-sm text-[#fafafa] focus:outline-none focus:ring-1 focus:ring-[#52525b]">
                     {DAYS.map((d, idx) => <option key={idx} value={idx}>{d}</option>)}
                   </select>
                   <input type="time" value={slot.time} onChange={e => {
                     const updated = [...scheduleSlots];
                     updated[i] = { ...updated[i], time: e.target.value };
                     setScheduleSlots(updated);
-                  }} className="w-28 px-2.5 py-2 bg-[#09090b] border border-[#3f3f46] rounded text-sm text-[#fafafa] focus:outline-none focus:ring-1 focus:ring-[#52525b]" />
+                  }} className="w-28 px-2.5 py-2 bg-[#18181b] border border-[#3f3f46] rounded text-sm text-[#fafafa] focus:outline-none focus:ring-1 focus:ring-[#52525b]" />
                   <button onClick={() => setScheduleSlots(scheduleSlots.filter((_, j) => j !== i))} className="text-[#71717a] hover:text-[#f87171] transition"><X className="w-3 h-3" /></button>
                 </div>
               ))}
@@ -187,20 +186,18 @@ export function AddActivityForm({ gameId, gameSlug, serverId, timezone, onCreate
             </div>
           </div>
         )}
-        <div>
-          <label className="block text-xs text-[#71717a] mb-0.5">Party Size</label>
-          <input value={partySize} onChange={e => setPartySize(e.target.value)} placeholder="e.g. 5" type="number" className="w-full px-2.5 py-2 bg-[#09090b] border border-[#3f3f46] rounded text-sm text-[#fafafa] placeholder-[#52525b] focus:outline-none focus:ring-1 focus:ring-[#52525b]" />
-        </div>
-        <div>
-          <label className="block text-xs text-[#71717a] mb-0.5">Points per Participant</label>
-          <input value={pointsPerParticipant} onChange={e => setPointsPerParticipant(e.target.value === "" ? 0 : Number(e.target.value))} type="number" className="w-full px-2.5 py-2 bg-[#09090b] border border-[#3f3f46] rounded text-sm text-[#fafafa] focus:outline-none focus:ring-1 focus:ring-[#52525b]" />
-        </div>
-        <div>
-          <label className="block text-xs text-[#71717a] mb-0.5">Category</label>
-          <select value={category} onChange={e => setCategory(e.target.value)} className="w-full px-2.5 py-2 bg-[#09090b] border border-[#3f3f46] rounded text-sm text-[#fafafa] focus:outline-none focus:ring-1 focus:ring-[#52525b]">
-            <option value="">None</option>
-            {ACTIVITY_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-          </select>
+        <div className="col-span-2 flex gap-2">
+          <div className="flex-1">
+            <label className="block text-xs text-[#71717a] mb-0.5">Points per Participant</label>
+            <input value={pointsPerParticipant} onChange={e => setPointsPerParticipant(e.target.value === "" ? 0 : Number(e.target.value))} type="number" className="w-full px-2.5 py-2 bg-[#18181b] border border-[#3f3f46] rounded text-sm text-[#fafafa] focus:outline-none focus:ring-1 focus:ring-[#52525b]" />
+          </div>
+          <div className="flex-1">
+            <label className="block text-xs text-[#71717a] mb-0.5">Category</label>
+            <select value={category} onChange={e => setCategory(e.target.value)} className="w-full px-2.5 py-2 bg-[#18181b] border border-[#3f3f46] rounded text-sm text-[#fafafa] focus:outline-none focus:ring-1 focus:ring-[#52525b]">
+              <option value="">None</option>
+              {ACTIVITY_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
         </div>
         <div className="col-span-2">
           <label className="block text-xs text-[#71717a] mb-1">Tags</label>

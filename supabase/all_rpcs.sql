@@ -474,6 +474,7 @@ GRANT EXECUTE ON FUNCTION get_leaderboard(uuid, timestamptz, timestamptz) TO ano
 -- From 039_add_time_multiplier_to_rpc.sql
 -- 039_add_time_multiplier_to_rpc.sql
 -- Add time-based multiplier support to get_leaderboard RPC
+-- Updated: activity_scores now also respects point_rules time multipliers + activity_guilds.points
 
 CREATE OR REPLACE FUNCTION get_leaderboard(
   p_server_id uuid,
@@ -556,7 +557,24 @@ BEGIN
   activity_scores AS (
     SELECT
       m.id AS mid,
-      COALESCE(SUM(a.points_per_participant), 0) AS ap,
+      COALESCE(SUM(
+        COALESCE(ag.points, a.points_per_participant, 0) * COALESCE(
+          (SELECT MAX((pr.config->>'multiplier')::numeric)
+           FROM public.point_rules pr
+           WHERE pr.guild_id = m.guild_id
+             AND pr.rule_type = 'time_multiplier'
+             AND pr.enabled = true
+             AND (
+               ((pr.config->>'start_hour')::int <= (pr.config->>'end_hour')::int
+                AND EXTRACT(HOUR FROM ai.end_time AT TIME ZONE v_tz) >= (pr.config->>'start_hour')::int
+                AND EXTRACT(HOUR FROM ai.end_time AT TIME ZONE v_tz) < (pr.config->>'end_hour')::int)
+               OR
+               ((pr.config->>'start_hour')::int > (pr.config->>'end_hour')::int
+                AND (EXTRACT(HOUR FROM ai.end_time AT TIME ZONE v_tz) >= (pr.config->>'start_hour')::int
+                     OR EXTRACT(HOUR FROM ai.end_time AT TIME ZONE v_tz) < (pr.config->>'end_hour')::int))
+             )
+          ), 1)
+      ), 0) AS ap,
       COUNT(DISTINCT aa.activity_instance_id) AS aa_count
     FROM public.members m
     LEFT JOIN public.activity_attendance aa ON aa.member_id = m.id AND aa.present = true
@@ -564,6 +582,12 @@ BEGIN
       AND (p_since IS NULL OR ai.end_time >= p_since)
       AND (p_until IS NULL OR ai.end_time <= p_until)
     LEFT JOIN public.activities a ON a.id = ai.activity_id AND a.server_id = p_server_id
+    LEFT JOIN (
+      SELECT DISTINCT ON (activity_id, guild_id) activity_id, guild_id, points
+      FROM public.activity_guilds
+      WHERE points IS NOT NULL
+      ORDER BY activity_id, guild_id, points DESC
+    ) ag ON ag.activity_id = a.id AND ag.guild_id = m.guild_id
     WHERE m.server_id = p_server_id
     GROUP BY m.id
   ),

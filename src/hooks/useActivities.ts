@@ -43,6 +43,7 @@ export function useActivities() {
       return (data || []) as Activity[];
     },
     staleTime: 60_000,
+    refetchInterval: 30_000,
     enabled: configured && !!serverId,
   });
 
@@ -61,6 +62,7 @@ export function useActivities() {
       return (data || []) as ActivityInstance[];
     },
     staleTime: 0,
+    refetchInterval: 2_000,
     enabled: configured && !!serverId && activities.length > 0,
   });
 

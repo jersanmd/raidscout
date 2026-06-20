@@ -139,7 +139,7 @@ export async function writeBotAudit(params: {
   details?: Record<string, any>;
 }): Promise<void> {
   try {
-    await supabaseRpc("write_audit_entry", {
+    const result = await supabaseRpc("write_audit_entry", {
       p_action: params.action,
       p_server_id: params.server_id,
       p_target_type: params.target_type || null,
@@ -147,9 +147,9 @@ export async function writeBotAudit(params: {
       p_details: params.details || {},
       p_discord_actor: params.discord_user,
     });
+    console.log("[bot-audit] OK:", params.action, "→", result);
   } catch (err: any) {
-    // Don't block bot commands on audit failure
-    console.error("[bot-audit] write failed:", err?.message || err);
+    console.error("[bot-audit] FAIL:", params.action, "—", err?.message || err);
   }
 }
 

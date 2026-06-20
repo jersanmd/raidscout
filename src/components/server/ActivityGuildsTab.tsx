@@ -160,6 +160,14 @@ export function ActivityGuildsTab() {
         <p className="text-xs text-[#71717a]">
           Assign guilds to activities with rotation modes. <strong>Rotation</strong> advances per finish, <strong>Daily</strong> per day, <strong>Schedule</strong> per day-of-week, <strong>All Guilds</strong> means everyone participates.
         </p>
+        <div className="flex items-center gap-3 text-xs flex-wrap">
+          <div className="flex items-center gap-3 text-[#71717a]">
+            <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-[#a1a1aa]" /> Rotation</span>
+            <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-cyan-400" /> Daily</span>
+            <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-purple-400" /> Schedule</span>
+            <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400" /> All Guilds</span>
+          </div>
+        </div>
 
         {loading ? (
           <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 text-[#71717a] animate-spin" /></div>
@@ -196,16 +204,13 @@ export function ActivityGuildsTab() {
                     onClick={() => setExpandedActivity(isExpanded ? null : activity.id)}
                     className="w-full flex items-center gap-2 px-4 py-3 hover:bg-[#27272a]/30 transition text-left"
                   >
-                    {activity.image_url ? (
-                      <img src={activity.image_url} alt={activity.name} className="w-6 h-6 rounded object-cover border border-[#27272a] shrink-0" />
-                    ) : (
-                      <span className={`w-2 h-2 rounded-full shrink-0 ${
-                      activity.schedule_type === "fixed_hours" ? "bg-emerald-400" :
-                      activity.schedule_type === "fixed_schedule" ? "bg-violet-400" :
-                      activity.schedule_type === "one_time" ? "bg-amber-400" :
+                    <span className={`w-2 h-2 rounded-full shrink-0 ${
+                      mode === "rotation" ? "bg-[#a1a1aa]" :
+                      mode === "daily" ? "bg-cyan-400" :
+                      mode === "schedule" ? "bg-purple-400" :
+                      mode === "all" ? "bg-emerald-400" :
                       "bg-[#52525b]"
                     }`} />
-                    )}
                     <span className="text-xs text-[#fafafa] font-medium flex-1 truncate">{activity.name}</span>
                     <span className={`text-xs px-1.5 py-0.5 rounded ${
                       mode === "rotation" ? "text-[#a1a1aa] bg-[#18181b]" :

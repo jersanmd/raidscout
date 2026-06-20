@@ -7,9 +7,10 @@ interface CountdownTimerProps {
   onUrgent?: (bossName: string) => void;
   onCritical?: (bossName: string) => void;
   onSpawned?: (bossName: string) => void;
+  isActivity?: boolean;
 }
 
-export function CountdownTimer({ target, bossName, onUrgent, onCritical, onSpawned }: CountdownTimerProps) {
+export function CountdownTimer({ target, bossName, onUrgent, onCritical, onSpawned, isActivity }: CountdownTimerProps) {
   const timer = useTimer(target);
   const urgentKey = target && bossName ? `alert-urgent-${bossName}-${target.getTime()}` : null;
   const criticalKey = target && bossName ? `alert-critical-${bossName}-${target.getTime()}` : null;
@@ -47,7 +48,7 @@ export function CountdownTimer({ target, bossName, onUrgent, onCritical, onSpawn
   if (timer.isPast) {
     return (
       <span className="text-emerald-400 font-mono font-medium text-base animate-pulse">
-        Spawned
+        {isActivity ? "Active" : "Spawned"}
       </span>
     );
   }

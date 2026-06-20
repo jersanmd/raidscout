@@ -281,7 +281,7 @@ describe("getRotationInfo — daily", () => {
       makeBossGuild("b1", "g2", 1, "daily"),
     ];
     const result = getRotationInfo("b1", bg, guilds, [], [makeSpawn(boss)]);
-    expect(result!.currentIndex).toBe(1); // Advance from first guild
+    expect(result!.currentIndex).toBe(0); // No death record, no override → stays at index 0
   });
 
   it("stays on same index when death and spawn are same day", () => {
@@ -306,11 +306,13 @@ describe("getRotationInfo — daily", () => {
     expect(result!.currentIndex).toBe(1); // Next day → advance to g2
   });
 
-  it("returns null when only 1 guild assigned", () => {
+  it("returns rotation info even for single-guild assignments", () => {
     const boss = makeBoss({ id: "b1" });
     const bg = [makeBossGuild("b1", "g1", 0, "daily")];
     const result = getRotationInfo("b1", bg, guilds, [], [makeSpawn(boss)]);
-    expect(result).toBeNull();
+    expect(result).not.toBeNull();
+    expect(result!.guilds).toHaveLength(1);
+    expect(result!.currentIndex).toBe(0);
   });
 });
 

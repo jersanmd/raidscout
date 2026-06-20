@@ -54,10 +54,10 @@ export async function fetchPartyList(
   return partyRows.map((p: any) => {
     const pMembers = memberRows
       .filter((m: any) => m.party_id === p.id)
-      .map((m: any) => {
+      .map((m: any, i: number) => {
         const name = memberMap.get(m.member_id) || m.member_id.slice(0, 8);
         const gName = memberGuildMap.get(m.member_id);
-        return gName ? `${name} 🛡${gName}` : name;
+        return gName ? `${i + 1}. ${name} - ${gName}` : `${i + 1}. ${name}`;
       });
     return {
       name: p.name,

@@ -51,7 +51,7 @@ export function BossGuildsTab({ bosses, guilds, bossGuilds, onBossGuildsChange, 
     if (currentMode === mode) return;
     setSavingBossId(bossId);
     try {
-      await setBossGuilds(bossId, []);
+      await setBossGuilds(bossId, [], "rotation", serverId);
       if (mode === "none") {
         onBossGuildsChange(bossGuilds.filter(bg => bg.boss_id !== bossId));
       } else {
@@ -67,7 +67,7 @@ export function BossGuildsTab({ bosses, guilds, bossGuilds, onBossGuildsChange, 
       const existing = getBossGuildsForBoss(bossId).filter(bg => bg.sort_order !== null && bg.sort_order > 0);
       const nextOrder = existing.length > 0 ? Math.max(...existing.map(bg => bg.sort_order ?? 0)) + 1 : 1;
       const newAssignments = [...existing.map(bg => ({ guild_id: bg.guild_id, sort_order: bg.sort_order! })), { guild_id: guildId, sort_order: nextOrder }];
-      await setBossGuilds(bossId, newAssignments, "rotation");
+      await setBossGuilds(bossId, newAssignments, "rotation", serverId);
       const updated = await fetchBossGuilds(serverId);
       onBossGuildsChange(updated);
     } catch (err: any) { toast("error", err?.message ?? "Failed to add guild"); }
@@ -77,7 +77,7 @@ export function BossGuildsTab({ bosses, guilds, bossGuilds, onBossGuildsChange, 
   const handleRemoveRotationGuild = async (bossId: string, entryId: string) => {
     const existing = getBossGuildsForBoss(bossId).filter(bg => bg.id !== entryId);
     const reordered = existing.map((bg, i) => ({ guild_id: bg.guild_id, sort_order: i + 1 }));
-    await setBossGuilds(bossId, reordered, "rotation");
+    await setBossGuilds(bossId, reordered, "rotation", serverId);
     const updated = await fetchBossGuilds(serverId);
     onBossGuildsChange(updated);
   };
@@ -91,7 +91,7 @@ export function BossGuildsTab({ bosses, guilds, bossGuilds, onBossGuildsChange, 
     const swapIdx = direction === "up" ? idx - 1 : idx + 1;
     [existing[idx], existing[swapIdx]] = [existing[swapIdx], existing[idx]];
     const reordered = existing.map((bg, i) => ({ guild_id: bg.guild_id, sort_order: i + 1 }));
-    await setBossGuilds(bossId, reordered, "rotation");
+    await setBossGuilds(bossId, reordered, "rotation", serverId);
     const updated = await fetchBossGuilds(serverId);
     onBossGuildsChange(updated);
   };
@@ -102,7 +102,7 @@ export function BossGuildsTab({ bosses, guilds, bossGuilds, onBossGuildsChange, 
       const existing = getBossGuildsForBoss(bossId);
       const nextOrder = existing.length > 0 ? Math.max(...existing.map(bg => bg.sort_order ?? 0)) + 1 : 1;
       const newAssignments = [...existing.map(bg => ({ guild_id: bg.guild_id, sort_order: bg.sort_order! })), { guild_id: guildId, sort_order: nextOrder }];
-      await setBossGuilds(bossId, newAssignments, "daily");
+      await setBossGuilds(bossId, newAssignments, "daily", serverId);
       const updated = await fetchBossGuilds(serverId);
       onBossGuildsChange(updated);
     } catch (err: any) { toast("error", err?.message ?? "Failed to add guild"); }
@@ -112,7 +112,7 @@ export function BossGuildsTab({ bosses, guilds, bossGuilds, onBossGuildsChange, 
   const handleRemoveDailyGuild = async (bossId: string, entryId: string) => {
     const existing = getBossGuildsForBoss(bossId).filter(bg => bg.id !== entryId);
     const reordered = existing.map((bg, i) => ({ guild_id: bg.guild_id, sort_order: i + 1 }));
-    await setBossGuilds(bossId, reordered, "daily");
+    await setBossGuilds(bossId, reordered, "daily", serverId);
     const updated = await fetchBossGuilds(serverId);
     onBossGuildsChange(updated);
   };
@@ -126,7 +126,7 @@ export function BossGuildsTab({ bosses, guilds, bossGuilds, onBossGuildsChange, 
     const swapIdx = direction === "up" ? idx - 1 : idx + 1;
     [existing[idx], existing[swapIdx]] = [existing[swapIdx], existing[idx]];
     const reordered = existing.map((bg, i) => ({ guild_id: bg.guild_id, sort_order: i + 1 }));
-    await setBossGuilds(bossId, reordered, "daily");
+    await setBossGuilds(bossId, reordered, "daily", serverId);
     const updated = await fetchBossGuilds(serverId);
     onBossGuildsChange(updated);
   };
@@ -135,7 +135,7 @@ export function BossGuildsTab({ bosses, guilds, bossGuilds, onBossGuildsChange, 
     const existing = getBossGuildsForBoss(bossId).filter(bg => bg.day_of_week !== dayOfWeek);
     const newAssignments = existing.map(bg => ({ guild_id: bg.guild_id, day_of_week: bg.day_of_week! }));
     if (guildId) newAssignments.push({ guild_id: guildId, day_of_week: dayOfWeek });
-    await setBossGuilds(bossId, newAssignments, "schedule");
+    await setBossGuilds(bossId, newAssignments, "schedule", serverId);
     const updated = await fetchBossGuilds(serverId);
     onBossGuildsChange(updated);
   };

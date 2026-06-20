@@ -97,6 +97,20 @@ export const AuditAction = {
   POINT_RULE_UPDATE: "point_rule_update",
   POINT_RULE_DELETE: "point_rule_delete",
 
+  // Guilds
+  GUILD_CREATE: "guild_create",
+  GUILD_UPDATE: "guild_update",
+  GUILD_DELETE: "guild_delete",
+
+  // Boss & Activity Points / Salary / Assists
+  BOSS_GUILD_POINTS_EDIT: "boss_guild_points_edit",
+  BOSS_GUILD_SALARY_EDIT: "boss_guild_salary_edit",
+  BOSS_GUILD_SALARY_BATCH: "boss_guild_salary_batch",
+  BOSS_ASSIST_TOGGLE: "boss_assist_toggle",
+  ACTIVITY_GUILD_POINTS_EDIT: "activity_guild_points_edit",
+  ACTIVITY_GUILD_SALARY_EDIT: "activity_guild_salary_edit",
+  ACTIVITY_ASSIST_TOGGLE: "activity_assist_toggle",
+
   // Death Records
   DEATH_GUILD_SET: "death_guild_set",
   DEATH_GUILD_CLEAR: "death_guild_clear",
@@ -130,6 +144,8 @@ export const AUDIT_ACTION_GROUPS: { label: string; actions: AuditActionType[] }[
       AuditAction.MODERATOR_ADD,
       AuditAction.MODERATOR_REMOVE,
       AuditAction.MOD_PERMS_UPDATE,
+      AuditAction.VIEWER_EDIT_TOGGLE,
+      AuditAction.VIEWER_MARK_DIED_TOGGLE,
     ],
   },
   {
@@ -212,6 +228,26 @@ export const AUDIT_ACTION_GROUPS: { label: string; actions: AuditActionType[] }[
   {
     label: "Leaderboard",
     actions: [AuditAction.LEADERBOARD_FINALIZE],
+  },
+  {
+    label: "Guilds",
+    actions: [
+      AuditAction.GUILD_CREATE,
+      AuditAction.GUILD_UPDATE,
+      AuditAction.GUILD_DELETE,
+    ],
+  },
+  {
+    label: "Points & Salary",
+    actions: [
+      AuditAction.BOSS_GUILD_POINTS_EDIT,
+      AuditAction.BOSS_GUILD_SALARY_EDIT,
+      AuditAction.BOSS_GUILD_SALARY_BATCH,
+      AuditAction.BOSS_ASSIST_TOGGLE,
+      AuditAction.ACTIVITY_GUILD_POINTS_EDIT,
+      AuditAction.ACTIVITY_GUILD_SALARY_EDIT,
+      AuditAction.ACTIVITY_ASSIST_TOGGLE,
+    ],
   },
   {
     label: "Settings",

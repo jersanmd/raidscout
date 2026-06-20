@@ -114,11 +114,11 @@ export function AddBossForm({ gameId, gameSlug, serverId, onCreated, onCancel, o
       <div className="grid grid-cols-2 gap-2">
         <div>
           <label className="block text-xs text-[#71717a] mb-0.5">Name *</label>
-          <input value={name} onChange={e => setName(e.target.value)} required className="w-full px-2.5 py-2 bg-[#09090b] border border-[#3f3f46] rounded text-sm text-[#fafafa] focus:outline-none focus:ring-1 focus:ring-[#52525b]" />
+          <input value={name} onChange={e => setName(e.target.value)} required className="w-full px-2.5 py-2 bg-[#18181b] border border-[#3f3f46] rounded text-sm text-[#fafafa] focus:outline-none focus:ring-1 focus:ring-[#52525b]" />
         </div>
         <div>
           <label className="block text-xs text-[#71717a] mb-0.5">Spawn Type</label>
-          <select value={spawnType} onChange={e => { setSpawnType(e.target.value); setScheduleSlots([]); }} className="w-full px-2.5 py-2 bg-[#09090b] border border-[#3f3f46] rounded text-sm text-[#fafafa] focus:outline-none focus:ring-1 focus:ring-[#52525b]">
+          <select value={spawnType} onChange={e => { setSpawnType(e.target.value); setScheduleSlots([]); }} className="w-full px-2.5 py-2 bg-[#18181b] border border-[#3f3f46] rounded text-sm text-[#fafafa] focus:outline-none focus:ring-1 focus:ring-[#52525b]">
             <option value="fixed_hours">Fixed Hours</option>
             <option value="fixed_schedule">Fixed Schedule</option>
           </select>
@@ -127,17 +127,17 @@ export function AddBossForm({ gameId, gameSlug, serverId, onCreated, onCancel, o
           <>
           <div>
             <label className="block text-xs text-[#71717a] mb-0.5">Start Date</label>
-            <input type="date" min={todayStr} value={startDate} onChange={e => setStartDate(e.target.value)} className="w-full px-2.5 py-2 bg-[#09090b] border border-[#3f3f46] rounded text-sm text-[#fafafa] focus:outline-none focus:ring-1 focus:ring-[#52525b] [color-scheme:dark]" />
+            <input type="date" min={todayStr} value={startDate} onChange={e => setStartDate(e.target.value)} className="w-full px-2.5 py-2 bg-[#18181b] border border-[#3f3f46] rounded text-sm text-[#fafafa] focus:outline-none focus:ring-1 focus:ring-[#52525b] [color-scheme:dark]" />
           </div>
           <div>
             <label className="block text-xs text-[#71717a] mb-0.5">Start Time <span className="text-[#52525b] ml-1">(your local time — saved as UTC)</span></label>
             <div className="flex items-center gap-1">
-              <select value={startHours} onChange={e => setStartHours(e.target.value)} className="w-20 px-2.5 py-2 bg-[#09090b] border border-[#3f3f46] rounded text-sm text-[#fafafa] focus:outline-none focus:ring-1 focus:ring-[#52525b]">
+              <select value={startHours} onChange={e => setStartHours(e.target.value)} className="w-20 px-2.5 py-2 bg-[#18181b] border border-[#3f3f46] rounded text-sm text-[#fafafa] focus:outline-none focus:ring-1 focus:ring-[#52525b]">
                 {Array.from({ length: 24 }, (_, i) => i)
                   .filter(h => !isToday || h >= nowHour)
                   .map(h => <option key={h} value={h}>{String(h).padStart(2,"0")}h</option>)}
               </select>
-              <select value={startMinutes} onChange={e => setStartMinutes(e.target.value)} className="w-16 px-2.5 py-2 bg-[#09090b] border border-[#3f3f46] rounded text-sm text-[#fafafa] focus:outline-none focus:ring-1 focus:ring-[#52525b]">
+              <select value={startMinutes} onChange={e => setStartMinutes(e.target.value)} className="w-16 px-2.5 py-2 bg-[#18181b] border border-[#3f3f46] rounded text-sm text-[#fafafa] focus:outline-none focus:ring-1 focus:ring-[#52525b]">
                 {Array.from({ length: 60 }, (_, i) => i)
                   .filter(m => !isToday || Number(startHours) > nowHour || m >= nowMin)
                   .map(m => <option key={m} value={m}>{String(m).padStart(2,"0")}m</option>)}
@@ -155,7 +155,7 @@ export function AddBossForm({ gameId, gameSlug, serverId, onCreated, onCancel, o
                     const m = respawnHours ? Math.round((Number(respawnHours) % 1) * 60) : 0;
                     setRespawnHours(String(h + m / 60));
                   }}
-                  className="w-20 px-2.5 py-2 bg-[#09090b] border border-[#3f3f46] rounded text-sm text-[#fafafa] focus:outline-none focus:ring-1 focus:ring-[#52525b]">
+                  className="w-20 px-2.5 py-2 bg-[#18181b] border border-[#3f3f46] rounded text-sm text-[#fafafa] focus:outline-none focus:ring-1 focus:ring-[#52525b]">
                   <option value="">h</option>
                   {Array.from({ length: 200 }, (_, i) => i).map(h => <option key={h} value={h}>{h}h</option>)}
                 </select>
@@ -166,7 +166,7 @@ export function AddBossForm({ gameId, gameSlug, serverId, onCreated, onCancel, o
                     const h = respawnHours ? Math.floor(Number(respawnHours)) : 0;
                     setRespawnHours(String(h + m / 60));
                   }}
-                  className="w-16 px-2.5 py-2 bg-[#09090b] border border-[#3f3f46] rounded text-sm text-[#fafafa] focus:outline-none focus:ring-1 focus:ring-[#52525b]">
+                  className="w-16 px-2.5 py-2 bg-[#18181b] border border-[#3f3f46] rounded text-sm text-[#fafafa] focus:outline-none focus:ring-1 focus:ring-[#52525b]">
                   {Array.from({ length: 60 }, (_, i) => i).map(m => <option key={m} value={m}>{m}m</option>)}
                 </select>
               </div>
@@ -187,14 +187,14 @@ export function AddBossForm({ gameId, gameSlug, serverId, onCreated, onCancel, o
                     const updated = [...scheduleSlots];
                     updated[i] = { ...updated[i], day: Number(e.target.value) };
                     setScheduleSlots(updated);
-                  }} className="w-16 px-2.5 py-2 bg-[#09090b] border border-[#3f3f46] rounded text-sm text-[#fafafa] focus:outline-none focus:ring-1 focus:ring-[#52525b]">
+                  }} className="w-16 px-2.5 py-2 bg-[#18181b] border border-[#3f3f46] rounded text-sm text-[#fafafa] focus:outline-none focus:ring-1 focus:ring-[#52525b]">
                     {DAYS.map((d, idx) => <option key={idx} value={idx}>{d}</option>)}
                   </select>
                   <input type="time" value={slot.time} onChange={e => {
                     const updated = [...scheduleSlots];
                     updated[i] = { ...updated[i], time: e.target.value };
                     setScheduleSlots(updated);
-                  }} className="w-28 px-2.5 py-2 bg-[#09090b] border border-[#3f3f46] rounded text-sm text-[#fafafa] focus:outline-none focus:ring-1 focus:ring-[#52525b]" />
+                  }} className="w-28 px-2.5 py-2 bg-[#18181b] border border-[#3f3f46] rounded text-sm text-[#fafafa] focus:outline-none focus:ring-1 focus:ring-[#52525b]" />
                   <button onClick={() => setScheduleSlots(scheduleSlots.filter((_, j) => j !== i))} className="text-[#71717a] hover:text-[#f87171] transition"><X className="w-3 h-3" /></button>
                 </div>
               ))}
@@ -206,18 +206,18 @@ export function AddBossForm({ gameId, gameSlug, serverId, onCreated, onCancel, o
         )}
         <div>
           <label className="block text-xs text-[#71717a] mb-0.5">Category</label>
-          <select value={category} onChange={e => setCategory(e.target.value)} className="w-full px-2.5 py-2 bg-[#09090b] border border-[#3f3f46] rounded text-sm text-[#fafafa] focus:outline-none focus:ring-1 focus:ring-[#52525b]">
+          <select value={category} onChange={e => setCategory(e.target.value)} className="w-full px-2.5 py-2 bg-[#18181b] border border-[#3f3f46] rounded text-sm text-[#fafafa] focus:outline-none focus:ring-1 focus:ring-[#52525b]">
             <option value="">None</option>
             {BOSS_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
             <option value="__custom__">Other...</option>
           </select>
           {category === "__custom__" && (
-            <input value={customCategory} onChange={e => setCustomCategory(e.target.value)} placeholder="Type custom category..." className="mt-1 w-full px-2.5 py-2 bg-[#09090b] border border-[#3f3f46] rounded text-sm text-[#fafafa] placeholder-[#52525b] focus:outline-none focus:ring-1 focus:ring-[#52525b]" />
+            <input value={customCategory} onChange={e => setCustomCategory(e.target.value)} placeholder="Type custom category..." className="mt-1 w-full px-2.5 py-2 bg-[#18181b] border border-[#3f3f46] rounded text-sm text-[#fafafa] placeholder-[#52525b] focus:outline-none focus:ring-1 focus:ring-[#52525b]" />
           )}
         </div>
         <div>
           <label className="block text-xs text-[#71717a] mb-0.5">Points</label>
-          <input value={points} onChange={e => setPoints(e.target.value === "" ? 0 : Number(e.target.value))} type="number" className="w-full px-2.5 py-2 bg-[#09090b] border border-[#3f3f46] rounded text-sm text-[#fafafa] focus:outline-none focus:ring-1 focus:ring-[#52525b]" />
+          <input value={points} onChange={e => setPoints(e.target.value === "" ? 0 : Number(e.target.value))} type="number" className="w-full px-2.5 py-2 bg-[#18181b] border border-[#3f3f46] rounded text-sm text-[#fafafa] focus:outline-none focus:ring-1 focus:ring-[#52525b]" />
         </div>
         <div className="col-span-2">
           <label className="block text-xs text-[#71717a] mb-1">Tags</label>

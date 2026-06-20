@@ -12,6 +12,20 @@ export async function fetchDeathRecords(serverId?: string | null): Promise<Death
   return (data as DeathRecord[]) ?? [];
 }
 
+/** Fetch ALL death records in a date window (for weekly schedule). */
+export async function fetchDeathsInWindow(since: Date, until?: Date, serverId?: string | null): Promise<DeathRecord[]> {
+  const sid = serverId ?? getCurrentServerId();
+  if (!sid) return [];
+  const { data, error } = await supabase
+    .rpc("get_deaths_in_window", {
+      p_server_id: sid,
+      p_since: since.toISOString(),
+      p_until: until?.toISOString() ?? null,
+    });
+  if (error) throw error;
+  return (data as DeathRecord[]) ?? [];
+}
+
 export async function insertDeathRecord(
   bossId: string,
   deathTime: Date,
@@ -98,8 +112,9 @@ export async function editDeathTime(deathRecordId: string, newDeathTime: Date): 
 
 export async function setDeathDisplayGuild(deathRecordId: string, guildId: string): Promise<void> {
   const { error } = await supabase
-    .from("death_records")
-    .update({ owner_guild_id: guildId })
-    .eq("id", deathRecordId);
+    .rpc("set_death_owner_guild", {
+      p_death_record_id: deathRecordId,
+      p_guild_id: guildId,
+    });
   if (error) throw new Error(error.message);
 }

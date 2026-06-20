@@ -24,7 +24,7 @@ export async function fetchStaticParties(serverId?: string | null): Promise<Stat
   return (data || []) as StaticParty[];
 }
 
-export async function createParty(name: string, guildId: string | null, bossId: string | null = null, activityId: string | null = null, bossName?: string | null, activityName?: string | null): Promise<string> {
+export async function createParty(name: string, guildId: string | null, bossId: string | null = null, activityId: string | null = null, bossName?: string | null, activityName?: string | null, guildName?: string | null): Promise<string> {
   const sid = getCurrentServerId();
   if (!sid) throw new Error("No server selected");
   const { data, error } = await supabase.rpc("create_static_party", {
@@ -32,7 +32,7 @@ export async function createParty(name: string, guildId: string | null, bossId: 
     p_boss_id: bossId, p_activity_id: activityId,
   });
   if (error) throw error;
-  writeAuditEntry({ action: AuditAction.PARTY_CREATE, server_id: sid, target_id: data as string, details: { party_name: name.trim(), boss_name: bossName || bossId || "—", activity_name: activityName || activityId || "—" } });
+  writeAuditEntry({ action: AuditAction.PARTY_CREATE, server_id: sid, target_id: data as string, details: { party_name: name.trim(), guild_name: guildName, boss_name: bossName || bossId || "—", activity_name: activityName || activityId || "—" } });
   return data as string;
 }
 
@@ -65,11 +65,20 @@ export async function assignPartyToBoss(partyId: string, bossId: string, serverI
   if (serverId) writeAuditEntry({ action: AuditAction.PARTY_ASSIGN, server_id: serverId, target_id: partyId, details: { party_name: partyName || partyId, boss_name: bossName || bossId, guild_name: guildName } });
 }
 
+/** Assign a party to a specific activity */
+export async function assignPartyToActivity(partyId: string, activityId: string, serverId?: string | null, partyName?: string, activityName?: string, guildName?: string): Promise<void> {
+  const { error } = await supabase.rpc("assign_party_to_activity", {
+    p_party_id: partyId, p_activity_id: activityId,
+  });
+  if (error) throw error;
+  if (serverId) writeAuditEntry({ action: AuditAction.PARTY_ASSIGN, server_id: serverId, target_id: partyId, details: { party_name: partyName || partyId, activity_name: activityName || activityId, guild_name: guildName } });
+}
+
 /** Unlink a party from its boss/activity */
-export async function unlinkParty(partyId: string, serverId?: string | null, partyName?: string, guildName?: string): Promise<void> {
+export async function unlinkParty(partyId: string, serverId?: string | null, partyName?: string, guildName?: string, bossName?: string): Promise<void> {
   const { error } = await supabase.rpc("unlink_party", {
     p_party_id: partyId,
   });
   if (error) throw error;
-  if (serverId) writeAuditEntry({ action: AuditAction.PARTY_UNLINK, server_id: serverId, target_id: partyId, details: { party_name: partyName || partyId, guild_name: guildName } });
+  if (serverId) writeAuditEntry({ action: AuditAction.PARTY_UNLINK, server_id: serverId, target_id: partyId, details: { party_name: partyName || partyId, guild_name: guildName, boss_name: bossName } });
 }

@@ -91,7 +91,7 @@ export function getRotationInfo(
   const rotationEntries = bgs
     .filter(bg => bg.sort_order !== null && bg.sort_order > 0 && bg.mode !== "daily")
     .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
-  if (rotationEntries.length > 1) {
+  if (rotationEntries.length > 0) {
     const counter = bossData?.rotation_counter ?? 1;
     const idx = safeMod(counter - 1, rotationEntries.length);
     return {
@@ -108,7 +108,7 @@ export function getRotationInfo(
   const dailyEntries = bgs
     .filter(bg => bg.mode === "daily")
     .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
-  if (dailyEntries.length > 1) {
+  if (dailyEntries.length > 0) {
     const idx = getDailyRotationIndex(bossId, dailyEntries, deathRecords, spawns, timezone || "UTC");
     return {
       guilds: dailyEntries.map(bg => ({
@@ -147,6 +147,10 @@ function getDailyOwnerGuild(
     return guilds.find(g => g.id === dailyEntries[0].guild_id)?.name;
   }
 
+  // display_owner_guild_id is a manual override — use it if set
+  const displayOverride = (lastDeath as any).display_owner_guild_id;
+  if (displayOverride) return guilds.find(g => g.id === displayOverride)?.name;
+
   const bossData = spawns.find(s => s.boss.id === bossId)?.boss;
   const respawnHours = bossData?.respawn_hours ?? 0;
   const deathDate = new Date(lastDeath.death_time);
@@ -184,6 +188,14 @@ function getDailyRotationIndex(
   const lastDeath = deathRecords
     .filter(dr => dr.boss_id === bossId && !(dr as any).is_initial_spawn)
     .sort((a, b) => new Date(b.death_time).getTime() - new Date(a.death_time).getTime())[0];
+
+  // display_owner_guild_id is a manual override — use it if set
+  const displayOverride = lastDeath ? (lastDeath as any).display_owner_guild_id : null;
+  if (displayOverride) {
+    const overrideIdx = dailyEntries.findIndex(bg => bg.guild_id === displayOverride);
+    if (overrideIdx >= 0) return overrideIdx;
+  }
+
   const lastGuildId = lastDeath ? (lastDeath as any).owner_guild_id : null;
   const lastIdx = lastGuildId
     ? dailyEntries.findIndex(bg => bg.guild_id === lastGuildId)
@@ -205,8 +217,12 @@ function getDailyRotationIndex(
       // Different day — advance rotation
       idx = safeMod(lastIdx + 1, dailyEntries.length);
     }
-  } else {
+  } else if (lastDeath) {
+    // Death exists but no guild — advance from first guild
     idx = safeMod(1, dailyEntries.length);
+  } else {
+    // No death record yet — start at first guild
+    idx = 0;
   }
 
   return safeMod(idx, dailyEntries.length);
