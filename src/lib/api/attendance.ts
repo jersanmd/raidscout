@@ -44,10 +44,10 @@ export async function addAttendance(
   if (!memberName || !bossName) {
     try {
       const [memRes, drRes] = await Promise.all([
-        !memberName ? supabase.from("members").select("in_game_name").eq("id", memberId).single() : Promise.resolve(null),
+        !memberName ? supabase.from("members").select("name").eq("id", memberId).single() : Promise.resolve(null),
         !bossName ? supabase.from("death_records").select("boss_id").eq("id", deathRecordId).single() : Promise.resolve(null),
       ]);
-      if (!memberName && memRes?.data) memberName = (memRes.data as any).in_game_name;
+      if (!memberName && memRes?.data) memberName = (memRes.data as any).name;
       if (!bossName && drRes?.data) {
         const bid = (drRes.data as any).boss_id;
         if (bid) {

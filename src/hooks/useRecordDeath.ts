@@ -114,6 +114,14 @@ export function useRecordDeath(
     // 6. Audit log
     const serverId = getCurrentServerId();
     if (serverId) {
+      // Resolve guild name from ID for readable audit
+      let guildName = "";
+      if (ownerGuildName) {
+        try {
+          const { data: g } = await supabase.from("guilds").select("name").eq("id", ownerGuildName).single();
+          if (g) guildName = (g as any).name;
+        } catch { /* use ID as fallback */ }
+      }
       writeAuditEntry({
         action: AuditAction.BOSS_KILL,
         server_id: serverId,
@@ -122,7 +130,7 @@ export function useRecordDeath(
           boss_name: bossName,
           death_record_id: deathRecordId,
           attendees: attendeeIds.length,
-          guild: ownerGuildName,
+          guild: guildName || ownerGuildName,
         },
         viewer_key: isViewer ? (getCurrentViewerKey() ?? undefined) : undefined,
       });
