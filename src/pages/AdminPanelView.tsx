@@ -1269,7 +1269,8 @@ export function AdminPanelView() {
                 <h4 className="text-sm font-semibold text-[#fafafa] mb-2">Kills per Test Server</h4>
                 <div className="space-y-1">
                   {(cronStatus.servers || []).map((srv) => (
-                    <div key={srv.name} className="bg-[#0d0d11] border border-[#1e1e2a] rounded-lg px-4 py-2.5 flex items-center justify-between">
+                    <div key={srv.name} className="bg-[#0d0d11] border border-[#1e1e2a] rounded-lg px-4 py-2.5 flex items-center justify-between"
+                      title={cronStatus.last_run ? `Last run: ${cronStatus.last_run}` : "No run data"}>
                       <span className="text-sm text-[#fafafa]">{srv.name}</span>
                       <div className="flex items-center gap-2">
                         <div className="w-24 sm:w-32 h-2 bg-[#0d0d11] rounded-full overflow-hidden">
@@ -2020,7 +2021,6 @@ function SpawnCronCard({ data, connected, timezone }: { data: any; connected: bo
       {tooltip && (() => {
         const pctX = ((tooltip.x - LX) / pw) * 100;
         const pctY = ((tooltip.y - TY) / ph) * 100;
-        // Edge detection: flip if near right or left edges
         const nearRight = pctX > 70;
         const nearLeft = pctX < 15;
         const xStyle = nearRight ? { right: `${100 - pctX}%` }
@@ -2029,10 +2029,13 @@ function SpawnCronCard({ data, connected, timezone }: { data: any; connected: bo
         const arrowStyle = nearRight ? { right: "12px" }
           : nearLeft ? { left: "12px" }
           : { left: "50%", transform: "translateX(-50%)" };
+        const ts = histData?.metrics?.[tooltip.i]?.ts;
+        const dateStr = ts ? new Date(ts).toLocaleString("en-US", { timeZone: timezone, month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" }) : null;
 
         return (
           <div className="absolute z-20 pointer-events-none px-2.5 py-1.5 rounded-lg bg-[#18181b] border border-[#3f3f46] shadow-xl"
             style={{ top: `${pctY}%`, ...xStyle }}>
+            {dateStr && <div className="text-[9px] text-[#71717a] font-mono whitespace-nowrap mb-0.5">{dateStr}</div>}
             <div className="text-[10px] font-mono text-[#fafafa] whitespace-nowrap">
               Tick {tooltip.i + 1}: <span className="text-[#a78bfa] font-bold">{(tooltip.v / 1000).toFixed(2)}s</span>
             </div>
