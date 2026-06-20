@@ -120,6 +120,7 @@ export function WeeklyScheduleView() {
     },
     enabled: deathRecordIds.length > 0,
     staleTime: 0,
+    refetchInterval: 3_000,
   });
 
   // No limit on scrolling back — user can go as far as their data exists
