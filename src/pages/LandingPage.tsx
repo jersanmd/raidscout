@@ -1234,28 +1234,6 @@ export function LandingPage() {
           </div>
         </div>
       )}
-      {/* ── Section Dot Navigation ── */}
-      <div className="fixed right-4 top-1/2 -translate-y-1/2 z-40 hidden lg:flex flex-col items-center gap-3">
-        {SECTIONS.map((s) => {
-          const isActive = activeSection === s.id;
-          return (
-            <div key={s.id} className="relative group">
-              <button
-                onClick={() => scrollToSection(s.id)}
-                className={`block w-3 h-3 rounded-full transition-all duration-300 ${
-                  isActive
-                    ? "bg-[#fafafa] scale-125 shadow-[0_0_8px_rgba(250,250,250,0.3)]"
-                    : "bg-[#3f3f46] hover:bg-[#71717a]"
-                }`}
-                aria-label={s.label}
-              />
-              <span className="absolute right-5 top-1/2 -translate-y-1/2 bg-[#18181b] border border-[#27272a] text-[#d4d4d8] text-[11px] px-2.5 py-1 rounded-md opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap shadow-lg">
-                {s.label}
-              </span>
-            </div>
-          );
-        })}
-      </div>
     </div>
   );
 }
