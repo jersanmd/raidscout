@@ -68,7 +68,7 @@ export function ActivityPointsMatrix({
         <table className="w-full text-[10px] sm:text-xs">
           <thead>
             <tr>
-              <th className="sticky left-0 bg-[#09090b] px-2 sm:px-3 py-1.5 sm:py-2 text-left text-[#a1a1aa] font-medium border-b border-r border-[#27272a]/50 z-10 min-w-[120px] sm:min-w-[160px]">
+              <th className="sticky left-0 bg-[#18181b] px-2 sm:px-3 py-1.5 sm:py-2 text-left text-[#a1a1aa] font-medium border-b border-r border-[#27272a]/50 z-10 min-w-[120px] sm:min-w-[160px]">
                 Activity
               </th>
               {guilds.map(g => (
@@ -78,7 +78,7 @@ export function ActivityPointsMatrix({
               ))}
             </tr>
             <tr>
-              <th className="sticky left-0 bg-[#09090b] px-3 py-1 border-r border-[#27272a]/50 z-10" />
+              <th className="sticky left-0 bg-[#18181b] px-3 py-1 border-r border-[#27272a]/50 z-10" />
               {guilds.map(g => (
                 <Fragment key={g.id}>
                   <th className="px-2 py-1 text-center text-[10px] text-[#71717a] font-normal border-l border-[#27272a]/30">Pts</th>
@@ -91,7 +91,7 @@ export function ActivityPointsMatrix({
           <tbody>
             {filteredActivities.map(activity => (
               <tr key={activity.id} className="group border-b border-[#27272a]/50 hover:bg-[#18181b]/20 transition">
-                <td className="sticky left-0 bg-[#09090b] group-hover:bg-[#18181b]/20 px-2 sm:px-3 py-1.5 sm:py-2 text-[#fafafa] font-medium border-r border-[#27272a]/30 z-10 transition">
+                <td className="sticky left-0 bg-[#18181b] group-hover:bg-[#18181b]/20 px-2 sm:px-3 py-1.5 sm:py-2 text-[#fafafa] font-medium border-r border-[#27272a]/30 z-10 transition">
                   {activity.name}
                 </td>
                 {guilds.map(guild => {

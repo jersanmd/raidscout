@@ -1,4 +1,5 @@
 import { supabase } from "./client";
+import { writeAuditEntry, AuditAction } from "./audit";
 
 export type ItemCollection = {
   id: string;
@@ -33,12 +34,14 @@ export async function createCollection(serverId: string, name: string, createdBy
     .select()
     .single();
   if (error) throw error;
+  writeAuditEntry({ action: AuditAction.COLLECTION_CREATE, server_id: serverId, target_id: data.id, details: { collection_name: name } });
   return data;
 }
 
-export async function deleteCollection(id: string): Promise<void> {
+export async function deleteCollection(id: string, serverId?: string, name?: string): Promise<void> {
   const { error } = await supabase.from("item_collections").delete().eq("id", id);
   if (error) throw error;
+  if (serverId) writeAuditEntry({ action: AuditAction.COLLECTION_DELETE, server_id: serverId, target_id: id, details: { collection_name: name || id } });
 }
 
 export async function fetchCollectionItems(collectionId: string): Promise<ItemCollectionItem[]> {
@@ -51,8 +54,7 @@ export async function fetchCollectionItems(collectionId: string): Promise<ItemCo
   return data || [];
 }
 
-export async function addItemToCollection(collectionId: string, itemId: string): Promise<void> {
-  // Get next sort_order
+export async function addItemToCollection(collectionId: string, itemId: string, serverId?: string, itemName?: string, collectionName?: string): Promise<void> {
   const { data: existing } = await supabase
     .from("item_collection_items")
     .select("sort_order")
@@ -64,6 +66,7 @@ export async function addItemToCollection(collectionId: string, itemId: string):
     .from("item_collection_items")
     .insert({ collection_id: collectionId, item_id: itemId, sort_order: nextOrder });
   if (error) throw error;
+  if (serverId && itemName) writeAuditEntry({ action: AuditAction.COLLECTION_ITEM_ADD, server_id: serverId, target_id: collectionId, details: { item_name: itemName, collection_name: collectionName || collectionId } });
 }
 
 export async function reorderCollectionItem(collectionId: string, itemId: string, newOrder: number): Promise<void> {
@@ -93,13 +96,14 @@ export async function fetchAllCollectionItemsForServer(serverId: string): Promis
   return data || [];
 }
 
-export async function removeItemFromCollection(collectionId: string, itemId: string): Promise<void> {
+export async function removeItemFromCollection(collectionId: string, itemId: string, serverId?: string, itemName?: string, collectionName?: string): Promise<void> {
   const { error } = await supabase
     .from("item_collection_items")
     .delete()
     .eq("collection_id", collectionId)
     .eq("item_id", itemId);
   if (error) throw error;
+  if (serverId && itemName) writeAuditEntry({ action: AuditAction.COLLECTION_ITEM_REMOVE, server_id: serverId, target_id: collectionId, details: { item_name: itemName, collection_name: collectionName || collectionId } });
 }
 
 // Get all distributions for a server (to check who owns what)
@@ -133,14 +137,15 @@ export async function fetchManualOwnership(collectionId: string): Promise<Manual
   return data || [];
 }
 
-export async function setManualOwnership(collectionId: string, itemId: string, playerName: string, owned: boolean): Promise<void> {
+export async function setManualOwnership(collectionId: string, itemId: string, playerName: string, owned: boolean, serverId?: string, itemName?: string, collectionName?: string): Promise<void> {
   const { error } = await supabase
     .from("item_collection_manual_ownership")
     .upsert({ collection_id: collectionId, item_id: itemId, player_name: playerName, owned }, { onConflict: "collection_id,item_id,player_name" });
   if (error) throw error;
+  if (serverId && itemName) writeAuditEntry({ action: AuditAction.COLLECTION_OWNERSHIP_SET, server_id: serverId, target_id: collectionId, details: { item_name: itemName, player_name: playerName, owned, collection_name: collectionName || collectionId } });
 }
 
-export async function removeManualOwnership(collectionId: string, itemId: string, playerName: string): Promise<void> {
+export async function removeManualOwnership(collectionId: string, itemId: string, playerName: string, serverId?: string, itemName?: string, collectionName?: string): Promise<void> {
   const { error } = await supabase
     .from("item_collection_manual_ownership")
     .delete()
@@ -148,4 +153,5 @@ export async function removeManualOwnership(collectionId: string, itemId: string
     .eq("item_id", itemId)
     .eq("player_name", playerName);
   if (error) throw error;
+  if (serverId && itemName) writeAuditEntry({ action: AuditAction.COLLECTION_OWNERSHIP_REMOVE, server_id: serverId, target_id: collectionId, details: { item_name: itemName, player_name: playerName, collection_name: collectionName || collectionId } });
 }

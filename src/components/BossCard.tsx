@@ -465,6 +465,33 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
           </div>
         )}
 
+        {/* No guild assigned — activities */}
+        {!compact && !multiMode && !isViewer && isActivity && !hasGuilds && canRotateGuilds && (
+          <div className="mt-2 pt-2 border-t border-white/[0.05] relative z-[1]">
+            <span className="text-[10px] text-[#71717a] font-mono uppercase tracking-wider">Guild</span>
+            <div className="flex items-center gap-1 mt-1.5">
+              <button
+                onClick={() => navigate(`/server-settings?tab=activity-guilds`)}
+                className="flex-1 text-center px-2 py-1 rounded text-[10px] font-semibold border border-dashed border-[#3f3f46] text-[#a1a1aa] hover:text-[#fafafa] hover:border-[#52525b] hover:bg-[#27272a] transition"
+              >
+                <span className="flex items-center justify-center gap-1">
+                  <Shield className="w-3 h-3" />
+                  Assign Guild
+                </span>
+              </button>
+            </div>
+          </div>
+        )}
+        {/* Placeholder — activities with no guilds, no permission */}
+        {!compact && !multiMode && !isViewer && isActivity && !hasGuilds && !canRotateGuilds && (
+          <div className="mt-2 pt-2 border-t border-white/[0.05] relative z-[1]">
+            <span className="text-[10px] text-[#3f3f46] font-mono uppercase tracking-wider">Guild</span>
+            <div className="flex items-center gap-1 mt-1.5">
+              <span className="flex-1 text-center px-2 py-1 rounded text-[10px] font-semibold text-[#3f3f46]">—</span>
+            </div>
+          </div>
+        )}
+
         {/* Rotation guild row — activities */}
         {!compact && !multiMode && !isViewer && isActivity && rotationGuilds && rotationGuilds.length > 0 && (
           <div className="mt-2 pt-2 border-t border-white/[0.05] relative z-[1]">
@@ -933,7 +960,7 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
                         <button
                           onClick={async () => {
                             const { unlinkParty } = await import("@/lib/supabase");
-                            await unlinkParty(party.id, serverId, party.name, party.guild_name, boss.name).catch(() => {});
+                            await unlinkParty(party.id, serverId ?? undefined, party.name, party.guild_name ?? undefined, boss.name).catch(() => {});
                             setParties(prev => prev.map(p => p.id === party.id ? { ...p, boss_id: null } : p));
                           }}
                           className="w-full text-center px-2 py-1 text-[10px] text-[#71717a] hover:text-[#f87171] rounded hover:bg-[#27272a] transition">
@@ -1034,7 +1061,7 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
                         <button
                           onClick={async () => {
                             const { unlinkParty } = await import("@/lib/supabase");
-                            await unlinkParty(party.id, serverId, party.name, party.guild_name, isActivity ? activity?.name : boss.name).catch(() => {});
+                            await unlinkParty(party.id, serverId ?? undefined, party.name, party.guild_name ?? undefined, isActivity ? activity?.name : boss.name).catch(() => {});
                             setParties(prev => prev.map(p => p.id === party.id ? { ...p, boss_id: null, activity_id: null } : p));
                           }}
                           className="w-full text-center px-2 py-1 text-[10px] text-[#71717a] hover:text-[#f87171] rounded hover:bg-[#27272a] transition">Unlink</button>
@@ -1043,10 +1070,10 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
                           onClick={async () => {
                             if (!serverId) return;
                             if (isActivity && activity) {
-                              await assignPartyToActivity(party.id, activity.id, serverId, party.name, activity.name, party.guild_name).catch(() => {});
+                              await assignPartyToActivity(party.id, activity.id, serverId ?? undefined, party.name, activity.name, party.guild_name ?? undefined).catch(() => {});
                               setParties(prev => prev.map(p => p.id === party.id ? { ...p, activity_id: activity.id, activity_name: activity.name } : p));
                             } else {
-                              await assignPartyToBoss(party.id, boss.id, serverId, party.name, boss.name, party.guild_name).catch(() => {});
+                              await assignPartyToBoss(party.id, boss.id, serverId ?? undefined, party.name, boss.name, party.guild_name ?? undefined).catch(() => {});
                               setParties(prev => prev.map(p => p.id === party.id ? { ...p, boss_id: boss.id, boss_name: boss.name } : p));
                             }
                           }}

@@ -153,7 +153,7 @@ export function ActivityGuildsTab() {
 
   return (
     <div className="space-y-4">
-      <section className="bg-[#09090b] border border-[#27272a] rounded-xl p-4 space-y-3">
+      <section className="bg-[#18181b] border border-[#27272a] rounded-xl p-4 space-y-3">
         <h3 className="text-sm font-semibold text-[#a1a1aa] uppercase tracking-wider flex items-center gap-1.5">
           <Shield className="w-3 h-3" /> Activity Guild Assignments
         </h3>

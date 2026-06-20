@@ -10,7 +10,7 @@ export async function fetchHistoryFromSupabase(serverId?: string | null, since?:
     .from("death_records")
     .select(`
       id, death_time, owner_guild_id, display_owner_guild_id,
-      bosses!inner(id, name, spawn_type, respawn_hours, schedule),
+      bosses!inner(id, name, spawn_type, respawn_hours, schedule, image_url),
       attendance_records(id)
     `)
     .or("is_initial_spawn.is.null,is_initial_spawn.eq.false")
@@ -87,6 +87,7 @@ export async function fetchHistoryFromSupabase(serverId?: string | null, since?:
       createdAt: d.death_time,
       ownerGuildName: guildMap.get(d.display_owner_guild_id ?? d.owner_guild_id),
       ownerGuildId: d.display_owner_guild_id ?? d.owner_guild_id,
+      bossImageUrl: boss.image_url ?? null,
     };
   });
 

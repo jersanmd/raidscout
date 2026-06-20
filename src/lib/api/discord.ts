@@ -1,4 +1,5 @@
 import { supabase, supabaseUrl, supabaseKey, getCurrentServerId } from "./client";
+import { writeAuditEntry, AuditAction } from "./audit";
 
 // ── Discord Notifications ──────────────────────────────────
 
@@ -116,6 +117,7 @@ export async function sendCpReminder(serverId: string): Promise<{ ok: boolean; r
       return { ok: false, reason: `HTTP ${res.status}: ${err}` };
     }
     const body = await res.json().catch(() => ({}));
+    if (body.ok !== false) writeAuditEntry({ action: AuditAction.MEMBER_CP_REMINDER, server_id: serverId, details: { event: "cp_reminder" } });
     return { ok: body.ok !== false, reason: body.reason };
   } catch (e) {
     return { ok: false, reason: String(e) };

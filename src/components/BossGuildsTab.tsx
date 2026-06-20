@@ -219,7 +219,7 @@ export function BossGuildsTab({ bosses, guilds, bossGuilds, onBossGuildsChange, 
         const isSaving = savingBossId === boss.id;
 
         return (
-          <div key={boss.id} className="bg-[#09090b] border border-[#27272a] rounded-xl overflow-hidden">
+          <div key={boss.id} className="bg-[#18181b] border border-[#27272a] rounded-xl overflow-hidden">
             <button onClick={() => setExpandedBoss(isExpanded ? null : boss.id)}
               className={`w-full flex items-center justify-between px-4 py-3 text-left transition ${isExpanded ? "border-b border-[#27272a]" : ""}`}>
               <div className="flex items-center gap-3">

@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { type HistoryEntry } from "@/lib/history";
 import { fetchHistoryFromSupabase, deleteDeathRecord, isSupabaseConfigured, editDeathTime, fetchGuilds, setDeathDisplayGuild, fetchBosses, supabase } from "@/lib/supabase";
+import { writeAuditEntry, AuditAction } from "@/lib/api/audit";
 import { useAuth } from "@/contexts/AuthContext";
 import { useServerId, useServer } from "@/contexts/ServerContext";
 import { ExpiredGate } from "@/components/ExpiredGate";
@@ -165,6 +166,18 @@ export function HistoryView() {
       const newTime = new Date(y, m - 1, d, hh, mm);
       if (isNaN(newTime.getTime())) throw new Error("Invalid date");
       await editDeathTime(editEntry.deathRecordId, newTime);
+      const formatted = newTime.toLocaleDateString("en-US", { month: "short", day: "numeric" }) + ", " + newTime.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
+      writeAuditEntry({
+        action: AuditAction.DEATH_TIME_EDIT,
+        server_id: serverId!,
+        target_id: editEntry.deathRecordId,
+        details: {
+          boss_name: editEntry.bossName || editEntry.deathRecordId,
+          old_time: editEntry.deathTime || "",
+          new_time: newTime.toISOString(),
+          formatted_time: formatted,
+        },
+      });
       queryClient.invalidateQueries({ queryKey: ["death_records"] });
       // Refresh local history
       if (serverId) {
@@ -185,7 +198,21 @@ export function HistoryView() {
     if (!editEntry?.deathRecordId || !editGuild) return;
     setEditSaving(true);
     try {
+      const oldGuild = guilds.find(g => g.id === editEntry.ownerGuildId)?.name || editEntry.ownerGuildId || "(none)";
+      const newGuild = guilds.find(g => g.id === editGuild)?.name || editGuild;
       await setDeathDisplayGuild(editEntry.deathRecordId, editGuild);
+      const deathTimeStr = editEntry.deathTime ? new Date(editEntry.deathTime).toLocaleDateString("en-US", { month: "short", day: "numeric" }) + ", " + new Date(editEntry.deathTime).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }) : "";
+      writeAuditEntry({
+        action: AuditAction.DEATH_GUILD_SET,
+        server_id: serverId!,
+        target_id: editEntry.deathRecordId,
+        details: {
+          boss_name: editEntry.bossName || editEntry.deathRecordId,
+          old_guild: oldGuild,
+          new_guild: newGuild,
+          death_time: deathTimeStr,
+        },
+      });
       queryClient.invalidateQueries({ queryKey: ["death_records"] });
       if (serverId) {
         const since = dateFrom ? new Date(dateFrom + "T00:00:00Z").toISOString() : undefined;
@@ -479,7 +506,7 @@ export function HistoryView() {
                           </div>
                         )
                       ) : (
-                        <BossImage bossName={entry.bossName!} size="sm" />
+                        <BossImage bossName={entry.bossName!} imageUrl={entry.bossImageUrl} size="sm" />
                       )}
 
                       {/* Content */}

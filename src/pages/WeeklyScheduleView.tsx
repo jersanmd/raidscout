@@ -1,4 +1,4 @@
-import { useMemo, useState, useCallback, useEffect } from "react";
+import { useMemo, useState, useCallback, useEffect, useRef } from "react";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { useBosses } from "@/hooks/useBosses";
 import { useDeathRecords } from "@/hooks/useDeathRecords";
@@ -132,7 +132,7 @@ export function WeeklyScheduleView() {
     deathRecordId: string;
     bossName: string;
     deathTime: string;
-    ownerGuildId?: string | null;
+    ownerGuildId: string | null;
   } | null>(null);
 
   // Selected boss for "Mark as Died" modal (with optional spawn time for schedule bosses)
@@ -222,28 +222,34 @@ export function WeeklyScheduleView() {
   }, [editToast]);
 
   // Edit display guild on death record
-  const [editGuildDeath, setEditGuildDeath] = useState<{ deathRecordId: string; bossName: string; currentGuildId: string | null } | null>(null);
+  const [editGuildDeath, setEditGuildDeath] = useState<{ deathRecordId: string; bossName: string; currentGuildId: string | null; deathTime?: string } | null>(null);
   const [editGuildSaving, setEditGuildSaving] = useState(false);
+  const [, setGuildChangeKey] = useState(0);
+  // Local override map for immediate UI feedback on guild changes
+  const guildOverrides = useRef<Map<string, string | null>>(new Map());
 
   const handleSetDisplayGuild = async (guildId: string | null) => {
     if (!editGuildDeath) return;
     setEditGuildSaving(true);
     try {
-      // For "None" selection, we need to clear the display_owner_guild_id
-      // We'll use the RPC with a special case — pass null to clear
       if (guildId) {
         await setDeathDisplayGuild(editGuildDeath.deathRecordId, guildId);
-        writeAuditEntry({ action: AuditAction.DEATH_GUILD_SET, server_id: getCurrentServerId()!, target_id: editGuildDeath.deathRecordId, details: { guild_name: guilds.find(g => g.id === guildId)?.name || guildId } });
+        const oldGuild = guilds.find(g => g.id === editGuildDeath.currentGuildId)?.name || editGuildDeath.currentGuildId || "(none)";
+        const newGuild = guilds.find(g => g.id === guildId)?.name || guildId;
+        const deathTimeStr = editGuildDeath.deathTime ? new Date(editGuildDeath.deathTime).toLocaleDateString("en-US", { month: "short", day: "numeric" }) + ", " + new Date(editGuildDeath.deathTime).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }) : "";
+        writeAuditEntry({ action: AuditAction.DEATH_GUILD_SET, server_id: getCurrentServerId()!, target_id: editGuildDeath.deathRecordId, details: { boss_name: editGuildDeath.bossName, old_guild: oldGuild, new_guild: newGuild, death_time: deathTimeStr } });
+        guildOverrides.current.set(editGuildDeath.deathRecordId, guildId);
       } else {
-        // Clear the override by setting to null via a raw update
         const { error } = await supabase
           .from("death_records")
           .update({ display_owner_guild_id: null })
           .eq("id", editGuildDeath.deathRecordId);
         if (error) throw error;
-        writeAuditEntry({ action: AuditAction.DEATH_GUILD_CLEAR, server_id: getCurrentServerId()!, target_id: editGuildDeath.deathRecordId });
+        writeAuditEntry({ action: AuditAction.DEATH_GUILD_CLEAR, server_id: getCurrentServerId()!, target_id: editGuildDeath.deathRecordId, details: { boss_name: editGuildDeath.bossName } });
+        guildOverrides.current.set(editGuildDeath.deathRecordId, null);
       }
       queryClient.invalidateQueries({ queryKey: ["death_records"] });
+      setGuildChangeKey(k => k + 1);
       setEditToast({ type: "success", message: "Guild updated!" });
       setEditGuildDeath(null);
     } catch (err: any) {
@@ -263,7 +269,8 @@ export function WeeklyScheduleView() {
       const newTime = new Date(y, m - 1, d, hh, mm);
       await editDeathTime(editDeath.deathRecordId, newTime);
       if (editDeath.bossName) {
-        writeAuditEntry({ action: AuditAction.DEATH_TIME_EDIT, server_id: getCurrentServerId()!, target_id: editDeath.deathRecordId, details: { boss_name: editDeath.bossName, old_time: editDeath.deathTime, new_time: newTime.toISOString() } });
+        const formatted = newTime.toLocaleDateString("en-US", { month: "short", day: "numeric" }) + ", " + newTime.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
+        writeAuditEntry({ action: AuditAction.DEATH_TIME_EDIT, server_id: getCurrentServerId()!, target_id: editDeath.deathRecordId, details: { boss_name: editDeath.bossName, old_time: editDeath.deathTime, new_time: newTime.toISOString(), formatted_time: formatted } });
       }
       queryClient.invalidateQueries({ queryKey: ["death_records"] });
       setEditToast({ type: "success", message: "Death time updated!" });
@@ -625,7 +632,7 @@ export function WeeklyScheduleView() {
                           if (isCopyTarget) {
                             handleCopyTargetClick(s.deathRecord!.id, s.boss.name);
                           } else if (isDeathEvent && s.deathRecord && !currentServer?.isExpired) {
-                            setSelectedDeath({ deathRecordId: s.deathRecord.id, bossName: s.boss.name, deathTime: s.deathRecord.death_time, ownerGuildId: s.deathRecord.display_owner_guild_id ?? s.deathRecord.owner_guild_id });
+                            setSelectedDeath({ deathRecordId: s.deathRecord.id, bossName: s.boss.name, deathTime: s.deathRecord.death_time, ownerGuildId: s.deathRecord.display_owner_guild_id ?? s.deathRecord.owner_guild_id ?? null });
                           } else if ((!isViewer || viewerCanMarkDied) && !currentServer?.isExpired) {
                             setMarkBoss({ boss: s.boss, spawnTime: isScheduleBoss ? s.nextSpawn ?? undefined : undefined });
                           }
@@ -656,7 +663,11 @@ export function WeeklyScheduleView() {
                             <span className="text-[#a1a1aa] text-sm">{s.nextSpawn?.toLocaleTimeString("en-US", { timeZone: userTz, hour: "2-digit", minute: "2-digit" })}</span>
                             {(() => {
                               let gName: string | null | undefined;
-                              if (isDeathEvent && s.deathRecord) { gName = guilds.find(g => g.id === (s.deathRecord!.display_owner_guild_id ?? s.deathRecord!.owner_guild_id))?.name; }
+                              if (isDeathEvent && s.deathRecord) {
+                                const override = guildOverrides.current.get(s.deathRecord.id);
+                                const gid = override !== undefined ? override : (s.deathRecord.display_owner_guild_id ?? s.deathRecord.owner_guild_id);
+                                gName = guilds.find(g => g.id === gid)?.name;
+                              }
                               else { gName = getOwnerGuildName(s.boss.id, day.day); }
                               if (!gName) return null;
                               return <div className={`text-[10px] font-medium ${guildColor(gName).text}`}>{gName}</div>;
@@ -777,7 +788,7 @@ export function WeeklyScheduleView() {
                               deathRecordId: s.deathRecord.id,
                               bossName: s.boss.name,
                               deathTime: s.deathRecord.death_time,
-                              ownerGuildId: s.deathRecord.display_owner_guild_id ?? s.deathRecord.owner_guild_id,
+                              ownerGuildId: s.deathRecord.display_owner_guild_id ?? s.deathRecord.owner_guild_id ?? null,
                             });
                           } else if ((!isViewer || viewerCanMarkDied) && !currentServer?.isExpired) {
                             setMarkBoss({
@@ -818,7 +829,9 @@ export function WeeklyScheduleView() {
                               {(() => {
                                 let gName: string | null | undefined;
                                 if (isDeathEvent && s.deathRecord) {
-                                  gName = guilds.find(g => g.id === (s.deathRecord!.display_owner_guild_id ?? s.deathRecord!.owner_guild_id))?.name;
+                                  const override = guildOverrides.current.get(s.deathRecord.id);
+                                  const gid = override !== undefined ? override : (s.deathRecord.display_owner_guild_id ?? s.deathRecord.owner_guild_id);
+                                  gName = guilds.find(g => g.id === gid)?.name;
                                 } else {
                                   gName = getOwnerGuildName(s.boss.id, day.day);
                                 }
@@ -888,7 +901,7 @@ export function WeeklyScheduleView() {
           deathRecordId={selectedDeath.deathRecordId}
           bossName={selectedDeath.bossName}
           deathTime={selectedDeath.deathTime}
-          ownerGuildId={selectedDeath.ownerGuildId}
+          ownerGuildId={selectedDeath.ownerGuildId ?? null}
           onClose={() => setSelectedDeath(null)}
           readOnly={isViewer}
           onEditDeathTime={!isViewer ? () => {
@@ -898,7 +911,7 @@ export function WeeklyScheduleView() {
             setEditDeath({ deathRecordId: selectedDeath.deathRecordId, bossName: selectedDeath.bossName, deathTime: selectedDeath.deathTime });
           } : undefined}
           onChangeGuild={!isViewer ? () => {
-            setEditGuildDeath({ deathRecordId: selectedDeath.deathRecordId, bossName: selectedDeath.bossName, currentGuildId: selectedDeath.ownerGuildId });
+            setEditGuildDeath({ deathRecordId: selectedDeath.deathRecordId, bossName: selectedDeath.bossName, currentGuildId: selectedDeath.ownerGuildId ?? null, deathTime: selectedDeath.deathTime });
           } : undefined}
         />
       )}

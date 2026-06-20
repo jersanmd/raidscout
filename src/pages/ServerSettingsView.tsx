@@ -1133,7 +1133,7 @@ export function ServerSettingsView() {
       {/* General Tab */}
       {tab === "general" && (
         <div className="space-y-4">
-          <section className="bg-[#09090b] border border-[#27272a] rounded-xl p-4 space-y-3">
+          <section className="bg-[#18181b] border border-[#27272a] rounded-xl p-4 space-y-3">
             <h3 className="text-sm font-semibold text-[#fafafa] mb-2">Server Name</h3>
             <div className="flex gap-2">
               <input type="text" value={name} onChange={(e) => setName(e.target.value)} disabled={!isOwner} className="flex-1 bg-[#18181b] border border-[#27272a] rounded-lg px-3 py-2 text-sm text-[#fafafa] placeholder-[#71717a] outline-none focus:border-[#52525b] transition disabled:opacity-50" />
@@ -1152,7 +1152,7 @@ export function ServerSettingsView() {
             </div>
           </section>
 
-          <section className="bg-[#09090b] border border-[#27272a] rounded-xl p-4 space-y-3">
+          <section className="bg-[#18181b] border border-[#27272a] rounded-xl p-4 space-y-3">
             <h3 className="text-sm font-semibold text-[#fafafa]">Server Timezone</h3>
             <p className="text-xs text-[#71717a] leading-relaxed">
               This timezone is used by the <strong className="text-[#a1a1aa]">Discord bot</strong> when processing <code className="text-[11px] bg-[#18181b] px-1 py-0.5 rounded">!kill</code> and <code className="text-[11px] bg-[#18181b] px-1 py-0.5 rounded">!nextspawn</code> commands. Schedule boss times and date boundaries depend on this setting. Changing it may shift all displayed spawn times.
@@ -1211,7 +1211,7 @@ export function ServerSettingsView() {
           </section>
 
           {isOwner && (
-            <section className="bg-[#09090b] border border-[#27272a] rounded-xl p-4 space-y-3">
+            <section className="bg-[#18181b] border border-[#27272a] rounded-xl p-4 space-y-3">
               <h3 className="text-sm font-semibold text-[#a1a1aa] uppercase tracking-wider flex items-center gap-1.5">
                 <Key className="w-3 h-3" /> Invite Code
               </h3>
@@ -1248,7 +1248,7 @@ export function ServerSettingsView() {
           )}
 
           {isOwnerOrModerator && (
-            <section className="bg-[#09090b] border border-[#27272a] rounded-xl p-4 space-y-3">
+            <section className="bg-[#18181b] border border-[#27272a] rounded-xl p-4 space-y-3">
               <h3 className="text-sm font-semibold text-[#a1a1aa] uppercase tracking-wider flex items-center gap-1.5">
                 <Eye className="w-3 h-3" /> Viewer Key
               </h3>
@@ -1309,7 +1309,7 @@ export function ServerSettingsView() {
       {/* Guilds Tab */}
       {tab === "guilds" && (
         <div className="space-y-4">
-          <section className="bg-[#09090b] border border-[#27272a] rounded-xl p-4 space-y-3">
+          <section className="bg-[#18181b] border border-[#27272a] rounded-xl p-4 space-y-3">
             <h3 className="text-sm font-semibold text-[#a1a1aa] uppercase tracking-wider flex items-center gap-1.5">
               <Shield className="w-3 h-3" /> Guilds ({guilds.length})
             </h3>
@@ -1391,7 +1391,7 @@ export function ServerSettingsView() {
       {/* Boss Guilds Tab */}
       {tab === "boss-guilds" && (
         <div className="space-y-4">
-          <section className="bg-[#09090b] border border-[#27272a] rounded-xl p-4 space-y-3">
+          <section className="bg-[#18181b] border border-[#27272a] rounded-xl p-4 space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-semibold text-[#a1a1aa] uppercase tracking-wider flex items-center gap-1.5">
                 <Swords className="w-3 h-3" /> Boss Guild Assignments
@@ -1810,7 +1810,7 @@ export function ServerSettingsView() {
       {tab === "boss-points" && (
         <>
           {/* Point Rules — at the top */}
-          <section className="bg-[#09090b] border border-[#27272a] rounded-xl p-4 space-y-4 mb-4">
+          <section className="bg-[#18181b] border border-[#27272a] rounded-xl p-4 space-y-4 mb-4">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-semibold text-[#a1a1aa] uppercase tracking-wider flex items-center gap-1.5">
                 <Zap className="w-3 h-3" /> Point Rules
@@ -2020,7 +2020,7 @@ export function ServerSettingsView() {
       {tab === "activity-points" && (
         <>
           {/* Point Rules — shared with Boss Points */}
-          <section className="bg-[#09090b] border border-[#27272a] rounded-xl p-4 space-y-4 mb-4">
+          <section className="bg-[#18181b] border border-[#27272a] rounded-xl p-4 space-y-4 mb-4">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-semibold text-[#a1a1aa] uppercase tracking-wider flex items-center gap-1.5">
                 <Zap className="w-3 h-3" /> Point Rules
@@ -2108,7 +2108,7 @@ export function ServerSettingsView() {
             )}
           </section>
         <div className="space-y-4">
-          <section className="bg-[#09090b] border border-[#27272a] rounded-xl p-3 sm:p-4 space-y-3">
+          <section className="bg-[#18181b] border border-[#27272a] rounded-xl p-3 sm:p-4 space-y-3">
             <h3 className="text-xs font-semibold text-[#a1a1aa] uppercase tracking-wider flex items-center gap-1.5">
               <Calendar className="w-3 h-3" /> Activities ({activities.length})
             </h3>
@@ -2178,7 +2178,7 @@ export function ServerSettingsView() {
         const visibleMembers = members.filter(m => !adminUserIds.has(m.user_id));
         return (
         <div className="space-y-4">
-          <section className="bg-[#09090b] border border-[#27272a] rounded-xl p-4 space-y-3">
+          <section className="bg-[#18181b] border border-[#27272a] rounded-xl p-4 space-y-3">
             <h3 className="text-sm font-semibold text-[#a1a1aa] uppercase tracking-wider flex items-center gap-1.5">
               <Users className="w-3 h-3" /> Members ({visibleMembers.length})
             </h3>
@@ -2248,7 +2248,7 @@ export function ServerSettingsView() {
                   {/* Permissions panel — slide down for moderators */}
                   {isOwner && m.role === "moderator" && (
                     <div className={`transition-all duration-300 ease-in-out overflow-hidden ${isExpanded ? "max-h-[800px] opacity-100" : "max-h-0 opacity-0"}`}>
-                      <div className="border-t border-[#27272a]/50 px-3 py-3 bg-[#09090b]/30 space-y-3">
+                      <div className="border-t border-[#27272a]/50 px-3 py-3 bg-[#18181b]/30 space-y-3">
                         <div className="space-y-1">
                           <span className="text-xs font-medium text-[#fafafa]">Permissions for {m.email ?? "moderator"}</span>
                           <p className="text-[10px] text-[#52525b] leading-relaxed">Toggle what this moderator can access. Changes apply immediately after saving.</p>
@@ -2291,7 +2291,7 @@ export function ServerSettingsView() {
 
           {/* Add Moderator — owner only */}
           {isOwner && (
-          <section className="bg-[#09090b] border border-[#27272a] rounded-xl p-4 space-y-3">
+          <section className="bg-[#18181b] border border-[#27272a] rounded-xl p-4 space-y-3">
             <h3 className="text-sm font-semibold text-[#a1a1aa] uppercase tracking-wider flex items-center gap-1.5">
               <UserPlus className="w-3 h-3" /> Add Moderator
             </h3>
@@ -2322,7 +2322,7 @@ export function ServerSettingsView() {
           {isOwner && (() => {
             const moderators = members.filter((m) => m.role === "moderator" && !adminUserIds.has(m.user_id));
             return (
-            <section className="bg-[#09090b] border border-[#27272a] rounded-xl p-4 space-y-3">
+            <section className="bg-[#18181b] border border-[#27272a] rounded-xl p-4 space-y-3">
               <h3 className="text-sm font-semibold text-[#fafafa]">Ownership</h3>
 
               <div>
@@ -2373,7 +2373,7 @@ export function ServerSettingsView() {
       {tab === "integrations" && (
         <div className="space-y-6">
           {/* Connected Servers */}
-          <section className="bg-[#09090b] border border-[#27272a] rounded-xl p-4 space-y-4">
+          <section className="bg-[#18181b] border border-[#27272a] rounded-xl p-4 space-y-4">
             <h3 className="text-sm font-semibold text-[#a1a1aa] uppercase tracking-wider flex items-center gap-2">
               <Swords className="w-4 h-4" /> Linked Discord Servers
             </h3>
@@ -2712,7 +2712,7 @@ export function ServerSettingsView() {
           </section>
 
           {/* Getting Started Guide */}
-          <section className="bg-[#09090b] border border-[#27272a] rounded-xl p-4 space-y-4">
+          <section className="bg-[#18181b] border border-[#27272a] rounded-xl p-4 space-y-4">
             <h3 className="text-sm font-semibold text-[#a1a1aa] uppercase tracking-wider">Getting Started</h3>
             <div className="grid sm:grid-cols-3 gap-4">
               <div className="space-y-1.5">
@@ -2775,7 +2775,7 @@ export function ServerSettingsView() {
 
       {/* Danger Tab */}
       {tab === "danger" && isOwner && (
-        <section className="bg-[#09090b] border border-red-900/30 rounded-xl p-4 space-y-3">
+        <section className="bg-[#18181b] border border-red-900/30 rounded-xl p-4 space-y-3">
           <h3 className="text-sm font-semibold text-red-400">Danger Zone</h3>
           <p className="text-sm text-[#a1a1aa]">
             Archive this server. Your data is preserved and can be restored by an admin. You won't see this server anymore.
@@ -2978,7 +2978,7 @@ function ConfirmEmailSection() {
   };
 
   return (
-    <section className="bg-[#09090b] border border-[#27272a] rounded-xl p-4 space-y-3">
+    <section className="bg-[#18181b] border border-[#27272a] rounded-xl p-4 space-y-3">
       <h3 className="text-sm font-semibold text-[#fafafa] flex items-center gap-2">
         Email Confirmation
         {isActuallyConfirmed ? (
@@ -3056,7 +3056,7 @@ function ChangePasswordSection() {
 
   return (
     <div className="space-y-4">
-      <section className="bg-[#09090b] border border-[#27272a] rounded-xl p-4 space-y-3">
+      <section className="bg-[#18181b] border border-[#27272a] rounded-xl p-4 space-y-3">
         <h3 className="text-sm font-semibold text-[#fafafa]">Change Password</h3>
         <p className="text-xs text-[#71717a]">Update your account password. You'll stay logged in after changing it.</p>
 
@@ -3235,7 +3235,7 @@ function BossPointsMatrix({
   }
 
   return (
-    <div className="bg-[#09090b] border border-[#27272a] rounded-xl p-3 sm:p-4 max-w-full">
+    <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-3 sm:p-4 max-w-full">
       {/* Search + Legend */}
       <div className="flex items-center gap-2 sm:gap-3 mb-3 flex-wrap">
         <div className="flex items-center gap-2 sm:gap-3 text-[9px] sm:text-[10px] text-[#71717a] flex-wrap">
@@ -3259,7 +3259,7 @@ function BossPointsMatrix({
       <table className="w-full text-[10px] sm:text-xs">
         <thead>
           <tr>
-            <th className="sticky left-0 bg-[#09090b] px-2 sm:px-3 py-1.5 sm:py-2 text-left text-[#a1a1aa] font-medium border-b border-r border-[#27272a]/50 z-10 min-w-[120px] sm:min-w-[160px]">
+            <th className="sticky left-0 bg-[#18181b] px-2 sm:px-3 py-1.5 sm:py-2 text-left text-[#a1a1aa] font-medium border-b border-r border-[#27272a]/50 z-10 min-w-[120px] sm:min-w-[160px]">
               Boss
             </th>
             {guilds.map(g => (
@@ -3269,7 +3269,7 @@ function BossPointsMatrix({
             ))}
           </tr>
           <tr>
-            <th className="sticky left-0 bg-[#09090b] px-3 py-1 border-r border-[#27272a]/50 z-10" />
+            <th className="sticky left-0 bg-[#18181b] px-3 py-1 border-r border-[#27272a]/50 z-10" />
             {guilds.map(g => (
               <Fragment key={g.id}>
                 <th className="px-2 py-1 text-center text-[10px] text-[#71717a] font-normal border-l border-[#27272a]/30">Pts</th>
@@ -3292,7 +3292,7 @@ function BossPointsMatrix({
         <tbody>
           {sortedBosses.filter(boss => !search || boss.name.toLowerCase().includes(search.toLowerCase())).map(boss => (
             <tr key={boss.id} className="group border-b border-[#27272a]/50 hover:bg-[#18181b]/20 transition">
-              <td className="sticky left-0 bg-[#09090b] group-hover:bg-[#18181b]/20 px-2 sm:px-3 py-1.5 sm:py-2 text-[#fafafa] font-medium border-r border-[#27272a]/30 z-10 transition">
+              <td className="sticky left-0 bg-[#18181b] group-hover:bg-[#18181b]/20 px-2 sm:px-3 py-1.5 sm:py-2 text-[#fafafa] font-medium border-r border-[#27272a]/30 z-10 transition">
                 <div className="flex items-center gap-1.5 sm:gap-2">
                   <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${
                     boss.spawn_type === "fixed_schedule" ? "bg-violet-400" :
@@ -3438,24 +3438,49 @@ export function ServerActivityLogTab({ serverId, timezone = "UTC" }: { serverId:
   const [filtersExpanded, setFiltersExpanded] = useState(() => {
     return localStorage.getItem("rs_audit_filters_expanded") !== "false";
   });
+  const [filterMode, setFilterMode] = useState<"simple" | "advanced">(() => {
+    return (localStorage.getItem("rs_audit_filter_mode") as "simple" | "advanced") || "simple";
+  });
   const allLog = useRef<any[]>([]);
 
+  const [filterVersion, setFilterVersion] = useState(0);
+
   const saveFilters = (filters: Set<string>) => {
-    localStorage.setItem("rs_audit_filters", JSON.stringify([...filters]));
-    setActionFilters(filters);
+    try { localStorage.setItem("rs_audit_filters", JSON.stringify([...filters])); } catch {}
+    setActionFilters(() => new Set(filters));
+    setFilterVersion(v => v + 1);
   };
 
   const toggleAction = (action: string) => {
     setActionFilters(prev => {
       const next = new Set(prev);
       if (next.has(action)) next.delete(action); else next.add(action);
-      localStorage.setItem("rs_audit_filters", JSON.stringify([...next]));
+      try { localStorage.setItem("rs_audit_filters", JSON.stringify([...next])); } catch {}
       return next;
     });
+    setFilterVersion(v => v + 1);
   };
 
+  const [clearingFilters, setClearingFilters] = useState(false);
+
   const clearFilters = () => {
-    saveFilters(new Set());
+    setClearingFilters(true);
+    const groups = AUDIT_ACTION_GROUPS.filter(g => !["Admin", "Subscription", "Server"].includes(g.label));
+    let i = 0;
+    const tick = () => {
+      if (i >= groups.length) { setClearingFilters(false); return; }
+      const actions = groups[i].actions.filter(a => !HIDDEN_ACTIONS.has(a));
+      setActionFilters(prev => {
+        const next = new Set(prev);
+        actions.forEach(a => next.delete(a));
+        return next;
+      });
+      setFilterVersion(v => v + 1);
+      i++;
+      setTimeout(tick, 50);
+    };
+    tick();
+    localStorage.setItem("rs_audit_filters", "[]");
   };
 
   const checkAll = () => {
@@ -3465,9 +3490,8 @@ export function ServerActivityLogTab({ serverId, timezone = "UTC" }: { serverId:
   const formatActionLabel = (action: string): string =>
     action?.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase()) ?? action ?? "";
 
-  const filteredLog = useMemo(() => {
+  const filteredLog = (() => {
     let result = actionFilters.size === 0 ? log : log.filter(e => actionFilters.has(e.action));
-    // Date filter
     if (dateFrom || dateTo) {
       const fromMs = dateFrom ? new Date(dateFrom).getTime() : 0;
       const toMs = dateTo ? new Date(dateTo + "T23:59:59").getTime() : Infinity;
@@ -3476,14 +3500,12 @@ export function ServerActivityLogTab({ serverId, timezone = "UTC" }: { serverId:
         return ts >= fromMs && ts <= toMs;
       });
     }
-    // Search filter
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       result = result.filter(e => {
         if (formatActionLabel(e.action).toLowerCase().includes(q)) return true;
         const actor = e.actor_email || e.details?.discord_user || "";
         if (actor.toLowerCase().includes(q)) return true;
-        // Search all detail values (skip discord_user and internal keys)
         const d = e.details || {};
         for (const v of Object.values(d)) {
           if (v != null && String(v).toLowerCase().includes(q)) return true;
@@ -3492,7 +3514,7 @@ export function ServerActivityLogTab({ serverId, timezone = "UTC" }: { serverId:
       });
     }
     return result;
-  }, [log, actionFilters, searchQuery, dateFrom, dateTo]);
+  })();
 
   const actionColor = (action: string): { dot: string; text: string } => {
     if (action.includes("delete") || action.includes("remove")) return { dot: "bg-red-400", text: "text-red-300" };
@@ -3511,12 +3533,16 @@ export function ServerActivityLogTab({ serverId, timezone = "UTC" }: { serverId:
       case "attendance_copy": return `Copied ${d.copied ?? 0} attendees from ${d.from_boss || "?"}${d.from_time ? ` (${d.from_time})` : ""} → ${d.to_boss || "?"}${d.to_time ? ` (${d.to_time})` : ""}${d.skipped ? ` (${d.skipped} skipped)` : ""}`;
       case "attendance_add": return `${d.member_name || "?"} attended ${d.boss_name || "?"}${d.death_time ? ` (${d.death_time})` : ""}`;
       case "attendance_remove": return `${d.member_name || "?"} removed from ${d.boss_name || "?"}${d.death_time ? ` (${d.death_time})` : ""}`;
-      case "member_cp_add": case "member_cp_update": return `${d.player_name || "?"}: ${d.old_cp != null ? Number(d.old_cp).toLocaleString() : "—"} → ${d.new_cp != null ? Number(d.new_cp).toLocaleString() : "?"}`;
+      case "member_cp_add": case "member_cp_update": return `${d.player_name || "?"}: ${d.old_cp != null ? Number(d.old_cp).toLocaleString() : "—"} → ${d.new_cp != null ? Number(d.new_cp).toLocaleString() : "?"}${d.date ? ` · ${new Date(d.date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}` : ""}`;
       case "member_cp_delete": return `Deleted CP update for ${d.player_name || "?"}`;
-      case "member_add": return d.member_name || "—";
+      case "member_cp_reminder": return `CP update reminder sent to Discord`;
+      case "member_add": return `${d.member_name || "—"}${d.class ? ` · ${d.class}` : ""}${d.cp ? ` · ${d.cp} CP` : ""}${d.guild_name ? ` · ${d.guild_name}` : ""}`;
       case "member_remove": return d.member_name || "Member removed";
       case "member_class_set": return `${d.member_name || "?"}: class set to ${d.class || "none"}`;
       case "member_active_toggle": return `${d.member_name || "?"} marked ${d.is_active ? "active" : "inactive"}`;
+      case "member_guild_change": return `${d.member_name || "?"}: guild changed from ${d.old_guild || "?"} to ${d.new_guild || "?"}`;
+      case "member_name_edit": return `"${d.old_name || "?"}" renamed to "${d.new_name || "?"}"`;
+      case "member_bulk_add": return `${d.count ?? 0} members added${d.guild_name ? ` to ${d.guild_name}` : ""}${d.names ? `: ${(d.names as string[]).slice(0, 5).join(", ")}${(d.names as string[]).length > 5 ? ` +${(d.names as string[]).length - 5} more` : ""}` : ""}`;
       case "member_note_add": return d.note_preview || "—";
       case "member_note_delete": return `Deleted note`;
       case "member_progress_update": return d.member_name ? `${d.member_name}: progress updated` : "Progress updated";
@@ -3548,28 +3574,38 @@ export function ServerActivityLogTab({ serverId, timezone = "UTC" }: { serverId:
       case "guild_create": return `Guild "${d.guild_name || "?"}" created`;
       case "guild_update": return `Guild "${d.old_name || "?"}" → "${d.guild_name || "?"}"`;
       case "guild_delete": return `Guild "${d.guild_name || "?"}" deleted`;
-      case "gear_equip": return `${d.member_name || "?"} equipped ${d.item_name || "?"}${d.enhancement ? ` (+${d.enhancement})` : ""}`;
+      case "gear_equip": return d.changes ? `${d.member_name || "?"} · ${(d.changes as string[]).join(" · ")}` : `${d.member_name || "?"} equipped ${d.item_name || "?"}${d.enhancement ? ` (+${d.enhancement})` : ""}`;
       case "gear_unequip": return `${d.member_name || "?"} unequipped ${d.item_name || "?"}`;
-      case "item_create": case "item_update": case "item_delete": return `${d.item_name || d.name || "?"}${d.type ? ` (${d.type})` : ""}`;
-      case "item_distribute": return `${d.item_name || "?"} → ${d.player_name || "?"}${d.quantity ? ` x${d.quantity}` : ""}`;
+      case "item_create": return `${d.item_name || d.name || "?"}${d.rarity ? ` · ${d.rarity}` : ""}${d.category ? ` · ${d.category}` : ""}${d.game ? ` · ${d.game}` : ""}${d.description ? ` · ${d.description}` : ""}${d.has_image !== undefined ? (d.has_image ? " · with image" : " · no image") : ""}`;
+      case "item_update": case "item_delete": return d.item_name || d.name || "—";
+      case "item_distribute": return `${d.item_name || "?"} → ${d.player_name || "?"}${d.quantity ? ` x${d.quantity}` : ""}${d.reason ? ` · ${d.reason}` : ""}`;
       case "item_approve": case "item_reject": return d.item_name || "—";
-      case "party_create": case "party_delete": return `${d.party_name || d.name || "—"}${d.guild_name ? ` (${d.guild_name})` : ""}`;
+      case "collection_create": return `${d.collection_name || "?"} created`;
+      case "collection_delete": return `${d.collection_name || "?"} deleted`;
+      case "collection_item_add": return `${d.item_name || "?"} added to ${d.collection_name || "collection"}`;
+      case "collection_item_remove": return `${d.item_name || "?"} removed from ${d.collection_name || "collection"}`;
+      case "collection_ownership_set": return `${d.player_name || "?"} ${d.owned ? "obtained" : "lost"} ${d.item_name || "?"}${d.collection_name ? ` in ${d.collection_name}` : ""}`;
+      case "collection_ownership_remove": return `${d.player_name || "?"} ownership override removed for ${d.item_name || "?"}${d.collection_name ? ` in ${d.collection_name}` : ""}`;
+      case "party_create": return `${d.party_name || d.name || "—"}${d.guild_name ? ` · ${d.guild_name}` : ""}${d.member_count ? ` · ${d.member_count} members` : ""}${d.boss_name && d.boss_name !== "—" ? ` · ${d.boss_name}` : ""}`;
+      case "party_delete": return d.party_name || "Party deleted";
       case "party_assign": return `${d.party_name || "?"}${d.guild_name ? ` (${d.guild_name})` : ""} assigned to ${d.boss_name || d.activity_name || "?"}`;
       case "party_unlink": return `${d.party_name || "?"}${d.guild_name ? ` (${d.guild_name})` : ""} unlinked from ${d.boss_name || "?"}`;
-      case "party_member_add": return `${d.member_name || "?"} added to party`;
-      case "party_member_remove": return `${d.member_name || "?"} removed from party`;
+      case "party_member_add": return `${d.member_name || "?"} added to ${d.party_name || "party"}`;
+      case "party_member_remove": return `${d.member_name || "?"} removed from ${d.party_name || "party"}`;
       case "party_leaders_set": return `Party leaders set for ${d.boss_name || "?"}: ${d.leaders || "—"}`;
-      case "class_create": case "class_update": case "class_delete": return d.class_name || d.name || "—";
+      case "class_create": return `${d.class_name || d.name || "?"} created${d.icon ? ` · icon: ${d.icon}` : ""}${d.color ? ` · color: ${d.color}` : ""}`;
+      case "class_update": return `${d.class_name || d.name || "?"} updated${d.icon ? ` · icon: ${d.icon}` : ""}${d.color ? ` · color: ${d.color}` : ""}`;
+      case "class_delete": return `${d.class_name || d.name || "?"} deleted`;
       case "rally_image_delete": return `Deleted screenshot`;
-      case "leaderboard_finalize": return `${d.period || "?"}: ${d.rankings ?? 0} players`;
-      case "leaderboard_reset": return `Leaderboard reset (${d.period || "?"})`;
+      case "leaderboard_finalize": return `${d.period || "?"}: ${d.rankings ?? 0} players · ${d.from || "?"} → ${d.to || "?"}`;
+      case "leaderboard_reset": return `Leaderboard reset${d.guild ? ` (${d.guild})` : ""} · ${d.from ? new Date(d.from).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "?"} → ${d.to ? new Date(d.to).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "?"}`;
       case "leaderboard_adjust_points": return `${d.points != null ? (d.points > 0 ? "+" : "") + d.points + " pts" : "?"}${d.reason ? ` — ${d.reason}` : ""}`;
-      case "leaderboard_reset_guild": return `Guild points reset: ${d.deleted_attendance ?? 0} attendance, ${d.deleted_adjustments ?? 0} adjustments`;
+      case "leaderboard_reset_guild": return `${d.guild_name || "?"} guild points reset: ${d.deleted_attendance ?? 0} attendance, ${d.deleted_adjustments ?? 0} adjustments`;
       case "point_rule_create": case "point_rule_update": return `Point rule for ${d.guild_name || "?"}: ${d.enabled !== undefined ? (d.enabled ? "enabled" : "disabled") : `${d.multiplier ?? "?"}x · ${d.start_hour ?? "?"}:00–${d.end_hour ?? "?"}:00`}`;
       case "point_rule_delete": return `Point rule for ${d.guild_name || "?"} deleted`;
-      case "death_guild_set": return `Display guild set to ${d.guild_name || "?"}`;
-      case "death_guild_clear": return `Display guild cleared`;
-      case "death_time_edit": return `${d.boss_name || "?"}: death time edited`;
+      case "death_guild_set": return `${d.boss_name || "?"}: owner guild changed from ${d.old_guild || "?"} to ${d.new_guild || "?"}${d.death_time ? ` · ${d.death_time}` : ""}`;
+      case "death_guild_clear": return `${d.boss_name || "?"}: display guild cleared`;
+      case "death_time_edit": return `${d.boss_name || "?"}: spawn set to ${d.formatted_time || d.new_time || "?"}`;
       case "settings_update": {
         const entries = Object.entries(d).filter(([k]) => k !== "discord_user");
         return entries.map(([k,v]) => `${k.replace(/_/g, " ")}: ${v}`).join(", ") || "Settings updated";
@@ -3670,40 +3706,75 @@ export function ServerActivityLogTab({ serverId, timezone = "UTC" }: { serverId:
 
       {/* Action filter — collapsible checkboxes */}
       <div className="text-[10px]">
-        <div className="flex items-center gap-2 mb-1">
+        <div className="flex items-center justify-between gap-2 mb-1">
+          <div className="flex items-center gap-2">
+            {filtersExpanded && (
+              <label className="flex items-center gap-2 px-2 py-1 rounded border border-[#1e1e2a] cursor-pointer hover:border-[#3f3f46] transition">
+                <span className="text-[11px] text-[#a1a1aa]">Simple</span>
+                <div className="relative">
+                  <input type="checkbox" checked={filterMode === "advanced"} onChange={() => { const next = filterMode === "simple" ? "advanced" : "simple"; setFilterMode(next); localStorage.setItem("rs_audit_filter_mode", next); }} className="sr-only peer" />
+                  <div className="w-7 h-3.5 bg-[#27272a] rounded-full peer-checked:bg-violet-500/50 transition after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:w-2.5 after:h-2.5 after:bg-[#a1a1aa] after:rounded-full after:transition peer-checked:after:translate-x-3.5 peer-checked:after:bg-violet-300" />
+                </div>
+                <span className="text-[11px] text-[#a1a1aa]">Advanced</span>
+              </label>
+            )}
+            {clearingFilters ? (
+              <span className="flex items-center gap-1 px-2 py-1 rounded border border-[#3f3f46] text-[11px] text-[#71717a]">
+                <Loader2 className="w-3 h-3 animate-spin" /> Clearing…
+              </span>
+            ) : actionFilters.size < allActions.length ? (
+              <button onClick={checkAll} className="px-2 py-1 rounded border border-violet-500/30 text-[11px] text-violet-400 hover:text-violet-300 hover:bg-violet-500/10 transition">
+                Check All ({allActions.length - actionFilters.size})
+              </button>
+            ) : (
+              <button onClick={clearFilters} className="px-2 py-1 rounded border border-[#3f3f46] text-[11px] text-[#71717a] hover:text-[#fafafa] hover:border-[#52525b] transition">
+                Clear Filters
+              </button>
+            )}
+          </div>
           <button onClick={() => setFiltersExpanded(prev => { const next = !prev; localStorage.setItem("rs_audit_filters_expanded", String(next)); return next; })}
             className="flex items-center gap-1.5 px-2 py-1 rounded border border-[#1e1e2a] text-[#a1a1aa] hover:text-[#fafafa] hover:border-[#3f3f46] transition">
             <Eye className="w-3 h-3" />
             <span className="text-xs font-medium">{filtersExpanded ? "Hide Filters" : "Show Filters"}</span>
             <ChevronDown className={`w-3 h-3 transition ${filtersExpanded ? "rotate-180" : ""}`} />
           </button>
-          {actionFilters.size < allActions.length ? (
-            <button onClick={checkAll} className="px-2 py-1 rounded border border-violet-500/30 text-[11px] text-violet-400 hover:text-violet-300 hover:bg-violet-500/10 transition">
-              Check All ({allActions.length - actionFilters.size})
-            </button>
-          ) : (
-            <button onClick={clearFilters} className="px-2 py-1 rounded border border-[#3f3f46] text-[11px] text-[#71717a] hover:text-[#fafafa] hover:border-[#52525b] transition">
-              Clear Filters
-            </button>
-          )}
         </div>
         {filtersExpanded && (
           <div className="flex flex-wrap items-start gap-x-4 gap-y-1">
         {AUDIT_ACTION_GROUPS.filter(g => !["Admin", "Subscription", "Server"].includes(g.label)).map(g => {
           const actions = g.actions.filter(a => !HIDDEN_ACTIONS.has(a));
           if (actions.length === 0) return null;
+          const allChecked = actions.every(a => actionFilters.has(a));
+          const someChecked = actions.some(a => actionFilters.has(a));
           return (
           <div key={g.label} className="flex items-center gap-1.5 flex-wrap">
-            <span className="text-[#52525b] font-semibold shrink-0">{g.label}</span>
-            {actions.map(a => (
-              <button key={a} onClick={() => toggleAction(a)}
-                className={`flex items-center gap-1 px-1.5 py-0.5 rounded border transition ${actionFilters.has(a) ? "border-violet-500/50 text-violet-300 bg-violet-500/10" : "border-[#1e1e2a] text-[#71717a] hover:border-[#3f3f46] hover:text-[#a1a1aa]"}`}>
-                <span className={`shrink-0 w-3 h-3 rounded border flex items-center justify-center ${actionFilters.has(a) ? "bg-violet-500 border-violet-500" : "border-[#3f3f46]"}`}>
-                  {actionFilters.has(a) && <Check className="w-2 h-2 text-white" />}
+            {filterMode === "simple" ? (
+              <button onClick={() => {
+                const next = new Set(actionFilters);
+                if (allChecked) { actions.forEach(a => next.delete(a)); }
+                else { actions.forEach(a => next.add(a)); }
+                saveFilters(next);
+              }}
+                className={`flex items-center gap-1 px-1.5 py-0.5 rounded border transition font-medium ${allChecked ? "border-violet-500/50 text-violet-300 bg-violet-500/10" : someChecked ? "border-violet-500/30 text-violet-400/70 bg-violet-500/5" : "border-[#1e1e2a] text-[#71717a] hover:border-[#3f3f46] hover:text-[#a1a1aa]"}`}>
+                <span className={`shrink-0 w-3 h-3 rounded border flex items-center justify-center ${allChecked ? "bg-violet-500 border-violet-500" : someChecked ? "border-violet-500/50" : "border-[#3f3f46]"}`}>
+                  {allChecked ? <Check className="w-2 h-2 text-white" /> : someChecked ? <Minus className="w-2 h-2 text-violet-400" /> : null}
                 </span>
-                <span className="whitespace-nowrap">{formatActionLabel(a)}</span>
+                <span className="whitespace-nowrap text-[11px]">{g.label}</span>
               </button>
-            ))}
+            ) : (
+              <>
+                <span className="text-[#52525b] font-semibold shrink-0">{g.label}</span>
+                {actions.map(a => (
+                  <button key={a} onClick={() => toggleAction(a)}
+                    className={`flex items-center gap-1 px-1.5 py-0.5 rounded border transition ${actionFilters.has(a) ? "border-violet-500/50 text-violet-300 bg-violet-500/10" : "border-[#1e1e2a] text-[#71717a] hover:border-[#3f3f46] hover:text-[#a1a1aa]"}`}>
+                    <span className={`shrink-0 w-3 h-3 rounded border flex items-center justify-center ${actionFilters.has(a) ? "bg-violet-500 border-violet-500" : "border-[#3f3f46]"}`}>
+                      {actionFilters.has(a) && <Check className="w-2 h-2 text-white" />}
+                    </span>
+                    <span className="whitespace-nowrap">{formatActionLabel(a)}</span>
+                  </button>
+                ))}
+              </>
+            )}
           </div>
           );
         })}
@@ -3711,6 +3782,7 @@ export function ServerActivityLogTab({ serverId, timezone = "UTC" }: { serverId:
         )}
       </div>
 
+      <div className="min-h-[400px]">
       {loading && log.length === 0 ? (
         <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 text-[#71717a] animate-spin" /></div>
       ) : fetchError ? (
@@ -3718,7 +3790,7 @@ export function ServerActivityLogTab({ serverId, timezone = "UTC" }: { serverId:
       ) : filteredLog.length === 0 ? (
         <p className="text-[#71717a] text-sm text-center py-12">{log.length > 0 ? "No events match the selected filters." : "No activity recorded yet."}</p>
       ) : (
-        <div className="border border-[#1e1e2a] rounded-xl overflow-hidden">
+        <div className="border border-[#1e1e2a] rounded-xl overflow-hidden" key={filterVersion}>
           {/* Desktop header */}
           <div className="hidden sm:grid grid-cols-12 gap-3 px-4 py-2 border-b border-[#1e1e2a] bg-[#0d0d11]/50 text-[10px] font-semibold text-[#71717a] uppercase tracking-wider">
             <div className="col-span-3">Event</div>
@@ -3732,15 +3804,15 @@ export function ServerActivityLogTab({ serverId, timezone = "UTC" }: { serverId:
             const actor = isViewer ? `Viewer` : (entry.actor_email || entry.details?.discord_user || "—");
             return (
               <div key={entry.id} className="border-b border-[#1e1e2a]/50 last:border-b-0 hover:bg-[#0d0d11]/20 transition">
-                <div className="hidden sm:grid grid-cols-12 gap-3 px-4 py-2.5 items-center">
+                <div className="hidden sm:grid grid-cols-12 gap-3 px-4 py-2.5 items-start">
                   <div className="col-span-3 flex items-center gap-2 min-w-0">
                     <span className={`shrink-0 w-1.5 h-1.5 rounded-full ${dot}`} />
                     <span className={`text-xs font-medium truncate ${txt}`}>{formatActionLabel(entry.action)}</span>
                   </div>
-                  <div className="col-span-4 min-w-0">
-                    <span className="text-[11px] text-[#d4d4d8] truncate block">{formatDetails(entry)}</span>
+                  <div className="col-span-5 min-w-0">
+                    <span className="text-[11px] text-[#d4d4d8] whitespace-normal break-words leading-relaxed">{formatDetails(entry)}</span>
                   </div>
-                  <div className="col-span-2 min-w-0">
+                  <div className="col-span-1 min-w-0">
                     <span className="text-[10px] text-[#71717a] truncate block">{actor}</span>
                   </div>
                   <div className="col-span-3 min-w-0">
@@ -3771,6 +3843,7 @@ export function ServerActivityLogTab({ serverId, timezone = "UTC" }: { serverId:
           )}
         </div>
       )}
+      </div>
     </div>
   );
 }

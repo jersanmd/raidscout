@@ -493,9 +493,10 @@ export function MembersView() {
   const handleSaveParties = async () => {
     setSavingParties(true);
     try {
-      // Delete existing parties
+      // Delete existing parties (skip empty ones to avoid noise in audit log)
       for (const p of parties) {
-        await deleteParty(p.id).catch(() => {});
+        if (p.member_ids.length === 0) continue;
+        await deleteParty(p.id, serverId ?? undefined, p.name).catch(() => {});
       }
       // Create new parties from all guild keys
       for (const [key, boxes] of Object.entries(allPartyBoxes)) {
@@ -503,7 +504,8 @@ export function MembersView() {
         for (let i = 0; i < boxes.length; i++) {
           const box = boxes[i];
           if (box.length === 0) continue;
-          const partyId = await createParty(`Party ${i + 1}`, guildId);
+          const guildName = guildId ? guilds.find(g => g.id === guildId)?.name : null;
+          const partyId = await createParty(`Party ${i + 1}`, guildId, null, null, null, null, guildName);
           for (const memberId of box) {
             await addMemberToParty(partyId, memberId).catch(() => {});
           }
@@ -553,7 +555,7 @@ export function MembersView() {
       setClasses(prev => prev.filter(c => c !== name));
       console.error("Failed to add class:", error);
     } else {
-      writeAuditEntry({ action: AuditAction.CLASS_CREATE, server_id: serverId, target_id: name, details: { icon, color } });
+      writeAuditEntry({ action: AuditAction.CLASS_CREATE, server_id: serverId, target_id: name, details: { class_name: name, icon, color } });
     }
   };
 
@@ -858,7 +860,8 @@ export function MembersView() {
 
     setAdding(true);
     try {
-      await upsertMember(name, addGuild || null, addCombatPower ? Number(addCombatPower) : null, addClass || null);
+      const guildName = guilds.find(g => g.id === addGuild)?.name;
+      await upsertMember(name, addGuild || null, addCombatPower ? Number(addCombatPower) : null, addClass || null, guildName);
       setAddName("");
       setAddCombatPower("");
       setAddClass("");
@@ -890,7 +893,8 @@ export function MembersView() {
     setBulkAdding(true);
     let added = 0;
     try {
-      added = await bulkAddMembers(newNames, bulkGuild || null);
+      const guildName = guilds.find(g => g.id === bulkGuild)?.name;
+      added = await bulkAddMembers(newNames, bulkGuild || null, guildName);
     } catch { /* keep 0 */ }
     setBulkAdding(false);
     setShowBulkModal(false);
@@ -916,7 +920,7 @@ export function MembersView() {
     }
     setSaving(true);
     try {
-      await updateMemberName(id, name);
+      await updateMemberName(id, name, oldName);
       setEditingId(null);
       invalidate();
       showToast("success", `"${oldName}" → "${name}"`);
@@ -931,7 +935,7 @@ export function MembersView() {
     const memberName = members.find((m) => m.id === id)?.name ?? "";
     setDeleting(true);
     try {
-      await deleteMember(id);
+      await deleteMember(id, serverId ?? undefined, memberName);
       setDeleteId(null);
       setDeleteConfirmName("");
       invalidate();
@@ -1126,7 +1130,7 @@ export function MembersView() {
               disabled={savingParties}
               className="px-3 py-1.5 rounded-lg text-xs font-medium bg-[#22c55e] text-[#09090b] hover:bg-[#16a34a] disabled:opacity-50 transition ml-auto"
             >
-              {savingParties ? "Saving…" : "Save Parties"}
+              {savingParties ? <><Loader2 className="w-3 h-3 animate-spin inline mr-1" /> Saving…</> : "Save Parties"}
             </button>
           )}
         </div>
@@ -2242,7 +2246,9 @@ export function MembersView() {
                             value={member.guild_id ?? ""}
                             onChange={async (e) => {
                               const gid = e.target.value || null;
-                              try { await setMemberGuild(member.id, gid); invalidate(); } catch (err: any) {
+                              const oldName = guilds.find(g => g.id === member.guild_id)?.name || "(none)";
+                              const newName = guilds.find(g => g.id === gid)?.name || "(none)";
+                              try { await setMemberGuild(member.id, gid, member.name, oldName, newName); invalidate(); } catch (err: any) {
                                 setToast({ type: "error", message: err?.message || "Failed to change guild" });
                               }
                             }}

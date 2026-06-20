@@ -82,7 +82,7 @@ export function GearTrackingTab() {
   const [searchCatalog, setSearchCatalog] = useState("");
   const [showAddItem, setShowAddItem] = useState(false);
   const [newItem, setNewItem] = useState({ name: "", category: "", rarity: "legendary", description: "" });
-  const [editingGear, setEditingGear] = useState<Record<string, Record<string, { itemId: string; enh: number }>>>({});
+  const [editingGear, setEditingGear] = useState<Record<string, Record<string, { itemId: string; enh: number; itemName?: string }>>>({});
   const [savingGear, setSavingGear] = useState(false);
   const [toast, setToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const [memberSearch, setMemberSearch] = useState("");
@@ -367,7 +367,7 @@ export function GearTrackingTab() {
       description: newItem.description.trim() || null,
     });
     if (error) { setToast({ type: "error", message: error.message }); return; }
-    writeAuditEntry({ action: AuditAction.ITEM_CREATE, server_id: serverId!, details: { item_name: newItem.name.trim(), category: newItem.category.trim(), type: "gear_catalog" } });
+    writeAuditEntry({ action: AuditAction.ITEM_CREATE, server_id: serverId!, details: { item_name: newItem.name.trim(), category: newItem.category.trim(), rarity: newItem.rarity, description: newItem.description.trim() || null, type: "gear_catalog" } });
     setNewItem({ name: "", category: "", rarity: "legendary", description: "" });
     setShowAddItem(false);
     queryClient.invalidateQueries({ queryKey: ["gearCatalog", serverId] });
@@ -386,8 +386,11 @@ export function GearTrackingTab() {
       const changes = editingGear[memberId];
       if (!changes) return;
       const current = gearForMember(memberId);
-      for (const [slotId, { itemId, enh }] of Object.entries(changes)) {
+      const memberName = members.find(m => m.id === memberId)?.name || memberId;
+      const auditChanges: string[] = [];
+      for (const [slotId, { itemId, enh, itemName }] of Object.entries(changes)) {
         const existing = current[slotId];
+        const slotLabel = slotId;
         const body: any = {
           member_id: memberId,
           slot_id: slotId,
@@ -395,6 +398,7 @@ export function GearTrackingTab() {
           enhancement_level: enh || 0,
           updated_at: new Date().toISOString(),
         };
+        const resolvedNewName = itemName || null;
         if (existing) {
           // Track history
           if (existing.catalog_item_id !== itemId || existing.enhancement_level !== enh) {
@@ -408,17 +412,25 @@ export function GearTrackingTab() {
             });
           }
           await supabase.from("member_gear").update(body).eq("id", existing.id);
-          const itemName = itemId ? catalog.find(c => c.id === itemId)?.name : undefined;
-          const memberName2 = members.find(m => m.id === memberId)?.name;
-          writeAuditEntry({ action: itemId ? AuditAction.GEAR_EQUIP : AuditAction.GEAR_UNEQUIP, server_id: serverId!, target_id: memberId, details: { member_name: memberName2 || memberId, item_name: itemName || itemId || "—", enhancement: enh } });
+          const oldItemName = existing.catalog_item_id ? (existing.catalog_item?.name || null) : null;
+          if (!oldItemName && resolvedNewName) {
+            auditChanges.push(`${slotLabel}: ${enh ? `+${enh} ` : ""}${resolvedNewName}`);
+          } else if (oldItemName && !resolvedNewName) {
+            auditChanges.push(`${slotLabel}: removed ${oldItemName}`);
+          } else if (oldItemName && resolvedNewName && oldItemName !== resolvedNewName) {
+            auditChanges.push(`${slotLabel}: ${oldItemName} → ${enh ? `+${enh} ` : ""}${resolvedNewName}`);
+          } else if (oldItemName && oldItemName === resolvedNewName && enh !== existing.enhancement_level) {
+            auditChanges.push(`${slotLabel}: ${resolvedNewName} +${existing.enhancement_level || 0} → +${enh || 0}`);
+          }
         } else {
           await supabase.from("member_gear").insert(body);
-          if (itemId) {
-            const itemName = catalog.find(c => c.id === itemId)?.name;
-            const memberName3 = members.find(m => m.id === memberId)?.name;
-            writeAuditEntry({ action: AuditAction.GEAR_EQUIP, server_id: serverId!, target_id: memberId, details: { member_name: memberName3 || memberId, item_name: itemName || itemId, enhancement: enh } });
+          if (resolvedNewName) {
+            auditChanges.push(`${slotLabel}: ${enh ? `+${enh} ` : ""}${resolvedNewName}`);
           }
         }
+      }
+      if (auditChanges.length > 0 && serverId) {
+        writeAuditEntry({ action: AuditAction.GEAR_EQUIP, server_id: serverId, target_id: memberId, details: { member_name: memberName, changes: auditChanges } });
       }
       setEditingGear(prev => { const next = { ...prev }; delete next[memberId]; return next; });
       queryClient.invalidateQueries({ queryKey: ["memberGear", serverId] });
@@ -488,7 +500,7 @@ export function GearTrackingTab() {
             if (g?.catalog_item_id) {
               setEditingGear(prev => ({
                 ...prev,
-                [m.id]: { ...(prev[m.id] || {}), [slotId]: { itemId: g.catalog_item_id!, enh: g.enhancement_level || 0 } },
+                [m.id]: { ...(prev[m.id] || {}), [slotId]: { itemId: g.catalog_item_id!, enh: g.enhancement_level || 0, itemName: item?.name } },
               }));
             }
             setOpenSlotPicker(slotId);
@@ -620,17 +632,17 @@ export function GearTrackingTab() {
             const edits = editingGear[selectedMember] || {};
             const summary = gearSummaries[selectedMember];
 
-            const setSlotEdit = (slotId: string, itemId: string, enh: number) => {
+            const setSlotEdit = (slotId: string, itemId: string, enh: number, itemName?: string) => {
               setEditingGear(prev => ({
                 ...prev,
-                [selectedMember]: { ...(prev[selectedMember] || {}), [slotId]: { itemId, enh } },
+                [selectedMember]: { ...(prev[selectedMember] || {}), [slotId]: { itemId, enh, itemName } },
               }));
             };
 
             const initEditFromExisting = (slotId: string) => {
               const existing = gear[slotId];
               if (existing && !edits[slotId]) {
-                setSlotEdit(slotId, existing.catalog_item_id || "", existing.enhancement_level || 0);
+                setSlotEdit(slotId, existing.catalog_item_id || "", existing.enhancement_level || 0, existing.catalog_item?.name);
               }
             };
 
@@ -721,7 +733,7 @@ export function GearTrackingTab() {
                           return (
                             <button
                               key={item.id}
-                              onClick={() => { setSlotEdit(slotId, item.id, currentEnh); }}
+                              onClick={() => { setSlotEdit(slotId, item.id, currentEnh, item.name); }}
                               className={`w-full px-2 py-1.5 rounded text-left text-xs flex items-center gap-2 transition ${isSelected ? 'bg-[#27272a]' : 'hover:bg-[#27272a]'}`}
                             >
                               <div className="w-7 h-7 rounded flex items-center justify-center shrink-0" style={{ backgroundColor: `${rc}18` }}>
@@ -746,7 +758,8 @@ export function GearTrackingTab() {
                             type="text" inputMode="numeric" value={currentEnh || ""}
                             onChange={e => {
                               const raw = e.target.value.replace(/\D/g, "");
-                              setSlotEdit(slotId, currentItemId, raw === "" ? 0 : parseInt(raw));
+                              const currentName = edits[slotId]?.itemName;
+                              setSlotEdit(slotId, currentItemId, raw === "" ? 0 : parseInt(raw), currentName);
                             }}
                             className="w-16 px-2 py-1 bg-[#09090b] border border-[#27272a] rounded text-xs text-[#fafafa] text-center"
                           />

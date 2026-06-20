@@ -195,7 +195,7 @@ export async function addBackdatedCpUpdate(update: {
     .update({ combat_power: latestEntry?.new_cp ?? update.new_cp })
     .eq("id", update.member_id);
 
-  writeAuditEntry({ action: AuditAction.MEMBER_CP_UPDATE, server_id: sid, target_id: update.member_id, details: { player_name: update.player_name, new_cp: update.new_cp, backdated: update.submitted_at } });
+  writeAuditEntry({ action: AuditAction.MEMBER_CP_UPDATE, server_id: sid, target_id: update.member_id, details: { player_name: update.player_name, old_cp: oldCp, new_cp: update.new_cp, date: update.submitted_at } });
   return data as CpUpdate;
 }
 
@@ -421,6 +421,7 @@ export async function fetchItemsPaginated(
   limit: number,
   offset: number,
   search?: string,
+  pendingOnly?: boolean,
 ): Promise<{ items: Item[]; total: number }> {
   const sid = serverId ?? getCurrentServerId();
   if (!sid) return { items: [], total: 0 };
@@ -457,6 +458,11 @@ export async function fetchItemsPaginated(
     .or(baseCondition)
     .neq("status", "rejected");
 
+  if (pendingOnly) {
+    dataQuery = dataQuery.eq("status", "pending");
+    countQuery = countQuery.eq("status", "pending");
+  }
+
   if (search && search.trim()) {
     const term = `%${search.trim()}%`;
     dataQuery = dataQuery.ilike("name", term);
@@ -487,6 +493,7 @@ export async function createItem(item: {
   description?: string;
   rarity?: ItemRarity;
   category_id?: string;
+  category_label?: string | null;
 }): Promise<Item> {
   const { data: userData } = await supabase.auth.getUser();
   const username = userData.user?.email?.split("@")[0] || userData.user?.id?.slice(0, 8) || "unknown";
@@ -525,14 +532,14 @@ export async function createItem(item: {
     .select()
     .single();
   if (error) throw error;
-  writeAuditEntry({ action: AuditAction.ITEM_CREATE, server_id: item.server_id, target_id: data.id, details: { item_name: item.name.trim(), rarity: item.rarity || "common" } });
+  writeAuditEntry({ action: AuditAction.ITEM_CREATE, server_id: item.server_id, target_id: data.id, details: { item_name: item.name.trim(), rarity: item.rarity || "common", category: item.category_label, description: item.description, has_image: !!item.image_url } });
   return data as Item;
 }
 
-export async function deleteItem(itemId: string, serverId?: string): Promise<void> {
+export async function deleteItem(itemId: string, serverId?: string, itemName?: string): Promise<void> {
   const { error } = await supabase.from("items").delete().eq("id", itemId);
   if (error) throw error;
-  if (serverId) writeAuditEntry({ action: AuditAction.ITEM_DELETE, server_id: serverId, target_id: itemId, details: { item_name: itemId } });
+  if (serverId) writeAuditEntry({ action: AuditAction.ITEM_DELETE, server_id: serverId, target_id: itemId, details: { item_name: itemName || itemId } });
 }
 
 export async function updateItem(itemId: string, updates: {
@@ -589,7 +596,7 @@ export async function createDistribution(dist: {
     .select()
     .single();
   if (error) throw error;
-  writeAuditEntry({ action: AuditAction.ITEM_DISTRIBUTE, server_id: dist.server_id, target_id: dist.member_id, details: { item_name: itemName || dist.item_id, player_name: dist.player_name.trim(), quantity: dist.quantity } });
+  writeAuditEntry({ action: AuditAction.ITEM_DISTRIBUTE, server_id: dist.server_id, target_id: dist.member_id, details: { item_name: itemName || dist.item_id, player_name: dist.player_name.trim(), quantity: dist.quantity, reason: dist.reason } });
   return data as Distribution;
 }
 

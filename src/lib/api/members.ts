@@ -28,7 +28,7 @@ export async function fetchMembers(serverId?: string | null, opts?: { includeIna
   return all;
 }
 
-export async function upsertMember(name: string, guildId?: string | null, combatPower?: number | null, memberClass?: string | null): Promise<Member> {
+export async function upsertMember(name: string, guildId?: string | null, combatPower?: number | null, memberClass?: string | null, guildName?: string): Promise<Member> {
   const trimmed = name.trim();
 
   // Prefer direct upsert when user has a valid session
@@ -50,7 +50,7 @@ export async function upsertMember(name: string, guildId?: string | null, combat
       .single();
 
     if (error) throw error;
-    writeAuditEntry({ action: AuditAction.MEMBER_ADD, server_id: getCurrentServerId()!, target_id: data.id, details: { member_name: trimmed, class: memberClass } });
+    writeAuditEntry({ action: AuditAction.MEMBER_ADD, server_id: getCurrentServerId()!, target_id: data.id, details: { member_name: trimmed, class: memberClass, cp: combatPower, guild_name: guildName } });
     return data as Member;
   }
 
@@ -64,13 +64,15 @@ export async function upsertMember(name: string, guildId?: string | null, combat
         p_viewer_key: viewerKey,
       });
     if (error) throw error;
-    return (data as any[])[0] as Member;
+    const member = (data as any[])[0] as Member;
+    if (member && getCurrentServerId()) writeAuditEntry({ action: AuditAction.MEMBER_ADD, server_id: getCurrentServerId()!, target_id: member.id, details: { member_name: trimmed, class: memberClass, cp: combatPower, guild_name: guildName } });
+    return member;
   }
 
   throw new Error("Not authenticated");
 }
 
-export async function bulkAddMembers(names: string[], guildId?: string | null): Promise<number> {
+export async function bulkAddMembers(names: string[], guildId?: string | null, guildName?: string): Promise<number> {
   const sid = getCurrentServerId();
   const rows = names.map((name) => ({
     name: name.trim(),
@@ -85,7 +87,9 @@ export async function bulkAddMembers(names: string[], guildId?: string | null): 
       .insert(rows)
       .select("id");
     if (error) throw error;
-    return data?.length ?? 0;
+    const count = data?.length ?? 0;
+    if (sid) writeAuditEntry({ action: AuditAction.MEMBER_BULK_ADD, server_id: sid, details: { count, names: rows.map(r => r.name), guild_name: guildName } });
+    return count;
   }
 
   // Viewer fallback — insert one at a time via RPC
@@ -109,13 +113,15 @@ export async function bulkAddMembers(names: string[], guildId?: string | null): 
   throw new Error("Not authenticated");
 }
 
-export async function updateMemberName(id: string, name: string): Promise<void> {
+export async function updateMemberName(id: string, name: string, oldName?: string): Promise<void> {
   const { error } = await supabase
     .from("members")
     .update({ name: name.trim() })
     .eq("id", id);
 
   if (error) throw error;
+  const sid = getCurrentServerId();
+  if (sid) writeAuditEntry({ action: AuditAction.MEMBER_NAME_EDIT, server_id: sid, target_id: id, details: { old_name: oldName || id, new_name: name.trim() } });
 }
 
 export async function deleteMember(id: string, serverId?: string, memberName?: string): Promise<void> {

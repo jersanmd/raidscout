@@ -39,7 +39,7 @@ export async function createParty(name: string, guildId: string | null, bossId: 
 export async function deleteParty(partyId: string, serverId?: string, partyName?: string): Promise<void> {
   const { error } = await supabase.rpc("delete_static_party", { p_party_id: partyId });
   if (error) throw error;
-  if (serverId) writeAuditEntry({ action: AuditAction.PARTY_DELETE, server_id: serverId, target_id: partyId, details: { party_name: partyName || partyId } });
+  if (serverId && partyName) writeAuditEntry({ action: AuditAction.PARTY_DELETE, server_id: serverId, target_id: partyId, details: { party_name: partyName } });
 }
 
 export async function addMemberToParty(partyId: string, memberId: string, serverId?: string | null, memberName?: string): Promise<void> {

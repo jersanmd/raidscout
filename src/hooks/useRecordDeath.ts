@@ -42,7 +42,7 @@ interface RecordDeathResult {
  */
 export function useRecordDeath(
   insertDeathRecord: (bossId: string, deathTime: Date, ownerGuildId: string | null) => Promise<{ id: string }>,
-  addAttendance: (deathRecordId: string, memberId: string) => Promise<any>,
+  addAttendance: (deathRecordId: string, memberId: string, memberName?: string, bossName?: string) => Promise<any>,
 ) {
   const queryClient = useQueryClient();
   const { user, isViewer, userRole } = useAuth();

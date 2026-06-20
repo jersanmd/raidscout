@@ -926,8 +926,9 @@ export function AdminPanelView() {
             case "attendance_copy": return `Copied ${d.copied ?? 0} from ${d.from_boss || "?"}${d.from_time ? ` (${d.from_time})` : ""} → ${d.to_boss || "?"}${d.to_time ? ` (${d.to_time})` : ""}${d.skipped ? ` (${d.skipped} skipped)` : ""}`;
             case "attendance_add": return `${d.member_name || "?"} attended ${d.boss_name || "?"}${d.death_time ? ` (${d.death_time})` : ""}`;
             case "attendance_remove": return `${d.member_name || "?"} removed from ${d.boss_name || "?"}${d.death_time ? ` (${d.death_time})` : ""}`;
-            case "member_cp_add": case "member_cp_update": return `${d.player_name || "?"}: ${d.old_cp != null ? Number(d.old_cp).toLocaleString() : "—"} → ${d.new_cp != null ? Number(d.new_cp).toLocaleString() : "?"}`;
+            case "member_cp_add": case "member_cp_update": return `${d.player_name || "?"}: ${d.old_cp != null ? Number(d.old_cp).toLocaleString() : "—"} → ${d.new_cp != null ? Number(d.new_cp).toLocaleString() : "?"}${d.date ? ` · ${new Date(d.date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}` : ""}`;
             case "member_cp_delete": return `Deleted CP update for ${d.player_name || "?"}`;
+            case "member_cp_reminder": return `CP update reminder sent to Discord`;
             case "member_add": return d.member_name || "—";
             case "member_remove": return d.member_name || "Member removed";
             case "member_note_add": return d.note_preview || "—";
@@ -962,14 +963,15 @@ export function AdminPanelView() {
             case "guild_create": return `Guild "${d.guild_name || "?"}" created`;
             case "guild_update": return `Guild "${d.old_name || "?"}" → "${d.guild_name || "?"}"`;
             case "guild_delete": return `Guild "${d.guild_name || "?"}" deleted`;
-            case "gear_equip": return `${d.member_name || "?"} equipped ${d.item_name || "?"}${d.enhancement ? ` (+${d.enhancement})` : ""}`;
+            case "gear_equip": return d.changes ? `${d.member_name || "?"} · ${(d.changes as string[]).join(" · ")}` : `${d.member_name || "?"} equipped ${d.item_name || "?"}${d.enhancement ? ` (+${d.enhancement})` : ""}`;
             case "gear_unequip": return `${d.member_name || "?"} unequipped ${d.item_name || "?"}`;
             case "party_assign": return `${d.party_name || "?"}${d.guild_name ? ` (${d.guild_name})` : ""} assigned to ${d.boss_name || d.activity_name || "?"}`;
             case "party_unlink": return `${d.party_name || "?"}${d.guild_name ? ` (${d.guild_name})` : ""} unlinked from ${d.boss_name || "?"}`;
-            case "party_create": return `${d.party_name || d.name || "—"}${d.guild_name ? ` (${d.guild_name})` : ""}`;
+            case "party_create": return `${d.party_name || d.name || "—"}${d.guild_name ? ` · ${d.guild_name}` : ""}${d.member_count ? ` · ${d.member_count} members` : ""}${d.boss_name && d.boss_name !== "—" ? ` · ${d.boss_name}` : ""}`;
             case "party_delete": return d.party_name || "Party deleted";
-            case "item_create": case "item_update": case "item_delete": return d.item_name || d.name || "—";
-            case "item_distribute": return `${d.item_name || "?"} → ${d.player_name || "?"}`;
+            case "item_create": return `${d.item_name || d.name || "?"}${d.rarity ? ` · ${d.rarity}` : ""}${d.category ? ` · ${d.category}` : ""}${d.game ? ` · ${d.game}` : ""}${d.description ? ` · ${d.description}` : ""}${d.has_image !== undefined ? (d.has_image ? " · with image" : " · no image") : ""}`;
+            case "item_update": case "item_delete": return d.item_name || d.name || "—";
+            case "item_distribute": return `${d.item_name || "?"} → ${d.player_name || "?"}${d.quantity ? ` x${d.quantity}` : ""}${d.reason ? ` · ${d.reason}` : ""}`;
             case "force_spawn": return `${d.boss_name || d.activity_name || `${d.boss_count ?? 0} bosses`} in "${d.server_name || "?"}"`;
             case "subscription_extend": return `+${d.days ?? 30} days for "${d.server_name || "?"}"`;
             case "maintenance_on": return d.ends_at ? `Until ${new Date(d.ends_at).toLocaleString()}` : "—";
@@ -1077,7 +1079,7 @@ export function AdminPanelView() {
                 return (
                 <div key={entry.id} className="border-b border-[#1e1e2a]/50 last:border-b-0 hover:bg-[#0d0d11]/20 transition">
                   {/* Desktop row */}
-                  <div className="hidden sm:grid grid-cols-12 gap-3 px-4 py-2.5 items-center">
+                  <div className="hidden sm:grid grid-cols-12 gap-3 px-4 py-2.5 items-start">
                     <div className="col-span-3 flex items-center gap-2 min-w-0">
                       <span className={`shrink-0 w-1.5 h-1.5 rounded-full ${dot}`} />
                       <span className={`text-xs font-medium truncate ${txt}`}>{formatActionLabel(entry.action)}</span>
@@ -1085,10 +1087,10 @@ export function AdminPanelView() {
                     <div className="col-span-2 min-w-0">
                       {serverName ? <span className="text-[11px] text-[#a1a1aa] truncate block">{serverName}</span> : <span className="text-[#52525b]">—</span>}
                     </div>
-                    <div className="col-span-3 min-w-0">
-                      <span className="text-[11px] text-[#d4d4d8] truncate block">{detailText}</span>
+                    <div className="col-span-4 min-w-0">
+                      <span className="text-[11px] text-[#d4d4d8] whitespace-normal break-words leading-relaxed">{detailText}</span>
                     </div>
-                    <div className="col-span-2 min-w-0">
+                    <div className="col-span-1 min-w-0">
                       <span className="text-[10px] text-[#71717a] truncate block">{actor}</span>
                       {isViewer && <span className="text-[9px] text-[#52525b] ml-1">viewer</span>}
                     </div>

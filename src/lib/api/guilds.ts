@@ -1,4 +1,5 @@
 import { supabase, getCurrentServerId } from "./client";
+import { writeAuditEntry, AuditAction } from "./audit";
 import type { Guild, BossAssist } from "@/types";
 
 // ── Guilds ──────────────────────────────────────────────────
@@ -38,12 +39,14 @@ export async function deleteGuild(id: string): Promise<void> {
   if (error) throw error;
 }
 
-export async function setMemberGuild(memberId: string, guildId: string | null): Promise<void> {
+export async function setMemberGuild(memberId: string, guildId: string | null, memberName?: string, oldGuild?: string, newGuild?: string): Promise<void> {
   const { error } = await supabase
     .from("members")
     .update({ guild_id: guildId })
     .eq("id", memberId);
   if (error) throw error;
+  const sid = getCurrentServerId();
+  if (sid) writeAuditEntry({ action: AuditAction.MEMBER_GUILD_CHANGE, server_id: sid, target_id: memberId, details: { member_name: memberName || memberId, old_guild: oldGuild || "(none)", new_guild: newGuild || "(none)" } });
 }
 
 // ── Boss Assists ────────────────────────────────────────────

@@ -23,7 +23,7 @@ import { guildColor } from "@/lib/constants";
 import type { Item, Distribution, ItemRarity } from "@/types";
 import {
   Package, Plus, Trash2, Loader2, Search, Gift, History, BarChart3,
-  X, ChevronRight, ChevronUp, ChevronDown, ArrowUpDown, ArrowLeft, Image, Star, Upload, Minus, Pencil, Box, Users, Check,
+  X, ChevronRight, ChevronUp, ChevronDown, ArrowUpDown, ArrowLeft, Image, Star, Upload, Minus, Pencil, Box, Users, Check, Clock,
   Sword, Swords, HandMetal, Shield, ShieldHalf, ShieldCheck, Gavel, Axe, Crosshair, Target, Wand, Heart, Zap, Flame, Snowflake, Skull, Crown, Anchor, Footprints, Eye,
 } from "lucide-react";
 
@@ -71,6 +71,7 @@ export function InventoryView() {
   const serverId = useServerId();
   const { currentServer } = useServer();
   const { isViewer } = useAuth();
+  const canManageItems = currentServer?.role === "owner" || currentServer?.role === "moderator";
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const configured = isSupabaseConfigured();
@@ -337,6 +338,12 @@ export function InventoryView() {
         const { uploadItemImage: uploadItemImg } = await import("@/lib/supabase");
         imageUrl = await uploadItemImg(serverId, newItemName || "item", newItemImage);
       }
+      const catLabel = (() => {
+        const cat = (gameCategories as any[]).find((c: any) => c.id === newItemCategory);
+        if (!cat) return null;
+        const parent = cat.parent_id ? (gameCategories as any[]).find((c: any) => c.id === cat.parent_id) : null;
+        return parent ? `${parent.name} → ${cat.name}` : cat.name;
+      })();
       return createItem({
         server_id: serverId!,
         name: newItemName,
@@ -344,6 +351,7 @@ export function InventoryView() {
         rarity: newItemRarity,
         image_url: imageUrl,
         category_id: newItemCategory || undefined,
+        category_label: catLabel,
       });
     },
     onSuccess: () => {
@@ -400,7 +408,7 @@ export function InventoryView() {
         player_name: member?.name ?? "",
         quantity: distQuantity,
         reason: distReason,
-      });
+      }, item?.name);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["distributions", serverId] });
@@ -416,6 +424,17 @@ export function InventoryView() {
     },
   });
 
+  const deleteItemMutation = useMutation({
+    mutationFn: ({ itemId, itemName }: { itemId: string; itemName: string }) => deleteItem(itemId, serverId!, itemName),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["items", serverId] });
+      // Reload with current filter state
+      loadCatalogPage(0, itemSearch.trim() || undefined, pendingFilter || undefined);
+      toast("success", `"${variables.itemName}" deleted`);
+    },
+    onError: (err: any) => toast("error", err?.message ?? "Failed to delete"),
+  });
+
   const deleteDistMutation = useMutation({
     mutationFn: (id: string) => deleteDistribution(id),
     onSuccess: () => {
@@ -426,6 +445,9 @@ export function InventoryView() {
   });
 
   const [itemSearch, setItemSearch] = useState("");
+  const [pendingFilter, setPendingFilter] = useState(false);
+  const [deleteItemTarget, setDeleteItemTarget] = useState<{ id: string; name: string } | null>(null);
+  const [deleteItemConfirm, setDeleteItemConfirm] = useState("");
   const prevSearchRef = useRef(itemSearch);
   const [rarityFilter, setRarityFilter] = useState<string | null>(null);
 
@@ -465,15 +487,15 @@ export function InventoryView() {
   const ITEMS_PER_PAGE = 50;
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const loadCatalogPage = async (offset: number, search?: string) => {
+  const loadCatalogPage = async (offset: number, search?: string, pendingOnly?: boolean) => {
     if (!serverId) return;
     const isSearch = !!(search && search.trim());
     setLoadingMore(true);
     try {
-      const { items: newItems, total } = await fetchItemsPaginated(serverId, ITEMS_PER_PAGE, offset, search);
+      const { items: newItems, total } = await fetchItemsPaginated(serverId, ITEMS_PER_PAGE, offset, search, pendingOnly);
       setCatalogItems(prev => offset === 0 ? newItems : [...prev, ...newItems]);
       setCatalogTotal(total);
-      if (!isSearch) setCatalogLoaded(true);
+      if (!isSearch && !pendingOnly) setCatalogLoaded(true);
     } catch (err) {
       console.error("Failed to load catalog items:", err);
     } finally {
@@ -628,6 +650,18 @@ export function InventoryView() {
                   </button>
                 )}
               </div>
+              {canManageItems && (
+                <button
+                  onClick={() => {
+                    if (pendingFilter) { setPendingFilter(false); loadCatalogPage(0, itemSearch.trim() || undefined); }
+                    else { setPendingFilter(true); setItemSearch(""); loadCatalogPage(0, undefined, true); }
+                  }}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition border shrink-0 ${pendingFilter ? "bg-amber-500/15 text-amber-400 border-amber-500/30" : "bg-[#18181b] border-[#27272a] text-[#71717a] hover:text-[#d4d4d8]"}`}
+                >
+                  <Clock className="w-3 h-3" />
+                  Pending
+                </button>
+              )}
               <button
                 onClick={() => setShowCreateItem(true)}
                 className="flex items-center gap-2 px-3 py-2.5 bg-[#fafafa] hover:bg-[#e4e4e7] text-[#09090b] rounded-xl text-xs font-medium transition shrink-0"
@@ -713,7 +747,7 @@ export function InventoryView() {
                       {!isCatalog && item.created_by_username && (
                         <span className="text-[9px] text-[#52525b] truncate">by {item.created_by_username}</span>
                       )}
-                      {item.status === "pending" && (
+                      {item.status?.toLowerCase() === "pending" && (
                         <span className="text-[9px] px-1.5 py-0.5 rounded font-medium bg-amber-500/15 text-amber-400 border border-amber-500/30">
                           Pending
                         </span>
@@ -729,6 +763,17 @@ export function InventoryView() {
                   >
                     <Gift className="w-4 h-4" />
                   </button>
+                  {/* Delete pending item — server owner/mod only */}
+                  {item.status?.toLowerCase() === "pending" && canManageItems && (
+                    <button
+                      onClick={() => { setDeleteItemTarget({ id: item.id, name: item.name }); setDeleteItemConfirm(""); }}
+                      disabled={deleteItemMutation.isPending}
+                      className="p-2 rounded-lg hover:bg-red-900/20 text-[#71717a] hover:text-[#f87171] transition shrink-0"
+                      title="Delete pending item"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
                 </div>
               );})}
               </div>
@@ -1030,7 +1075,8 @@ export function InventoryView() {
                           </span>
                           <button
                             onClick={() => {
-                              removeItemFromCollection(selectedCollection!, ci.item_id)
+                              const collName = collections.find(c => c.id === selectedCollection)?.name;
+                              removeItemFromCollection(selectedCollection!, ci.item_id, serverId!, ci.item?.name, collName)
                                 .then(() => queryClient.invalidateQueries({ queryKey: ["collectionItems", selectedCollection] }));
                             }}
                             className="pr-2 text-[#71717a] hover:text-[#f87171]"
@@ -1094,7 +1140,8 @@ export function InventoryView() {
                         key={item.id}
                         onClick={() => {
                           if (isAlreadyAdded) return;
-                          addItemToCollection(selectedCollection!, item.id)
+                          const collName = collections.find(c => c.id === selectedCollection)?.name;
+                          addItemToCollection(selectedCollection!, item.id, serverId!, item.name, collName)
                             .then(() => { queryClient.invalidateQueries({ queryKey: ["collectionItems", selectedCollection] }); toast("success", `Added ${item.name}`); })
                             .catch(() => toast("error", "Failed to add item"));
                         }}
@@ -1303,15 +1350,13 @@ export function InventoryView() {
                                 <td key={ci.item_id} className="px-3 py-2.5 text-center">
                                   <button
                                     onClick={async () => {
+                                      const collName = collections.find(c => c.id === selectedCollection)?.name;
                                       if (isManual) {
-                                        // Remove manual override → revert to distributed status
-                                        await removeManualOwnership(selectedCollection!, ci.item_id, p.name);
+                                        await removeManualOwnership(selectedCollection!, ci.item_id, p.name, serverId!, ci.item?.name, collName);
                                       } else if (isDistributed) {
-                                        // Mark as NOT owned (override)
-                                        await setManualOwnership(selectedCollection!, ci.item_id, p.name, false);
+                                        await setManualOwnership(selectedCollection!, ci.item_id, p.name, false, serverId!, ci.item?.name, collName);
                                       } else {
-                                        // Mark as manually owned
-                                        await setManualOwnership(selectedCollection!, ci.item_id, p.name, true);
+                                        await setManualOwnership(selectedCollection!, ci.item_id, p.name, true, serverId!, ci.item?.name, collName);
                                       }
                                       queryClient.invalidateQueries({ queryKey: ["manualOwnership", selectedCollection] });
                                     }}
@@ -2012,7 +2057,7 @@ export function InventoryView() {
               </div>
               <button
                 onClick={() => createItemMutation.mutate()}
-                disabled={!newItemName.trim() || createItemMutation.isPending}
+                disabled={!newItemName.trim() || !newItemCategory || createItemMutation.isPending}
                 className="w-full py-2 bg-[#fafafa] text-[#09090b] rounded-lg text-sm font-medium hover:bg-[#e4e4e7] transition disabled:opacity-50"
               >
                 {createItemMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : "Add Item"}
@@ -2339,13 +2384,30 @@ export function InventoryView() {
         variant="danger"
         onConfirm={() => {
           if (deleteCollectionTarget) {
-            deleteCollection(deleteCollectionTarget.id).then(() => {
+            deleteCollection(deleteCollectionTarget.id, serverId!, deleteCollectionTarget.name).then(() => {
               queryClient.invalidateQueries({ queryKey: ["collections", serverId] });
             });
             setDeleteCollectionTarget(null);
           }
         }}
         onCancel={() => setDeleteCollectionTarget(null)}
+      />
+
+      {/* Delete Pending Item Confirm */}
+      <ConfirmDialog
+        open={deleteItemTarget !== null}
+        title="Delete Pending Item"
+        message={`This will permanently delete "${deleteItemTarget?.name}". This action cannot be undone.`}
+        confirmLabel="Delete Item"
+        confirmText={deleteItemTarget?.name ?? ""}
+        variant="danger"
+        onConfirm={() => {
+          if (deleteItemTarget) {
+            deleteItemMutation.mutate({ itemId: deleteItemTarget.id, itemName: deleteItemTarget.name });
+            setDeleteItemTarget(null);
+          }
+        }}
+        onCancel={() => setDeleteItemTarget(null)}
       />
 
       {/* ── Matrix Distribute Modal ── */}
@@ -2387,7 +2449,7 @@ export function InventoryView() {
                             player_name: matrixDistributePlayer.name,
                             quantity: 1,
                             reason: "",
-                          });
+                          }, item.name);
                           queryClient.invalidateQueries({ queryKey: ["distributions", serverId] });
                           queryClient.invalidateQueries({ queryKey: ["allDists", serverId] });
                           queryClient.invalidateQueries({ queryKey: ["manualOwnership", selectedCollection] });

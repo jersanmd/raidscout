@@ -38,6 +38,7 @@ const TABLES = [
   "item_rarities","member_notes","moderator_permissions",
   "notifications","payments","point_rules",
   "activity_guilds","activity_instances","spawn_notifications",
+  "server_members","user_roles",
 ];
 
 async function fetchAll(table) {

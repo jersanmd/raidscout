@@ -83,7 +83,7 @@ export function useLeaderboardSnapshots() {
             { key: resetKey, value: now, server_id: serverId },
             { onConflict: "key, server_id" }
           );
-          writeAuditEntry({ action: AuditAction.LEADERBOARD_RESET, server_id: serverId, details: { period } });
+          writeAuditEntry({ action: AuditAction.LEADERBOARD_RESET, server_id: serverId, details: { period, from: periodStart, to: now, guild: period.startsWith("weekly:") ? period.replace("weekly:", "") : null } });
         } catch (err) {
           console.error("Failed to save snapshot to Supabase:", err);
         }

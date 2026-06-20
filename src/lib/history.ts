@@ -10,6 +10,7 @@ export interface HistoryEntry {
   deathRecordId?: string;
   activityInstanceId?: string;
   activityImageUrl?: string | null;
+  bossImageUrl?: string | null;
   createdAt: string;
   ownerGuildName?: string;
   ownerGuildId?: string;

@@ -1602,7 +1602,7 @@ export function LeaderboardView() {
           setResetLoading(true);
           const guildName = showResetConfirm!;
           setShowResetConfirm(null);
-          try { const gid = guilds.find(g => g.name === guildName)?.id; if (gid && serverId) { await resetGuildPoints(gid, serverId); queryClient.invalidateQueries({ queryKey: ["leaderboard"] }); } }
+          try { const gid = guilds.find(g => g.name === guildName)?.id; if (gid && serverId) { await resetGuildPoints(gid, serverId, guildName); queryClient.invalidateQueries({ queryKey: ["leaderboard"] }); } }
           catch {}
           finally { setResetLoading(false); }
         }}

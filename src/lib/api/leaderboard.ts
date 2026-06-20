@@ -61,7 +61,8 @@ export async function fetchLeaderboardByPeriod(
 
 export async function resetGuildPoints(
   guildId: string,
-  serverId: string
+  serverId: string,
+  guildName?: string
 ): Promise<{ deletedAttendance: number; deletedAdjustments: number }> {
   const { data: members, error: memErr } = await supabase
     .from("members")
@@ -87,7 +88,7 @@ export async function resetGuildPoints(
   if (adjErr) throw adjErr;
 
   const result = { deletedAttendance: attCount ?? 0, deletedAdjustments: adjCount ?? 0 };
-  writeAuditEntry({ action: AuditAction.LEADERBOARD_RESET_GUILD, server_id: serverId, target_id: guildId, details: { deleted_attendance: result.deletedAttendance, deleted_adjustments: result.deletedAdjustments } });
+  writeAuditEntry({ action: AuditAction.LEADERBOARD_RESET_GUILD, server_id: serverId, target_id: guildId, details: { guild_name: guildName || guildId, deleted_attendance: result.deletedAttendance, deleted_adjustments: result.deletedAdjustments } });
   return result;
 }
 
@@ -310,7 +311,9 @@ export async function saveLeaderboardSnapshot(
     .single();
 
   if (error) throw error;
-  writeAuditEntry({ action: AuditAction.LEADERBOARD_FINALIZE, server_id: serverId, details: { period, rankings: rankings.length } });
+  const from = new Date(periodStart).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  const to = new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  writeAuditEntry({ action: AuditAction.LEADERBOARD_FINALIZE, server_id: serverId, details: { period, rankings: rankings.length, from, to } });
   return data.id;
 }
 
