@@ -36,10 +36,10 @@ BEGIN
     SELECT 1 FROM public.user_roles WHERE user_id = auth.uid() AND role = 'admin'
   ) THEN
     IF p_server_id IS NOT NULL AND EXISTS (
-      SELECT 1 FROM public.server_members
-      WHERE server_id = p_server_id
-        AND user_id = auth.uid()
-        AND role IN ('owner', 'moderator')
+      SELECT 1 FROM public.server_members sm
+      WHERE sm.server_id = p_server_id
+        AND sm.user_id = auth.uid()
+        AND sm.role IN ('owner', 'moderator')
     ) THEN
       -- Authorized: owner/moderator of the requested server
       NULL;
