@@ -2664,15 +2664,15 @@ export function ServerSettingsView() {
 
                         {/* Inline Command Aliases Editor */}
                         {editAliasLinkId === link.id && (
-                          <div className="pt-3 border-t border-[#27272a]/50 animate-slideDown">
-                            <div className="space-y-2">
+                          <div className="pt-3 border-t border-[#27272a]/50 animate-slideDown overflow-x-auto">
+                            <div className="space-y-2 min-w-0">
                               {["list","nextspawn","killed","editkilltime","forcespawn","forcespawnall","commands","notifhere","threadhere","cmdhere"].map(cmd => (
-                                <div key={cmd} className="flex items-center gap-2">
-                                  <span className="text-xs text-[#a1a1aa] w-24 font-mono">{cmd}</span>
-                                  <span className="text-xs text-[#52525b]">→</span>
+                                <div key={cmd} className="flex items-center gap-2 min-w-0">
+                                  <span className="text-xs text-[#a1a1aa] w-20 sm:w-24 font-mono shrink-0 truncate">{cmd}</span>
+                                  <span className="text-xs text-[#52525b] shrink-0">→</span>
                                   <input type="text" value={editAliases[cmd] || ""} onChange={e => setEditAliases(prev => ({ ...prev, [cmd]: e.target.value }))}
                                     placeholder={cmd}
-                                    className="flex-1 bg-[#27272a] border border-[#3f3f46] rounded px-2.5 py-1.5 text-xs text-[#fafafa] placeholder-[#71717a] outline-none focus:border-[#52525b] transition font-mono" />
+                                    className="min-w-0 flex-1 bg-[#27272a] border border-[#3f3f46] rounded px-2.5 py-1.5 text-xs text-[#fafafa] placeholder-[#71717a] outline-none focus:border-[#52525b] transition font-mono" />
                                 </div>
                               ))}
                               <button onClick={async () => {
