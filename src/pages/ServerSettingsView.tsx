@@ -2604,25 +2604,25 @@ export function ServerSettingsView() {
                         </div>
 
                         {/* Actions */}
-                        <div className="flex items-center gap-3 pt-1 border-t border-[#27272a]/50">
+                        <div className="flex items-center gap-2 pt-1 border-t border-[#27272a]/50 flex-wrap">
                           <button onClick={() => {
                             if (editAliasLinkId === link.id) { setEditAliasLinkId(null); return; }
                             setEditAliasLinkId(link.id); setEditAliases((link as any).command_aliases || {});
                           }}
-                            className={`text-xs px-2.5 py-1 rounded font-medium flex items-center gap-1.5 transition ${
+                            className={`text-xs px-2.5 py-1 rounded font-medium flex items-center gap-1.5 transition shrink-0 ${
                               editAliasLinkId === link.id ? "bg-[#fafafa] text-[#09090b]" : "bg-[#18181b] text-[#a1a1aa] hover:bg-[#18181b]"
                             }`}>
                             <Pencil className="w-3 h-3" />{editAliasLinkId === link.id ? "Close Aliases" : "Command Aliases"}
                           </button>
-                          <div className="flex items-center gap-1.5 ml-auto">
-                            <label className="text-[11px] text-[#71717a]">Ping:</label>
+                          <div className="flex items-center gap-1.5">
+                            <label className="text-[11px] text-[#71717a] shrink-0">Ping:</label>
                             <input type="text"
                               value={pingValues[link.id] ?? ((link as any).notification_prefix || "")}
                               onChange={(e) => setPingValues(prev => ({ ...prev, [link.id]: e.target.value }))}
                               placeholder="@everyone"
                               className={`bg-[#27272a] border border-[#3f3f46] px-2 py-1 text-xs text-[#e4e4e7] font-mono outline-none focus:ring-1 focus:ring-[#52525b] transition ${
                                 (pingValues[link.id] ?? "") !== ((link as any).notification_prefix || "")
-                                  ? "rounded-l w-56" : "rounded w-56"
+                                  ? "rounded-l w-32 sm:w-44" : "rounded w-32 sm:w-44"
                               }`} />
                             {(pingValues[link.id] ?? "") !== ((link as any).notification_prefix || "") && (
                               <button
