@@ -816,7 +816,7 @@ export function ServerSettingsView() {
     try {
       const { error } = await supabase.from("discord_configs").delete().eq("id", id);
       if (error) throw error;
-      writeAuditEntry({ action: AuditAction.DISCORD_LINK_REMOVE, server_id: currentServer.id, target_id: id, details: { discord_guild_id: discordToRemove.label || id } });
+      writeAuditEntry({ action: AuditAction.DISCORD_LINK_REMOVE, server_id: currentServer.id, target_id: id, details: { discord_guild_id: discordToRemove?.label || id } });
       setDiscordLinks(prev => prev.filter(d => d.id !== id));
       notifyDiscordUpdated();
       queryClient.invalidateQueries({ queryKey: ["discord_configs", currentServer.id] });
