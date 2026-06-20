@@ -516,7 +516,7 @@ export function ParticipantModal({
         try { await saveDeathScanResults(deathRecordId, scanResults); } catch (err) { console.error("[ParticipantModal] saveDeathScanResults failed:", err); }
       }
 
-      if (idsToAdd.length > 0) {
+      if (toAdd.length > 0) {
         queryClient.invalidateQueries({ queryKey: ["attendance"] });
       }
     } catch (err) {

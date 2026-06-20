@@ -3529,7 +3529,7 @@ export function ServerActivityLogTab({ serverId, timezone = "UTC" }: { serverId:
   const formatDetails = (entry: any): string => {
     const d = entry.details || {};
     const fmtTime = (iso: string) => {
-      try { return new Date(iso).toLocaleString("en-US", { timeZone, month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }); }
+      try { return new Date(iso).toLocaleString("en-US", { timeZone: timezone, month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }); }
       catch { return iso; }
     };
     switch (entry.action) {
