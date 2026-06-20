@@ -103,7 +103,7 @@ export function useRecordDeath(
     const attendanceErrors: string[] = [];
     for (const memberId of attendeeIds) {
       try {
-        await addAttendance(deathRecordId, memberId);
+        await addAttendance(deathRecordId, memberId, undefined, bossName);
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         attendanceErrors.push(msg);

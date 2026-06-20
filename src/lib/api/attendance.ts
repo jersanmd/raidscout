@@ -39,6 +39,25 @@ export async function addAttendance(
 ): Promise<AttendanceRecord> {
   const sid = getCurrentServerId();
   const { data: { session } } = await supabase.auth.getSession();
+
+  // Auto-resolve names from DB when not provided (for audit readability)
+  if (!memberName || !bossName) {
+    try {
+      const [memRes, drRes] = await Promise.all([
+        !memberName ? supabase.from("members").select("in_game_name").eq("id", memberId).single() : Promise.resolve(null),
+        !bossName ? supabase.from("death_records").select("boss_id").eq("id", deathRecordId).single() : Promise.resolve(null),
+      ]);
+      if (!memberName && memRes?.data) memberName = (memRes.data as any).in_game_name;
+      if (!bossName && drRes?.data) {
+        const bid = (drRes.data as any).boss_id;
+        if (bid) {
+          const { data: b } = await supabase.from("bosses").select("name").eq("id", bid).single();
+          if (b) bossName = (b as any).name;
+        }
+      }
+    } catch { /* non-critical */ }
+  }
+
   // Fetch death time for audit detail
   let deathTime: string | undefined;
   try {

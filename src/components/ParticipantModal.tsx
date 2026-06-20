@@ -491,7 +491,7 @@ export function ParticipantModal({
       }
       for (const memberId of idsToAdd) {
         try {
-          await addAttendance.mutateAsync({ deathRecordId, memberId });
+          await addAttendance.mutateAsync({ deathRecordId, memberId, bossName });
         } catch (err) { console.error("[ParticipantModal] bulk addAttendance failed for member:", memberId, err); }
       }
 
@@ -567,6 +567,8 @@ export function ParticipantModal({
             await addAttendance.mutateAsync({
               deathRecordId,
               memberId: member.id,
+              memberName: name,
+              bossName,
             });
           } catch (err) { console.error("[ParticipantModal] manual addAttendance failed:", member.id, err); }
         }
@@ -767,6 +769,8 @@ export function ParticipantModal({
                                                   {
                                                     deathRecordId,
                                                     memberId: member.id,
+                                                    memberName: name,
+                                                    bossName,
                                                   },
                                                 );
                                               } catch (err) { console.error("[ParticipantModal] unmatched addAttendance failed:", member.id, err); }
