@@ -94,8 +94,12 @@ export function MemberProfileView() {
     const [uy, um, ud] = uDate.split("-").map(Number);
     const [uh, umm] = uTime.split(":").map(Number);
     const offsetMs = Date.UTC(sy, sm - 1, sd, sh, smm, 0) - Date.UTC(uy, um - 1, ud, uh, umm, 0);
-    const dayOfWeek = new Date(Date.UTC(sy, sm - 1, sd) - offsetMs).getUTCDay();
-    const mondayOffset = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+    // Day of week from server's local date (Jan 1, 2000 = Saturday)
+    const jan1 = Date.UTC(2000, 0, 1);
+    const target = Date.UTC(sy, sm - 1, sd);
+    const diffDays = Math.round((target - jan1) / 86400000);
+    const dow = ((diffDays + 6) % 7 + 7) % 7; // 0=Sun, 1=Mon … 6=Sat
+    const mondayOffset = dow === 0 ? 6 : dow - 1;
     return new Date(Date.UTC(sy, sm - 1, sd - mondayOffset, 0, 0, 0) - offsetMs);
   })();
   const monthStart = (() => {

@@ -145,9 +145,13 @@ export function MembersView() {
     const [uh, umm, us2] = uTime.split(":").map(Number);
     // Compute offset: server wall-clock ms - UTC wall-clock ms
     const offsetMs = Date.UTC(sy, sm - 1, sd, sh, smm, ss) - Date.UTC(uy, um - 1, ud, uh, umm, us2);
-    // Monday 00:00 in server TZ as UTC
-    const dayOfWeek = new Date(Date.UTC(sy, sm - 1, sd) - offsetMs).getUTCDay();
-    const mondayOffset = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+    // Compute day of week from server's local date (sy,sm,sd are already in server TZ)
+    // Jan 1, 2000 = Saturday (UTC). Days from then:
+    const jan1 = Date.UTC(2000, 0, 1);
+    const target = Date.UTC(sy, sm - 1, sd);
+    const diffDays = Math.round((target - jan1) / 86400000);
+    const dow = ((diffDays + 6) % 7 + 7) % 7; // 0=Sun, 1=Mon … 6=Sat
+    const mondayOffset = dow === 0 ? 6 : dow - 1;
     const mondayUtc = Date.UTC(sy, sm - 1, sd - mondayOffset, 0, 0, 0) - offsetMs;
     return new Date(mondayUtc).toISOString();
   })();
