@@ -73,13 +73,6 @@
 
 - **New servers immediately expired** — `create_server_with_bosses` RPC now sets `trial_ends_at = now() + 7 days`. Previously omitted, causing all new servers to show as expired on creation.
 
-## 🧮 Admin Panel
-
-- **Payments tab** — Cross-server purchase history with revenue summary cards (total, net, average), transaction count breakdown (completed/refunded), and full table with server name, payer email, amount, days, and status.
-- **Bot terminal wrap** — Log messages now wrap with `break-all`, no horizontal scrolling needed on mobile.
-- **Games tabs wrap** — Game tabs now wrap to new lines instead of scrolling horizontally on mobile.
-- **Spawn Cron chart responsive** — Chart viewBox matches container dimensions, auto-scaling Y-axis to data range with 10% padding, larger fonts and dots on mobile, fewer tick labels to prevent overlap.
-
 ## 📱 Mobile Fixes
 
 - **Account dropdown off-screen** — Right-position now clamped with `Math.max(4, ...)`, max-height with scroll on small screens.

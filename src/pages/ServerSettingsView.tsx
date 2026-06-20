@@ -2388,9 +2388,9 @@ export function ServerSettingsView() {
                   const isEditingChannels = !!channelValues[link.id];
                   const isEditingThreads = !!threadValues[link.id];
                   return (
-                    <div key={link.id} className="bg-[#18181b]/40 border border-[#27272a]/50 rounded-lg overflow-hidden">
+                    <div key={link.id} className="bg-[#18181b]/40 border border-[#27272a]/50 rounded-lg">
                       {/* Header */}
-                      <div className="flex items-center gap-3 px-4 py-3 bg-[#18181b]/60">
+                      <div className="flex items-center gap-3 px-4 py-3 bg-[#18181b]/60 rounded-t-lg">
                         {editingLinkId === link.id ? (
                           <>
                             {/* Edit mode: prefix dropdown */}
@@ -2477,7 +2477,7 @@ export function ServerSettingsView() {
                       </div>
 
                       {/* Body */}
-                      <div className="p-4 space-y-4">
+                      <div className="p-4 pb-4 space-y-4">
                         {/* Channels */}
                         <div>
                           <div className="flex items-center justify-between mb-2">
@@ -2664,7 +2664,7 @@ export function ServerSettingsView() {
 
                         {/* Inline Command Aliases Editor */}
                         {editAliasLinkId === link.id && (
-                          <div className="pt-3 border-t border-[#27272a]/50 animate-slideDown overflow-x-auto">
+                          <div ref={(el) => { if (el) el.scrollIntoView({ behavior: "smooth", block: "nearest" }); }} className="pt-3 border-t border-[#27272a]/50 animate-slideDown overflow-x-auto pb-2">
                             <div className="space-y-2 min-w-0">
                               {["list","nextspawn","killed","editkilltime","forcespawn","forcespawnall","commands","notifhere","threadhere","cmdhere"].map(cmd => (
                                 <div key={cmd} className="flex items-center gap-2 min-w-0">
@@ -2678,10 +2678,19 @@ export function ServerSettingsView() {
                               <button onClick={async () => {
                                 const { error } = await supabase.from("discord_configs").update({ command_aliases: editAliases }).eq("id", editAliasLinkId);
                                 if (error) { toast("error", error.message); return; }
+                                const oldAliases = (link as any).command_aliases || {};
+                                const changed: Record<string, { old: string; new: string }> = {};
+                                for (const cmd of ["list","nextspawn","killed","editkilltime","forcespawn","forcespawnall","commands","notifhere","threadhere","cmdhere"]) {
+                                  const oldVal = (oldAliases[cmd] || "").trim();
+                                  const newVal = (editAliases[cmd] || "").trim();
+                                  if (oldVal !== newVal) changed[cmd] = { old: oldVal || "(none)", new: newVal || "(none)" };
+                                }
+                                const changeCount = Object.keys(changed).length;
                                 setDiscordLinks(prev => prev.map(d => d.id === editAliasLinkId ? { ...d, command_aliases: editAliases } : d));
-                                writeAuditEntry({ action: AuditAction.DISCORD_ALIASES_SET, server_id: currentServer!.id, target_id: editAliasLinkId, details: { count: Object.values(editAliases).filter(Boolean).length } });
-                                setEditAliasLinkId(null); toast("success", "Aliases saved!");
-                              }} className="px-4 py-2 rounded-lg text-xs font-medium bg-[#fafafa] text-[#09090b] hover:bg-[#e4e4e7] transition flex items-center gap-1.5">
+                                writeAuditEntry({ action: AuditAction.DISCORD_ALIASES_SET, server_id: currentServer!.id, target_id: editAliasLinkId, details: { count: changeCount, changes: changed } });
+                                setEditAliasLinkId(null);
+                                toast("success", changeCount > 0 ? `${changeCount} alias${changeCount !== 1 ? "es" : ""} updated` : "No changes detected");
+                              }} className="px-4 py-2 rounded-lg text-xs font-medium bg-[#fafafa] text-[#09090b] hover:bg-[#e4e4e7] transition flex items-center gap-1.5 scroll-mb-24">
                                 <Check className="w-3.5 h-3.5" /> Save Aliases
                               </button>
                             </div>
@@ -3635,7 +3644,14 @@ export function ServerActivityLogTab({ serverId, timezone = "UTC" }: { serverId:
       case "discord_channels_set": return `Channels updated${d.alert ? ` · alert: ${d.alert}` : ""}${d.command ? ` · command: ${d.command}` : ""}${d.progress ? ` · progress: ${d.progress}` : ""}`;
       case "discord_channel_clear": return `Cleared ${d.field || "?"} channel${d.value ? ` (was: ${d.value})` : ""}`;
       case "discord_threads_set": return `Auto-threads configured${d.channel ? ` · channel: ${d.channel}` : ""}${d.guild_count ? ` · ${d.guild_count} guilds` : ""}`;
-      case "discord_aliases_set": return `${d.count ?? 0} command aliases updated`;
+      case "discord_aliases_set": {
+        if (d.changes && typeof d.changes === "object") {
+          const entries = Object.entries(d.changes as Record<string, { old: string; new: string }>);
+          if (entries.length === 0) return "No alias changes";
+          return entries.map(([cmd, c]) => `${cmd}: "${c.old}" → "${c.new}"`).join(" · ");
+        }
+        return `${d.count ?? 0} aliases updated`;
+      }
       case "discord_ping_set": return `Notification ping set to "${d.ping || "(default)"}"`;
       default: return Object.entries(d).filter(([k]) => k !== "discord_user").slice(0, 2).map(([k,v]) => `${k}: ${v}`).join(", ") || "—";
     }
