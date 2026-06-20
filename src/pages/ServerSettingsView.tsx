@@ -3471,7 +3471,7 @@ export function ServerActivityLogTab({ serverId, timezone = "UTC" }: { serverId:
       case "boss_time_edit": return `${d.boss_name || "?"}: time changed${d.new_time ? ` to ${d.new_time}` : ""}${d.direction ? ` (${d.direction > 0 ? "+" : ""}${d.direction})` : ""}`;
       case "boss_rotation_advance": return `${d.boss_name || "?"}: rotation advanced${d.target_guild ? ` to ${d.target_guild}` : ""}${d.mode ? ` (${d.mode})` : ""}`;
       case "boss_guilds_set": return `Boss guilds updated${d.boss_name ? ` for "${d.boss_name}"` : ""}${d.guild_count ? ` (${d.guild_count} guilds, ${d.mode})` : ""}`;
-      case "boss_spawn_set": return `${d.boss_name || "?"}: spawn time set`;
+      case "boss_spawn_set": return `${d.boss_name || "?"}: spawn set to ${d.spawn_date || "?"}`;
       case "activity_create": case "activity_update": case "activity_delete": return d.activity_name || d.name || "—";
       case "activity_toggle": return `${d.activity_name || "?"} ${d.enabled ? "enabled" : "disabled"}${d.reason ? ` (${d.reason})` : ""}`;
       case "activity_time_edit": return `Activity time edited${d.activity_name ? ` for "${d.activity_name}"` : ""}`;

@@ -942,7 +942,7 @@ export function AdminPanelView() {
             case "death_guild_set": return `Display guild set to ${d.guild_name || "?"}`;
             case "death_guild_clear": return `Display guild cleared`;
             case "death_time_edit": return `${d.boss_name || "?"}: death time edited`;
-            case "boss_spawn_set": return `${d.boss_name || "?"}: spawn time set`;
+            case "boss_spawn_set": return `${d.boss_name || "?"}: spawn set to ${d.spawn_date || "?"}`;
             case "activity_toggle": return `${d.activity_name || "?"} ${d.enabled ? "enabled" : "disabled"}`;
             case "activity_time_edit": return `Activity time edited${d.activity_name ? ` for "${d.activity_name}"` : ""}`;
             case "activity_finalize": case "activity_end_record": return `${d.activity_name || "?"} completed${d.attendees ? ` (${d.attendees} attendees)` : ""}${d.end_time ? ` at ${d.end_time}` : ""}`;
