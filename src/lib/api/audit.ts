@@ -100,6 +100,7 @@ export const AuditAction = {
   // Death Records
   DEATH_GUILD_SET: "death_guild_set",
   DEATH_GUILD_CLEAR: "death_guild_clear",
+  DEATH_TIME_EDIT: "death_time_edit",
 
   // Subscription
   SUBSCRIPTION_EXTEND: "subscription_extend",
@@ -155,6 +156,14 @@ export const AUDIT_ACTION_GROUPS: { label: string; actions: AuditActionType[] }[
       AuditAction.ACTIVITY_FINALIZE,
       AuditAction.ACTIVITY_GUILDS_SET,
       AuditAction.ACTIVITY_ROTATION,
+    ],
+  },
+  {
+    label: "Death Records",
+    actions: [
+      AuditAction.DEATH_GUILD_SET,
+      AuditAction.DEATH_GUILD_CLEAR,
+      AuditAction.DEATH_TIME_EDIT,
     ],
   },
   {

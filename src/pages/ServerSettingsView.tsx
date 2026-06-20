@@ -3499,6 +3499,7 @@ export function ServerActivityLogTab({ serverId, timezone = "UTC" }: { serverId:
       case "point_rule_delete": return `Point rule deleted`;
       case "death_guild_set": return `Display guild set to ${d.guild_name || "?"}`;
       case "death_guild_clear": return `Display guild cleared`;
+      case "death_time_edit": return `${d.boss_name || "?"}: death time edited`;
       case "settings_update": {
         const entries = Object.entries(d).filter(([k]) => k !== "discord_user");
         return entries.map(([k,v]) => `${k.replace(/_/g, " ")}: ${v}`).join(", ") || "Settings updated";

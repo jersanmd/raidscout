@@ -232,6 +232,9 @@ export function WeeklyScheduleView() {
       const [hh, mm] = timePart.split(":").map(Number);
       const newTime = new Date(y, m - 1, d, hh, mm);
       await editDeathTime(editDeath.deathRecordId, newTime);
+      if (editDeath.bossName) {
+        writeAuditEntry({ action: AuditAction.DEATH_TIME_EDIT, server_id: getCurrentServerId()!, target_id: editDeath.deathRecordId, details: { boss_name: editDeath.bossName, old_time: editDeath.deathTime, new_time: newTime.toISOString() } });
+      }
       queryClient.invalidateQueries({ queryKey: ["death_records"] });
       setEditToast({ type: "success", message: "Death time updated!" });
       setEditDeath(null);
