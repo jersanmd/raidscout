@@ -950,6 +950,10 @@ export function AdminPanelView() {
             case "activity_rotation_advance": return `Activity rotation advanced${d.activity_name ? ` for "${d.activity_name}"` : ""}`;
             case "gear_equip": return `${d.member_name || "?"} equipped ${d.item_name || "?"}${d.enhancement ? ` (+${d.enhancement})` : ""}`;
             case "gear_unequip": return `${d.member_name || "?"} unequipped ${d.item_name || "?"}`;
+            case "party_assign": return `${d.party_name || "?"} assigned to ${d.boss_name || "?"}`;
+            case "party_unlink": return `${d.party_name || "?"} unlinked`;
+            case "party_create": return d.party_name || d.name || "—";
+            case "party_delete": return d.party_name || "Party deleted";
             case "item_create": case "item_update": case "item_delete": return d.item_name || d.name || "—";
             case "item_distribute": return `${d.item_name || "?"} → ${d.player_name || "?"}`;
             case "force_spawn": return `${d.boss_name || `${d.boss_count ?? 0} bosses`} in "${d.server_name || "?"}"`;

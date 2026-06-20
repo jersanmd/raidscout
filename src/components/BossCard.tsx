@@ -975,7 +975,7 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
                         <button
                           onClick={async () => {
                             const { unlinkParty } = await import("@/lib/supabase");
-                            await unlinkParty(party.id).catch(() => {});
+                            await unlinkParty(party.id, serverId, party.name).catch(() => {});
                             setParties(prev => prev.map(p => p.id === party.id ? { ...p, boss_id: null } : p));
                           }}
                           className="w-full text-center px-2 py-1 text-[10px] text-[#71717a] hover:text-[#f87171] rounded hover:bg-[#27272a] transition">Unlink</button>
@@ -983,7 +983,7 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
                         <button
                           onClick={async () => {
                             if (!serverId) return;
-                            await assignPartyToBoss(party.id, boss.id).catch(() => {});
+                            await assignPartyToBoss(party.id, boss.id, serverId, party.name, boss.name).catch(() => {});
                             setParties(prev => prev.map(p => p.id === party.id ? { ...p, boss_id: boss.id, boss_name: boss.name } : p));
                           }}
                           className="w-full text-center px-2 py-1.5 rounded text-[10px] font-medium bg-[#fafafa] text-[#09090b] hover:bg-[#e4e4e7] transition">Assign to {boss.name}</button>
