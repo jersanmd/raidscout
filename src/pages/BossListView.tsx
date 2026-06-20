@@ -745,14 +745,14 @@ export function BossListView() {
               <span className="text-[11px] text-[#a1a1aa]">Allow editing spawn time</span>
               <div className="relative">
                 <input type="checkbox" checked={viewerCanEdit} onChange={handleToggleViewerEdit} className="sr-only peer" />
-                <div className="w-8 h-4 bg-[#27272a] rounded-full peer-checked:bg-white transition after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:w-3 after:h-3 after:bg-white after:rounded-full after:transition peer-checked:after:translate-x-4" />
+                <div className="w-8 h-4 bg-[#27272a] rounded-full peer-checked:bg-white transition after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:w-3 after:h-3 after:bg-white after:rounded-full after:transition peer-checked:after:translate-x-4 peer-checked:after:bg-[#09090b]" />
               </div>
             </label>
             <label className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#18181b] border border-[#27272a] cursor-pointer hover:border-[#3f3f46] transition">
               <span className="text-[11px] text-[#a1a1aa]">Allow marking as died</span>
               <div className="relative">
                 <input type="checkbox" checked={viewerCanMarkDied} onChange={handleToggleViewerMarkDied} className="sr-only peer" />
-                <div className="w-8 h-4 bg-[#27272a] rounded-full peer-checked:bg-white transition after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:w-3 after:h-3 after:bg-white after:rounded-full after:transition peer-checked:after:translate-x-4" />
+                <div className="w-8 h-4 bg-[#27272a] rounded-full peer-checked:bg-white transition after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:w-3 after:h-3 after:bg-white after:rounded-full after:transition peer-checked:after:translate-x-4 peer-checked:after:bg-[#09090b]" />
               </div>
             </label>
           </div>

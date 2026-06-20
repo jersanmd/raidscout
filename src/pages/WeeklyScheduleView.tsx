@@ -98,7 +98,7 @@ export function WeeklyScheduleView() {
     [...new Set(allDeathRecords.filter(dr => !dr.is_initial_spawn).map(dr => dr.id))],
   [allDeathRecords]);
   const { data: attendanceCounts, isLoading: attendanceLoading } = useQuery({
-    queryKey: ["attendance_counts", deathRecordIds],
+    queryKey: ["attendance_counts", currentServer?.id, weekMonday.toISOString()],
     queryFn: async () => {
       if (!deathRecordIds.length) return new Map<string, number>();
       const map = new Map<string, number>();
@@ -119,7 +119,7 @@ export function WeeklyScheduleView() {
       return map;
     },
     enabled: deathRecordIds.length > 0,
-    staleTime: 30_000,
+    staleTime: 0,
   });
 
   // No limit on scrolling back — user can go as far as their data exists
