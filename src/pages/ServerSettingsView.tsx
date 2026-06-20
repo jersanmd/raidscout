@@ -803,6 +803,7 @@ export function ServerSettingsView() {
       setNewDiscordLabel("");
       setNewDiscordPrefix("!");
       bumpWebhookVersion();
+      writeAuditEntry({ action: AuditAction.DISCORD_LINK_ADD, server_id: currentServer.id, target_id: data.id, details: { discord_guild_id: gid, label: newDiscordLabel.trim() || undefined, prefix } });
       toast("success", `Discord server linked! Use \`${prefix}notifhere\` for alerts and \`${prefix}cmdhere\` to restrict commands.`);
     } catch (err: any) {
       toast("error", err?.message ?? "Failed to link");
@@ -3542,7 +3543,7 @@ export function ServerActivityLogTab({ serverId, timezone = "UTC" }: { serverId:
       case "attendance_copy": return `Copied ${d.copied ?? 0} attendees from ${d.from_boss || "?"}${d.from_time ? ` (${d.from_time})` : ""} → ${d.to_boss || "?"}${d.to_time ? ` (${d.to_time})` : ""}${d.skipped ? ` (${d.skipped} skipped)` : ""}`;
       case "attendance_add": return `${d.member_name || "?"} attended ${d.boss_name || "?"}${d.death_time ? ` (${fmtTime(d.death_time)})` : ""}`;
       case "attendance_remove": return `${d.member_name || "?"} removed from ${d.boss_name || "?"}${d.death_time ? ` (${fmtTime(d.death_time)})` : ""}`;
-      case "member_cp_add": case "member_cp_update": return `${d.player_name || "?"}: ${d.old_cp != null ? Number(d.old_cp).toLocaleString() : "—"} → ${d.new_cp != null ? Number(d.new_cp).toLocaleString() : "?"}${d.date ? ` · ${new Date(d.date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}` : ""}`;
+      case "member_cp_add": case "member_cp_update": return `${d.player_name || "?"}: ${d.old_cp != null ? Number(d.old_cp).toLocaleString() : "—"} → ${d.new_cp != null ? Number(d.new_cp).toLocaleString() : "?"}${d.discord_username ? ` · Discord: ${d.discord_username}` : ""}${d.date ? ` · ${new Date(d.date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}` : ""}`;
       case "member_cp_delete": return `Deleted CP update for ${d.player_name || "?"}`;
       case "member_cp_reminder": return `CP update reminder sent to Discord`;
       case "member_add": return `${d.member_name || "—"}${d.class ? ` · ${d.class}` : ""}${d.cp ? ` · ${d.cp} CP` : ""}${d.guild_name ? ` · ${d.guild_name}` : ""}`;

@@ -110,7 +110,7 @@ export async function submitCpUpdate(update: {
     .select()
     .single();
   if (error) throw error;
-  writeAuditEntry({ action: AuditAction.MEMBER_CP_ADD, server_id: sid, target_id: memberId, details: { player_name: update.player_name.trim(), old_cp: oldCp, new_cp: update.new_cp } });
+  writeAuditEntry({ action: AuditAction.MEMBER_CP_ADD, server_id: sid, target_id: memberId, details: { player_name: update.player_name.trim(), old_cp: oldCp, new_cp: update.new_cp, discord_user_id: update.discord_user_id || undefined, discord_username: update.discord_username || undefined } });
   return data as CpUpdate;
 }
 
