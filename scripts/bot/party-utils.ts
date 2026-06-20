@@ -14,23 +14,23 @@ export async function fetchPartyList(
   );
   if (!partyRows?.length) return [];
 
-  const partyIds = partyRows.map((p: any) => `'${p.id}'`).join(",");
+  const partyIds = partyRows.map((p: any) => p.id).join(",");
   const memberRows = await supabaseQuerySafe(
     `static_party_members?party_id=in.(${partyIds})&select=party_id,member_id`
   );
   const memberIds = [...new Set(memberRows.map((m: any) => m.member_id))];
   let memberMap = new Map<string, string>();
-  let memberGuildMap = new Map<string, string>(); // member_id -> guild_name
+  let memberGuildMap = new Map<string, string>();
   if (memberIds.length > 0) {
     const members = await supabaseQuerySafe(
-      `members?server_id=eq.${serverId}&select=id,name,guild_id&id=in.(${memberIds.map((id: string) => `'${id}'`).join(",")})`
+      `members?server_id=eq.${serverId}&select=id,name,guild_id&id=in.(${memberIds.join(",")})`
     );
     memberMap = new Map((members || []).map((m: any) => [m.id, m.name]));
     // Get guild names
     const guildIds = [...new Set((members || []).map((m: any) => m.guild_id).filter(Boolean))];
     if (guildIds.length > 0) {
       const guilds = await supabaseQuerySafe(
-        `guilds?select=id,name&id=in.(${guildIds.map((id: string) => `'${id}'`).join(",")})`
+        `guilds?select=id,name&id=in.(${guildIds.join(",")})`
       );
       const guildNameMap = new Map<string, string>((guilds || []).map((g: any) => [String(g.id), String(g.name)]));
       for (const m of (members || [])) {
@@ -46,7 +46,7 @@ export async function fetchPartyList(
   let partyGuildMap = new Map<string, string>();
   if (partyGuildIds.length > 0) {
     const guilds = await supabaseQuerySafe(
-      `guilds?select=id,name&id=in.(${partyGuildIds.map((id: string) => `'${id}'`).join(",")})`
+      `guilds?select=id,name&id=in.(${partyGuildIds.join(",")})`
     );
     partyGuildMap = new Map((guilds || []).map((g: any) => [g.id, g.name]));
   }
