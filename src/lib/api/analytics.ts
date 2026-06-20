@@ -310,11 +310,33 @@ export async function fetchAnalytics(since: string, serverId?: string | null): P
       return { name, kills: total, avg_attendance: avgAtt, by_guild: byGuild };
     });
 
-  // Top hunters
+  // Top hunters — use RPC for server-scoped boss + activity attendance
   const hunterCounts = new Map<string, number>();
-  for (const a of att || []) {
-    const name = memberNameMap.get(a.member_id) || "Unknown";
-    hunterCounts.set(name, (hunterCounts.get(name) || 0) + 1);
+  try {
+    const { data: rpcData } = await supabase.rpc("get_weekly_attendance", {
+      p_server_id: sid,
+      p_since: since,
+    });
+    const rpcMemberIds = (rpcData || []) as { member_id: string; count: number }[];
+    // Batch-fetch member names for RPC results
+    const rpcIds = [...new Set(rpcMemberIds.map(r => r.member_id))];
+    for (let i = 0; i < rpcIds.length; i += 200) {
+      const idBatch = rpcIds.slice(i, i + 200);
+      const { data: batchMembers } = await supabase
+        .from("members").select("id, name").in("id", idBatch);
+      (batchMembers || []).forEach((m: any) => memberNameMap.set(m.id, m.name));
+    }
+    for (const r of rpcMemberIds) {
+      const name = memberNameMap.get(r.member_id) || "Unknown";
+      hunterCounts.set(name, (hunterCounts.get(name) || 0) + r.count);
+    }
+  } catch (err) {
+    console.warn("[analytics] RPC hunter counts failed, falling back:", err);
+    // Fallback: count from attendance_records only
+    for (const a of att || []) {
+      const name = memberNameMap.get(a.member_id) || "Unknown";
+      hunterCounts.set(name, (hunterCounts.get(name) || 0) + 1);
+    }
   }
   const topHunters = [...hunterCounts.entries()]
     .sort((a, b) => b[1] - a[1])
