@@ -365,18 +365,9 @@ export function ParticipantModal({
         members: ms,
       }));
 
-    // Sort members: owner guild has checked members first, others alphabetical
+    // Sort members alphabetically within each group
     for (const group of groups) {
-      if (group.guildId === ownerGuildId) {
-        group.members.sort((a, b) => {
-          const aAtt = attendedIds.has(a.id);
-          const bAtt = attendedIds.has(b.id);
-          if (aAtt !== bAtt) return aAtt ? -1 : 1;
-          return a.name.localeCompare(b.name);
-        });
-      } else {
-        group.members.sort((a, b) => a.name.localeCompare(b.name));
-      }
+      group.members.sort((a, b) => a.name.localeCompare(b.name));
     }
 
     // Move owner guild to the top
@@ -389,7 +380,7 @@ export function ParticipantModal({
     }
 
     return groups;
-  }, [allFilteredMembers, guilds, ownerGuildId, attendance]);
+  }, [allFilteredMembers, guilds, ownerGuildId]);
 
   // Reset guild map when attendees change
 
