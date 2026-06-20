@@ -3528,11 +3528,15 @@ export function ServerActivityLogTab({ serverId, timezone = "UTC" }: { serverId:
 
   const formatDetails = (entry: any): string => {
     const d = entry.details || {};
+    const fmtTime = (iso: string) => {
+      try { return new Date(iso).toLocaleString("en-US", { timeZone, month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }); }
+      catch { return iso; }
+    };
     switch (entry.action) {
       case "boss_kill": return `${d.boss_name || "?"} — ${d.attendees ?? 0} attendees${d.guild ? ` (${d.guild})` : ""}`;
       case "attendance_copy": return `Copied ${d.copied ?? 0} attendees from ${d.from_boss || "?"}${d.from_time ? ` (${d.from_time})` : ""} → ${d.to_boss || "?"}${d.to_time ? ` (${d.to_time})` : ""}${d.skipped ? ` (${d.skipped} skipped)` : ""}`;
-      case "attendance_add": return `${d.member_name || "?"} attended ${d.boss_name || "?"}${d.death_time ? ` (${d.death_time})` : ""}`;
-      case "attendance_remove": return `${d.member_name || "?"} removed from ${d.boss_name || "?"}${d.death_time ? ` (${d.death_time})` : ""}`;
+      case "attendance_add": return `${d.member_name || "?"} attended ${d.boss_name || "?"}${d.death_time ? ` (${fmtTime(d.death_time)})` : ""}`;
+      case "attendance_remove": return `${d.member_name || "?"} removed from ${d.boss_name || "?"}${d.death_time ? ` (${fmtTime(d.death_time)})` : ""}`;
       case "member_cp_add": case "member_cp_update": return `${d.player_name || "?"}: ${d.old_cp != null ? Number(d.old_cp).toLocaleString() : "—"} → ${d.new_cp != null ? Number(d.new_cp).toLocaleString() : "?"}${d.date ? ` · ${new Date(d.date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}` : ""}`;
       case "member_cp_delete": return `Deleted CP update for ${d.player_name || "?"}`;
       case "member_cp_reminder": return `CP update reminder sent to Discord`;
@@ -3603,9 +3607,9 @@ export function ServerActivityLogTab({ serverId, timezone = "UTC" }: { serverId:
       case "leaderboard_reset_guild": return `${d.guild_name || "?"} guild points reset: ${d.deleted_attendance ?? 0} attendance, ${d.deleted_adjustments ?? 0} adjustments`;
       case "point_rule_create": case "point_rule_update": return `Point rule for ${d.guild_name || "?"}: ${d.enabled !== undefined ? (d.enabled ? "enabled" : "disabled") : `${d.multiplier ?? "?"}x · ${d.start_hour ?? "?"}:00–${d.end_hour ?? "?"}:00`}`;
       case "point_rule_delete": return `Point rule for ${d.guild_name || "?"} deleted`;
-      case "death_guild_set": return `${d.boss_name || "?"}: owner guild changed from ${d.old_guild || "?"} to ${d.new_guild || "?"}${d.death_time ? ` · ${d.death_time}` : ""}`;
+      case "death_guild_set": return `${d.boss_name || "?"}: owner guild changed from ${d.old_guild || "?"} to ${d.new_guild || "?"}${d.death_time ? ` · ${fmtTime(d.death_time)}` : ""}`;
       case "death_guild_clear": return `${d.boss_name || "?"}: display guild cleared`;
-      case "death_time_edit": return `${d.boss_name || "?"}: spawn set to ${d.formatted_time || d.new_time || "?"}`;
+      case "death_time_edit": return `${d.boss_name || "?"}: spawn set to ${d.new_time ? fmtTime(d.new_time) : (d.formatted_time || "?")}`;
       case "settings_update": {
         const entries = Object.entries(d).filter(([k]) => k !== "discord_user");
         return entries.map(([k,v]) => `${k.replace(/_/g, " ")}: ${v}`).join(", ") || "Settings updated";

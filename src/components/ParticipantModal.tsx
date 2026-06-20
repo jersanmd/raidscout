@@ -481,18 +481,18 @@ export function ParticipantModal({
       }
 
       // Auto-add exact + fuzzy matches to attendance (existing members only)
-      const idsToAdd: string[] = [];
+      const toAdd: { id: string; name: string }[] = [];
       for (const name of exactNames) {
         const id = existingLower.get(name.toLowerCase());
-        if (id && !attendedIds.has(id)) idsToAdd.push(id);
+        if (id && !attendedIds.has(id)) toAdd.push({ id, name });
       }
-      for (const [, member] of fuzzyMap) {
-        if (!attendedIds.has(member.id)) idsToAdd.push(member.id);
+      for (const [detectedName, member] of fuzzyMap) {
+        if (!attendedIds.has(member.id)) toAdd.push({ id: member.id, name: member.name });
       }
-      for (const memberId of idsToAdd) {
+      for (const { id, name } of toAdd) {
         try {
-          await addAttendance.mutateAsync({ deathRecordId, memberId, bossName });
-        } catch (err) { console.error("[ParticipantModal] bulk addAttendance failed for member:", memberId, err); }
+          await addAttendance.mutateAsync({ deathRecordId, memberId: id, memberName: name, bossName });
+        } catch (err) { console.error("[ParticipantModal] bulk addAttendance failed for member:", id, err); }
       }
 
       // Keep scan results for overlay display (don't clear exact/fuzzy)

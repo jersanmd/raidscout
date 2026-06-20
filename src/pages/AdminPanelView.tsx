@@ -921,11 +921,15 @@ export function AdminPanelView() {
 
         const formatDetails = (entry: any): string => {
           const d = entry.details || {};
+          const fmtTime = (iso: string) => {
+            try { return new Date(iso).toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "UTC" }); }
+            catch { return iso; }
+          };
           switch (entry.action) {
             case "boss_kill": return `${d.boss_name || "?"} — ${d.attendees ?? 0} attendees${d.guild ? ` (${d.guild})` : ""}`;
             case "attendance_copy": return `Copied ${d.copied ?? 0} from ${d.from_boss || "?"}${d.from_time ? ` (${d.from_time})` : ""} → ${d.to_boss || "?"}${d.to_time ? ` (${d.to_time})` : ""}${d.skipped ? ` (${d.skipped} skipped)` : ""}`;
-            case "attendance_add": return `${d.member_name || "?"} attended ${d.boss_name || "?"}${d.death_time ? ` (${d.death_time})` : ""}`;
-            case "attendance_remove": return `${d.member_name || "?"} removed from ${d.boss_name || "?"}${d.death_time ? ` (${d.death_time})` : ""}`;
+            case "attendance_add": return `${d.member_name || "?"} attended ${d.boss_name || "?"}${d.death_time ? ` (${fmtTime(d.death_time)})` : ""}`;
+            case "attendance_remove": return `${d.member_name || "?"} removed from ${d.boss_name || "?"}${d.death_time ? ` (${fmtTime(d.death_time)})` : ""}`;
             case "member_cp_add": case "member_cp_update": return `${d.player_name || "?"}: ${d.old_cp != null ? Number(d.old_cp).toLocaleString() : "—"} → ${d.new_cp != null ? Number(d.new_cp).toLocaleString() : "?"}${d.date ? ` · ${new Date(d.date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}` : ""}`;
             case "member_cp_delete": return `Deleted CP update for ${d.player_name || "?"}`;
             case "member_cp_reminder": return `CP update reminder sent to Discord`;
@@ -942,9 +946,9 @@ export function AdminPanelView() {
             case "boss_time_edit": return `${d.boss_name || d.activity_name || "?"}: ${d.old_time && d.new_time ? `${d.old_time} → ${d.new_time}` : d.new_time ? `changed to ${d.new_time}` : "time changed"}${d.direction ? ` (${d.direction > 0 ? "+" : ""}${d.direction})` : ""}`;
             case "boss_rotation_advance": return `${d.boss_name || "?"}: rotation advanced${d.target_guild ? ` to ${d.target_guild}` : ""}${d.mode ? ` (${d.mode})` : ""}`;
             case "boss_guilds_set": return `Boss guilds updated${d.boss_name ? ` for "${d.boss_name}"` : ""}${d.guild_count ? ` (${d.guild_count} guilds, ${d.mode})` : ""}`;
-            case "death_guild_set": return `Display guild set to ${d.guild_name || "?"}`;
-            case "death_guild_clear": return `Display guild cleared`;
-            case "death_time_edit": return `${d.boss_name || "?"}: death time edited`;
+            case "death_guild_set": return `${d.boss_name || "?"}: guild changed from ${d.old_guild || "?"} to ${d.new_guild || "?"}`;
+            case "death_guild_clear": return `${d.boss_name || "?"}: display guild cleared`;
+            case "death_time_edit": return `${d.boss_name || "?"}: death time edited${d.new_time ? ` (${fmtTime(d.new_time)})` : ""}`;
             case "boss_spawn_set": return `${d.boss_name || "?"}: spawn set to ${d.spawn_date || "?"}`;
             case "activity_toggle": return `${d.activity_name || "?"} ${d.enabled ? "enabled" : "disabled"}`;
             case "activity_create": case "activity_update": return `${d.activity_name || d.name || "—"}${d.schedule_type ? ` · ${d.schedule_type}` : ""}${d.points != null ? ` · ${d.points}pts` : ""}${d.party_size ? ` · ${d.party_size}p` : ""}${d.changes ? ` · ${d.changes}` : ""}`;

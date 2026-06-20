@@ -236,7 +236,7 @@ export function WeeklyScheduleView() {
         await setDeathDisplayGuild(editGuildDeath.deathRecordId, guildId);
         const oldGuild = guilds.find(g => g.id === editGuildDeath.currentGuildId)?.name || editGuildDeath.currentGuildId || "(none)";
         const newGuild = guilds.find(g => g.id === guildId)?.name || guildId;
-        const deathTimeStr = editGuildDeath.deathTime ? new Date(editGuildDeath.deathTime).toLocaleDateString("en-US", { month: "short", day: "numeric" }) + ", " + new Date(editGuildDeath.deathTime).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }) : "";
+        const deathTimeStr = editGuildDeath.deathTime ?? "";
         writeAuditEntry({ action: AuditAction.DEATH_GUILD_SET, server_id: getCurrentServerId()!, target_id: editGuildDeath.deathRecordId, details: { boss_name: editGuildDeath.bossName, old_guild: oldGuild, new_guild: newGuild, death_time: deathTimeStr } });
         guildOverrides.current.set(editGuildDeath.deathRecordId, guildId);
       } else {
@@ -269,8 +269,7 @@ export function WeeklyScheduleView() {
       const newTime = new Date(y, m - 1, d, hh, mm);
       await editDeathTime(editDeath.deathRecordId, newTime);
       if (editDeath.bossName) {
-        const formatted = newTime.toLocaleDateString("en-US", { month: "short", day: "numeric" }) + ", " + newTime.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
-        writeAuditEntry({ action: AuditAction.DEATH_TIME_EDIT, server_id: getCurrentServerId()!, target_id: editDeath.deathRecordId, details: { boss_name: editDeath.bossName, old_time: editDeath.deathTime, new_time: newTime.toISOString(), formatted_time: formatted } });
+        writeAuditEntry({ action: AuditAction.DEATH_TIME_EDIT, server_id: getCurrentServerId()!, target_id: editDeath.deathRecordId, details: { boss_name: editDeath.bossName, old_time: editDeath.deathTime, new_time: newTime.toISOString() } });
       }
       queryClient.invalidateQueries({ queryKey: ["death_records"] });
       setEditToast({ type: "success", message: "Death time updated!" });
