@@ -3484,8 +3484,8 @@ export function ServerActivityLogTab({ serverId, timezone = "UTC" }: { serverId:
       case "item_distribute": return `${d.item_name || "?"} → ${d.player_name || "?"}${d.quantity ? ` x${d.quantity}` : ""}`;
       case "item_approve": case "item_reject": return d.item_name || "—";
       case "party_create": case "party_delete": return d.party_name || d.name || "—";
-      case "party_assign": return `${d.party_name || "?"} assigned to ${d.boss_name || "?"}`;
-      case "party_unlink": return `${d.party_name || "?"} unlinked`;
+      case "party_assign": return `${d.party_name || "?"}${d.guild_name ? ` (${d.guild_name})` : ""} assigned to ${d.boss_name || "?"}`;
+      case "party_unlink": return `${d.party_name || "?"}${d.guild_name ? ` (${d.guild_name})` : ""} unlinked`;
       case "party_member_add": return `${d.member_name || "?"} added to party`;
       case "party_member_remove": return `${d.member_name || "?"} removed from party`;
       case "party_leaders_set": return `Party leaders set for ${d.boss_name || "?"}: ${d.leaders || "—"}`;
