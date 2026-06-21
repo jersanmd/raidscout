@@ -15,6 +15,18 @@ interface TickMetric {
   duration_ms: number;
 }
 
+// ── Fly.io region → country ────────────────────────────────
+const FLY_REGIONS: Record<string, string> = {
+  ams: "🇳🇱 Netherlands", arn: "🇸🇪 Sweden", atl: "🇺🇸 Atlanta", bog: "🇨🇴 Colombia",
+  bos: "🇺🇸 Boston", cdg: "🇫🇷 France", den: "🇺🇸 Denver", dfw: "🇺🇸 Dallas",
+  ewr: "🇺🇸 New Jersey", fra: "🇩🇪 Germany", gru: "🇧🇷 Brazil", hkg: "🇭🇰 Hong Kong",
+  iad: "🇺🇸 Virginia", jnb: "🇿🇦 South Africa", lax: "🇺🇸 Los Angeles",
+  lhr: "🇬🇧 London", maa: "🇮🇳 Chennai", mad: "🇪🇸 Madrid", mia: "🇺🇸 Miami",
+  nrt: "🇯🇵 Tokyo", ord: "🇺🇸 Chicago", otp: "🇷🇴 Romania", sea: "🇺🇸 Seattle",
+  sin: "🇸🇬 Singapore", syd: "🇦🇺 Sydney", waw: "🇵🇱 Poland", yul: "🇨🇦 Montreal",
+  yyz: "🇨🇦 Toronto",
+};
+
 // ── BOT_URL ────────────────────────────────────────────────
 function getBotUrl(): string {
   const host = window.location.hostname;
@@ -402,8 +414,8 @@ export function BotStatusIndicator() {
                     {status?.region && (
                       <div className="flex items-center justify-between">
                         <span className="text-[11px] text-[#a1a1aa]">Region</span>
-                        <span className="text-xs text-[#d4d4d8] uppercase">
-                          {status.region}
+                        <span className="text-xs text-[#d4d4d8]">
+                          {FLY_REGIONS[status.region] || status.region.toUpperCase()}
                         </span>
                       </div>
                     )}
