@@ -71,7 +71,7 @@ export function AdminPanelView() {
   
   // Audit action filters (same pattern as activity log in ServerSettingsView)
   const allAuditActions = useMemo(() =>
-    AUDIT_ACTION_GROUPS.flatMap(g => g.actions),
+    AUDIT_ACTION_GROUPS.flatMap(g => g.actions) as string[],
   []);
   const [auditActionFilters, setAuditActionFilters] = useState<Set<string>>(() => {
     try {
