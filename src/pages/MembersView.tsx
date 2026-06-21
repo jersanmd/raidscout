@@ -822,11 +822,19 @@ export function MembersView() {
 
   // Export state (after guildGroups so it can close over it)
   const [showExportPopover, setShowExportPopover] = useState(false);
-  const [exportSelectedGuilds, setExportSelectedGuilds] = useState<Set<string>>(new Set()); // empty = all
+  const [exportSelectedGuilds, setExportSelectedGuilds] = useState<Set<string>>(new Set());
   const exportBtnRef = useRef<HTMLButtonElement>(null);
 
-  // Excel export helper — uses HTML for full styling control
+  // Refs to always access latest mergedStats / guildWeeklyTotals (avoids stale closures)
+  const mergedStatsRef = useRef(mergedStats);
+  mergedStatsRef.current = mergedStats;
+  const guildTotalsRef = useRef(guildWeeklyTotals);
+  guildTotalsRef.current = guildWeeklyTotals;
+
+  // Excel export helper
   const handleExportMembers = useCallback(() => {
+    const currentMerged = mergedStatsRef.current;
+    const currentTotals = guildTotalsRef.current;
     const includeAll = exportSelectedGuilds.size === 0;
     const groups = includeAll
       ? guildGroups
@@ -835,13 +843,12 @@ export function MembersView() {
 
     const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
-    // Build data rows
     const dataRows: { name: string; cls: string; guild: string; cp: number; attended: number; total: number; weeklyPct: number; growthPct: number; growthAbs: number }[] = [];
     for (const group of groups) {
       for (const m of group.members) {
-        const stats = mergedStats[m.id];
+        const stats = currentMerged[m.id];
         const cp = m.combat_power ?? 0;
-        const guildTotal = m.guild_id ? (guildWeeklyTotals[m.guild_id] ?? 0) : 0;
+        const guildTotal = m.guild_id ? (currentTotals[m.guild_id] ?? 0) : 0;
         const attended = stats?.weekly ?? 0;
         const weeklyPct = guildTotal > 0 ? parseFloat(((attended / guildTotal) * 100).toFixed(1)) : 0;
         const growthAbs = stats?.growth ?? 0;
@@ -917,7 +924,7 @@ export function MembersView() {
     a.click();
     URL.revokeObjectURL(url);
     setShowExportPopover(false);
-  }, [exportSelectedGuilds, guildGroups, mergedStats, guildWeeklyTotals]);
+  }, [exportSelectedGuilds, guildGroups]);
 
   // Active groups based on sort mode
   const activeGroups = sortMode === "class" ? classGroups : guildGroups;
