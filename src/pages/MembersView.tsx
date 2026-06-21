@@ -12,7 +12,6 @@ import type { Guild, Member, CpUpdate } from "@/types";
 import { Users, Plus, Pencil, Trash2, Loader2, X, Check, UserPlus, CheckCircle, AlertTriangle, Image, Upload, Copy, Shield, Search, ChevronLeft, ChevronRight, TrendingUp, ChevronUp, ChevronDown, Tag, Sword, Swords, ShieldHalf, ShieldCheck, Crosshair, Wand, Heart, Zap, Flame, Snowflake, Skull, Star, Crown, Anchor, Gavel, Axe, Target, Footprints, HandMetal, Megaphone, Calendar, Clock, Eye, EyeOff, Package, MoreHorizontal, Download } from "lucide-react";
 import { guildColor } from "@/lib/constants";
 import { GearTrackingTab } from "@/components/GearTrackingTab";
-import * as XLSX from "xlsx";
 
 export function MembersView() {
   const { user, isViewer } = useAuth();
@@ -826,7 +825,7 @@ export function MembersView() {
   const [exportSelectedGuilds, setExportSelectedGuilds] = useState<Set<string>>(new Set()); // empty = all
   const exportBtnRef = useRef<HTMLButtonElement>(null);
 
-  // Excel export helper
+  // Excel export helper — uses HTML for full styling control
   const handleExportMembers = useCallback(() => {
     const includeAll = exportSelectedGuilds.size === 0;
     const groups = includeAll
@@ -834,55 +833,89 @@ export function MembersView() {
       : guildGroups.filter(g => g.guild && exportSelectedGuilds.has(g.guild.id));
     if (groups.length === 0) return;
 
-    const headers = ["Name", "Class", "Guild", "Current CP", "Weekly Attendance (%)", "30d Growth (%)"];
-    const rows: (string | number)[][] = [];
+    const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+
+    // Build data rows
+    const dataRows: { name: string; cls: string; guild: string; cp: number; attended: number; total: number; weeklyPct: number; growthPct: number; growthAbs: number }[] = [];
     for (const group of groups) {
       for (const m of group.members) {
         const stats = mergedStats[m.id];
         const cp = m.combat_power ?? 0;
         const guildTotal = m.guild_id ? (guildWeeklyTotals[m.guild_id] ?? 0) : 0;
-        const weeklyPct = guildTotal > 0 && stats?.weekly ? parseFloat(((stats.weekly / guildTotal) * 100).toFixed(1)) : 0;
-        const growthPct = cp > 0 && stats?.growth ? parseFloat(((stats.growth / cp) * 100).toFixed(1)) : 0;
-        rows.push([m.name, m.class || "—", group.guild?.name || "—", cp, weeklyPct, growthPct]);
+        const attended = stats?.weekly ?? 0;
+        const weeklyPct = guildTotal > 0 ? parseFloat(((attended / guildTotal) * 100).toFixed(1)) : 0;
+        const growthAbs = stats?.growth ?? 0;
+        const growthPct = cp > 0 ? parseFloat(((growthAbs / cp) * 100).toFixed(1)) : 0;
+        dataRows.push({ name: m.name, cls: m.class || "—", guild: group.guild?.name || "—", cp, attended, total: guildTotal, weeklyPct, growthPct, growthAbs });
       }
     }
 
-    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
-
-    // Column widths
-    ws["!cols"] = [
-      { wch: 22 }, // Name
-      { wch: 14 }, // Class
-      { wch: 16 }, // Guild
-      { wch: 13 }, // Current CP
-      { wch: 18 }, // Weekly Attendance
-      { wch: 16 }, // 30d Growth
-    ];
-
-    // Style header row
-    const headerStyle = {
-      font: { bold: true, color: { rgb: "FFFFFF" }, sz: 11 },
-      fill: { fgColor: { rgb: "27272A" } },
-      alignment: { horizontal: "center" as const, vertical: "center" as const },
+    // Color helpers
+    const cpColor = (cp: number): string => {
+      if (cp >= 50000) return "#22c55e"; // green
+      if (cp >= 30000) return "#facc15"; // yellow
+      if (cp >= 15000) return "#fb923c"; // orange
+      return "#ef4444"; // red
     };
-    for (let c = 0; c < headers.length; c++) {
-      const cellRef = XLSX.utils.encode_cell({ r: 0, c });
-      if (!ws[cellRef]) ws[cellRef] = { t: "s", v: headers[c] };
-      ws[cellRef].s = headerStyle;
-    }
+    const growthColor = (pct: number): string => pct > 0 ? "#22c55e" : pct < 0 ? "#ef4444" : "#a1a1aa";
+    const weeklyColor = (pct: number): string => {
+      if (pct >= 80) return "#22c55e";
+      if (pct >= 50) return "#facc15";
+      if (pct >= 25) return "#fb923c";
+      return "#ef4444";
+    };
 
-    // Style data rows
-    const dataStyle = { alignment: { vertical: "center" as const }, font: { sz: 10 } };
-    for (let r = 1; r <= rows.length; r++) {
-      for (let c = 0; c < headers.length; c++) {
-        const cellRef = XLSX.utils.encode_cell({ r, c });
-        if (ws[cellRef]) ws[cellRef].s = dataStyle;
-      }
-    }
+    const absencesColor = (missed: number): string => {
+      if (missed === 0) return "#22c55e";
+      if (missed <= 2) return "#facc15";
+      if (missed <= 4) return "#fb923c";
+      return "#ef4444";
+    };
 
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Members");
-    XLSX.writeFile(wb, `members_export_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    const rowsHtml = dataRows.map((r, i) => {
+      const bg = i % 2 === 0 ? "#18181b" : "#0d0d11";
+      const absent = r.total > 0 ? r.total - r.attended : 0;
+      const attDisplay = r.total > 0 ? `="${r.attended}/${r.total}"` : "—";
+      const absentDisplay = r.total > 0 ? String(absent) : "—";
+      const attPctDisplay = r.total > 0 ? `${r.weeklyPct.toFixed(1)}%` : "—";
+      return `<tr style="background:${bg}">
+        <td style="padding:6px 10px;border-bottom:1px solid #27272a;font-size:12px;color:#fafafa">${esc(r.name)}</td>
+        <td style="padding:6px 10px;border-bottom:1px solid #27272a;font-size:12px;color:#a1a1aa">${esc(r.cls)}</td>
+        <td style="padding:6px 10px;border-bottom:1px solid #27272a;font-size:12px;color:#d4d4d8">${esc(r.guild)}</td>
+        <td style="padding:6px 10px;border-bottom:1px solid #27272a;font-size:12px;font-weight:600;color:${cpColor(r.cp)};text-align:right;font-variant-numeric:tabular-nums">${r.cp.toLocaleString()}</td>
+        <td style="padding:6px 10px;border-bottom:1px solid #27272a;font-size:12px;color:${r.total > 0 ? "#d4d4d8" : "#52525b"};text-align:center;font-variant-numeric:tabular-nums">${attDisplay}</td>
+        <td style="padding:6px 10px;border-bottom:1px solid #27272a;font-size:12px;font-weight:600;color:${r.total > 0 ? weeklyColor(r.weeklyPct) : "#52525b"};text-align:right">${attPctDisplay}</td>
+        <td style="padding:6px 10px;border-bottom:1px solid #27272a;font-size:12px;font-weight:600;color:${r.total > 0 ? absencesColor(absent) : "#52525b"};text-align:center">${absentDisplay}</td>
+        <td style="padding:6px 10px;border-bottom:1px solid #27272a;font-size:12px;font-weight:600;color:${growthColor(r.growthPct)};text-align:right">${r.growthPct > 0 ? "+" : ""}${r.growthPct.toFixed(1)}%</td>
+      </tr>`;
+    }).join("");
+
+    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body style="background:#09090b;margin:0;padding:16px">
+      <table style="border-collapse:collapse;width:100%;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif">
+        <thead><tr>
+          <th style="padding:8px 10px;background:#18181b;color:#ffffff;font-size:11px;font-weight:700;text-transform:uppercase;border-bottom:2px solid #3f3f46;text-align:left">Name</th>
+          <th style="padding:8px 10px;background:#18181b;color:#ffffff;font-size:11px;font-weight:700;text-transform:uppercase;border-bottom:2px solid #3f3f46;text-align:left">Class</th>
+          <th style="padding:8px 10px;background:#18181b;color:#ffffff;font-size:11px;font-weight:700;text-transform:uppercase;border-bottom:2px solid #3f3f46;text-align:left">Guild</th>
+          <th style="padding:8px 10px;background:#18181b;color:#ffffff;font-size:11px;font-weight:700;text-transform:uppercase;border-bottom:2px solid #3f3f46;text-align:right">Current CP</th>
+          <th style="padding:8px 10px;background:#18181b;color:#ffffff;font-size:11px;font-weight:700;text-transform:uppercase;border-bottom:2px solid #3f3f46;text-align:center">Weekly Att</th>
+          <th style="padding:8px 10px;background:#18181b;color:#ffffff;font-size:11px;font-weight:700;text-transform:uppercase;border-bottom:2px solid #3f3f46;text-align:right">Att %</th>
+          <th style="padding:8px 10px;background:#18181b;color:#ffffff;font-size:11px;font-weight:700;text-transform:uppercase;border-bottom:2px solid #3f3f46;text-align:center">Absences</th>
+          <th style="padding:8px 10px;background:#18181b;color:#ffffff;font-size:11px;font-weight:700;text-transform:uppercase;border-bottom:2px solid #3f3f46;text-align:right">30d Growth %</th>
+        </tr></thead>
+        <tbody>${rowsHtml}</tbody>
+      </table>
+    </body></html>`;
+
+    const blob = new Blob([html], { type: "application/vnd.ms-excel;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    // Build filename with guild context
+    const includedGuilds = includeAll ? [] : groups.map(g => g.guild?.name).filter(Boolean);
+    const guildSuffix = includedGuilds.length === 1 ? `_${includedGuilds[0]}` : includedGuilds.length > 1 ? `_${includedGuilds.length}guilds` : "";
+    a.download = `members_export${guildSuffix}_${new Date().toISOString().slice(0, 10)}.xls`;
+    a.click();
+    URL.revokeObjectURL(url);
     setShowExportPopover(false);
   }, [exportSelectedGuilds, guildGroups, mergedStats, guildWeeklyTotals]);
 
@@ -1459,7 +1492,12 @@ export function MembersView() {
           <div className="relative">
             <button
               ref={exportBtnRef}
-              onClick={() => setShowExportPopover(p => !p)}
+              onClick={() => {
+                if (!showExportPopover && progressGuildFilter) {
+                  setExportSelectedGuilds(new Set([progressGuildFilter]));
+                }
+                setShowExportPopover(p => !p);
+              }}
               className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium text-[#71717a] hover:text-[#d4d4d8] bg-[#18181b] border border-[#27272a] hover:border-[#3f3f46] transition"
             >
               <Download className="w-3.5 h-3.5" />
