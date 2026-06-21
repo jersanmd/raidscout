@@ -20,10 +20,26 @@ export interface AnalyticsData {
   activity_completion_rate: number;
 }
 
-export async function fetchAnalytics(since: string, serverId?: string | null): Promise<AnalyticsData> {
+export async function fetchAnalytics(since: string, serverId?: string | null, timezone?: string): Promise<AnalyticsData> {
   const sid = serverId ?? getCurrentServerId();
   const empty = { total_kills: 0, total_attendance: 0, active_members: 0, kills_by_week: [], kills_by_date: [], kills_by_date_detail: [], kills_by_guild_series: [], top_bosses: [], top_bosses_by_guild: [], top_hunters: [], kills_by_day: [], kills_by_day_by_guild: [], total_activities: 0, activity_participation: 0, activity_completion_rate: 0 };
   if (!sid) return empty;
+
+  const tz = timezone || "UTC";
+
+  // Helper: format a UTC ISO string as date key in the given timezone
+  const toDateKey = (iso: string) => {
+    const d = new Date(iso);
+    return new Intl.DateTimeFormat("en-CA", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit" }).format(d);
+  };
+
+  // Helper: get day of week (0=Sun...6=Sat) in the given timezone
+  const toDayOfWeek = (iso: string): number => {
+    const d = new Date(iso);
+    const parts = new Intl.DateTimeFormat("en-US", { timeZone: tz, weekday: "short" }).formatToParts(d);
+    const dow = parts.find(p => p.type === "weekday")?.value || "";
+    return { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 }[dow] ?? 0;
+  };
 
   // Get death records since date (paginated)
   const deaths: any[] = [];
@@ -200,8 +216,7 @@ export async function fetchAnalytics(since: string, serverId?: string | null): P
   // Kills by date (daily time series for trend chart)
   const dateMap = new Map<string, number>();
   for (const d of deaths) {
-    const dt = new Date(d.death_time);
-    const dateKey = dt.toISOString().slice(0, 10); // YYYY-MM-DD
+    const dateKey = toDateKey(d.death_time);
     dateMap.set(dateKey, (dateMap.get(dateKey) || 0) + 1);
   }
   const killsByDate = [...dateMap.entries()]
@@ -211,7 +226,7 @@ export async function fetchAnalytics(since: string, serverId?: string | null): P
   // Detailed daily breakdown: boss names + kill counts + guild ownership per day
   const detailMap = new Map<string, Map<string, { guild: string | null; count: number; lastDeath: string }>>();
   for (const d of deaths) {
-    const dateKey = new Date(d.death_time).toISOString().slice(0, 10);
+    const dateKey = toDateKey(d.death_time);
     if (!detailMap.has(dateKey)) detailMap.set(dateKey, new Map());
     const bossName = bossNameMap.get(d.boss_id) || "Unknown";
     const guildName = d.owner_guild_id ? (guildNameById.get(d.owner_guild_id) ?? null) : null;
@@ -236,7 +251,7 @@ export async function fetchAnalytics(since: string, serverId?: string | null): P
   // Per-guild daily series (for multi-line trend chart)
   const guildDateMap = new Map<string, Map<string, number>>(); // guildName -> dateKey -> count
   for (const d of deaths) {
-    const dateKey = new Date(d.death_time).toISOString().slice(0, 10);
+    const dateKey = toDateKey(d.death_time);
     const guildName = d.owner_guild_id ? (guildNameById.get(d.owner_guild_id) ?? "__unguilded__") : "__unguilded__";
     if (!guildDateMap.has(guildName)) guildDateMap.set(guildName, new Map());
     const gdm = guildDateMap.get(guildName)!;
@@ -347,7 +362,7 @@ export async function fetchAnalytics(since: string, serverId?: string | null): P
   const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
   const dayGuildCounts = new Map<number, Map<string, number>>();
   for (const d of deaths) {
-    const day = d.death_time ? new Date(d.death_time).getDay() : -1;
+    const day = d.death_time ? toDayOfWeek(d.death_time) : -1;
     const gName = (d.owner_guild_id ? guildNameById.get(d.owner_guild_id) : null) ?? "__unguilded__";
     if (!dayGuildCounts.has(day)) dayGuildCounts.set(day, new Map());
     const gm = dayGuildCounts.get(day)!;

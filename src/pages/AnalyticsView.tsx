@@ -182,7 +182,7 @@ export function AnalyticsView() {
         return emptyAnalytics();
       }
 
-      const raw = await fetchAnalytics(since, serverId);
+      const raw = await fetchAnalytics(since, serverId, tz);
       return {
         totalKills: raw.total_kills,
         totalAttendance: raw.total_attendance,
