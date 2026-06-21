@@ -421,7 +421,7 @@ export function BossListView() {
   const recordDeath = useRecordDeath(insertDeathRecord, addAttendance);
 
   const handleRecordDeath = useCallback(
-    async (bossId: string, deathTime: Date, rallyImages: File[], attendeeIds: string[], scanResults?: import("@/types").ScanResults | null) => {
+    async (bossId: string, deathTime: Date, rallyImages: File[], attendeeIds: string[], attendeeNames: string[] = [], partyLeaders?: Record<string, string> | null, scanResults?: import("@/types").ScanResults | null) => {
       const boss = spawns.find((s) => s.boss.id === bossId)?.boss;
       if (!boss) return;
 
@@ -439,6 +439,8 @@ export function BossListView() {
             bossName: boss.name,
             deathTime,
             attendeeIds,
+            attendeeNames,
+            partyLeaders,
             ownerGuildName: resolvedGuildId || "",
             scanResults,
             rallyImages,
@@ -529,13 +531,13 @@ export function BossListView() {
   );
 
   const handleBulkRecordDeath = useCallback(
-    async (deathTime: Date, rallyImages: File[], attendeeIds: string[]) => {
+    async (deathTime: Date, rallyImages: File[], attendeeIds: string[], attendeeNames: string[] = [], partyLeaders?: Record<string, string> | null) => {
       setSavingMessage("Recording deaths...");
       const bossIds = [...selectedIds];
       let successCount = 0;
       for (const bossId of bossIds) {
         try {
-          await handleRecordDeath(bossId, deathTime, rallyImages, attendeeIds);
+          await handleRecordDeath(bossId, deathTime, rallyImages, attendeeIds, attendeeNames, partyLeaders);
           successCount++;
         } catch (err) {
           console.error(`Failed to record death for boss ${bossId}:`, err);
@@ -979,8 +981,8 @@ export function BossListView() {
           boss={bulkBoss}
           ownerGuildId={(() => { const n = ownerGuildName(bulkBoss.id); return n ? guilds.find(g => g.name === n)?.id ?? null : null; })()}
           onClose={() => setShowBulkDeathModal(false)}
-          onSubmit={(dt, imgs, ids) => {
-            handleBulkRecordDeath(dt, imgs, ids);
+          onSubmit={(dt, imgs, ids, names, partyLeaders) => {
+            handleBulkRecordDeath(dt, imgs, ids, names, partyLeaders);
             setShowBulkDeathModal(false);
           }}
         />

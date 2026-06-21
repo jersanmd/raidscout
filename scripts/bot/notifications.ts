@@ -80,18 +80,22 @@ export async function broadcastNotification(
       const chId = cfg.notification_channel_id;
       if (!chId) continue;
 
-      let prefix = cfg.notification_prefix || rawPrefix;
-      if (prefix && cfg.discord_guild_id) {
-        const roleMap = await resolveRoles(cfg.discord_guild_id);
-        prefix = resolvePrefix(prefix, roleMap);
-      }
+      try {
+        let prefix = cfg.notification_prefix || rawPrefix;
+        if (prefix && cfg.discord_guild_id) {
+          const roleMap = await resolveRoles(cfg.discord_guild_id);
+          prefix = resolvePrefix(prefix, roleMap);
+        }
 
-      const content = prefix ? `${prefix} ${message}` : message;
-      await discordFetch(`https://discord.com/api/v10/channels/${chId}/messages`, {
-        method: "POST",
-        headers: { Authorization: `Bot ${TOKEN}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ content, allowed_mentions: { parse: ["everyone", "roles"] } }),
-      });
+        const content = prefix ? `${prefix} ${message}` : message;
+        await discordFetch(`https://discord.com/api/v10/channels/${chId}/messages`, {
+          method: "POST",
+          headers: { Authorization: `Bot ${TOKEN}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ content, allowed_mentions: { parse: ["everyone", "roles"] } }),
+        });
+      } catch (cfgErr: any) {
+        console.error(`[notif] failed to send to Discord guild ${cfg.discord_guild_id} ch ${chId}:`, cfgErr.message);
+      }
     }
   } catch (err: any) {
     console.error("[notif] broadcastNotification failed:", err.message);

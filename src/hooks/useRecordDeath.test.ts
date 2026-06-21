@@ -27,7 +27,7 @@ vi.mock("@/contexts/AuthContext", () => ({
 }));
 
 vi.mock("@/contexts/ToastContext", () => ({
-  useToast: () => ({ setToast: mockSetToast }),
+  useToast: () => ({ toast: mockSetToast }),
 }));
 
 vi.mock("@/lib/supabase", async () => {
@@ -190,9 +190,9 @@ describe("useRecordDeath", () => {
     });
 
     expect(mockAddAttendance).toHaveBeenCalledTimes(3);
-    expect(mockAddAttendance).toHaveBeenCalledWith("death-123", "member-1");
-    expect(mockAddAttendance).toHaveBeenCalledWith("death-123", "member-2");
-    expect(mockAddAttendance).toHaveBeenCalledWith("death-123", "member-3");
+    expect(mockAddAttendance).toHaveBeenCalledWith("death-123", "member-1", undefined, "Venatus");
+    expect(mockAddAttendance).toHaveBeenCalledWith("death-123", "member-2", undefined, "Venatus");
+    expect(mockAddAttendance).toHaveBeenCalledWith("death-123", "member-3", undefined, "Venatus");
   });
 
   it("invalidates all relevant queries after recording", async () => {
@@ -260,10 +260,8 @@ describe("useRecordDeath", () => {
     });
 
     expect(mockSetToast).toHaveBeenCalledWith(
-      expect.objectContaining({
-        type: "success",
-        message: expect.stringContaining("2 attendees"),
-      }),
+      "success",
+      expect.stringContaining("2 attendees"),
     );
   });
 
@@ -291,10 +289,8 @@ describe("useRecordDeath", () => {
     });
 
     expect(mockSetToast).toHaveBeenCalledWith(
-      expect.objectContaining({
-        type: "error",
-        message: expect.stringContaining("2/3 succeeded"),
-      }),
+      "error",
+      expect.stringContaining("2/3 succeeded"),
     );
   });
 

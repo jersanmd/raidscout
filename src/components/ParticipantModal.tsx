@@ -273,9 +273,10 @@ export function ParticipantModal({
           .update({ party_leaders: updated })
           .eq("id", deathRecordId);
       }
-      const leaders = Object.values(updated).filter(Boolean);
-      if (leaders.length > 0) {
-        writeAuditEntry({ action: AuditAction.PARTY_LEADERS_SET, server_id: serverId!, target_id: deathRecordId, details: { boss_name: bossName, leaders: leaders.join(", ") } });
+      const leaderIds = Object.values(updated).filter(Boolean);
+      if (leaderIds.length > 0) {
+        const leaderNames = leaderIds.map(id => members.find(m => m.id === id)?.name ?? id).join(", ");
+        writeAuditEntry({ action: AuditAction.PARTY_LEADERS_SET, server_id: serverId!, target_id: deathRecordId, details: { boss_name: bossName, leaders: leaderNames } });
       }
     } catch (err) { console.error("[ParticipantModal] savePartyLeaders failed:", err); }
   };

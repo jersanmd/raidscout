@@ -15,7 +15,7 @@ import type { Boss, Member, Guild, ScanResults } from "@/types";
 interface DeathRecordModalProps {
  boss: Boss;
  onClose: () => void;
- onSubmit: (deathTime: Date, rallyImages: File[], attendeeIds: string[], partyLeaders?: Record<string, string> | null, scanResults?: ScanResults | null) => void;
+ onSubmit: (deathTime: Date, rallyImages: File[], attendeeIds: string[], attendeeNames: string[], partyLeaders?: Record<string, string> | null, scanResults?: ScanResults | null) => void;
  /** Pre-set death time (e.g., schedule spawn time). Skips the time-selection step entirely. */
  defaultDeathTime?: Date;
  /** Hide the "Custom Time" tab — only allow the pre-set or "now" time */
@@ -516,11 +516,20 @@ export function DeathRecordModal({ boss, onClose, onSubmit, defaultDeathTime, hi
  setPasteMode(false);
  };
 
- const handleFinalSubmit = async () => {
+// Build member name lookup from existing + pending members
+  const memberNameMap = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const m of members) map.set(m.id, m.name);
+    for (const pm of pendingMembers) map.set(pm.tempId, pm.name);
+    return map;
+  }, [members, pendingMembers]);
+
+  const handleFinalSubmit = async () => {
  if (!deathTime || submitting) return;
  setSubmitting(true);
 
  const finalIds = [...selectedIds];
+ const finalNames: string[] = finalIds.map(id => memberNameMap.get(id) ?? "");
 
  // Create pending members (from unmatched AI names) before submitting
  if (pendingMembers.length > 0) {
@@ -530,6 +539,7 @@ export function DeathRecordModal({ boss, onClose, onSubmit, defaultDeathTime, hi
  try {
  const member = await upsertMember(pm.name);
  finalIds.push(member.id);
+ finalNames.push(pm.name);
  } catch (err) { console.error("[DeathRecordModal] upsertMember failed for pending member:", pm.name, err); }
  }
  }
@@ -545,7 +555,7 @@ export function DeathRecordModal({ boss, onClose, onSubmit, defaultDeathTime, hi
       }
     : null;
 
-  onSubmit(deathTime, rallyImages, finalIds, Object.keys(partyLeaders).length > 0 ? partyLeaders : null, scanResults);
+  onSubmit(deathTime, rallyImages, finalIds, finalNames, Object.keys(partyLeaders).length > 0 ? partyLeaders : null, scanResults);
   };
 
   const filteredGroupedMembers = useMemo(() => {

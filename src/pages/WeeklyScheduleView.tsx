@@ -311,7 +311,7 @@ export function WeeklyScheduleView() {
   const recordDeath = useRecordDeath(insertDeathRecord, addAttendance);
 
   const handleRecordDeath = useCallback(
-    async (bossId: string, deathTime: Date, rallyImages: File[], attendeeIds: string[], scanResults?: import("@/types").ScanResults | null) => {
+    async (bossId: string, deathTime: Date, rallyImages: File[], attendeeIds: string[], attendeeNames: string[] = [], partyLeaders?: Record<string, string> | null, scanResults?: import("@/types").ScanResults | null) => {
       if (!user && !isViewer) return;
       const boss = bosses.find((b) => b.id === bossId);
       if (!boss) return;
@@ -324,6 +324,8 @@ export function WeeklyScheduleView() {
           bossName: boss.name,
           deathTime,
           attendeeIds,
+          attendeeNames,
+          partyLeaders,
           ownerGuildName: resolvedGuildId || "",
           scanResults,
           rallyImages,
@@ -934,8 +936,8 @@ export function WeeklyScheduleView() {
           hideCustomTime={markBoss.boss.spawn_type === "fixed_schedule"}
           ownerGuildId={(() => { const n = getOwnerGuildName(markBoss.boss.id); return n ? guilds.find(g => g.name === n)?.id ?? null : null; })()}
           onClose={() => setMarkBoss(null)}
-          onSubmit={(deathTime, rallyImages, attendeeIds, _partyLeaders, scanResults) => {
-            handleRecordDeath(markBoss.boss.id, deathTime, rallyImages, attendeeIds, scanResults);
+          onSubmit={(deathTime, rallyImages, attendeeIds, attendeeNames, partyLeaders, scanResults) => {
+            handleRecordDeath(markBoss.boss.id, deathTime, rallyImages, attendeeIds, attendeeNames, partyLeaders, scanResults);
             setMarkBoss(null);
           }}
         />
@@ -948,7 +950,7 @@ export function WeeklyScheduleView() {
           isActivity
           activityName={markActivity.activityName}
           onClose={() => setMarkActivity(null)}
-          onSubmit={async (endTime, _rallyImages, attendeeIds) => {
+          onSubmit={async (endTime, _rallyImages, attendeeIds, attendeeNames) => {
             try {
               await recordActivityEnd(markActivity.activity.id, endTime, attendeeIds);
               queryClient.invalidateQueries({ queryKey: ["activities"] });

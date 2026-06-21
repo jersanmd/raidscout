@@ -949,6 +949,7 @@ export function AdminPanelView() {
             case "death_guild_set": return `${d.boss_name || "?"}: guild changed from ${d.old_guild || "?"} to ${d.new_guild || "?"}`;
             case "death_guild_clear": return `${d.boss_name || "?"}: display guild cleared`;
             case "death_time_edit": return `${d.boss_name || "?"}: death time edited${d.new_time ? ` (${fmtTime(d.new_time)})` : ""}`;
+            case "party_leaders_set": return `Party leaders set for ${d.boss_name || "?"}: ${d.leaders || "—"}`;
             case "boss_spawn_set": return `${d.boss_name || "?"}: spawn set to ${d.spawn_date || "?"}`;
             case "activity_toggle": return `${d.activity_name || "?"} ${d.enabled ? "enabled" : "disabled"}`;
             case "activity_create": case "activity_update": return `${d.activity_name || d.name || "—"}${d.schedule_type ? ` · ${d.schedule_type}` : ""}${d.points != null ? ` · ${d.points}pts` : ""}${d.party_size ? ` · ${d.party_size}p` : ""}${d.changes ? ` · ${d.changes}` : ""}`;
@@ -1120,7 +1121,7 @@ export function AdminPanelView() {
                     <div className="text-[11px] text-[#d4d4d8]">{detailText}</div>
                     <div className="flex items-center justify-between text-[10px]">
                       <span className="text-[#a1a1aa]">{serverName || "—"}</span>
-                      <span className="text-[#71717a] font-mono">{new Date(entry.created_at).toLocaleDateString("en-US", { month: "2-digit", day: "2-digit", year: "numeric" })}</span>
+                      <span className="text-[#71717a] font-mono">{new Date(entry.created_at).toLocaleDateString("en-US", { month: "2-digit", day: "2-digit", year: "numeric" })} {new Date(entry.created_at).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}</span>
                     </div>
                     <div className="text-[10px] text-[#52525b]">{actor}</div>
                   </div>

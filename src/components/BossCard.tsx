@@ -18,7 +18,7 @@ import type { BossWithSpawn, Activity, Guild, Member, ScanResults } from "@/type
 
 interface BossCardProps {
   spawn: BossWithSpawn;
-  onRecordDeath?: (bossId: string, deathTime: Date, rallyImages: File[], attendeeIds: string[], scanResults?: ScanResults | null) => void;
+  onRecordDeath?: (bossId: string, deathTime: Date, rallyImages: File[], attendeeIds: string[], attendeeNames: string[], partyLeaders?: Record<string, string> | null, scanResults?: ScanResults | null) => void;
   onSetSpawnDate?: (bossId: string, spawnDate: Date) => void;
   onUrgentSpawn?: (bossName: string) => void;
   onCriticalSpawn?: (bossName: string) => void;
@@ -550,11 +550,11 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
           activityName={activity?.name}
           ownerGuildId={ownerGuildId}
           onClose={() => setShowModal(false)}
-          onSubmit={(dt, imgs, ids, _partyLeaders, scanResults) => {
+          onSubmit={(dt, imgs, ids, names, partyLeaders, scanResults) => {
             if (isActivity && onRecordEnd) {
               onRecordEnd(activity!.id, dt, imgs, ids, scanResults);
             } else if (onRecordDeath) {
-              onRecordDeath(boss.id, dt, imgs, ids, scanResults);
+              onRecordDeath(boss.id, dt, imgs, ids, names, partyLeaders, scanResults);
             }
             setShowModal(false);
           }}

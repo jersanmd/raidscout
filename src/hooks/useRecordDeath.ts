@@ -18,6 +18,10 @@ interface RecordDeathOptions {
   bossName: string;
   deathTime: Date;
   attendeeIds: string[];
+  /** Parallel array of member names matching attendeeIds (for audit readability) */
+  attendeeNames?: string[];
+  /** Guild → member_id map for party leaders (from DeathRecordModal) */
+  partyLeaders?: Record<string, string> | null;
   ownerGuildName: string;
   scanResults?: import("@/types").ScanResults | null;
   rallyImages?: File[];
@@ -50,7 +54,7 @@ export function useRecordDeath(
 
   const recordDeath = useCallback(async (opts: RecordDeathOptions): Promise<RecordDeathResult> => {
     const {
-      bossId, bossName, deathTime, attendeeIds, ownerGuildName,
+      bossId, bossName, deathTime, attendeeIds, attendeeNames, partyLeaders, ownerGuildName,
       scanResults, rallyImages, onRecordCreated, notifyDiscordChannel = true,
     } = opts;
 
@@ -62,7 +66,19 @@ export function useRecordDeath(
     const deathRecordId = record.id;
     onRecordCreated?.(deathRecordId);
 
-    // 2. Save AI scan results
+    // 2. Save party leaders (from DeathRecordModal)
+    if (partyLeaders && Object.keys(partyLeaders).length > 0) {
+      try {
+        await supabase
+          .from("death_records")
+          .update({ party_leaders: partyLeaders })
+          .eq("id", deathRecordId);
+      } catch (err) {
+        console.error("[useRecordDeath] savePartyLeaders failed:", err);
+      }
+    }
+
+    // 3. Save AI scan results
     if (scanResults) {
       const { saveDeathScanResults } = await import("@/lib/supabase");
       try {
@@ -73,7 +89,7 @@ export function useRecordDeath(
       }
     }
 
-    // 3. Upload rally images
+    // 4. Upload rally images
     if (rallyImages?.length) {
       for (const img of rallyImages) {
         try {
@@ -86,7 +102,7 @@ export function useRecordDeath(
       }
     }
 
-    // 4. Delete spawn override
+    // 5. Delete spawn override
     const sid = getCurrentServerId();
     if (sid) {
       try {
@@ -99,11 +115,14 @@ export function useRecordDeath(
       );
     }
 
-    // 5. Record attendance
+    // 6. Record attendance
     const attendanceErrors: string[] = [];
+    const nameMap = attendeeNames
+      ? new Map(attendeeIds.map((id, i) => [id, attendeeNames[i] ?? undefined] as const))
+      : undefined;
     for (const memberId of attendeeIds) {
       try {
-        await addAttendance(deathRecordId, memberId, undefined, bossName);
+        await addAttendance(deathRecordId, memberId, nameMap?.get(memberId), bossName);
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         attendanceErrors.push(msg);
@@ -111,7 +130,7 @@ export function useRecordDeath(
       }
     }
 
-    // 6. Audit log
+    // 7. Audit log
     const serverId = getCurrentServerId();
     if (serverId) {
       // Resolve guild name from ID for readable audit
@@ -134,15 +153,34 @@ export function useRecordDeath(
         },
         viewer_key: isViewer ? (getCurrentViewerKey() ?? undefined) : undefined,
       });
+      // Party leaders audit
+      if (partyLeaders && Object.keys(partyLeaders).length > 0) {
+        const leaderIds = Object.values(partyLeaders).filter(Boolean);
+        let leaderNames = leaderIds.join(", ");
+        try {
+          const { data: members } = await supabase.from("members").select("id, name").in("id", leaderIds);
+          if (members) {
+            const nameMap = new Map((members as any[]).map((m: any) => [m.id, m.name]));
+            leaderNames = leaderIds.map(id => nameMap.get(id) ?? id).join(", ");
+          }
+        } catch { /* fall back to UUIDs */ }
+        writeAuditEntry({
+          action: AuditAction.PARTY_LEADERS_SET,
+          server_id: serverId,
+          target_id: deathRecordId,
+          details: { boss_name: bossName, leaders: leaderNames },
+          viewer_key: isViewer ? (getCurrentViewerKey() ?? undefined) : undefined,
+        });
+      }
     }
 
-    // 7. Invalidate queries
+    // 8. Invalidate queries
     queryClient.invalidateQueries({ queryKey: ["death_records"] });
     queryClient.invalidateQueries({ queryKey: ["leaderboard"] });
     queryClient.invalidateQueries({ queryKey: ["members"] });
     queryClient.invalidateQueries({ queryKey: ["analytics"] });
 
-    // 7. Advance rotation
+    // 9. Advance rotation
     try {
       await advanceBossRotation(bossId);
     } catch (err) {
@@ -150,14 +188,14 @@ export function useRecordDeath(
     }
     queryClient.invalidateQueries({ queryKey: ["bosses"] });
 
-    // 8. Toast
+    // 10. Toast
     if (attendanceErrors.length > 0) {
       toast("error", `Attendance partially saved: ${attendeeIds.length - attendanceErrors.length}/${attendeeIds.length} succeeded.`);
     } else {
       toast("success", `Death recorded${attendeeIds.length > 0 ? ` with ${attendeeIds.length} attendee${attendeeIds.length !== 1 ? "s" : ""}` : ""}!`);
     }
 
-    // 9. Discord notification
+    // 11. Discord notification
     if (notifyDiscordChannel && (user || isViewer)) {
       try {
         const recordedBy = isViewer ? "Viewer"

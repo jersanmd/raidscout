@@ -3863,7 +3863,7 @@ export function ServerActivityLogTab({ serverId, timezone = "UTC" }: { serverId:
                   <div className="text-[11px] text-[#d4d4d8]">{formatDetails(entry)}</div>
                   <div className="flex items-center justify-between text-[10px]">
                     <span className="text-[#52525b]">{actor}</span>
-                    <span className="text-[#71717a] font-mono">{formatTime(entry.created_at, false)}</span>
+                    <span className="text-[#71717a] font-mono">{formatTime(entry.created_at)}</span>
                   </div>
                 </div>
               </div>

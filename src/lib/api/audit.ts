@@ -203,6 +203,7 @@ export const AUDIT_ACTION_GROUPS: { label: string; actions: AuditActionType[] }[
       AuditAction.DEATH_GUILD_SET,
       AuditAction.DEATH_GUILD_CLEAR,
       AuditAction.DEATH_TIME_EDIT,
+      AuditAction.PARTY_LEADERS_SET,
     ],
   },
   {
