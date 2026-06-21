@@ -17,3 +17,11 @@
 - **useRecordDeath.test.ts** — Fixed mock (`setToast` → `toast`) to match actual `ToastContext` API. Updated attendance call assertions for the new 4-argument `addAttendance` signature.
 - **DeathRecordModal.onSubmit** — Signature expanded: added `attendeeNames: string[]` parameter. `memberNameMap` built from `useMembers()` and `pendingMembers` to resolve names at submit time.
 - **BossCard.onRecordDeath** — Signature expanded: added `attendeeNames` and `partyLeaders` parameters.
+- **fetchItems / fetchDistributions** — Added optional `limit` and `cursor` parameters. Distributions now use cursor-based pagination (`lt("distributed_at", cursor)`) instead of fetching all rows.
+
+## 🎨 UI
+
+- **Weekly Schedule loading overlay** — Now covers both week switches AND initial tab open. Uses a `fetchStarted` ref to detect when a fetch actually began before waiting for completion, avoiding the mount race condition where `isFetching` starts as `false`.
+- **Leaderboard tab spinner** — Replaced the 8-row skeleton table with a centered `Loader2` spinner, matching all other tabs' loading pattern.
+- **Inventory History pagination** — Initial fetch limited to 10 distributions (was unlimited, could load unbounded rows). Added cursor-based "Load More" button that fetches the next 10 and accumulates results.
+- **Inventory History search** — When searching, a separate query fetches up to 200 distributions so the search covers all history, not just the 10 loaded rows. Search input shows a spinner while fetching.

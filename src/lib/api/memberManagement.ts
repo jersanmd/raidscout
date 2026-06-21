@@ -383,7 +383,7 @@ export async function fetchMemberProfile(memberId: string): Promise<MemberWithPr
 
 // ── Items (Catalog) ─────────────────────────────────────────
 
-export async function fetchItems(serverId?: string | null): Promise<Item[]> {
+export async function fetchItems(serverId?: string | null, limit?: number): Promise<Item[]> {
   const sid = serverId ?? getCurrentServerId();
   if (!sid) return [];
 
@@ -406,12 +406,14 @@ export async function fetchItems(serverId?: string | null): Promise<Item[]> {
     gameSlug = gameData?.slug ?? undefined;
   }
 
-  const { data, error } = await supabase
+  let query = supabase
     .from("items")
     .select("*")
     .or(gameSlug ? `game.eq.${gameSlug},server_id.eq.${sid}` : `server_id.eq.${sid}`)
     .neq("status", "rejected")
     .order("name");
+  if (limit) query = query.limit(limit);
+  const { data, error } = await query;
   if (error) throw error;
   return data as Item[];
 }
@@ -561,13 +563,17 @@ export async function updateItem(itemId: string, updates: {
 export async function fetchDistributions(
   serverId?: string | null,
   memberId?: string,
-  itemId?: string
+  itemId?: string,
+  limit?: number,
+  cursor?: string | null
 ): Promise<Distribution[]> {
   const sid = serverId ?? getCurrentServerId();
   if (!sid) return [];
   let query = supabase.from("distributions").select("*").eq("server_id", sid).order("distributed_at", { ascending: false });
+  if (cursor) query = query.lt("distributed_at", cursor);
   if (memberId) query = query.eq("member_id", memberId);
   if (itemId) query = query.eq("item_id", itemId);
+  if (limit) query = query.limit(limit);
   const { data, error } = await query;
   if (error) throw error;
   return data as Distribution[];

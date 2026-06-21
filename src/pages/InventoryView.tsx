@@ -189,11 +189,44 @@ export function InventoryView() {
     }
   }, [collectionMode, selectedCollection, members, guilds, matrixGuildFilter]);
 
-  const { data: distributions = [], isLoading: distLoading } = useQuery({
+  const [distCursor, setDistCursor] = useState<string | null>(null);
+  const [distAccum, setDistAccum] = useState<Distribution[]>([]);
+  const [distLoadingMore, setDistLoadingMore] = useState(false);
+  const [distHasMore, setDistHasMore] = useState(false);
+
+  const { data: distributionsRaw = [], isLoading: distLoading } = useQuery({
     queryKey: ["distributions", serverId],
-    queryFn: () => fetchDistributions(serverId),
+    queryFn: () => fetchDistributions(serverId, undefined, undefined, 10),
     enabled: configured,
   });
+
+  // Reset accumulator when raw data changes (new fetch, no cursor)
+  useEffect(() => {
+    setDistCursor(null);
+    setDistAccum([]);
+    setDistHasMore(distributionsRaw.length >= 10);
+  }, [distributionsRaw]);
+
+  const distributions = distCursor ? distAccum : distributionsRaw;
+
+  const handleLoadMoreDist = async () => {
+    if (distLoadingMore) return;
+    const source = distCursor ? distAccum : distributionsRaw;
+    if (source.length === 0) return;
+    const last = source[source.length - 1];
+    if (!last?.distributed_at) return;
+    setDistLoadingMore(true);
+    try {
+      const more = await fetchDistributions(serverId, undefined, undefined, 10, last.distributed_at);
+      setDistHasMore(more.length >= 10);
+      if (!distCursor) setDistCursor(last.distributed_at);
+      setDistAccum(prev => {
+        const combined = prev.length === 0 ? [...source, ...more] : [...prev, ...more];
+        return combined;
+      });
+    } catch { /* ignore */ }
+    finally { setDistLoadingMore(false); }
+  };
 
   const { data: itemStats = [] } = useQuery({
     queryKey: ["itemDistributionStats", serverId],
@@ -454,6 +487,13 @@ export function InventoryView() {
   const [histSearch, setHistSearch] = useState("");
   const [histRarityFilter, setHistRarityFilter] = useState<string | null>(null);
 
+  // When searching, fetch a larger batch so the search covers all history
+  const { data: searchDistributions = [], isFetching: searchFetching } = useQuery({
+    queryKey: ["distributions", serverId, "search", histSearch],
+    queryFn: () => fetchDistributions(serverId, undefined, undefined, 200),
+    enabled: configured && !!histSearch,
+  });
+
   // Analytics: selected recipient for detail modal
   const [selectedRecipient, setSelectedRecipient] = useState<{ member_id: string; player_name: string } | null>(null);
 
@@ -549,7 +589,8 @@ export function InventoryView() {
   const [historyPage, setHistoryPage] = useState(1);
 
   const filteredDistributions = useMemo(() => {
-    return distributions.filter(d => {
+    const source = histSearch ? searchDistributions : distributions;
+    return source.filter(d => {
       if (histSearch || histRarityFilter) {
         const item = items.find(i => i.id === d.item_id);
         if (histSearch) {
@@ -560,7 +601,7 @@ export function InventoryView() {
       }
       return true;
     });
-  }, [distributions, histSearch, histRarityFilter, items]);
+  }, [distributions, searchDistributions, histSearch, histRarityFilter, items]);
 
   const groupedDistributions = useMemo(() => {
     return filteredDistributions.reduce<Record<string, Distribution[]>>((acc, d) => {
@@ -577,7 +618,7 @@ export function InventoryView() {
   const visibleEntries: [string, Distribution[]][] = isSearching
     ? groupEntries
     : groupEntries.slice(0, historyPage * HISTORY_PAGE_SIZE);
-  const hasMore = !isSearching && visibleEntries.length < groupEntries.length;
+  const hasMore = !isSearching && (visibleEntries.length < groupEntries.length || distHasMore);
 
   // Reset page when search/filter changes
   useEffect(() => { setHistoryPage(1); }, [histSearch, histRarityFilter]);
@@ -1395,10 +1436,13 @@ export function InventoryView() {
                 placeholder="Search by item or player name..."
                 className="w-full pl-9 pr-9 py-2 sm:py-2.5 bg-[#18181b] border border-[#27272a] rounded-xl text-xs sm:text-sm text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#52525b]"
               />
-              {histSearch && (
+              {histSearch && !searchFetching && (
                 <button onClick={() => setHistSearch("")} className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded text-[#52525b] hover:text-[#a1a1aa]">
                   <X className="w-3.5 h-3.5" />
                 </button>
+              )}
+              {searchFetching && (
+                <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#52525b] animate-spin" />
               )}
             </div>
             {availableRarities.length > 0 && (
@@ -1437,8 +1481,17 @@ export function InventoryView() {
           ) : groupEntries.length === 0 ? (
             <div className="text-center py-16">
               <History className="w-12 h-12 text-[#27272a] mx-auto mb-3" />
-              <p className="text-sm text-[#52525b]">{histSearch || histRarityFilter ? "No matches." : "No distributions yet."}</p>
-              <p className="text-xs text-[#3f3f46] mt-1">Items given to players will appear here.</p>
+              {searchFetching ? (
+                <>
+                  <Loader2 className="w-5 h-5 text-[#52525b] animate-spin mx-auto mb-2" />
+                  <p className="text-sm text-[#52525b]">Searching...</p>
+                </>
+              ) : (
+                <>
+                  <p className="text-sm text-[#52525b]">{histSearch || histRarityFilter ? "No matches." : "No distributions yet."}</p>
+                  <p className="text-xs text-[#3f3f46] mt-1">Items given to players will appear here.</p>
+                </>
+              )}
             </div>
           ) : (
             <>
@@ -1502,13 +1555,23 @@ export function InventoryView() {
                 </div>
               </div>
             ))}
-          {hasMore && (
+          {hasMore && !histSearch && (
             <div className="flex justify-center pt-2">
               <button
-                onClick={() => setHistoryPage(p => p + 1)}
-                className="px-4 py-2 rounded-lg text-xs font-medium bg-[#18181b] border border-[#27272a] text-[#a1a1aa] hover:bg-[#27272a] hover:text-[#fafafa] transition"
+                onClick={() => {
+                  if (distHasMore) {
+                    handleLoadMoreDist();
+                  } else {
+                    setHistoryPage(p => p + 1);
+                  }
+                }}
+                disabled={distLoadingMore}
+                className="px-4 py-2 rounded-lg text-xs font-medium bg-[#18181b] border border-[#27272a] text-[#a1a1aa] hover:bg-[#27272a] hover:text-[#fafafa] disabled:opacity-50 transition"
               >
-                Load More ({groupEntries.length - visibleEntries.length} remaining)
+                {distLoadingMore ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin inline mr-1.5" />
+                ) : null}
+                Load More
               </button>
             </div>
           )}

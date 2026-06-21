@@ -51,6 +51,7 @@ export function WeeklyScheduleView() {
   const queryClient = useQueryClient();
   const [weekOffset, setWeekOffset] = useState(0);
   const [weekLoading, setWeekLoading] = useState(false);
+  const [pageReady, setPageReady] = useState(false);
 
   // Compute the Monday of the displayed week (matches useMemo below)
   const weekMonday = useMemo(() => {
@@ -122,10 +123,35 @@ export function WeeklyScheduleView() {
     refetchInterval: 3_000,
   });
 
-  // Clear week-loading spinner when attendance data finishes fetching after a week switch
+  // Show overlay until attendance data finishes loading. Track whether
+  // a fetch actually started (isFetching went true) and then completed.
+  const fetchStarted = useRef(false);
   useEffect(() => {
-    if (weekLoading && !attendanceFetching) setWeekLoading(false);
-  }, [weekLoading, attendanceFetching]);
+    if (attendanceFetching) fetchStarted.current = true;
+  }, [attendanceFetching]);
+
+  useEffect(() => {
+    if (!attendanceFetching && fetchStarted.current) {
+      setWeekLoading(false);
+      setPageReady(true);
+      fetchStarted.current = false;
+    }
+  }, [attendanceFetching]);
+
+  // If no death records in this week, skip waiting — mark ready immediately
+  useEffect(() => {
+    if (deathRecordIds.length === 0) {
+      setWeekLoading(false);
+      setPageReady(true);
+    }
+  }, [deathRecordIds.length]);
+
+  // Reset on week change: clear flags so overlay shows for new week's attendance
+  useEffect(() => {
+    setWeekLoading(false);
+    setPageReady(false);
+    fetchStarted.current = false;
+  }, [weekOffset]);
 
   // No limit on scrolling back — user can go as far as their data exists
   const prevWeekDisabled = false;
@@ -575,7 +601,7 @@ export function WeeklyScheduleView() {
         </div>
       </div>
 
-      {weekLoading ? (
+      {(!pageReady || weekLoading) ? (
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/60">
           <div className="flex flex-col items-center gap-3">
             <Loader2 className="w-8 h-8 text-[#a1a1aa] animate-spin" />

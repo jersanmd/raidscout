@@ -15,7 +15,6 @@ import { useAttendance } from "@/hooks/useAttendance";
 import { useMembers } from "@/hooks/useMembers";
 import type { Guild, LeaderboardSnapshot, PointAdjustment } from "@/types";
 import { Trophy, Medal, Crown, Users, Loader2, X, Skull, CheckCheck, History, ChevronRight, ChevronLeft, Search, Shield, Plus, Minus, Edit3, RotateCcw, Calendar, Sword, Swords, ShieldHalf, ShieldCheck, Crosshair, Wand, Heart, Zap, Flame, Snowflake, Star, Anchor, Gavel, Axe, Target, Footprints, HandMetal, Tag, AlertTriangle } from "lucide-react";
-import { TableRowSkeleton } from "@/components/Skeletons";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { BossImage } from "@/components/BossImage";
 import { ExpiredGate } from "@/components/ExpiredGate";
@@ -349,16 +348,8 @@ export function LeaderboardView() {
 
   if (isLoading || guildsLoading) {
     return (
-    <div className="max-w-[100%] 2xl:max-w-[1600px] mx-auto px-3 sm:px-4 py-4 sm:py-6">
-        <div className="bg-[#09090b] border border-[#27272a] rounded-xl overflow-hidden">
-          <table className="w-full text-sm">
-            <tbody>
-              {Array.from({ length: 8 }).map((_, i) => (
-                <TableRowSkeleton key={i} cols={4} />
-              ))}
-            </tbody>
-          </table>
-        </div>
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="w-8 h-8 text-[#a1a1aa] animate-spin" />
       </div>
     );
   }
