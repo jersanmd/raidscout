@@ -340,8 +340,9 @@ export function BotStatusIndicator() {
               onClick={() => setShowPopup(false)}
             />
             <div
-              className="fixed z-[9999] w-80 bg-[#18181b] border border-[#27272a] rounded-xl shadow-2xl overflow-hidden"
-              style={{ top: popupPos.top, right: popupPos.right, maxHeight: "80vh" }}
+              className="fixed z-[9999] w-[calc(100vw-2rem)] max-w-80 bg-[#18181b] border border-[#27272a] rounded-xl shadow-2xl overflow-hidden
+                max-sm:left-1/2 max-sm:top-16 max-sm:-translate-x-1/2"
+              style={window.innerWidth >= 640 ? { top: popupPos.top, right: popupPos.right, maxHeight: "80vh" } : { maxHeight: "80vh" }}
               onClick={(e) => e.stopPropagation()}
             >
               {/* Header */}
