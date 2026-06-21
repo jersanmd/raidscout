@@ -155,17 +155,20 @@ export async function fetchAnalytics(since: string, serverId?: string | null, ti
   let totalActivities = 0;
   let activityParticipation = 0;
   let activityMemberIds = new Set<string>();
+  let serverActivities: { id: string }[] | null = null;
+  let serverActivityIds: string[] = [];
 
   try {
     // Get activities for this server first (no server_id on activity_instances)
-    const { data: serverActivities } = await supabase
+    const { data } = await supabase
       .from("activities")
       .select("id")
       .eq("server_id", sid)
       .is("deleted_at", null);
+    serverActivities = data;
 
     if (serverActivities?.length) {
-      const serverActivityIds = serverActivities.map(a => a.id);
+      serverActivityIds = serverActivities.map(a => a.id);
 
       const { data: activityInstances } = await supabase
         .from("activity_instances")
