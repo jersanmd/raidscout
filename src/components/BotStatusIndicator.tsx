@@ -90,30 +90,25 @@ function TickChart({ metrics }: { metrics: TickMetric[] }) {
     ctx.lineTo(points[points.length - 1].x, pad.top + chartH);
     ctx.closePath();
     const areaGrad = ctx.createLinearGradient(0, pad.top, 0, pad.top + chartH);
-    areaGrad.addColorStop(0, "rgba(34,197,94,0.15)");
-    areaGrad.addColorStop(0.4, "rgba(234,179,8,0.08)");
-    areaGrad.addColorStop(1, "rgba(239,68,68,0.02)");
+    areaGrad.addColorStop(0, "rgba(52,211,153,0.18)");
+    areaGrad.addColorStop(1, "rgba(52,211,153,0.02)");
     ctx.fillStyle = areaGrad;
     ctx.fill();
 
-    // Draw trend line with color segments
+    // Draw trend line
+    ctx.strokeStyle = "#34d399";
     ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(points[0].x, points[0].y);
     for (let i = 1; i < points.length; i++) {
-      const dur = secs[i];
-      const color = dur < 0.2 ? "#22c55e" : dur < 0.5 ? "#eab308" : "#ef4444";
-      ctx.strokeStyle = color;
-      ctx.beginPath();
-      ctx.moveTo(points[i - 1].x, points[i - 1].y);
       ctx.lineTo(points[i].x, points[i].y);
-      ctx.stroke();
     }
+    ctx.stroke();
 
     // Draw data points
+    ctx.fillStyle = "#34d399";
     for (let i = 0; i < points.length; i++) {
       if (i % Math.max(1, Math.floor(points.length / 30)) !== 0 && i !== points.length - 1) continue;
-      const dur = secs[i];
-      const color = dur < 0.2 ? "#22c55e" : dur < 0.5 ? "#eab308" : "#ef4444";
-      ctx.fillStyle = color;
       ctx.beginPath();
       ctx.arc(points[i].x, points[i].y, 2, 0, Math.PI * 2);
       ctx.fill();
@@ -125,7 +120,7 @@ function TickChart({ metrics }: { metrics: TickMetric[] }) {
     for (const thresh of [0.2, 0.5]) {
       const y = pad.top + chartH - ((thresh - minSec) / range) * chartH;
       if (y < pad.top || y > pad.top + chartH) continue;
-      ctx.strokeStyle = thresh === 0.2 ? "rgba(34,197,94,0.3)" : "rgba(234,179,8,0.3)";
+      ctx.strokeStyle = thresh === 0.2 ? "rgba(52,211,153,0.25)" : "rgba(52,211,153,0.15)";
       ctx.beginPath();
       ctx.moveTo(pad.left, y);
       ctx.lineTo(pad.left + chartW, y);
