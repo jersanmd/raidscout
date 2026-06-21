@@ -327,7 +327,7 @@ export function BotStatusIndicator() {
             }`}
           />
         )}
-        <span className="hidden sm:inline text-[10px]">
+        <span className="hidden sm:inline">
           {loading ? "Checking..." : error ? "Offline" : isOnline ? "RaidScout Bot Online" : "RaidScout Bot Offline"}
         </span>
       </button>
