@@ -51,7 +51,6 @@ export function WeeklyScheduleView() {
   const queryClient = useQueryClient();
   const [weekOffset, setWeekOffset] = useState(0);
   const [weekLoading, setWeekLoading] = useState(false);
-  useEffect(() => { setWeekLoading(false); }, [weekOffset]);
 
   // Compute the Monday of the displayed week (matches useMemo below)
   const weekMonday = useMemo(() => {
@@ -97,7 +96,7 @@ export function WeeklyScheduleView() {
   const deathRecordIds = useMemo(() =>
     [...new Set(allDeathRecords.filter(dr => !dr.is_initial_spawn).map(dr => dr.id))],
   [allDeathRecords]);
-  const { data: attendanceCounts, isLoading: attendanceLoading } = useQuery({
+  const { data: attendanceCounts, isLoading: attendanceLoading, isFetching: attendanceFetching } = useQuery({
     queryKey: ["attendance_counts", currentServer?.id, weekMonday.toISOString()],
     queryFn: async () => {
       if (!deathRecordIds.length) return new Map<string, number>();
@@ -122,6 +121,11 @@ export function WeeklyScheduleView() {
     staleTime: 0,
     refetchInterval: 3_000,
   });
+
+  // Clear week-loading spinner when attendance data finishes fetching after a week switch
+  useEffect(() => {
+    if (weekLoading && !attendanceFetching) setWeekLoading(false);
+  }, [weekLoading, attendanceFetching]);
 
   // No limit on scrolling back — user can go as far as their data exists
   const prevWeekDisabled = false;
@@ -505,7 +509,7 @@ export function WeeklyScheduleView() {
 
   const isLoading = bossesLoading || recordsLoading || guildsLoading || attendanceLoading;
 
-  if (isLoading) {
+  if (isLoading && !weekLoading) {
     return (
       <div className="flex items-center justify-center py-20">
         <Loader2 className="w-8 h-8 text-[#a1a1aa] animate-spin" />
@@ -572,6 +576,15 @@ export function WeeklyScheduleView() {
       </div>
 
       {weekLoading ? (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/60">
+          <div className="flex flex-col items-center gap-3">
+            <Loader2 className="w-8 h-8 text-[#a1a1aa] animate-spin" />
+            <span className="text-sm text-[#a1a1aa]">Fetching data...</span>
+          </div>
+        </div>
+      ) : null}
+
+      {isLoading ? (
         <div className="flex items-center justify-center py-16">
           <Loader2 className="w-8 h-8 text-[#a1a1aa] animate-spin" />
         </div>
