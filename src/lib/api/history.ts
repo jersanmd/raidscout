@@ -3,7 +3,13 @@ import type { HistoryEntry } from "../history";
 
 // ── History from Supabase ──────────────────────────────────
 
-export async function fetchHistoryFromSupabase(serverId?: string | null, since?: string, until?: string): Promise<HistoryEntry[]> {
+export async function fetchHistoryFromSupabase(
+  serverId?: string | null,
+  since?: string,
+  until?: string,
+  cursor?: string | null,
+  limit?: number,
+): Promise<HistoryEntry[]> {
   const sid = serverId ?? getCurrentServerId();
   if (!sid) return [];
   let query = supabase
@@ -16,9 +22,11 @@ export async function fetchHistoryFromSupabase(serverId?: string | null, since?:
     .or("is_initial_spawn.is.null,is_initial_spawn.eq.false")
     .order("death_time", { ascending: false });
   if (sid) query = query.eq("server_id", sid);
+  if (cursor) query = query.lt("death_time", cursor);
   if (since) query = query.gte("death_time", since);
   if (until) query = query.lte("death_time", until);
-  if (!since && !until) query = query.limit(500);
+  if (limit) query = query.limit(limit);
+  else if (!since && !until && !cursor) query = query.limit(50);
   const { data: deaths, error } = await query;
 
   if (error) throw error;

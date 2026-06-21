@@ -3413,6 +3413,30 @@ function BossPointsMatrix({
   );
 }
 
+// ── Auto-fetch sentinel for activity log ────────────────────
+function SentinelAudit({ onVisible, loading }: { onVisible: () => void; loading: boolean }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const cbRef = useRef(onVisible);
+  cbRef.current = onVisible;
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting && !loading) cbRef.current(); },
+      { rootMargin: "200px" },
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [loading]);
+
+  return (
+    <div ref={ref} className="flex justify-center py-3">
+      {loading && <Loader2 className="w-4 h-4 text-[#a1a1aa] animate-spin" />}
+    </div>
+  );
+}
+
 // ── Server Activity Log Tab (Owner/Mod Audit) ───────────────
 
 export function ServerActivityLogTab({ serverId, timezone = "UTC" }: { serverId: string; timezone?: string }) {
@@ -3664,15 +3688,15 @@ export function ServerActivityLogTab({ serverId, timezone = "UTC" }: { serverId:
       setFetchError(null);
     }
     try {
-      const result = await fetchAuditLog(100, serverId, reset ? null : cursor, null);
+      const result = await fetchAuditLog(50, serverId, reset ? null : cursor, null);
       if (reset) {
         allLog.current = result;
         setLog(result);
-        setHasMore(result.length >= 100);
+        setHasMore(result.length >= 50);
       } else {
         allLog.current = [...allLog.current, ...result];
         setLog(prev => [...prev, ...result]);
-        setHasMore(result.length >= 100);
+        setHasMore(result.length >= 50);
       }
     } catch (err: any) {
       console.error("[audit] fetchLog error:", err?.message || err);
@@ -3691,10 +3715,10 @@ export function ServerActivityLogTab({ serverId, timezone = "UTC" }: { serverId:
     setCursor(newCursor);
     setLoadingMore(true);
     try {
-      const result = await fetchAuditLog(100, serverId, newCursor, null);
+      const result = await fetchAuditLog(50, serverId, newCursor, null);
       allLog.current = [...allLog.current, ...result];
       setLog(prev => [...prev, ...result]);
-      setHasMore(result.length >= 100);
+      setHasMore(result.length >= 50);
     } catch (err: any) {
       console.error("[audit] loadMore error:", err?.message || err);
     }
@@ -3870,10 +3894,7 @@ export function ServerActivityLogTab({ serverId, timezone = "UTC" }: { serverId:
             );
           })}
           {hasMore && (
-            <button onClick={loadMore} disabled={loadingMore}
-              className="w-full px-4 py-2 text-xs text-[#a1a1aa] hover:text-[#fafafa] hover:bg-[#0d0d11]/50 transition disabled:opacity-40">
-              {loadingMore ? <Loader2 className="w-4 h-4 mx-auto animate-spin" /> : "Load More"}
-            </button>
+            <SentinelAudit onVisible={loadMore} loading={loadingMore} />
           )}
         </div>
       )}

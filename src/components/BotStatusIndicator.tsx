@@ -90,13 +90,16 @@ function TickChart({ metrics }: { metrics: TickMetric[] }) {
     ctx.lineTo(points[points.length - 1].x, pad.top + chartH);
     ctx.closePath();
     const areaGrad = ctx.createLinearGradient(0, pad.top, 0, pad.top + chartH);
-    areaGrad.addColorStop(0, "rgba(52,211,153,0.18)");
-    areaGrad.addColorStop(1, "rgba(52,211,153,0.02)");
+    areaGrad.addColorStop(0, "rgba(74,222,128,0.20)");
+    areaGrad.addColorStop(1, "rgba(74,222,128,0.02)");
     ctx.fillStyle = areaGrad;
     ctx.fill();
 
-    // Draw trend line
-    ctx.strokeStyle = "#34d399";
+    // Draw trend line with glow
+    ctx.save();
+    ctx.shadowColor = "rgba(74,222,128,0.6)";
+    ctx.shadowBlur = 6;
+    ctx.strokeStyle = "#4ade80";
     ctx.lineWidth = 1.5;
     ctx.beginPath();
     ctx.moveTo(points[0].x, points[0].y);
@@ -104,15 +107,20 @@ function TickChart({ metrics }: { metrics: TickMetric[] }) {
       ctx.lineTo(points[i].x, points[i].y);
     }
     ctx.stroke();
+    ctx.restore();
 
-    // Draw data points
-    ctx.fillStyle = "#34d399";
+    // Draw data points with glow
+    ctx.save();
+    ctx.shadowColor = "rgba(74,222,128,0.8)";
+    ctx.shadowBlur = 4;
+    ctx.fillStyle = "#4ade80";
     for (let i = 0; i < points.length; i++) {
       if (i % Math.max(1, Math.floor(points.length / 30)) !== 0 && i !== points.length - 1) continue;
       ctx.beginPath();
       ctx.arc(points[i].x, points[i].y, 2, 0, Math.PI * 2);
       ctx.fill();
     }
+    ctx.restore();
 
     // Threshold lines
     ctx.setLineDash([3, 4]);
@@ -120,7 +128,7 @@ function TickChart({ metrics }: { metrics: TickMetric[] }) {
     for (const thresh of [0.2, 0.5]) {
       const y = pad.top + chartH - ((thresh - minSec) / range) * chartH;
       if (y < pad.top || y > pad.top + chartH) continue;
-      ctx.strokeStyle = thresh === 0.2 ? "rgba(52,211,153,0.25)" : "rgba(52,211,153,0.15)";
+      ctx.strokeStyle = thresh === 0.2 ? "rgba(74,222,128,0.25)" : "rgba(74,222,128,0.12)";
       ctx.beginPath();
       ctx.moveTo(pad.left, y);
       ctx.lineTo(pad.left + chartW, y);
@@ -165,6 +173,7 @@ function TickChart({ metrics }: { metrics: TickMetric[] }) {
     if (!canvas || pointsRef.current.length === 0) return;
     const rect = canvas.getBoundingClientRect();
     const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
     const pts = pointsRef.current;
     let nearest = pts[0];
     let minDist = Math.abs(pts[0].x - mx);
@@ -178,8 +187,8 @@ function TickChart({ metrics }: { metrics: TickMetric[] }) {
       : `${m.duration_ms}ms`;
     const t = new Date(m.ts);
     setTooltip({
-      x: e.clientX,
-      y: e.clientY,
+      x: rect.left + mx + 12,
+      y: rect.top + my - 40,
       label: dur,
       time: t.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false }),
       date: t.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
@@ -203,16 +212,16 @@ function TickChart({ metrics }: { metrics: TickMetric[] }) {
       <canvas
         ref={canvasRef}
         className="w-full h-32 rounded cursor-crosshair"
-        style={{ backgroundColor: "#09090b" }}
+        style={{ backgroundColor: "#0a0f0a" }}
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
       />
       {tooltip && (
         <div
           className="fixed z-[10000] pointer-events-none bg-[#18181b] border border-[#3f3f46] rounded-lg px-2.5 py-1.5 shadow-lg"
-          style={{ left: tooltip.x + 12, top: tooltip.y - 40 }}
+          style={{ left: tooltip.x, top: tooltip.y }}
         >
-          <div className="text-xs font-medium text-[#fafafa]">{tooltip.label}</div>
+          <div className="text-xs font-medium text-[#4ade80] font-mono">{tooltip.label}</div>
           <div className="text-[10px] text-[#a1a1aa]">{tooltip.time}</div>
           <div className="text-[10px] text-[#71717a]">{tooltip.date}</div>
         </div>

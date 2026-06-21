@@ -67,6 +67,32 @@ const getClassIcon = (iconName: string) => {
   return entry ? entry.icon : null;
 };
 
+// ── Infinite scroll sentinel ────────────────────────────────
+function Sentinel({ onVisible, loading }: { onVisible: () => void; loading: boolean }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const cbRef = useRef(onVisible);
+  cbRef.current = onVisible;
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting && !loading) cbRef.current();
+      },
+      { rootMargin: "200px" },
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [loading]);
+
+  return (
+    <div ref={ref} className="flex justify-center py-4">
+      {loading && <Loader2 className="w-5 h-5 text-[#a1a1aa] animate-spin" />}
+    </div>
+  );
+}
+
 export function InventoryView() {
   const serverId = useServerId();
   const { currentServer } = useServer();
@@ -492,6 +518,13 @@ export function InventoryView() {
     queryKey: ["distributions", serverId, "search", histSearch],
     queryFn: () => fetchDistributions(serverId, undefined, undefined, 200),
     enabled: configured && !!histSearch,
+  });
+
+  // Recipients tab + analytics detail modals: fetch all distributions
+  const { data: allDistributions = [] } = useQuery({
+    queryKey: ["distributions", serverId, "all"],
+    queryFn: () => fetchDistributions(serverId),
+    enabled: configured && (tab === "recipients" || tab === "analytics"),
   });
 
   // Analytics: selected recipient for detail modal
@@ -1556,24 +1589,13 @@ export function InventoryView() {
               </div>
             ))}
           {hasMore && !histSearch && (
-            <div className="flex justify-center pt-2">
-              <button
-                onClick={() => {
-                  if (distHasMore) {
-                    handleLoadMoreDist();
-                  } else {
-                    setHistoryPage(p => p + 1);
-                  }
-                }}
-                disabled={distLoadingMore}
-                className="px-4 py-2 rounded-lg text-xs font-medium bg-[#18181b] border border-[#27272a] text-[#a1a1aa] hover:bg-[#27272a] hover:text-[#fafafa] disabled:opacity-50 transition"
-              >
-                {distLoadingMore ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin inline mr-1.5" />
-                ) : null}
-                Load More
-              </button>
-            </div>
+            <Sentinel onVisible={() => {
+              if (distHasMore) {
+                handleLoadMoreDist();
+              } else {
+                setHistoryPage(p => p + 1);
+              }
+            }} loading={distLoadingMore} />
           )}
           </>
         )}
@@ -1585,7 +1607,7 @@ export function InventoryView() {
       {tab === "recipients" && (() => {
         // Group distributions by player
         const playerMap = new Map<string, { player_name: string; member_id: string; dists: Distribution[] }>();
-        distributions.forEach(d => {
+        allDistributions.forEach(d => {
           let entry = playerMap.get(d.player_name);
           if (!entry) { entry = { player_name: d.player_name, member_id: d.member_id, dists: [] }; playerMap.set(d.player_name, entry); }
           entry.dists.push(d);
@@ -2282,7 +2304,7 @@ export function InventoryView() {
 
       {/* ── Recipient Detail Modal (Analytics) ── */}
       {selectedRecipient && (() => {
-        const memberItems = distributions.filter(d => d.member_id === selectedRecipient.member_id || d.player_name === selectedRecipient.player_name);
+        const memberItems = allDistributions.filter(d => d.member_id === selectedRecipient.member_id || d.player_name === selectedRecipient.player_name);
         const m = members.find(m => m.id === selectedRecipient.member_id || m.name.toLowerCase().trim() === selectedRecipient.player_name.toLowerCase().trim());
         const cc = (m?.class && classColors[m.class?.toLowerCase().trim() ?? ""]) || "#a1a1aa";
         const ci = m?.class && classIcons[m.class?.toLowerCase().trim() ?? ""];
@@ -2338,7 +2360,7 @@ export function InventoryView() {
 
       {/* ── Item Recipients Modal (Analytics) ── */}
       {selectedDistItem && (() => {
-        const itemDists = distributions.filter(d => d.item_id === selectedDistItem.item_id);
+        const itemDists = allDistributions.filter(d => d.item_id === selectedDistItem.item_id);
         // Aggregate by member
         const byMember = new Map<string, { player_name: string; quantity: number }>();
         itemDists.forEach(d => {

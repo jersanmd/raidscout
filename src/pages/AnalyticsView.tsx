@@ -116,9 +116,9 @@ export function AnalyticsView() {
       const { data, error } = await supabase.rpc("get_member_growth", { p_server_id: serverId });
       if (error || !data) return { map7, map30, mapAll };
       for (const r of (data as any[])) {
-        if (r.growth_7d > 0) map7.set(r.member_id, r.growth_7d);
-        if (r.growth_30d > 0) map30.set(r.member_id, r.growth_30d);
-        if (r.growth_all > 0) mapAll.set(r.member_id, r.growth_all);
+        if (r.growth_7d >= 0) map7.set(r.member_id, r.growth_7d);
+        if (r.growth_30d >= 0) map30.set(r.member_id, r.growth_30d);
+        if (r.growth_all >= 0) mapAll.set(r.member_id, r.growth_all);
       }
       return { map7, map30, mapAll };
     },
@@ -334,7 +334,8 @@ export function AnalyticsView() {
               const guild = gid ? guilds.find(g => g.id === gid) : null;
               const c = guild ? guildColor(guild.name) : null;
               const cls = memberClassMap.get(e.player_name);
-              const pct = e.growth > 0 && e.current_cp > e.growth && (e.current_cp - e.growth) > 0 ? ((e.growth / (e.current_cp - e.growth)) * 100) : 0;
+              const minCp = e.growth > 0 && e.current_cp > e.growth ? e.current_cp - e.growth : e.current_cp;
+              const pct = e.growth > 0 && minCp > 0 ? ((e.growth / minCp) * 100) : 0;
               const maxCp = cpList[0]?.current_cp ?? 1;
               return (
               <div key={e.member_id} className="flex items-center gap-1.5 sm:gap-2 text-sm">
@@ -355,14 +356,11 @@ export function AnalyticsView() {
                     const barColor = guild ? resolveBarColor(guild.name, guilds.findIndex(x => x.id === guild.id), guilds) : "#3f3f46";
                     return (
                       <div className="h-full rounded flex items-center justify-end px-1.5 sm:px-2 gap-1 transition-all duration-200 group-hover/bar:brightness-125" style={{ width: `${Math.max((e.current_cp / maxCp) * 100, 8)}%`, backgroundColor: barColor }}>
-                        <span className="text-[10px] sm:text-[11px] text-white/80 font-mono font-bold drop-shadow-sm truncate">{e.current_cp.toLocaleString()}</span>
+                        <span className="text-[10px] sm:text-[11px] text-white/80 font-mono font-bold drop-shadow-sm">{e.current_cp.toLocaleString()}</span>
                         {e.growth > 0 && (
-                          <>
-                            <span className="text-[8px] sm:text-[9px] text-white/60 font-mono drop-shadow hidden sm:inline">+{e.growth.toLocaleString()}</span>
-                            {pct > 0 && pct < 500 && (
-                              <span className="text-[7px] sm:text-[8px] text-white/40 hidden sm:inline">+{pct.toFixed(1)}%</span>
-                            )}
-                          </>
+                          <span className="text-[8px] sm:text-[9px] text-white/70 font-mono drop-shadow whitespace-nowrap">
+                            +{e.growth.toLocaleString()}{pct > 0 ? ` (${pct.toFixed(1)}%)` : ""}
+                          </span>
                         )}
                       </div>
                     );
@@ -443,7 +441,7 @@ export function AnalyticsView() {
         <div className="space-y-1.5">
           {data.killsByDayByGuild.map((d) => (
             <div key={d.day} className="flex items-center gap-2 text-sm">
-              <span className="text-[#a1a1aa] w-12 shrink-0 text-xs">{d.day.slice(0, 3)}</span>
+              <span className="text-[#a1a1aa] w-12 shrink-0 text-sm">{d.day.slice(0, 3)}</span>
               <div className="flex-1 h-6 bg-[#18181b] rounded overflow-hidden flex group/bar cursor-pointer"
                 onClick={() => {
                   const rows: { label: string; value: string; color?: string }[] = [
@@ -586,14 +584,14 @@ function KillsTrendChart({ dates, series, detail, guilds }: {
   const W = Math.max(containerW || 800, 400);
   const isNarrow = W < 600;
   const H = isNarrow ? 280 : 220;
-  const fontSize = isNarrow ? 12 : 10;
-  const fontSizeSm = isNarrow ? 11 : 9;
-  const fontSizeXs = isNarrow ? 9 : 7;
-  const dotR = isNarrow ? 5 : 3.5;
-  const dotHoverR = isNarrow ? 7 : 5;
-  const hitR = isNarrow ? 28 : 20;
+  const fontSize = isNarrow ? 14 : 12;
+  const fontSizeSm = isNarrow ? 12 : 11;
+  const fontSizeXs = isNarrow ? 10 : 9;
+  const dotR = isNarrow ? 6 : 4.5;
+  const dotHoverR = isNarrow ? 8 : 6;
+  const hitR = isNarrow ? 30 : 24;
   const strokeW = isNarrow ? 2.5 : 2;
-  const padL = 50, padR = isNarrow ? 10 : 20, padT = 22, padB = isNarrow ? 40 : 32;
+  const padL = 60, padR = isNarrow ? 10 : 20, padT = 22, padB = isNarrow ? 40 : 32;
   const chartW = W - padL - padR;
   const chartH = H - padT - padB;
   const n = dates.length;
@@ -673,23 +671,23 @@ function KillsTrendChart({ dates, series, detail, guilds }: {
           onMouseEnter={cancelHide}
           onMouseLeave={hideTooltip}
         >
-          <div className="bg-[#18181b] border border-[#3f3f46] rounded-lg px-3 py-2 text-[11px] shadow-xl max-w-[240px]"
+          <div className="bg-[#18181b] border border-[#3f3f46] rounded-lg px-4 py-3 text-sm shadow-xl max-w-[320px]"
                style={{ transform: "translateY(-12px)" }}>
-            <div className="flex items-center gap-2 mb-1.5 pb-1.5 border-b border-[#27272a]">
-              <span className="text-[#a1a1aa] text-[10px]">{dates[hoverIdx]}</span>
+            <div className="flex items-center gap-2 mb-2 pb-2 border-b border-[#27272a]">
+              <span className="text-[#a1a1aa] text-xs">{dates[hoverIdx]}</span>
             </div>
             {/* Per-guild counts */}
             {series.length > 0 && (
-              <div className="mb-1.5 space-y-0.5">
+              <div className="mb-2 space-y-1">
                 {series.map((s, si) => {
                   const cnt = s.data[hoverIdx]?.count ?? 0;
                   if (cnt === 0) return null;
                   const color = resolveSeriesColor(s.guild, si, guilds);
                   return (
-                    <div key={si} className="flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
-                      <span className="text-[#e4e4e7] text-[10px]">{s.guild ?? "Unguilded"}</span>
-                      <span className="text-[#a1a1aa] font-mono text-[10px] ml-auto">{cnt}</span>
+                    <div key={si} className="flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: color }} />
+                      <span className="text-[#e4e4e7] text-xs">{s.guild ?? "Unguilded"}</span>
+                      <span className="text-[#a1a1aa] font-mono text-xs ml-auto">{cnt}</span>
                     </div>
                   );
                 })}
@@ -698,21 +696,21 @@ function KillsTrendChart({ dates, series, detail, guilds }: {
             {/* Boss list */}
             {(() => {
               const d = detail.find(x => x.date === dates[hoverIdx]);
-              if (!d || d.bosses.length === 0) return <span className="text-[#52525b] text-[10px]">No boss data</span>;
+              if (!d || d.bosses.length === 0) return <span className="text-[#52525b] text-xs">No boss data</span>;
               return (
-                <div className="space-y-1 max-h-[140px] overflow-y-auto pr-1 border-t border-[#27272a] pt-1.5">
+                <div className="space-y-1 max-h-[160px] overflow-y-auto pr-1 border-t border-[#27272a] pt-2">
                   {d.bosses.map((b, j) => {
                     const g = b.guild ? guilds.find(x => x.name === b.guild) : null;
                     const c = g ? guildColor(g.name) : null;
                     return (
-                      <div key={j} className="flex items-center gap-1.5">
-                        <span className="text-[#52525b] text-[9px] w-4 shrink-0 text-right">{j + 1}.</span>
-                        <span className="text-[#e4e4e7] truncate text-[10px]">{b.name}</span>
+                      <div key={j} className="flex items-center gap-2">
+                        <span className="text-[#52525b] text-xs w-5 shrink-0 text-right">{j + 1}.</span>
+                        <span className="text-[#e4e4e7] truncate text-xs">{b.name}</span>
                         {b.kills > 1 && (
-                          <span className="text-[#a1a1aa] font-mono text-[9px] shrink-0">×{b.kills}</span>
+                          <span className="text-[#a1a1aa] font-mono text-xs shrink-0">×{b.kills}</span>
                         )}
                         {c && (
-                          <span className={`text-[9px] px-1 py-0 rounded border shrink-0 ml-auto ${c.bg} ${c.text} ${c.border}`}>
+                          <span className={`text-[10px] px-1.5 py-0 rounded border shrink-0 ml-auto ${c.bg} ${c.text} ${c.border}`}>
                             {g!.name}
                           </span>
                         )}
@@ -733,7 +731,7 @@ function KillsTrendChart({ dates, series, detail, guilds }: {
           return (
             <g key={`gy-${i}`}>
               <line x1={padL} y1={y} x2={W - padR} y2={y} stroke="#27272a" strokeWidth="1" />
-              <text x={padL - 8} y={y + 4} textAnchor="end" fontSize={fontSize} fill="#52525b" fontFamily="monospace">{v}</text>
+              <text x={padL - 10} y={y + 4} textAnchor="end" fontSize={fontSize} fill="#52525b" fontFamily="monospace">{v}</text>
             </g>
           );
         })}

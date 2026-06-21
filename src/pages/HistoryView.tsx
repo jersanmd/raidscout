@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { type HistoryEntry } from "@/lib/history";
 import { fetchHistoryFromSupabase, deleteDeathRecord, isSupabaseConfigured, editDeathTime, fetchGuilds, setDeathDisplayGuild, fetchBosses, supabase } from "@/lib/supabase";
 import { writeAuditEntry, AuditAction } from "@/lib/api/audit";
@@ -9,16 +9,41 @@ import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { useQueryClient } from "@tanstack/react-query";
 import { ParticipantModal } from "@/components/ParticipantModal";
 import { BossImage } from "@/components/BossImage";
-import { Clock, Trash2, Skull, Repeat, Timer, Users, Loader2, Pencil, X, Search, Calendar, BookOpen } from "lucide-react";
+import { Clock, Trash2, Skull, Repeat, Timer, Users, Loader2, Pencil, X, Search, BookOpen } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { guildColor } from "@/lib/constants";
 import type { Guild } from "@/types";
 
-const daysAgo = (n: number) => new Date(Date.now() - n * 86400000).toISOString().split("T")[0];
+
+// ── Infinite scroll sentinel ────────────────────────────────
+function SentinelHistory({ onVisible, loading }: { onVisible: () => void; loading: boolean }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const cbRef = useRef(onVisible);
+  cbRef.current = onVisible;
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting && !loading) cbRef.current(); },
+      { rootMargin: "200px" },
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [loading]);
+
+  return (
+    <div ref={ref} className="flex justify-center py-4">
+      {loading && <Loader2 className="w-5 h-5 text-[#a1a1aa] animate-spin" />}
+    </div>
+  );
+}
 
 export function HistoryView() {
-  const [supabaseHistory, setSupabaseHistory] = useState<HistoryEntry[]>([]);
+  const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
   const { user, isViewer } = useAuth();
   const serverId = useServerId();
   const { currentServer } = useServer();
@@ -26,38 +51,49 @@ export function HistoryView() {
 
   if (currentServer?.isExpired) return <ExpiredGate page="History" />;
 
-  // Date range � default last 7 days
-  const [dateRange, setDateRange] = useState<"7d" | "30d" | "custom">("7d");
-  const [dateFrom, setDateFrom] = useState(() => daysAgo(7));
-  const [dateTo, setDateTo] = useState(() => new Date().toISOString().split("T")[0]);
+  // Initial fetch: last 2 days, 50 records
+  const since = useMemo(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 2);
+    d.setHours(0, 0, 0, 0);
+    return d.toISOString();
+  }, []);
 
-  const handleDatePreset = (preset: "7d" | "30d" | "custom") => {
-    setDateRange(preset);
-    if (preset === "7d") { setDateFrom(daysAgo(7)); setDateTo(new Date().toISOString().split("T")[0]); }
-    else if (preset === "30d") { setDateFrom(daysAgo(30)); setDateTo(new Date().toISOString().split("T")[0]); }
-  };
-
-  const fetchHistory = useCallback((since?: string, until?: string) => {
+  const fetchInitial = useCallback(async () => {
     if (!configured || (!user && !isViewer) || !serverId) {
-      setSupabaseHistory([]);
+      setHistory([]);
       setLoading(false);
       return;
     }
     setLoading(true);
-    fetchHistoryFromSupabase(serverId, since, until)
-      .then(setSupabaseHistory)
-      .catch(() => setSupabaseHistory([]))
-      .finally(() => setLoading(false));
-  }, [configured, user, isViewer, serverId]);
+    try {
+      const result = await fetchHistoryFromSupabase(serverId, since, undefined, null, 50);
+      setHistory(result);
+      setHasMore(result.length >= 50);
+    } catch {
+      setHistory([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [configured, user, isViewer, serverId, since]);
 
-  // Fetch with date range
-  useEffect(() => {
-    const since = dateFrom ? new Date(dateFrom + "T00:00:00Z").toISOString() : undefined;
-    const until = dateTo ? new Date(dateTo + "T23:59:59Z").toISOString() : undefined;
-    fetchHistory(since, until);
-  }, [fetchHistory, dateFrom, dateTo]);
+  const loadMore = useCallback(async () => {
+    if (loadingMore || !hasMore || !serverId) return;
+    const last = history[history.length - 1];
+    if (!last) return;
+    setLoadingMore(true);
+    try {
+      const result = await fetchHistoryFromSupabase(serverId, since, undefined, last.death_time, 50);
+      setHistory(prev => [...prev, ...result]);
+      setHasMore(result.length >= 50);
+    } catch {
+      // ignore
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [loadingMore, hasMore, serverId, since, history]);
 
-  const history = supabaseHistory;
+  useEffect(() => { fetchInitial(); }, [fetchInitial]);
 
   const [selectedEntry, setSelectedEntry] = useState<HistoryEntry | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<HistoryEntry | null>(null);
@@ -93,6 +129,25 @@ export function HistoryView() {
   const [ledgerSubtab, setLedgerSubtab] = useState<"fixed_hours" | "fixed_schedule">("fixed_hours");
 
   // ── Ledger data ──
+  const [ledgerDateRange, setLedgerDateRange] = useState<"7d" | "30d" | "custom">("7d");
+  const [ledgerDateFrom, setLedgerDateFrom] = useState(() => {
+    const d = new Date(); d.setDate(d.getDate() - 7); return d.toISOString().split("T")[0];
+  });
+  const [ledgerDateTo, setLedgerDateTo] = useState(() => new Date().toISOString().split("T")[0]);
+
+  const ledgerSince = useMemo(() => {
+    if (ledgerDateRange === "custom") return ledgerDateFrom ? new Date(ledgerDateFrom + "T00:00:00Z").toISOString() : undefined;
+    const d = new Date();
+    d.setDate(d.getDate() - (ledgerDateRange === "7d" ? 7 : 30));
+    d.setHours(0, 0, 0, 0);
+    return d.toISOString();
+  }, [ledgerDateRange, ledgerDateFrom]);
+
+  const ledgerUntil = useMemo(() => {
+    if (ledgerDateRange === "custom") return ledgerDateTo ? new Date(ledgerDateTo + "T23:59:59Z").toISOString() : undefined;
+    return undefined;
+  }, [ledgerDateRange, ledgerDateTo]);
+
   const [ledgerData, setLedgerData] = useState<{
     dates: { key: string; monthDay: string; weekday: string }[];
     fixedHours: { id: string; name: string; respawnHours: number; imageUrl?: string }[];
@@ -105,11 +160,11 @@ export function HistoryView() {
     setLedgerLoading(true);
     (async () => {
       try {
-        const since = dateFrom ? new Date(dateFrom + "T00:00:00Z").toISOString() : undefined;
-        const until = dateTo ? new Date(dateTo + "T23:59:59Z").toISOString() : undefined;
+        const s = ledgerSince;
+        const u = ledgerUntil;
         let q = supabase.from("death_records").select("boss_id, death_time, owner_guild_id, bosses!inner(name, spawn_type, respawn_hours, schedule, image_url)").eq("server_id", serverId).order("death_time", { ascending: false });
-        if (since) q = q.gte("death_time", since);
-        if (until) q = q.lte("death_time", until);
+        if (s) q = q.gte("death_time", s);
+        if (u) q = q.lte("death_time", u);
         const { data: deaths } = await q;
         const fixedHoursMap = new Map<string, { name: string; respawnHours: number; imageUrl?: string }>();
         const fixedScheduleMap = new Map<string, { name: string; primaryDay: number; imageUrl?: string }>();
@@ -154,7 +209,7 @@ export function HistoryView() {
       } catch { /* ignore */ }
       finally { setLedgerLoading(false); }
     })();
-  }, [tab, serverId, configured, dateFrom, dateTo, guilds]);
+  }, [tab, serverId, configured, ledgerSince, ledgerUntil, guilds]);
 
   const handleEditDeathTime = async () => {
     if (!editEntry?.deathRecordId || !editDate) return;
@@ -180,11 +235,7 @@ export function HistoryView() {
       });
       queryClient.invalidateQueries({ queryKey: ["death_records"] });
       // Refresh local history
-      if (serverId) {
-        const since = dateFrom ? new Date(dateFrom + "T00:00:00Z").toISOString() : undefined;
-        const until = dateTo ? new Date(dateTo + "T23:59:59Z").toISOString() : undefined;
-        fetchHistory(since, until);
-      }
+      if (serverId) fetchInitial();
       setEditToast({ type: "success", message: "Death time updated!" });
       setEditEntry(null);
     } catch (err: any) {
@@ -214,11 +265,7 @@ export function HistoryView() {
         },
       });
       queryClient.invalidateQueries({ queryKey: ["death_records"] });
-      if (serverId) {
-        const since = dateFrom ? new Date(dateFrom + "T00:00:00Z").toISOString() : undefined;
-        const until = dateTo ? new Date(dateTo + "T23:59:59Z").toISOString() : undefined;
-        fetchHistory(since, until);
-      }
+      if (serverId) fetchInitial();
       setEditToast({ type: "success", message: "Guild updated!" });
       setEditEntry(null);
     } catch (err: any) {
@@ -293,7 +340,7 @@ export function HistoryView() {
     setDeleting(true);
     try {
       await deleteDeathRecord(deleteTarget.deathRecordId);
-      setSupabaseHistory(prev => prev.filter(e => e.id !== deleteTarget.id));
+      setHistory(prev => prev.filter(e => e.id !== deleteTarget.id));
       queryClient.invalidateQueries({ queryKey: ["boss-spawns"] });
       queryClient.invalidateQueries({ queryKey: ["leaderboard"] });
     } catch (err) {
@@ -323,13 +370,13 @@ export function HistoryView() {
     cells: Record<string, Record<string, { guild: string | null; time: string }[]>>;
     guilds: Guild[];
   }) => (
-    <div className="overflow-auto max-h-[calc(100vh-200px)] rounded-lg border border-[#3f3f46]">
+    <div className="overflow-auto max-h-[calc(100vh-200px)] rounded-lg border border-[#27272a]">
         <table className="w-full text-xs border-collapse">
-          <thead className="sticky top-0 z-20 bg-[#27272a]">
+          <thead className="sticky top-0 z-20 bg-[#18181b]">
             <tr>
-              <th className="text-left py-2 px-3 text-[#a1a1aa] font-medium uppercase tracking-wider border-b border-[#3f3f46] sticky left-0 bg-[#27272a] z-10">Date</th>
+              <th className="text-left py-2 px-3 text-[#a1a1aa] font-medium uppercase tracking-wider border-b border-[#27272a] sticky left-0 bg-[#18181b] z-10">Date</th>
               {bosses.map(b => (
-                <th key={b.id} className="text-center py-2 px-3 text-[#a1a1aa] font-medium uppercase tracking-wider border-b border-[#3f3f46] whitespace-nowrap align-bottom">
+                <th key={b.id} className="text-center py-2 px-3 text-[#a1a1aa] font-medium uppercase tracking-wider border-b border-[#27272a] whitespace-nowrap align-bottom">
                   <div className="flex flex-col items-center gap-1">
                     <BossImage bossName={b.name} imageUrl={b.imageUrl} size="sm" />
                     <span>{b.name}</span>
@@ -398,57 +445,29 @@ export function HistoryView() {
           <button onClick={() => setTab("timeline")} className={`px-3 py-1.5 rounded-md text-xs font-medium transition ${tab === "timeline" ? "bg-[#27272a] text-[#fafafa]" : "text-[#71717a] hover:text-[#d4d4d8]"}`}>Timeline</button>
           <button onClick={() => setTab("ledger")} className={`px-3 py-1.5 rounded-md text-xs font-medium transition flex items-center gap-1 ${tab === "ledger" ? "bg-[#27272a] text-[#fafafa]" : "text-[#71717a] hover:text-[#d4d4d8]"}`}><BookOpen className="w-3 h-3" /> Ledger</button>
         </div>
-        {/* Date range */}
-        <div className="flex items-center gap-2">
-          {(["7d", "30d", "custom"] as const).map(p => (
+        {/* Search */}
+        <div className="relative w-48 lg:w-64">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#71717a]" />
+          <input
+            type="text"
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+            placeholder="Search boss name..."
+            className="w-full bg-[#18181b] border border-[#27272a] rounded-lg pl-9 pr-8 py-2 text-sm text-[#fafafa] placeholder-[#52525b] outline-none focus:border-[#52525b] transition"
+          />
+          {searchText && (
             <button
-              key={p}
-              onClick={() => handleDatePreset(p)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition border ${
-                dateRange === p
-                  ? "bg-[#27272a] border-[#3f3f46] text-[#fafafa]"
-                  : "bg-[#18181b] border-[#27272a] text-[#a1a1aa] hover:text-[#fafafa]"
-              }`}
+              onClick={() => setSearchText("")}
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-[#71717a] hover:text-[#fafafa] transition"
             >
-              {p === "7d" ? "Last 7d" : p === "30d" ? "Last Month" : "Custom"}
+              <X className="w-3.5 h-3.5" />
             </button>
-          ))}
-          {dateRange === "custom" && (
-            <>
-              <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)}
-                className="bg-[#18181b] border border-[#27272a] rounded-lg px-3 py-1.5 text-xs text-[#fafafa] outline-none focus:border-[#52525b]" />
-              <span className="text-xs text-[#71717a]">to</span>
-              <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)}
-                max={new Date().toISOString().split("T")[0]}
-                className="bg-[#18181b] border border-[#27272a] rounded-lg px-3 py-1.5 text-xs text-[#fafafa] outline-none focus:border-[#52525b]" />
-            </>
           )}
         </div>
       </div>
 
       {/* Timeline Tab */}
       {tab === "timeline" && (<>
-        <div className="flex items-center gap-2 w-full">
-          <div className="relative flex-1 sm:flex-initial sm:w-48 lg:w-64">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#71717a]" />
-            <input
-              type="text"
-              value={searchText}
-              onChange={(e) => setSearchText(e.target.value)}
-              placeholder="Search boss name..."
-              className="w-full bg-[#18181b] border border-[#27272a] rounded-lg pl-9 pr-8 py-2 text-sm text-[#fafafa] placeholder-[#52525b] outline-none focus:border-[#52525b] transition"
-            />
-            {searchText && (
-              <button
-                onClick={() => setSearchText("")}
-                className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-[#71717a] hover:text-[#fafafa] transition"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            )}
-          </div>
-        </div>
-
       {loading || guildsLoading ? (
         <div className="flex items-center justify-center py-20">
           <Loader2 className="w-8 h-8 text-[#a1a1aa] animate-spin" />
@@ -565,28 +584,64 @@ export function HistoryView() {
             </section>
           ))}
         </div>
-      )}
-
+      )}      {hasMore && <SentinelHistory onVisible={loadMore} loading={loadingMore} />}
       </>)}
 
       {/* Ledger Tab */}
       {tab === "ledger" && (
         <div className="space-y-4">
-          {/* Sub-tabs */}
-          <div className="flex items-center gap-1 bg-[#18181b] rounded-lg p-1 w-fit">
-            <button onClick={() => setLedgerSubtab("fixed_hours")} className={`px-3 py-1.5 rounded-md text-xs font-medium transition ${ledgerSubtab === "fixed_hours" ? "bg-[#27272a] text-[#fafafa]" : "text-[#71717a] hover:text-[#d4d4d8]"}`}>
-              Fixed-Hour Bosses
-            </button>
-            <button onClick={() => setLedgerSubtab("fixed_schedule")} className={`px-3 py-1.5 rounded-md text-xs font-medium transition ${ledgerSubtab === "fixed_schedule" ? "bg-[#27272a] text-[#fafafa]" : "text-[#71717a] hover:text-[#d4d4d8]"}`}>
-              Fixed-Schedule Bosses
-            </button>
+          {/* Controls row: sub-tabs + date filter */}
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div className="flex items-center gap-1 bg-[#18181b] rounded-lg p-1">
+              <button onClick={() => setLedgerSubtab("fixed_hours")} className={`px-3 py-1.5 rounded-md text-xs font-medium transition ${ledgerSubtab === "fixed_hours" ? "bg-[#27272a] text-[#fafafa]" : "text-[#71717a] hover:text-[#d4d4d8]"}`}>
+                Fixed-Hour Bosses
+              </button>
+              <button onClick={() => setLedgerSubtab("fixed_schedule")} className={`px-3 py-1.5 rounded-md text-xs font-medium transition ${ledgerSubtab === "fixed_schedule" ? "bg-[#27272a] text-[#fafafa]" : "text-[#71717a] hover:text-[#d4d4d8]"}`}>
+                Fixed-Schedule Bosses
+              </button>
+            </div>
+            {/* Date filter */}
+            <div className="flex items-center gap-2">
+              {(["7d", "30d", "custom"] as const).map(p => (
+                <button
+                  key={p}
+                  onClick={() => {
+                    setLedgerDateRange(p);
+                    if (p === "7d") { const d = new Date(); d.setDate(d.getDate() - 7); setLedgerDateFrom(d.toISOString().split("T")[0]); setLedgerDateTo(new Date().toISOString().split("T")[0]); }
+                    else if (p === "30d") { const d = new Date(); d.setDate(d.getDate() - 30); setLedgerDateFrom(d.toISOString().split("T")[0]); setLedgerDateTo(new Date().toISOString().split("T")[0]); }
+                  }}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition border ${
+                    ledgerDateRange === p
+                      ? "bg-[#27272a] border-[#3f3f46] text-[#fafafa]"
+                      : "bg-[#18181b] border-[#27272a] text-[#a1a1aa] hover:text-[#fafafa]"
+                  }`}
+                >
+                  {p === "7d" ? "Last 7d" : p === "30d" ? "Last Month" : "Custom"}
+                </button>
+              ))}
+              {ledgerDateRange === "custom" && (
+                <>
+                  <input type="date" value={ledgerDateFrom} onChange={(e) => setLedgerDateFrom(e.target.value)}
+                    className="bg-[#18181b] border border-[#27272a] rounded-lg px-3 py-1.5 text-xs text-[#fafafa] outline-none focus:border-[#52525b]" />
+                  <span className="text-xs text-[#71717a]">to</span>
+                  <input type="date" value={ledgerDateTo} onChange={(e) => setLedgerDateTo(e.target.value)}
+                    max={new Date().toISOString().split("T")[0]}
+                    className="bg-[#18181b] border border-[#27272a] rounded-lg px-3 py-1.5 text-xs text-[#fafafa] outline-none focus:border-[#52525b]" />
+                </>
+              )}
+            </div>
           </div>
           {ledgerLoading ? (
             <div className="flex items-center justify-center py-20"><Loader2 className="w-8 h-8 text-[#a1a1aa] animate-spin" /></div>
           ) : (
-            ledgerSubtab === "fixed_hours"
-              ? <LedgerTable bosses={ledgerData.fixedHours} dates={ledgerData.dates} cells={ledgerData.cells} guilds={guilds} />
-              : <LedgerTable bosses={ledgerData.fixedSchedule} dates={ledgerData.dates} cells={ledgerData.cells} guilds={guilds} />
+            (() => {
+              const q = searchText.toLowerCase().trim();
+              const filterBosses = (bosses: typeof ledgerData.fixedHours) =>
+                q ? bosses.filter(b => b.name.toLowerCase().includes(q)) : bosses;
+              return ledgerSubtab === "fixed_hours"
+                ? <LedgerTable bosses={filterBosses(ledgerData.fixedHours)} dates={ledgerData.dates} cells={ledgerData.cells} guilds={guilds} />
+                : <LedgerTable bosses={filterBosses(ledgerData.fixedSchedule)} dates={ledgerData.dates} cells={ledgerData.cells} guilds={guilds} />;
+            })()
           )}
         </div>
       )}
