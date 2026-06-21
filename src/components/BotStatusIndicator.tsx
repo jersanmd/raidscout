@@ -217,6 +217,9 @@ function TickChart({ metrics }: { metrics: TickMetric[] }) {
 // ── Component ──────────────────────────────────────────────
 export function BotStatusIndicator() {
   const [status, setStatus] = useState<BotStatus | null>(null);
+  const [baseUptimeSec, setBaseUptimeSec] = useState(0);
+  const [fetchedAt, setFetchedAt] = useState(0);
+  const [liveUptime, setLiveUptime] = useState("");
   const [tickMetrics, setTickMetrics] = useState<TickMetric[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -226,12 +229,22 @@ export function BotStatusIndicator() {
 
   const botUrl = getBotUrl();
 
+  // ── Parse uptime_display → seconds ─────────────────────
+  const parseUptime = (d: string): number => {
+    const h = parseInt((d.match(/(\d+)h/) || [])[1] || "0");
+    const m = parseInt((d.match(/(\d+)m/) || [])[1] || "0");
+    const s = parseInt((d.match(/(\d+)s/) || [])[1] || "0");
+    return h * 3600 + m * 60 + s;
+  };
+
   const fetchStatus = useCallback(async () => {
     try {
       const resp = await fetch(`${botUrl}/status`);
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
       const data = await resp.json();
       setStatus(data);
+      setBaseUptimeSec(parseUptime(data.uptime_display || ""));
+      setFetchedAt(Date.now());
       setError(false);
     } catch {
       setError(true);
@@ -258,6 +271,22 @@ export function BotStatusIndicator() {
     const interval = setInterval(fetchStatus, 30_000);
     return () => clearInterval(interval);
   }, [fetchStatus]);
+
+  // Live uptime counter while popup is open
+  useEffect(() => {
+    if (!showPopup || baseUptimeSec === 0) return;
+    const tick = () => {
+      const elapsed = Math.floor((Date.now() - fetchedAt) / 1000);
+      const total = baseUptimeSec + elapsed;
+      const h = Math.floor(total / 3600);
+      const m = Math.floor((total % 3600) / 60);
+      const s = total % 60;
+      setLiveUptime(`${h}h ${m}m ${s}s`);
+    };
+    tick();
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+  }, [showPopup, baseUptimeSec, fetchedAt]);
 
   // Fetch tick metrics only when popup opens
   useEffect(() => {
@@ -319,7 +348,7 @@ export function BotStatusIndicator() {
               <div className="flex items-center justify-between px-4 py-3 border-b border-[#27272a]">
                 <div className="flex items-center gap-2">
                   <Activity className="w-4 h-4 text-[#a1a1aa]" />
-                  <span className="text-sm font-semibold text-[#fafafa]">Bot Status</span>
+                  <span className="text-sm font-semibold text-[#fafafa]">RaidScout Bot Status</span>
                 </div>
                 <button
                   onClick={() => setShowPopup(false)}
@@ -363,8 +392,8 @@ export function BotStatusIndicator() {
                     {/* Uptime */}
                     <div className="flex items-center justify-between">
                       <span className="text-[11px] text-[#a1a1aa]">Uptime</span>
-                      <span className="text-xs text-[#d4d4d8]">
-                        {status?.uptime_display || "—"}
+                      <span className="text-xs text-[#d4d4d8] font-mono">
+                        {liveUptime || status?.uptime_display || "—"}
                       </span>
                     </div>
 
