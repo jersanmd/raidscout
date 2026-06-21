@@ -955,7 +955,7 @@ export function AdminPanelView() {
             case "activity_create": case "activity_update": return `${d.activity_name || d.name || "—"}${d.schedule_type ? ` · ${d.schedule_type}` : ""}${d.points != null ? ` · ${d.points}pts` : ""}${d.party_size ? ` · ${d.party_size}p` : ""}${d.changes ? ` · ${d.changes}` : ""}`;
             case "activity_delete": return d.activity_name || d.name || "—";
             case "activity_time_edit": return `Activity time edited${d.activity_name ? ` for "${d.activity_name}"` : ""}`;
-            case "activity_finalize": case "activity_end_record": return `${d.activity_name || "?"} completed${d.attendees ? ` (${d.attendees} attendees)` : ""}${d.end_time ? ` at ${d.end_time}` : ""}`;
+            case "activity_finalize": case "activity_end_record": return `${d.activity_name || "?"} completed${d.attendees ? ` (${d.attendees} attendees)` : ""}${d.attendee_names ? `: ${d.attendee_names}` : ""}${d.end_time ? ` at ${d.end_time}` : ""}`;
             case "activity_guilds_set": return `Activity guilds updated${d.activity_name ? ` for "${d.activity_name}"` : ""}${d.guild_count ? ` (${d.guild_count} guilds, ${d.mode})` : ""}`;
             case "activity_rotation_advance": return `Activity rotation advanced${d.activity_name ? ` for "${d.activity_name}"` : ""}`;
             case "boss_guild_points_edit": return `${d.boss_name || "?"} · ${d.guild_name || "?"}: points → ${d.points ?? "—"}`;

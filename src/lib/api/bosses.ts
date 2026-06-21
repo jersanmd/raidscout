@@ -234,6 +234,7 @@ export async function recordActivityEnd(
   activityId: string,
   endTime: Date,
   attendeeIds: string[],
+  attendeeNames?: string[],
   serverId?: string | null
 ): Promise<string> {
   const { data: activity } = await supabase.from("activities").select("name, schedule_type").eq("id", activityId).single();
@@ -273,7 +274,11 @@ export async function recordActivityEnd(
   // Advance guild rotation
   try { await advanceActivityRotation(activityId, serverId); } catch (err) { console.error("[bosses] advanceActivityRotation on end failed:", err); }
 
-  if (serverId) writeAuditEntry({ action: AuditAction.ACTIVITY_END_RECORD, server_id: serverId, target_id: activityId, details: { activity_name: activity?.name || activityId, end_time: endTime.toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }), attendees: attendeeIds.length } });
+  if (serverId) {
+    const names = attendeeNames?.filter(Boolean) ?? [];
+    const nameList = names.length > 0 ? names.join(", ") : undefined;
+    writeAuditEntry({ action: AuditAction.ACTIVITY_END_RECORD, server_id: serverId, target_id: activityId, details: { activity_name: activity?.name || activityId, end_time: endTime.toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }), attendees: attendeeIds.length, attendee_names: nameList } });
+  }
 
   return instance.id;
 }

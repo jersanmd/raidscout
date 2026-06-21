@@ -991,7 +991,7 @@ export function WeeklyScheduleView() {
           onClose={() => setMarkActivity(null)}
           onSubmit={async (endTime, _rallyImages, attendeeIds, attendeeNames) => {
             try {
-              await recordActivityEnd(markActivity.activity.id, endTime, attendeeIds);
+              await recordActivityEnd(markActivity.activity.id, endTime, attendeeIds, attendeeNames);
               queryClient.invalidateQueries({ queryKey: ["activities"] });
               queryClient.invalidateQueries({ queryKey: ["activity_instances"] });
               setMarkActivity(null);

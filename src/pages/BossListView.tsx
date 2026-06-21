@@ -479,9 +479,9 @@ export function BossListView() {
   );
 
   const handleRecordActivityEnd = useCallback(
-    async (activityId: string, endTime: Date, _rallyImages: File[], attendeeIds: string[]) => {
+    async (activityId: string, endTime: Date, _rallyImages: File[], attendeeIds: string[], attendeeNames: string[] = []) => {
       try {
-        await recordActivityEnd(activityId, endTime, attendeeIds);
+        await recordActivityEnd(activityId, endTime, attendeeIds, attendeeNames);
         await queryClient.invalidateQueries({ queryKey: ["activities"] });
         await queryClient.invalidateQueries({ queryKey: ["activity_instances"] });
         setToast({

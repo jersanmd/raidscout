@@ -9,7 +9,7 @@ import "./index.css";
 // Bump WIPE_STORAGE_KEY when you want all users' raidscout-* localStorage cleared.
 // Only change this when shipping features that need a fresh start (e.g., breaking state changes).
 // ────────────────────────────────────────────────────────────
-const WIPE_STORAGE_KEY = "v1"; // bump to "v2", "v3", etc. to trigger a wipe
+const WIPE_STORAGE_KEY = "v2"; // bump to "v2", "v3", etc. to trigger a wipe
 const STORED_WIPE_KEY = "raidscout-wipe-version";
 const storedWipeVersion = localStorage.getItem(STORED_WIPE_KEY);
 if (storedWipeVersion !== WIPE_STORAGE_KEY) {

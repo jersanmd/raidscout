@@ -149,6 +149,7 @@ export function ParticipantModal({
         if (att) {
           if (activityInstanceId) {
             await markActivityAttendance(activityInstanceId, memberId, false);
+            writeAuditEntry({ action: AuditAction.ATTENDANCE_REMOVE, server_id: serverId!, target_id: activityInstanceId, details: { member_name: memberName, boss_name: bossName } });
             queryClient.invalidateQueries({ queryKey: ["activity_attendance", activityInstanceId] });
             queryClient.invalidateQueries({ queryKey: ["activity_instances"] });
             queryClient.invalidateQueries({ queryKey: ["activities"] });
@@ -159,6 +160,7 @@ export function ParticipantModal({
       } else {
         if (activityInstanceId) {
           await markActivityAttendance(activityInstanceId, memberId, true);
+          writeAuditEntry({ action: AuditAction.ATTENDANCE_ADD, server_id: serverId!, target_id: activityInstanceId, details: { member_name: memberName, boss_name: bossName } });
           queryClient.invalidateQueries({ queryKey: ["activity_attendance", activityInstanceId] });
           queryClient.invalidateQueries({ queryKey: ["activity_instances"] });
           queryClient.invalidateQueries({ queryKey: ["activities"] });

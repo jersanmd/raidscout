@@ -51,7 +51,7 @@ interface BossCardProps {
   /** Called when user clicks "Finish" on an activity */
   onFinishActivity?: (activityId: string) => void;
   /** Called when user records an activity end with time + attendance (same signature as onRecordDeath) */
-  onRecordEnd?: (activityId: string, endTime: Date, rallyImages: File[], attendeeIds: string[], scanResults?: ScanResults | null) => void;
+  onRecordEnd?: (activityId: string, endTime: Date, rallyImages: File[], attendeeIds: string[], attendeeNames: string[], scanResults?: ScanResults | null) => void;
   /** Called when user edits an activity's next start date & time */
   onEditActivityTime?: (activityId: string, dateStr: string, timeStr: string) => void;
   /** Hide schedule/time display even when status is countdown (e.g., fixed_hours after first finish) */
@@ -552,7 +552,7 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
           onClose={() => setShowModal(false)}
           onSubmit={(dt, imgs, ids, names, partyLeaders, scanResults) => {
             if (isActivity && onRecordEnd) {
-              onRecordEnd(activity!.id, dt, imgs, ids, scanResults);
+              onRecordEnd(activity!.id, dt, imgs, ids, names, scanResults);
             } else if (onRecordDeath) {
               onRecordDeath(boss.id, dt, imgs, ids, names, partyLeaders, scanResults);
             }
