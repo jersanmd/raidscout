@@ -1,10 +1,10 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase, fetchGames } from "@/lib/supabase";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { SEOHead } from "@/components/SEOHead";
-import { detectTimezone } from "@/hooks/useUserTimezone";
+import { detectTimezone, formatVersionInTimezone } from "@/hooks/useUserTimezone";
 declare const APP_VERSION: string;
 import {
   Timer, Shield, BarChart3, Sparkles, MessageSquare, Calendar, Skull, Eye, Trophy, Server, Clock, Lock, Image, Package, Archive, User, Users,
@@ -208,6 +208,7 @@ export function LandingPage() {
   const [success, setSuccess] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [resetSent, setResetSent] = useState(false);
+  const browserTz = useMemo(() => detectTimezone(), []);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [showVideo, setShowVideo] = useState(false);
   const [activeGuide, setActiveGuide] = useState<string | null>(null);
@@ -1154,7 +1155,7 @@ export function LandingPage() {
             <img src="/logo.png" alt="" className="w-5 h-5 rounded opacity-40" />
             <span className="text-sm">&copy; {new Date().toLocaleDateString("en-US", { timeZone: detectTimezone(), year: "numeric" })} RaidScout. All rights reserved.</span>
           </div>
-          <span className="text-xs text-[#fafafa]/20 font-mono">v{APP_VERSION}</span>
+          <span className="text-xs text-[#fafafa]/20 font-mono">v{formatVersionInTimezone(APP_VERSION, browserTz)}</span>
         </div>
       </footer>
 

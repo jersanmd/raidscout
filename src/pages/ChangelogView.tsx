@@ -1,6 +1,7 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { ChevronDown, ChevronRight, FileText, ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { detectTimezone, formatVersionInTimezone } from "@/hooks/useUserTimezone";
 
 declare const APP_VERSION: string;
 
@@ -15,6 +16,7 @@ const changelogModules = import.meta.glob("/docs/*-changelog.md", { query: "?raw
 
 export function ChangelogView() {
   const navigate = useNavigate();
+  const browserTz = useMemo(() => detectTimezone(), []);
   const [entries, setEntries] = useState<ChangelogEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
@@ -136,7 +138,7 @@ export function ChangelogView() {
         <div className="flex items-center gap-2">
           <FileText className="w-5 h-5 text-[#a1a1aa]" />
           <h1 className="text-lg font-bold text-[#fafafa]">Changelog</h1>
-          <span className="text-xs text-[#71717a]">v{APP_VERSION}</span>
+          <span className="text-xs text-[#71717a]">v{formatVersionInTimezone(APP_VERSION, browserTz)}</span>
         </div>
         <div className="flex items-center gap-2">
           <button onClick={expandAll} className="text-xs text-[#a1a1aa] hover:text-[#fafafa] transition">Expand all</button>

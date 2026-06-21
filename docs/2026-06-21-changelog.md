@@ -38,8 +38,10 @@
 - **Inventory auto-fetch** — History "Load More" button replaced with infinite scroll sentinel. Recipients tab now fetches all distributions (was limited to 10).
 - **Audit format** — `activity_end_record` now shows attendee names. Activity attendance toggles now write audit entries.
 
-##  Mobile
+## 📱 Mobile
 
-- **Footer visibility** — Footer now shows on mobile (was `hidden md:block`). Added `mb-16 md:mb-0` to prevent overlap with the bottom navigation bar.
+- **Footer visibility** — Footer now shows on mobile (was `hidden md:block`). Footer is inside the scrollable area with a `flex-1` spacer: sticks to the bottom above the nav bar when content is short, scrolls naturally when content overflows. `pb-16` on the scroll container clears the bottom nav.
 - **Copyright year timezone** — Footer copyright year now uses the server's timezone (falls back to user preference, then browser detection) instead of always using `new Date().getFullYear()` which is UTC-relative. Applied to Layout, AdminPanel, and LandingPage footers.
+- **Version timestamp timezone** — `APP_VERSION` (e.g., `2026.06.21.0730`) is built in UTC. Now converted to the viewer's timezone before display. `2026.06.21.0730` UTC shows as `2026.06.21.1530` in Asia/Manila (+8). New `formatVersionInTimezone()` helper in `useUserTimezone`. Applied to Layout footer, LandingPage footer, and ChangelogView header.
 - **Scrolling fix** — Root container uses `h-dvh` (dynamic viewport height) instead of `h-screen` (100vh). On iOS Safari, `100vh` includes the hidden address bar area, making the container taller than the visible screen and causing scroll boundaries to "stick" at the bottom. `100dvh` correctly matches the visible viewport.
+- **Bot status chart loading** — Trend chart area now shows a centered `Loader2` spinner with "Fetching chart data…" while `/tick-metrics` fetches, instead of briefly flashing "No tick data yet."

@@ -16,6 +16,7 @@ import { useSpawnAlerts } from "@/hooks/useSpawnAlerts";
 import { Calendar, LogOut, Clock, Trophy, Users, BarChart3, Server, Settings, Plus, Shield, Eye, ChevronDown, Globe, Loader2, Package, User, PanelLeftClose, PanelLeft, Crown, Swords, CreditCard, Bell, ScrollText, X } from "lucide-react";
 import { version } from "../../package.json";
 import { useUserTimezone } from "@/hooks/useUserTimezone";
+import { formatVersionInTimezone } from "@/hooks/useUserTimezone";
 import { useNotifications, typeIcon } from "@/hooks/useNotifications";
 import { ServerActivityLogTab } from "@/pages/ServerSettingsView";
 import { TIMEZONES } from "@/lib/timezones";
@@ -346,8 +347,9 @@ export function Layout() {
 
         <div className="flex-1 flex flex-col min-w-0 min-h-0">
           <DiscordWebhookBanner/><NoMembersBanner/><SubscriptionBanner/>
-          <main className="flex-1 overflow-y-auto pb-16 md:pb-0"><Outlet/></main>
-          <footer className="block shrink-0 border-t border-[#1a1a1e] bg-[#09090b] mb-16 md:mb-0"><div className="px-4 py-2 flex items-center justify-between text-[11px] text-[#52525b]"><span>© {new Date().toLocaleDateString("en-US", { timeZone: timezone, year: "numeric" })} RaidScout · v{APP_VERSION}</span><div className="flex items-center gap-3"><Link to="/terms" className="hover:text-[#a1a1aa] transition">Terms</Link><Link to="/privacy" className="hover:text-[#a1a1aa] transition">Privacy</Link><Link to="/refund" className="hover:text-[#a1a1aa] transition">Refunds</Link><Link to="/changelog" className="hover:text-[#a1a1aa] transition">Changelog</Link></div></div></footer>
+          <main className="flex-1 overflow-y-auto pb-16 md:pb-0 flex flex-col"><div className="flex-1"><Outlet/></div>
+          <footer className="shrink-0 border-t border-[#1a1a1e] bg-[#09090b]"><div className="px-4 py-2 flex items-center justify-between text-[11px] text-[#52525b]"><span>© {new Date().toLocaleDateString("en-US", { timeZone: timezone, year: "numeric" })} RaidScout · v{formatVersionInTimezone(APP_VERSION, timezone)}</span><div className="flex items-center gap-3"><Link to="/terms" className="hover:text-[#a1a1aa] transition">Terms</Link><Link to="/privacy" className="hover:text-[#a1a1aa] transition">Privacy</Link><Link to="/refund" className="hover:text-[#a1a1aa] transition">Refunds</Link><Link to="/changelog" className="hover:text-[#a1a1aa] transition">Changelog</Link></div></div></footer>
+          </main>
         </div>
       </div>
 

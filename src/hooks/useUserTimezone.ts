@@ -78,3 +78,28 @@ export function toZonedTime(isoString: string, timezone: string): Date {
   return new Date(isoString);
   // Date objects are UTC internally; formatting with timeZone option handles display
 }
+
+/**
+ * Convert an APP_VERSION string like "2026.06.21.0730" (UTC) to the given timezone.
+ * Returns e.g. "2026.06.21.1530" for Asia/Manila (+8).
+ */
+export function formatVersionInTimezone(version: string, timezone: string): string {
+  const m = version.match(/^(\d{4})\.(\d{2})\.(\d{2})\.(\d{2})(\d{2})$/);
+  if (!m) return version;
+  const [, y, mo, d, h, mi] = m;
+  const utcDate = new Date(Date.UTC(+y, +mo - 1, +d, +h, +mi));
+  const local = utcDate.toLocaleString("en-US", {
+    timeZone: timezone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+  // "06/21/2026, 15:30" → "2026.06.21.1530"
+  const [datePart, timePart] = local.split(", ");
+  const [mm2, dd, yyyy] = datePart.split("/");
+  const [hh, mimi] = timePart.split(":");
+  return `${yyyy}.${mm2}.${dd}.${hh}${mimi}`;
+}

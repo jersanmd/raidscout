@@ -237,6 +237,7 @@ export function BotStatusIndicator() {
   const [fetchedAt, setFetchedAt] = useState(0);
   const [liveUptime, setLiveUptime] = useState("");
   const [tickMetrics, setTickMetrics] = useState<TickMetric[]>([]);
+  const [tickMetricsLoading, setTickMetricsLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [showPopup, setShowPopup] = useState(false);
@@ -270,6 +271,7 @@ export function BotStatusIndicator() {
   }, [botUrl]);
 
   const fetchTickMetrics = useCallback(async () => {
+    setTickMetricsLoading(true);
     try {
       const resp = await fetch(`${botUrl}/tick-metrics?range=24h`);
       if (resp.ok) {
@@ -278,6 +280,8 @@ export function BotStatusIndicator() {
       }
     } catch {
       // non-critical
+    } finally {
+      setTickMetricsLoading(false);
     }
   }, [botUrl]);
 
@@ -434,19 +438,30 @@ export function BotStatusIndicator() {
                           Server Scan Duration (24h)
                         </span>
                         <span className="text-[10px] text-[#52525b]">
-                          {(() => {
-                            if (tickMetrics.length < 2) return `${tickMetrics.length} scan${tickMetrics.length !== 1 ? "s" : ""}`;
-                            const intervals: number[] = [];
-                            for (let i = 1; i < Math.min(tickMetrics.length, 10); i++) {
-                              intervals.push(new Date(tickMetrics[i].ts).getTime() - new Date(tickMetrics[i - 1].ts).getTime());
-                            }
-                            const avg = intervals.reduce((a, b) => a + b, 0) / intervals.length;
-                            const secs = Math.round(avg / 1000);
-                            return `scans every ${secs}s`;
-                          })()}
+                          {tickMetricsLoading ? (
+                            <Loader2 className="w-3 h-3 text-[#52525b] animate-spin inline" />
+                          ) : (
+                            (() => {
+                              if (tickMetrics.length < 2) return `${tickMetrics.length} scan${tickMetrics.length !== 1 ? "s" : ""}`;
+                              const intervals: number[] = [];
+                              for (let i = 1; i < Math.min(tickMetrics.length, 10); i++) {
+                                intervals.push(new Date(tickMetrics[i].ts).getTime() - new Date(tickMetrics[i - 1].ts).getTime());
+                              }
+                              const avg = intervals.reduce((a, b) => a + b, 0) / intervals.length;
+                              const secs = Math.round(avg / 1000);
+                              return `scans every ${secs}s`;
+                            })()
+                          )}
                         </span>
                       </div>
-                      <TickChart metrics={tickMetrics} />
+                      {tickMetricsLoading ? (
+                        <div className="flex flex-col items-center justify-center h-32 gap-2">
+                          <Loader2 className="w-5 h-5 text-[#a1a1aa] animate-spin" />
+                          <span className="text-[10px] text-[#52525b]">Fetching chart data…</span>
+                        </div>
+                      ) : (
+                        <TickChart metrics={tickMetrics} />
+                      )}
                     </div>
                   </>
                 )}
