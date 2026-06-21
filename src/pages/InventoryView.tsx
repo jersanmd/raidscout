@@ -816,7 +816,7 @@ export function InventoryView() {
                         style={{ color: rarityColor }}
                       >
                         {item.rarity}
-                        {isCatalog && <span className="ml-1 text-[#8b5cf6]/70 font-normal normal-case tracking-normal">{"\u00B7"} catalog</span>}
+                        {isCatalog && <span className="ml-1 text-[#8b5cf6]/70 font-normal normal-case tracking-normal">{"\u00B7"} Catalog</span>}
                       </span>
                       {!isCatalog && item.created_by_username && (
                         <span className="text-[9px] text-[#52525b] truncate">by {item.created_by_username}</span>
@@ -2705,7 +2705,7 @@ function ItemTrendChart({ dates, series }: {
           <style>{`
             @keyframes dashDraw { to { stroke-dashoffset: 0; } }
             @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-            .trend-line { stroke-dasharray: 1200; stroke-dashoffset: 1200; animation: dashDraw 1.2s ease-out forwards; }
+            .trend-line { stroke-dasharray: 5000; stroke-dashoffset: 5000; animation: dashDraw 1.2s ease-out forwards; }
             .trend-area { opacity: 0; animation: fadeIn 0.6s ease-out 0.4s forwards; }
             .trend-dot { opacity: 0; animation: fadeIn 0.3s ease-out forwards; }
           `}</style>

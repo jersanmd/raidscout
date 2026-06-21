@@ -98,6 +98,11 @@ export function MembersView() {
   });
   const [progressGuildOpen, setProgressGuildOpen] = useState(false);
   const [showClassCreator, setShowClassCreator] = useState(false);
+  const classAssignGuildKey = `class-assign-guild-${serverId ?? "global"}`;
+  const [classAssignGuildFilter, setClassAssignGuildFilter] = useState<string>(() => {
+    try { return localStorage.getItem(classAssignGuildKey) || ""; } catch { return ""; }
+  });
+  const [classAssignGuildOpen, setClassAssignGuildOpen] = useState(false);
 
   // Sort state for guild member tables (persisted in localStorage)
   const sortKey = `members-sort-${serverId ?? "global"}`;
@@ -1679,7 +1684,7 @@ export function MembersView() {
                         </td>
                         <td className="py-2.5 px-3 text-right font-mono text-sm align-middle">
                           <Link to={`/members/${m.id}`} className="block -m-2 p-2 rounded hover:bg-[#09090b]/50 transition">
-                          <span className={m.combat_power != null ? "text-[#a1a1aa]" : "text-[#52525b]"}>
+                          <span className={m.combat_power != null ? "text-[#a1a1aa]" : "text-[#71717a]"}>
                             {m.combat_power != null ? m.combat_power.toLocaleString() : "—"}
                           </span>
                           </Link>
@@ -1689,10 +1694,10 @@ export function MembersView() {
                           {(() => {
                             const stats = mergedStats[m.id];
                             const w = stats?.weekly;
-                            if (w == null) return <span className="text-[#3f3f46]">—</span>;
+                            if (w == null) return <span className="text-[#71717a]">—</span>;
                             const guildTotal = m.guild_id ? (guildWeeklyTotals[m.guild_id] ?? 0) : 0;
                             const pct = guildTotal > 0 ? Math.round((w / guildTotal) * 100) : 0;
-                            const color = pct >= 75 ? "text-green-400" : pct >= 50 ? "text-amber-400" : pct > 0 ? "text-red-400" : "text-[#52525b]";
+                            const color = pct >= 75 ? "text-green-400" : pct >= 50 ? "text-amber-400" : pct > 0 ? "text-red-400" : "text-[#71717a]";
                             return (
                               <span className={`font-bold ${color}`}>
                                 {showWeeklyFraction ? `${w}/${guildTotal}` : `${pct}%`}
@@ -1705,7 +1710,7 @@ export function MembersView() {
                           <Link to={`/members/${m.id}`} className="block -m-2 p-2 rounded hover:bg-[#09090b]/50 transition">
                           {mergedStats[m.id]?.growth != null && mergedStats[m.id].growth !== 0 && m.combat_power != null ? (() => {
                             const base = m.combat_power - mergedStats[m.id].growth;
-                            if (base <= 0) return <span className="text-[#3f3f46]">—</span>;
+                            if (base <= 0) return <span className="text-[#71717a]">—</span>;
                             const pct = (mergedStats[m.id].growth / base) * 100;
                             const positive = mergedStats[m.id].growth > 0;
                             return (
@@ -1725,7 +1730,7 @@ export function MembersView() {
                             const stats = mergedStats[m.id];
                             const s = stats?.score;
                             return s != null ? (
-                              <span className={`font-bold ${s >= 75 ? "text-green-400" : s >= 50 ? "text-amber-400" : s > 0 ? "text-red-400" : "text-[#52525b]"}`}>{s}</span>
+                              <span className={`font-bold ${s >= 75 ? "text-green-400" : s >= 50 ? "text-amber-400" : s > 0 ? "text-red-400" : "text-[#71717a]"}`}>{s}</span>
                             ) : (
                               <span className="text-[#3f3f46]">—</span>
                             );
@@ -2135,15 +2140,60 @@ export function MembersView() {
               <Users className="w-4 h-4 text-[#a1a1aa]" />
               Assign Classes to Members
             </h3>
-            <div className="relative w-48">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#52525b]" />
-              <input
-                type="text"
-                value={classSearch}
-                onChange={(e) => setClassSearch(e.target.value)}
-                placeholder="Search members..."
-                className="w-full pl-8 pr-3 py-1.5 bg-[#09090b] border border-[#27272a] rounded-lg text-xs text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#52525b]"
-              />
+            <div className="flex items-center gap-2">
+              <div className="relative w-48">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#52525b]" />
+                <input
+                  type="text"
+                  value={classSearch}
+                  onChange={(e) => setClassSearch(e.target.value)}
+                  placeholder="Search members..."
+                  className="w-full pl-8 pr-3 py-1.5 bg-[#09090b] border border-[#27272a] rounded-lg text-xs text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#52525b]"
+                />
+              </div>
+              {guilds.length > 0 && (
+                <div className="relative">
+                  <button
+                    onClick={() => setClassAssignGuildOpen(!classAssignGuildOpen)}
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 bg-[#09090b] border border-[#27272a] rounded-lg text-xs text-[#a1a1aa] hover:border-[#52525b] transition"
+                  >
+                    {classAssignGuildFilter ? (() => {
+                      const g = guilds.find(x => x.id === classAssignGuildFilter);
+                      if (!g) return <span>Filter By Guild</span>;
+                      const c = guildColor(g.name);
+                      return <span className={`inline-flex items-center gap-1 text-[10px] font-medium ${c.text}`}><Shield className="w-2.5 h-2.5" />{g.name}</span>;
+                    })() : <span>Filter By Guild</span>}
+                    <ChevronDown className="w-3 h-3" />
+                  </button>
+                  {classAssignGuildOpen && (
+                    <>
+                      <div className="fixed inset-0 z-40" onClick={() => setClassAssignGuildOpen(false)} />
+                      <div className="absolute right-0 top-full mt-1 z-50 bg-[#18181b] border border-[#27272a] rounded-lg shadow-xl py-1 min-w-[140px]">
+                        <button
+                          onClick={() => { setClassAssignGuildFilter(""); setClassAssignGuildOpen(false); localStorage.setItem(classAssignGuildKey, ""); }}
+                          className={`flex items-center gap-2 w-full px-3 py-1.5 text-xs transition ${!classAssignGuildFilter ? "bg-[#09090b] text-[#fafafa]" : "text-[#a1a1aa] hover:bg-[#09090b]"}`}
+                        >
+                          <span className="w-3 h-3 rounded-full border border-[#3f3f46]" />
+                          All Guilds
+                        </button>
+                        {guilds.map(g => {
+                          const c = guildColor(g.name);
+                          return (
+                            <button
+                              key={g.id}
+                              onClick={() => { setClassAssignGuildFilter(g.id); setClassAssignGuildOpen(false); localStorage.setItem(classAssignGuildKey, g.id); }}
+                              className={`flex items-center gap-2 w-full px-3 py-1.5 text-xs transition ${classAssignGuildFilter === g.id ? "bg-[#09090b] text-[#fafafa]" : "text-[#a1a1aa] hover:bg-[#09090b]"}`}
+                            >
+                              <Shield className={`w-3 h-3 ${c.text}`} />
+                              {g.name}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
             </div>
           </div>
           {members.length === 0 ? (
@@ -2152,7 +2202,9 @@ export function MembersView() {
             <p className="text-sm text-[#52525b] text-center py-6">Add classes above first, then assign them to members here.</p>
           ) : (
             <div className="space-y-3">
-              {sortedGuildGroups.map((group, gi) => {
+              {sortedGuildGroups
+                .filter(g => !classAssignGuildFilter || g.guild?.id === classAssignGuildFilter)
+                .map((group, gi) => {
                 const activeMembers = group.members.filter(m => m.is_active !== false);
                 const filtered = classSearch.trim()
                   ? activeMembers.filter(m => m.name.toLowerCase().includes(classSearch.toLowerCase()))

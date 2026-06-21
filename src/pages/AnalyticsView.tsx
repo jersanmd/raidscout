@@ -40,6 +40,9 @@ interface AnalyticsUIData {
   killsByDayByGuild: { day: string; count: number; by_guild: { guild: string | null; count: number }[] }[];
   totalActivities: number;
   activityParticipation: number;
+  attendanceByGuild: { guild: string | null; count: number }[];
+  activitiesByGuild: { guild: string | null; count: number }[];
+  activeMembersByGuild: { guild: string | null; count: number }[];
 }
 
 export function AnalyticsView() {
@@ -182,7 +185,7 @@ export function AnalyticsView() {
         return emptyAnalytics();
       }
 
-      const raw = await fetchAnalytics(since, serverId, tz);
+      const raw = await fetchAnalytics(since, serverId, tz, period !== "all");
       return {
         totalKills: raw.total_kills,
         totalAttendance: raw.total_attendance,
@@ -197,6 +200,9 @@ export function AnalyticsView() {
         killsByDayByGuild: raw.kills_by_day_by_guild ?? [],
         totalActivities: raw.total_activities ?? 0,
         activityParticipation: raw.activity_participation ?? 0,
+        attendanceByGuild: raw.attendance_by_guild ?? [],
+        activitiesByGuild: raw.activities_by_guild ?? [],
+        activeMembersByGuild: raw.active_members_by_guild ?? [],
       };
     },
     staleTime: 0,
@@ -204,6 +210,35 @@ export function AnalyticsView() {
     refetchOnWindowFocus: true,
     enabled: configured && !!serverId,
   });
+
+  // Per-guild kill totals for stat cards (must be before early return!)
+  const guildKillTotals = useMemo(() => {
+    if (!guilds.length) return [];
+    const colorMap = new Map<string, string>();
+    return (data?.killsByGuildSeries ?? [])
+      .filter((s: any) => s.guild)
+      .map((s: any, si: number) => {
+        if (!colorMap.has(s.guild!)) {
+          colorMap.set(s.guild!, resolveSeriesColor(s.guild, si, guilds));
+        }
+        const total = s.data.reduce((sum: number, d: any) => sum + d.count, 0);
+        return { label: s.guild!, value: total, color: colorMap.get(s.guild!)! };
+      })
+      .sort((a: any, b: any) => a.label.localeCompare(b.label));
+  }, [data, guilds]);
+
+  // Per-guild sub-items helpers
+  const guildSubItems = (items: { guild: string | null; count: number }[]) => {
+    if (!guilds.length || !items.length) return undefined;
+    const colorMap = new Map<string, string>();
+    return items
+      .filter(s => s.guild)
+      .map((s, si) => {
+        if (!colorMap.has(s.guild!)) colorMap.set(s.guild!, resolveSeriesColor(s.guild, si, guilds));
+        return { label: s.guild!, value: s.count, color: colorMap.get(s.guild!)! };
+      })
+      .sort((a, b) => a.label.localeCompare(b.label));
+  };
 
   if (isLoading || !data) {
     return (
@@ -242,10 +277,10 @@ export function AnalyticsView() {
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-        <StatCard icon={<Skull className="w-4 h-4" />} label="Total Kills" value={data.totalKills} color="text-[#a1a1aa]" bg="bg-[#18181b] border-[#27272a]" />
-        <StatCard icon={<Users className="w-4 h-4" />} label="Active Members" value={data.activeMembers} color="text-[#a1a1aa]" bg="bg-[#18181b] border-[#27272a]" />
-        <StatCard icon={<Activity className="w-4 h-4" />} label="Attendances" value={data.totalAttendance} color="text-[#a1a1aa]" bg="bg-[#18181b] border-[#27272a]" />
-        <StatCard icon={<span className="text-sm">📅</span>} label="Activities" value={data.totalActivities} color="text-[#a1a1aa]" bg="bg-[#18181b] border-[#27272a]" />
+        <StatCard icon={<Skull className="w-4 h-4" />} label="Total Kills" value={data.totalKills} color="text-[#a1a1aa]" bg="bg-[#18181b] border-[#27272a]" subItems={guildKillTotals} />
+        <StatCard icon={<Users className="w-4 h-4" />} label="Active Members" value={data.activeMembers} color="text-[#a1a1aa]" bg="bg-[#18181b] border-[#27272a]" subItems={guildSubItems(data.activeMembersByGuild)} />
+        <StatCard icon={<Activity className="w-4 h-4" />} label="Attendances" value={data.totalAttendance} color="text-[#a1a1aa]" bg="bg-[#18181b] border-[#27272a]" subItems={guildSubItems(data.attendanceByGuild)} />
+        <StatCard icon={<span className="text-sm">📅</span>} label="Activities" value={data.totalActivities} color="text-[#a1a1aa]" bg="bg-[#18181b] border-[#27272a]" subItems={guildSubItems(data.activitiesByGuild)} />
       </div>
 
       <Section title="Kills per Day" icon={<TrendingUp className="w-4 h-4" />}>
@@ -270,7 +305,7 @@ export function AnalyticsView() {
             const c = guild ? guildColor(guild.name) : null;
             const cls = memberClassMap.get(h.name);
             return (
-            <div key={h.name} className="flex items-center gap-2 text-sm">
+            <div key={h.name} className="flex items-center gap-2 text-sm animate-slide-up" style={{ animationDelay: `${Math.min((i % 10) * 30, 300)}ms`, animationFillMode: "both" }}>
               <span className="text-[#a1a1aa] w-5 shrink-0 text-left">{i + 1}.</span>
               {cls && classIcons[cls] ? (() => { const CIcon = getClassIcon(classIcons[cls]); const color = classColors[cls] || "#a1a1aa"; return <CIcon className="w-3.5 h-3.5 shrink-0" style={{ color }} />; })() : <span className="w-3.5 h-3.5 shrink-0" />}
               <span className="text-[#fafafa] w-24 shrink-0 truncate text-left">{h.name}</span>
@@ -307,7 +342,7 @@ export function AnalyticsView() {
           )})}
           {data.topHunters.length > huntersPage * HUNTERS_PER_PAGE && (
             <button
-              onClick={() => setHuntersPage(p => p + 1)}
+              onClick={() => setHuntersPage(999)}
               className="w-full py-1.5 text-xs text-[#a1a1aa] hover:text-[#d4d4d8] hover:bg-[#18181b]/50 rounded transition"
             >
               Show more ({data.topHunters.length - huntersPage * HUNTERS_PER_PAGE} remaining)
@@ -338,7 +373,7 @@ export function AnalyticsView() {
               const pct = e.growth > 0 && minCp > 0 ? ((e.growth / minCp) * 100) : 0;
               const maxCp = cpList[0]?.current_cp ?? 1;
               return (
-              <div key={e.member_id} className="flex items-center gap-1.5 sm:gap-2 text-sm">
+              <div key={e.member_id} className="flex items-center gap-1.5 sm:gap-2 text-sm animate-slide-up" style={{ animationDelay: `${Math.min((i % 10) * 30, 300)}ms`, animationFillMode: "both" }}>
                 <span className="text-[#a1a1aa] w-4 sm:w-5 shrink-0 text-left text-xs sm:text-sm">{i + 1}.</span>
                 {cls && classIcons[cls] ? (() => { const CIcon = getClassIcon(classIcons[cls]); const color = classColors[cls] || "#a1a1aa"; return <CIcon className="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0" style={{ color }} />; })() : <span className="w-3 sm:w-3.5 shrink-0" />}
                 <span className="text-[#fafafa] w-16 sm:w-24 shrink-0 truncate text-left text-xs sm:text-sm">{e.player_name}</span>
@@ -369,7 +404,7 @@ export function AnalyticsView() {
               </div>
               )})}
               {cpList.length > cpPage * CP_PER_PAGE && (
-                <button onClick={() => setCpPage(p => p + 1)} className="w-full py-1.5 text-xs text-[#a1a1aa] hover:text-[#d4d4d8] hover:bg-[#18181b]/50 rounded transition">
+                <button onClick={() => setCpPage(999)} className="w-full py-1.5 text-xs text-[#a1a1aa] hover:text-[#d4d4d8] hover:bg-[#18181b]/50 rounded transition">
                   Show more ({cpList.length - cpPage * CP_PER_PAGE} remaining)
                 </button>
               )}
@@ -386,7 +421,7 @@ export function AnalyticsView() {
         <GuildLegend guilds={guilds} series={data.killsByGuildSeries} />
         <div className="space-y-1.5">
           {data.topBossesByGuild.slice(0, bossesPage * BOSSES_PER_PAGE).map((b, i) => (
-            <div key={b.name} className="flex items-center gap-2 text-sm">
+            <div key={b.name} className="flex items-center gap-2 text-sm animate-slide-up" style={{ animationDelay: `${Math.min((i % 10) * 30, 300)}ms`, animationFillMode: "both" }}>
               <span className="text-[#a1a1aa] w-5 shrink-0 text-left">{i + 1}.</span>
               <span className="text-[#fafafa] w-24 shrink-0 truncate text-left">{b.name}</span>
               <span className="w-10 shrink-0">
@@ -428,7 +463,7 @@ export function AnalyticsView() {
             </div>
           ))}
           {data.topBossesByGuild.length > bossesPage * BOSSES_PER_PAGE && (
-            <button onClick={() => setBossesPage(p => p + 1)} className="w-full py-1.5 text-xs text-[#a1a1aa] hover:text-[#d4d4d8] hover:bg-[#18181b]/50 rounded transition">Show more ({data.topBossesByGuild.length - bossesPage * BOSSES_PER_PAGE} remaining)</button>
+            <button onClick={() => setBossesPage(999)} className="w-full py-1.5 text-xs text-[#a1a1aa] hover:text-[#d4d4d8] hover:bg-[#18181b]/50 rounded transition">Show more ({data.topBossesByGuild.length - bossesPage * BOSSES_PER_PAGE} remaining)</button>
           )}
           {bossesPage > 1 && (
             <button onClick={() => setBossesPage(1)} className="w-full py-1.5 text-xs text-[#71717a] hover:text-[#d4d4d8] hover:bg-[#18181b]/50 rounded transition">Show less</button>
@@ -502,12 +537,21 @@ export function AnalyticsView() {
   );
 }
 
-function StatCard({ icon, label, value, color, bg }: { icon: React.ReactNode; label: string; value: number; color: string; bg: string }) {
+function StatCard({ icon, label, value, color, bg, subItems }: { icon: React.ReactNode; label: string; value: number; color: string; bg: string; subItems?: { label: string; value: number; color: string }[] }) {
   return (
     <div className={`rounded-xl border ${bg} p-3 text-center`}>
       <div className={`flex justify-center mb-1 ${color}`}>{icon}</div>
       <div className="text-lg font-bold text-[#fafafa] tabular-nums">{value}</div>
       <div className="text-xs text-[#71717a]">{label}</div>
+      {subItems && subItems.length > 0 && (
+        <div className="mt-1.5 pt-1.5 border-t border-[#27272a] flex flex-wrap justify-center gap-x-2 gap-y-0.5">
+          {subItems.map((s, i) => (
+            <span key={i} className="text-[10px] font-medium" style={{ color: s.color }}>
+              {s.label} <span className="tabular-nums">{s.value}</span>
+            </span>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -545,6 +589,7 @@ function emptyAnalytics(): AnalyticsUIData {
     totalKills: 0, totalAttendance: 0, activeMembers: 0,
     killsByDate: [], killsByDateDetail: [], killsByGuildSeries: [], topBosses: [], topBossesByGuild: [], topHunters: [], killsByDay: [], killsByDayByGuild: [],
     totalActivities: 0, activityParticipation: 0,
+    attendanceByGuild: [], activitiesByGuild: [], activeMembersByGuild: [],
   };
 }
 
@@ -591,7 +636,7 @@ function KillsTrendChart({ dates, series, detail, guilds }: {
   const dotHoverR = isNarrow ? 8 : 6;
   const hitR = isNarrow ? 30 : 24;
   const strokeW = isNarrow ? 2.5 : 2;
-  const padL = 60, padR = isNarrow ? 10 : 20, padT = 22, padB = isNarrow ? 40 : 32;
+  const padL = 60, padR = isNarrow ? 10 : 30, padT = 22, padB = isNarrow ? 40 : 32;
   const chartW = W - padL - padR;
   const chartH = H - padT - padB;
   const n = dates.length;
@@ -600,6 +645,7 @@ function KillsTrendChart({ dates, series, detail, guilds }: {
   const maxCount = Math.max(1, ...series.flatMap(s => s.data.map(d => d.count)));
 
   const [hoverIdx, setHoverIdx] = useState<number | null>(null);
+  const [hiddenGuilds, setHiddenGuilds] = useState<Set<string>>(new Set()); // guild keys to hide
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const tooltipRef = useRef<HTMLDivElement | null>(null);
 
@@ -640,18 +686,31 @@ function KillsTrendChart({ dates, series, detail, guilds }: {
       {series.length > 0 && (
         <div className="flex flex-wrap gap-x-4 gap-y-1 mb-2 px-1">
           {series.map((s, si) => {
+            const guildKey = s.guild ?? "__unguilded__";
+            const hidden = hiddenGuilds.has(guildKey);
             const label = s.guild ?? "Unguilded";
             const g = s.guild ? guilds.find(x => x.name === s.guild) : null;
             const c = g ? guildColor(g.name) : null;
+            const color = resolveSeriesColor(s.guild, si, guilds);
             return (
-              <div key={si} className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: resolveSeriesColor(s.guild, si, guilds) }} />
+              <button
+                key={si}
+                onClick={() => {
+                  setHiddenGuilds(prev => {
+                    const next = new Set(prev);
+                    if (next.has(guildKey)) next.delete(guildKey); else next.add(guildKey);
+                    return next;
+                  });
+                }}
+                className={`flex items-center gap-1.5 transition ${hidden ? "opacity-30" : "opacity-100"}`}
+              >
+                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: color }} />
                 {c && s.guild ? (
                   <span className={`text-[10px] px-1.5 py-0 rounded border ${c.bg} ${c.text} ${c.border}`}>{s.guild}</span>
                 ) : (
                   <span className="text-[10px] text-[#a1a1aa]">{label}</span>
                 )}
-              </div>
+              </button>
             );
           })}
         </div>
@@ -745,17 +804,24 @@ function KillsTrendChart({ dates, series, detail, guilds }: {
         })}
 
         {/* Per-guild area fills */}
-        {n > 1 && series.map((s, si) => {
+        {series.map((s, si) => {
+          const guildKey = s.guild ?? "__unguilded__";
+          if (hiddenGuilds.has(guildKey)) return null;
+          if (s.data.length < 2) return null;
           const color = resolveSeriesColor(s.guild, si, guilds);
           const linePts = s.data.map((d, i) => `${xFor(i)},${yFor(d.count)}`).join(" ");
-          const areaPts = `${xFor(0)},${padT + chartH} ${linePts} ${xFor(n - 1)},${padT + chartH}`;
+          const lastIdx = s.data.length - 1;
+          const areaPts = `${xFor(0)},${padT + chartH} ${linePts} ${xFor(lastIdx)},${padT + chartH}`;
           return (
             <polygon key={`area-${si}`} points={areaPts} fill={color} fillOpacity="0.12" className="trend-area" />
           );
         })}
 
         {/* Lines */}
-        {n > 1 && series.map((s, si) => (
+        {series.map((s, si) => {
+          const guildKey = s.guild ?? "__unguilded__";
+          if (hiddenGuilds.has(guildKey)) return null;
+          return (
           <polyline
             key={`line-${si}`}
             points={s.data.map((d, i) => `${xFor(i)},${yFor(d.count)}`).join(" ")}
@@ -763,27 +829,49 @@ function KillsTrendChart({ dates, series, detail, guilds }: {
             stroke={resolveSeriesColor(s.guild, si, guilds)}
             strokeWidth={strokeW}
             strokeLinejoin="round"
+            strokeLinecap="round"
             className="trend-line"
-            style={{ animationDelay: `${si * 0.2}s` }}
           />
-        ))}
+        )})}
+
+        {/* Full-width hover capture layer */}
+        <rect
+          x={padL} y={0} width={chartW} height={H}
+          fill="transparent"
+          onMouseMove={(e) => {
+            const svg = (e.target as SVGRectElement).closest("svg")!;
+            const pt = svg.createSVGPoint();
+            pt.x = e.clientX;
+            pt.y = e.clientY;
+            const ctm = svg.getScreenCTM();
+            if (!ctm) return;
+            const svgPt = pt.matrixTransform(ctm.inverse());
+            const frac = Math.max(0, Math.min(1, (svgPt.x - padL) / chartW));
+            showTooltip(Math.round(frac * (n - 1)));
+          }}
+          onMouseLeave={hideTooltip}
+          onClick={() => setHoverIdx(prev => prev != null ? null : hoverIdx)}
+          style={{ cursor: "crosshair" }}
+        />
 
         {/* Hover vertical line */}
         {hoverIdx != null && (
           <line
-            x1={xFor(hoverIdx)} y1={padT}
-            x2={xFor(hoverIdx)} y2={padT + chartH}
+            x1={xFor(hoverIdx)} y1={0}
+            x2={xFor(hoverIdx)} y2={H}
             stroke="#3f3f46" strokeWidth="1" strokeDasharray="4 3"
           />
         )}
 
         {/* Per-guild data point dots + labels */}
         {series.map((s, si) => {
+          const guildKey = s.guild ?? "__unguilded__";
+          if (hiddenGuilds.has(guildKey)) return null;
           const color = resolveSeriesColor(s.guild, si, guilds);
           const labelInterval = n > 20 ? Math.ceil(n / 10) : 2;
           return dates.map((_, i) => {
             const cnt = s.data[i]?.count ?? 0;
-            if (cnt === 0 && n > 10) return null; // skip zero dots on dense charts
+            if (cnt === 0 && n > 10) return null;
             const cx = xFor(i);
             const cy = yFor(cnt);
             const isHovered = hoverIdx === i;
@@ -792,21 +880,13 @@ function KillsTrendChart({ dates, series, detail, guilds }: {
               <g key={`dp-${si}-${i}`}>
                 {cnt > 0 && (
                   <>
-                    <circle cx={cx} cy={cy} r={hitR} fill="transparent"
-                      onMouseEnter={() => showTooltip(i)}
-                      onMouseLeave={hideTooltip}
-                      onClick={() => hoverIdx === i ? setHoverIdx(null) : showTooltip(i)}
-                      style={{ cursor: "pointer" }} />
                     <circle cx={cx} cy={cy} r={isHovered ? dotHoverR : dotR}
                       fill={isHovered ? color : "#18181b"}
                       stroke={color} strokeWidth={isHovered ? 2 : 1.5}
                       className="trend-dot transition-all duration-150"
-                      style={{ cursor: "pointer", animationDelay: `${0.8 + i * 0.03}s` }}
-                      onMouseEnter={() => showTooltip(i)}
-                      onMouseLeave={hideTooltip}
-                      onClick={() => hoverIdx === i ? setHoverIdx(null) : showTooltip(i)} />
+                      style={{ pointerEvents: "none" }} />
                     {showLabel && (
-                      <text x={cx} y={cy - (isNarrow ? 10 : 7)} textAnchor="middle" fontSize={fontSizeXs} fill={color} fontFamily="monospace" fontWeight="bold">{cnt}</text>
+                      <text x={cx} y={cy - (isNarrow ? 10 : 7)} textAnchor="middle" fontSize={fontSizeXs} fill={color} fontFamily="monospace" fontWeight="bold" style={{ pointerEvents: "none" }}>{cnt}</text>
                     )}
                   </>
                 )}
@@ -826,8 +906,8 @@ function KillsTrendChart({ dates, series, detail, guilds }: {
             to { opacity: 1; }
           }
           .trend-line {
-            stroke-dasharray: 1200;
-            stroke-dashoffset: 1200;
+            stroke-dasharray: 5000;
+            stroke-dashoffset: 5000;
             animation: dashDraw 1.2s ease-out forwards;
           }
           .trend-area {

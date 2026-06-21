@@ -383,30 +383,35 @@ export function MemberProfileView() {
   const monthAbsences = Math.max(0, totalEventsMonth - monthEvents);
   const allAbsences = Math.max(0, totalEventsSinceJoined - totalEvents);
   const displayAbsences = eventsRange === "weekly" ? weekAbsences : eventsRange === "monthly" ? monthAbsences : allAbsences;
+  // Disjoint time windows (each item counted in exactly one bucket)
   const loot14d = (() => {
     if (!profile) return 0;
-    const cutoff = Date.now() - 14 * 86400000;
-    return (profile.loot_history || []).filter((l: any) => new Date(l.distributed_at).getTime() >= cutoff).length;
+    const from = Date.now() - 14 * 86400000;
+    return (profile.loot_history || []).filter((l: any) => new Date(l.distributed_at).getTime() >= from).length;
   })();
   const loot3mo = (() => {
     if (!profile) return 0;
-    const cutoff = Date.now() - 90 * 86400000;
-    return (profile.loot_history || []).filter((l: any) => new Date(l.distributed_at).getTime() >= cutoff).length;
+    const from = Date.now() - 90 * 86400000;
+    const to = Date.now() - 14 * 86400000;
+    return (profile.loot_history || []).filter((l: any) => { const t = new Date(l.distributed_at).getTime(); return t >= from && t < to; }).length;
   })();
   const loot6mo = (() => {
     if (!profile) return 0;
-    const cutoff = Date.now() - 180 * 86400000;
-    return (profile.loot_history || []).filter((l: any) => new Date(l.distributed_at).getTime() >= cutoff).length;
+    const from = Date.now() - 180 * 86400000;
+    const to = Date.now() - 90 * 86400000;
+    return (profile.loot_history || []).filter((l: any) => { const t = new Date(l.distributed_at).getTime(); return t >= from && t < to; }).length;
   })();
   const loot1yr = (() => {
     if (!profile) return 0;
-    const cutoff = Date.now() - 365 * 86400000;
-    return (profile.loot_history || []).filter((l: any) => new Date(l.distributed_at).getTime() >= cutoff).length;
+    const from = Date.now() - 365 * 86400000;
+    const to = Date.now() - 180 * 86400000;
+    return (profile.loot_history || []).filter((l: any) => { const t = new Date(l.distributed_at).getTime(); return t >= from && t < to; }).length;
   })();
   const loot2yr = (() => {
     if (!profile) return 0;
-    const cutoff = Date.now() - 730 * 86400000;
-    return (profile.loot_history || []).filter((l: any) => new Date(l.distributed_at).getTime() >= cutoff).length;
+    const from = Date.now() - 730 * 86400000;
+    const to = Date.now() - 365 * 86400000;
+    return (profile.loot_history || []).filter((l: any) => { const t = new Date(l.distributed_at).getTime(); return t >= from && t < to; }).length;
   })();
   const risks: string[] = useMemo(() => {
     if (!profile) return [];
@@ -724,13 +729,31 @@ export function MemberProfileView() {
               {displayAbsences > 0 && <span className="ml-1.5 text-red-400">−{displayAbsences} missed</span>}
             </p>
           </div>
-          <div className="bg-[#09090b] rounded-lg p-3 col-span-2 sm:col-span-1">
+          <div
+            className="bg-[#09090b] rounded-lg p-3 col-span-2 sm:col-span-1 overflow-hidden cursor-pointer hover:bg-[#0f0f12] transition"
+            onClick={() => document.getElementById("loot-history")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+          >
             <p className="text-[10px] text-[#71717a] uppercase tracking-wider">Items Received</p>
-            <p className="text-lg font-bold text-[#fafafa] mt-0.5">{(profile.loot_history || []).length}</p>
-            <p className="text-[10px] text-[#52525b] mt-0.5">
-              14d <span className="text-[#a1a1aa]">{loot14d}</span> · 3mo <span className="text-[#a1a1aa]">{loot3mo}</span> · 6mo <span className="text-[#a1a1aa]">{loot6mo}</span>
-              <span className="hidden sm:inline"> · 1yr <span className="text-[#a1a1aa]">{loot1yr}</span> · 2yr <span className="text-[#a1a1aa]">{loot2yr}</span></span>
-            </p>
+            <p className="text-2xl font-bold text-[#fafafa] mt-0.5">{(profile.loot_history || []).length}</p>
+            <div className="flex items-end gap-1.5 mt-2" style={{ height: 40 }}>
+              {[
+                { label: "2w", count: loot14d },
+                { label: "3mo", count: loot3mo },
+                { label: "6mo", count: loot6mo },
+                { label: "1y", count: loot1yr },
+                { label: "2y", count: loot2yr },
+              ].map(b => {
+                const max = Math.max(loot2yr, 1);
+                const barH = Math.max(3, Math.min(24, Math.round((b.count / max) * 12)));
+                return (
+                  <div key={b.label} className="flex-1 flex flex-col items-center gap-0.5" title={`${b.label}: ${b.count} items`}>
+                    <span className="text-[10px] text-[#a1a1aa] font-medium tabular-nums">{b.count}</span>
+                    <div className="w-full bg-[#a78bfa]/50 rounded-t" style={{ height: barH }} />
+                    <span className="text-[9px] text-[#52525b]">{b.label}</span>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
 
@@ -767,13 +790,15 @@ export function MemberProfileView() {
                     label={!isMobile ? ({ x, y, value, index }: any) => {
                       const entry = cpSparkData[index];
                       const pctColor = entry?.change?.startsWith("+") ? "#22c55e" : entry?.change?.startsWith("-") ? "#ef4444" : "#a1a1aa";
+                      const isLast = index === cpSparkData.length - 1;
+                      const anchor = isLast ? "end" : "middle";
                       return (
                         <g>
-                          <text x={x} y={y - 18} textAnchor="middle" fill={cpTrendColor} fontSize={10} fontWeight={700} fontFamily="monospace">
+                          <text x={x} y={y - 18} textAnchor={anchor} fill={cpTrendColor} fontSize={10} fontWeight={700} fontFamily="monospace">
                             {Number(value).toLocaleString()}
                           </text>
                           {entry?.change && (
-                            <text x={x} y={y - 7} textAnchor="middle" fill={pctColor} fontSize={9} fontWeight={600} fontFamily="monospace">
+                            <text x={x} y={y - 7} textAnchor={anchor} fill={pctColor} fontSize={9} fontWeight={600} fontFamily="monospace">
                               {entry.change}
                             </text>
                           )}
@@ -1005,7 +1030,7 @@ export function MemberProfileView() {
           </div>
         ) : (
           <div className="bg-[#18181b] border border-[#27272a] rounded-xl overflow-hidden">
-            <div className="px-4 py-3 border-b border-[#27272a] flex items-center gap-2">
+            <div id="loot-history" className="px-4 py-3 border-b border-[#27272a] flex items-center gap-2">
               <Package className="w-4 h-4 text-amber-400"/>
               <h2 className="text-xs font-semibold text-[#a1a1aa] uppercase tracking-wider">Loot History</h2>
               <span className="text-[10px] text-[#52525b] ml-auto">{(profile.loot_history || []).length} items</span>

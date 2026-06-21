@@ -793,7 +793,7 @@ export function GearTrackingTab() {
       {/* Guild filter */}
       {orderedGuilds.length > 1 && (
         <div className="flex items-center gap-2 justify-end">
-          <label className="text-[10px] text-[#71717a] uppercase tracking-wider">Filter by Guild:</label>
+          <label className="text-[10px] text-[#71717a] tracking-wider">Filter By Guild:</label>
           <div className="relative">
             <button
               onClick={() => setGuildFilterOpen(!guildFilterOpen)}

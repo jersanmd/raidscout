@@ -3470,8 +3470,9 @@ export function ServerActivityLogTab({ serverId, timezone = "UTC" }: { serverId:
   const [hasMore, setHasMore] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const today = new Date().toISOString().slice(0, 10);
-  const sevenDaysAgo = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10);
+  const tzFmt = new Intl.DateTimeFormat("en-CA", { timeZone: timezone });
+  const today = tzFmt.format(new Date());
+  const sevenDaysAgo = tzFmt.format(new Date(Date.now() - 7 * 86400000));
   const [dateFrom, setDateFrom] = useState(sevenDaysAgo);
   const [dateTo, setDateTo] = useState(today);
   const [filtersExpanded, setFiltersExpanded] = useState(() => {

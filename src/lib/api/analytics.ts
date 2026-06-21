@@ -18,11 +18,14 @@ export interface AnalyticsData {
   total_activities: number;
   activity_participation: number;
   activity_completion_rate: number;
+  attendance_by_guild: { guild: string | null; count: number }[];
+  activities_by_guild: { guild: string | null; count: number }[];
+  active_members_by_guild: { guild: string | null; count: number }[];
 }
 
-export async function fetchAnalytics(since: string, serverId?: string | null, timezone?: string): Promise<AnalyticsData> {
+export async function fetchAnalytics(since: string, serverId?: string | null, timezone?: string, padDates?: boolean): Promise<AnalyticsData> {
   const sid = serverId ?? getCurrentServerId();
-  const empty = { total_kills: 0, total_attendance: 0, active_members: 0, kills_by_week: [], kills_by_date: [], kills_by_date_detail: [], kills_by_guild_series: [], top_bosses: [], top_bosses_by_guild: [], top_hunters: [], kills_by_day: [], kills_by_day_by_guild: [], total_activities: 0, activity_participation: 0, activity_completion_rate: 0 };
+  const empty = { total_kills: 0, total_attendance: 0, active_members: 0, kills_by_week: [], kills_by_date: [], kills_by_date_detail: [], kills_by_guild_series: [], top_bosses: [], top_bosses_by_guild: [], top_hunters: [], kills_by_day: [], kills_by_day_by_guild: [], total_activities: 0, activity_participation: 0, activity_completion_rate: 0, attendance_by_guild: [], activities_by_guild: [], active_members_by_guild: [] };
   if (!sid) return empty;
 
   const tz = timezone || "UTC";
@@ -199,6 +202,74 @@ export async function fetchAnalytics(since: string, serverId?: string | null, ti
   const allActiveMemberIds = new Set([...new Set((att || []).map((a: any) => a.member_id)), ...activityMemberIds]);
   const activeMembers = allActiveMemberIds.size;
 
+  // Per-guild active members: resolve member_id → guild_id via members table
+  const activeMembersByGuild: { guild: string | null; count: number }[] = [];
+  try {
+    const memberIdArr = [...allActiveMemberIds];
+    const memberGuildMap = new Map<string, string | null>();
+    for (let i = 0; i < memberIdArr.length; i += 500) {
+      const batch = memberIdArr.slice(i, i + 500);
+      const { data: mData } = await supabase.from("members").select("id, guild_id").in("id", batch).eq("server_id", sid);
+      (mData || []).forEach((m: any) => memberGuildMap.set(m.id, m.guild_id || null));
+    }
+    const memberByGuild = new Map<string, number>();
+    for (const mid of allActiveMemberIds) {
+      const gid = memberGuildMap.get(mid);
+      const gName = gid ? (guildNameById.get(gid) ?? null) : null;
+      const key = gName ?? "__unguilded__";
+      memberByGuild.set(key, (memberByGuild.get(key) || 0) + 1);
+    }
+    for (const [guild, count] of memberByGuild) {
+      activeMembersByGuild.push({ guild: guild === "__unguilded__" ? null : guild, count });
+    }
+    activeMembersByGuild.sort((a, b) => (a.guild || "zzz").localeCompare(b.guild || "zzz"));
+  } catch { /* non-critical */ }
+
+  // Per-guild attendance: link att → death → owner_guild_id
+  const deathGuildMap = new Map<string, string | null>();
+  for (const d of deaths) deathGuildMap.set(d.id, d.owner_guild_id ? (guildNameById.get(d.owner_guild_id) ?? null) : null);
+  const attByGuild = new Map<string, number>();
+  for (const a of (att || [])) {
+    const gName = deathGuildMap.get(a.death_record_id) ?? null;
+    const key = gName ?? "__unguilded__";
+    attByGuild.set(key, (attByGuild.get(key) || 0) + 1);
+  }
+  const attendanceByGuild = [...attByGuild.entries()]
+    .map(([guild, count]) => ({ guild: guild === "__unguilded__" ? null : guild, count }))
+    .sort((a, b) => b.count - a.count);
+
+  // Per-guild activities
+  const actByGuild = new Map<string, number>();
+  // We already have activity instances; add guild assignments
+  try {
+    if (serverActivities?.length) {
+      const serverActivityIds = serverActivities.map(a => a.id);
+      const { data: activityInstancesForGuild } = await supabase
+        .from("activity_instances")
+        .select("id, activity_guilds(guild_id)")
+        .in("activity_id", serverActivityIds)
+        .not("end_time", "is", null)
+        .gte("end_time", since);
+      if (activityInstancesForGuild) {
+        for (const ai of activityInstancesForGuild) {
+          const guilds: { guild_id: string }[] = ai.activity_guilds || [];
+          if (guilds.length === 0) {
+            actByGuild.set("__unguilded__", (actByGuild.get("__unguilded__") || 0) + 1);
+          } else {
+            for (const g of guilds) {
+              const gName = guildNameById.get(g.guild_id) ?? null;
+              const key = gName ?? "__unguilded__";
+              actByGuild.set(key, (actByGuild.get(key) || 0) + 1);
+            }
+          }
+        }
+      }
+    }
+  } catch { /* non-critical */ }
+  const activitiesByGuild = [...actByGuild.entries()]
+    .map(([guild, count]) => ({ guild: guild === "__unguilded__" ? null : guild, count }))
+    .sort((a, b) => b.count - a.count);
+
   // Kills by week
   const weekMap = new Map<string, number>();
   for (const d of deaths) {
@@ -223,6 +294,23 @@ export async function fetchAnalytics(since: string, serverId?: string | null, ti
     .sort((a, b) => a[0].localeCompare(b[0]))
     .map(([date, count]) => ({ date, count }));
 
+  // Pad with zero-count dates for every day from since → last date with data (so trend lines extend continuously)
+  const paddedDates: { date: string; count: number }[] = [];
+  const allDatesPadded: string[] = [];
+  if (padDates) {
+    const sinceDate = new Date(since);
+    // Find the latest date that has actual data, or fall back to today
+    const lastDataDate = killsByDate.length > 0 ? killsByDate[killsByDate.length - 1].date : toDateKey(new Date().toISOString());
+    const until = new Date(lastDataDate);
+    for (let d = new Date(sinceDate); d <= until; d.setDate(d.getDate() + 1)) {
+      const key = toDateKey(d.toISOString());
+      paddedDates.push({ date: key, count: dateMap.get(key) || 0 });
+    }
+  } else {
+    paddedDates.push(...killsByDate);
+  }
+  allDatesPadded.push(...paddedDates.map(d => d.date));
+
   // Detailed daily breakdown: boss names + kill counts + guild ownership per day
   const detailMap = new Map<string, Map<string, { guild: string | null; count: number; lastDeath: string }>>();
   for (const d of deaths) {
@@ -240,7 +328,7 @@ export async function fetchAnalytics(since: string, serverId?: string | null, ti
       dayMap.set(bossName, { guild: guildName, count: 1, lastDeath: deathTime });
     }
   }
-  const killsByDateDetail = killsByDate.map(({ date, count }) => {
+  const killsByDateDetail = paddedDates.map(({ date, count }) => {
     const bossMap = detailMap.get(date) || new Map();
     const bosses = [...bossMap.entries()]
       .map(([name, info]) => ({ name, guild: info.guild, kills: info.count, last_death: info.lastDeath }))
@@ -258,16 +346,15 @@ export async function fetchAnalytics(since: string, serverId?: string | null, ti
     gdm.set(dateKey, (gdm.get(dateKey) || 0) + 1);
   }
   // Build series with zero-filled data for all dates (so lines align)
-  const allDates = killsByDate.map(d => d.date);
   const killsByGuildSeries = [...guildDateMap.entries()]
     .sort(([a], [b]) => {
-      if (a === "__unguilded__") return 1; // unassigned last
+      if (a === "__unguilded__") return 1;
       if (b === "__unguilded__") return -1;
       return a.localeCompare(b);
     })
     .map(([guild, dateCounts]) => ({
       guild: guild === "__unguilded__" ? null : guild,
-      data: allDates.map(date => ({ date, count: dateCounts.get(date) || 0 })),
+      data: allDatesPadded.map(date => ({ date, count: dateCounts.get(date) || 0 })),
     }));
 
   // Top bosses — total counts from raw deaths
@@ -355,7 +442,7 @@ export async function fetchAnalytics(since: string, serverId?: string | null, ti
   }
   const topHunters = [...hunterCounts.entries()]
     .sort((a, b) => b[1] - a[1])
-    .slice(0, 50)
+    .slice(0, 500)
     .map(([name, attended]) => ({ name, attended }));
 
   // Kills by day of week — attribute each kill to its death record's guild owner
@@ -382,5 +469,5 @@ export async function fetchAnalytics(since: string, serverId?: string | null, ti
     return { day, count: byGuild.reduce((s, g) => s + g.count, 0), by_guild: byGuild };
   });
 
-  return { total_kills: totalKills, total_attendance: totalAttendance, active_members: activeMembers, kills_by_week: killsByWeek, kills_by_date: killsByDate, kills_by_date_detail: killsByDateDetail, kills_by_guild_series: killsByGuildSeries, top_bosses: topBosses, top_bosses_by_guild: topBossesByGuild, top_hunters: topHunters, kills_by_day: killsByDay, kills_by_day_by_guild: killsByDayByGuild, total_activities: totalActivities, activity_participation: activityParticipation, activity_completion_rate: 0 };
+  return { total_kills: totalKills, total_attendance: totalAttendance, active_members: activeMembers, kills_by_week: killsByWeek, kills_by_date: paddedDates, kills_by_date_detail: killsByDateDetail, kills_by_guild_series: killsByGuildSeries, top_bosses: topBosses, top_bosses_by_guild: topBossesByGuild, top_hunters: topHunters, kills_by_day: killsByDay, kills_by_day_by_guild: killsByDayByGuild, total_activities: totalActivities, activity_participation: activityParticipation, activity_completion_rate: 0, attendance_by_guild: attendanceByGuild, activities_by_guild: activitiesByGuild, active_members_by_guild: activeMembersByGuild };
 }
