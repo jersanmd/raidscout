@@ -1166,28 +1166,9 @@ export async function handleMessage(msg: any) {
         await cmdLog(cmd, "fail", "too many matches");
         return reply(`⚠️ Too many members match **"${playerName}"** (${memberRows.length} found). Please be more specific.`);
       } else {
-        // No match — auto-create member with the given name
-        const createRes = await fetch(`${SUPABASE_URL}/rest/v1/members`, {
-          method: "POST",
-          headers: {
-            apikey: SUPABASE_KEY!,
-            Authorization: `Bearer ${SUPABASE_KEY!}`,
-            "Content-Type": "application/json",
-            Prefer: "return=representation",
-          },
-          body: JSON.stringify({
-            name: playerName,
-            server_id: serverId,
-            combat_power: cpValue,
-            discord_user_id: msg.author?.id || null,
-          }),
-        });
-        if (createRes.ok) {
-          const created = await createRes.json() as any[];
-          if (created?.length) { memberId = created[0].id; resolvedName = created[0].name; memberSlug = created[0].public_slug; }
-        } else {
-          console.error("[bot] updatestats auto-create failed:", createRes.status, await createRes.text().catch(() => ""));
-        }
+        // No match — tell user the member doesn't exist
+        await cmdLog(cmd, "fail", "user not found");
+        return reply(`⚠️ **${playerName}** does not exist. Make sure to enter the correct name or contact your guild officers.`);
       }
 
       if (!memberId) {
@@ -1330,7 +1311,7 @@ export async function handleMessage(msg: any) {
         return reply(`⚠️ Too many members match **"${playerName}"** (${memberRows.length} found). Please be more specific.`);
       } else {
         await cmdLog(cmd, "fail", "member not found");
-        return reply(`❌ Member **${playerName}** not found. Use \`!updatestats\` to create a new entry.`);
+        return reply(`❌ Member **${playerName}** not found. Make sure to enter the correct name or contact your guild officers.`);
       }
 
       if (!memberId) {
