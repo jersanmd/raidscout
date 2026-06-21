@@ -9,9 +9,10 @@ import { writeAuditEntry, AuditAction } from "@/lib/api/audit";
 import { useServerId, useHasPermission, useServer } from "@/contexts/ServerContext";
 import { ExpiredGate } from "@/components/ExpiredGate";
 import type { Guild, Member, CpUpdate } from "@/types";
-import { Users, Plus, Pencil, Trash2, Loader2, X, Check, UserPlus, CheckCircle, AlertTriangle, Image, Upload, Copy, Shield, Search, ChevronLeft, ChevronRight, TrendingUp, ChevronUp, ChevronDown, Tag, Sword, Swords, ShieldHalf, ShieldCheck, Crosshair, Wand, Heart, Zap, Flame, Snowflake, Skull, Star, Crown, Anchor, Gavel, Axe, Target, Footprints, HandMetal, Megaphone, Calendar, Clock, Eye, EyeOff, Package, MoreHorizontal } from "lucide-react";
+import { Users, Plus, Pencil, Trash2, Loader2, X, Check, UserPlus, CheckCircle, AlertTriangle, Image, Upload, Copy, Shield, Search, ChevronLeft, ChevronRight, TrendingUp, ChevronUp, ChevronDown, Tag, Sword, Swords, ShieldHalf, ShieldCheck, Crosshair, Wand, Heart, Zap, Flame, Snowflake, Skull, Star, Crown, Anchor, Gavel, Axe, Target, Footprints, HandMetal, Megaphone, Calendar, Clock, Eye, EyeOff, Package, MoreHorizontal, Download } from "lucide-react";
 import { guildColor } from "@/lib/constants";
 import { GearTrackingTab } from "@/components/GearTrackingTab";
+import * as XLSX from "xlsx";
 
 export function MembersView() {
   const { user, isViewer } = useAuth();
@@ -820,6 +821,71 @@ export function MembersView() {
     });
   }, [filteredMembers]);
 
+  // Export state (after guildGroups so it can close over it)
+  const [showExportPopover, setShowExportPopover] = useState(false);
+  const [exportSelectedGuilds, setExportSelectedGuilds] = useState<Set<string>>(new Set()); // empty = all
+  const exportBtnRef = useRef<HTMLButtonElement>(null);
+
+  // Excel export helper
+  const handleExportMembers = useCallback(() => {
+    const includeAll = exportSelectedGuilds.size === 0;
+    const groups = includeAll
+      ? guildGroups
+      : guildGroups.filter(g => g.guild && exportSelectedGuilds.has(g.guild.id));
+    if (groups.length === 0) return;
+
+    const headers = ["Name", "Class", "Guild", "Current CP", "Weekly Attendance (%)", "30d Growth (%)"];
+    const rows: (string | number)[][] = [];
+    for (const group of groups) {
+      for (const m of group.members) {
+        const stats = mergedStats[m.id];
+        const cp = m.combat_power ?? 0;
+        const guildTotal = m.guild_id ? (guildWeeklyTotals[m.guild_id] ?? 0) : 0;
+        const weeklyPct = guildTotal > 0 && stats?.weekly ? parseFloat(((stats.weekly / guildTotal) * 100).toFixed(1)) : 0;
+        const growthPct = cp > 0 && stats?.growth ? parseFloat(((stats.growth / cp) * 100).toFixed(1)) : 0;
+        rows.push([m.name, m.class || "—", group.guild?.name || "—", cp, weeklyPct, growthPct]);
+      }
+    }
+
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+
+    // Column widths
+    ws["!cols"] = [
+      { wch: 22 }, // Name
+      { wch: 14 }, // Class
+      { wch: 16 }, // Guild
+      { wch: 13 }, // Current CP
+      { wch: 18 }, // Weekly Attendance
+      { wch: 16 }, // 30d Growth
+    ];
+
+    // Style header row
+    const headerStyle = {
+      font: { bold: true, color: { rgb: "FFFFFF" }, sz: 11 },
+      fill: { fgColor: { rgb: "27272A" } },
+      alignment: { horizontal: "center" as const, vertical: "center" as const },
+    };
+    for (let c = 0; c < headers.length; c++) {
+      const cellRef = XLSX.utils.encode_cell({ r: 0, c });
+      if (!ws[cellRef]) ws[cellRef] = { t: "s", v: headers[c] };
+      ws[cellRef].s = headerStyle;
+    }
+
+    // Style data rows
+    const dataStyle = { alignment: { vertical: "center" as const }, font: { sz: 10 } };
+    for (let r = 1; r <= rows.length; r++) {
+      for (let c = 0; c < headers.length; c++) {
+        const cellRef = XLSX.utils.encode_cell({ r, c });
+        if (ws[cellRef]) ws[cellRef].s = dataStyle;
+      }
+    }
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Members");
+    XLSX.writeFile(wb, `members_export_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    setShowExportPopover(false);
+  }, [exportSelectedGuilds, guildGroups, mergedStats, guildWeeklyTotals]);
+
   // Active groups based on sort mode
   const activeGroups = sortMode === "class" ? classGroups : guildGroups;
 
@@ -1389,6 +1455,57 @@ export function MembersView() {
               Demand<span className="hidden sm:inline"> Combat Power</span> Update<span className="hidden sm:inline"> Now</span>
             </button>
           )}
+          {/* Export button */}
+          <div className="relative">
+            <button
+              ref={exportBtnRef}
+              onClick={() => setShowExportPopover(p => !p)}
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium text-[#71717a] hover:text-[#d4d4d8] bg-[#18181b] border border-[#27272a] hover:border-[#3f3f46] transition"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Export</span>
+            </button>
+            {showExportPopover && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setShowExportPopover(false)} />
+                <div className="absolute right-0 top-full mt-1 z-50 w-56 bg-[#18181b] border border-[#27272a] rounded-xl shadow-2xl p-3 space-y-2">
+                  <span className="text-[10px] font-semibold text-[#71717a] uppercase tracking-wider">Export Guilds</span>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={exportSelectedGuilds.size === 0}
+                      onChange={() => setExportSelectedGuilds(new Set())}
+                      className="rounded"
+                    />
+                    <span className="text-xs text-[#d4d4d8]">All Guilds</span>
+                  </label>
+                  {guilds.map(g => (
+                    <label key={g.id} className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={exportSelectedGuilds.has(g.id)}
+                        onChange={() => {
+                          setExportSelectedGuilds(prev => {
+                            const next = new Set(prev);
+                            if (next.has(g.id)) next.delete(g.id); else next.add(g.id);
+                            return next;
+                          });
+                        }}
+                        className="rounded"
+                      />
+                      <span className="text-xs text-[#d4d4d8]">{g.name}</span>
+                    </label>
+                  ))}
+                  <button
+                    onClick={handleExportMembers}
+                    className="w-full px-3 py-1.5 rounded-lg bg-[#27272a] text-xs font-medium text-[#fafafa] hover:bg-[#3f3f46] transition"
+                  >
+                    Export Excel
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
         </div>
 
         {(() => {
@@ -2091,6 +2208,57 @@ export function MembersView() {
               <Tag className="w-3 h-3 inline mr-1" />
               By Class
             </button>
+          </div>
+          {/* Export button */}
+          <div className="relative">
+            <button
+              ref={exportBtnRef}
+              onClick={() => setShowExportPopover(p => !p)}
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium text-[#71717a] hover:text-[#d4d4d8] bg-[#18181b] border border-[#27272a] hover:border-[#3f3f46] transition"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Export</span>
+            </button>
+            {showExportPopover && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setShowExportPopover(false)} />
+                <div className="absolute right-0 top-full mt-1 z-50 w-56 bg-[#18181b] border border-[#27272a] rounded-xl shadow-2xl p-3 space-y-2">
+                  <span className="text-[10px] font-semibold text-[#71717a] uppercase tracking-wider">Export Guilds</span>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={exportSelectedGuilds.size === 0}
+                      onChange={() => setExportSelectedGuilds(new Set())}
+                      className="rounded"
+                    />
+                    <span className="text-xs text-[#d4d4d8]">All Guilds</span>
+                  </label>
+                  {guilds.map(g => (
+                    <label key={g.id} className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={exportSelectedGuilds.has(g.id)}
+                        onChange={() => {
+                          setExportSelectedGuilds(prev => {
+                            const next = new Set(prev);
+                            if (next.has(g.id)) next.delete(g.id); else next.add(g.id);
+                            return next;
+                          });
+                        }}
+                        className="rounded"
+                      />
+                      <span className="text-xs text-[#d4d4d8]">{g.name}</span>
+                    </label>
+                  ))}
+                  <button
+                    onClick={handleExportMembers}
+                    className="w-full px-3 py-1.5 rounded-lg bg-[#27272a] text-xs font-medium text-[#fafafa] hover:bg-[#3f3f46] transition"
+                  >
+                    Export Excel
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
