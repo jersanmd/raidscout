@@ -636,7 +636,7 @@ export function HistoryView() {
           ) : (
             (() => {
               const q = searchText.toLowerCase().trim();
-              const filterBosses = (bosses: typeof ledgerData.fixedHours) =>
+              const filterBosses = <T extends { name: string }>(bosses: T[]) =>
                 q ? bosses.filter(b => b.name.toLowerCase().includes(q)) : bosses;
               return ledgerSubtab === "fixed_hours"
                 ? <LedgerTable bosses={filterBosses(ledgerData.fixedHours)} dates={ledgerData.dates} cells={ledgerData.cells} guilds={guilds} />
