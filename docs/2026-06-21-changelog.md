@@ -1,4 +1,4 @@
-# June 21, 2026 — Changelog (v0.15.5)
+# June 21–22, 2026 — Changelog (v0.15.5)
 
 ## 🐛 Bug Fixes
 
@@ -7,6 +7,7 @@
 - **Party leaders silently dropped on kill** — Party leaders selected in `DeathRecordModal` during the "Mark Died" flow were silently dropped by all callers. Now properly threaded: `DeathRecordModal` → `BossCard` → `BossListView`/`WeeklyScheduleView` → `useRecordDeath`. `useRecordDeath` saves `party_leaders` to the death record and writes a proper `party_leaders_set` audit entry with resolved member names.
 - **Party leader audit missing from Activity Log** — `party_leaders_set` was defined in `AuditAction` but never added to `AUDIT_ACTION_GROUPS`. Server Activity Log filters by action groups, so these entries were excluded. Added to "Death Records" group.
 - **Activity attendance audit** — `ParticipantModal` now writes `ATTENDANCE_ADD` / `ATTENDANCE_REMOVE` audit entries when toggling attendance on activity instances (previously wrote nothing). Activity end recording now includes attendee names in the `ACTIVITY_END_RECORD` audit.
+- **PayPal card decline errors** — Card decline and payment errors from PayPal's hosted card fields now display an inline red error banner below the payment form instead of being silently logged to console. `onApprove` checks capture status for `DECLINED` responses.
 
 ## 📋 Audit Log
 
@@ -45,3 +46,4 @@
 - **Version timestamp timezone** — `APP_VERSION` (e.g., `2026.06.21.0730`) is built in UTC. Now converted to the viewer's timezone before display. `2026.06.21.0730` UTC shows as `2026.06.21.1530` in Asia/Manila (+8). New `formatVersionInTimezone()` helper in `useUserTimezone`. Applied to Layout footer, LandingPage footer, and ChangelogView header.
 - **Scrolling fix** — Root container uses `h-dvh` (dynamic viewport height) instead of `h-screen` (100vh). On iOS Safari, `100vh` includes the hidden address bar area, making the container taller than the visible screen and causing scroll boundaries to "stick" at the bottom. `100dvh` correctly matches the visible viewport.
 - **Bot status chart loading** — Trend chart area now shows a centered `Loader2` spinner with "Fetching chart data…" while `/tick-metrics` fetches, instead of briefly flashing "No tick data yet."
+- **Members Excel export** — New Export button in Members → Progress tab (beside "Demand CP Update"). Downloads a styled Excel file with 8 columns: Name, Class, Guild, Current CP (color-coded + comma-formatted), Weekly Att (attended/total), Att %, Absences, 30d Growth %. Popover with guild checkboxes lets you export all guilds or selected guilds. Color coding for CP tiers, attendance rates, growth direction, and absence counts. Empty guilds show "—". Weekly Att uses Excel formula syntax to prevent date auto-conversion (e.g., `="12/97"`). Uses refs to avoid stale closure on weekly attendance data.

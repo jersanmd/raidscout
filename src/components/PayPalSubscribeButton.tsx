@@ -33,6 +33,7 @@ export function PayPalSubscribeButton({
   const [sdkReady, setSdkReady] = useState(false);
   const [sdkError, setSdkError] = useState<string | null>(null);
   const [processing, setProcessing] = useState(false);
+  const [cardError, setCardError] = useState<string | null>(null);
 
   useEffect(() => {
     if (document.getElementById(SCRIPT_ID)) {
@@ -86,8 +87,16 @@ export function PayPalSubscribeButton({
 
     const onApprove = async (data: any, actions: any) => {
       setProcessing(true);
+      setCardError(null);
       try {
-        await actions.order.capture();
+        const capture = await actions.order.capture();
+        // Check for payer-action errors from card declines
+        if (capture?.status === "DECLINED" || capture?.purchase_units?.[0]?.payments?.captures?.[0]?.status === "DECLINED") {
+          const declineReason = capture?.purchase_units?.[0]?.payments?.captures?.[0]?.status_details?.reason || "Card was declined.";
+          setCardError(declineReason);
+          setProcessing(false);
+          return;
+        }
         const { error } = await supabase.functions.invoke("paypal-ipn", {
           body: { server_id: serverId, order_id: data.orderID },
         });
@@ -99,6 +108,7 @@ export function PayPalSubscribeButton({
         onSuccess?.();
       } catch (err: any) {
         console.error("Failed to activate subscription:", err);
+        setCardError(err?.message || "Payment failed. Please try again.");
         onError?.(err instanceof Error ? err : new Error("Failed to activate access. Your payment was processed — please contact support."));
       } finally {
         setProcessing(false);
@@ -107,7 +117,9 @@ export function PayPalSubscribeButton({
 
     const onErr = (err: any) => {
       console.error("PayPal button error:", err);
-      onError?.(err instanceof Error ? err : new Error(String(err)));
+      const msg = typeof err === "string" ? err : err?.message || String(err);
+      setCardError(msg);
+      onError?.(err instanceof Error ? err : new Error(msg));
     };
 
     containerRef.current.style.minWidth = "400px";
@@ -129,7 +141,7 @@ export function PayPalSubscribeButton({
       createOrder,
       onApprove,
       onError: onErr,
-      onCancel: () => {},
+      onCancel: () => { setCardError(null); },
     }).render(ppWrapper).then((instance: any) => {
       paypalButtonRef.current = instance;
     });
@@ -155,7 +167,7 @@ export function PayPalSubscribeButton({
       createOrder,
       onApprove,
       onError: onErr,
-      onCancel: () => {},
+      onCancel: () => { setCardError(null); },
     }).render(cardWrapper).then((instance: any) => {
       cardButtonRef.current = instance;
     });
@@ -225,6 +237,12 @@ export function PayPalSubscribeButton({
       )}
       <div className={`relative ${className}`} style={{ minWidth: "400px", maxWidth: "500px", width: "100%" }}>
         <div ref={containerRef} />
+        {cardError && (
+          <div className="mt-3 p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-xs text-red-400 flex items-start gap-2">
+            <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+            <span>{cardError}</span>
+          </div>
+        )}
       </div>
     </>
   );
