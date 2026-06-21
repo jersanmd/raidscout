@@ -9,7 +9,7 @@ import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { useQueryClient } from "@tanstack/react-query";
 import { ParticipantModal } from "@/components/ParticipantModal";
 import { BossImage } from "@/components/BossImage";
-import { Clock, Trash2, Skull, Repeat, Timer, Users, Loader2, Pencil, X, Search, BookOpen } from "lucide-react";
+import { Clock, Trash2, Skull, Repeat, Timer, Users, Loader2, Pencil, X, Search, BookOpen, Calendar } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { guildColor } from "@/lib/constants";
 import type { Guild } from "@/types";
@@ -83,7 +83,7 @@ export function HistoryView() {
     if (!last) return;
     setLoadingMore(true);
     try {
-      const result = await fetchHistoryFromSupabase(serverId, since, undefined, last.death_time, 50);
+      const result = await fetchHistoryFromSupabase(serverId, since, undefined, last.deathTime, 50);
       setHistory(prev => [...prev, ...result]);
       setHasMore(result.length >= 50);
     } catch {
@@ -365,7 +365,7 @@ export function HistoryView() {
 
   // ── Ledger sub-component ──
   const LedgerTable = ({ bosses, dates, cells, guilds: gs }: {
-    bosses: { id: string; name: string; imageUrl?: string }[];
+    bosses: { id: string; name: string; respawnHours?: number; primaryDay?: number; imageUrl?: string }[];
     dates: { key: string; monthDay: string; weekday: string }[];
     cells: Record<string, Record<string, { guild: string | null; time: string }[]>>;
     guilds: Guild[];
