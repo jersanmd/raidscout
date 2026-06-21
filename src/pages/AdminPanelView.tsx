@@ -5,11 +5,32 @@ import { fetchAllServers, fetchAllUsers, fetchAuditLog, fetchServerStats, fetchD
 import { useServer } from "@/contexts/ServerContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
-import { Loader2, Shield, Server, Users, Eye, ChevronDown, ChevronUp, ClipboardList, HardDrive, BarChart3, Crosshair, Skull, Activity, Radio, Clock, Trash2, RefreshCw, LogOut, Gamepad2, Globe, Search, AlertTriangle, Crown, ScrollText, CheckCircle, XCircle, UserPlus, DollarSign } from "lucide-react";
+import { Loader2, Shield, Server, Users, Eye, ChevronDown, ChevronUp, ClipboardList, HardDrive, BarChart3, Crosshair, Skull, Activity, Radio, Clock, Trash2, RefreshCw, LogOut, Gamepad2, Globe, Search, AlertTriangle, Crown, ScrollText, CheckCircle, XCircle, UserPlus, DollarSign, Check, Minus, X } from "lucide-react";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { AdminGamesTab } from "@/components/AdminGamesTab";
 import { useUserTimezone } from "@/hooks/useUserTimezone";
 import { TIMEZONES } from "@/lib/timezones";
+
+function SentinelAdminAudit({ onVisible, loading }: { onVisible: () => void; loading: boolean }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const cbRef = useRef(onVisible);
+  cbRef.current = onVisible;
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting && !loading) cbRef.current(); },
+      { rootMargin: "200px" },
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [loading]);
+  return (
+    <div ref={ref} className="flex justify-center py-3">
+      {loading && <Loader2 className="w-4 h-4 text-[#a1a1aa] animate-spin" />}
+    </div>
+  );
+}
 
 export function AdminPanelView() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -33,6 +54,7 @@ export function AdminPanelView() {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [expandedUser, setExpandedUser] = useState<string | null>(null);
   const [userServers, setUserServers] = useState<Record<string, { server_id: string; server_name: string; role: string }[]>>({});
+  const [liveUptime, setLiveUptime] = useState("");
   const [loadingServers, setLoadingServers] = useState(false);
   const [expandedServer, setExpandedServer] = useState<string | null>(null);
   const [forceSpawning, setForceSpawning] = useState<string | null>(null);
@@ -45,10 +67,56 @@ export function AdminPanelView() {
   const [forceSpawnInput, setForceSpawnInput] = useState("");
   const [serverStats, setServerStats] = useState<Record<string, any>>({});
   const [auditServerFilter, setAuditServerFilter] = useState<string>("all");
-  const [auditTimeRange, setAuditTimeRange] = useState<string>("1d");
-  const [auditCustomSince, setAuditCustomSince] = useState("");
-  const [auditCustomUntil, setAuditCustomUntil] = useState("");
-  const [auditActionFilter, setAuditActionFilter] = useState<string>("all");
+  const [auditSearchQuery, setAuditSearchQuery] = useState("");
+  
+  // Audit action filters (same pattern as activity log in ServerSettingsView)
+  const allAuditActions = useMemo(() =>
+    AUDIT_ACTION_GROUPS.flatMap(g => g.actions),
+  []);
+  const [auditActionFilters, setAuditActionFilters] = useState<Set<string>>(() => {
+    try {
+      const saved = localStorage.getItem("rs_admin_audit_filters");
+      if (saved) {
+        const arr = JSON.parse(saved) as string[];
+        return new Set(arr.filter(a => allAuditActions.includes(a)));
+      }
+    } catch {}
+    return new Set(allAuditActions);
+  });
+  const [auditFilterMode, setAuditFilterMode] = useState<"simple" | "advanced">(() => {
+    return (localStorage.getItem("rs_admin_audit_filter_mode") as "simple" | "advanced") || "simple";
+  });
+  const [auditFiltersExpanded, setAuditFiltersExpanded] = useState(() => {
+    return localStorage.getItem("rs_admin_audit_filters_expanded") !== "false";
+  });
+  const [auditFilterVersion, setAuditFilterVersion] = useState(0);
+
+  const saveAuditFilters = (filters: Set<string>) => {
+    try { localStorage.setItem("rs_admin_audit_filters", JSON.stringify([...filters])); } catch {}
+    setAuditActionFilters(() => new Set(filters));
+    setAuditFilterVersion(v => v + 1);
+  };
+
+  const toggleAuditAction = (action: string) => {
+    setAuditActionFilters(prev => {
+      const next = new Set(prev);
+      if (next.has(action)) next.delete(action); else next.add(action);
+      try { localStorage.setItem("rs_admin_audit_filters", JSON.stringify([...next])); } catch {}
+      return next;
+    });
+    setAuditFilterVersion(v => v + 1);
+  };
+
+  const clearAuditFilters = () => {
+    try { localStorage.setItem("rs_admin_audit_filters", "[]"); } catch {}
+    setAuditActionFilters(new Set());
+    setAuditFilterVersion(v => v + 1);
+  };
+
+  const checkAllAudit = () => {
+    saveAuditFilters(new Set(allAuditActions));
+  };
+
   const [auditCursor, setAuditCursor] = useState<number | null>(null);
   const [auditLogAccum, setAuditLogAccum] = useState<any[]>([]);
   const [auditHasMore, setAuditHasMore] = useState(false);
@@ -174,6 +242,16 @@ export function AdminPanelView() {
   });
 
   const isLocalOrStaging = import.meta.env.DEV || (typeof window !== "undefined" && (window.location.hostname.includes("staging") || window.location.hostname.endsWith(".vercel.app")));
+  const FLY_REGIONS: Record<string, string> = {
+    ams: "🇳🇱 Netherlands", arn: "🇸🇪 Sweden", atl: "🇺🇸 Atlanta", bog: "🇨🇴 Colombia",
+    bos: "🇺🇸 Boston", cdg: "🇫🇷 France", den: "🇺🇸 Denver", dfw: "🇺🇸 Dallas",
+    ewr: "🇺🇸 New Jersey", fra: "🇩🇪 Germany", gru: "🇧🇷 Brazil", hkg: "🇭🇰 Hong Kong",
+    iad: "🇺🇸 Virginia", jnb: "🇿🇦 South Africa", lax: "🇺🇸 Los Angeles",
+    lhr: "🇬🇧 London", maa: "🇮🇳 Chennai", mad: "🇪🇸 Madrid", mia: "🇺🇸 Miami",
+    nrt: "🇯🇵 Tokyo", ord: "🇺🇸 Chicago", otp: "🇷🇴 Romania", sea: "🇺🇸 Seattle",
+    sin: "🇸🇬 Singapore", syd: "🇦🇺 Sydney", waw: "🇵🇱 Poland", yul: "🇨🇦 Montreal",
+    yyz: "🇨🇦 Toronto",
+  };
   const BOT_URL = isLocalOrStaging ? "https://raidscout-staging.fly.dev" : "https://raidscout-bot.fly.dev";
   const { data: botStatus, isLoading: botLoading, refetch: refetchBot } = useQuery({
     queryKey: ["admin", "bot"],
@@ -186,6 +264,33 @@ export function AdminPanelView() {
     refetchInterval: 15_000,
     enabled: userRole === "admin" && tab === "infra",
   });
+
+  // Live uptime counter
+  const uptimeBaseRef = useRef(0);
+  const uptimeFetchedRef = useRef(0);
+  useEffect(() => {
+    if (!botStatus?.uptime_display) return;
+    const h = parseInt(((botStatus.uptime_display as string).match(/(\d+)h/) || [])[1] || "0");
+    const m = parseInt(((botStatus.uptime_display as string).match(/(\d+)m/) || [])[1] || "0");
+    const s = parseInt(((botStatus.uptime_display as string).match(/(\d+)s/) || [])[1] || "0");
+    uptimeBaseRef.current = h * 3600 + m * 60 + s;
+    uptimeFetchedRef.current = Date.now();
+  }, [botStatus?.uptime_display]);
+
+  useEffect(() => {
+    if (tab !== "infra") return;
+    const tick = () => {
+      const elapsed = Math.floor((Date.now() - uptimeFetchedRef.current) / 1000);
+      const total = uptimeBaseRef.current + elapsed;
+      const h = Math.floor(total / 3600);
+      const m = Math.floor((total % 3600) / 60);
+      const s = total % 60;
+      setLiveUptime(`${h}h ${m}m ${s}s`);
+    };
+    tick();
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+  }, [tab, botStatus?.uptime_display]);
 
   const { data: botLogs, isLoading: logsLoading, refetch: refetchLogs } = useQuery({
     queryKey: ["admin", "bot", "logs"],
@@ -217,33 +322,10 @@ export function AdminPanelView() {
   });
 
   const { data: auditLogRaw = [], isLoading: auditLoading } = useQuery({
-    queryKey: ["admin", "audit", auditServerFilter, auditTimeRange, auditCustomSince, auditCustomUntil, auditActionFilter],
+    queryKey: ["admin", "audit", auditServerFilter, String(auditFilterVersion)],
     queryFn: async () => {
-      let since: string | null = null;
-      let until: string | null = null;
-      
-      if (auditTimeRange === "custom") {
-        since = auditCustomSince ? new Date(auditCustomSince).toISOString() : null;
-        until = auditCustomUntil ? new Date(auditCustomUntil).toISOString() : null;
-      } else if (auditTimeRange !== "all") {
-        const days: Record<string, number> = { "1d": 1, "3d": 3, "5d": 5, "7d": 7, "1month": 30 };
-        const d = days[auditTimeRange] || 7;
-        since = new Date(Date.now() - d * 86400_000).toISOString();
-      }
-      
       const serverId = auditServerFilter !== "all" ? auditServerFilter : null;
-      const actionFilter = auditActionFilter !== "all" ? auditActionFilter : null;
-      const result = await fetchAuditLog(200, serverId, null, actionFilter);
-      
-      // Client-side time filter (RPC doesn't support time range natively)
-      if (since || until) {
-        const sinceMs = since ? new Date(since).getTime() : 0;
-        const untilMs = until ? new Date(until).getTime() : Infinity;
-        return result.filter((e: any) => {
-          const ts = new Date(e.created_at).getTime();
-          return ts >= sinceMs && ts <= untilMs;
-        });
-      }
+      const result = await fetchAuditLog(50, serverId, null, null);
       return result;
     },
     staleTime: 15_000,
@@ -255,33 +337,50 @@ export function AdminPanelView() {
     setAuditCursor(null);
     setAuditLogAccum([]);
     setAuditHasMore(false);
-  }, [auditServerFilter, auditTimeRange, auditCustomSince, auditCustomUntil, auditActionFilter]);
+  }, [auditServerFilter, auditFilterVersion]);
 
-  // Accumulate: use raw data on new fetch, reset if filters changed
+  // Client-side filter audit log by selected actions + search
   const auditLog = useMemo(() => {
-    if (auditLogRaw.length === 0) return auditLogAccum;
-    if (auditCursor) return auditLogAccum;
-    return auditLogRaw;
-  }, [auditLogRaw, auditLogAccum, auditCursor]);
+    const source = auditCursor ? auditLogAccum : auditLogRaw;
+    let filtered = auditActionFilters.size === 0 || auditActionFilters.size === allAuditActions.length
+      ? source
+      : source.filter((e: any) => auditActionFilters.has(e.action));
+    if (auditSearchQuery) {
+      const q = auditSearchQuery.toLowerCase();
+      filtered = filtered.filter((e: any) => {
+        const fl = (action: string): string => action?.replace(/_/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase()) ?? action ?? "";
+        if (fl(e.action).toLowerCase().includes(q)) return true;
+        const actor = e.actor_email || e.details?.discord_user || "";
+        if (actor.toLowerCase().includes(q)) return true;
+        if (e.details?.server_name && String(e.details.server_name).toLowerCase().includes(q)) return true;
+        const d = e.details || {};
+        for (const v of Object.values(d)) {
+          if (v != null && String(v).toLowerCase().includes(q)) return true;
+        }
+        return false;
+      });
+    }
+    return filtered;
+  }, [auditLogRaw, auditLogAccum, auditCursor, auditActionFilters, allAuditActions, auditSearchQuery]);
 
   // Set hasMore when raw data arrives (no cursor = fresh fetch)
   useEffect(() => {
     if (auditLogRaw.length > 0 && !auditCursor) {
-      setAuditHasMore(auditLogRaw.length >= 200);
+      setAuditHasMore(auditLogRaw.length >= 50);
     }
   }, [auditLogRaw, auditCursor]);
 
   const handleLoadMoreAudit = async () => {
-    if (auditLoadingMore || auditLog.length === 0) return;
-    const lastEntry = auditLog[auditLog.length - 1];
+    if (auditLoadingMore || !auditHasMore) return;
+    const source = auditCursor ? auditLogAccum : auditLogRaw;
+    const lastEntry = source[source.length - 1];
     if (!lastEntry?.id) return;
     const newCursor = lastEntry.id;
     setAuditLoadingMore(true);
     try {
       const serverId = auditServerFilter !== "all" ? auditServerFilter : null;
-      const actionFilter = auditActionFilter !== "all" ? auditActionFilter : null;
-      const more = await fetchAuditLog(200, serverId, newCursor, actionFilter);
-      setAuditHasMore(more.length >= 200);
+      const more = await fetchAuditLog(50, serverId, newCursor, null);
+      setAuditHasMore(more.length >= 50);
       setAuditCursor(newCursor);
       setAuditLogAccum(prev => [...prev, ...more]);
     } catch { /* ignore */ }
@@ -1009,6 +1108,20 @@ export function AdminPanelView() {
         <div className="space-y-3">
           {/* Toolbar */}
           <div className="flex flex-wrap items-center gap-2">
+            {/* Search */}
+            <div className="flex items-center gap-1.5 bg-[#0d0d11] border border-[#1e1e2a] rounded-lg px-2.5 py-1.5 flex-1 min-w-[180px]">
+              <Search className="w-3.5 h-3.5 text-[#52525b] shrink-0" />
+              <input
+                type="text"
+                placeholder="Search events..."
+                value={auditSearchQuery}
+                onChange={e => setAuditSearchQuery(e.target.value)}
+                className="bg-transparent text-xs text-[#fafafa] outline-none flex-1 placeholder:text-[#52525b]"
+              />
+              {auditSearchQuery && (
+                <button onClick={() => setAuditSearchQuery("")} className="text-[#52525b] hover:text-[#fafafa]"><X className="w-3 h-3" /></button>
+              )}
+            </div>
             {servers.length > 0 && (
               <div className="flex items-center gap-1.5">
                 <span className="text-xs text-[#71717a]">Server</span>
@@ -1019,47 +1132,79 @@ export function AdminPanelView() {
                 </select>
               </div>
             )}
-            {/* Action filter */}
-            <div className="flex items-center gap-1.5">
-              <span className="text-xs text-[#71717a]">Action</span>
-              <select value={auditActionFilter} onChange={(e) => setAuditActionFilter(e.target.value)}
-                className="bg-[#0d0d11] border border-[#1e1e2a] rounded-lg px-2.5 py-1.5 text-xs text-[#fafafa] outline-none focus:border-[#52525b]">
-                <option value="all">All Actions</option>
-                {AUDIT_ACTION_GROUPS.map(g => (
-                  <optgroup key={g.label} label={g.label}>
-                    {g.actions.map(a => (
-                      <option key={a} value={a}>{formatActionLabel(a)}</option>
-                    ))}
-                  </optgroup>
-                ))}
-              </select>
+            <span className="text-xs text-[#52525b] shrink-0">{auditLog.length} event{auditLog.length !== 1 ? "s" : ""}</span>
+          </div>
+
+          {/* Action filter — collapsible checkboxes (same pattern as activity log) */}
+          <div className="text-[10px]">
+            <div className="flex items-center justify-between gap-2 mb-1">
+              <div className="flex items-center gap-2">
+                {auditFiltersExpanded && (
+                  <label className="flex items-center gap-2 px-2 py-1 rounded border border-[#1e1e2a] cursor-pointer hover:border-[#3f3f46] transition">
+                    <span className="text-[11px] text-[#a1a1aa]">Simple</span>
+                    <div className="relative">
+                      <input type="checkbox" checked={auditFilterMode === "advanced"} onChange={() => { const next = auditFilterMode === "simple" ? "advanced" : "simple"; setAuditFilterMode(next); localStorage.setItem("rs_admin_audit_filter_mode", next); }} className="sr-only peer" />
+                      <div className="w-7 h-3.5 bg-[#27272a] rounded-full peer-checked:bg-violet-500/50 transition after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:w-2.5 after:h-2.5 after:bg-[#a1a1aa] after:rounded-full after:transition peer-checked:after:translate-x-3.5 peer-checked:after:bg-violet-300" />
+                    </div>
+                    <span className="text-[11px] text-[#a1a1aa]">Advanced</span>
+                  </label>
+                )}
+                {auditActionFilters.size < allAuditActions.length ? (
+                  <button onClick={checkAllAudit} className="px-2 py-1 rounded border border-violet-500/30 text-[11px] text-violet-400 hover:text-violet-300 hover:bg-violet-500/10 transition">
+                    Check All ({allAuditActions.length - auditActionFilters.size})
+                  </button>
+                ) : (
+                  <button onClick={clearAuditFilters} className="px-2 py-1 rounded border border-[#3f3f46] text-[11px] text-[#71717a] hover:text-[#fafafa] hover:border-[#52525b] transition">
+                    Clear Filters
+                  </button>
+                )}
+              </div>
+              <button onClick={() => setAuditFiltersExpanded(prev => { const next = !prev; localStorage.setItem("rs_admin_audit_filters_expanded", String(next)); return next; })}
+                className="flex items-center gap-1.5 px-2 py-1 rounded border border-[#1e1e2a] text-[#a1a1aa] hover:text-[#fafafa] hover:border-[#3f3f46] transition">
+                <Eye className="w-3 h-3" />
+                <span className="text-xs font-medium">{auditFiltersExpanded ? "Hide Filters" : "Show Filters"}</span>
+                <ChevronDown className={`w-3 h-3 transition ${auditFiltersExpanded ? "rotate-180" : ""}`} />
+              </button>
             </div>
-            <div className="flex items-center gap-0.5 ml-auto sm:ml-0">
-              <span className="text-xs text-[#71717a] mr-1">Time</span>
-              {["1d","3d","5d","7d","1month","all"].map(range => (
-                <button key={range} onClick={() => setAuditTimeRange(range)}
-                  className={`px-2 py-1 rounded-md text-xs font-medium transition ${
-                    auditTimeRange === range && auditTimeRange !== "custom"
-                      ? "bg-[#27272a] text-[#fafafa]" : "text-[#a1a1aa] hover:text-[#fafafa] hover:bg-[#0d0d11]"
-                  }`}>
-                  {range === "1month" ? "1M" : range === "all" ? "All" : range}
-                </button>
-              ))}
-              <button onClick={() => setAuditTimeRange("custom")}
-                className={`px-2 py-1 rounded-md text-xs font-medium transition ${
-                  auditTimeRange === "custom" ? "bg-[#27272a] text-[#fafafa]" : "text-[#a1a1aa] hover:text-[#fafafa] hover:bg-[#0d0d11]"
-                }`}>Custom</button>
-              {auditTimeRange === "custom" && (
-                <div className="flex items-center gap-1 ml-1">
-                  <input type="date" value={auditCustomSince} onChange={(e) => setAuditCustomSince(e.target.value)}
-                    className="bg-[#0d0d11] border border-[#1e1e2a] rounded px-2 py-1 text-xs text-[#fafafa] outline-none focus:border-[#52525b]" />
-                  <span className="text-xs text-[#52525b]">—</span>
-                  <input type="date" value={auditCustomUntil} onChange={(e) => setAuditCustomUntil(e.target.value)}
-                    className="bg-[#0d0d11] border border-[#1e1e2a] rounded px-2 py-1 text-xs text-[#fafafa] outline-none focus:border-[#52525b]" />
-                </div>
-              )}
-            </div>
-            <span className="text-xs text-[#52525b]">{auditLog.length} event{auditLog.length !== 1 ? "s" : ""}</span>
+            {auditFiltersExpanded && (
+              <div className="flex flex-wrap items-start gap-x-4 gap-y-1">
+                {AUDIT_ACTION_GROUPS.map(g => {
+                  const allChecked = g.actions.every(a => auditActionFilters.has(a));
+                  const someChecked = g.actions.some(a => auditActionFilters.has(a));
+                  return (
+                  <div key={g.label} className="flex items-center gap-1.5 flex-wrap">
+                    {auditFilterMode === "simple" ? (
+                      <button onClick={() => {
+                        const next = new Set(auditActionFilters);
+                        if (allChecked) { g.actions.forEach(a => next.delete(a)); }
+                        else { g.actions.forEach(a => next.add(a)); }
+                        saveAuditFilters(next);
+                      }}
+                        className={`flex items-center gap-1 px-1.5 py-0.5 rounded border transition font-medium ${allChecked ? "border-violet-500/50 text-violet-300 bg-violet-500/10" : someChecked ? "border-violet-500/30 text-violet-400/70 bg-violet-500/5" : "border-[#1e1e2a] text-[#71717a] hover:border-[#3f3f46] hover:text-[#a1a1aa]"}`}>
+                        <span className={`shrink-0 w-3 h-3 rounded border flex items-center justify-center ${allChecked ? "bg-violet-500 border-violet-500" : someChecked ? "border-violet-500/50" : "border-[#3f3f46]"}`}>
+                          {allChecked ? <Check className="w-2 h-2 text-white" /> : someChecked ? <Minus className="w-2 h-2 text-violet-400" /> : null}
+                        </span>
+                        <span className="whitespace-nowrap text-[11px]">{g.label}</span>
+                      </button>
+                    ) : (
+                      <>
+                        <span className="text-[#52525b] font-semibold shrink-0">{g.label}</span>
+                        {g.actions.map(a => (
+                          <button key={a} onClick={() => toggleAuditAction(a)}
+                            className={`flex items-center gap-1 px-1.5 py-0.5 rounded border transition ${auditActionFilters.has(a) ? "border-violet-500/50 text-violet-300 bg-violet-500/10" : "border-[#1e1e2a] text-[#71717a] hover:border-[#3f3f46] hover:text-[#a1a1aa]"}`}>
+                            <span className={`shrink-0 w-3 h-3 rounded border flex items-center justify-center ${auditActionFilters.has(a) ? "bg-violet-500 border-violet-500" : "border-[#3f3f46]"}`}>
+                              {auditActionFilters.has(a) && <Check className="w-2 h-2 text-white" />}
+                            </span>
+                            <span className="whitespace-nowrap">{(() => { const actionFormat = a?.replace(/_/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase()); return actionFormat ?? a ?? ""; })()}</span>
+                          </button>
+                        ))}
+                      </>
+                    )}
+                  </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           {/* Log Stream */}
@@ -1128,12 +1273,9 @@ export function AdminPanelView() {
                 </div>
                 );
               })}
-              {/* Load More */}
+              {/* Load More — auto-fetch sentinel */}
               {auditHasMore && (
-                <button onClick={handleLoadMoreAudit} disabled={auditLoadingMore}
-                  className="w-full px-4 py-2 text-xs text-[#a1a1aa] hover:text-[#fafafa] hover:bg-[#0d0d11]/50 transition disabled:opacity-40">
-                  {auditLoadingMore ? <Loader2 className="w-4 h-4 mx-auto animate-spin" /> : "Load More"}
-                </button>
+                <SentinelAdminAudit onVisible={handleLoadMoreAudit} loading={auditLoadingMore} />
               )}
             </div>
           )}
@@ -1538,7 +1680,7 @@ export function AdminPanelView() {
                 </div>
                 <div className="bg-[#0d0d11] border border-[#1e1e2a] rounded-xl p-2 sm:p-4 text-center">
                   <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#52525b] mx-auto mb-1 sm:mb-2" />
-                  <p className="text-[10px] sm:text-xs text-[#d4d4d8] font-mono truncate">{botStatus.uptime_display}</p>
+                  <p className="text-[10px] sm:text-xs text-[#d4d4d8] font-mono truncate">{liveUptime || botStatus.uptime_display}</p>
                   <p className="text-[9px] sm:text-[10px] text-[#52525b] mt-0.5 sm:mt-1 uppercase tracking-wider">Uptime</p>
                 </div>
                 <div className="bg-[#0d0d11] border border-[#1e1e2a] rounded-xl p-2 sm:p-4 text-center">
@@ -1548,7 +1690,7 @@ export function AdminPanelView() {
                 </div>
                 <div className="bg-[#0d0d11] border border-[#1e1e2a] rounded-xl p-2 sm:p-4 text-center">
                   <Radio className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#52525b] mx-auto mb-1 sm:mb-2" />
-                  <p className="text-[10px] sm:text-xs text-[#d4d4d8] font-mono truncate">{botStatus.region} · 2 vCPU</p>
+                  <p className="text-[10px] sm:text-xs text-[#d4d4d8] truncate">{botStatus.region ? (FLY_REGIONS[botStatus.region] || botStatus.region.toUpperCase()) : "—"} · 2 vCPU</p>
                   <p className="text-[9px] sm:text-[10px] text-[#52525b] mt-0.5 sm:mt-1 uppercase tracking-wider">Machine</p>
                 </div>
               </div>
@@ -1649,9 +1791,9 @@ export function AdminPanelView() {
       </div>{/* close content wrapper */}
 
       {/* Footer — same as main Layout */}
-      <footer className="hidden md:block shrink-0 border-t border-[#1a1a1e] bg-[#09090b]">
+      <footer className="block shrink-0 border-t border-[#1a1a1e] bg-[#09090b] mb-16 md:mb-0">
         <div className="px-4 py-2 flex items-center justify-between text-[11px] text-[#52525b]">
-          <span>© {new Date().getFullYear()} RaidScout. All rights reserved.</span>
+          <span>© {new Date().toLocaleDateString("en-US", { timeZone: timezone, year: "numeric" })} RaidScout. All rights reserved.</span>
           <div className="flex items-center gap-3">
             <Link to="/terms" className="hover:text-[#a1a1aa] transition">Terms</Link>
             <Link to="/privacy" className="hover:text-[#a1a1aa] transition">Privacy</Link>

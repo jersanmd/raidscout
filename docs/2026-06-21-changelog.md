@@ -12,7 +12,6 @@
 
 - **Party leaders** — Now audited when set during a kill (via `useRecordDeath`) AND when edited after the fact (via `ParticipantModal`). Both paths resolve member names.
 - **Activity attendance** — Toggling attendance on activity instances now writes `ATTENDANCE_ADD` / `ATTENDANCE_REMOVE` audit entries. Activity end recording (`recordActivityEnd`) now includes attendee names in the `ACTIVITY_END_RECORD` audit.
-- **Admin audit panel** — Added `party_leaders_set` format case for consistent display.
 - **Audit format** — `activity_end_record` now shows attendee names when available in both Server Activity Log and Admin Panel.
 
 ## 🔧 Internal
@@ -38,3 +37,9 @@
 - **Activity log infinite scroll** — "Load More" button replaced with auto-fetch sentinel. Initial fetch reduced from 100 → 50 entries.
 - **Inventory auto-fetch** — History "Load More" button replaced with infinite scroll sentinel. Recipients tab now fetches all distributions (was limited to 10).
 - **Audit format** — `activity_end_record` now shows attendee names. Activity attendance toggles now write audit entries.
+
+##  Mobile
+
+- **Footer visibility** — Footer now shows on mobile (was `hidden md:block`). Added `mb-16 md:mb-0` to prevent overlap with the bottom navigation bar.
+- **Copyright year timezone** — Footer copyright year now uses the server's timezone (falls back to user preference, then browser detection) instead of always using `new Date().getFullYear()` which is UTC-relative. Applied to Layout, AdminPanel, and LandingPage footers.
+- **Scrolling fix** — Root container uses `h-dvh` (dynamic viewport height) instead of `h-screen` (100vh). On iOS Safari, `100vh` includes the hidden address bar area, making the container taller than the visible screen and causing scroll boundaries to "stick" at the bottom. `100dvh` correctly matches the visible viewport.

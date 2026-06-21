@@ -4,6 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase, fetchGames } from "@/lib/supabase";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { SEOHead } from "@/components/SEOHead";
+import { detectTimezone } from "@/hooks/useUserTimezone";
 declare const APP_VERSION: string;
 import {
   Timer, Shield, BarChart3, Sparkles, MessageSquare, Calendar, Skull, Eye, Trophy, Server, Clock, Lock, Image, Package, Archive, User, Users,
@@ -1151,7 +1152,7 @@ export function LandingPage() {
         <div className="max-w-6xl mx-auto pt-8 border-t border-white/[0.04] flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-3 text-[#fafafa]/30">
             <img src="/logo.png" alt="" className="w-5 h-5 rounded opacity-40" />
-            <span className="text-sm">&copy; {new Date().getFullYear()} RaidScout. All rights reserved.</span>
+            <span className="text-sm">&copy; {new Date().toLocaleDateString("en-US", { timeZone: detectTimezone(), year: "numeric" })} RaidScout. All rights reserved.</span>
           </div>
           <span className="text-xs text-[#fafafa]/20 font-mono">v{APP_VERSION}</span>
         </div>
