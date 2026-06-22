@@ -23,48 +23,65 @@ A dual-currency system where members earn **DKP** (Dragon Kill Points) from boss
 ### Problem
 Guild members exist as rows in the `members` table (added by officers) but have no way to log in. They need to "claim" their profile to access the web UI.
 
-### Solution
-1. Officer adds a member → they get an invite link with a `claim_token`
-2. Member signs up with email → `claim_token` links their auth account to the member row
-3. Member is automatically added to `server_members` with `role = 'member'` (read-only access)
-4. Owner can promote them to `moderator` via Server Settings → Moderators
-5. Member can now log in, view DKP on web, bid on items, check boss timers
+### Solution: Self-Service Claim with Approval
+
+1. **Player signs up** with email/password on RaidScout
+2. **Player searches** for their server (by name or invite code)
+3. **Player enters** their in-game character name and submits a claim request
+4. **Owner/moderator reviews** pending claims in Server Settings
+5. **Accept**: Links the member row to the player's auth account. Auto-adds to `server_members` with `role = 'member'`.
+6. **Decline**: Request is rejected with optional reason.
 
 ### Schema
 ```sql
-ALTER TABLE public.members ADD COLUMN claim_token UUID DEFAULT gen_random_uuid();
-ALTER TABLE public.members ADD COLUMN claimed_at TIMESTAMPTZ;
+-- Member claim requests
+CREATE TABLE public.member_claim_requests (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  server_id UUID NOT NULL REFERENCES public.servers(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  requested_name TEXT NOT NULL,        -- in-game character name
+  status TEXT NOT NULL DEFAULT 'pending',  -- 'pending', 'accepted', 'declined'
+  reviewer_id UUID REFERENCES auth.users(id),
+  decline_reason TEXT,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  resolved_at TIMESTAMPTZ
+);
+CREATE UNIQUE INDEX idx_claim_req_unique ON member_claim_requests(server_id, user_id, requested_name) WHERE status = 'pending';
+```
 
-CREATE OR REPLACE FUNCTION claim_member_profile(p_claim_token UUID)
-RETURNS UUID LANGUAGE plpgsql SECURITY DEFINER AS $$
-DECLARE
-  v_member_id UUID;
-  v_server_id UUID;
-BEGIN
-  -- Link auth user to member row
-  UPDATE public.members 
-  SET user_id = auth.uid(), claimed_at = now()
-  WHERE claim_token = p_claim_token AND user_id IS NULL
-  RETURNING id, server_id INTO v_member_id, v_server_id;
-  
-  IF v_member_id IS NULL THEN
-    RAISE EXCEPTION 'Invalid or already claimed token';
-  END IF;
-  
-  -- Auto-add to server_members with 'member' role (read-only)
-  INSERT INTO public.server_members (server_id, user_id, role)
-  VALUES (v_server_id, auth.uid(), 'member')
-  ON CONFLICT (server_id, user_id) DO NOTHING;
-  
-  RETURN v_member_id;
-END; $$;
+### RPCs
+| RPC | Purpose |
+|-----|---------|
+| `submit_claim_request(p_server_id, p_requested_name)` | Player submits a claim. One pending request per server+user+name. |
+| `review_claim_request(p_request_id, p_action, p_reason?)` | Owner/mod accepts or declines. On accept: links member row (by name match), adds to server_members. |
+
+### Flow
+```
+PlayerX signs up → searches server → enters "PlayerX" → submits claim
+                                                            │
+                              ┌─────────────────────────────┘
+                              ▼
+              Owner sees pending claim in Server Settings
+                 ┌────────────┴────────────┐
+                 ▼                         ▼
+             Accept                      Decline
+                 │                         │
+    Links auth account             Request rejected
+    to member row                  (optional reason)
+    Adds to server_members
+    as 'member' (read-only)
+                 │
+                 ▼
+    PlayerX can now: log in, view DKP,
+    bid on items, check boss timers.
+    Promotable to moderator by owner.
 ```
 
 ### Access Model
 | Role | Can do |
 |------|--------|
 | `member` (claimed) | View boss timers, view DKP balance, bid on items, view leaderboard |
-| `moderator` | Everything above + mark kills, manage attendance, resolve bids, manage members |
+| `moderator` | Everything above + mark kills, manage attendance, resolve bids, manage members, review claims |
 | `owner` | Full control including DKP settings, moderator promotion, billing |
 
 ---
@@ -208,12 +225,17 @@ New tab: **DKP Settings**
 - Default bid mode + duration
 - Manual DKP adjustments per member
 
+New section: **Pending Claims** (in Members tab or standalone)
+- Table of pending claim requests: player name, requester email, date
+- Accept / Decline buttons with optional decline reason
+- Audit log entries for accepted/declined claims
+
 ---
 
 ## Phase 4 — Audit & Permissions
 
 ### Audit Actions
-`DKP_EARN_KILL`, `DKP_ADJUST`, `DKP_BID_PLACED`, `DKP_BID_WON`, `DKP_BID_LOST`, `DKP_ITEM_MARKED`
+`MEMBER_CLAIM_REQUESTED`, `MEMBER_CLAIM_ACCEPTED`, `MEMBER_CLAIM_DECLINED`, `DKP_EARN_KILL`, `DKP_ADJUST`, `DKP_BID_PLACED`, `DKP_BID_WON`, `DKP_BID_LOST`, `DKP_ITEM_MARKED`
 
 ### Moderator Permission
 `can_manage_dkp` — Controls who can adjust DKP, mark items for bid, resolve bids.
@@ -234,7 +256,7 @@ New tab: **DKP Settings**
 
 | Phase | Components | Days |
 |-------|-----------|------|
-| 0 — Member Claim | 1 migration, 1 RPC, signup flow integration | 1 |
+| 0 — Member Claim | 1 migration, 2 RPCs, signup flow, claim review UI | 1-2 |
 | 1 — Schema | 4 tables, 1 view, item extensions | 1 |
 | 2 — Backend | 7 RPCs, 4 bot commands | 2-3 |
 | 3 — Frontend | 1 new page, 2 integrations, 1 settings tab | 3-4 |
