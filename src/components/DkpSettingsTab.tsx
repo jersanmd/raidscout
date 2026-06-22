@@ -3,7 +3,6 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerId } from "@/contexts/ServerContext";
 import { useToast } from "@/contexts/ToastContext";
 import { getDkpConfig, saveDkpConfig, type DkpConfig } from "@/lib/supabase";
-import { supabase } from "@/lib/supabase";
 import { Coins, Loader2, Save, AlertTriangle } from "lucide-react";
 
 export function DkpSettingsTab() {
@@ -22,7 +21,6 @@ export function DkpSettingsTab() {
   const [multiplier, setMultiplier] = useState(1.0);
   const [bidDuration, setBidDuration] = useState(30);
   const [saving, setSaving] = useState(false);
-  const [saveError, setSaveError] = useState<string | null>(null);
 
   useEffect(() => {
     if (config) {
