@@ -2,48 +2,79 @@
 
 ## Overview
 
-A dual-currency system where members earn **DKP** (Dragon Kill Points) from boss kills and activities — separate from leaderboard points. DKP can be spent on items via bidding or loot council. Leaderboard rankings are unaffected by DKP spending.
+A dual-currency system where members earn **DKP** (Dragon Kill Points) from boss kills — separate from leaderboard points. DKP can be spent on items via Discord bot bidding. Web UI is for officers to manage items, resolve bids, and view DKP data.
+
+### Key Design Decisions
+
+| Decision | Choice | Rationale |
+|----------|--------|-----------|
+| DKP vs Leaderboard | **Completely separate** | Spending DKP never affects ranking |
+| DKP earn rate | **Same as boss points** | If boss is worth 10 pts → 10 DKP per kill (configurable multiplier) |
+| DKP scope | **Server-wide** | One DKP pool, all guilds share |
+| Who marks items for bid | **Owner + moderators** | Staff-controlled |
+| Bidding channel | **Web UI only** | Silent bids must be private. Discord for read-only status. |
+| DKP visibility | **Discord (`!dkp`) + Web** | `!dkp` for everyone. Web DKP page for members who claim accounts. |
+| Bid mode | **Silent auction** (default) | Members submit blind bids via Discord. Configurable per item. |
+
+---
+
+## Phase 0 — Member Claim System (Prerequisite)
+
+### Problem
+Guild members exist as rows in the `members` table (added by officers) but have no way to log in. They need to "claim" their profile to access the web UI.
+
+### Solution
+1. Officer adds a member → they get an invite link with a `claim_token`
+2. Member signs up with email → `claim_token` links their auth account to the member row
+3. Member can now log in, view DKP on web, check boss timers
+
+### Schema
+```sql
+ALTER TABLE public.members ADD COLUMN claim_token UUID DEFAULT gen_random_uuid();
+ALTER TABLE public.members ADD COLUMN claimed_at TIMESTAMPTZ;
+
+CREATE OR REPLACE FUNCTION claim_member_profile(p_claim_token UUID)
+RETURNS UUID LANGUAGE plpgsql SECURITY DEFINER AS $$
+DECLARE v_member_id UUID;
+BEGIN
+  UPDATE public.members SET user_id = auth.uid(), claimed_at = now()
+  WHERE claim_token = p_claim_token AND user_id IS NULL
+  RETURNING id INTO v_member_id;
+  RETURN v_member_id;
+END; $$;
+```
 
 ---
 
 ## Phase 1 — Database Schema
 
-### 1.1 `dkp_transactions` table
+### 1.1 `dkp_transactions`
 
 ```sql
 CREATE TABLE public.dkp_transactions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   server_id UUID NOT NULL REFERENCES public.servers(id) ON DELETE CASCADE,
   member_id UUID NOT NULL REFERENCES public.members(id) ON DELETE CASCADE,
-  guild_id UUID REFERENCES public.guilds(id) ON DELETE SET NULL,
   amount INTEGER NOT NULL,          -- positive = earn, negative = spend
-  type TEXT NOT NULL,                -- 'earn_kill', 'earn_activity', 'earn_adjustment', 'spend_bid', 'spend_fixed', 'spend_council'
-  reason TEXT,                       -- e.g. "Won bid on Venatus Sword", "Boss kill: Ancient Dragon"
-  reference_id UUID,                 -- polymorphic: death_record_id, activity_instance_id, bid_id, etc.
-  reference_type TEXT,               -- 'death_record', 'activity_instance', 'bid', 'manual'
+  type TEXT NOT NULL,                -- 'earn_kill', 'earn_adjustment', 'spend_bid', 'spend_council'
+  reason TEXT,
+  reference_id UUID,
+  reference_type TEXT,               -- 'death_record', 'bid', 'manual'
   created_at TIMESTAMPTZ DEFAULT now()
 );
-
 CREATE INDEX idx_dkp_txns_server ON dkp_transactions(server_id, created_at DESC);
 CREATE INDEX idx_dkp_txns_member ON dkp_transactions(member_id, created_at DESC);
-CREATE INDEX idx_dkp_txns_guild ON dkp_transactions(guild_id);
 ```
 
-### 1.2 `dkp_balances` materialized or live view
+### 1.2 `dkp_balances` view
 
 ```sql
--- Per-member DKP balance (computed from transactions)
--- Could be a VIEW or a cached column on members table
 CREATE VIEW public.dkp_balances AS
-SELECT 
-  member_id,
-  server_id,
-  COALESCE(SUM(amount), 0) AS balance
-FROM public.dkp_transactions
-GROUP BY member_id, server_id;
+SELECT member_id, server_id, COALESCE(SUM(amount), 0) AS balance
+FROM public.dkp_transactions GROUP BY member_id, server_id;
 ```
 
-### 1.3 `dkp_bids` table
+### 1.3 `dkp_bids`
 
 ```sql
 CREATE TABLE public.dkp_bids (
@@ -51,68 +82,77 @@ CREATE TABLE public.dkp_bids (
   server_id UUID NOT NULL REFERENCES public.servers(id) ON DELETE CASCADE,
   item_id UUID NOT NULL REFERENCES public.items(id) ON DELETE CASCADE,
   member_id UUID NOT NULL REFERENCES public.members(id) ON DELETE CASCADE,
+  discord_user_id TEXT,              -- Discord ID of bidder
   bid_amount INTEGER NOT NULL,
-  status TEXT NOT NULL DEFAULT 'active',   -- 'active', 'won', 'lost', 'cancelled'
+  status TEXT NOT NULL DEFAULT 'active',  -- 'active', 'won', 'lost', 'cancelled'
   created_at TIMESTAMPTZ DEFAULT now(),
   resolved_at TIMESTAMPTZ
 );
-
 CREATE INDEX idx_dkp_bids_item ON dkp_bids(item_id, status);
 CREATE INDEX idx_dkp_bids_member ON dkp_bids(member_id);
 ```
 
-### 1.4 `dkp_config` per-server settings
+### 1.4 `dkp_config`
 
 ```sql
 CREATE TABLE public.dkp_config (
   server_id UUID PRIMARY KEY REFERENCES public.servers(id) ON DELETE CASCADE,
   enabled BOOLEAN DEFAULT false,
-  earn_mode TEXT DEFAULT 'per_kill',       -- 'per_kill', 'per_point', 'per_attendee'
-  dkp_per_kill INTEGER DEFAULT 10,         -- DKP awarded per boss kill
-  dkp_per_activity INTEGER DEFAULT 5,      -- DKP awarded per activity
-  bid_mode TEXT DEFAULT 'silent',           -- 'silent', 'open', 'fixed', 'council'
-  bid_duration_minutes INTEGER DEFAULT 30, -- how long bids stay open
-  decay_enabled BOOLEAN DEFAULT false,
-  decay_percent INTEGER DEFAULT 10,        -- % decay per period
-  decay_period TEXT DEFAULT 'monthly',     -- 'weekly', 'monthly'
+  dkp_multiplier REAL DEFAULT 1.0,   -- multiply boss_points to get DKP (1.0 = same)
+  bid_mode_default TEXT DEFAULT 'silent',
+  bid_duration_minutes INTEGER DEFAULT 30,
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now()
 );
 ```
 
+### 1.5 Items table extensions
+
+```sql
+ALTER TABLE public.items ADD COLUMN is_up_for_bid BOOLEAN DEFAULT false;
+ALTER TABLE public.items ADD COLUMN dkp_cost INTEGER;
+ALTER TABLE public.items ADD COLUMN bid_end_time TIMESTAMPTZ;
+```
+
 ---
 
-## Phase 2 — Backend (Edge Functions + RPCs)
+## Phase 2 — Backend
 
-### 2.1 DKP Earning
+### 2.1 DKP Earning (RPCs)
 
-| RPC / Function | Purpose |
-|---------------|---------|
-| `award_dkp_on_kill(p_death_record_id)` | Auto-award DKP to all attendees of a kill. Called from `useRecordDeath` after attendance is recorded. |
-| `award_dkp_on_activity(p_activity_instance_id)` | Auto-award DKP to activity participants. |
-| `adjust_member_dkp(p_member_id, p_server_id, p_amount, p_reason)` | Manual DKP adjustment (moderator/owner). Same pattern as `adjust_member_points`. |
+| RPC | Purpose |
+|-----|---------|
+| `award_dkp_on_kill(p_death_record_id)` | Auto-award DKP to all attendees. Amount = boss_points × multiplier. |
+| `adjust_member_dkp(p_member_id, p_server_id, p_amount, p_reason)` | Manual adjustment (moderator/owner). |
 
-### 2.2 DKP Bidding
+### 2.2 DKP Bidding (Web UI Only)
 
-| RPC / Function | Purpose |
-|---------------|---------|
-| `place_bid(p_item_id, p_member_id, p_amount)` | Place a bid. Validates: bid mode, DKP balance, item availability. |
-| `resolve_bid(p_bid_id, p_action)` | Officer resolves: 'award' (winner gets item, DKP deducted) or 'cancel'. |
-| `cancel_bid(p_bid_id)` | Bidder cancels their own bid. |
+Bidding happens exclusively in the RaidScout web UI to keep bid amounts private.
 
-### 2.3 DKP Queries
+| RPC | Purpose |
+|-----|---------|
+| `mark_item_for_bid(p_item_id, p_dkp_cost, p_duration)` | Officer puts item up for bidding |
+| `place_bid(p_item_id, p_amount)` | Member places a blind bid. Validates: item is up for bid, member has enough DKP. |
+| `resolve_bid(p_bid_id, p_action)` | Officer resolves: 'award' (deduct DKP, distribute item) or 'cancel' |
 
-| RPC / Function | Purpose |
-|---------------|---------|
-| `get_member_dkp(p_member_id, p_server_id)` | Returns current DKP balance + recent transaction history. |
-| `get_guild_dkp_leaderboard(p_server_id, p_guild_id)` | Top DKP holders in a guild. |
-| `get_dkp_transactions(p_server_id, p_member_id?)` | Audit trail. |
+### 2.3 DKP Status (Discord Bot — Read Only)
 
-### 2.4 Edge Function
+Discord bot provides status commands only. No bidding via Discord (bids are private).
 
-| Function | Purpose |
-|----------|---------|
-| `dkp-decay` | Cron-triggered (or called manually). Applies decay % to all DKP balances. Creates negative `dkp_transactions` rows. |
+| Command | Description |
+|---------|-------------|
+| `!dkp` | Shows your current DKP balance |
+| `!dkp top` | Top 10 DKP holders on the server |
+| `!mybids` | List your active bids + their status (won/lost/pending) |
+| `!bidstatus [item_name]` | Check if an item is up for bid, current bid count (not amounts) |
+
+### 2.4 DKP Queries
+
+| RPC | Purpose |
+|-----|---------|
+| `get_member_dkp(p_member_id, p_server_id)` | Balance + recent transactions |
+| `get_server_dkp_rankings(p_server_id)` | Top DKP holders (server-wide) |
+| `get_active_bids(p_server_id)` | All active bids for officer resolution |
 
 ---
 
@@ -120,80 +160,62 @@ CREATE TABLE public.dkp_config (
 
 ### 3.1 New Page: `/dkp`
 
-A new tab in the main navigation (between Leaderboard and Members).
+New navigation tab between Leaderboard and Members.
 
-**Layout:**
-- **DKP Balance Card** — Current balance, lifetime earned, lifetime spent
-- **Transaction History** — Same pattern as point adjustment history in Leaderboard
-- **Active Bids** — Items the member is currently bidding on
-- **Guild DKP Rankings** — Top DKP holders per guild (similar to leaderboard mini-view)
+- **My DKP Card** — Balance, earned this week, spent this week
+- **Transaction History** — Same pattern as point adjustment history
+- **DKP Rankings** — Server-wide top list
+- **Active Bids** — Items you're bidding on + status (pending/won/lost)
+- **Bid Form** — Place blind bids on items marked "Up for Bid". Shows your available DKP balance, minimum bid, and time remaining.
 
 ### 3.2 Inventory Integration
 
 Modify `InventoryView`:
-- Items can be marked "Up for Bid" by officers
-- Bid button appears on bid-eligible items
-- Bid modal: enter amount, see current highest (if open bid mode)
-- Bid confirmation with DKP balance check
+- Items marked "Up for Bid" show a gavel icon, DKP cost, and time remaining
+- **Officer modal**: "Mark for Bid" — sets DKP cost and duration
+- **Officer modal**: "Resolve Bids" — shows all bids (amounts hidden until resolved), pick winner
+- **Member action**: Bid button on bid-eligible items → opens bid form with DKP balance
+- Winner gets item auto-distributed, DKP auto-deducted, losers refunded nothing (silent auction)
 
-### 3.3 Server Settings Integration
+### 3.3 Server Settings
 
-New tab in ServerSettingsView: **DKP Settings**
+New tab: **DKP Settings**
 - Enable/disable DKP
-- DKP earn rates (per kill, per activity)
-- Bid mode selector (silent/open/fixed/council)
-- Bid duration
-- Decay settings
-
-### 3.4 Discord Bot Commands
-
-| Command | Description |
-|---------|-------------|
-| `!dkp` | Check your DKP balance |
-| `!dkp top` | Top DKP holders in your guild |
-| `!bid [item] [amount]` | Place a bid on an item |
-| `!loot [item] [member]` | Loot council: assign item to member |
+- DKP multiplier (0.5x, 1x, 2x boss points)
+- Default bid mode + duration
+- Manual DKP adjustments per member
 
 ---
 
 ## Phase 4 — Audit & Permissions
 
-### 4.1 Audit Log Entries
+### Audit Actions
+`DKP_EARN_KILL`, `DKP_ADJUST`, `DKP_BID_PLACED`, `DKP_BID_WON`, `DKP_BID_LOST`, `DKP_ITEM_MARKED`
 
-New `AuditAction` entries:
-- `DKP_EARN_KILL` — Auto-award from boss kill
-- `DKP_EARN_ACTIVITY` — Auto-award from activity
-- `DKP_ADJUST` — Manual adjustment
-- `DKP_BID_PLACED` — Member placed bid
-- `DKP_BID_WON` — Bid resolved as won
-- `DKP_BID_LOST` — Bid resolved as lost
-- `DKP_DECAY` — Decay applied
-
-### 4.2 Moderator Permissions
-
-New permission: `can_manage_dkp` — Controls who can adjust DKP, resolve bids, configure settings.
+### Moderator Permission
+`can_manage_dkp` — Controls who can adjust DKP, mark items for bid, resolve bids.
 
 ---
 
-## Phase 5 — Edge Cases & Polish
+## Phase 5 — Edge Cases
 
-- **Negative DKP**: Should we allow it? (Some guilds do — "DKP debt")
-- **Bid sniping**: Minimum bid increment? Anti-snipe extension?
-- **Item already distributed**: What if item is distributed manually while bid is active?
-- **DKP on refund**: If a distributed item is returned, refund DKP?
-- **Multi-guild servers**: DKP is per-guild. Members in multiple guilds have separate balances.
-- **Viewer mode**: Viewers can see DKP rankings but not bid.
+- **Bid on item that gets manually distributed**: Auto-cancel active bids
+- **Multiple bids from same member**: Only highest bid counts
+- **Bid exceeds balance**: Bot rejects with "You only have X DKP"
+- **DKP on refund**: If distributed item is returned, optionally refund DKP
+- **Viewer mode**: Can see DKP rankings, cannot bid
 
 ---
 
 ## Estimated Effort
 
-| Phase | Components | Estimate |
-|-------|-----------|----------|
-| 1 — Schema | 4 tables, indexes, views | 1 day |
-| 2 — Backend | 8 RPCs, 1 edge function | 2-3 days |
-| 3 — Frontend | 1 new page, 2 integrations, 3 bot commands | 3-4 days |
-| 4 — Audit & Perms | Audit actions, permission gates | 0.5 day |
-| 5 — Polish | Edge cases, tests | 1 day |
+| Phase | Components | Days |
+|-------|-----------|------|
+| 0 — Member Claim | 1 migration, 1 RPC, signup flow integration | 1 |
+| 1 — Schema | 4 tables, 1 view, item extensions | 1 |
+| 2 — Backend | 7 RPCs, 4 bot commands | 2-3 |
+| 3 — Frontend | 1 new page, 2 integrations, 1 settings tab | 3-4 |
+| 4 — Audit | 6 audit actions, 1 permission | 0.5 |
+| 5 — Polish | Edge cases, tests | 1 |
 
-**Total: ~8-10 days** for a complete, production-ready DKP system.
+**Total: ~8-10 days**
