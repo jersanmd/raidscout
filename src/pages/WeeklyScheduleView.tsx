@@ -533,7 +533,7 @@ export function WeeklyScheduleView() {
     return days;
   }, [bosses, deathRecords, allDeathRecords, weekOffset, activities, activityInstances]);
 
-  const isLoading = bossesLoading || recordsLoading || guildsLoading || attendanceLoading;
+  const isLoading = bossesLoading || recordsLoading || attendanceLoading;
 
   if (isLoading && !weekLoading) {
     return (
