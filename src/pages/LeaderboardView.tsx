@@ -1050,7 +1050,11 @@ export function LeaderboardView() {
               </button>
             </div>
             <div className="overflow-y-auto p-2 space-y-1.5 flex-1">
-              {guildSnaps.map((snap, idx) => {
+              {(() => {
+                const seenPeriods = new Set<string>();
+                return guildSnaps.map((snap, idx) => {
+                const isLatest = !seenPeriods.has(snap.period);
+                seenPeriods.add(snap.period);
                 const finalized = new Date(snap.finalized_at);
                 const hasPeriodStart = !!(snap as any).period_start;
                 let periodStart: Date;
@@ -1108,7 +1112,7 @@ export function LeaderboardView() {
                       </div>
                       <ChevronRight className="w-3.5 h-3.5 text-[#52525b] mt-0.5" />
                     </button>
-                    {currentServer?.role === "owner" && (
+                    {currentServer?.role === "owner" && isLatest && (
                       <button
                         onClick={(e) => { e.stopPropagation(); setShowUnfinalizeConfirm({ id: snap.id, period: snap.period, label: periodLabel }); }}
                         className="p-1.5 text-[#52525b] hover:text-red-400 hover:bg-red-400/10 rounded-lg transition shrink-0 mt-0.5"
@@ -1119,7 +1123,7 @@ export function LeaderboardView() {
                     )}
                   </div>
                 );
-              })}
+              })})}
             </div>
           </div>
         </div>
