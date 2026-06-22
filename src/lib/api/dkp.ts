@@ -27,6 +27,7 @@ export interface DkpBid {
   id: string;
   item_id: string;
   item_name: string;
+  member_id: string;
   member_name: string;
   bid_amount: number;
   status: string;
@@ -183,6 +184,7 @@ export interface ActiveAuction {
   bid_end_time: string;
   highest_bid: number;
   bid_count: number;
+  top_bidder_member_id: string | null;
 }
 
 export async function getActiveAuctions(serverId: string): Promise<ActiveAuction[]> {
@@ -201,11 +203,11 @@ export async function getActiveAuctions(serverId: string): Promise<ActiveAuction
   // Use SECURITY DEFINER RPC to get bid aggregates (bypasses RLS)
   const bids = await getActiveBids(serverId);
 
-  const bidMap: Record<string, { total: number; highest: number }> = {};
+  const bidMap: Record<string, { total: number; highest: number; topBidderId: string | null }> = {};
   bids.forEach((b: DkpBid) => {
-    const e = bidMap[b.item_id] || { total: 0, highest: 0 };
+    const e = bidMap[b.item_id] || { total: 0, highest: 0, topBidderId: null };
     e.total++;
-    if (b.bid_amount > e.highest) e.highest = b.bid_amount;
+    if (b.bid_amount > e.highest) { e.highest = b.bid_amount; e.topBidderId = b.member_id; }
     bidMap[b.item_id] = e;
   });
 
@@ -218,6 +220,7 @@ export async function getActiveAuctions(serverId: string): Promise<ActiveAuction
     bid_end_time: i.bid_end_time,
     highest_bid: bidMap[i.id]?.highest ?? 0,
     bid_count: bidMap[i.id]?.total ?? 0,
+    top_bidder_member_id: bidMap[i.id]?.topBidderId ?? null,
   }));
 }
 

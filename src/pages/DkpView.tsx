@@ -139,10 +139,10 @@ function LiveAuction({ serverId, isStaff, memberId, tz, toast, queryClient }: an
       </div>
       {isLoading ? <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 text-[#52525b] animate-spin" /></div>
       : auctions.length === 0 ? <div className="px-4 py-8 text-center"><Gavel className="w-8 h-8 text-[#3f3f46] mx-auto mb-2" /><p className="text-xs text-[#71717a]">No active auctions</p></div>
-      : <div className="divide-y divide-[#1e1e2a]/50">{auctions.map((it: ActiveAuction) => <AuctionRow key={it.item_id} item={it} isStaff={isStaff} memberId={memberId} tz={tz} onBid={() => { setShowBid(it.item_id); setBidAmt(1); setError(null); }} onResolve={() => setShowResolve(it.item_id)} onViewBids={() => setShowBids(it.item_id)} />)}</div>}
+      : <div className="divide-y divide-[#1e1e2a]/50">{auctions.map((it: ActiveAuction) => <AuctionRow key={it.item_id} item={it} isStaff={isStaff} memberId={memberId} tz={tz} onBid={() => { setShowBid(it.item_id); setBidAmt(Math.max(it.dkp_cost || 1, (it.highest_bid || 0) + 1)); setError(null); }} onResolve={() => setShowResolve(it.item_id)} onViewBids={() => setShowBids(it.item_id)} />)}</div>}
 
       {showMark && <MarkModal name={markName} setName={setMarkName} cost={markCost} setCost={setMarkCost} end={markEnd} setEnd={setMarkEnd} acting={acting} error={error} onClose={() => setShowMark(false)} onMark={doMark} serverId={serverId} />}
-      {showBid && <BidModalUI itemId={showBid} bidAmt={bidAmt} setBidAmt={setBidAmt} acting={acting} error={error} onClose={() => setShowBid(null)} onBid={() => doBid(showBid)} />}
+      {showBid && <BidModalUI itemId={showBid} bidAmt={bidAmt} setBidAmt={setBidAmt} acting={acting} error={error} onClose={() => setShowBid(null)} onBid={() => doBid(showBid)} memberId={memberId} serverId={serverId} />}
       {showResolve && <ResolveModalUI itemId={showResolve} onClose={() => setShowResolve(null)} onResolve={(w: string | null) => doResolve(showResolve, w)} />}
       {showBids && <BidsModal itemId={showBids} onClose={() => setShowBids(null)} />}
     </div>
@@ -170,17 +170,23 @@ function AuctionRow({ item, isStaff, memberId, tz, onBid, onResolve, onViewBids 
   const cd = useCountdown(item.bid_end_time);
   const ended = cd.ended;
   const rarityColor = rc(item.rarity ?? undefined);
+  const isWinning = memberId && item.top_bidder_member_id === memberId;
+  const endingSoon = !ended && cd.totalMs < 3600000; // < 1 hour
   const endLocal = item.bid_end_time ? new Date(item.bid_end_time).toLocaleString("en-US", { timeZone: tz, month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "";
   const fmt = (n: number) => String(n).padStart(2, "0");
   return (
     <div className="flex items-center gap-3 px-4 py-3 hover:bg-[#18181b]/50 transition">
       {item.image_url ? <img src={item.image_url} className="w-10 h-10 rounded-lg object-cover shrink-0 border border-[#1e1e2a]" style={{ backgroundColor: rarityColor + "20" }} /> : <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: rarityColor + "18" }}><Image className="w-4 h-4" style={{ color: rarityColor }} /></div>}
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium truncate" style={{ color: rarityColor }}>{item.item_name}</p>
+        <div className="flex items-center gap-1.5">
+          <p className="text-sm font-medium truncate" style={{ color: rarityColor }}>{item.item_name}</p>
+          {item.rarity && <span className="text-[8px] px-1 py-0.5 rounded font-medium uppercase shrink-0" style={{ backgroundColor: rarityColor + "20", color: rarityColor }}>{item.rarity}</span>}
+          {isWinning && <span className="text-[8px] px-1 py-0.5 rounded font-medium bg-emerald-500/10 text-emerald-400 shrink-0">Winning</span>}
+        </div>
         <div className="flex items-center gap-2 text-[10px]">
           <span className="text-amber-400 font-bold">{item.highest_bid || item.dkp_cost} DKP</span>
           <button onClick={onViewBids} className="text-[#52525b] hover:text-[#d4d4d8] transition">{item.bid_count} bid{item.bid_count !== 1 ? "s" : ""}</button>
-          {!ended ? <span className="text-[#a1a1aa] flex items-center gap-0.5 tabular-nums"><Clock className="w-3 h-3" />{cd.days > 0 ? `${cd.days}d ` : ""}{fmt(cd.hours)}:{fmt(cd.minutes)}:{fmt(cd.seconds)}</span> : <span className="text-red-400">Ended</span>}
+          {!ended ? <span className={`flex items-center gap-0.5 tabular-nums ${endingSoon ? "text-red-400 animate-pulse" : "text-[#a1a1aa]"}`}><Clock className="w-3 h-3" />{cd.days > 0 ? `${cd.days}d ` : ""}{fmt(cd.hours)}:{fmt(cd.minutes)}:{fmt(cd.seconds)}</span> : <span className="text-red-400">Ended</span>}
           <span className="text-[#52525b]">· {endLocal}</span>
         </div>
       </div>
@@ -267,21 +273,28 @@ function ItemResult({ item, onSelect }: { item: any; onSelect: (item: any) => vo
   );
 }
 
-function BidModalUI({ itemId, bidAmt, setBidAmt, acting, error, onClose, onBid }: any) {
+function BidModalUI({ itemId, bidAmt, setBidAmt, acting, error, onClose, onBid, memberId, serverId }: any) {
   const { data: item } = useQuery({ queryKey: ["item", itemId], queryFn: async () => { const { data } = await supabase.from("items").select("name, image_url, dkp_min_bid, bid_end_time, rarity").eq("id", itemId).single(); return data; }, enabled: !!itemId });
+  const { data: balance } = useQuery({ queryKey: ["dkp_balance", memberId, serverId], queryFn: () => getMemberDkp(memberId, serverId), enabled: !!memberId && !!serverId });
   const end = item?.bid_end_time ? new Date(item.bid_end_time) : null;
   const left = end ? Math.max(0, Math.ceil((end.getTime() - Date.now()) / 60000)) : 0;
   const rarityColor = rc(item?.rarity);
+  const min = item?.dkp_min_bid ?? 1;
+  const presets = [min, min + 5, min + 10, min + 25].filter((v, i, a) => a.indexOf(v) === i);
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose}>
       <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-5 w-80 shadow-xl" onClick={e => e.stopPropagation()}>
         {item?.image_url ? <img src={item.image_url} className="w-full h-32 object-cover rounded-lg mb-3 border border-[#1e1e2a]" style={{ backgroundColor: rarityColor + "20" }} /> : <div className="w-full h-32 rounded-lg mb-3 flex items-center justify-center" style={{ backgroundColor: rarityColor + "18" }}><Image className="w-8 h-8" style={{ color: rarityColor }} /></div>}
         <h3 className="text-sm font-semibold" style={{ color: rarityColor }}>{item?.name || "Item"}</h3>
-        <p className="text-[10px] text-[#71717a] mt-0.5">Min bid: {item?.dkp_min_bid ?? 1} DKP · {left > 0 ? `${left}min left` : "Ended"}</p>
+        <div className="flex items-center gap-2 mt-0.5">
+          <p className="text-[10px] text-[#71717a]">Min bid: {min} DKP · {left > 0 ? `${left}min left` : "Ended"}</p>
+          {balance != null && <span className="text-[10px] text-amber-400 ml-auto">{balance.balance} DKP available</span>}
+        </div>
         {error && <p className="text-xs text-red-400 mt-2"><AlertTriangle className="w-3 h-3 inline mr-1" />{error}</p>}
         <div className="mt-3 space-y-3">
-          <input type="number" value={bidAmt} onChange={e => setBidAmt(parseInt(e.target.value) || 0)} className="w-full bg-[#0d0d11] border border-[#27272a] rounded px-2 py-2 text-lg font-bold text-[#fafafa] outline-none text-center" min={item?.dkp_min_bid ?? 1} autoFocus />
-          <div className="flex gap-2"><button onClick={onClose} className="flex-1 py-2 rounded text-sm bg-[#27272a] text-[#d4d4d8]">Cancel</button><button onClick={onBid} disabled={acting || bidAmt < (item?.dkp_min_bid ?? 1)} className="flex-1 py-2 rounded text-sm bg-amber-500/20 text-amber-400 font-medium disabled:opacity-40">{acting ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : "Place Bid"}</button></div>
+          <div className="flex gap-1.5 flex-wrap">{presets.map(p => <button key={p} onClick={() => setBidAmt(p)} className={`px-2.5 py-1 rounded text-[10px] font-medium transition ${bidAmt === p ? "bg-amber-500/20 text-amber-400 border border-amber-500/30" : "bg-[#27272a] text-[#a1a1aa] hover:text-[#fafafa]"}`}>+{p}</button>)}</div>
+          <input type="number" value={bidAmt} onChange={e => setBidAmt(parseInt(e.target.value) || 0)} className="w-full bg-[#0d0d11] border border-[#27272a] rounded px-2 py-2 text-lg font-bold text-[#fafafa] outline-none text-center" min={min} autoFocus />
+          <div className="flex gap-2"><button onClick={onClose} className="flex-1 py-2 rounded text-sm bg-[#27272a] text-[#d4d4d8]">Cancel</button><button onClick={onBid} disabled={acting || bidAmt < min} className="flex-1 py-2 rounded text-sm bg-amber-500/20 text-amber-400 font-medium disabled:opacity-40">{acting ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : "Place Bid"}</button></div>
         </div>
       </div>
     </div>
