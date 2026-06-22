@@ -23,6 +23,7 @@ export function NoServerView() {
   const [claimSearch, setClaimSearch] = useState("");
   const [claimResults, setClaimResults] = useState<any[]>([]);
   const [claimSearching, setClaimSearching] = useState(false);
+  const [claimSearched, setClaimSearched] = useState(false);
   const [myClaims, setMyClaims] = useState<ClaimRequest[]>([]);
   const [claimsLoading, setClaimsLoading] = useState(true);
   const [claimServer, setClaimServer] = useState<any>(null);
@@ -50,10 +51,12 @@ export function NoServerView() {
   const handleClaimSearch = async () => {
     if (!claimSearch.trim()) return;
     setClaimSearching(true);
+    setClaimSearched(false);
     try {
       const { data } = await supabase.from("servers").select("id, name").ilike("name", `%${claimSearch.trim()}%`).limit(8);
       setClaimResults(data || []);
-    } catch { setClaimResults([]); } finally { setClaimSearching(false); }
+      setClaimSearched(true);
+    } catch { setClaimResults([]); setClaimSearched(true); } finally { setClaimSearching(false); }
   };
 
   const handleSubmitClaim = async () => {
@@ -260,6 +263,9 @@ export function NoServerView() {
                       className="px-3 py-2 rounded-lg text-xs bg-neutral-800 text-neutral-300 hover:bg-neutral-700 transition disabled:opacity-40"><Search className="w-3.5 h-3.5" /></button>
                   </div>
                   {claimSearching && <Loader2 className="w-4 h-4 text-neutral-500 animate-spin mx-auto" />}
+                  {!claimSearching && claimSearched && claimResults.length === 0 && (
+                    <p className="text-xs text-amber-400/80 text-center py-1">No servers found matching "{claimSearch.trim()}"</p>
+                  )}
                   {claimResults.map(s => (
                     <button key={s.id} onClick={() => { setClaimServer(s); setClaimName(""); setClaimError(null); }}
                       className="w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-[#18191d]/60 border border-neutral-800/60 hover:bg-[#1c1d22] transition text-left">
