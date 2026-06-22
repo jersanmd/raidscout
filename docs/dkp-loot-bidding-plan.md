@@ -61,7 +61,8 @@ PlayerX signs up → searches server → enters "PlayerX" → submits claim
                                                             │
                               ┌─────────────────────────────┘
                               ▼
-              Owner sees 🔔 badge in top bar\n              Clicks → dropdown with pending claims
+              Owner sees 🔔 badge in top bar
+              Clicks → dropdown with pending claims
                  ┌────────────┴────────────┐
                  ▼                         ▼
              Accept                      Decline
@@ -84,9 +85,19 @@ PlayerX signs up → searches server → enters "PlayerX" → submits claim
 | `moderator` | Everything above + mark kills, manage attendance, resolve bids, manage members, review claims |
 | `owner` | Full control including DKP settings, moderator promotion, billing |
 
+### Player Notification
+When a claim is accepted or declined, the player sees a banner on next login (stored in a `claim_notifications` table or derived from `member_claim_requests.status`). Email notification deferred to future release.
+
 ---
 
 ## Phase 1 — Database Schema
+
+### 1.0 RLS Policies
+All new tables must have RLS policies:
+- `dkp_transactions`: Members read own. Owner/mod read/write all.
+- `dkp_bids`: Members read own. Owner/mod read/write all.
+- `dkp_config`: Owner write. Mod read.
+- `member_claim_requests`: Owner/mod read/write. User read own.
 
 ### 1.1 `dkp_transactions`
 
@@ -171,13 +182,17 @@ Bidding happens exclusively in the RaidScout web UI to keep bid amounts private.
 
 | RPC | Purpose |
 |-----|---------|
-| `mark_item_for_bid(p_item_id, p_dkp_cost, p_duration)` | Officer puts item up for bidding |
-| `place_bid(p_item_id, p_amount)` | Member places a blind bid. Validates: item is up for bid, member has enough DKP. |
-| `resolve_bid(p_bid_id, p_action)` | Officer resolves: 'award' (deduct DKP, distribute item) or 'cancel' |
+| `mark_item_for_bid(p_item_id, p_dkp_cost, p_duration_minutes)` | Officer puts item up for bidding. Sets `bid_end_time = now() + p_duration_minutes`. |
+| `place_bid(p_item_id, p_amount)` | Member places a blind bid. Validates: item is up for bid, member has enough DKP, bid >= 1. Member resolved from `auth.uid()`. |
+| `cancel_bid(p_bid_id)` | Member cancels their own active bid. |
+| `get_item_bids(p_item_id)` | Returns all bids for an item (officer only). Bid amounts hidden until auction ends (silent mode). |
+| `resolve_bid(p_bid_id, p_action)` | Officer resolves: 'award' (deduct DKP, create item distribution, mark other bids lost) or 'cancel'. |
 
 ### 2.3 DKP Status (Discord Bot — Read Only)
 
 Discord bot provides status commands only. No bidding via Discord (bids are private).
+
+**Member Matching**: Bot resolves Discord user → member via `discord_user_id` on the `members` table. If no match, returns "Link your Discord account first."
 
 | Command | Description |
 |---------|-------------|
@@ -267,6 +282,9 @@ New tab: **DKP Settings**
 - **Claim for non-existent member**: If the requested name doesn't match any member row, officer can still accept — system creates the member row on accept
 - **Duplicate claim**: Unique constraint prevents same user from submitting duplicate pending claims for the same name on the same server
 - **Member leaves server**: If member is removed from `members` table, their DKP balance is preserved (transactions reference member_id). On re-add, balance is restored.
+- **DKP enabled mid-server**: When DKP is first enabled, all existing members start at 0 DKP. No backfill for past kills.
+- **Bid on expired auction**: Bids placed after `bid_end_time` are rejected by `place_bid` RPC.
+- **Case-insensitive name matching**: Claim approval matches member name case-insensitively ("playerx" matches "PlayerX").
 
 ---
 
@@ -276,9 +294,9 @@ New tab: **DKP Settings**
 |-------|-----------|------|
 | 0 — Member Claim | 1 migration, 3 RPCs, signup flow, top bar claim dropdown | 1-2 |
 | 1 — Schema | 4 tables, 1 view, item extensions | 1 |
-| 2 — Backend | 7 RPCs, 4 bot commands | 2-3 |
-| 3 — Frontend | 1 new page, 1 top bar component, 2 integrations, 1 settings tab | 4-5 |
+| 2 — Backend | 9 RPCs, 4 bot commands | 2-3 |
+| 3 — Frontend | 1 new page, 1 top bar badge, 2 integrations, 1 settings tab, claim notification banner | 4-5 |
 | 4 — Audit | 9 audit actions, 1 permission | 0.5 |
-| 5 — Polish | Edge cases, tests | 1 |
+| 5 — Polish | Edge cases, RLS, tests | 1 |
 
-**Total: ~8-10 days**
+**Total: ~9-11 days**
