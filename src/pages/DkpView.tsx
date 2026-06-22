@@ -116,22 +116,13 @@ function LiveAuction({ serverId, isStaff, memberId, tz, toast, queryClient }: an
       queryClient.invalidateQueries({ queryKey: ["dkp_active_auctions"] });
       toast("success", `"${markName.trim()}" marked for bid.`);
       setShowMark(false); setMarkName(""); setMarkEnd("");
-    } catch (err: any) { setError(err?.message || "Failed"); } finally { setActing(false); }
-  };
-
-  const doBid = async (itemId: string) => {
+    } catch (err: any) { setError(err?.message || "Failed"); toast("error", err?.message || "Failed to mark item for bid"); } finally { setActing(false); } = async (itemId: string) => {
     setActing(true); setError(null);
     try { await placeBid(itemId, bidAmt); queryClient.invalidateQueries({ queryKey: ["dkp_balance"] }); queryClient.invalidateQueries({ queryKey: ["dkp_active_auctions"] }); toast("success", `Bid placed.`); setShowBid(null); }
-    catch (err: any) { setError(err?.message || "Failed"); } finally { setActing(false); }
-  };
-
-  const doResolve = async (itemId: string, winnerId: string | null) => {
+    catch (err: any) { setError(err?.message || "Failed"); toast("error", err?.message || "Failed to place bid"); } finally { setActing(false); } = async (itemId: string, winnerId: string | null) => {
     setActing(true);
     try { await resolveAuction(itemId, winnerId); queryClient.invalidateQueries({ queryKey: ["dkp_active_auctions"] }); queryClient.invalidateQueries({ queryKey: ["dkp_balance"] }); toast("success", winnerId ? "Auction resolved." : "Auction cancelled."); setShowResolve(null); }
-    catch (err: any) { setError(err?.message || "Failed"); } finally { setActing(false); }
-  };
-
-  return (
+    catch (err: any) { setError(err?.message || "Failed"); toast("error", err?.message || "Failed to resolve auction"); } finally { setActing(false); }
     <div className="bg-[#0d0d11] border border-[#1e1e2a] rounded-xl overflow-hidden">
       <div className="px-4 py-3 border-b border-[#1e1e2a] flex items-center justify-between">
         <div className="flex items-center gap-2"><Gavel className="w-4 h-4 text-amber-400" /><span className="text-xs font-semibold text-[#71717a] uppercase tracking-wider">Live Auction</span></div>
