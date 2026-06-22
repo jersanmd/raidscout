@@ -176,7 +176,7 @@ ALTER TABLE public.items ADD COLUMN bid_end_time TIMESTAMPTZ;
 
 | RPC | Purpose |
 |-----|---------|
-| `award_dkp_on_kill(p_death_record_id)` | Auto-award DKP to all current attendees. Idempotent — if already awarded, recalculates based on current attendance. Called after kill AND after attendance edits. |
+| `award_dkp_on_kill(p_death_record_id)` | Auto-award DKP to all current attendees. **Idempotent logic**: queries existing `dkp_transactions` for this `death_record_id`, diffs current vs previously awarded attendees, only creates transactions for new attendees (earn) and removed attendees (deduct). Called after kill AND after attendance edits via `ParticipantModal`. |
 | `adjust_member_dkp(p_member_id, p_server_id, p_amount, p_reason)` | Manual adjustment (moderator/owner). |
 
 ### 2.2 DKP Bidding (Web UI Only)
@@ -185,11 +185,12 @@ Bidding happens exclusively in the RaidScout web UI to keep bid amounts private.
 
 | RPC | Purpose |
 |-----|---------|
-| `mark_item_for_bid(p_item_id, p_dkp_cost, p_duration_minutes)` | Officer puts item up for bidding. Sets `bid_end_time = now() + p_duration_minutes`. |
+| `mark_item_for_bid(p_item_id, p_dkp_cost, p_duration_minutes)` | Officer puts item up for bidding. Sets `bid_end_time = now() + p_duration_minutes`. Only items from the server's game(s) are eligible. |
+| `unmark_item_from_bid(p_item_id)` | Officer removes item from bidding. Refunds DKP to all active bidders. Item stays in catalog. |
 | `place_bid(p_item_id, p_amount)` | Member places a blind bid. Validates item is up for bid. Immediately deducts DKP from balance. If member already has an active bid on this item, refunds old bid and places new one. |
 | `cancel_bid(p_bid_id)` | Member cancels their own active bid. Refunds DKP. |
 | `get_item_bids(p_item_id)` | Returns all bids for an item (officer only). Bid amounts hidden until auction ends (silent mode). |
-| `resolve_bid(p_bid_id, p_action)` | Officer resolves. 'award': creates item distribution, marks other bids lost (refunds their DKP). 'cancel': refunds DKP, item stays available. |
+| `resolve_bid(p_bid_id, p_action)` | Officer resolves. 'award': sets bid status to 'won', creates item distribution via existing `item_distributions` table, marks all other bids 'lost' (refunds their DKP), clears item's bid flags. 'cancel': refunds DKP, item stays available. Sets `resolved_at`. |
 
 ### 2.3 DKP Status (Discord Bot — Read Only)
 
@@ -270,7 +271,7 @@ New tab: **DKP Settings**
 ## Phase 4 — Audit & Permissions
 
 ### Audit Actions
-`MEMBER_CLAIM_REQUESTED`, `MEMBER_CLAIM_ACCEPTED`, `MEMBER_CLAIM_DECLINED`, `DKP_EARN_KILL`, `DKP_ADJUST`, `DKP_BID_PLACED`, `DKP_BID_WON`, `DKP_BID_LOST`, `DKP_ITEM_MARKED`
+`MEMBER_CLAIM_REQUESTED`, `MEMBER_CLAIM_ACCEPTED`, `MEMBER_CLAIM_DECLINED`, `DKP_EARN_KILL`, `DKP_ADJUST`, `DKP_BID_PLACED`, `DKP_BID_CANCELLED`, `DKP_BID_WON`, `DKP_BID_LOST`, `DKP_BID_REFUND`, `DKP_ITEM_MARKED`, `DKP_ITEM_UNMARKED`
 
 ### Moderator Permission
 `can_manage_dkp` — Controls who can adjust DKP, mark items for bid, resolve bids.
@@ -288,7 +289,7 @@ New tab: **DKP Settings**
 - **Duplicate claim**: Unique constraint prevents same user from submitting duplicate pending claims for the same name on the same server
 - **Member leaves server**: If member is removed from `members` table, their DKP balance is preserved (transactions reference member_id). On re-add, balance is restored.
 - **DKP enabled mid-server**: When DKP is first enabled, all existing members start at 0 DKP. No backfill for past kills.
-- **Bid on expired auction**: Bids placed after `bid_end_time` are rejected by `place_bid` RPC.
+- **Bid on expired auction**: Bids placed after `bid_end_time` are rejected by `place_bid` RPC. Officer can manually resolve any remaining active bids after expiration.
 - **Name matching**: Claim approval matches case-insensitively AND trims whitespace (" PlayerX " matches "playerx").
 - **DKP on attendance edit**: `award_dkp_on_kill` is idempotent and recalculates based on current attendance. Adding a member → they earn DKP. Removing a member → their DKP is deducted (creates a negative transaction). Callers: `useRecordDeath` after kill AND `ParticipantModal` after attendance changes.
 - **Bid immediately deducts DKP**: Placing a bid deducts DKP (creates `spend_bid` transaction). Losing bid refunds (creates `earn_adjustment` transaction). Cancelling bid refunds. Changing bid refunds old, deducts new.
@@ -322,9 +323,9 @@ New tab: **DKP Settings**
 |-------|-----------|------|
 | 0 — Member Claim | 1 migration, 4 RPCs, signup flow, "Join Server" page, top bar claim badge | 2 |
 | 1 — Schema | 4 tables, 1 view, item extensions | 1 |
-| 2 — Backend | 9 RPCs, 4 bot commands | 2-3 |
+| 2 — Backend | 10 RPCs, 4 bot commands | 2-3 |
 | 3 — Frontend | 1 new page, 1 top bar badge, 2 integrations, 1 settings tab, claim notification banner | 4-5 |
-| 4 — Audit | 9 audit actions, 1 permission | 0.5 |
+| 4 — Audit | 12 audit actions, 1 permission | 0.5 |
 | 5 — Polish | Edge cases, RLS, tests | 1 |
 
 **Total: ~9-11 days**
