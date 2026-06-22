@@ -357,7 +357,7 @@ export function LeaderboardView() {
   }
 
   const buildSnapshotShareText = (snap: LeaderboardSnapshot) => {
-    const periodLabel = snap.period === "weekly" ? "Weekly" : snap.period === "monthly" ? "Monthly" : "All Time";
+    const periodLabel = snap.period.startsWith("weekly") ? "Weekly" : snap.period.startsWith("monthly") ? "Monthly" : "All Time";
     const lines = snap.rankings.map((r, i) => {
       const medal = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i + 1}.`;
       return `${medal} ${r.memberName} — ${r.points} pts`;
@@ -1137,26 +1137,24 @@ export function LeaderboardView() {
       {viewingSnapshot && (() => {
           const finalized = new Date(viewingSnapshot.finalized_at);
           const rawPeriodStart = (viewingSnapshot as any).period_start;
-          const hasPeriodStart = !!rawPeriodStart;
+          // Use period_start if it's valid (not epoch, not missing)
           let periodStart: Date;
-          if (hasPeriodStart) {
+          if (rawPeriodStart && new Date(rawPeriodStart).getTime() > 86400000) {
             periodStart = new Date(rawPeriodStart);
-            // If period_start was stored as the epoch (first-ever finalize), treat as missing
-            if (periodStart.getTime() < 86400000) {
-              // epoch fallback: derive from finalized
+          } else {
+            // Fallback: find previous snapshot for this period and use its finalized_at
+            const prevSnap = snapshots
+              .filter(s => s.period === viewingSnapshot.period && new Date(s.finalized_at) < finalized)
+              .sort((a, b) => new Date(b.finalized_at).getTime() - new Date(a.finalized_at).getTime())[0];
+            if (prevSnap) {
+              periodStart = new Date(prevSnap.finalized_at);
+            } else {
               periodStart = new Date(finalized);
               if (viewingSnapshot.period.startsWith("weekly")) periodStart.setDate(finalized.getDate() - 7);
               else if (viewingSnapshot.period.startsWith("monthly")) periodStart.setMonth(finalized.getMonth() - 1);
               else periodStart.setTime(0);
               periodStart.setHours(0, 0, 0, 0);
             }
-          } else {
-            // no period_start at all: derive from finalized
-            periodStart = new Date(finalized);
-            if (viewingSnapshot.period.startsWith("weekly")) periodStart.setDate(finalized.getDate() - 7);
-            else if (viewingSnapshot.period.startsWith("monthly")) periodStart.setMonth(finalized.getMonth() - 1);
-            else periodStart.setTime(0);
-            periodStart.setHours(0, 0, 0, 0);
           }
           const fmt = (d: Date) =>
             viewingSnapshot.period === "all_time"
