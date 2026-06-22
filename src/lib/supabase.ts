@@ -267,6 +267,32 @@ export {
 } from "./api/claims";
 export type { ClaimRequest, PendingClaim } from "./api/claims";
 
+// DKP
+export {
+  awardDkpOnKill,
+  adjustMemberDkp,
+  getMemberDkp,
+  getServerDkpRankings,
+  getMemberDkpHistory,
+  markItemForBid,
+  unmarkItemFromBid,
+  placeBid,
+  cancelBid,
+  getItemBids,
+  resolveAuction,
+  getActiveBids,
+  getDkpConfig,
+  saveDkpConfig,
+} from "./api/dkp";
+export type {
+  DkpBalance,
+  DkpTransaction,
+  DkpRanking,
+  DkpBid,
+  ItemBid,
+  DkpConfig,
+} from "./api/dkp";
+
 // Activity guilds
 export {
   fetchActivityGuilds,
