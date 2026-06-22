@@ -137,7 +137,7 @@ function LiveAuction({ serverId, isStaff, memberId, tz, toast, queryClient }: an
     <div className="bg-[#0d0d11] border border-[#1e1e2a] rounded-xl overflow-hidden">
       <div className="px-4 py-3 border-b border-[#1e1e2a] flex items-center justify-between">
         <div className="flex items-center gap-2"><Gavel className="w-4 h-4 text-amber-400" /><span className="text-xs font-semibold text-[#71717a] uppercase tracking-wider">Live Auction</span></div>
-        {isStaff && <button onClick={() => { setShowMark(true); setMarkName(""); setMarkCost(10); setMarkEnd(""); setError(null); }} className="text-[10px] px-2 py-0.5 rounded bg-[#27272a] text-[#a1a1aa] hover:text-amber-400 transition"><Plus className="w-3 h-3 inline mr-1" />Mark for Bid</button>}
+        {isStaff && <button onClick={() => { setShowMark(true); setMarkName(""); setMarkCost(10); setError(null); const now = new Date(); const local = new Date(now.toLocaleString("en-US", { timeZone: tz })); local.setHours(23, 59, 0, 0); const pad = (n: number) => String(n).padStart(2, "0"); setMarkEnd(`${local.getFullYear()}-${pad(local.getMonth()+1)}-${pad(local.getDate())}T23:59`); }} className="text-[10px] px-2 py-0.5 rounded bg-[#27272a] text-[#a1a1aa] hover:text-amber-400 transition"><Plus className="w-3 h-3 inline mr-1" />Mark for Bid</button>}
       </div>
       {isLoading ? <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 text-[#52525b] animate-spin" /></div>
       : items.length === 0 ? <div className="px-4 py-8 text-center"><Gavel className="w-8 h-8 text-[#3f3f46] mx-auto mb-2" /><p className="text-xs text-[#71717a]">No active auctions</p></div>
