@@ -186,10 +186,14 @@ export interface ActiveAuction {
 }
 
 export async function getActiveAuctions(serverId: string): Promise<ActiveAuction[]> {
-  // Query items marked for bid (not expired)
+  // Get server game slug for cross-server item lookup
+  const { data: sv } = await supabase.from("servers").select("game").eq("id", serverId).single();
+  const gameSlug = sv?.game ?? undefined;
+
+  // Query items marked for bid (not expired) — include game-catalog items
   const { data: items } = await supabase.from("items")
     .select("id, name, image_url, rarity, dkp_cost, bid_end_time")
-    .eq("server_id", serverId)
+    .or(gameSlug ? `game.eq.${gameSlug},server_id.eq.${serverId}` : `server_id.eq.${serverId}`)
     .eq("is_up_for_bid", true)
     .gt("bid_end_time", new Date().toISOString())
     .order("bid_end_time", { ascending: true });
