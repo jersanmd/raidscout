@@ -1548,12 +1548,17 @@ export function LeaderboardView() {
                       const [datePart, timePart] = finalizeTime.split("T");
                       const [y, mo, d] = datePart.split("-").map(Number);
                       const [hh, mm] = timePart.split(":").map(Number);
-                      const testUtc = Date.UTC(y, mo - 1, d, hh, mm);
                       const tz = serverTimezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
-                      const testLocal = new Intl.DateTimeFormat("en-US", { timeZone: tz, hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(testUtc));
-                      const [tlH, tlM] = testLocal.split(":").map(Number);
-                      const offsetMs = ((tlH - hh) * 60 + (tlM - mm)) * 60_000;
-                      return new Date(testUtc - offsetMs).toISOString();
+                      // Treat input as local time in server TZ → get the UTC offset via formatToParts
+                      const ref = new Date(Date.UTC(y, mo - 1, d, hh, mm));
+                      const parts = new Intl.DateTimeFormat("en-US", { timeZone: tz, timeZoneName: "longOffset" }).formatToParts(ref);
+                      const off = parts.find(p => p.type === "timeZoneName")?.value || "UTC";
+                      const m = off.match(/([+-])(\d{1,2}):?(\d{2})?/);
+                      const sign = m?.[1] === "+" ? 1 : -1;
+                      const offH = parseInt(m?.[2] || "0");
+                      const offM = parseInt(m?.[3] || "0");
+                      const offsetMs = sign * (offH * 60 + offM) * 60_000;
+                      return new Date(Date.UTC(y, mo - 1, d, hh, mm) - offsetMs).toISOString();
                     })()
                   : new Date().toISOString();
                 setShowFinalizeConfirm(null);
