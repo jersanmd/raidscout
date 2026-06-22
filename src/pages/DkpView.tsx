@@ -206,6 +206,7 @@ function MarkModal({ name, setName, cost, setCost, end, setEnd, acting, error, o
     setResults([]);
   };
 
+  const selColor = rc(selectedItem?.rarity);
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose}>
       <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-5 w-80 shadow-xl" onClick={e => e.stopPropagation()}>
@@ -214,12 +215,12 @@ function MarkModal({ name, setName, cost, setCost, end, setEnd, acting, error, o
         <div className="space-y-3">
           <div className="relative">
             <label className="text-[10px] text-[#71717a]">Item</label>
-            {selectedItem ? (() => { const sc = rc(selectedItem.rarity); return (
+            {selectedItem ? (
               <div className="flex items-center gap-2 mt-1 p-2 rounded bg-[#0d0d11] border border-[#27272a]">
-                {selectedItem.image_url ? <img src={selectedItem.image_url} className="w-8 h-8 rounded object-cover border border-[#1e1e2a]" style={{ backgroundColor: sc + "20" }} /> : <div className="w-8 h-8 rounded flex items-center justify-center" style={{ backgroundColor: sc + "18" }}><Image className="w-4 h-4" style={{ color: sc }} /></div>}
-                <span className="text-sm flex-1 truncate" style={{ color: sc }}>{selectedItem.name}</span>
+                {selectedItem.image_url ? <img src={selectedItem.image_url} className="w-8 h-8 rounded object-cover border border-[#1e1e2a]" style={{ backgroundColor: selColor + "20" }} /> : <div className="w-8 h-8 rounded flex items-center justify-center" style={{ backgroundColor: selColor + "18" }}><Image className="w-4 h-4" style={{ color: selColor }} /></div>}
+                <span className="text-sm flex-1 truncate" style={{ color: selColor }}>{selectedItem.name}</span>
                 <button onClick={() => { setSelectedItem(null); setName(""); }} className="text-[#52525b] hover:text-[#fafafa]"><X className="w-3.5 h-3.5" /></button>
-              </div>); })()
+              </div>
             ) : (
               <input type="text" value={search} onChange={e => handleSearch(e.target.value)}
                 className="w-full bg-[#0d0d11] border border-[#27272a] rounded px-2 py-1.5 text-sm text-[#fafafa] outline-none mt-1 placeholder:text-[#52525b]" placeholder="Search catalog item..." />
@@ -227,12 +228,7 @@ function MarkModal({ name, setName, cost, setCost, end, setEnd, acting, error, o
             {searching && <Loader2 className="w-3.5 h-3.5 text-[#52525b] animate-spin absolute right-2 top-7" />}
             {results.length > 0 && !selectedItem && (
               <div className="absolute z-10 left-0 right-0 mt-1 bg-[#0d0d11] border border-[#27272a] rounded-lg overflow-hidden max-h-40 overflow-y-auto">
-                {results.map(item => { const sc = rc(item.rarity); return (
-                  <button key={item.id} onClick={() => selectItem(item)} className="w-full flex items-center gap-2 px-2.5 py-2 hover:bg-[#18181b] transition text-left">
-                    {item.image_url ? <img src={item.image_url} className="w-7 h-7 rounded object-cover shrink-0 border border-[#1e1e2a]" style={{ backgroundColor: sc + "20" }} /> : <div className="w-7 h-7 rounded flex items-center justify-center shrink-0" style={{ backgroundColor: sc + "18" }}><Image className="w-3.5 h-3.5" style={{ color: sc }} /></div>}
-                    <span className="text-xs truncate" style={{ color: sc }}>{item.name}</span>
-                  </button>
-                ); })}
+                {results.map(item => <ItemResult key={item.id} item={item} onSelect={selectItem} />)}
               </div>
             )}
             {search && !searching && results.length === 0 && !selectedItem && (
@@ -245,6 +241,16 @@ function MarkModal({ name, setName, cost, setCost, end, setEnd, acting, error, o
         </div>
       </div>
     </div>
+  );
+}
+
+function ItemResult({ item, onSelect }: { item: any; onSelect: (item: any) => void }) {
+  const sc = rc(item.rarity);
+  return (
+    <button onClick={() => onSelect(item)} className="w-full flex items-center gap-2 px-2.5 py-2 hover:bg-[#18181b] transition text-left">
+      {item.image_url ? <img src={item.image_url} className="w-7 h-7 rounded object-cover shrink-0 border border-[#1e1e2a]" style={{ backgroundColor: sc + "20" }} /> : <div className="w-7 h-7 rounded flex items-center justify-center shrink-0" style={{ backgroundColor: sc + "18" }}><Image className="w-3.5 h-3.5" style={{ color: sc }} /></div>}
+      <span className="text-xs truncate" style={{ color: sc }}>{item.name}</span>
+    </button>
   );
 }
 
