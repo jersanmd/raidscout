@@ -2,7 +2,7 @@
 
 ## Overview
 
-A dual-currency system where members earn **DKP** (Dragon Kill Points) from boss kills — separate from leaderboard points. DKP can be spent on items via Discord bot bidding. Web UI is for officers to manage items, resolve bids, and view DKP data.
+A dual-currency system where members earn **DKP** (Dragon Kill Points) from boss kills — separate from leaderboard points. DKP can be spent on items via private web bidding. Discord bot provides read-only DKP status. Web UI is for officers to manage items, resolve bids, and members to place blind bids.
 
 ### Key Design Decisions
 
@@ -14,7 +14,7 @@ A dual-currency system where members earn **DKP** (Dragon Kill Points) from boss
 | Who marks items for bid | **Owner + moderators** | Staff-controlled |
 | Bidding channel | **Web UI only** | Silent bids must be private. Discord for read-only status. |
 | DKP visibility | **Discord (`!dkp`) + Web** | `!dkp` for everyone. Web DKP page for members who claim accounts. |
-| Bid mode | **Silent auction** (default) | Members submit blind bids via Discord. Configurable per item. |
+| Bid mode | **Silent auction** (default) | Members submit blind bids via web UI. Bid amounts are never shown to other bidders. |
 
 ---
 
@@ -246,9 +246,12 @@ New section: **Pending Claims** (in Members tab or standalone)
 
 - **Bid on item that gets manually distributed**: Auto-cancel active bids
 - **Multiple bids from same member**: Only highest bid counts
-- **Bid exceeds balance**: Bot rejects with "You only have X DKP"
+- **Bid exceeds balance**: Web UI rejects with "You only have X DKP"
 - **DKP on refund**: If distributed item is returned, optionally refund DKP
 - **Viewer mode**: Can see DKP rankings, cannot bid
+- **Claim for non-existent member**: If the requested name doesn't match any member row, officer can still accept — system creates the member row on accept
+- **Duplicate claim**: Unique constraint prevents same user from submitting duplicate pending claims for the same name on the same server
+- **Member leaves server**: If member is removed from `members` table, their DKP balance is preserved (transactions reference member_id). On re-add, balance is restored.
 
 ---
 
@@ -260,7 +263,7 @@ New section: **Pending Claims** (in Members tab or standalone)
 | 1 — Schema | 4 tables, 1 view, item extensions | 1 |
 | 2 — Backend | 7 RPCs, 4 bot commands | 2-3 |
 | 3 — Frontend | 1 new page, 2 integrations, 1 settings tab | 3-4 |
-| 4 — Audit | 6 audit actions, 1 permission | 0.5 |
+| 4 — Audit | 9 audit actions, 1 permission | 0.5 |
 | 5 — Polish | Edge cases, tests | 1 |
 
 **Total: ~8-10 days**
