@@ -8,6 +8,7 @@ import type { Guild, BossGuild, Boss, PointRule, BossAssist, Activity, ActivityG
 import { Loader2, Trash2, Crown, ArrowLeft, Server, Check, Key, Copy, RefreshCw, Plus, LogIn, Users, Bell, Link as LinkIcon, Settings, AlertTriangle, X, Shield, Pencil, Swords, ChevronUp, ChevronDown, CheckSquare, Square, Eye, EyeOff, UserPlus, Minus, Trophy, Send, Save, MessageCircle, Zap, Calendar, Search, Skull, CreditCard, Lock, Mail, MailCheck, MailWarning, ScrollText } from "lucide-react";
 import { ServerBossesActivitiesTab } from "@/components/ServerBossesActivitiesTab";
 import { ActivityGuildsTab } from "@/components/server/ActivityGuildsTab";
+import { DkpSettingsTab } from "@/components/DkpSettingsTab";
 import { ActivityPointsMatrix } from "@/components/server/ActivityPointsMatrix";
 import { CreateServerModal } from "@/components/CreateServerModal";
 import { ExpiredGate } from "@/components/ExpiredGate";
@@ -206,7 +207,7 @@ export function ServerSettingsView() {
   const [savingPerms, setSavingPerms] = useState<string | null>(null); // user_id being saved
   const [searchParams] = useSearchParams();
   const tabParam = searchParams.get("tab");
-  const initialTab = (tabParam === "general" || tabParam === "members" || tabParam === "integrations" || tabParam === "danger" || tabParam === "boss-points" || tabParam === "bosses" || tabParam === "activities" || tabParam === "activity-points" || tabParam === "activity-guilds" || tabParam === "boss-guilds" || tabParam === "guilds" || tabParam === "account")
+  const initialTab = (tabParam === "general" || tabParam === "members" || tabParam === "integrations" || tabParam === "danger" || tabParam === "boss-points" || tabParam === "bosses" || tabParam === "activities" || tabParam === "activity-points" || tabParam === "activity-guilds" || tabParam === "boss-guilds" || tabParam === "guilds" || tabParam === "account" || tabParam === "dkp")
     ? tabParam
     : "general";
   const [tab, setTab] = useState<string>(initialTab);
@@ -1043,8 +1044,8 @@ export function ServerSettingsView() {
 
       {/* Mobile tab bar */}
       <div className="sm:hidden flex flex-wrap items-center gap-1 pb-1 mt-2">
-        {(["general","guilds","bosses","boss-points","boss-guilds","activities","activity-points","activity-guilds","members","integrations","account",...(isOwner?["danger"]:[])] as string[]).map((key) => {
-          const labels: Record<string,string> = {general:"General",guilds:"Guilds",bosses:"Bosses","boss-points":"Boss Points","boss-guilds":"Boss Guild Assignments",activities:"Activities","activity-points":"Activity Points","activity-guilds":"Activity Guild Assignments",members:"Moderator/Permissions",integrations:"Integrations",account:"Account",danger:"Danger"};
+        {(["general","guilds","bosses","boss-points","boss-guilds","activities","activity-points","activity-guilds","members","integrations","account","dkp",...(isOwner?["danger"]:[])] as string[]).map((key) => {
+          const labels: Record<string,string> = {general:"General",guilds:"Guilds",bosses:"Bosses","boss-points":"Boss Points","boss-guilds":"Boss Guild Assignments",activities:"Activities","activity-points":"Activity Points","activity-guilds":"Activity Guild Assignments",members:"Moderator/Permissions",integrations:"Integrations",account:"Account",dkp:"DKP",danger:"Danger"};
           const locked = isExpired && GATED_TABS.has(key);
           return <button key={key} onClick={() => { if (!locked) setTabAndUrl(key); }}
             disabled={locked}
@@ -1076,9 +1077,9 @@ export function ServerSettingsView() {
           </div>
           {showCreateModal && <CreateServerModal onClose={() => setShowCreateModal(false)} />}
           <nav className="bg-[#18181b] border border-[#27272a] rounded-xl p-1 space-y-0.5">
-            {(["general","guilds","bosses","boss-points","boss-guilds","activities","activity-points","activity-guilds","members","integrations","account",...(isOwner?["danger"]:[])] as string[]).map((key) => {
-              const icons: Record<string,React.ComponentType<{className?:string}>> = {general:Settings,guilds:Shield,bosses:Skull,"boss-points":Trophy,"boss-guilds":Swords,activities:Calendar,"activity-points":Trophy,"activity-guilds":Calendar,members:Users,integrations:Bell,account:Key,danger:AlertTriangle};
-              const labels: Record<string,string> = {general:"General",guilds:"Guilds",bosses:"Bosses","boss-points":"Boss Points","boss-guilds":"Boss Guild Assignments",activities:"Activities","activity-points":"Activity Points","activity-guilds":"Activity Guild Assignments",members:"Moderator/Permissions",integrations:"Integrations",account:"Account",danger:"Danger"};
+            {(["general","guilds","bosses","boss-points","boss-guilds","activities","activity-points","activity-guilds","members","integrations","account","dkp",...(isOwner?["danger"]:[])] as string[]).map((key) => {
+              const icons: Record<string,React.ComponentType<{className?:string}>> = {general:Settings,guilds:Shield,bosses:Skull,"boss-points":Trophy,"boss-guilds":Swords,activities:Calendar,"activity-points":Trophy,"activity-guilds":Calendar,members:Users,integrations:Bell,account:Key,dkp:Coins,danger:AlertTriangle};
+              const labels: Record<string,string> = {general:"General",guilds:"Guilds",bosses:"Bosses","boss-points":"Boss Points","boss-guilds":"Boss Guild Assignments",activities:"Activities","activity-points":"Activity Points","activity-guilds":"Activity Guild Assignments",members:"Moderator/Permissions",integrations:"Integrations",account:"Account",dkp:"DKP",danger:"Danger"};
               const Icon = icons[key];
               const locked = isExpired && GATED_TABS.has(key);
               return <button key={key} onClick={() => { if (!locked) setTabAndUrl(key); }}
@@ -2838,6 +2839,12 @@ export function ServerSettingsView() {
               </div>
             </div>
           )}
+        </section>
+      )}
+      {/* DKP Tab */}
+      {tab === "dkp" && (
+        <section className="bg-[#18181b] border border-[#27272a] rounded-xl p-4">
+          <DkpSettingsTab />
         </section>
       )}
       {/* Channel clear confirmation */}
