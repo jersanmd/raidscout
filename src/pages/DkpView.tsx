@@ -112,7 +112,11 @@ function LiveAuction({ serverId, isStaff, memberId, tz, toast, queryClient }: an
   const doMark = async () => {
     if (!markName.trim()) return; setActing(true); setError(null);
     try {
-      const { data: items } = await supabase.from("items").select("id").eq("server_id", serverId).ilike("name", markName.trim()).limit(1);
+      const { data: sv } = await supabase.from("servers").select("game").eq("id", serverId).single();
+      const gameSlug = sv?.game ?? undefined;
+      const { data: items } = await supabase.from("items").select("id")
+        .or(gameSlug ? `game.eq.${gameSlug},server_id.eq.${serverId}` : `server_id.eq.${serverId}`)
+        .neq("status", "rejected").ilike("name", `%${markName.trim()}%`).limit(1);
       if (!items?.length) { setError("Item not found"); setActing(false); return; }
       await markItemForBid(items[0].id, markCost, markEnd ? new Date(markEnd + ":00").toISOString() : null);
       queryClient.invalidateQueries({ queryKey: ["dkp_active_bids"] });
@@ -150,17 +154,21 @@ function LiveAuction({ serverId, isStaff, memberId, tz, toast, queryClient }: an
   );
 }
 
+const RARITY_COLORS: Record<string, string> = { common: "#71717a", uncommon: "#22c55e", rare: "#3b82f6", epic: "#a855f7", legendary: "#f59e0b", mythic: "#ef4444" };
+function rc(rarity?: string) { return RARITY_COLORS[rarity?.toLowerCase() ?? ""] || "#71717a"; }
+
 function AuctionRow({ item, isStaff, memberId, tz, onBid, onResolve }: any) {
-  const { data: d } = useQuery({ queryKey: ["item", item.item_id], queryFn: async () => { const { data } = await supabase.from("items").select("image_url, bid_end_time").eq("id", item.item_id).single(); return data; }, enabled: !!item.item_id });
+  const { data: d } = useQuery({ queryKey: ["item", item.item_id], queryFn: async () => { const { data } = await supabase.from("items").select("image_url, bid_end_time, rarity").eq("id", item.item_id).single(); return data; }, enabled: !!item.item_id });
   const end = d?.bid_end_time ? new Date(d.bid_end_time) : null;
   const ended = end && end < new Date();
   const left = end ? Math.max(0, Math.ceil((end.getTime() - Date.now()) / 60000)) : 0;
   const disp = end ? end.toLocaleString("en-US", { timeZone: tz, month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "";
+  const rarityColor = rc(d?.rarity);
   return (
     <div className="flex items-center gap-3 px-4 py-3 hover:bg-[#18181b]/50 transition">
-      {d?.image_url ? <img src={d.image_url} className="w-10 h-10 rounded-lg object-cover shrink-0" /> : <div className="w-10 h-10 rounded-lg bg-[#18181b] flex items-center justify-center shrink-0"><Image className="w-4 h-4 text-[#3f3f46]" /></div>}
+      {d?.image_url ? <img src={d.image_url} className="w-10 h-10 rounded-lg object-cover shrink-0 border border-[#1e1e2a]" style={{ backgroundColor: rarityColor + "20" }} /> : <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: rarityColor + "18" }}><Image className="w-4 h-4" style={{ color: rarityColor }} /></div>}
       <div className="flex-1 min-w-0">
-        <p className="text-sm text-[#fafafa] font-medium truncate">{item.item_name}</p>
+        <p className="text-sm font-medium truncate" style={{ color: rarityColor }}>{item.item_name}</p>
         <div className="flex items-center gap-2 text-[10px]"><span className="text-amber-400 font-bold">{item.highest_bid} DKP</span><span className="text-[#52525b]">· {item.bid_count} bid{item.bid_count !== 1 ? "s" : ""}</span>{!ended && <span className="text-[#52525b] flex items-center gap-0.5"><Clock className="w-3 h-3" />{left > 60 ? `${Math.ceil(left/60)}h` : `${left}min`}</span>}{ended && <span className="text-red-400">Ended</span>}{disp && <span className="text-[#52525b]">· {disp}</span>}</div>
       </div>
       <div className="flex items-center gap-1 shrink-0">
@@ -182,7 +190,11 @@ function MarkModal({ name, setName, cost, setCost, end, setEnd, acting, error, o
     if (!q.trim()) { setResults([]); return; }
     setSearching(true);
     try {
-      const { data } = await supabase.from("items").select("id, name, image_url").eq("server_id", serverId).ilike("name", `%${q.trim()}%`).order("name").limit(8);
+      const { data: sv } = await supabase.from("servers").select("game").eq("id", serverId).single();
+      const gameSlug = sv?.game ?? undefined;
+      const { data } = await supabase.from("items").select("id, name, image_url, rarity")
+        .or(gameSlug ? `game.eq.${gameSlug},server_id.eq.${serverId}` : `server_id.eq.${serverId}`)
+        .neq("status", "rejected").ilike("name", `%${q.trim()}%`).order("name").limit(8);
       setResults(data || []);
     } catch { setResults([]); } finally { setSearching(false); }
   };
@@ -202,12 +214,12 @@ function MarkModal({ name, setName, cost, setCost, end, setEnd, acting, error, o
         <div className="space-y-3">
           <div className="relative">
             <label className="text-[10px] text-[#71717a]">Item</label>
-            {selectedItem ? (
+            {selectedItem ? (() => { const sc = rc(selectedItem.rarity); return (
               <div className="flex items-center gap-2 mt-1 p-2 rounded bg-[#0d0d11] border border-[#27272a]">
-                {selectedItem.image_url ? <img src={selectedItem.image_url} className="w-8 h-8 rounded object-cover" /> : <Image className="w-8 h-8 text-[#3f3f46]" />}
-                <span className="text-sm text-[#fafafa] flex-1 truncate">{selectedItem.name}</span>
+                {selectedItem.image_url ? <img src={selectedItem.image_url} className="w-8 h-8 rounded object-cover border border-[#1e1e2a]" style={{ backgroundColor: sc + "20" }} /> : <div className="w-8 h-8 rounded flex items-center justify-center" style={{ backgroundColor: sc + "18" }}><Image className="w-4 h-4" style={{ color: sc }} /></div>}
+                <span className="text-sm flex-1 truncate" style={{ color: sc }}>{selectedItem.name}</span>
                 <button onClick={() => { setSelectedItem(null); setName(""); }} className="text-[#52525b] hover:text-[#fafafa]"><X className="w-3.5 h-3.5" /></button>
-              </div>
+              </div>); })()
             ) : (
               <input type="text" value={search} onChange={e => handleSearch(e.target.value)}
                 className="w-full bg-[#0d0d11] border border-[#27272a] rounded px-2 py-1.5 text-sm text-[#fafafa] outline-none mt-1 placeholder:text-[#52525b]" placeholder="Search catalog item..." />
@@ -215,12 +227,12 @@ function MarkModal({ name, setName, cost, setCost, end, setEnd, acting, error, o
             {searching && <Loader2 className="w-3.5 h-3.5 text-[#52525b] animate-spin absolute right-2 top-7" />}
             {results.length > 0 && !selectedItem && (
               <div className="absolute z-10 left-0 right-0 mt-1 bg-[#0d0d11] border border-[#27272a] rounded-lg overflow-hidden max-h-40 overflow-y-auto">
-                {results.map(item => (
+                {results.map(item => { const sc = rc(item.rarity); return (
                   <button key={item.id} onClick={() => selectItem(item)} className="w-full flex items-center gap-2 px-2.5 py-2 hover:bg-[#18181b] transition text-left">
-                    {item.image_url ? <img src={item.image_url} className="w-7 h-7 rounded object-cover shrink-0" /> : <Image className="w-7 h-7 text-[#3f3f46] shrink-0" />}
-                    <span className="text-xs text-[#d4d4d8] truncate">{item.name}</span>
+                    {item.image_url ? <img src={item.image_url} className="w-7 h-7 rounded object-cover shrink-0 border border-[#1e1e2a]" style={{ backgroundColor: sc + "20" }} /> : <div className="w-7 h-7 rounded flex items-center justify-center shrink-0" style={{ backgroundColor: sc + "18" }}><Image className="w-3.5 h-3.5" style={{ color: sc }} /></div>}
+                    <span className="text-xs truncate" style={{ color: sc }}>{item.name}</span>
                   </button>
-                ))}
+                ); })}
               </div>
             )}
             {search && !searching && results.length === 0 && !selectedItem && (
@@ -237,14 +249,15 @@ function MarkModal({ name, setName, cost, setCost, end, setEnd, acting, error, o
 }
 
 function BidModalUI({ itemId, bidAmt, setBidAmt, acting, error, onClose, onBid }: any) {
-  const { data: item } = useQuery({ queryKey: ["item", itemId], queryFn: async () => { const { data } = await supabase.from("items").select("name, image_url, dkp_min_bid, bid_end_time").eq("id", itemId).single(); return data; }, enabled: !!itemId });
+  const { data: item } = useQuery({ queryKey: ["item", itemId], queryFn: async () => { const { data } = await supabase.from("items").select("name, image_url, dkp_min_bid, bid_end_time, rarity").eq("id", itemId).single(); return data; }, enabled: !!itemId });
   const end = item?.bid_end_time ? new Date(item.bid_end_time) : null;
   const left = end ? Math.max(0, Math.ceil((end.getTime() - Date.now()) / 60000)) : 0;
+  const rarityColor = rc(item?.rarity);
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose}>
       <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-5 w-80 shadow-xl" onClick={e => e.stopPropagation()}>
-        {item?.image_url && <img src={item.image_url} className="w-full h-32 object-cover rounded-lg mb-3" />}
-        <h3 className="text-sm font-semibold text-[#fafafa]">{item?.name || "Item"}</h3>
+        {item?.image_url ? <img src={item.image_url} className="w-full h-32 object-cover rounded-lg mb-3 border border-[#1e1e2a]" style={{ backgroundColor: rarityColor + "20" }} /> : <div className="w-full h-32 rounded-lg mb-3 flex items-center justify-center" style={{ backgroundColor: rarityColor + "18" }}><Image className="w-8 h-8" style={{ color: rarityColor }} /></div>}
+        <h3 className="text-sm font-semibold" style={{ color: rarityColor }}>{item?.name || "Item"}</h3>
         <p className="text-[10px] text-[#71717a] mt-0.5">Min bid: {item?.dkp_min_bid ?? 1} DKP · {left > 0 ? `${left}min left` : "Ended"}</p>
         {error && <p className="text-xs text-red-400 mt-2"><AlertTriangle className="w-3 h-3 inline mr-1" />{error}</p>}
         <div className="mt-3 space-y-3">
