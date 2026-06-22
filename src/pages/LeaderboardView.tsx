@@ -358,7 +358,7 @@ export function LeaderboardView() {
 
   const buildSnapshotShareText = (snap: LeaderboardSnapshot) => {
     const periodLabel = snap.period === "weekly" ? "Weekly" : snap.period === "monthly" ? "Monthly" : "All Time";
-    const lines = snap.rankings.slice(0, 20).map((r, i) => {
+    const lines = snap.rankings.map((r, i) => {
       const medal = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i + 1}.`;
       return `${medal} ${r.memberName} — ${r.points} pts`;
     });
@@ -1132,14 +1132,12 @@ export function LeaderboardView() {
       })()}
 
       {/* Viewing snapshot modal */}
-      {viewingSnapshot && (
-        (() => {
+      {viewingSnapshot && (() => {
           const finalized = new Date(viewingSnapshot.finalized_at);
           const hasPeriodStart = !!(viewingSnapshot as any).period_start;
           const periodStart = new Date(
             (viewingSnapshot as any).period_start || viewingSnapshot.finalized_at
           );
-          // Fallback: if period_start is missing or same day as finalized (old bug), derive it
           if (!hasPeriodStart || periodStart.toDateString() === finalized.toDateString()) {
             if (viewingSnapshot.period.startsWith("weekly")) periodStart.setDate(finalized.getDate() - 7);
             else if (viewingSnapshot.period.startsWith("monthly")) periodStart.setMonth(finalized.getMonth() - 1);
@@ -1148,106 +1146,50 @@ export function LeaderboardView() {
           const fmt = (d: Date) =>
             viewingSnapshot.period === "all_time"
               ? "All time"
-              : d.toLocaleDateString(undefined, {
-                  month: "short", day: "numeric", hour: "2-digit", minute: "2-digit",
-                });
+              : d.toLocaleDateString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+          const count = viewingSnapshot.rankings.length;
+          const cols = count <= 10 ? 1 : count <= 25 ? 2 : 3;
           return (
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4" key="snap-modal">
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
               <div className="absolute inset-0 bg-black/60" onClick={clearViewing} />
-              <div className="relative bg-[#09090b] border border-[#27272a] rounded-xl w-full max-w-md shadow-2xl max-h-[80vh] flex flex-col">
+              <div className={`relative bg-[#09090b] border border-[#27272a] rounded-xl w-full shadow-2xl max-h-[85vh] flex flex-col ${cols === 1 ? "max-w-md" : cols === 2 ? "max-w-2xl" : "max-w-4xl"}`}>
                 <div className="flex items-center justify-between p-3 border-b border-[#27272a] shrink-0">
                   <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => { clearViewing(); setShowSnapshots(prevShowSnapshots.current ?? "__all__"); }}
-                      className="text-[#a1a1aa] hover:text-[#fafafa] p-1 transition"
-                      title="Back to list"
-                    >
-                      <ChevronLeft className="w-4 h-4" />
-                    </button>
+                    <button onClick={() => { clearViewing(); setShowSnapshots(prevShowSnapshots.current ?? "__all__"); }} className="text-[#a1a1aa] hover:text-[#fafafa] p-1 transition" title="Back to list"><ChevronLeft className="w-4 h-4" /></button>
                     <div>
                       <h3 className="text-[#fafafa] font-bold text-xs">Finalized Results</h3>
-                      <p className="text-[10px] text-[#71717a]">
-                        {fmt(periodStart)} → {fmt(finalized)}
-                        {" · "}
-                        {viewingSnapshot.period === "all_time" ? "" : "Previous"}
-                      </p>
+                      <p className="text-[10px] text-[#71717a]">{fmt(periodStart)} → {fmt(finalized)} · {count} players</p>
                     </div>
                   </div>
-                  <button onClick={clearViewing} className="text-[#a1a1aa] hover:text-[#fafafa] p-1">
-                    <X className="w-4 h-4" />
-                  </button>
+                  <button onClick={clearViewing} className="text-[#a1a1aa] hover:text-[#fafafa] p-1"><X className="w-4 h-4" /></button>
                 </div>
-                <div className="overflow-y-auto p-2 space-y-0.5 flex-1">
-                  {(() => {
-                    const filtered = viewingSnapshot.rankings;
-                    if (filtered.length === 0) {
-                      return <p className="text-[#71717a] text-xs text-center py-4">No rankings for this guild.</p>;
-                    }
-                    return filtered.map((r) => {
+                <div className="overflow-y-auto p-2 flex-1">
+                  <div className={`grid gap-1 ${cols === 1 ? "grid-cols-1" : cols === 2 ? "grid-cols-2" : "grid-cols-3"}`}>
+                    {viewingSnapshot.rankings.map((r) => {
                       const style = rankColors[r.rank];
                       return (
-                        <div
-                          key={r.memberId}
-                          className={`flex items-center gap-2 px-2.5 py-1 rounded-lg border ${
-                            style?.bg ?? "bg-[#09090b]/50 border-[#27272a]/50"
-                          }`}
-                        >
-                          <div className="flex items-center justify-center w-5 h-5 shrink-0">
-                            {style ? <span className="scale-75">{style.icon}</span> : <span className="text-[10px] font-bold text-[#71717a]">#{r.rank}</span>}
+                        <div key={r.memberId} className={`flex items-center gap-1.5 px-2 py-1 rounded border ${style?.bg ?? "bg-[#09090b]/50 border-[#27272a]/50"}`}>
+                          <div className="flex items-center justify-center w-4 h-4 shrink-0">
+                            {style ? <span className="scale-75">{style.icon}</span> : <span className="text-[9px] font-bold text-[#71717a]">#{r.rank}</span>}
                           </div>
-                          <span className={`flex-1 text-xs font-semibold ${style?.text ?? "text-[#fafafa]"}`}>{r.memberName}</span>
-                          <div className="flex items-center gap-0.5 shrink-0">
-                            <Trophy className="w-2.5 h-2.5 text-[#a1a1aa]" />
-                            <span className="text-[10px] font-bold text-[#fafafa] tabular-nums">{r.points}</span>
-                          </div>
+                          <span className={`flex-1 text-[11px] font-semibold truncate ${style?.text ?? "text-[#fafafa]"}`}>{r.memberName}</span>
+                          <span className="text-[10px] font-bold text-amber-400 tabular-nums shrink-0">{r.points}pt</span>
                         </div>
                       );
-                    });
-                  })()}
+                    })}
+                  </div>
                 </div>
                 {viewingSnapshot.rankings.length > 0 && (
                   <div className="p-2 border-t border-[#27272a] shrink-0 flex items-center gap-1.5 flex-wrap">
-                    <button
-                      onClick={() => {
-                        const text = buildSnapshotShareText(viewingSnapshot);
-                        navigator.clipboard.writeText(text);
-                        setCopiedShare(true);
-                        setTimeout(() => setCopiedShare(false), 2000);
-                      }}
-                      className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium bg-[#18181b] text-[#d4d4d8] hover:bg-[#27272a] transition"
-                    >
-                      {copiedShare ? <CheckCheck className="w-3 h-3 text-emerald-400" /> : <CheckCheck className="w-3 h-3" />}
-                      {copiedShare ? "Copied!" : "Copy"}
-                    </button>
-                    <button
-                      onClick={() => {
-                        const text = buildSnapshotShareText(viewingSnapshot);
-                        const url = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent("https://www.raidscout.com")}&quote=${encodeURIComponent(text)}`;
-                        window.open(url, "_blank", "width=600,height=400");
-                      }}
-                      className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium bg-[#1877F2]/20 text-[#1877F2] hover:bg-[#1877F2]/30 transition"
-                    >
-                      <svg className="w-3 h-3" viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
-                      FB
-                    </button>
-                    <button
-                      onClick={() => {
-                        const text = buildSnapshotShareText(viewingSnapshot);
-                        const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`;
-                        window.open(url, "_blank", "width=600,height=400");
-                      }}
-                      className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium bg-[#18181b] text-[#d4d4d8] hover:bg-[#27272a] transition"
-                    >
-                      <svg className="w-3 h-3" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
-                      X
-                    </button>
+                    <button onClick={() => { const text = buildSnapshotShareText(viewingSnapshot); navigator.clipboard.writeText(text); setCopiedShare(true); setTimeout(() => setCopiedShare(false), 2000); }} className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium bg-[#18181b] text-[#d4d4d8] hover:bg-[#27272a] transition">{copiedShare ? <CheckCheck className="w-3 h-3 text-emerald-400" /> : <CheckCheck className="w-3 h-3" />}{copiedShare ? "Copied!" : "Copy"}</button>
+                    <button onClick={() => { const text = buildSnapshotShareText(viewingSnapshot); const url = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent("https://www.raidscout.com")}&quote=${encodeURIComponent(text)}`; window.open(url, "_blank", "width=600,height=400"); }} className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium bg-[#1877F2]/20 text-[#1877F2] hover:bg-[#1877F2]/30 transition"><svg className="w-3 h-3" viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>FB</button>
+                    <button onClick={() => { const text = buildSnapshotShareText(viewingSnapshot); const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`; window.open(url, "_blank", "width=600,height=400"); }} className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium bg-[#18181b] text-[#d4d4d8] hover:bg-[#27272a] transition"><svg className="w-3 h-3" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>X</button>
                   </div>
                 )}
               </div>
             </div>
           );
-        })()
-      )}
+        })()}
 
       {/* Kill history modal */}
       {selectedMember && (() => {
