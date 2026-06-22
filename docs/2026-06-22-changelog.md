@@ -12,6 +12,7 @@
 - **Weekly Schedule spinner stuck indefinitely** — Three `useEffect` hooks had conflicting `setPageReady` calls on mount. The `weekOffset` effect reset `pageReady` to `false` after the `deathRecordIds` effect set it to `true`. Fixed with `prevWeekOffset` ref comparison (Strict Mode safe) and a skip when `deathRecordIds` is empty (no attendance to fetch).
 - **Weekly Schedule spinner stuck on week navigation** — Switching weeks on a server with zero death records left the "Fetching data..." overlay visible forever because `deathRecordIds.length` stayed `0` (no effect re-trigger) and the attendance query was disabled. The week-change effect now skips the overlay when there are no death records.
 - **PayPal `paypalHost` build error** — Missing variable declaration broke Vercel production builds (`TS2304: Cannot find name 'paypalHost'`).
+- **Logout modal behind PayPal buttons** — `ConfirmDialog` used `z-50`, but PayPal's hosted card field iframes rendered above it, causing the sign-out confirmation to appear behind the payment form on the Billing page. Bumped to `z-[200]`.
 
 ## 🔒 PayPal Security & Reliability
 
