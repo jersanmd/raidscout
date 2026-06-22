@@ -26,7 +26,9 @@ Guild members exist as rows in the `members` table (added by officers) but have 
 ### Solution
 1. Officer adds a member → they get an invite link with a `claim_token`
 2. Member signs up with email → `claim_token` links their auth account to the member row
-3. Member can now log in, view DKP on web, check boss timers
+3. Member is automatically added to `server_members` with `role = 'member'` (read-only access)
+4. Owner can promote them to `moderator` via Server Settings → Moderators
+5. Member can now log in, view DKP on web, bid on items, check boss timers
 
 ### Schema
 ```sql
@@ -35,14 +37,35 @@ ALTER TABLE public.members ADD COLUMN claimed_at TIMESTAMPTZ;
 
 CREATE OR REPLACE FUNCTION claim_member_profile(p_claim_token UUID)
 RETURNS UUID LANGUAGE plpgsql SECURITY DEFINER AS $$
-DECLARE v_member_id UUID;
+DECLARE
+  v_member_id UUID;
+  v_server_id UUID;
 BEGIN
-  UPDATE public.members SET user_id = auth.uid(), claimed_at = now()
+  -- Link auth user to member row
+  UPDATE public.members 
+  SET user_id = auth.uid(), claimed_at = now()
   WHERE claim_token = p_claim_token AND user_id IS NULL
-  RETURNING id INTO v_member_id;
+  RETURNING id, server_id INTO v_member_id, v_server_id;
+  
+  IF v_member_id IS NULL THEN
+    RAISE EXCEPTION 'Invalid or already claimed token';
+  END IF;
+  
+  -- Auto-add to server_members with 'member' role (read-only)
+  INSERT INTO public.server_members (server_id, user_id, role)
+  VALUES (v_server_id, auth.uid(), 'member')
+  ON CONFLICT (server_id, user_id) DO NOTHING;
+  
   RETURN v_member_id;
 END; $$;
 ```
+
+### Access Model
+| Role | Can do |
+|------|--------|
+| `member` (claimed) | View boss timers, view DKP balance, bid on items, view leaderboard |
+| `moderator` | Everything above + mark kills, manage attendance, resolve bids, manage members |
+| `owner` | Full control including DKP settings, moderator promotion, billing |
 
 ---
 
