@@ -14,7 +14,7 @@ A dual-currency system where members earn **DKP** (Dragon Kill Points) from boss
 | Who marks items for bid | **Owner + moderators** | Staff-controlled |
 | Bidding channel | **Web UI only** | Silent bids must be private. Discord for read-only status. |
 | DKP visibility | **Discord (`!dkp`) + Web** | `!dkp` for everyone. Web DKP page for members who claim accounts. |
-| DKP reservation | **No reservation** | DKP is not locked when bidding. Balance checked at bid time and again at resolution. Member could overspend if they bid on multiple items and win all — officer sees "insufficient DKP" warning. |
+| DKP reservation | **Deducted on bid, refunded on loss** | Placing a bid immediately deducts DKP. If bid is lost or cancelled, DKP is refunded. Prevents bidding same DKP on multiple items. |
 | Bid mode | **Silent auction** (default) | Members submit blind bids via web UI. Bid amounts are never shown to other bidders. |
 
 ---
@@ -110,7 +110,7 @@ CREATE TABLE public.dkp_transactions (
   server_id UUID NOT NULL REFERENCES public.servers(id) ON DELETE CASCADE,
   member_id UUID NOT NULL REFERENCES public.members(id) ON DELETE CASCADE,
   amount INTEGER NOT NULL,          -- positive = earn, negative = spend
-  type TEXT NOT NULL,                -- 'earn_kill', 'earn_adjustment', 'spend_bid', 'spend_council'
+  type TEXT NOT NULL,                -- 'earn_kill', 'earn_adjustment', 'earn_refund', 'spend_bid', 'spend_council'
   reason TEXT,
   reference_id UUID,
   reference_type TEXT,               -- 'death_record', 'bid', 'manual'
@@ -176,7 +176,7 @@ ALTER TABLE public.items ADD COLUMN bid_end_time TIMESTAMPTZ;
 
 | RPC | Purpose |
 |-----|---------|
-| `award_dkp_on_kill(p_death_record_id)` | Auto-award DKP to all attendees. Amount = boss_points × multiplier. |
+| `award_dkp_on_kill(p_death_record_id)` | Auto-award DKP to all current attendees. Idempotent — if already awarded, recalculates based on current attendance. Called after kill AND after attendance edits. |
 | `adjust_member_dkp(p_member_id, p_server_id, p_amount, p_reason)` | Manual adjustment (moderator/owner). |
 
 ### 2.2 DKP Bidding (Web UI Only)
@@ -186,10 +186,10 @@ Bidding happens exclusively in the RaidScout web UI to keep bid amounts private.
 | RPC | Purpose |
 |-----|---------|
 | `mark_item_for_bid(p_item_id, p_dkp_cost, p_duration_minutes)` | Officer puts item up for bidding. Sets `bid_end_time = now() + p_duration_minutes`. |
-| `place_bid(p_item_id, p_amount)` | Member places a blind bid. Validates: item is up for bid, member has enough DKP, bid >= 1. Member resolved from `auth.uid()`. |
-| `cancel_bid(p_bid_id)` | Member cancels their own active bid. |
+| `place_bid(p_item_id, p_amount)` | Member places a blind bid. Validates item is up for bid. Immediately deducts DKP from balance. If member already has an active bid on this item, refunds old bid and places new one. |
+| `cancel_bid(p_bid_id)` | Member cancels their own active bid. Refunds DKP. |
 | `get_item_bids(p_item_id)` | Returns all bids for an item (officer only). Bid amounts hidden until auction ends (silent mode). |
-| `resolve_bid(p_bid_id, p_action)` | Officer resolves: 'award' (deduct DKP, create item distribution, mark other bids lost) or 'cancel'. |
+| `resolve_bid(p_bid_id, p_action)` | Officer resolves. 'award': creates item distribution, marks other bids lost (refunds their DKP). 'cancel': refunds DKP, item stays available. |
 
 ### 2.3 DKP Status (Discord Bot — Read Only)
 
@@ -279,8 +279,8 @@ New tab: **DKP Settings**
 
 ## Phase 5 — Edge Cases
 
-- **Bid on item that gets manually distributed**: Auto-cancel active bids
-- **Multiple bids from same member**: Only highest bid counts
+- **Bid on item that gets manually distributed**: Auto-cancel active bids, refund DKP
+- **Multiple items up for bid**: Member can bid on multiple items, but each bid deducts DKP immediately. Cannot bid more than available balance across all active bids.
 - **Bid exceeds balance**: Web UI rejects with "You only have X DKP"
 - **DKP on refund**: If distributed item is returned, optionally refund DKP
 - **Viewer mode**: Can see DKP rankings, cannot bid
@@ -290,8 +290,9 @@ New tab: **DKP Settings**
 - **DKP enabled mid-server**: When DKP is first enabled, all existing members start at 0 DKP. No backfill for past kills.
 - **Bid on expired auction**: Bids placed after `bid_end_time` are rejected by `place_bid` RPC.
 - **Name matching**: Claim approval matches case-insensitively AND trims whitespace (" PlayerX " matches "playerx").
-- **DKP on attendance edit**: DKP is locked at kill time. Editing attendance after the fact does NOT retroactively adjust DKP. Use `adjust_member_dkp` for corrections.
-- **Overspend on multiple wins**: If a member wins multiple bids exceeding their balance, officer sees a warning but can still award (member goes into DKP debt).
+- **DKP on attendance edit**: `award_dkp_on_kill` is idempotent and recalculates based on current attendance. Adding a member → they earn DKP. Removing a member → their DKP is deducted (creates a negative transaction). Callers: `useRecordDeath` after kill AND `ParticipantModal` after attendance changes.
+- **Bid immediately deducts DKP**: Placing a bid deducts DKP (creates `spend_bid` transaction). Losing bid refunds (creates `earn_adjustment` transaction). Cancelling bid refunds. Changing bid refunds old, deducts new.
+- **Bid with insufficient DKP**: Web UI rejects if `dkp_balance - all_active_bids < bid_amount`. The DKP is already reserved for other active bids.
 - **Top bar badge with no server selected**: Badge hidden. Only shows count for `currentServer.id`.
 
 ---
