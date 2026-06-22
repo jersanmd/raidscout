@@ -44,6 +44,7 @@ CREATE TABLE public.member_claim_requests (
   status TEXT NOT NULL DEFAULT 'pending',  -- 'pending', 'accepted', 'declined'
   reviewer_id UUID REFERENCES auth.users(id),
   decline_reason TEXT,
+  is_read BOOLEAN DEFAULT false,     -- set to true when player views notification
   created_at TIMESTAMPTZ DEFAULT now(),
   resolved_at TIMESTAMPTZ
 );
@@ -113,7 +114,7 @@ CREATE TABLE public.dkp_transactions (
   server_id UUID NOT NULL REFERENCES public.servers(id) ON DELETE CASCADE,
   member_id UUID NOT NULL REFERENCES public.members(id) ON DELETE CASCADE,
   amount INTEGER NOT NULL,          -- positive = earn, negative = spend
-  type TEXT NOT NULL,                -- 'earn_kill', 'earn_adjustment', 'earn_refund', 'spend_bid', 'spend_council'
+  type TEXT NOT NULL,                -- 'earn_kill', 'earn_adjustment', 'earn_refund', 'spend_bid'
   reason TEXT,
   reference_id UUID,
   reference_type TEXT,               -- 'death_record', 'bid', 'manual'
@@ -194,9 +195,9 @@ Bidding happens exclusively in the RaidScout web UI to keep bid amounts private.
 | `place_bid(p_item_id, p_amount)` | Member places a blind bid. Validates item is up for bid. Immediately deducts DKP from balance. If member already has an active bid on this item, refunds old bid and places new one. |
 | `cancel_bid(p_bid_id)` | Member cancels their own active bid. Refunds DKP. |
 | `get_item_bids(p_item_id)` | Returns all bids for an item (officer only). Bid amounts hidden until auction ends (silent mode). |
-| `resolve_auction(p_item_id, p_winner_bid_id)` | Officer picks winner. Sets winner bid to 'won' (DKP already deducted at bid time — no double-charge). Marks all other bids 'lost' (refunds their DKP). Clears item's bid flags and creates item distribution. If `p_winner_bid_id` is NULL, cancels the auction (refunds all). |
+| `resolve_auction(p_item_id, p_winner_bid_id)` | Officer picks winner. Sets winner bid to 'won' (DKP stays deducted). Marks losing bids 'lost' (refunds DKP via `earn_refund`). Creates item distribution, clears item bid flags. If `p_winner_bid_id` is NULL, refunds all and unmarks item. |
 
-**Race condition protection**: `place_bid` uses `SELECT ... FOR UPDATE` on the item row to prevent concurrent bid conflicts. `resolve_auction` locks the item row during resolution.
+**Race condition protection**: `place_bid` uses `SELECT ... FOR UPDATE` on the item row. `resolve_auction` locks the item row. `award_dkp_on_kill` is safe to call from both `useRecordDeath` and `ParticipantModal` — the idempotent diff means duplicate calls are no-ops if attendance hasn't changed. |
 
 ### 2.3 DKP Status (Discord Bot — Read Only)
 
@@ -300,9 +301,10 @@ New tab: **DKP Settings**
 - **Undo bid resolution**: `resolve_auction` can be called again on the same item to change the winner. Previous winner's DKP deduction is refunded, item distribution deleted, new winner selected.
 - **Name matching**: Claim approval matches case-insensitively AND trims whitespace (" PlayerX " matches "playerx").
 - **DKP on attendance edit**: `award_dkp_on_kill` is idempotent and recalculates based on current attendance. Adding a member → they earn DKP. Removing a member → their DKP is deducted (creates a negative transaction). Callers: `useRecordDeath` after kill AND `ParticipantModal` after attendance changes.
-- **Bid immediately deducts DKP**: Placing a bid deducts DKP (creates `spend_bid` transaction). Losing bid refunds (creates `earn_adjustment` transaction). Cancelling bid refunds. Changing bid refunds old, deducts new.
+- **Bid immediately deducts DKP**: Placing a bid deducts DKP (creates `spend_bid`). Losing bid refunds (creates `earn_refund`). Cancelling bid refunds (creates `earn_refund`). Changing bid refunds old, deducts new.
 - **Bid with insufficient DKP**: Web UI rejects if `dkp_balance - all_active_bids < bid_amount`. The DKP is already reserved for other active bids.
 - **DKP for activities**: Not in v1. If activity DKP is needed later, add `award_dkp_on_activity` RPC — same pattern as kills.
+- **Member deleted mid-auction**: If the winning member is removed from the server, `resolve_auction` fails — officer must pick a different winner or cancel the auction.
 - **Transaction history pagination**: Cursor-based, 50 per page via `get_member_dkp_history`.
 
 ---
@@ -318,7 +320,7 @@ New tab: **DKP Settings**
 
 | File | What it tests |
 |------|--------------|
-| `src/lib/api/dkp.test.ts` | `award_dkp_on_kill`, `adjust_member_dkp`, `place_bid`, `resolve_bid` |
+| `src/lib/api/dkp.test.ts` | `award_dkp_on_kill`, `adjust_member_dkp`, `place_bid`, `resolve_auction`, `cancel_bid` |
 | `src/components/DkpBidForm.test.tsx` | Bid form validation, balance display, DKP check |
 | `src/components/ClaimBadge.test.tsx` | Badge count rendering, dropdown interactions, accept/decline |
 | `scripts/bot/commands.dkp.test.ts` | `!dkp`, `!dkp top`, `!mybids`, `!bidstatus` output |
