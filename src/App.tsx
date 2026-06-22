@@ -33,6 +33,7 @@ const RefundPolicyView = lazy(() => import("@/pages/RefundPolicy").then(m => ({ 
 const ChangelogView = lazy(() => import("@/pages/ChangelogView").then(m => ({ default: m.ChangelogView })));
 const ForgotPasswordPage = lazy(() => import("@/pages/ForgotPasswordPage").then(m => ({ default: m.ForgotPasswordPage })));
 const ChangePasswordPage = lazy(() => import("@/pages/ChangePasswordPage").then(m => ({ default: m.ChangePasswordPage })));
+const JoinServerView = lazy(() => import("@/pages/JoinServerView").then(m => ({ default: m.JoinServerView })));
 
 /** Loading fallback shown while route chunks load */
 function PageLoader() {
@@ -185,6 +186,7 @@ function AppRoutes() {
         <Route path="/analytics" element={<Suspense fallback={<PageLoader />}><AnalyticsView /></Suspense>} />
         <Route path="/server-settings" element={<Suspense fallback={<PageLoader />}><ServerSettingsView /></Suspense>} />
         <Route path="/billing" element={<Suspense fallback={<PageLoader />}><BillingView /></Suspense>} />
+        <Route path="/join" element={<Suspense fallback={<PageLoader />}><JoinServerView /></Suspense>} />
       </Route>
     </Routes>
   );

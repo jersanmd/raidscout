@@ -257,6 +257,16 @@ export {
 } from "./api/audit";
 export type { AuditEntry } from "./api/audit";
 
+// Member claims
+export {
+  submitClaimRequest,
+  getPendingClaims,
+  getMyClaims,
+  reviewClaimRequest,
+  markClaimRead,
+} from "./api/claims";
+export type { ClaimRequest, PendingClaim } from "./api/claims";
+
 // Activity guilds
 export {
   fetchActivityGuilds,

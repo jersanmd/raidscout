@@ -21,6 +21,7 @@ import { useNotifications, typeIcon } from "@/hooks/useNotifications";
 import { ServerActivityLogTab } from "@/pages/ServerSettingsView";
 import { TIMEZONES } from "@/lib/timezones";
 import { BotStatusIndicator } from "@/components/BotStatusIndicator";
+import { ClaimNotificationBadge } from "@/components/ClaimNotificationBadge";
 
 let _audioCtx: AudioContext | null = null;
 function getAudioContext(): AudioContext { if (!_audioCtx || _audioCtx.state === "closed") _audioCtx = new AudioContext(); return _audioCtx; }
@@ -247,6 +248,7 @@ export function Layout() {
         )}
         <div className="flex-1" />
         {/* Bot status */}
+        <ClaimNotificationBadge />
         <BotStatusIndicator />
         {/* Activity Log button */}
         {currentServer && !isViewer && (
