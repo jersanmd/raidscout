@@ -217,7 +217,25 @@ Modify `InventoryView`:
 - **Member action**: Bid button on bid-eligible items → opens bid form with DKP balance
 - Winner gets item auto-distributed, DKP auto-deducted, losers refunded nothing (silent auction)
 
-### 3.3 Server Settings
+### 3.3 Top Bar — Claim Notification Badge
+
+New button in `Layout.tsx` top bar (next to the RaidScout status button), visible to owners and moderators:
+
+```
+┌──────────────────────────────────────────────────┐
+│  ☰  Bosses  Schedule  ...        🔔3  🟢 Status │
+└──────────────────────────────────────────────────┘
+```
+
+- **Badge count** — Shows number of pending claim requests for the current server
+- **Polling** — Queries `member_claim_requests` every 30s (or Supabase Realtime subscription)
+- **Dropdown** — Click opens a compact dropdown listing pending claims:
+  - Player name, requester email, date submitted
+  - Accept / Decline buttons inline
+  - Optional decline reason text field
+- **Empty state** — Badge hidden when count is 0
+
+### 3.4 Server Settings
 
 New tab: **DKP Settings**
 - Enable/disable DKP
@@ -262,7 +280,7 @@ New section: **Pending Claims** (in Members tab or standalone)
 | 0 — Member Claim | 1 migration, 2 RPCs, signup flow, claim review UI | 1-2 |
 | 1 — Schema | 4 tables, 1 view, item extensions | 1 |
 | 2 — Backend | 7 RPCs, 4 bot commands | 2-3 |
-| 3 — Frontend | 1 new page, 2 integrations, 1 settings tab | 3-4 |
+| 3 — Frontend | 1 new page, 1 top bar component, 2 integrations, 1 settings tab | 4-5 |
 | 4 — Audit | 9 audit actions, 1 permission | 0.5 |
 | 5 — Polish | Edge cases, tests | 1 |
 
