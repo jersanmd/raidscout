@@ -4,7 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useServerId } from "@/contexts/ServerContext";
 import { getPendingClaims, reviewClaimRequest, markClaimRead, getMyClaims, type PendingClaim, type ClaimRequest } from "@/lib/supabase";
 import { writeAuditEntry, AuditAction } from "@/lib/api/audit";
-import { Bell, Check, X, Loader2 } from "lucide-react";
+import { UserCheck, Check, X, Loader2 } from "lucide-react";
 
 /**
  * Top bar claim notification badge.
@@ -90,9 +90,10 @@ export function ClaimNotificationBadge() {
       <button
         onClick={() => setOpen(!open)}
         className="relative flex items-center gap-1 px-2 py-1.5 rounded-lg text-[#a1a1aa] hover:text-[#fafafa] hover:bg-[#27272a] transition"
-        title="Claim requests"
+        title="Member claims"
       >
-        <Bell className="w-4 h-4" />
+        <UserCheck className="w-4 h-4" />
+        <span className="text-[11px] font-medium hidden sm:inline">Claims</span>
         {(count > 0 || hasUnread) && (
           <span className={`absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full text-[9px] font-bold flex items-center justify-center ${
             count > 0 ? "bg-red-500 text-white" : "bg-emerald-500 text-white"
@@ -108,7 +109,7 @@ export function ClaimNotificationBadge() {
           {/* Header */}
           <div className="px-4 py-3 border-b border-[#1e1e2a] flex items-center justify-between">
             <div>
-              <span className="text-xs font-semibold text-[#fafafa]">Claim Requests</span>
+              <span className="text-xs font-semibold text-[#fafafa]">Member Claims</span>
               <span className="text-[10px] text-[#52525b] ml-1.5">{count} pending</span>
             </div>
             <button onClick={() => setOpen(false)} className="text-[#52525b] hover:text-[#fafafa]"><X className="w-3.5 h-3.5" /></button>
@@ -118,7 +119,7 @@ export function ClaimNotificationBadge() {
             <div className="flex justify-center py-6"><Loader2 className="w-4 h-4 text-[#52525b] animate-spin" /></div>
           ) : count === 0 ? (
             <div className="px-4 py-8 text-center">
-              <Bell className="w-6 h-6 text-[#3f3f46] mx-auto mb-2" />
+              <UserCheck className="w-6 h-6 text-[#3f3f46] mx-auto mb-2" />
               <p className="text-xs text-[#71717a]">No pending claims</p>
               {hasUnread && <p className="text-[10px] text-emerald-400 mt-1">You have resolved claims</p>}
             </div>
