@@ -1,10 +1,11 @@
 -- 098: Member Claim System + Discord User ID
 -- Allows guild members to claim their profile and access the web UI.
 
--- 1. Add discord_user_id to members (for Discord bot matching)
+-- 0. Add user_id and discord_user_id to members (if not exists)
+ALTER TABLE public.members ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.users(id);
 ALTER TABLE public.members ADD COLUMN IF NOT EXISTS discord_user_id TEXT;
 
--- 2. Member claim requests table
+-- 1. Member claim requests table
 CREATE TABLE IF NOT EXISTS public.member_claim_requests (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   server_id UUID NOT NULL REFERENCES public.servers(id) ON DELETE CASCADE,

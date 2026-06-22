@@ -1,5 +1,8 @@
 -- 099: DKP System Schema — transactions, bids, config, items extensions, views, RLS
 
+-- 0. Add user_id to members (needed for claim system + DKP member ownership)
+ALTER TABLE public.members ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.users(id);
+
 -- 1. DKP Transactions
 CREATE TABLE IF NOT EXISTS public.dkp_transactions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
