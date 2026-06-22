@@ -14,6 +14,7 @@ A dual-currency system where members earn **DKP** (Dragon Kill Points) from boss
 | Who marks items for bid | **Owner + moderators** | Staff-controlled |
 | Bidding channel | **Web UI only** | Silent bids must be private. Discord for read-only status. |
 | DKP visibility | **Discord (`!dkp`) + Web** | `!dkp` for everyone. Web DKP page for members who claim accounts. |
+| DKP reservation | **No reservation** | DKP is not locked when bidding. Balance checked at bid time and again at resolution. Member could overspend if they bid on multiple items and win all — officer sees "insufficient DKP" warning. |
 | Bid mode | **Silent auction** (default) | Members submit blind bids via web UI. Bid amounts are never shown to other bidders. |
 
 ---
@@ -26,10 +27,11 @@ Guild members exist as rows in the `members` table (added by officers) but have 
 ### Solution: Self-Service Claim with Approval
 
 1. **Player signs up** with email/password on RaidScout
-2. **Player searches** for their server (by name or invite code)
+2. **Lands on "Join a Server" page** — sees a search input (server name or invite code) and a list of servers they've been invited to
 3. **Player enters** their in-game character name and submits a claim request
 4. **Owner/moderator sees** notification badge in top bar with pending claim count
 5. **Reviews and accepts/declines** from the top bar dropdown
+6. **Player checks status** via "My Claims" link (or sees acceptance banner on next login)
 
 ### Schema
 ```sql
@@ -53,7 +55,8 @@ CREATE UNIQUE INDEX idx_claim_req_unique ON member_claim_requests(server_id, use
 |-----|---------|
 | `submit_claim_request(p_server_id, p_requested_name)` | Player submits a claim. One pending request per server+user+name. |
 | `get_pending_claims(p_server_id)` | Returns all pending claims for a server (owner/mod only). Used by top bar badge. |
-| `review_claim_request(p_request_id, p_action, p_reason?)` | Owner/mod accepts or declines. On accept: links member row (by name match), adds to server_members. |
+| `get_my_claims()` | Returns the current user's claim requests across all servers + their status. |
+| `review_claim_request(p_request_id, p_action, p_reason?)` | Owner/mod accepts or declines. On accept: links member row (case-insensitive + whitespace-trimmed name match), adds to server_members. |
 
 ### Flow
 ```
@@ -192,7 +195,9 @@ Bidding happens exclusively in the RaidScout web UI to keep bid amounts private.
 
 Discord bot provides status commands only. No bidding via Discord (bids are private).
 
-**Member Matching**: Bot resolves Discord user → member via `discord_user_id` on the `members` table. If no match, returns "Link your Discord account first."
+**Member Matching**: Bot resolves Discord user → member via a `members.discord_user_id` column. When a Discord-linked user claims their profile, `discord_user_id` is populated. If no Discord link exists, Discord commands return "Link your Discord account first."
+
+**New column**: `ALTER TABLE public.members ADD COLUMN discord_user_id TEXT;`
 
 | Command | Description |
 |---------|-------------|
@@ -284,7 +289,29 @@ New tab: **DKP Settings**
 - **Member leaves server**: If member is removed from `members` table, their DKP balance is preserved (transactions reference member_id). On re-add, balance is restored.
 - **DKP enabled mid-server**: When DKP is first enabled, all existing members start at 0 DKP. No backfill for past kills.
 - **Bid on expired auction**: Bids placed after `bid_end_time` are rejected by `place_bid` RPC.
-- **Case-insensitive name matching**: Claim approval matches member name case-insensitively ("playerx" matches "PlayerX").
+- **Name matching**: Claim approval matches case-insensitively AND trims whitespace (" PlayerX " matches "playerx").
+- **DKP on attendance edit**: DKP is locked at kill time. Editing attendance after the fact does NOT retroactively adjust DKP. Use `adjust_member_dkp` for corrections.
+- **Overspend on multiple wins**: If a member wins multiple bids exceeding their balance, officer sees a warning but can still award (member goes into DKP debt).
+- **Top bar badge with no server selected**: Badge hidden. Only shows count for `currentServer.id`.
+
+---
+
+## Migration Numbering
+
+| Phase | Migration |
+|-------|-----------|
+| 0 — Member Claim | `098_member_claim_requests.sql` (table + `discord_user_id` on members) |
+| 1 — DKP Schema | `099_dkp_schema.sql` (transactions, bids, config, items extensions, views, RLS) |
+
+## Test Strategy
+
+| File | What it tests |
+|------|--------------|
+| `src/lib/api/dkp.test.ts` | `award_dkp_on_kill`, `adjust_member_dkp`, `place_bid`, `resolve_bid` |
+| `src/components/DkpBidForm.test.tsx` | Bid form validation, balance display, DKP check |
+| `src/components/ClaimBadge.test.tsx` | Badge count rendering, dropdown interactions, accept/decline |
+| `scripts/bot/commands.dkp.test.ts` | `!dkp`, `!dkp top`, `!mybids`, `!bidstatus` output |
+| `src/lib/integrity.test.ts` | Add new files to silent-catch and import checks |
 
 ---
 
@@ -292,7 +319,7 @@ New tab: **DKP Settings**
 
 | Phase | Components | Days |
 |-------|-----------|------|
-| 0 — Member Claim | 1 migration, 3 RPCs, signup flow, top bar claim dropdown | 1-2 |
+| 0 — Member Claim | 1 migration, 4 RPCs, signup flow, "Join Server" page, top bar claim badge | 2 |
 | 1 — Schema | 4 tables, 1 view, item extensions | 1 |
 | 2 — Backend | 9 RPCs, 4 bot commands | 2-3 |
 | 3 — Frontend | 1 new page, 1 top bar badge, 2 integrations, 1 settings tab, claim notification banner | 4-5 |
