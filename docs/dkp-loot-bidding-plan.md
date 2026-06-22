@@ -28,9 +28,8 @@ Guild members exist as rows in the `members` table (added by officers) but have 
 1. **Player signs up** with email/password on RaidScout
 2. **Player searches** for their server (by name or invite code)
 3. **Player enters** their in-game character name and submits a claim request
-4. **Owner/moderator reviews** pending claims in Server Settings
-5. **Accept**: Links the member row to the player's auth account. Auto-adds to `server_members` with `role = 'member'`.
-6. **Decline**: Request is rejected with optional reason.
+4. **Owner/moderator sees** notification badge in top bar with pending claim count
+5. **Reviews and accepts/declines** from the top bar dropdown
 
 ### Schema
 ```sql
@@ -53,6 +52,7 @@ CREATE UNIQUE INDEX idx_claim_req_unique ON member_claim_requests(server_id, use
 | RPC | Purpose |
 |-----|---------|
 | `submit_claim_request(p_server_id, p_requested_name)` | Player submits a claim. One pending request per server+user+name. |
+| `get_pending_claims(p_server_id)` | Returns all pending claims for a server (owner/mod only). Used by top bar badge. |
 | `review_claim_request(p_request_id, p_action, p_reason?)` | Owner/mod accepts or declines. On accept: links member row (by name match), adds to server_members. |
 
 ### Flow
@@ -61,7 +61,7 @@ PlayerX signs up → searches server → enters "PlayerX" → submits claim
                                                             │
                               ┌─────────────────────────────┘
                               ▼
-              Owner sees pending claim in Server Settings
+              Owner sees 🔔 badge in top bar\n              Clicks → dropdown with pending claims
                  ┌────────────┴────────────┐
                  ▼                         ▼
              Accept                      Decline
@@ -243,10 +243,7 @@ New tab: **DKP Settings**
 - Default bid mode + duration
 - Manual DKP adjustments per member
 
-New section: **Pending Claims** (in Members tab or standalone)
-- Table of pending claim requests: player name, requester email, date
-- Accept / Decline buttons with optional decline reason
-- Audit log entries for accepted/declined claims
+
 
 ---
 
@@ -277,7 +274,7 @@ New section: **Pending Claims** (in Members tab or standalone)
 
 | Phase | Components | Days |
 |-------|-----------|------|
-| 0 — Member Claim | 1 migration, 2 RPCs, signup flow, claim review UI | 1-2 |
+| 0 — Member Claim | 1 migration, 3 RPCs, signup flow, top bar claim dropdown | 1-2 |
 | 1 — Schema | 4 tables, 1 view, item extensions | 1 |
 | 2 — Backend | 7 RPCs, 4 bot commands | 2-3 |
 | 3 — Frontend | 1 new page, 1 top bar component, 2 integrations, 1 settings tab | 4-5 |
