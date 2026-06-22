@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerId, useServer } from "@/contexts/ServerContext";
 import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/contexts/ToastContext";
 import { markItemForBid, unmarkItemFromBid, placeBid, getItemBids, resolveAuction, cancelBid, getMemberDkp, getDkpConfig, type ItemBid } from "@/lib/supabase";
 import { supabase } from "@/lib/supabase";
 import { Gavel, Loader2, X, Check, AlertTriangle, Coins } from "lucide-react";
@@ -23,6 +24,7 @@ export function DkpBidPanel({ item, isOwnerOrMod }: DkpBidPanelProps) {
   const { currentServer } = useServer();
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const { toast } = useToast();
   const tz = currentServer?.timezone || "UTC";
 
   const [showMarkModal, setShowMarkModal] = useState(false);
@@ -61,6 +63,7 @@ export function DkpBidPanel({ item, isOwnerOrMod }: DkpBidPanelProps) {
       const utcEnd = bidEndDate ? new Date(bidEndDate + ":00").toISOString() : null;
       await markItemForBid(item.id, dkpCost, utcEnd);
       queryClient.invalidateQueries({ queryKey: ["items"] });
+      toast("success", `"${item.name}" marked for bid.`);
       setShowMarkModal(false);
     } catch (err: any) {
       setError(err?.message || "Failed to mark item");
@@ -75,6 +78,7 @@ export function DkpBidPanel({ item, isOwnerOrMod }: DkpBidPanelProps) {
     try {
       await unmarkItemFromBid(item.id);
       queryClient.invalidateQueries({ queryKey: ["items"] });
+      toast("success", `"${item.name}" removed from bidding.`);
     } catch (err: any) {
       setError(err?.message || "Failed to unmark");
     } finally {
@@ -89,6 +93,7 @@ export function DkpBidPanel({ item, isOwnerOrMod }: DkpBidPanelProps) {
     try {
       await placeBid(item.id, bidAmount);
       queryClient.invalidateQueries({ queryKey: ["dkp_balance"] });
+      toast("success", `Bid ${bidAmount} DKP on "${item.name}".`);
       setShowBidModal(false);
     } catch (err: any) {
       setError(err?.message || "Failed to place bid");
@@ -104,6 +109,7 @@ export function DkpBidPanel({ item, isOwnerOrMod }: DkpBidPanelProps) {
       await resolveAuction(item.id, winnerBidId);
       queryClient.invalidateQueries({ queryKey: ["items"] });
       queryClient.invalidateQueries({ queryKey: ["item_bids", item.id] });
+      toast("success", winnerBidId ? `Auction resolved — winner selected.` : `Auction cancelled.`);
       setShowResolveModal(false);
     } catch (err: any) {
       setError(err?.message || "Failed to resolve");
