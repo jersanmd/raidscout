@@ -102,79 +102,72 @@ export function ClaimNotificationBadge() {
       {/* Dropdown */}
       {open && (
         <div className="absolute right-0 top-full mt-1 w-80 bg-[#0d0d11] border border-[#1e1e2a] rounded-xl shadow-2xl z-50 overflow-hidden">
-          <div className="px-3 py-2 border-b border-[#1e1e2a]">
-            <span className="text-xs font-semibold text-[#fafafa]">Claim Requests</span>
-            <span className="text-[10px] text-[#52525b] ml-1">{count} pending</span>
+          {/* Header */}
+          <div className="px-4 py-3 border-b border-[#1e1e2a] flex items-center justify-between">
+            <div>
+              <span className="text-xs font-semibold text-[#fafafa]">Claim Requests</span>
+              <span className="text-[10px] text-[#52525b] ml-1.5">{count} pending</span>
+            </div>
+            <button onClick={() => setOpen(false)} className="text-[#52525b] hover:text-[#fafafa]"><X className="w-3.5 h-3.5" /></button>
           </div>
 
           {isLoading ? (
-            <div className="flex justify-center py-4">
-              <Loader2 className="w-4 h-4 text-[#52525b] animate-spin" />
-            </div>
+            <div className="flex justify-center py-6"><Loader2 className="w-4 h-4 text-[#52525b] animate-spin" /></div>
           ) : count === 0 ? (
-            <div className="px-3 py-6 text-center">
+            <div className="px-4 py-8 text-center">
+              <Bell className="w-6 h-6 text-[#3f3f46] mx-auto mb-2" />
               <p className="text-xs text-[#71717a]">No pending claims</p>
-              {hasUnread && (
-                <p className="text-[10px] text-emerald-400 mt-1">You have resolved claims to review</p>
-              )}
+              {hasUnread && <p className="text-[10px] text-emerald-400 mt-1">You have resolved claims</p>}
             </div>
           ) : (
-            <div className="max-h-64 overflow-y-auto">
+            <div className="max-h-72 overflow-y-auto divide-y divide-[#1e1e2a]/50">
               {pendingClaims.map(claim => (
-                <div key={claim.id} className="px-3 py-2.5 border-b border-[#1e1e2a]/50 last:border-b-0 hover:bg-[#18181b] transition">
-                  <div className="flex items-start justify-between gap-2">
+                <div key={claim.id} className="px-4 py-3 hover:bg-[#18181b]/50 transition">
+                  {/* Name + email */}
+                  <div className="flex items-start justify-between gap-2 mb-2">
                     <div className="min-w-0">
-                      <p className="text-xs text-[#fafafa] font-medium truncate">{claim.requested_name}</p>
-                      <p className="text-[10px] text-[#71717a] truncate">{claim.user_email}</p>
-                      <p className="text-[10px] text-[#52525b]">
-                        {new Date(claim.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
-                      </p>
+                      <p className="text-[13px] text-[#fafafa] font-medium truncate">{claim.requested_name}</p>
+                      <p className="text-[10px] text-[#52525b] truncate">{claim.user_email}</p>
                     </div>
-                    <div className="flex items-center gap-1 shrink-0">
-                      <button
-                        onClick={() => handleAccept(claim.id)}
-                        disabled={acting === claim.id}
-                        className="p-1 rounded text-emerald-400 hover:bg-emerald-500/10 transition disabled:opacity-40"
-                        title="Accept"
-                      >
-                        {acting === claim.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
-                      </button>
-                      {decliningId === claim.id ? (
-                        <div className="flex items-center gap-1">
-                          <input
-                            type="text"
-                            placeholder="Reason..."
-                            value={declineReason}
-                            onChange={e => setDeclineReason(e.target.value)}
-                            onKeyDown={e => e.key === "Enter" && handleDecline(claim.id)}
-                            className="w-20 bg-[#18181b] border border-[#27272a] rounded px-1.5 py-0.5 text-[10px] text-[#fafafa] outline-none"
-                            autoFocus
-                          />
-                          <button
-                            onClick={() => handleDecline(claim.id)}
-                            disabled={!declineReason.trim() || acting === claim.id}
-                            className="p-0.5 rounded text-red-400 hover:bg-red-500/10 transition disabled:opacity-40"
-                            title="Confirm decline"
-                          >
-                            <X className="w-3 h-3" />
-                          </button>
-                        </div>
-                      ) : (
-                        <button
-                          onClick={() => { setDecliningId(claim.id); setDeclineReason(""); }}
-                          disabled={acting === claim.id}
-                          className="p-1 rounded text-red-400 hover:bg-red-500/10 transition disabled:opacity-40"
-                          title="Decline"
-                        >
-                          <X className="w-3.5 h-3.5" />
-                        </button>
-                      )}
-                    </div>
+                    <span className="text-[9px] text-[#52525b] shrink-0 mt-0.5">
+                      {new Date(claim.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                    </span>
                   </div>
+
+                  {/* Actions */}
+                  {decliningId === claim.id ? (
+                    <div className="space-y-1.5">
+                      <input type="text" placeholder="Reason for decline..." value={declineReason}
+                        onChange={e => setDeclineReason(e.target.value)} onKeyDown={e => e.key === "Enter" && handleDecline(claim.id)}
+                        className="w-full bg-[#18181b] border border-[#27272a] rounded-lg px-2.5 py-1.5 text-[11px] text-[#fafafa] outline-none focus:border-red-500/50 placeholder:text-[#52525b]" autoFocus />
+                      <div className="flex gap-1.5">
+                        <button onClick={() => { setDecliningId(null); setDeclineReason(""); }}
+                          className="flex-1 py-1.5 rounded-lg text-[10px] bg-[#27272a] text-[#a1a1aa] hover:text-[#fafafa] transition">Cancel</button>
+                        <button onClick={() => handleDecline(claim.id)} disabled={!declineReason.trim() || acting === claim.id}
+                          className="flex-1 py-1.5 rounded-lg text-[10px] font-medium bg-red-500/20 text-red-400 hover:bg-red-500/30 disabled:opacity-30 transition">
+                          {acting === claim.id ? <Loader2 className="w-3 h-3 animate-spin mx-auto" /> : "Confirm Decline"}
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex gap-1.5">
+                      <button onClick={() => handleAccept(claim.id)} disabled={acting === claim.id}
+                        className="flex-1 py-1.5 rounded-lg text-[10px] font-medium bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 transition disabled:opacity-40 flex items-center justify-center gap-1">
+                        {acting === claim.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
+                        Accept
+                      </button>
+                      <button onClick={() => { setDecliningId(claim.id); setDeclineReason(""); }} disabled={acting === claim.id}
+                        className="py-1.5 px-3 rounded-lg text-[10px] bg-[#27272a] text-[#a1a1aa] hover:text-red-400 hover:bg-red-500/10 transition disabled:opacity-40">
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
           )}
+        </div>
+      )}
         </div>
       )}
     </div>

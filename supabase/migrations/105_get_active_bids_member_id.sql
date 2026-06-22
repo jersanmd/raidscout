@@ -1,4 +1,6 @@
 -- 105: Add member_id to get_active_bids for "you are winning" indicator
+DROP FUNCTION IF EXISTS public.get_active_bids(UUID);
+
 CREATE OR REPLACE FUNCTION public.get_active_bids(p_server_id UUID)
 RETURNS TABLE(
   id UUID,
