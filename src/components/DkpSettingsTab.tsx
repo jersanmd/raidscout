@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useServerId } from "@/contexts/ServerContext";
+import { useServerId, useServer } from "@/contexts/ServerContext";
 import { useToast } from "@/contexts/ToastContext";
+import { useHasPermission } from "@/contexts/ServerContext";
 import { getDkpConfig, saveDkpConfig, writeAuditEntry, AuditAction, type DkpConfig } from "@/lib/supabase";
 import { Coins, Loader2, Save, AlertTriangle } from "lucide-react";
 
@@ -9,7 +10,13 @@ export function DkpSettingsTab() {
   const serverId = useServerId();
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { currentServer } = useServer();
+  const canManageDkp = currentServer?.role === "owner" || useHasPermission("can_manage_dkp");
   const [saveError, setSaveError] = useState<string | null>(null);
+
+  if (!canManageDkp) {
+    return <div className="p-6 text-center"><p className="text-xs text-[#71717a]">Only the server owner can manage DKP settings.</p></div>;
+  }
 
   const { data: config, isLoading } = useQuery({
     queryKey: ["dkp_config", serverId],

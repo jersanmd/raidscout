@@ -136,6 +136,7 @@ export type ModeratorPermissions = {
   can_manage_points: boolean;
   can_manage_integrations: boolean;
   can_manage_server_content: boolean;
+  can_manage_dkp: boolean;
 };
 
 export const DEFAULT_MODERATOR_PERMISSIONS: ModeratorPermissions = {
@@ -147,6 +148,7 @@ export const DEFAULT_MODERATOR_PERMISSIONS: ModeratorPermissions = {
   can_manage_points: false,
   can_manage_integrations: false,
   can_manage_server_content: false,
+  can_manage_dkp: false,
 };
 
 export async function fetchModeratorPermissions(serverId: string): Promise<Record<string, ModeratorPermissions>> {
