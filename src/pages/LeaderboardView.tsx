@@ -1036,6 +1036,10 @@ export function LeaderboardView() {
             </div>
           );
         }
+        const snapsWithLatest = guildSnaps.map((snap, idx) => {
+          const isLatest = guildSnaps.findIndex(s => s.period === snap.period) === idx;
+          return { ...snap, isLatest };
+        });
         return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/60" onClick={() => setShowSnapshots(null)} />
@@ -1050,11 +1054,8 @@ export function LeaderboardView() {
               </button>
             </div>
             <div className="overflow-y-auto p-2 space-y-1.5 flex-1">
-              {(() => {
-                const seenPeriods = new Set<string>();
-                return guildSnaps.map((snap, idx) => {
-                const isLatest = !seenPeriods.has(snap.period);
-                seenPeriods.add(snap.period);
+              {snapsWithLatest.map((snap, idx) => {
+                const isLatest = (snap as any).isLatest;
                 const finalized = new Date(snap.finalized_at);
                 const hasPeriodStart = !!(snap as any).period_start;
                 let periodStart: Date;
@@ -1123,7 +1124,7 @@ export function LeaderboardView() {
                     )}
                   </div>
                 );
-              })})}
+              })}
             </div>
           </div>
         </div>
