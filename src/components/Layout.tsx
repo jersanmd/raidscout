@@ -22,6 +22,7 @@ import { ServerActivityLogTab } from "@/pages/ServerSettingsView";
 import { TIMEZONES } from "@/lib/timezones";
 import { BotStatusIndicator } from "@/components/BotStatusIndicator";
 import { ClaimNotificationBadge } from "@/components/ClaimNotificationBadge";
+import { useClaimNotifications } from "@/hooks/useClaimNotifications";
 
 let _audioCtx: AudioContext | null = null;
 function getAudioContext(): AudioContext { if (!_audioCtx || _audioCtx.state === "closed") _audioCtx = new AudioContext(); return _audioCtx; }
@@ -57,6 +58,7 @@ export function Layout() {
   const [spawnToast, setSpawnToast] = useState<string | null>(null);
   const [discordGuilds, setDiscordGuilds] = useState<{ guild_id: string; name: string; icon_url: string | null }[]>([]);
   const { notifications, unreadCount, markRead, markAllRead } = useNotifications();
+  const { unreadClaim, dismiss: dismissClaim } = useClaimNotifications();
 
   // ── Server switch loading overlay ──
   const [serverSwitching, setServerSwitching] = useState(false);
@@ -349,6 +351,20 @@ export function Layout() {
 
         <div className="flex-1 flex flex-col min-w-0 min-h-0">
           <DiscordWebhookBanner/><NoMembersBanner/><SubscriptionBanner/>
+          {/* Claim notification banner */}
+          {unreadClaim && (
+            <div className={`px-4 py-2 text-xs text-center font-medium ${
+              unreadClaim.status === "accepted" 
+                ? "bg-emerald-500/10 border-b border-emerald-500/20 text-emerald-400" 
+                : "bg-red-500/10 border-b border-red-500/20 text-red-400"
+            }`}>
+              {unreadClaim.status === "accepted" 
+                ? `✅ Your claim for "${unreadClaim.requested_name}" on ${unreadClaim.server_name} was accepted!`
+                : `❌ Your claim for "${unreadClaim.requested_name}" on ${unreadClaim.server_name} was declined${unreadClaim.decline_reason ? ` — ${unreadClaim.decline_reason}` : ""}.`
+              }
+              <button onClick={dismissClaim} className="ml-3 underline underline-offset-2 hover:opacity-70">Dismiss</button>
+            </div>
+          )}
           <main className="flex-1 overflow-y-auto pb-16 md:pb-0 flex flex-col"><div className="flex-1"><Outlet/></div>
           <footer className="shrink-0 border-t border-[#1a1a1e] bg-[#09090b]"><div className="px-4 py-2 flex items-center justify-between text-[11px] text-[#52525b]"><span>© {new Date().toLocaleDateString("en-US", { timeZone: timezone, year: "numeric" })} RaidScout · v{formatVersionInTimezone(APP_VERSION, timezone)}</span><div className="flex items-center gap-3"><Link to="/terms" className="hover:text-[#a1a1aa] transition">Terms</Link><Link to="/privacy" className="hover:text-[#a1a1aa] transition">Privacy</Link><Link to="/refund" className="hover:text-[#a1a1aa] transition">Refunds</Link><Link to="/changelog" className="hover:text-[#a1a1aa] transition">Changelog</Link></div></div></footer>
           </main>
