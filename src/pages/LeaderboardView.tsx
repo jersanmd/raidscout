@@ -1063,16 +1063,18 @@ export function LeaderboardView() {
                   // Properly saved period_start — use as-is
                   periodStart = new Date((snap as any).period_start);
                 } else {
-                  // Old bug: period_start missing or equals finalized — derive from next older snapshot
+                  // Fallback: period_start missing or equals finalized — derive from older snapshot
                   const olderSnap = guildSnaps[idx + 1];
                   if (olderSnap) {
                     periodStart = new Date(olderSnap.finalized_at);
                   } else if (snap.period.startsWith("weekly")) {
                     periodStart = new Date(finalized);
                     periodStart.setDate(periodStart.getDate() - 7);
+                    periodStart.setHours(0, 0, 0, 0);
                   } else if (snap.period.startsWith("monthly")) {
                     periodStart = new Date(finalized);
                     periodStart.setMonth(periodStart.getMonth() - 1);
+                    periodStart.setHours(0, 0, 0, 0);
                   } else {
                     periodStart = new Date(0);
                   }
@@ -1134,14 +1136,27 @@ export function LeaderboardView() {
       {/* Viewing snapshot modal */}
       {viewingSnapshot && (() => {
           const finalized = new Date(viewingSnapshot.finalized_at);
-          const hasPeriodStart = !!(viewingSnapshot as any).period_start;
-          const periodStart = new Date(
-            (viewingSnapshot as any).period_start || viewingSnapshot.finalized_at
-          );
-          if (!hasPeriodStart || periodStart.toDateString() === finalized.toDateString()) {
+          const rawPeriodStart = (viewingSnapshot as any).period_start;
+          const hasPeriodStart = !!rawPeriodStart;
+          let periodStart: Date;
+          if (hasPeriodStart) {
+            periodStart = new Date(rawPeriodStart);
+            // If period_start was stored as the epoch (first-ever finalize), treat as missing
+            if (periodStart.getTime() < 86400000) {
+              // epoch fallback: derive from finalized
+              periodStart = new Date(finalized);
+              if (viewingSnapshot.period.startsWith("weekly")) periodStart.setDate(finalized.getDate() - 7);
+              else if (viewingSnapshot.period.startsWith("monthly")) periodStart.setMonth(finalized.getMonth() - 1);
+              else periodStart.setTime(0);
+              periodStart.setHours(0, 0, 0, 0);
+            }
+          } else {
+            // no period_start at all: derive from finalized
+            periodStart = new Date(finalized);
             if (viewingSnapshot.period.startsWith("weekly")) periodStart.setDate(finalized.getDate() - 7);
             else if (viewingSnapshot.period.startsWith("monthly")) periodStart.setMonth(finalized.getMonth() - 1);
             else periodStart.setTime(0);
+            periodStart.setHours(0, 0, 0, 0);
           }
           const fmt = (d: Date) =>
             viewingSnapshot.period === "all_time"
