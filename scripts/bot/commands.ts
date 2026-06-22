@@ -1380,6 +1380,61 @@ export async function handleMessage(msg: any) {
     }
   }
 
+  // ── DKP Commands ──
+  if ((cmd === "dkp" || cmd === "points") && serverId) {
+    const args = content.slice(matchedPrefix.length + rawCmd.length).trim();
+    try {
+      if (!args || args === "") {
+        // !dkp — show balance
+        const rows = await supabaseRpc("get_member_dkp_by_discord", { p_discord_user_id: msg.author?.id, p_server_id: serverId });
+        if (!rows || rows.length === 0) return reply("❌ Link your Discord account first. Claim your profile on the RaidScout website.");
+        const r = rows[0];
+        return reply(`💰 **DKP Balance**: **${r.balance?.toLocaleString() ?? "0"}** DKP\n📈 Earned (7d): +${r.earned_this_week?.toLocaleString() ?? "0"} · Spent: -${r.spent_this_week?.toLocaleString() ?? "0"}`);
+      } else if (args === "top") {
+        // !dkp top — rankings
+        const rows = await supabaseRpc("get_server_dkp_rankings", { p_server_id: serverId });
+        if (!rows || rows.length === 0) return reply("No DKP rankings yet. Record boss kills to start earning.");
+        const top = rows.slice(0, 10).map((r: any, i: number) => `**${i + 1}.** ${r.member_name} — ${r.balance?.toLocaleString()} DKP`).join("\n");
+        return reply(`🏆 **DKP Rankings** (Top ${Math.min(10, rows.length)}):\n${top}`);
+      } else {
+        return reply("Usage: `!dkp` (balance) or `!dkp top` (rankings)");
+      }
+    } catch (err: any) {
+      console.error("[bot] dkp error:", err);
+      return reply(`❌ ${err.message}`);
+    }
+  }
+
+  if (cmd === "mybids" && serverId) {
+    try {
+      const rows = await supabaseRpc("get_member_bids_by_discord", { p_discord_user_id: msg.author?.id, p_server_id: serverId });
+      if (!rows || rows.length === 0) return reply("You have no active bids.");
+      const list = rows.map((r: any) => `• **${r.item_name}** — ${r.bid_amount} DKP (${r.status})`).join("\n");
+      return reply(`🎯 **Your Bids**:\n${list}`);
+    } catch (err: any) {
+      console.error("[bot] mybids error:", err);
+      return reply(`❌ ${err.message}`);
+    }
+  }
+
+  if (cmd === "bidstatus" && serverId) {
+    const itemName = content.slice(matchedPrefix.length + rawCmd.length).trim();
+    if (!itemName) return reply("Usage: `!bidstatus Item Name`");
+    try {
+      const items = await supabaseQuerySafe(`items?server_id=eq.${serverId}&name=ilike.*${encodeURIComponent(itemName)}*&is_up_for_bid=eq.true&limit=5`);
+      if (!items || items.length === 0) return reply(`No item matching "${itemName}" is up for bid.`);
+      const item = items[0];
+      const bids = await supabaseRpc("get_item_bids", { p_item_id: item.id });
+      const activeCount = (bids || []).filter((b: any) => b.status === "active").length;
+      const endTime = item.bid_end_time ? new Date(item.bid_end_time) : null;
+      const timeLeft = endTime && endTime > new Date() ? Math.ceil((endTime.getTime() - Date.now()) / 60000) : 0;
+      return reply(`🔨 **${item.name}** is up for bid!\n💰 DKP Cost: ${item.dkp_cost ?? "?"} · Min Bid: ${item.dkp_min_bid ?? 1}\n👥 Active Bids: ${activeCount}${timeLeft > 0 ? ` · ${timeLeft}min remaining` : " · Ended"}\n🔗 Bid on the website: https://www.raidscout.com`);
+    } catch (err: any) {
+      console.error("[bot] bidstatus error:", err);
+      return reply(`❌ ${err.message}`);
+    }
+  }
+
   } catch (err: any) {
     logError("cmd", `handleMessage crash [${author}]`, err, {
       guildId: guildId?.slice(0, 8),

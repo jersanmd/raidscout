@@ -17,6 +17,7 @@ import { useServerId, useServer } from "@/contexts/ServerContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { ExpiredGate } from "@/components/ExpiredGate";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { DkpBidPanel } from "@/components/DkpBidPanel";
 import { useToast } from "@/contexts/ToastContext";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { guildColor } from "@/lib/constants";
@@ -848,6 +849,17 @@ export function InventoryView() {
                       <Trash2 className="w-4 h-4" />
                     </button>
                   )}
+                  {/* DKP Bidding */}
+                  <DkpBidPanel
+                    item={{
+                      id: item.id, name: item.name,
+                      is_up_for_bid: (item as any).is_up_for_bid,
+                      dkp_cost: (item as any).dkp_cost,
+                      dkp_min_bid: (item as any).dkp_min_bid,
+                      bid_end_time: (item as any).bid_end_time,
+                    }}
+                    isOwnerOrMod={canManageItems}
+                  />
                 </div>
               );})}
               </div>
