@@ -337,6 +337,21 @@ export const AUDIT_ACTION_GROUPS: { label: string; actions: AuditActionType[] }[
       AuditAction.GAME_DELETE,
     ],
   },
+  {
+    label: "DKP",
+    actions: [
+      AuditAction.DKP_CONFIG_UPDATE,
+      AuditAction.DKP_ADJUST,
+      AuditAction.DKP_EARN_KILL,
+      AuditAction.DKP_BID_PLACED,
+      AuditAction.DKP_BID_CANCELLED,
+      AuditAction.DKP_BID_WON,
+      AuditAction.DKP_BID_LOST,
+      AuditAction.DKP_BID_REFUND,
+      AuditAction.DKP_ITEM_MARKED,
+      AuditAction.DKP_ITEM_UNMARKED,
+    ],
+  },
 ];
 
 // ── Audit API ───────────────────────────────────────────────
