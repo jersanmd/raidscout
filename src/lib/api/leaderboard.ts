@@ -325,47 +325,27 @@ export async function deleteLeaderboardSnapshot(
   serverId: string,
   period: string
 ): Promise<void> {
-  // Get the snapshot to find its finalized_at
+  // Get snapshot finalized_at before deleting (for audit)
   const { data: snap } = await supabase
     .from("leaderboard_snapshots")
-    .select("finalized_at")
+    .select("finalized_at, period_start")
     .eq("id", snapshotId)
-    .single();
+    .maybeSingle();
+  const finalizedAt = (snap as any)?.finalized_at;
+  const periodStart = (snap as any)?.period_start;
 
-  // Find the previous snapshot for the same period to restore its reset date
-  const resetKey = period.startsWith("weekly:") ? `leaderboard_reset_at:${period.replace("weekly:", "")}` : "leaderboard_reset_at";
-  let prevResetAt: string | null = null;
-  if (snap) {
-    const { data: prev } = await supabase
-      .from("leaderboard_snapshots")
-      .select("finalized_at")
-      .eq("server_id", serverId)
-      .eq("period", period)
-      .lt("finalized_at", (snap as any).finalized_at)
-      .order("finalized_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    prevResetAt = (prev as any)?.finalized_at ?? null;
-  }
-
-  // Delete the snapshot
-  const { error } = await supabase
-    .from("leaderboard_snapshots")
-    .delete()
-    .eq("id", snapshotId);
+  // Use SECURITY DEFINER RPC to bypass RLS (leaderboard_snapshots lacks DELETE policy)
+  const { error } = await supabase.rpc("delete_leaderboard_snapshot", {
+    p_snapshot_id: snapshotId,
+    p_server_id: serverId,
+    p_period: period,
+  });
   if (error) throw error;
 
-  // Restore the previous reset date (or remove if no previous snapshot)
-  if (prevResetAt) {
-    await supabase.from("app_settings").upsert(
-      { key: resetKey, value: prevResetAt, server_id: serverId },
-      { onConflict: "key, server_id" }
-    );
-  } else {
-    await supabase.from("app_settings").delete().eq("key", resetKey).eq("server_id", serverId);
-  }
-
-  writeAuditEntry({ action: AuditAction.LEADERBOARD_RESET, server_id: serverId, details: { unfinalized: snapshotId, period } });
+  const from = periodStart || null;
+  const to = finalizedAt || null;
+  const guild = period.startsWith("weekly:") ? period.replace("weekly:", "") : null;
+  writeAuditEntry({ action: AuditAction.LEADERBOARD_RESET, server_id: serverId, details: { period, from, to, guild, unfinalized: true } });
 }
 
 export async function fetchLeaderboardSnapshots(serverId?: string | null): Promise<
