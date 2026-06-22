@@ -115,12 +115,14 @@ export async function getMemberDkpHistory(
 export async function markItemForBid(
   itemId: string,
   dkpCost: number,
-  durationMinutes = 30
+  bidEndTime?: string | null,
+  durationMinutes?: number
 ): Promise<void> {
   const { error } = await supabase.rpc("mark_item_for_bid", {
     p_item_id: itemId,
     p_dkp_cost: dkpCost,
-    p_duration_minutes: durationMinutes,
+    p_bid_end_time: bidEndTime ?? null,
+    p_duration_minutes: durationMinutes ?? null,
   });
   if (error) throw error;
 }

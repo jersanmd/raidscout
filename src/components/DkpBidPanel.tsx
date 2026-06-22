@@ -27,7 +27,7 @@ export function DkpBidPanel({ item, isOwnerOrMod }: DkpBidPanelProps) {
   const [showResolveModal, setShowResolveModal] = useState(false);
   const [showBidModal, setShowBidModal] = useState(false);
   const [dkpCost, setDkpCost] = useState(10);
-  const [bidDuration, setBidDuration] = useState(30);
+  const [bidEndDate, setBidEndDate] = useState("");
   const [bidAmount, setBidAmount] = useState(0);
   const [acting, setActing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -55,7 +55,7 @@ export function DkpBidPanel({ item, isOwnerOrMod }: DkpBidPanelProps) {
     setActing(true);
     setError(null);
     try {
-      await markItemForBid(item.id, dkpCost, bidDuration);
+      await markItemForBid(item.id, dkpCost, bidEndDate ? new Date(bidEndDate).toISOString() : null);
       queryClient.invalidateQueries({ queryKey: ["items"] });
       setShowMarkModal(false);
     } catch (err: any) {
@@ -131,7 +131,7 @@ export function DkpBidPanel({ item, isOwnerOrMod }: DkpBidPanelProps) {
       {isOwnerOrMod && (
         <div className="flex gap-1">
           {!isBidding ? (
-            <button onClick={() => { setShowMarkModal(true); setDkpCost(10); setBidDuration(30); setError(null); }}
+            <button onClick={() => { setShowMarkModal(true); setDkpCost(10); setBidEndDate(""); setError(null); }}
               className="text-[10px] px-2 py-0.5 rounded bg-[#27272a] text-[#a1a1aa] hover:text-amber-400 transition">
               <Gavel className="w-3 h-3 inline mr-1" />Mark for Bid
             </button>
@@ -171,12 +171,10 @@ export function DkpBidPanel({ item, isOwnerOrMod }: DkpBidPanelProps) {
                   className="w-full bg-[#0d0d11] border border-[#27272a] rounded px-2 py-1.5 text-sm text-[#fafafa] outline-none mt-1" min={1} />
               </div>
               <div>
-                <label className="text-[10px] text-[#71717a]">Duration (minutes)</label>
-                <select value={bidDuration} onChange={e => setBidDuration(parseInt(e.target.value))}
-                  className="w-full bg-[#0d0d11] border border-[#27272a] rounded px-2 py-1.5 text-sm text-[#fafafa] outline-none mt-1">
-                  <option value={15}>15 min</option><option value={30}>30 min</option><option value={60}>1 hour</option>
-                  <option value={120}>2 hours</option><option value={360}>6 hours</option><option value={1440}>24 hours</option>
-                </select>
+                <label className="text-[10px] text-[#71717a]">Bid End Date & Time</label>
+                <input type="datetime-local" value={bidEndDate}
+                  onChange={e => setBidEndDate(e.target.value)}
+                  className="w-full bg-[#0d0d11] border border-[#27272a] rounded px-2 py-1.5 text-sm text-[#fafafa] outline-none mt-1 [color-scheme:dark]" />
               </div>
               <div className="flex gap-2">
                 <button onClick={() => setShowMarkModal(false)} className="flex-1 py-2 rounded text-sm bg-[#27272a] text-[#d4d4d8]">Cancel</button>
