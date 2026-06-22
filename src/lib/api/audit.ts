@@ -42,6 +42,8 @@ export const AuditAction = {
   // Members
   MEMBER_ADD: "member_add",
   MEMBER_REMOVE: "member_remove",
+  MEMBER_CLAIM_ACCEPT: "member_claim_accept",
+  MEMBER_CLAIM_DECLINE: "member_claim_decline",
   MEMBER_CLASS_SET: "member_class_set",
   MEMBER_ACTIVE_TOGGLE: "member_active_toggle",
   MEMBER_CP_ADD: "member_cp_add",
@@ -224,6 +226,8 @@ export const AUDIT_ACTION_GROUPS: { label: string; actions: AuditActionType[] }[
       AuditAction.MEMBER_ADD,
       AuditAction.MEMBER_BULK_ADD,
       AuditAction.MEMBER_REMOVE,
+      AuditAction.MEMBER_CLAIM_ACCEPT,
+      AuditAction.MEMBER_CLAIM_DECLINE,
       AuditAction.MEMBER_NAME_EDIT,
       AuditAction.MEMBER_GUILD_CHANGE,
       AuditAction.MEMBER_CLASS_SET,

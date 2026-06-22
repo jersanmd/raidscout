@@ -1034,6 +1034,8 @@ export function AdminPanelView() {
             case "member_cp_reminder": return `CP update reminder sent to Discord`;
             case "member_add": return d.member_name || "—";
             case "member_remove": return d.member_name || "Member removed";
+            case "member_claim_accept": return `Claim accepted: ${d.requested_name || "?"}`;
+            case "member_claim_decline": return `Claim declined: ${d.requested_name || "?"}${d.reason ? ` — ${d.reason}` : ""}`;
             case "member_note_add": return d.note_preview || "—";
             case "member_note_delete": return "Deleted note";
             case "moderator_add": return d.target_email || "Moderator added";

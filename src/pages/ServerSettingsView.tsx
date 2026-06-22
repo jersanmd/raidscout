@@ -3589,6 +3589,8 @@ export function ServerActivityLogTab({ serverId, timezone = "UTC" }: { serverId:
       case "member_cp_reminder": return `CP update reminder sent to Discord`;
       case "member_add": return `${d.member_name || "—"}${d.class ? ` · ${d.class}` : ""}${d.cp ? ` · ${d.cp} CP` : ""}${d.guild_name ? ` · ${d.guild_name}` : ""}`;
       case "member_remove": return d.member_name || "Member removed";
+      case "member_claim_accept": return `Claim accepted: ${d.requested_name || "?"}${d.user_email ? ` (${d.user_email})` : ""}`;
+      case "member_claim_decline": return `Claim declined: ${d.requested_name || "?"}${d.user_email ? ` (${d.user_email})` : ""}${d.reason ? ` — ${d.reason}` : ""}`;
       case "member_class_set": return `${d.member_name || "?"}: class set to ${d.class || "none"}`;
       case "member_active_toggle": return `${d.member_name || "?"} marked ${d.is_active ? "active" : "inactive"}`;
       case "member_guild_change": return `${d.member_name || "?"}: guild changed from ${d.old_guild || "?"} to ${d.new_guild || "?"}`;

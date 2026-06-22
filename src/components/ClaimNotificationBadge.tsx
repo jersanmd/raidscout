@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { useServerId } from "@/contexts/ServerContext";
 import { getPendingClaims, reviewClaimRequest, markClaimRead, getMyClaims, type PendingClaim, type ClaimRequest } from "@/lib/supabase";
+import { writeAuditEntry, AuditAction } from "@/lib/api/audit";
 import { Bell, Check, X, Loader2 } from "lucide-react";
 
 /**
@@ -39,10 +40,11 @@ export function ClaimNotificationBadge() {
     return () => document.removeEventListener("mousedown", handler);
   }, [open]);
 
-  const handleAccept = useCallback(async (requestId: string) => {
+  const handleAccept = useCallback(async (requestId: string, requestedName: string, userEmail: string) => {
     setActing(requestId);
     try {
       await reviewClaimRequest(requestId, "accept");
+      writeAuditEntry({ action: AuditAction.MEMBER_CLAIM_ACCEPT, server_id: serverId!, details: { requested_name: requestedName, user_email: userEmail } });
       queryClient.invalidateQueries({ queryKey: ["pending_claims", serverId] });
     } catch (err) {
       console.error("Failed to accept claim:", err);
@@ -51,11 +53,12 @@ export function ClaimNotificationBadge() {
     }
   }, [serverId, queryClient]);
 
-  const handleDecline = useCallback(async (requestId: string) => {
+  const handleDecline = useCallback(async (requestId: string, requestedName: string, userEmail: string) => {
     if (!declineReason.trim()) return;
     setActing(requestId);
     try {
       await reviewClaimRequest(requestId, "decline", declineReason.trim());
+      writeAuditEntry({ action: AuditAction.MEMBER_CLAIM_DECLINE, server_id: serverId!, details: { requested_name: requestedName, user_email: userEmail, reason: declineReason.trim() } });
       setDeclineReason("");
       setDecliningId(null);
       queryClient.invalidateQueries({ queryKey: ["pending_claims", serverId] });
@@ -138,12 +141,12 @@ export function ClaimNotificationBadge() {
                   {decliningId === claim.id ? (
                     <div className="space-y-1.5">
                       <input type="text" placeholder="Reason for decline..." value={declineReason}
-                        onChange={e => setDeclineReason(e.target.value)} onKeyDown={e => e.key === "Enter" && handleDecline(claim.id)}
+                        onChange={e => setDeclineReason(e.target.value)} onKeyDown={e => e.key === "Enter" && handleDecline(claim.id, claim.requested_name, claim.user_email)}
                         className="w-full bg-[#18181b] border border-[#27272a] rounded-lg px-2.5 py-1.5 text-[11px] text-[#fafafa] outline-none focus:border-red-500/50 placeholder:text-[#52525b]" autoFocus />
                       <div className="flex gap-1.5">
                         <button onClick={() => { setDecliningId(null); setDeclineReason(""); }}
                           className="flex-1 py-1.5 rounded-lg text-[10px] bg-[#27272a] text-[#a1a1aa] hover:text-[#fafafa] transition">Cancel</button>
-                        <button onClick={() => handleDecline(claim.id)} disabled={!declineReason.trim() || acting === claim.id}
+                        <button onClick={() => handleDecline(claim.id, claim.requested_name, claim.user_email)} disabled={!declineReason.trim() || acting === claim.id}
                           className="flex-1 py-1.5 rounded-lg text-[10px] font-medium bg-red-500/20 text-red-400 hover:bg-red-500/30 disabled:opacity-30 transition">
                           {acting === claim.id ? <Loader2 className="w-3 h-3 animate-spin mx-auto" /> : "Confirm Decline"}
                         </button>
@@ -151,7 +154,7 @@ export function ClaimNotificationBadge() {
                     </div>
                   ) : (
                     <div className="flex gap-1.5">
-                      <button onClick={() => handleAccept(claim.id)} disabled={acting === claim.id}
+                      <button onClick={() => handleAccept(claim.id, claim.requested_name, claim.user_email)} disabled={acting === claim.id}
                         className="flex-1 py-1.5 rounded-lg text-[10px] font-medium bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 transition disabled:opacity-40 flex items-center justify-center gap-1">
                         {acting === claim.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
                         Accept
@@ -166,8 +169,6 @@ export function ClaimNotificationBadge() {
               ))}
             </div>
           )}
-        </div>
-      )}
         </div>
       )}
     </div>
