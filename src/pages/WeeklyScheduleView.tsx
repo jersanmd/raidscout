@@ -146,8 +146,11 @@ export function WeeklyScheduleView() {
     }
   }, [deathRecordIds.length]);
 
-  // Reset on week change: clear flags so overlay shows for new week's attendance
+  // Reset on week change: clear flags so overlay shows for new week's attendance.
+  // Skip initial mount — weekOffset=0 on first render, handled by deathRecordIds effect.
+  const weekMounted = useRef(false);
   useEffect(() => {
+    if (!weekMounted.current) { weekMounted.current = true; return; }
     setWeekLoading(false);
     setPageReady(false);
     fetchStarted.current = false;
