@@ -50,6 +50,17 @@ export function BillingView() {
   const [paymentsLoading, setPaymentsLoading] = useState(false);
   const [paymentResult, setPaymentResult] = useState<{ success: boolean; error?: string } | null>(null);
 
+  const handlePaymentSuccess = async () => {
+    await refreshServers();
+    const { data } = await supabase
+      .from("payments")
+      .select("*")
+      .eq("server_id", currentServer.id)
+      .order("created_at", { ascending: false });
+    if (data) setPayments(data);
+    setPaymentResult({ success: true });
+  };
+
   useEffect(() => {
     if (!currentServer?.id) return;
     setPaymentsLoading(true);
@@ -181,16 +192,7 @@ export function BillingView() {
                 <div className="flex justify-center">
                   <PayPalSubscribeButton
                     serverId={currentServer.id}
-                    onSuccess={async () => {
-                      await refreshServers();
-                      supabase
-                        .from("payments")
-                        .select("*")
-                        .eq("server_id", currentServer.id)
-                        .order("created_at", { ascending: false })
-                        .then(({ data }) => { if (data) setPayments(data); });
-                      setPaymentResult({ success: true });
-                    }}
+                    onSuccess={handlePaymentSuccess}
                     onError={(err) => setPaymentResult({ success: false, error: err.message })}
                   />
                 </div>
@@ -204,16 +206,7 @@ export function BillingView() {
                 <div className="flex justify-center">
                   <PayPalSubscribeButton
                     serverId={currentServer.id}
-                    onSuccess={async () => {
-                      await refreshServers();
-                      supabase
-                        .from("payments")
-                        .select("*")
-                        .eq("server_id", currentServer.id)
-                        .order("created_at", { ascending: false })
-                        .then(({ data }) => { if (data) setPayments(data); });
-                      setPaymentResult({ success: true });
-                    }}
+                    onSuccess={handlePaymentSuccess}
                     onError={(err) => setPaymentResult({ success: false, error: err.message })}
                   />
                 </div>

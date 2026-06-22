@@ -56,8 +56,7 @@ export function PayPalSubscribeButton({
 
     const script = document.createElement("script");
     script.id = SCRIPT_ID;
-    const paypalHost = import.meta.env.DEV ? "www.sandbox.paypal.com" : "www.paypal.com";
-    script.src = `https://${paypalHost}/sdk/js?client-id=${clientId}&intent=capture&currency=USD`;
+    script.src = `https://${paypalHost}/sdk/js?client-id=${clientId}&intent=capture&currency=USD&components=buttons&disable-funding=credit,paylater`;
     script.async = true;
     script.onload = () => setSdkReady(true);
     script.onerror = () => setSdkError("Failed to load PayPal SDK.");
@@ -81,6 +80,8 @@ export function PayPalSubscribeButton({
         application_context: {
           shipping_preference: "NO_SHIPPING",
           user_action: "PAY_NOW",
+          landing_page: "BILLING",
+          brand_name: "RaidScout",
         },
       });
     };
@@ -92,7 +93,10 @@ export function PayPalSubscribeButton({
         const capture = await actions.order.capture();
         // Check for payer-action errors from card declines
         if (capture?.status === "DECLINED" || capture?.purchase_units?.[0]?.payments?.captures?.[0]?.status === "DECLINED") {
-          const declineReason = capture?.purchase_units?.[0]?.payments?.captures?.[0]?.status_details?.reason || "Card was declined.";
+          const rawReason = capture?.purchase_units?.[0]?.payments?.captures?.[0]?.status_details?.reason || "";
+          const declineReason = rawReason
+            ? `Card declined: ${rawReason}. Try a different card or use PayPal checkout above.`
+            : "Card was declined by your bank. Try a different card or use PayPal checkout above.";
           setCardError(declineReason);
           setProcessing(false);
           return;
@@ -140,6 +144,7 @@ export function PayPalSubscribeButton({
       fundingSource: window.paypal.FUNDING.PAYPAL,
       createOrder,
       onApprove,
+      onClick: () => { setCardError(null); },
       onError: onErr,
       onCancel: () => { setCardError(null); },
     }).render(ppWrapper).then((instance: any) => {
@@ -166,6 +171,7 @@ export function PayPalSubscribeButton({
       fundingSource: window.paypal.FUNDING.CARD,
       createOrder,
       onApprove,
+      onClick: () => { setCardError(null); },
       onError: onErr,
       onCancel: () => { setCardError(null); },
     }).render(cardWrapper).then((instance: any) => {
