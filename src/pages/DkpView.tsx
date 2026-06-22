@@ -8,9 +8,9 @@ import {
   getMemberDkp, getServerDkpRankings, getMemberDkpHistory, getActiveAuctions,
   getDkpConfig, markItemForBid, placeBid, getItemBids, resolveAuction,
   supabase,
-  type DkpBalance, type DkpRanking, type DkpTransaction, type DkpBid, type ItemBid, type ActiveAuction,
+  type DkpBalance, type DkpRanking, type DkpTransaction, type ItemBid, type ActiveAuction,
 } from "@/lib/supabase";
-import { Coins, TrendingUp, TrendingDown, History, Gavel, Loader2, Shield, Clock, Check, X, AlertTriangle, Image, Plus } from "lucide-react";
+import { Coins, TrendingUp, TrendingDown, History, Gavel, Loader2, Shield, Clock, Check, X, AlertTriangle, Image, Plus, Eye } from "lucide-react";
 
 export function DkpView() {
   const { user, isViewer } = useAuth();
@@ -93,6 +93,7 @@ function LiveAuction({ serverId, isStaff, memberId, tz, toast, queryClient }: an
   const [showMark, setShowMark] = useState(false);
   const [showBid, setShowBid] = useState<string | null>(null);
   const [showResolve, setShowResolve] = useState<string | null>(null);
+  const [showBids, setShowBids] = useState<string | null>(null);
   const [markName, setMarkName] = useState("");
   const [markCost, setMarkCost] = useState(10);
   const [markEnd, setMarkEnd] = useState("");
@@ -138,11 +139,12 @@ function LiveAuction({ serverId, isStaff, memberId, tz, toast, queryClient }: an
       </div>
       {isLoading ? <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 text-[#52525b] animate-spin" /></div>
       : auctions.length === 0 ? <div className="px-4 py-8 text-center"><Gavel className="w-8 h-8 text-[#3f3f46] mx-auto mb-2" /><p className="text-xs text-[#71717a]">No active auctions</p></div>
-      : <div className="divide-y divide-[#1e1e2a]/50">{auctions.map((it: ActiveAuction) => <AuctionRow key={it.item_id} item={it} isStaff={isStaff} memberId={memberId} tz={tz} onBid={() => { setShowBid(it.item_id); setBidAmt(1); setError(null); }} onResolve={() => setShowResolve(it.item_id)} />)}</div>}
+      : <div className="divide-y divide-[#1e1e2a]/50">{auctions.map((it: ActiveAuction) => <AuctionRow key={it.item_id} item={it} isStaff={isStaff} memberId={memberId} tz={tz} onBid={() => { setShowBid(it.item_id); setBidAmt(1); setError(null); }} onResolve={() => setShowResolve(it.item_id)} onViewBids={() => setShowBids(it.item_id)} />)}</div>}
 
       {showMark && <MarkModal name={markName} setName={setMarkName} cost={markCost} setCost={setMarkCost} end={markEnd} setEnd={setMarkEnd} acting={acting} error={error} onClose={() => setShowMark(false)} onMark={doMark} serverId={serverId} />}
       {showBid && <BidModalUI itemId={showBid} bidAmt={bidAmt} setBidAmt={setBidAmt} acting={acting} error={error} onClose={() => setShowBid(null)} onBid={() => doBid(showBid)} />}
       {showResolve && <ResolveModalUI itemId={showResolve} onClose={() => setShowResolve(null)} onResolve={(w: string | null) => doResolve(showResolve, w)} />}
+      {showBids && <BidsModal itemId={showBids} onClose={() => setShowBids(null)} />}
     </div>
   );
 }
@@ -150,18 +152,37 @@ function LiveAuction({ serverId, isStaff, memberId, tz, toast, queryClient }: an
 const RARITY_COLORS: Record<string, string> = { common: "#71717a", uncommon: "#22c55e", rare: "#3b82f6", epic: "#a855f7", legendary: "#f59e0b", mythic: "#ef4444" };
 function rc(rarity?: string) { return RARITY_COLORS[rarity?.toLowerCase() ?? ""] || "#71717a"; }
 
-function AuctionRow({ item, isStaff, memberId, tz, onBid, onResolve }: { item: ActiveAuction; isStaff: boolean; memberId: string | null; tz: string; onBid: () => void; onResolve: () => void }) {
-  const end = item.bid_end_time ? new Date(item.bid_end_time) : null;
-  const ended = end ? end < new Date() : false;
-  const left = end ? Math.max(0, Math.ceil((end.getTime() - Date.now()) / 60000)) : 0;
-  const disp = end ? end.toLocaleString("en-US", { timeZone: tz, month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "";
+function useCountdown(endTime: string | null) {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    if (!endTime) return;
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, [endTime]);
+  if (!endTime) return { ended: false, days: 0, hours: 0, minutes: 0, seconds: 0, totalMs: 0 };
+  const totalMs = new Date(endTime).getTime() - now;
+  if (totalMs <= 0) return { ended: true, days: 0, hours: 0, minutes: 0, seconds: 0, totalMs: 0 };
+  const totalSec = Math.floor(totalMs / 1000);
+  return { ended: false, days: Math.floor(totalSec / 86400), hours: Math.floor((totalSec % 86400) / 3600), minutes: Math.floor((totalSec % 3600) / 60), seconds: totalSec % 60, totalMs };
+}
+
+function AuctionRow({ item, isStaff, memberId, tz, onBid, onResolve, onViewBids }: { item: ActiveAuction; isStaff: boolean; memberId: string | null; tz: string; onBid: () => void; onResolve: () => void; onViewBids: () => void }) {
+  const cd = useCountdown(item.bid_end_time);
+  const ended = cd.ended;
   const rarityColor = rc(item.rarity ?? undefined);
+  const endLocal = item.bid_end_time ? new Date(item.bid_end_time).toLocaleString("en-US", { timeZone: tz, month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "";
+  const fmt = (n: number) => String(n).padStart(2, "0");
   return (
     <div className="flex items-center gap-3 px-4 py-3 hover:bg-[#18181b]/50 transition">
       {item.image_url ? <img src={item.image_url} className="w-10 h-10 rounded-lg object-cover shrink-0 border border-[#1e1e2a]" style={{ backgroundColor: rarityColor + "20" }} /> : <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: rarityColor + "18" }}><Image className="w-4 h-4" style={{ color: rarityColor }} /></div>}
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium truncate" style={{ color: rarityColor }}>{item.item_name}</p>
-        <div className="flex items-center gap-2 text-[10px]"><span className="text-amber-400 font-bold">{item.highest_bid || item.dkp_cost} DKP</span><span className="text-[#52525b]">· {item.bid_count} bid{item.bid_count !== 1 ? "s" : ""}</span>{!ended && <span className="text-[#52525b] flex items-center gap-0.5"><Clock className="w-3 h-3" />{left > 60 ? `${Math.ceil(left/60)}h` : `${left}min`}</span>}{ended && <span className="text-red-400">Ended</span>}{disp && <span className="text-[#52525b]">· {disp}</span>}</div>
+        <div className="flex items-center gap-2 text-[10px]">
+          <span className="text-amber-400 font-bold">{item.highest_bid || item.dkp_cost} DKP</span>
+          <button onClick={onViewBids} className="text-[#52525b] hover:text-[#d4d4d8] transition">{item.bid_count} bid{item.bid_count !== 1 ? "s" : ""}</button>
+          {!ended ? <span className="text-[#a1a1aa] flex items-center gap-0.5 tabular-nums"><Clock className="w-3 h-3" />{cd.days > 0 ? `${cd.days}d ` : ""}{fmt(cd.hours)}:{fmt(cd.minutes)}:{fmt(cd.seconds)}</span> : <span className="text-red-400">Ended</span>}
+          <span className="text-[#52525b]">· {endLocal}</span>
+        </div>
       </div>
       <div className="flex items-center gap-1 shrink-0">
         {memberId && !ended && <button onClick={onBid} className="px-2 py-1 rounded text-[10px] bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 transition"><Coins className="w-3 h-3 inline mr-0.5" />Bid</button>}
@@ -278,6 +299,35 @@ function ResolveModalUI({ itemId, onClose, onResolve }: { itemId: string; onClos
         : <div className="space-y-1 mb-3">{active.map(bid => (
             <div key={bid.id} className="flex items-center justify-between p-2 rounded bg-[#0d0d11] border border-[#1e1e2a]"><div><p className="text-xs text-[#fafafa]">{bid.member_name}</p><p className="text-[10px] text-[#52525b]">{new Date(bid.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</p></div><div className="flex items-center gap-2"><span className="text-sm font-bold text-amber-400">{bid.bid_amount}</span><button onClick={() => onResolve(bid.id)} className="px-2 py-1 rounded text-[10px] bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30"><Check className="w-3 h-3" /></button></div></div>))}</div>}
         <div className="flex gap-2"><button onClick={() => onResolve(null)} className="flex-1 py-2 rounded text-sm bg-red-500/10 text-red-400">Cancel Auction</button><button onClick={onClose} className="flex-1 py-2 rounded text-sm bg-[#27272a] text-[#d4d4d8]">Close</button></div>
+      </div>
+    </div>
+  );
+}
+
+function BidsModal({ itemId, onClose }: { itemId: string; onClose: () => void }) {
+  const { data: bids = [], isLoading } = useQuery({ queryKey: ["item_bids", itemId], queryFn: () => getItemBids(itemId), enabled: !!itemId });
+  const all = [...bids].sort((a: ItemBid, b: ItemBid) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose}>
+      <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-5 w-96 max-h-[70vh] overflow-y-auto shadow-xl" onClick={e => e.stopPropagation()}>
+        <h3 className="text-sm font-semibold text-[#fafafa] mb-1">All Bids</h3>
+        <p className="text-[10px] text-[#71717a] mb-3">{all.length} bid{all.length !== 1 ? "s" : ""} total</p>
+        {isLoading ? <div className="flex justify-center py-4"><Loader2 className="w-5 h-5 text-[#52525b] animate-spin" /></div>
+        : all.length === 0 ? <p className="text-xs text-[#52525b] text-center py-4">No bids yet.</p>
+        : <div className="space-y-1 mb-3">
+          {all.map((bid: ItemBid) => (
+            <div key={bid.id} className="flex items-center justify-between p-2 rounded bg-[#0d0d11] border border-[#1e1e2a]">
+              <div><p className="text-xs text-[#fafafa]">{bid.member_name}</p><p className="text-[10px] text-[#52525b]">{new Date(bid.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</p></div>
+              <div className="flex items-center gap-2">
+                <span className={`text-sm font-bold tabular-nums ${bid.status === "active" ? "text-amber-400" : bid.status === "won" ? "text-emerald-400" : "text-[#52525b]"}`}>{bid.bid_amount} DKP</span>
+                {bid.status === "active" && <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400">Active</span>}
+                {bid.status === "won" && <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400">Won</span>}
+                {bid.status === "cancelled" && <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#27272a] text-[#52525b]">Refunded</span>}
+              </div>
+            </div>
+          ))}
+        </div>}
+        <button onClick={onClose} className="w-full py-2 rounded text-sm bg-[#27272a] text-[#d4d4d8]">Close</button>
       </div>
     </div>
   );
