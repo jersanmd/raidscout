@@ -186,11 +186,35 @@ export interface ActiveAuction {
 }
 
 export async function getActiveAuctions(serverId: string): Promise<ActiveAuction[]> {
-  const { data, error } = await supabase.rpc("get_active_auctions", {
-    p_server_id: serverId,
+  // Query items marked for bid (not expired)
+  const { data: items } = await supabase.from("items")
+    .select("id, name, image_url, rarity, dkp_cost, bid_end_time")
+    .eq("server_id", serverId)
+    .eq("is_up_for_bid", true)
+    .gt("bid_end_time", new Date().toISOString())
+    .order("bid_end_time", { ascending: true });
+
+  // Use SECURITY DEFINER RPC to get bid aggregates (bypasses RLS)
+  const bids = await getActiveBids(serverId);
+
+  const bidMap: Record<string, { total: number; highest: number }> = {};
+  bids.forEach((b: DkpBid) => {
+    const e = bidMap[b.item_id] || { total: 0, highest: 0 };
+    e.total++;
+    if (b.bid_amount > e.highest) e.highest = b.bid_amount;
+    bidMap[b.item_id] = e;
   });
-  if (error) throw error;
-  return (data as ActiveAuction[]) ?? [];
+
+  return (items || []).map((i: any) => ({
+    item_id: i.id,
+    item_name: i.name,
+    image_url: i.image_url,
+    rarity: i.rarity,
+    dkp_cost: i.dkp_cost ?? 0,
+    bid_end_time: i.bid_end_time,
+    highest_bid: bidMap[i.id]?.highest ?? 0,
+    bid_count: bidMap[i.id]?.total ?? 0,
+  }));
 }
 
 // ── DKP Config ──────────────────────────────────────────────
