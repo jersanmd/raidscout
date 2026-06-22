@@ -12,6 +12,7 @@ import {
   addRallyImageToDeath,
 } from "@/lib/supabase";
 import { writeAuditEntry, AuditAction } from "@/lib/supabase";
+import { awardDkpOnKill } from "@/lib/supabase";
 
 interface RecordDeathOptions {
   bossId: string;
@@ -179,6 +180,13 @@ export function useRecordDeath(
     queryClient.invalidateQueries({ queryKey: ["leaderboard"] });
     queryClient.invalidateQueries({ queryKey: ["members"] });
     queryClient.invalidateQueries({ queryKey: ["analytics"] });
+
+    // 8.5 Award DKP to attendees
+    try {
+      await awardDkpOnKill(deathRecordId);
+    } catch (err) {
+      console.error("[useRecordDeath] awardDkpOnKill failed:", err);
+    }
 
     // 9. Advance rotation
     try {

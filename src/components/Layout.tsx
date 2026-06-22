@@ -13,7 +13,7 @@ import { NoMembersBanner } from "@/components/NoMembersBanner";
 import { SubscriptionBanner } from "@/components/SubscriptionBanner";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { useSpawnAlerts } from "@/hooks/useSpawnAlerts";
-import { Calendar, LogOut, Clock, Trophy, Users, BarChart3, Server, Settings, Plus, Shield, Eye, ChevronDown, Globe, Loader2, Package, User, PanelLeftClose, PanelLeft, Crown, Swords, CreditCard, Bell, ScrollText, X } from "lucide-react";
+import { Calendar, LogOut, Clock, Trophy, Users, BarChart3, Server, Settings, Plus, Shield, Eye, ChevronDown, Globe, Loader2, Package, User, PanelLeftClose, PanelLeft, Crown, Swords, CreditCard, Bell, ScrollText, X, Coins } from "lucide-react";
 import { version } from "../../package.json";
 import { useUserTimezone } from "@/hooks/useUserTimezone";
 import { formatVersionInTimezone } from "@/hooks/useUserTimezone";
@@ -98,7 +98,7 @@ export function Layout() {
 
   useEffect(() => { if (serverLoading) return; if (isAdmin && !hasServer && !localStorage.getItem("lordnine-current-server-id") && location.pathname !== "/admin") navigate("/admin", { replace: true }); }, [isAdmin, hasServer, location.pathname, navigate]);
   useEffect(() => {
-    const t: Record<string,string> = {"/":"Bosses / Activities \u2014 RaidScout","/schedule":"Weekly Schedule \u2014 RaidScout","/leaderboard":"Leaderboard \u2014 RaidScout","/history":"Kill History \u2014 RaidScout","/members":"Members \u2014 RaidScout","/analytics":"Analytics \u2014 RaidScout","/server-settings":"Server Settings \u2014 RaidScout","/billing":"Billing \u2014 RaidScout","/admin":"Admin Panel \u2014 RaidScout"};
+    const t: Record<string,string> = {"/":"Bosses / Activities \u2014 RaidScout","/schedule":"Weekly Schedule \u2014 RaidScout","/leaderboard":"Leaderboard \u2014 RaidScout","/dkp":"DKP \u2014 RaidScout","/history":"Kill History \u2014 RaidScout","/members":"Members \u2014 RaidScout","/analytics":"Analytics \u2014 RaidScout","/server-settings":"Server Settings \u2014 RaidScout","/billing":"Billing \u2014 RaidScout","/admin":"Admin Panel \u2014 RaidScout"};
     document.title = t[location.pathname] ?? "RaidScout";
   }, [location.pathname]);
   // Auto-collapse sidebar on settings pages, restore when leaving (don't persist)
@@ -145,7 +145,7 @@ export function Layout() {
 
   const NAV_GROUPS = [
     { label: "Operations", abbr: "Ops", items: [{ to: "/", icon: Swords, label: "Bosses / Activities", end: true },{ to: "/schedule", icon: Calendar, label: "Schedule" },{ to: "/history", icon: Clock, label: "History" }] },
-    { label: "Management", abbr: "Mgmt", items: [{ to: "/leaderboard", icon: Trophy, label: "Ranks" },{ to: "/members", icon: Users, label: "Members" }] },
+    { label: "Management", abbr: "Mgmt", items: [{ to: "/leaderboard", icon: Trophy, label: "Ranks" },{ to: "/dkp", icon: Coins, label: "DKP" },{ to: "/members", icon: Users, label: "Members" }] },
     { label: "Assets", abbr: "Asts", items: [{ to: "/inventory", icon: Package, label: "Inventory" }] },
     { label: "Insights", abbr: "Ins", items: [{ to: "/analytics", icon: BarChart3, label: "Analytics" }] },
   ].filter(g => g.items.length > 0);
@@ -378,6 +378,7 @@ export function Layout() {
           <NavLink to="/schedule" className={({isActive})=>`flex flex-col items-center justify-center gap-0.5 px-1 py-1 min-w-0 flex-1 rounded-lg transition-colors ${isActive?"text-[#fafafa]":"text-[#52525b]"}`}><Calendar className="w-4 h-4"/><span className="text-[8px] font-medium">Sched</span></NavLink>
           <NavLink to="/history" className={({isActive})=>`flex flex-col items-center justify-center gap-0.5 px-1 py-1 min-w-0 flex-1 rounded-lg transition-colors ${isActive?"text-[#fafafa]":"text-[#52525b]"}`}><Clock className="w-4 h-4"/><span className="text-[8px] font-medium">History</span></NavLink>
           <NavLink to="/leaderboard" className={({isActive})=>`flex flex-col items-center justify-center gap-0.5 px-1 py-1 min-w-0 flex-1 rounded-lg transition-colors ${isActive?"text-[#fafafa]":"text-[#52525b]"}`}><Trophy className="w-4 h-4"/><span className="text-[8px] font-medium">Ranks</span></NavLink>
+          <NavLink to="/dkp" className={({isActive})=>`flex flex-col items-center justify-center gap-0.5 px-1 py-1 min-w-0 flex-1 rounded-lg transition-colors ${isActive?"text-[#fafafa]":"text-[#52525b]"}`}><Coins className="w-4 h-4"/><span className="text-[8px] font-medium">DKP</span></NavLink>
           <NavLink to="/members" className={({isActive})=>`flex flex-col items-center justify-center gap-0.5 px-1 py-1 min-w-0 flex-1 rounded-lg transition-colors ${isActive?"text-[#fafafa]":"text-[#52525b]"}`}><Users className="w-4 h-4"/><span className="text-[8px] font-medium">Members</span></NavLink>
           <NavLink to="/inventory" className={({isActive})=>`flex flex-col items-center justify-center gap-0.5 px-1 py-1 min-w-0 flex-1 rounded-lg transition-colors ${isActive?"text-[#fafafa]":"text-[#52525b]"}`}><Package className="w-4 h-4"/><span className="text-[8px] font-medium">Items</span></NavLink>
           <NavLink to="/analytics" className={({isActive})=>`flex flex-col items-center justify-center gap-0.5 px-1 py-1 min-w-0 flex-1 rounded-lg transition-colors ${isActive?"text-[#fafafa]":"text-[#52525b]"}`}><BarChart3 className="w-4 h-4"/><span className="text-[8px] font-medium">Stats</span></NavLink>
