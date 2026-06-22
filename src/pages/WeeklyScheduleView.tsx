@@ -148,13 +148,19 @@ export function WeeklyScheduleView() {
 
   // Reset on week change: clear flags so overlay shows for new week's attendance.
   // Compare with prev value to skip initial mount (Strict Mode safe).
+  // If there are no death records, skip the overlay — nothing to fetch.
   const prevWeekOffset = useRef(weekOffset);
   useEffect(() => {
     if (prevWeekOffset.current === weekOffset) return; // skip initial mount
     prevWeekOffset.current = weekOffset;
     setWeekLoading(false);
-    setPageReady(false);
     fetchStarted.current = false;
+    // Only show the loading overlay if there are death records to fetch attendance for
+    if (deathRecordIds.length > 0) {
+      setPageReady(false);
+    } else {
+      setPageReady(true);
+    }
   }, [weekOffset]);
 
   // No limit on scrolling back — user can go as far as their data exists
