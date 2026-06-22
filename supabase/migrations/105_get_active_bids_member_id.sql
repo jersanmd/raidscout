@@ -10,10 +10,12 @@ RETURNS TABLE(
   status TEXT,
   created_at TIMESTAMPTZ
 )
-LANGUAGE sql
+LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = ''
 AS $$
+BEGIN
+  RETURN QUERY
   SELECT 
     b.id, b.item_id, i.name AS item_name, b.member_id, m.name AS member_name,
     b.bid_amount, b.status, b.created_at
@@ -22,4 +24,5 @@ AS $$
   JOIN public.members m ON m.id = b.member_id
   WHERE b.server_id = p_server_id AND b.status = 'active'
   ORDER BY b.created_at DESC;
+END;
 $$;
