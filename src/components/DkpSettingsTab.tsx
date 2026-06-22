@@ -1,13 +1,15 @@
 import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerId } from "@/contexts/ServerContext";
-import { getDkpConfig, saveDkpConfig, adjustMemberDkp, type DkpConfig } from "@/lib/supabase";
+import { useToast } from "@/contexts/ToastContext";
+import { getDkpConfig, saveDkpConfig, type DkpConfig } from "@/lib/supabase";
 import { supabase } from "@/lib/supabase";
 import { Coins, Loader2, Save, AlertTriangle } from "lucide-react";
 
 export function DkpSettingsTab() {
   const serverId = useServerId();
   const queryClient = useQueryClient();
+  const { toast } = useToast();
   const [saveError, setSaveError] = useState<string | null>(null);
 
   const { data: config, isLoading } = useQuery({
@@ -20,7 +22,7 @@ export function DkpSettingsTab() {
   const [multiplier, setMultiplier] = useState(1.0);
   const [bidDuration, setBidDuration] = useState(30);
   const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   useEffect(() => {
     if (config) {
@@ -41,8 +43,8 @@ export function DkpSettingsTab() {
         bid_duration_minutes: bidDuration,
       });
       queryClient.invalidateQueries({ queryKey: ["dkp_config", serverId] });
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2000);
+      toast("success", "DKP settings saved.");
+      setSaveError(null);
     } catch (err: any) {
       setSaveError(err?.message || "Failed to save. Only owners and moderators can update DKP settings.");
     } finally {
@@ -119,12 +121,10 @@ export function DkpSettingsTab() {
       <button
         onClick={handleSave}
         disabled={saving}
-        className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition ${
-          saved ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" : "bg-[#fafafa] text-[#09090b] hover:bg-[#e4e4e7]"
-        } disabled:opacity-50`}
+        className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-[#fafafa] text-[#09090b] hover:bg-[#e4e4e7] transition disabled:opacity-50"
       >
-        {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : saved ? "✓" : <Save className="w-4 h-4" />}
-        {saved ? "Saved" : "Save DKP Settings"}
+        {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+        Save DKP Settings
       </button>
     </div>
   );
