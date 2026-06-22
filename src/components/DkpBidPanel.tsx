@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useServerId } from "@/contexts/ServerContext";
+import { useServerId, useServer } from "@/contexts/ServerContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { markItemForBid, unmarkItemFromBid, placeBid, getItemBids, resolveAuction, cancelBid, getMemberDkp, getDkpConfig, type ItemBid } from "@/lib/supabase";
 import { supabase } from "@/lib/supabase";
@@ -20,8 +20,10 @@ interface DkpBidPanelProps {
 
 export function DkpBidPanel({ item, isOwnerOrMod }: DkpBidPanelProps) {
   const serverId = useServerId();
+  const { currentServer } = useServer();
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const tz = currentServer?.timezone || "UTC";
 
   const [showMarkModal, setShowMarkModal] = useState(false);
   const [showResolveModal, setShowResolveModal] = useState(false);
@@ -55,7 +57,9 @@ export function DkpBidPanel({ item, isOwnerOrMod }: DkpBidPanelProps) {
     setActing(true);
     setError(null);
     try {
-      await markItemForBid(item.id, dkpCost, bidEndDate ? new Date(bidEndDate).toISOString() : null);
+      // Convert local datetime (in server tz) to UTC for storage
+      const utcEnd = bidEndDate ? new Date(bidEndDate + ":00").toISOString() : null;
+      await markItemForBid(item.id, dkpCost, utcEnd);
       queryClient.invalidateQueries({ queryKey: ["items"] });
       setShowMarkModal(false);
     } catch (err: any) {
@@ -114,6 +118,10 @@ export function DkpBidPanel({ item, isOwnerOrMod }: DkpBidPanelProps) {
     ? Math.max(0, Math.ceil((new Date(item.bid_end_time).getTime() - Date.now()) / 60000))
     : 0;
 
+  const bidEndDisplay = item.bid_end_time
+    ? new Date(item.bid_end_time).toLocaleString("en-US", { timeZone: tz, month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })
+    : "";
+
   return (
     <div className="space-y-1.5">
       {/* Bid status bar */}
@@ -121,7 +129,7 @@ export function DkpBidPanel({ item, isOwnerOrMod }: DkpBidPanelProps) {
         <div className={`flex items-center gap-2 px-2 py-1 rounded text-[10px] ${bidEnded ? "bg-red-500/10 text-red-400" : "bg-amber-500/10 text-amber-400"}`}>
           <Gavel className="w-3 h-3" />
           <span>Bidding · {item.dkp_cost} DKP</span>
-          {timeLeft > 0 && !bidEnded && <span>· {timeLeft}min left</span>}
+          {!bidEnded && bidEndDisplay && <span>· Ends {bidEndDisplay}</span>}
           {bidEnded && <span>· Ended</span>}
           {hasBids && isOwnerOrMod && <span>· {activeBids.length} bid{activeBids.length !== 1 ? "s" : ""}</span>}
         </div>
@@ -131,7 +139,15 @@ export function DkpBidPanel({ item, isOwnerOrMod }: DkpBidPanelProps) {
       {isOwnerOrMod && (
         <div className="flex gap-1">
           {!isBidding ? (
-            <button onClick={() => { setShowMarkModal(true); setDkpCost(10); setBidEndDate(""); setError(null); }}
+            <button onClick={() => {
+              setShowMarkModal(true); setDkpCost(10); setError(null);
+              // Default to 11:59 PM today in server timezone
+              const now = new Date();
+              const local = new Date(now.toLocaleString("en-US", { timeZone: tz }));
+              local.setHours(23, 59, 0, 0);
+              const pad = (n: number) => String(n).padStart(2, "0");
+              setBidEndDate(`${local.getFullYear()}-${pad(local.getMonth()+1)}-${pad(local.getDate())}T23:59`);
+            }}
               className="text-[10px] px-2 py-0.5 rounded bg-[#27272a] text-[#a1a1aa] hover:text-amber-400 transition">
               <Gavel className="w-3 h-3 inline mr-1" />Mark for Bid
             </button>
