@@ -357,12 +357,25 @@ export function LeaderboardView() {
   }
 
   const buildSnapshotShareText = (snap: LeaderboardSnapshot) => {
-    const periodLabel = snap.period === "weekly" ? "Weekly" : snap.period === "monthly" ? "Monthly" : "All Time";
+    const periodLabel = snap.period.startsWith("weekly") ? "Weekly" : snap.period.startsWith("monthly") ? "Monthly" : "All Time";
+    // Compute date range for display
+    const finalized = new Date(snap.finalized_at);
+    const rawPs = (snap as any).period_start;
+    let ps: Date;
+    if (rawPs && new Date(rawPs).getTime() > 86400000) {
+      ps = new Date(rawPs);
+    } else {
+      const prevSnap = snapshots.filter(s => s.period === snap.period && new Date(s.finalized_at) < finalized).sort((a, b) => new Date(b.finalized_at).getTime() - new Date(a.finalized_at).getTime())[0];
+      if (prevSnap) { ps = new Date(prevSnap.finalized_at); }
+      else { ps = new Date(finalized); ps.setDate(ps.getDate() - 7); ps.setHours(0, 0, 0, 0); }
+    }
+    const fmtDate = (d: Date) => d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+    const range = `${fmtDate(ps)} → ${fmtDate(finalized)}`;
     const lines = snap.rankings.map((r, i) => {
       const medal = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i + 1}.`;
       return `${medal} ${r.memberName} — ${r.points} pts`;
     });
-    return `🏆 ${currentServer?.name} — ${periodLabel} Results\n\n${lines.join("\n")}\n\n📊 raidscout.com`;
+    return `🏆 ${currentServer?.name} — ${periodLabel} Results (${range})\n\n${lines.join("\n")}\n\n📊 raidscout.com`;
   };
 
   // ── Attendance Export ─────────────────────────────────────
@@ -1063,16 +1076,18 @@ export function LeaderboardView() {
                   // Properly saved period_start — use as-is
                   periodStart = new Date((snap as any).period_start);
                 } else {
-                  // Old bug: period_start missing or equals finalized — derive from next older snapshot
+                  // Fallback: period_start missing or equals finalized — derive from older snapshot
                   const olderSnap = guildSnaps[idx + 1];
                   if (olderSnap) {
                     periodStart = new Date(olderSnap.finalized_at);
                   } else if (snap.period.startsWith("weekly")) {
                     periodStart = new Date(finalized);
                     periodStart.setDate(periodStart.getDate() - 7);
+                    periodStart.setHours(0, 0, 0, 0);
                   } else if (snap.period.startsWith("monthly")) {
                     periodStart = new Date(finalized);
                     periodStart.setMonth(periodStart.getMonth() - 1);
+                    periodStart.setHours(0, 0, 0, 0);
                   } else {
                     periodStart = new Date(0);
                   }
@@ -1134,14 +1149,25 @@ export function LeaderboardView() {
       {/* Viewing snapshot modal */}
       {viewingSnapshot && (() => {
           const finalized = new Date(viewingSnapshot.finalized_at);
-          const hasPeriodStart = !!(viewingSnapshot as any).period_start;
-          const periodStart = new Date(
-            (viewingSnapshot as any).period_start || viewingSnapshot.finalized_at
-          );
-          if (!hasPeriodStart || periodStart.toDateString() === finalized.toDateString()) {
-            if (viewingSnapshot.period.startsWith("weekly")) periodStart.setDate(finalized.getDate() - 7);
-            else if (viewingSnapshot.period.startsWith("monthly")) periodStart.setMonth(finalized.getMonth() - 1);
-            else periodStart.setTime(0);
+          const rawPeriodStart = (viewingSnapshot as any).period_start;
+          // Use period_start if it's valid (not epoch, not missing)
+          let periodStart: Date;
+          if (rawPeriodStart && new Date(rawPeriodStart).getTime() > 86400000) {
+            periodStart = new Date(rawPeriodStart);
+          } else {
+            // Fallback: find previous snapshot for this period and use its finalized_at
+            const prevSnap = snapshots
+              .filter(s => s.period === viewingSnapshot.period && new Date(s.finalized_at) < finalized)
+              .sort((a, b) => new Date(b.finalized_at).getTime() - new Date(a.finalized_at).getTime())[0];
+            if (prevSnap) {
+              periodStart = new Date(prevSnap.finalized_at);
+            } else {
+              periodStart = new Date(finalized);
+              if (viewingSnapshot.period.startsWith("weekly")) periodStart.setDate(finalized.getDate() - 7);
+              else if (viewingSnapshot.period.startsWith("monthly")) periodStart.setMonth(finalized.getMonth() - 1);
+              else periodStart.setTime(0);
+              periodStart.setHours(0, 0, 0, 0);
+            }
           }
           const fmt = (d: Date) =>
             viewingSnapshot.period === "all_time"

@@ -1,4 +1,36 @@
-# June 22, 2026 — Changelog (v0.15.6)
+# June 22, 2026 — Changelog (v0.15.7)
+
+## 🏆 Leaderboard Finalization & History
+
+- **Finalize respects user-entered datetime** — The finalize modal's datetime picker now correctly converts the entered local time to UTC before saving. Previously used a broken offset calculation that wrapped around midnight for timezones ahead of UTC (e.g., UTC+8). Replaced with `Intl.DateTimeFormat.formatToParts` for reliable conversion.
+- **Undo finalization (unfinalize)** — Owner can now reverse a finalization from the history list. Deletes the snapshot, restores the previous reset date, and recalculates points from the earlier period. Only the most recent snapshot per period can be undone (must undo in reverse order).
+- **Multi-column finalized results modal** — Adapts layout based on player count: 1 column (≤10), 2 columns (11–25), 3 columns (26+). Compact entries for easy screenshot sharing.
+- **Copy/share includes date range** — Copy, FB, and X share buttons now include the actual date range (e.g., "Weekly Results (Jun 8 → Jun 21)") instead of just "Weekly Results". Also fixed period label showing "All Time" for guild-specific snapshots (period format is `weekly:GUILD`, not `weekly`).
+- **Removed 20-player limit from copy/share** — Previously only copied the first 20 players.
+- **Audit log shows dates for leaderboard actions** — Both finalize and unfinalize audit entries now include `from` and `to` dates. AdminPanel audit rendering also includes dates for leaderboard resets. Unfinalize actions are distinguished as "Undo finalization" vs "Finalized".
+- **Snapshot period start fixes** — Fixed fallback logic for snapshots with missing or epoch `period_start`. Modal now searches for the previous snapshot's `finalized_at` to show consistent date ranges matching the history list.
+- **"Ranks" renamed to "Leaderboard"** in sidebar and mobile bottom nav.
+
+## 🐛 Bug Fixes
+
+- **DKP Mark for Bid search only showed user-created items** — Search now uses the same `or(game, server_id)` query pattern as Inventory's distribute modal, including game-catalog items.
+- **DKP live auction empty after marking item** — `getActiveAuctions` now queries items directly (`is_up_for_bid=true AND bid_end_time > now()`) instead of relying on `get_active_bids` which only returned items with bids. Items with zero bids now appear.
+- **DKP item queries restricted by RLS** — `dkp_bids` RLS only allowed members to see their own bids. `getActiveAuctions` now uses the SECURITY DEFINER `get_active_bids` RPC for bid aggregates, bypassing RLS.
+- **DKP Mark for Bid build error** — esbuild couldn't parse IIFE `(()=>{...})()` inside a JSX ternary. Extracted `ItemResult` component.
+- **Rarity colors on DKP items** — Item icons and names in Mark for Bid dropdown, selected item display, Live Auction rows, and Bid modal all use the item's rarity color (Common=gray, Uncommon=green, Rare=blue, Epic=purple, Legendary=amber, Mythic=red).
+- **Leaderboard finalize timezone fix** — `formatToParts` replaced broken manual offset calculation.
+
+## 🎨 DKP System (continued)
+
+- **Live countdown timer** — Each auction row shows a ticking `d:hh:mm:ss` countdown via `useCountdown` hook, updating every second. Days only shown when > 0.
+- **Bids modal** — Clicking the bid count on an auction row opens a modal showing all bids (sorted newest first) with member name, timestamp, amount, and status badge (Active=amber, Won=green, Refunded=gray).
+- **Error toasts** — All DKP actions (mark, bid, resolve) now show error toasts on failure in addition to the inline modal error text.
+
+## 🗄️ Database
+
+- **Migration 104** — `leaderboard_snapshots` lacked a DELETE RLS policy, preventing unfinalize from working. Added policy + `delete_leaderboard_snapshot` SECURITY DEFINER RPC for safe deletion with reset date restoration.
+
+
 
 ## 🐛 Bug Fixes
 
