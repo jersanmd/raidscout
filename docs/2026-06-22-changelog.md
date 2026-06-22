@@ -1,6 +1,26 @@
 # June 22, 2026 — Changelog (v0.15.7)
 
-## 🏆 Leaderboard Finalization & History
+## � UI
+
+- **Demand CP Update — toggle Discord servers** — The confirmation modal now shows clickable per-server toggles. Click a server to exclude it from receiving the progress thread (grayed out with strikethrough, ❌ icon). Excluded `progress_channel_id`s are passed to the edge function so threads are only created in selected servers.
+- **Member Profile — Back button uses history** — "Back to Members" / "Back to RaidScout" now uses `navigate(-1)` instead of a hardcoded path, preserving search/filter/guild context from the previous page.
+
+## 🐛 Bug Fixes
+
+- **Member Profile — dailyActivity trend chart timezone drift** — The trend chart used `Date.now()` (UTC) for its 7-day and 30-day windows, while the Events stat card used `weekStart`/`monthStart` (server timezone). For a UTC+8 server, "7d" could show June 16–23 instead of June 21–27. Now uses `weekStart.getTime()` for 7d and `monthStart.getTime()` for 30d.
+- **AnalyticsView "Rendered more hooks" crash** — `guildKillTotals` useMemo and `guildSubItems` were declared after an early return, causing hooks to run in different order across renders. Moved before the early return.
+- **Analytics `serverActivities` scope bug** — `serverActivities` and `serverActivityIds` were `const` inside a `try` block but referenced in a second `try`. Hoisted to `let`.
+- **Member Profile — Items Received bar overflow** — Bar height was unbounded, causing 128px+ bars when one time window vastly outnumbered another. Added `Math.min(24, ...)` cap and `overflow-hidden`.
+- **Member Profile — CP Trend last label off-screen** — Rightmost CP label used `textAnchor="middle"`. Last point now uses `textAnchor="end"`.
+- **Member Profile — Items Received card clickable** — Clicking the Items Received stat card smooth-scrolls to the Loot History section.
+- **DkpView.tsx stale HMR cache** — Removed nonexistent `DkpView.tsx` causing Vite babel parse errors. File wasn't imported anywhere.
+
+## 🤖 Discord Bot
+
+- **`!updatestats` no longer auto-creates members** — Previously POSTed a new member row on miss. Now returns: *"{name} does not exist. Make sure to enter the correct name or contact your guild officers."*
+- **`!editstats` message updated** — Same "contact your guild officers" message instead of directing to `!updatestats`.
+
+## �🏆 Leaderboard Finalization & History
 
 - **Finalize respects user-entered datetime** — The finalize modal's datetime picker now correctly converts the entered local time to UTC before saving. Previously used a broken offset calculation that wrapped around midnight for timezones ahead of UTC (e.g., UTC+8). Replaced with `Intl.DateTimeFormat.formatToParts` for reliable conversion.
 - **Undo finalization (unfinalize)** — Owner can now reverse a finalization from the history list. Deletes the snapshot, restores the previous reset date, and recalculates points from the earlier period. Only the most recent snapshot per period can be undone (must undo in reverse order).
