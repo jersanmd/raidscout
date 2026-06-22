@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   saveLeaderboardSnapshot as saveSnapshotSupabase,
+  deleteLeaderboardSnapshot as deleteSnapshotSupabase,
   fetchLeaderboardSnapshots as fetchSnapshotsSupabase,
   fetchSnapshotById as fetchSnapshotByIdSupabase,
   isSupabaseConfigured,
@@ -78,7 +79,7 @@ export function useLeaderboardSnapshots() {
 
       if (configured && user && serverId) {
         try {
-          await saveSnapshotSupabase(period, rankings, periodStart, serverId);
+          await saveSnapshotSupabase(period, rankings, periodStart, serverId, finalizedAt);
           await supabase.from("app_settings").upsert(
             { key: resetKey, value: now, server_id: serverId },
             { onConflict: "key, server_id" }
@@ -92,6 +93,20 @@ export function useLeaderboardSnapshots() {
       setLeaderboardResetAt(serverId, now, resetKey);
       setLastFinalized(now, period);
 
+      queryClient.invalidateQueries({ queryKey: ["leaderboard_snapshots", serverId] });
+      queryClient.invalidateQueries({ queryKey: ["leaderboard"] });
+    },
+    [configured, user, queryClient, serverId]
+  );
+
+  const deleteSnapshot = useCallback(
+    async (snapshotId: string, period: string) => {
+      if (!configured || !user || !serverId) return;
+      await deleteSnapshotSupabase(snapshotId, serverId, period);
+      // Clear the localStorage reset to force refetch from DB
+      const resetKey = period.startsWith("weekly:") ? `leaderboard_reset_at:${period.replace("weekly:", "")}` : "leaderboard_reset_at";
+      localStorage.removeItem(`${LOCAL_RESET_AT_PREFIX}-${serverId}:${resetKey}`);
+      localStorage.removeItem(`${LOCAL_RESET_AT_PREFIX}-${serverId}`);
       queryClient.invalidateQueries({ queryKey: ["leaderboard_snapshots", serverId] });
       queryClient.invalidateQueries({ queryKey: ["leaderboard"] });
     },
@@ -131,6 +146,7 @@ export function useLeaderboardSnapshots() {
     snapshots,
     isLoading: snapshotsQuery.isLoading,
     finalizeResults,
+    deleteSnapshot,
     viewingSnapshot,
     loadSnapshot,
     clearViewing,

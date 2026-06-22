@@ -91,7 +91,7 @@ export function LeaderboardView() {
   const [participantDeathTime, setParticipantDeathTime] = useState("");
 
   // Leaderboard snapshots
-  const { snapshots, finalizeResults, viewingSnapshot, loadSnapshot, clearViewing } =
+  const { snapshots, finalizeResults, deleteSnapshot, viewingSnapshot, loadSnapshot, clearViewing } =
     useLeaderboardSnapshots();
   const [finalizing, setFinalizing] = useState(false);
   const [showSnapshots, setShowSnapshots] = useState<string | null>(null);
@@ -100,6 +100,8 @@ export function LeaderboardView() {
   const [guildFilter, setGuildFilter] = useState<string>("all");
   const [showFinalizeConfirm, setShowFinalizeConfirm] = useState<string | null>(null);
   const [finalizeTime, setFinalizeTime] = useState("");
+  const [showUnfinalizeConfirm, setShowUnfinalizeConfirm] = useState<{ id: string; period: string; label: string } | null>(null);
+  const [unfinalizing, setUnfinalizing] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState<string | null>(null);
   const [resetLoading, setResetLoading] = useState(false);
   const [copiedShare, setCopiedShare] = useState(false);
@@ -356,7 +358,7 @@ export function LeaderboardView() {
 
   const buildSnapshotShareText = (snap: LeaderboardSnapshot) => {
     const periodLabel = snap.period === "weekly" ? "Weekly" : snap.period === "monthly" ? "Monthly" : "All Time";
-    const lines = snap.rankings.slice(0, 20).map((r, i) => {
+    const lines = snap.rankings.map((r, i) => {
       const medal = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i + 1}.`;
       return `${medal} ${r.memberName} — ${r.points} pts`;
     });
@@ -1034,6 +1036,10 @@ export function LeaderboardView() {
             </div>
           );
         }
+        const snapsWithLatest = guildSnaps.map((snap, idx) => {
+          const isLatest = guildSnaps.findIndex(s => s.period === snap.period) === idx;
+          return { ...snap, isLatest };
+        });
         return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/60" onClick={() => setShowSnapshots(null)} />
@@ -1048,7 +1054,8 @@ export function LeaderboardView() {
               </button>
             </div>
             <div className="overflow-y-auto p-2 space-y-1.5 flex-1">
-              {guildSnaps.map((snap, idx) => {
+              {snapsWithLatest.map((snap, idx) => {
+                const isLatest = (snap as any).isLatest;
                 const finalized = new Date(snap.finalized_at);
                 const hasPeriodStart = !!(snap as any).period_start;
                 let periodStart: Date;
@@ -1082,30 +1089,40 @@ export function LeaderboardView() {
                     : "Monthly";
 
                 return (
-                  <button
-                    key={snap.id}
-                    onClick={() => { prevShowSnapshots.current = showSnapshots; setShowSnapshots(null); loadSnapshot(snap.id); }}
-                    className="w-full flex items-start gap-2 px-2.5 py-2 rounded-lg bg-[#18181b]/50 border border-[#27272a]/50 hover:border-[#52525b] transition text-left"
-                  >
-                    <History className="w-3.5 h-3.5 text-[#a1a1aa] shrink-0 mt-0.5" />
-                    <div className="flex-1 min-w-0 space-y-0.5">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="text-[10px] font-medium text-[#71717a] bg-[#27272a]/50 px-1.5 py-0.5 rounded">
-                          {periodLabel}
-                        </span>
-                        <span className="text-[10px] text-[#71717a]">{snap.ranking_count} ranked</span>
-                      </div>
-                      <p className="text-[11px] text-[#d4d4d8]">
-                        {fmt(periodStart)} → {fmt(finalized)}
-                      </p>
-                      {snap.top_name && (
-                        <p className="text-[10px] text-amber-400/80 truncate">
-                          🥇 {snap.top_name} · {snap.top_points} pt{snap.top_points !== 1 ? 's' : ''}
+                  <div key={snap.id} className="flex items-start gap-1">
+                    <button
+                      onClick={() => { prevShowSnapshots.current = showSnapshots; setShowSnapshots(null); loadSnapshot(snap.id); }}
+                      className="flex-1 flex items-start gap-2 px-2.5 py-2 rounded-lg bg-[#18181b]/50 border border-[#27272a]/50 hover:border-[#52525b] transition text-left"
+                    >
+                      <History className="w-3.5 h-3.5 text-[#a1a1aa] shrink-0 mt-0.5" />
+                      <div className="flex-1 min-w-0 space-y-0.5">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="text-[10px] font-medium text-[#71717a] bg-[#27272a]/50 px-1.5 py-0.5 rounded">
+                            {periodLabel}
+                          </span>
+                          <span className="text-[10px] text-[#71717a]">{snap.ranking_count} ranked</span>
+                        </div>
+                        <p className="text-[11px] text-[#d4d4d8]">
+                          {fmt(periodStart)} → {fmt(finalized)}
                         </p>
-                      )}
-                    </div>
-                    <ChevronRight className="w-3.5 h-3.5 text-[#52525b] mt-0.5" />
-                  </button>
+                        {snap.top_name && (
+                          <p className="text-[10px] text-amber-400/80 truncate">
+                            🥇 {snap.top_name} · {snap.top_points} pt{snap.top_points !== 1 ? 's' : ''}
+                          </p>
+                        )}
+                      </div>
+                      <ChevronRight className="w-3.5 h-3.5 text-[#52525b] mt-0.5" />
+                    </button>
+                    {currentServer?.role === "owner" && isLatest && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setShowUnfinalizeConfirm({ id: snap.id, period: snap.period, label: periodLabel }); }}
+                        className="p-1.5 text-[#52525b] hover:text-red-400 hover:bg-red-400/10 rounded-lg transition shrink-0 mt-0.5"
+                        title="Undo finalization"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
                 );
               })}
             </div>
@@ -1115,14 +1132,12 @@ export function LeaderboardView() {
       })()}
 
       {/* Viewing snapshot modal */}
-      {viewingSnapshot && (
-        (() => {
+      {viewingSnapshot && (() => {
           const finalized = new Date(viewingSnapshot.finalized_at);
           const hasPeriodStart = !!(viewingSnapshot as any).period_start;
           const periodStart = new Date(
             (viewingSnapshot as any).period_start || viewingSnapshot.finalized_at
           );
-          // Fallback: if period_start is missing or same day as finalized (old bug), derive it
           if (!hasPeriodStart || periodStart.toDateString() === finalized.toDateString()) {
             if (viewingSnapshot.period.startsWith("weekly")) periodStart.setDate(finalized.getDate() - 7);
             else if (viewingSnapshot.period.startsWith("monthly")) periodStart.setMonth(finalized.getMonth() - 1);
@@ -1131,106 +1146,50 @@ export function LeaderboardView() {
           const fmt = (d: Date) =>
             viewingSnapshot.period === "all_time"
               ? "All time"
-              : d.toLocaleDateString(undefined, {
-                  month: "short", day: "numeric", hour: "2-digit", minute: "2-digit",
-                });
+              : d.toLocaleDateString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+          const count = viewingSnapshot.rankings.length;
+          const cols = count <= 10 ? 1 : count <= 25 ? 2 : 3;
           return (
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4" key="snap-modal">
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
               <div className="absolute inset-0 bg-black/60" onClick={clearViewing} />
-              <div className="relative bg-[#09090b] border border-[#27272a] rounded-xl w-full max-w-md shadow-2xl max-h-[80vh] flex flex-col">
+              <div className={`relative bg-[#09090b] border border-[#27272a] rounded-xl w-full shadow-2xl max-h-[85vh] flex flex-col ${cols === 1 ? "max-w-md" : cols === 2 ? "max-w-2xl" : "max-w-4xl"}`}>
                 <div className="flex items-center justify-between p-3 border-b border-[#27272a] shrink-0">
                   <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => { clearViewing(); setShowSnapshots(prevShowSnapshots.current ?? "__all__"); }}
-                      className="text-[#a1a1aa] hover:text-[#fafafa] p-1 transition"
-                      title="Back to list"
-                    >
-                      <ChevronLeft className="w-4 h-4" />
-                    </button>
+                    <button onClick={() => { clearViewing(); setShowSnapshots(prevShowSnapshots.current ?? "__all__"); }} className="text-[#a1a1aa] hover:text-[#fafafa] p-1 transition" title="Back to list"><ChevronLeft className="w-4 h-4" /></button>
                     <div>
                       <h3 className="text-[#fafafa] font-bold text-xs">Finalized Results</h3>
-                      <p className="text-[10px] text-[#71717a]">
-                        {fmt(periodStart)} → {fmt(finalized)}
-                        {" · "}
-                        {viewingSnapshot.period === "all_time" ? "" : "Previous"}
-                      </p>
+                      <p className="text-[10px] text-[#71717a]">{fmt(periodStart)} → {fmt(finalized)} · {count} players</p>
                     </div>
                   </div>
-                  <button onClick={clearViewing} className="text-[#a1a1aa] hover:text-[#fafafa] p-1">
-                    <X className="w-4 h-4" />
-                  </button>
+                  <button onClick={clearViewing} className="text-[#a1a1aa] hover:text-[#fafafa] p-1"><X className="w-4 h-4" /></button>
                 </div>
-                <div className="overflow-y-auto p-2 space-y-0.5 flex-1">
-                  {(() => {
-                    const filtered = viewingSnapshot.rankings;
-                    if (filtered.length === 0) {
-                      return <p className="text-[#71717a] text-xs text-center py-4">No rankings for this guild.</p>;
-                    }
-                    return filtered.map((r) => {
+                <div className="overflow-y-auto p-2 flex-1">
+                  <div className={`grid gap-1 ${cols === 1 ? "grid-cols-1" : cols === 2 ? "grid-cols-2" : "grid-cols-3"}`}>
+                    {viewingSnapshot.rankings.map((r) => {
                       const style = rankColors[r.rank];
                       return (
-                        <div
-                          key={r.memberId}
-                          className={`flex items-center gap-2 px-2.5 py-1 rounded-lg border ${
-                            style?.bg ?? "bg-[#09090b]/50 border-[#27272a]/50"
-                          }`}
-                        >
-                          <div className="flex items-center justify-center w-5 h-5 shrink-0">
-                            {style ? <span className="scale-75">{style.icon}</span> : <span className="text-[10px] font-bold text-[#71717a]">#{r.rank}</span>}
+                        <div key={r.memberId} className={`flex items-center gap-1.5 px-2 py-1 rounded border ${style?.bg ?? "bg-[#09090b]/50 border-[#27272a]/50"}`}>
+                          <div className="flex items-center justify-center w-4 h-4 shrink-0">
+                            {style ? <span className="scale-75">{style.icon}</span> : <span className="text-[9px] font-bold text-[#71717a]">#{r.rank}</span>}
                           </div>
-                          <span className={`flex-1 text-xs font-semibold ${style?.text ?? "text-[#fafafa]"}`}>{r.memberName}</span>
-                          <div className="flex items-center gap-0.5 shrink-0">
-                            <Trophy className="w-2.5 h-2.5 text-[#a1a1aa]" />
-                            <span className="text-[10px] font-bold text-[#fafafa] tabular-nums">{r.points}</span>
-                          </div>
+                          <span className={`flex-1 text-[11px] font-semibold truncate ${style?.text ?? "text-[#fafafa]"}`}>{r.memberName}</span>
+                          <span className="text-[10px] font-bold text-amber-400 tabular-nums shrink-0">{r.points}pt</span>
                         </div>
                       );
-                    });
-                  })()}
+                    })}
+                  </div>
                 </div>
                 {viewingSnapshot.rankings.length > 0 && (
                   <div className="p-2 border-t border-[#27272a] shrink-0 flex items-center gap-1.5 flex-wrap">
-                    <button
-                      onClick={() => {
-                        const text = buildSnapshotShareText(viewingSnapshot);
-                        navigator.clipboard.writeText(text);
-                        setCopiedShare(true);
-                        setTimeout(() => setCopiedShare(false), 2000);
-                      }}
-                      className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium bg-[#18181b] text-[#d4d4d8] hover:bg-[#27272a] transition"
-                    >
-                      {copiedShare ? <CheckCheck className="w-3 h-3 text-emerald-400" /> : <CheckCheck className="w-3 h-3" />}
-                      {copiedShare ? "Copied!" : "Copy"}
-                    </button>
-                    <button
-                      onClick={() => {
-                        const text = buildSnapshotShareText(viewingSnapshot);
-                        const url = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent("https://www.raidscout.com")}&quote=${encodeURIComponent(text)}`;
-                        window.open(url, "_blank", "width=600,height=400");
-                      }}
-                      className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium bg-[#1877F2]/20 text-[#1877F2] hover:bg-[#1877F2]/30 transition"
-                    >
-                      <svg className="w-3 h-3" viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
-                      FB
-                    </button>
-                    <button
-                      onClick={() => {
-                        const text = buildSnapshotShareText(viewingSnapshot);
-                        const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`;
-                        window.open(url, "_blank", "width=600,height=400");
-                      }}
-                      className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium bg-[#18181b] text-[#d4d4d8] hover:bg-[#27272a] transition"
-                    >
-                      <svg className="w-3 h-3" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
-                      X
-                    </button>
+                    <button onClick={() => { const text = buildSnapshotShareText(viewingSnapshot); navigator.clipboard.writeText(text); setCopiedShare(true); setTimeout(() => setCopiedShare(false), 2000); }} className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium bg-[#18181b] text-[#d4d4d8] hover:bg-[#27272a] transition">{copiedShare ? <CheckCheck className="w-3 h-3 text-emerald-400" /> : <CheckCheck className="w-3 h-3" />}{copiedShare ? "Copied!" : "Copy"}</button>
+                    <button onClick={() => { const text = buildSnapshotShareText(viewingSnapshot); const url = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent("https://www.raidscout.com")}&quote=${encodeURIComponent(text)}`; window.open(url, "_blank", "width=600,height=400"); }} className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium bg-[#1877F2]/20 text-[#1877F2] hover:bg-[#1877F2]/30 transition"><svg className="w-3 h-3" viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>FB</button>
+                    <button onClick={() => { const text = buildSnapshotShareText(viewingSnapshot); const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`; window.open(url, "_blank", "width=600,height=400"); }} className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium bg-[#18181b] text-[#d4d4d8] hover:bg-[#27272a] transition"><svg className="w-3 h-3" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>X</button>
                   </div>
                 )}
               </div>
             </div>
           );
-        })()
-      )}
+        })()}
 
       {/* Kill history modal */}
       {selectedMember && (() => {
@@ -1548,12 +1507,17 @@ export function LeaderboardView() {
                       const [datePart, timePart] = finalizeTime.split("T");
                       const [y, mo, d] = datePart.split("-").map(Number);
                       const [hh, mm] = timePart.split(":").map(Number);
-                      const testUtc = Date.UTC(y, mo - 1, d, hh, mm);
                       const tz = serverTimezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
-                      const testLocal = new Intl.DateTimeFormat("en-US", { timeZone: tz, hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(testUtc));
-                      const [tlH, tlM] = testLocal.split(":").map(Number);
-                      const offsetMs = ((tlH - hh) * 60 + (tlM - mm)) * 60_000;
-                      return new Date(testUtc - offsetMs).toISOString();
+                      // Treat input as local time in server TZ → get the UTC offset via formatToParts
+                      const ref = new Date(Date.UTC(y, mo - 1, d, hh, mm));
+                      const parts = new Intl.DateTimeFormat("en-US", { timeZone: tz, timeZoneName: "longOffset" }).formatToParts(ref);
+                      const off = parts.find(p => p.type === "timeZoneName")?.value || "UTC";
+                      const m = off.match(/([+-])(\d{1,2}):?(\d{2})?/);
+                      const sign = m?.[1] === "+" ? 1 : -1;
+                      const offH = parseInt(m?.[2] || "0");
+                      const offM = parseInt(m?.[3] || "0");
+                      const offsetMs = sign * (offH * 60 + offM) * 60_000;
+                      return new Date(Date.UTC(y, mo - 1, d, hh, mm) - offsetMs).toISOString();
                     })()
                   : new Date().toISOString();
                 setShowFinalizeConfirm(null);
@@ -1575,6 +1539,45 @@ export function LeaderboardView() {
                 className="px-4 py-2 rounded-md text-sm font-medium bg-[#fafafa] hover:bg-[#e4e4e7] text-[#09090b] transition disabled:opacity-50 flex items-center gap-2">
                 {finalizing && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                 Finalize
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Unfinalize confirmation */}
+      {showUnfinalizeConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60" onClick={() => setShowUnfinalizeConfirm(null)} />
+          <div className="relative bg-[#18181b] border border-[#27272a] rounded-xl w-full max-w-sm shadow-lg p-6 space-y-4">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-full bg-red-500/10 flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-5 h-5 text-red-400" />
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-[#fafafa]">Undo Finalization</h3>
+                <p className="text-xs text-[#71717a] mt-1">
+                  Delete this snapshot and restore the previous reset date. Points will be recalculated from the earlier period.
+                </p>
+              </div>
+            </div>
+            <p className="text-xs text-[#a1a1aa] bg-[#0d0d11] rounded p-2">
+              {showUnfinalizeConfirm.label} snapshot — rankings will be lost.
+            </p>
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setShowUnfinalizeConfirm(null)} disabled={unfinalizing}
+                className="px-4 py-2 rounded-md text-sm text-[#71717a] hover:text-[#fafafa] transition disabled:opacity-50">Cancel</button>
+              <button onClick={async () => {
+                setUnfinalizing(true);
+                try {
+                  await deleteSnapshot(showUnfinalizeConfirm.id, showUnfinalizeConfirm.period);
+                  toast("success", "Finalization undone. Points restored.");
+                } catch { toast("error", "Failed to undo finalization"); }
+                finally { setUnfinalizing(false); setShowUnfinalizeConfirm(null); }
+              }} disabled={unfinalizing}
+                className="px-4 py-2 rounded-md text-sm font-medium bg-red-500/20 text-red-400 hover:bg-red-500/30 transition disabled:opacity-50 flex items-center gap-2">
+                {unfinalizing && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                Undo Finalization
               </button>
             </div>
           </div>

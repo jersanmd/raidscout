@@ -3649,7 +3649,7 @@ export function ServerActivityLogTab({ serverId, timezone = "UTC" }: { serverId:
       case "class_delete": return `${d.class_name || d.name || "?"} deleted`;
       case "rally_image_delete": return `Deleted screenshot`;
       case "leaderboard_finalize": return `${d.period || "?"}: ${d.rankings ?? 0} players · ${d.from || "?"} → ${d.to || "?"}`;
-      case "leaderboard_reset": return `Leaderboard reset${d.guild ? ` (${d.guild})` : ""} · ${d.from ? new Date(d.from).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "?"} → ${d.to ? new Date(d.to).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "?"}`;
+      case "leaderboard_reset": return `${d.unfinalized ? "Undo finalization" : "Finalized"}${d.guild ? ` (${d.guild})` : ""}${d.period ? ` · ${d.period.replace("weekly:", "Weekly ")}` : ""} · ${d.from ? new Date(d.from).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "?"} → ${d.to ? new Date(d.to).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "?"}`;
       case "leaderboard_adjust_points": return `${d.member_name ? d.member_name + ": " : ""}${d.points != null ? (d.points > 0 ? "+" : "") + d.points + " pts" : "?"}${d.reason ? ` — ${d.reason}` : ""}`;
       case "leaderboard_reset_guild": return `${d.guild_name || "?"} guild points reset: ${d.deleted_attendance ?? 0} attendance, ${d.deleted_adjustments ?? 0} adjustments`;
       case "point_rule_create": case "point_rule_update": return `Point rule for ${d.guild_name || "?"}: ${d.enabled !== undefined ? (d.enabled ? "enabled" : "disabled") : `${d.multiplier ?? "?"}x · ${d.start_hour ?? "?"}:00–${d.end_hour ?? "?"}:00`}`;
