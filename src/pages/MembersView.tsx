@@ -17,6 +17,7 @@ export function MembersView() {
   const { user, isViewer } = useAuth();
   const serverId = useServerId();
   const { currentServer } = useServer();
+  const isStaff = currentServer?.role === "owner" || currentServer?.role === "moderator";
   const canManageRaidMembers = useHasPermission("can_manage_members");
 
   if (currentServer?.isExpired) return <ExpiredGate page="Members" />;
@@ -2467,7 +2468,10 @@ export function MembersView() {
                             <button onClick={() => setEditingId(null)} className="p-1 text-[#a1a1aa] hover:text-[#fafafa] transition"><X className="w-4 h-4" /></button>
                           </div>
                         ) : (
-                          <Link to={`/members/${member.id}`} className="flex-1 min-w-0 text-[#fafafa] text-sm font-medium truncate hover:text-[#e4e4e7] transition">{member.name}</Link>
+                          <div className="flex-1 min-w-0 flex items-center gap-1.5">
+                            <Link to={`/members/${member.id}`} className="text-[#fafafa] text-sm font-medium truncate hover:text-[#e4e4e7] transition">{member.name}</Link>
+                            {(member as any).user_id && <span className="text-[10px] text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded font-medium shrink-0" title="Claimed member">Claimed</span>}
+                          </div>
                         )}
 
                         {editingId !== member.id && canManageRaidMembers && (
@@ -2522,7 +2526,7 @@ export function MembersView() {
                           </>
                         )}
 
-                        {editingId !== member.id && guilds.length > 0 && !isViewer && (
+                        {editingId !== member.id && guilds.length > 0 && !isViewer && isStaff && (
                           <select
                             value={member.guild_id ?? ""}
                             onChange={async (e) => {

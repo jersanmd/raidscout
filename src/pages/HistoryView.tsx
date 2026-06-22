@@ -47,6 +47,7 @@ export function HistoryView() {
   const { user, isViewer } = useAuth();
   const serverId = useServerId();
   const { currentServer } = useServer();
+  const isStaff = currentServer?.role === "owner" || currentServer?.role === "moderator";
   const configured = isSupabaseConfigured();
 
   if (currentServer?.isExpired) return <ExpiredGate page="History" />;
@@ -655,7 +656,7 @@ export function HistoryView() {
           activityInstanceId={selectedEntry.activityInstanceId}
           onClose={() => setSelectedEntry(null)}
           navigate={navigate}
-          readOnly={isViewer}
+          readOnly={isViewer || !isStaff}
           ownerGuildId={!selectedEntry.activityInstanceId ? (() => {
             const name = selectedEntry.ownerGuildName;
             if (!name) return null;

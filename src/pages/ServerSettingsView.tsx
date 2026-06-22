@@ -221,8 +221,16 @@ export function ServerSettingsView() {
   };
 
   const GATED_TABS = new Set(["bosses", "boss-points", "boss-guilds", "activities", "activity-points", "activity-guilds", "integrations"]);
+  const STAFF_TABS = new Set(["guilds", "members", "dkp"]);
   const isExpired = currentServer?.isExpired ?? false;
+  const isStaff = currentServer?.role === "owner" || currentServer?.role === "moderator";
   const isTabLocked = isExpired && GATED_TABS.has(tab);
+  const isMemberLocked = !isStaff && (GATED_TABS.has(tab) || STAFF_TABS.has(tab));
+
+  // Redirect claimed members away from staff-only tabs
+  useEffect(() => {
+    if (isMemberLocked) setTabAndUrl("general");
+  }, [isMemberLocked]);
 
   useEffect(() => {
     const gid = newDiscordId.trim();
@@ -1046,7 +1054,7 @@ export function ServerSettingsView() {
       <div className="sm:hidden flex flex-wrap items-center gap-1 pb-1 mt-2">
         {(["general","guilds","bosses","boss-points","boss-guilds","activities","activity-points","activity-guilds","members","integrations","account","dkp",...(isOwner?["danger"]:[])] as string[]).map((key) => {
           const labels: Record<string,string> = {general:"General",guilds:"Guilds",bosses:"Bosses","boss-points":"Boss Points","boss-guilds":"Boss Guild Assignments",activities:"Activities","activity-points":"Activity Points","activity-guilds":"Activity Guild Assignments",members:"Moderator/Permissions",integrations:"Integrations",account:"Account",dkp:"DKP",danger:"Danger"};
-          const locked = isExpired && GATED_TABS.has(key);
+          const locked = (isExpired && GATED_TABS.has(key)) || (!isStaff && (GATED_TABS.has(key) || STAFF_TABS.has(key)));
           return <button key={key} onClick={() => { if (!locked) setTabAndUrl(key); }}
             disabled={locked}
             className={`shrink-0 px-2.5 py-1 rounded-md text-[11px] font-medium transition whitespace-nowrap ${
@@ -1081,7 +1089,7 @@ export function ServerSettingsView() {
               const icons: Record<string,React.ComponentType<{className?:string}>> = {general:Settings,guilds:Shield,bosses:Skull,"boss-points":Trophy,"boss-guilds":Swords,activities:Calendar,"activity-points":Trophy,"activity-guilds":Calendar,members:Users,integrations:Bell,account:Key,dkp:Coins,danger:AlertTriangle};
               const labels: Record<string,string> = {general:"General",guilds:"Guilds",bosses:"Bosses","boss-points":"Boss Points","boss-guilds":"Boss Guild Assignments",activities:"Activities","activity-points":"Activity Points","activity-guilds":"Activity Guild Assignments",members:"Moderator/Permissions",integrations:"Integrations",account:"Account",dkp:"DKP",danger:"Danger"};
               const Icon = icons[key];
-              const locked = isExpired && GATED_TABS.has(key);
+              const locked = (isExpired && GATED_TABS.has(key)) || (!isStaff && (GATED_TABS.has(key) || STAFF_TABS.has(key)));
               return <button key={key} onClick={() => { if (!locked) setTabAndUrl(key); }}
                 disabled={locked}
                 className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition ${

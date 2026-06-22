@@ -295,11 +295,16 @@ export function NoServerView() {
                 <div className="space-y-1">
                   <p className="text-[10px] text-neutral-600">Your Claims</p>
                   {myClaims.map(c => (
-                    <div key={c.id} className="flex items-center gap-2 px-3 py-1.5 rounded bg-[#18191d]/40 border border-neutral-800/40 text-xs">
-                      <span className="text-neutral-300 truncate flex-1">{c.server_name} · {c.requested_name}</span>
-                      {c.status === "pending" && <span className="text-[10px] text-amber-400 flex items-center gap-0.5"><Clock className="w-3 h-3" />Pending</span>}
-                      {c.status === "accepted" && <span className="text-[10px] text-emerald-400 flex items-center gap-0.5"><CheckCircle className="w-3 h-3" />Accepted</span>}
-                      {c.status === "declined" && <span className="text-[10px] text-red-400 flex items-center gap-0.5"><XCircle className="w-3 h-3" />Declined</span>}
+                    <div key={c.id} className="px-3 py-1.5 rounded bg-[#18191d]/40 border border-neutral-800/40 text-xs space-y-0.5">
+                      <div className="flex items-center gap-2">
+                        <span className="text-neutral-300 truncate flex-1">{c.server_name} · {c.requested_name}</span>
+                        {c.status === "pending" && <span className="text-[10px] text-amber-400 flex items-center gap-0.5 shrink-0"><Clock className="w-3 h-3" />Pending</span>}
+                        {c.status === "accepted" && <span className="text-[10px] text-emerald-400 flex items-center gap-0.5 shrink-0"><CheckCircle className="w-3 h-3" />Accepted</span>}
+                        {c.status === "declined" && <span className="text-[10px] text-red-400 flex items-center gap-0.5 shrink-0"><XCircle className="w-3 h-3" />Declined</span>}
+                      </div>
+                      {c.status === "declined" && c.decline_reason && (
+                        <p className="text-[10px] text-neutral-500">Reason: {c.decline_reason}</p>
+                      )}
                     </div>
                   ))}
                 </div>

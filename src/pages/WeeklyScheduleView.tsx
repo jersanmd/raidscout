@@ -41,6 +41,7 @@ export function WeeklyScheduleView() {
   const { data: deathRecords = [], isLoading: recordsLoading, refetch: refetchDeaths } = useDeathRecords();
   const { activities = [], activityInstances = [] } = useActivities();
   const { user, isViewer, viewerCanMarkDied } = useAuth();
+  const isStaff = currentServer?.role === "owner" || currentServer?.role === "moderator";
 
   // Always fetch fresh data on mount so rotation adjustments from Bosses tab are reflected
   useEffect(() => {
@@ -673,7 +674,7 @@ export function WeeklyScheduleView() {
                       const s = item.data as SpawnInfo;
                       const isDeathEvent = s.deathRecord !== null && !s.deathRecord.is_initial_spawn && s.nextSpawn?.getTime() === new Date(s.deathRecord.death_time).getTime();
                       const isScheduleBoss = s.boss.spawn_type === "fixed_schedule";
-                      const isCopyTarget = copySource !== null && isDeathEvent && !!s.deathRecord && s.deathRecord.id !== copySource.deathRecordId && !isViewer;
+                      const isCopyTarget = copySource !== null && isDeathEvent && !!s.deathRecord && s.deathRecord.id !== copySource.deathRecordId && !isViewer && isStaff;
                       const isCopySource = copySource?.deathRecordId === s.deathRecord?.id;
                       const attCount = s.deathRecord ? (attendanceCounts?.get(s.deathRecord.id) ?? 0) : 0;
                       return (
@@ -683,7 +684,7 @@ export function WeeklyScheduleView() {
                             handleCopyTargetClick(s.deathRecord!.id, s.boss.name);
                           } else if (isDeathEvent && s.deathRecord && !currentServer?.isExpired) {
                             setSelectedDeath({ deathRecordId: s.deathRecord.id, bossName: s.boss.name, deathTime: s.deathRecord.death_time, ownerGuildId: s.deathRecord.display_owner_guild_id ?? s.deathRecord.owner_guild_id ?? null });
-                          } else if ((!isViewer || viewerCanMarkDied) && !currentServer?.isExpired) {
+                          } else if (((!isViewer && isStaff) || (isViewer && viewerCanMarkDied)) && !currentServer?.isExpired) {
                             setMarkBoss({ boss: s.boss, spawnTime: isScheduleBoss ? s.nextSpawn ?? undefined : undefined });
                           }
                         }}
@@ -691,7 +692,7 @@ export function WeeklyScheduleView() {
                           isCopySource ? "bg-blue-900/20 border border-blue-700/50" :
                           isCopyTarget ? "bg-[#0d0d10] border border-blue-700/30 cursor-pointer hover:bg-blue-900/20 hover:border-blue-600/50" :
                           isDeathEvent ? "bg-[#0d0d10] border border-[#27272a] cursor-pointer hover:bg-[#18181b]" :
-                          (isViewer && !viewerCanMarkDied) ? "bg-[#18181b] cursor-default opacity-60" :
+                          (isViewer && !viewerCanMarkDied) || (!isViewer && !isStaff) ? "bg-[#18181b] cursor-default opacity-60" :
                           "bg-[#1c1c20] border border-[#27272a] cursor-pointer hover:bg-[#27272a] hover:border-[#52525b] hover:scale-[1.01]"
                         }`}>
                         <div className="flex items-center gap-2">
@@ -723,7 +724,7 @@ export function WeeklyScheduleView() {
                               return <div className={`text-[10px] font-medium ${guildColor(gName).text}`}>{gName}</div>;
                             })()}
                           </div>
-                          {isDeathEvent && s.deathRecord && !isCopyTarget && attCount > 0 && !isViewer && (
+                          {isDeathEvent && s.deathRecord && !isCopyTarget && attCount > 0 && !isViewer && isStaff && (
                             <button
                               onClick={(e) => { e.stopPropagation(); handleCopyStart(s.deathRecord!.id, s.boss.name, new Date(s.deathRecord!.death_time).toLocaleDateString("en-US", { month: "short", day: "numeric" })); }}
                               className="p-1 rounded hover:bg-[#27272a] text-[#52525b] hover:text-[#a1a1aa] transition"
@@ -739,32 +740,43 @@ export function WeeklyScheduleView() {
                       </div>
                     );} else {
                       const info = item.data as typeof day.activities[0];
+                      const isFinished = info.status === "completed";
+                      const isActive = info.status === "active";
+                      const canFinish = ((!isViewer && isStaff) || (isViewer && viewerCanMarkDied));
                       return (
-                      <button key={`act-m-${item.idx}`} onClick={() => {
-                        if (info.status === "completed" && info.activityInstance?.id) {
-                          setSelectedActivityInstance({ activityInstanceId: info.activityInstance.id, activityName: info.activity.name, endTime: info.activityInstance.end_time ?? info.startTime.toISOString() });
-                        } else {
-                          setMarkActivity({ activity: info.activity, activityName: info.activity.name });
-                        }
-                      }} className={`w-full text-left flex items-center justify-between text-xs rounded px-2 py-1.5 cursor-pointer hover:brightness-110 transition ${
-                        info.status === "active" ? "bg-emerald-900/20 border border-emerald-800/50" :
-                        info.status === "completed" ? "bg-[#0d0d10] border border-[#27272a]" :
-                        "bg-blue-900/20 border border-blue-800/50"
-                      }`}>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between">
-                            <span className="text-[#fafafa] font-medium truncate">{info.activity.name}</span>
-                            <span className={`shrink-0 ml-2 ${info.status === "active" ? "text-emerald-400" : info.status === "completed" ? "text-[#a1a1aa]" : "text-blue-400"}`}>
-                              {info.status === "countdown" ? info.startTime.toLocaleTimeString("en-US", { timeZone: userTz, hour: "2-digit", minute: "2-digit" }) :
-                               info.status === "active" ? "Active" :
-                               info.startTime.toLocaleTimeString("en-US", { timeZone: userTz, hour: "2-digit", minute: "2-digit" })}
+                      <div key={`act-m-${item.idx}`}
+                        onClick={() => {
+                          if (isFinished && info.activityInstance?.id) {
+                            setSelectedActivityInstance({ activityInstanceId: info.activityInstance.id, activityName: info.activity.name, endTime: info.activityInstance.end_time ?? info.startTime.toISOString() });
+                          } else if (canFinish) {
+                            setMarkActivity({ activity: info.activity, activityName: info.activity.name });
+                          }
+                        }}
+                        className={`flex items-center justify-between py-1.5 px-2 rounded-lg transition-all duration-200 ${
+                          isFinished ? "bg-[#0d0d10] border border-[#27272a] cursor-pointer hover:bg-[#18181b]" :
+                          isActive ? "bg-emerald-900/20 border border-emerald-800/50 cursor-pointer hover:bg-emerald-900/30 hover:border-emerald-700/50 hover:scale-[1.01]" :
+                          !canFinish ? "bg-[#18181b] cursor-default opacity-60" :
+                          "bg-[#1c1c20] border border-[#27272a] cursor-pointer hover:bg-[#27272a] hover:border-[#52525b] hover:scale-[1.01]"
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className={`w-2 h-2 rounded-full ${isActive ? "bg-emerald-400" : isFinished ? "bg-[#a1a1aa]" : "bg-blue-400"}`} />
+                          <span className="text-[#fafafa] text-sm">{info.activity.name}</span>
+                          {isFinished && (
+                            <span className="text-[10px] text-red-400 inline-flex items-center gap-1">
+                              Finished <CheckCheck className="w-3 h-3" />
                             </span>
-                          </div>
-                          {info.status === "completed" && (
-                            <span className="text-[10px] text-red-400 font-medium flex items-center gap-1">Finished <CheckCheck className="w-3 h-3" /></span>
+                          )}
+                          {isActive && (
+                            <span className="text-[10px] text-emerald-400 font-medium">Active</span>
                           )}
                         </div>
-                      </button>
+                        <div className="text-right">
+                          <span className="text-[#a1a1aa] text-sm">
+                            {info.startTime.toLocaleTimeString("en-US", { timeZone: userTz, hour: "2-digit", minute: "2-digit" })}
+                          </span>
+                        </div>
+                      </div>
                     );}
                   });
                 })()}
@@ -824,7 +836,7 @@ export function WeeklyScheduleView() {
                       const s = item.data as SpawnInfo;
                       const isDeathEvent = s.deathRecord !== null && !s.deathRecord.is_initial_spawn && s.nextSpawn?.getTime() === new Date(s.deathRecord.death_time).getTime();
                       const isScheduleBoss = s.boss.spawn_type === "fixed_schedule";
-                      const isCopyTarget = copySource !== null && isDeathEvent && !!s.deathRecord && s.deathRecord.id !== copySource.deathRecordId && !isViewer;
+                      const isCopyTarget = copySource !== null && isDeathEvent && !!s.deathRecord && s.deathRecord.id !== copySource.deathRecordId && !isViewer && isStaff;
                       const isCopySource = copySource?.deathRecordId === s.deathRecord?.id;
                       const attCount = s.deathRecord ? (attendanceCounts?.get(s.deathRecord.id) ?? 0) : 0;
                       return (
@@ -840,7 +852,7 @@ export function WeeklyScheduleView() {
                               deathTime: s.deathRecord.death_time,
                               ownerGuildId: s.deathRecord.display_owner_guild_id ?? s.deathRecord.owner_guild_id ?? null,
                             });
-                          } else if ((!isViewer || viewerCanMarkDied) && !currentServer?.isExpired) {
+                          } else if (((!isViewer && isStaff) || (isViewer && viewerCanMarkDied)) && !currentServer?.isExpired) {
                             setMarkBoss({
                               boss: s.boss,
                               spawnTime: isScheduleBoss ? s.nextSpawn ?? undefined : undefined,
@@ -852,7 +864,7 @@ export function WeeklyScheduleView() {
                           isCopyTarget ? "bg-[#0d0d10] border border-blue-700/30 cursor-pointer hover:bg-blue-900/20 hover:border-blue-600/50" :
                           isDeathEvent
                             ? "bg-[#0d0d10] border border-[#27272a] cursor-pointer hover:bg-[#18181b]"
-                            : (isViewer && !viewerCanMarkDied)
+                            : (isViewer && !viewerCanMarkDied) || (!isViewer && !isStaff)
                             ? "bg-[#18181b] cursor-default opacity-60"
                             : "bg-[#1c1c20] border border-[#27272a] cursor-pointer hover:bg-[#27272a] hover:border-[#52525b] hover:scale-[1.02]"
                         }`}
@@ -860,7 +872,7 @@ export function WeeklyScheduleView() {
                         <div className="flex items-center justify-between">
                           <span className="text-[#fafafa] font-medium truncate">{s.boss.name}</span>
                           <div className="flex items-center gap-1.5 shrink-0 ml-1">
-                            {isDeathEvent && s.deathRecord && !isCopyTarget && attCount > 0 && !isViewer && (
+                            {isDeathEvent && s.deathRecord && !isCopyTarget && attCount > 0 && !isViewer && isStaff && (
                               <button
                                 onClick={(e) => { e.stopPropagation(); handleCopyStart(s.deathRecord!.id, s.boss.name, new Date(s.deathRecord!.death_time).toLocaleDateString("en-US", { month: "short", day: "numeric" })); }}
                                 className="p-0.5 rounded hover:bg-[#3f3f46] text-[#52525b] hover:text-[#a1a1aa] transition"
@@ -904,36 +916,42 @@ export function WeeklyScheduleView() {
                       </div>
                     )} else {
                       const info = item.data as typeof day.activities[0];
+                      const isFinished = info.status === "completed";
+                      const isActive = info.status === "active";
+                      const canFinish = ((!isViewer && isStaff) || (isViewer && viewerCanMarkDied));
                       return (
-                      <button key={`act-${item.idx}`} onClick={() => {
-                        if (info.status === "completed" && info.activityInstance?.id) {
-                          setSelectedActivityInstance({ activityInstanceId: info.activityInstance.id, activityName: info.activity.name, endTime: info.activityInstance.end_time ?? info.startTime.toISOString() });
-                        } else {
-                          setMarkActivity({ activity: info.activity, activityName: info.activity.name });
-                        }
-                      }} className={`w-full text-left text-xs rounded px-1.5 py-1 cursor-pointer hover:brightness-110 transition ${
-                        info.status === "active" ? "bg-emerald-900/20 border border-emerald-800/50" :
-                        info.status === "completed" ? "bg-[#0d0d10] border border-[#27272a]" :
-                        "bg-blue-900/20 border border-blue-800/50"
-                      }`}>
+                      <div key={`act-${item.idx}`}
+                        onClick={() => {
+                          if (isFinished && info.activityInstance?.id) {
+                            setSelectedActivityInstance({ activityInstanceId: info.activityInstance.id, activityName: info.activity.name, endTime: info.activityInstance.end_time ?? info.startTime.toISOString() });
+                          } else if (canFinish) {
+                            setMarkActivity({ activity: info.activity, activityName: info.activity.name });
+                          }
+                        }}
+                        className={`text-xs rounded px-1.5 py-1 transition-all duration-200 ${
+                          isFinished ? "bg-[#0d0d10] border border-[#27272a] cursor-pointer hover:bg-[#18181b]" :
+                          isActive ? "bg-emerald-900/20 border border-emerald-800/50 cursor-pointer hover:scale-[1.02]" :
+                          !canFinish ? "bg-[#18181b] cursor-default opacity-60" :
+                          "bg-[#1c1c20] border border-[#27272a] cursor-pointer hover:bg-[#27272a] hover:border-[#52525b] hover:scale-[1.02]"
+                        }`}
+                      >
                         <div className="flex items-center justify-between">
                           <span className="text-[#fafafa] font-medium truncate">{info.activity.name}</span>
-                          <span className={`shrink-0 ml-1 ${
-                            info.status === "active" ? "text-emerald-400" :
-                            info.status === "completed" ? "text-[#a1a1aa]" :
-                            "text-blue-400"
-                          }`}>
-                            {info.status === "countdown" ? info.startTime.toLocaleTimeString("en-US", { timeZone: userTz, hour: "2-digit", minute: "2-digit" }) :
-                             info.status === "active" ? "Active" :
-                             info.startTime.toLocaleTimeString("en-US", { timeZone: userTz, hour: "2-digit", minute: "2-digit" })}
+                          <span className="text-[#a1a1aa] shrink-0 ml-1">
+                            {info.startTime.toLocaleTimeString("en-US", { timeZone: userTz, hour: "2-digit", minute: "2-digit" })}
                           </span>
                         </div>
-                        {info.status === "completed" && (
-                          <span className="text-[10px] text-red-400 font-medium flex items-center gap-1">
-                            Finished <CheckCheck className="w-3 h-3" />
-                          </span>
-                        )}
-                      </button>
+                        <div className="flex items-center gap-1">
+                          <span className={`w-1.5 h-1.5 rounded-full ${isActive ? "bg-emerald-400" : isFinished ? "bg-[#a1a1aa]" : "bg-blue-400"}`} />
+                          {isFinished ? (
+                            <span className="text-[9px] text-red-400">Finished</span>
+                          ) : isActive ? (
+                            <span className="text-[9px] text-emerald-400 font-medium">Active</span>
+                          ) : (
+                            <span className="text-[9px] text-blue-400">Countdown</span>
+                          )}
+                        </div>
+                      </div>
                     );}
                   });
                 })()
@@ -953,14 +971,14 @@ export function WeeklyScheduleView() {
           deathTime={selectedDeath.deathTime}
           ownerGuildId={selectedDeath.ownerGuildId ?? null}
           onClose={() => setSelectedDeath(null)}
-          readOnly={isViewer}
-          onEditDeathTime={!isViewer ? () => {
+          readOnly={isViewer || !isStaff}
+          onEditDeathTime={(!isViewer && isStaff) ? () => {
             const dt = new Date(selectedDeath.deathTime);
             const local = new Date(dt.getTime() - dt.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
             setEditDeathDate(local);
             setEditDeath({ deathRecordId: selectedDeath.deathRecordId, bossName: selectedDeath.bossName, deathTime: selectedDeath.deathTime });
           } : undefined}
-          onChangeGuild={!isViewer ? () => {
+          onChangeGuild={(!isViewer && isStaff) ? () => {
             setEditGuildDeath({ deathRecordId: selectedDeath.deathRecordId, bossName: selectedDeath.bossName, currentGuildId: selectedDeath.ownerGuildId ?? null, deathTime: selectedDeath.deathTime });
           } : undefined}
         />
@@ -974,6 +992,7 @@ export function WeeklyScheduleView() {
           deathTime={selectedActivityInstance.endTime}
           activityInstanceId={selectedActivityInstance.activityInstanceId}
           onClose={() => setSelectedActivityInstance(null)}
+          readOnly={isViewer || !isStaff}
         />
       )}
 

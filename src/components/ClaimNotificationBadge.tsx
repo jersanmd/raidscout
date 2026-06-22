@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
-import { useServerId } from "@/contexts/ServerContext";
+import { useServerId, useServer } from "@/contexts/ServerContext";
 import { getPendingClaims, reviewClaimRequest, markClaimRead, getMyClaims, type PendingClaim, type ClaimRequest } from "@/lib/supabase";
 import { writeAuditEntry, AuditAction } from "@/lib/api/audit";
 import { UserCheck, Check, X, Loader2 } from "lucide-react";
@@ -13,6 +13,7 @@ import { UserCheck, Check, X, Loader2 } from "lucide-react";
  */
 export function ClaimNotificationBadge() {
   const { user, isViewer } = useAuth();
+  const { currentServer } = useServer();
   const serverId = useServerId();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
@@ -44,10 +45,10 @@ export function ClaimNotificationBadge() {
     setActing(requestId);
     try {
       await reviewClaimRequest(requestId, "accept");
-      writeAuditEntry({ action: AuditAction.MEMBER_CLAIM_ACCEPT, server_id: serverId!, details: { requested_name: requestedName, user_email: userEmail } });
       queryClient.invalidateQueries({ queryKey: ["pending_claims", serverId] });
-    } catch (err) {
-      console.error("Failed to accept claim:", err);
+      writeAuditEntry({ action: AuditAction.MEMBER_CLAIM_ACCEPT, server_id: serverId!, details: { requested_name: requestedName, user_email: userEmail } }).catch(() => {});
+    } catch (err: any) {
+      console.error("Failed to accept claim:", err?.message || err);
     } finally {
       setActing(null);
     }
@@ -58,12 +59,12 @@ export function ClaimNotificationBadge() {
     setActing(requestId);
     try {
       await reviewClaimRequest(requestId, "decline", declineReason.trim());
-      writeAuditEntry({ action: AuditAction.MEMBER_CLAIM_DECLINE, server_id: serverId!, details: { requested_name: requestedName, user_email: userEmail, reason: declineReason.trim() } });
       setDeclineReason("");
       setDecliningId(null);
       queryClient.invalidateQueries({ queryKey: ["pending_claims", serverId] });
-    } catch (err) {
-      console.error("Failed to decline claim:", err);
+      writeAuditEntry({ action: AuditAction.MEMBER_CLAIM_DECLINE, server_id: serverId!, details: { requested_name: requestedName, user_email: userEmail, reason: declineReason.trim() } }).catch(() => {});
+    } catch (err: any) {
+      console.error("Failed to decline claim:", err?.message || err);
     } finally {
       setActing(null);
     }
@@ -79,8 +80,9 @@ export function ClaimNotificationBadge() {
 
   const unreadResolved = myClaims.filter(c => (c.status === "accepted" || c.status === "declined") && !c.is_read);
 
-  // Hide if no server, no user, or viewer
-  if (!serverId || !user || isViewer) return null;
+  // Hide if no server, no user, viewer, or not owner/moderator
+  const isStaff = currentServer?.role === "owner" || currentServer?.role === "moderator";
+  if (!serverId || !user || isViewer || !isStaff) return null;
 
   const count = pendingClaims.length;
   const hasUnread = unreadResolved.length > 0;

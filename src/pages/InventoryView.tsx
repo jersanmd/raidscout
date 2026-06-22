@@ -736,6 +736,7 @@ export function InventoryView() {
                   Pending
                 </button>
               )}
+              {canManageItems && (
               <button
                 onClick={() => setShowCreateItem(true)}
                 className="flex items-center gap-2 px-3 py-2.5 bg-[#fafafa] hover:bg-[#e4e4e7] text-[#09090b] rounded-xl text-xs font-medium transition shrink-0"
@@ -743,6 +744,7 @@ export function InventoryView() {
                 <Plus className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">Add Item</span>
               </button>
+              )}
             </div>
             {availableRarities.length > 0 && (
               <div className="flex items-center gap-2 flex-wrap">
@@ -830,6 +832,7 @@ export function InventoryView() {
                   </div>
 
                   {/* Gift button */}
+                  {canManageItems && (
                   <button
                     onClick={() => { setDistItemId(item.id); setShowDistribute(true); }}
                     className="p-2 rounded-lg hover:bg-[#27272a] text-[#a1a1aa] hover:text-[#fafafa] transition shrink-0"
@@ -837,6 +840,7 @@ export function InventoryView() {
                   >
                     <Gift className="w-4 h-4" />
                   </button>
+                  )}
                   {/* Delete pending item — server owner/mod only */}
                   {item.status?.toLowerCase() === "pending" && canManageItems && (
                     <button
@@ -957,12 +961,14 @@ export function InventoryView() {
               <h3 className="text-sm font-semibold text-[#fafafa] flex items-center gap-2">
                 <Star className="w-4 h-4 text-[#f59e0b]" />Item Collections
               </h3>
+              {canManageItems && (
               <button
                 onClick={() => setShowCreateCollection(true)}
                 className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium bg-[#fafafa] text-[#09090b] hover:bg-[#e4e4e7] transition"
               >
                 <Plus className="w-3 h-3" />New Collection
               </button>
+              )}
             </div>
 
             {collectionsLoading ? (
@@ -987,7 +993,7 @@ export function InventoryView() {
                   return (
                   <div key={c.id} className="bg-[#18181b] border border-[#27272a] rounded-xl overflow-hidden hover:border-[#3f3f46] hover:bg-[#1c1c20] transition-all duration-200 group">
                     {/* Header */}
-                    <button onClick={() => { setSelectedCollection(c.id); setCollectionMode("view"); }} className="w-full text-left p-5 pb-3">
+                    <button onClick={() => { setSelectedCollection(c.id); setCollectionMode(canManageItems ? "view" : "matrix"); }} className="w-full text-left p-5 pb-3">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center shrink-0 group-hover:bg-amber-500/15 transition-colors">
                           <Star className="w-5 h-5 text-amber-400" />
@@ -1019,18 +1025,21 @@ export function InventoryView() {
                     </button>
                     {/* Action bar */}
                     <div className="flex items-center border-t border-[#27272a] divide-x divide-[#27272a]">
+                      {canManageItems && (
                       <button
                         onClick={(e) => { e.stopPropagation(); setSelectedCollection(c.id); setCollectionMode("view"); }}
                         className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 text-[11px] font-medium text-[#a1a1aa] hover:text-[#fafafa] hover:bg-[#27272a]/50 transition-colors"
                       >
                         <Eye className="w-3.5 h-3.5" />Items
                       </button>
+                      )}
                       <button
                         onClick={(e) => { e.stopPropagation(); setSelectedCollection(c.id); setCollectionMode("matrix"); }}
                         className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 text-[11px] font-medium text-[#a1a1aa] hover:text-[#fafafa] hover:bg-[#27272a]/50 transition-colors"
                       >
                         <BarChart3 className="w-3.5 h-3.5" />Matrix
                       </button>
+                      {canManageItems && (
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
@@ -1040,6 +1049,7 @@ export function InventoryView() {
                       >
                         <Trash2 className="w-3.5 h-3.5" />Delete
                       </button>
+                      )}
                     </div>
                   </div>
                   );
@@ -1277,7 +1287,7 @@ export function InventoryView() {
           return (
             <div className="space-y-6">
               <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-                <button onClick={() => { setCollectionMode("view"); }} className="p-1 text-[#a1a1aa] hover:text-[#fafafa] transition"><ArrowLeft className="w-4 h-4" /></button>
+                <button onClick={() => { setCollectionMode(canManageItems ? "view" : "list"); if (!canManageItems) setSelectedCollection(null); }} className="p-1 text-[#a1a1aa] hover:text-[#fafafa] transition"><ArrowLeft className="w-4 h-4" /></button>
                 <div>
                   <h3 className="text-sm font-semibold text-[#fafafa]">{currentCollection?.name} — Ownership</h3>
                   <p className="text-[10px] text-[#52525b]">{sortedPlayers.length} / {playersWithOwnership.length} players · {matrixItems.length} items</p>
@@ -1402,6 +1412,7 @@ export function InventoryView() {
                                       </>
                                     );
                                   })()}
+                                  {canManageItems && (
                                   <button
                                     onClick={(e) => {
                                       e.stopPropagation();
@@ -1414,6 +1425,7 @@ export function InventoryView() {
                                   >
                                     <Plus className="w-3 h-3" />
                                   </button>
+                                  )}
                                 </span>
                               </td>
                               {matrixItems.map(ci => {
@@ -1423,7 +1435,7 @@ export function InventoryView() {
                                 return (
                                 <td key={ci.item_id} className="px-3 py-2.5 text-center">
                                   <button
-                                    onClick={async () => {
+                                    onClick={canManageItems ? async () => {
                                       const collName = collections.find(c => c.id === selectedCollection)?.name;
                                       if (isManual) {
                                         await removeManualOwnership(selectedCollection!, ci.item_id, p.name, serverId!, ci.item?.name, collName);
@@ -1433,8 +1445,8 @@ export function InventoryView() {
                                         await setManualOwnership(selectedCollection!, ci.item_id, p.name, true, serverId!, ci.item?.name, collName);
                                       }
                                       queryClient.invalidateQueries({ queryKey: ["manualOwnership", selectedCollection] });
-                                    }}
-                                    className={`text-[10px] font-medium px-1.5 py-0.5 rounded border transition cursor-pointer ${isManual ? "text-amber-400 bg-amber-500/10 border-amber-500/20 hover:bg-amber-500/20" : isDistributed ? "text-emerald-400 bg-emerald-500/10 border-emerald-500/20 hover:bg-emerald-500/20" : "text-[#3f3f46] hover:text-[#a1a1aa] border-transparent hover:border-[#3f3f46]"}`}
+                                    } : undefined}
+                                    className={`text-[10px] font-medium px-1.5 py-0.5 rounded border transition ${canManageItems ? "cursor-pointer" : "cursor-default"} ${isManual ? "text-amber-400 bg-amber-500/10 border-amber-500/20 hover:bg-amber-500/20" : isDistributed ? "text-emerald-400 bg-emerald-500/10 border-emerald-500/20 hover:bg-emerald-500/20" : "text-[#3f3f46] hover:text-[#a1a1aa] border-transparent hover:border-[#3f3f46]"}`}
                                     title={isManual ? "Manual ✓ — click to remove" : isDistributed ? "Distributed ✓ — click to mark not owned" : "Not owned — click to mark owned"}
                                   >
                                     {isManual ? "✎ Owned" : isDistributed ? "✓ Owned" : "—"}
@@ -1573,7 +1585,7 @@ export function InventoryView() {
                             )}
                           </div>
                         </div>
-                        {!isViewer && (
+                        {!isViewer && canManageItems && (
                         <button
                           onClick={() => { setDeleteConfirm({ distId: d.id, itemName: item?.name ?? "Unknown" }); setDeleteConfirmName(""); }}
                           className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-[#52525b] hover:text-red-400 hover:bg-red-400/10 transition-all shrink-0"

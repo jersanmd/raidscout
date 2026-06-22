@@ -118,10 +118,10 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
   const isActivity = !!activity;
   const displayOwner = optimisticOwner ?? ownerGuildName;
   const { boss, status, nextSpawn } = spawn;
-  const canEdit = !isActivity && (viewerCanEdit || (!isViewer && canSetSpawn)) && currentServer && !!onSetSpawnDate && (
+  const canEdit = !isActivity && ((isViewer && viewerCanEdit) || (!isViewer && canSetSpawn)) && currentServer && !!onSetSpawnDate && (
     boss.spawn_type === "fixed_hours" && status !== "alive"
   ) && !currentServer?.isExpired;
-  const canMarkDied = (viewerCanMarkDied || (!isViewer && canRecordDeath)) && !currentServer?.isExpired;
+  const canMarkDied = ((isViewer && viewerCanMarkDied) || (!isViewer && canRecordDeath)) && !currentServer?.isExpired;
 
   const statusConfigMap = {
     unknown: {
@@ -354,7 +354,7 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
         {/* Bottom action buttons — activities */}
         {!compact && !multiMode && isActivity && (onFinishActivity || onEditActivityTime) && (
           <div className="flex items-center justify-end gap-1.5 mt-3 pt-3 border-t border-white/[0.05] relative z-[1] flex-wrap">
-            {onEditActivityTime && displayStatus !== "alive" && (!isViewer || viewerCanEdit) && !currentServer?.isExpired && (
+            {onEditActivityTime && displayStatus !== "alive" && ((isViewer && viewerCanEdit) || !isViewer) && !currentServer?.isExpired && (
               <button
                 onClick={() => {
                   // Default to the current next start time (in user's timezone)
@@ -371,7 +371,7 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
                 Edit Time
               </button>
             )}
-            {onFinishActivity && (!isViewer || viewerCanMarkDied) && !currentServer?.isExpired && (
+            {onFinishActivity && ((isViewer && viewerCanMarkDied) || (!isViewer && canRecordDeath)) && !currentServer?.isExpired && (
             <button
                 onClick={() => { setShowPartyModal(true); setShowAllStatic(false); }}
                 className={`flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-lg border text-[11px] font-medium active:scale-95 transition-all duration-200 whitespace-nowrap relative ${parties.some(p => p.activity_id === activity?.id) ? "bg-emerald-900/20 border-emerald-800/50 text-emerald-400" : "bg-[#18181b] border-[#27272a] text-[#a1a1aa] hover:bg-[#27272a] hover:text-[#fafafa]"}`}
@@ -384,7 +384,7 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
                 Party
               </button>
             )}
-            {onFinishActivity && (!isViewer || viewerCanMarkDied) && !currentServer?.isExpired && (
+            {onFinishActivity && ((isViewer && viewerCanMarkDied) || (!isViewer && canRecordDeath)) && !currentServer?.isExpired && (
             <button
               onClick={() => setShowModal(true)}
               className="flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-lg bg-[#18181b] border border-[#27272a] text-[#fafafa] text-[11px] font-medium hover:bg-[#27272a] active:scale-95 transition-all duration-200 whitespace-nowrap"

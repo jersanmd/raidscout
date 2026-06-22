@@ -76,6 +76,7 @@ export function BossListView() {
   const { currentServer } = useServer();
   const hasAddPermission = useHasPermission("can_manage_server_content");
   const canAddBoss = (currentServer?.role === "owner" || hasAddPermission) && !currentServer?.isExpired;
+  const isStaff = currentServer?.role === "owner" || currentServer?.role === "moderator";
   const queryClient = useQueryClient();
 
   const [searchText, setSearchText] = useState("");
@@ -726,7 +727,7 @@ export function BossListView() {
           </div>
         </div>
 
-        {!isViewer && (
+        {!isViewer && isStaff && (
           <>
             {viewerKey && (
               <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#18181b] border border-[#27272a]">
@@ -799,7 +800,7 @@ export function BossListView() {
                 </button>
               </>
             )}
-            {!currentServer?.isExpired && (
+            {!currentServer?.isExpired && isStaff && (
             <button
               onClick={() => { if (multiMode) clearSelection(); setMultiMode(!multiMode); }}
               className={`ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 ${
