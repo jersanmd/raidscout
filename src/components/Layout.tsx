@@ -142,7 +142,7 @@ export function Layout() {
 
   const NAV_GROUPS = [
     { label: "Operations", abbr: "Ops", items: [{ to: "/", icon: Swords, label: "Bosses / Activities", end: true },{ to: "/schedule", icon: Calendar, label: "Schedule" },{ to: "/history", icon: Clock, label: "History" }] },
-    { label: "Management", abbr: "Mgmt", items: [{ to: "/leaderboard", icon: Trophy, label: "Ranks" },{ to: "/members", icon: Users, label: "Members" }] },
+    { label: "Management", abbr: "Mgmt", items: [{ to: "/leaderboard", icon: Trophy, label: "Leaderboard" },{ to: "/members", icon: Users, label: "Members" }] },
     { label: "Assets", abbr: "Asts", items: [{ to: "/inventory", icon: Package, label: "Inventory" }] },
     { label: "Insights", abbr: "Ins", items: [{ to: "/analytics", icon: BarChart3, label: "Analytics" }] },
   ].filter(g => g.items.length > 0);
@@ -359,7 +359,7 @@ export function Layout() {
           <NavLink to="/" end className={({isActive})=>`flex flex-col items-center justify-center gap-0.5 px-1 py-1 min-w-0 flex-1 rounded-lg transition-colors ${isActive?"text-[#fafafa]":"text-[#52525b]"}`}><Swords className="w-4 h-4"/><span className="text-[8px] font-medium">Bosses</span></NavLink>
           <NavLink to="/schedule" className={({isActive})=>`flex flex-col items-center justify-center gap-0.5 px-1 py-1 min-w-0 flex-1 rounded-lg transition-colors ${isActive?"text-[#fafafa]":"text-[#52525b]"}`}><Calendar className="w-4 h-4"/><span className="text-[8px] font-medium">Sched</span></NavLink>
           <NavLink to="/history" className={({isActive})=>`flex flex-col items-center justify-center gap-0.5 px-1 py-1 min-w-0 flex-1 rounded-lg transition-colors ${isActive?"text-[#fafafa]":"text-[#52525b]"}`}><Clock className="w-4 h-4"/><span className="text-[8px] font-medium">History</span></NavLink>
-          <NavLink to="/leaderboard" className={({isActive})=>`flex flex-col items-center justify-center gap-0.5 px-1 py-1 min-w-0 flex-1 rounded-lg transition-colors ${isActive?"text-[#fafafa]":"text-[#52525b]"}`}><Trophy className="w-4 h-4"/><span className="text-[8px] font-medium">Ranks</span></NavLink>
+          <NavLink to="/leaderboard" className={({isActive})=>`flex flex-col items-center justify-center gap-0.5 px-1 py-1 min-w-0 flex-1 rounded-lg transition-colors ${isActive?"text-[#fafafa]":"text-[#52525b]"}`}><Trophy className="w-4 h-4"/><span className="text-[8px] font-medium">Leaderboard</span></NavLink>
           <NavLink to="/members" className={({isActive})=>`flex flex-col items-center justify-center gap-0.5 px-1 py-1 min-w-0 flex-1 rounded-lg transition-colors ${isActive?"text-[#fafafa]":"text-[#52525b]"}`}><Users className="w-4 h-4"/><span className="text-[8px] font-medium">Members</span></NavLink>
           <NavLink to="/inventory" className={({isActive})=>`flex flex-col items-center justify-center gap-0.5 px-1 py-1 min-w-0 flex-1 rounded-lg transition-colors ${isActive?"text-[#fafafa]":"text-[#52525b]"}`}><Package className="w-4 h-4"/><span className="text-[8px] font-medium">Items</span></NavLink>
           <NavLink to="/analytics" className={({isActive})=>`flex flex-col items-center justify-center gap-0.5 px-1 py-1 min-w-0 flex-1 rounded-lg transition-colors ${isActive?"text-[#fafafa]":"text-[#52525b]"}`}><BarChart3 className="w-4 h-4"/><span className="text-[8px] font-medium">Stats</span></NavLink>

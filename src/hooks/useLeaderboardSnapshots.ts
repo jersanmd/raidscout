@@ -78,7 +78,7 @@ export function useLeaderboardSnapshots() {
 
       if (configured && user && serverId) {
         try {
-          await saveSnapshotSupabase(period, rankings, periodStart, serverId);
+          await saveSnapshotSupabase(period, rankings, periodStart, serverId, finalizedAt);
           await supabase.from("app_settings").upsert(
             { key: resetKey, value: now, server_id: serverId },
             { onConflict: "key, server_id" }

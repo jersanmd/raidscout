@@ -303,17 +303,19 @@ export async function saveLeaderboardSnapshot(
   period: string,
   rankings: { rank: number; memberId: string; memberName: string; points: number }[],
   periodStart: string,
-  serverId: string
+  serverId: string,
+  finalizedAt?: string
 ): Promise<string> {
+  const ts = finalizedAt || new Date().toISOString();
   const { data, error } = await supabase
     .from("leaderboard_snapshots")
-    .insert({ period, period_start: periodStart, rankings, server_id: serverId })
+    .insert({ period, period_start: periodStart, finalized_at: ts, rankings, server_id: serverId })
     .select("id")
     .single();
 
   if (error) throw error;
   const from = new Date(periodStart).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-  const to = new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  const to = new Date(ts).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
   writeAuditEntry({ action: AuditAction.LEADERBOARD_FINALIZE, server_id: serverId, details: { period, rankings: rankings.length, from, to } });
   return data.id;
 }
