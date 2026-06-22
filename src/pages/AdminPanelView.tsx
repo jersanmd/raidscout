@@ -1089,7 +1089,7 @@ export function AdminPanelView() {
             case "discord_aliases_set": return `${d.count ?? 0} aliases updated`;
             case "discord_ping_set": return `Ping set to "${d.ping || "(default)"}"`;
             case "leaderboard_finalize": return `${d.period || "?"}: ${d.rankings ?? 0} players`;
-            case "leaderboard_reset": return `Leaderboard reset (${d.period || "?"})`;
+            case "leaderboard_reset": return `${d.unfinalized ? "Undo finalization" : "Finalized"}${d.guild ? ` (${d.guild})` : ""} · ${d.from ? new Date(d.from).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "?"} → ${d.to ? new Date(d.to).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "?"}`;
             case "leaderboard_adjust_points": return `${d.member_name ? d.member_name + ": " : ""}${d.points != null ? (d.points > 0 ? "+" : "") + d.points + " pts" : "?"}${d.reason ? ` — ${d.reason}` : ""}`;
             case "leaderboard_reset_guild": return `Guild reset: ${d.deleted_attendance ?? 0} att, ${d.deleted_adjustments ?? 0} adj`;
             case "settings_update": {
