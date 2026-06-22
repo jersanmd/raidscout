@@ -124,7 +124,7 @@ describe("AddBossModal", () => {
 
     // Default mode is rotation — first guild (Alpha) should be auto-selected
     await waitFor(() => {
-      expect(screen.getByText("Alpha")).toBeInTheDocument();
+      expect(screen.getAllByText("Alpha").length).toBeGreaterThan(0);
     });
   });
 

@@ -17,7 +17,7 @@ export function logError(scope: string, message: string, detail?: any, extra?: R
     }
   }
   if (extra) {
-    try { parts.push(JSON.stringify(extra)); } catch {}
+    try { parts.push(JSON.stringify(extra)); } catch { /* non-critical: log formatting */ }
   }
   console.error(parts.join(" "));
 }

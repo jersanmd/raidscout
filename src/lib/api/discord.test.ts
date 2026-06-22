@@ -9,6 +9,7 @@ vi.mock("@/lib/api/client", () => ({
     auth: {
       getSession: vi.fn(),
     },
+    rpc: vi.fn().mockResolvedValue({ error: null }),
   },
   supabaseUrl: "https://test.supabase.co",
   supabaseKey: "test-key",

@@ -25,6 +25,9 @@ vi.mock("@/contexts/AuthContext", () => ({
 
 vi.mock("@/contexts/ServerContext", () => ({
   useServerId: vi.fn().mockReturnValue("server-1"),
+  useServer: vi.fn().mockReturnValue({
+    currentServer: { id: "server-1", name: "Test Server", timezone: "UTC" },
+  }),
 }));
 
 // ── Helpers ─────────────────────────────────────────────────
@@ -55,11 +58,10 @@ describe("HistoryView", () => {
     expect(screen.getByText("History")).toBeInTheDocument();
   });
 
-  it("renders date range preset buttons", () => {
+  it("renders the Timeline / Ledger tab buttons", () => {
     renderWithProviders();
-    expect(screen.getByRole("button", { name: "Last 7d" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Last Month" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Custom" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Timeline" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Ledger" })).toBeInTheDocument();
   });
 
   it("renders the search input", () => {
