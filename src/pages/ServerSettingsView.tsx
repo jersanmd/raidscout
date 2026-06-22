@@ -3668,6 +3668,16 @@ export function ServerActivityLogTab({ serverId, timezone = "UTC" }: { serverId:
       case "seed_from_game": return `${d.game_name || "?"}: ${d.bosses ?? 0} bosses, ${d.activities ?? 0} activities seeded`;
       case "force_spawn": return `${d.boss_name || d.activity_name || `${d.boss_count ?? 0} bosses`} force-spawned`;
       case "subscription_extend": return `+${d.days ?? 30} days`;
+      case "dkp_config_update": return `DKP settings: ${d.enabled !== undefined ? (d.enabled ? "enabled" : "disabled") : ""}${d.dkp_multiplier != null ? ` · ${d.dkp_multiplier}x` : ""}${d.bid_duration_minutes != null ? ` · ${d.bid_duration_minutes}min bids` : ""}`;
+      case "dkp_adjust": return `${d.member_name || "?"}: ${d.amount != null ? (d.amount > 0 ? "+" : "") + d.amount + " DKP" : "?"}${d.reason ? ` — ${d.reason}` : ""}`;
+      case "dkp_earn_kill": return `${d.member_name || "?"}: +${d.amount ?? "?"} DKP from kill`;
+      case "dkp_bid_placed": return `${d.member_name || "?"}: bid ${d.bid_amount ?? "?"} DKP on ${d.item_name || "?"}`;
+      case "dkp_bid_cancelled": return `${d.member_name || "?"}: cancelled bid on ${d.item_name || "?"} (+${d.bid_amount ?? "?"} DKP refunded)`;
+      case "dkp_bid_won": return `${d.member_name || "?"}: won ${d.item_name || "?"} for ${d.bid_amount ?? "?"} DKP`;
+      case "dkp_bid_lost": return `${d.member_name || "?"}: lost ${d.item_name || "?"} (+${d.bid_amount ?? "?"} DKP refunded)`;
+      case "dkp_bid_refund": return `${d.member_name || "?"}: refunded ${d.amount ?? "?"} DKP`;
+      case "dkp_item_marked": return `${d.item_name || "?"}: marked for bid · ${d.dkp_cost ?? "?"} DKP`;
+      case "dkp_item_unmarked": return `${d.item_name || "?"}: removed from bidding`;
       case "game_create": case "game_update": case "game_delete": return d.game_name || "—";
       case "server_create": case "server_delete": case "server_restore": return d.server_name || "—";
       case "discord_link_add": return `Linked Discord server ${d.discord_guild_id || "?"}${d.label ? ` ("${d.label}")` : ""} · prefix "${d.prefix || "!"}"`;

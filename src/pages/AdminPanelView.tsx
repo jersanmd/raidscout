@@ -1078,6 +1078,8 @@ export function AdminPanelView() {
             case "item_distribute": return `${d.item_name || "?"} → ${d.player_name || "?"}${d.quantity ? ` x${d.quantity}` : ""}${d.reason ? ` · ${d.reason}` : ""}`;
             case "force_spawn": return `${d.boss_name || d.activity_name || `${d.boss_count ?? 0} bosses`} in "${d.server_name || "?"}"`;
             case "subscription_extend": return `+${d.days ?? 30} days for "${d.server_name || "?"}"`;
+            case "dkp_config_update": return `DKP settings: ${d.enabled !== undefined ? (d.enabled ? "enabled" : "disabled") : ""}${d.dkp_multiplier != null ? ` · ${d.dkp_multiplier}x` : ""}${d.bid_duration_minutes != null ? ` · ${d.bid_duration_minutes}min` : ""}`;
+            case "dkp_adjust": return `${d.member_name || "?"}: ${d.amount != null ? (d.amount > 0 ? "+" : "") + d.amount + " DKP" : "?"}`;
             case "maintenance_on": return d.ends_at ? `Until ${new Date(d.ends_at).toLocaleString()}` : "—";
             case "maintenance_off": return "Turned off";
             case "discord_link_add": return `Linked Discord ${d.discord_guild_id || "?"}${d.label ? ` ("${d.label}")` : ""}`;

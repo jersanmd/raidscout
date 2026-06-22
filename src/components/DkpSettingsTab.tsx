@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerId } from "@/contexts/ServerContext";
 import { useToast } from "@/contexts/ToastContext";
-import { getDkpConfig, saveDkpConfig, type DkpConfig } from "@/lib/supabase";
+import { getDkpConfig, saveDkpConfig, writeAuditEntry, AuditAction, type DkpConfig } from "@/lib/supabase";
 import { Coins, Loader2, Save, AlertTriangle } from "lucide-react";
 
 export function DkpSettingsTab() {
@@ -41,6 +41,15 @@ export function DkpSettingsTab() {
         bid_duration_minutes: bidDuration,
       });
       queryClient.invalidateQueries({ queryKey: ["dkp_config", serverId] });
+      writeAuditEntry({
+        action: AuditAction.DKP_CONFIG_UPDATE,
+        server_id: serverId,
+        details: {
+          enabled,
+          dkp_multiplier: multiplier,
+          bid_duration_minutes: bidDuration,
+        },
+      });
       toast("success", "DKP settings saved.");
       setSaveError(null);
     } catch (err: any) {

@@ -146,6 +146,18 @@ export const AuditAction = {
   DISCORD_THREADS_SET: "discord_threads_set",
   DISCORD_ALIASES_SET: "discord_aliases_set",
   DISCORD_PING_SET: "discord_ping_set",
+
+  // DKP
+  DKP_CONFIG_UPDATE: "dkp_config_update",
+  DKP_ADJUST: "dkp_adjust",
+  DKP_EARN_KILL: "dkp_earn_kill",
+  DKP_BID_PLACED: "dkp_bid_placed",
+  DKP_BID_CANCELLED: "dkp_bid_cancelled",
+  DKP_BID_WON: "dkp_bid_won",
+  DKP_BID_LOST: "dkp_bid_lost",
+  DKP_BID_REFUND: "dkp_bid_refund",
+  DKP_ITEM_MARKED: "dkp_item_marked",
+  DKP_ITEM_UNMARKED: "dkp_item_unmarked",
 } as const;
 
 export type AuditActionType = (typeof AuditAction)[keyof typeof AuditAction];
