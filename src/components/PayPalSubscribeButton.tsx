@@ -56,6 +56,7 @@ export function PayPalSubscribeButton({
 
     const script = document.createElement("script");
     script.id = SCRIPT_ID;
+    const paypalHost = import.meta.env.DEV ? "www.sandbox.paypal.com" : "www.paypal.com";
     script.src = `https://${paypalHost}/sdk/js?client-id=${clientId}&intent=capture&currency=USD&components=buttons&disable-funding=credit,paylater`;
     script.async = true;
     script.onload = () => setSdkReady(true);
