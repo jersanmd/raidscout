@@ -183,6 +183,7 @@ export {
   fetchMemberKills,
   fetchMemberActivityHistory,
   saveLeaderboardSnapshot,
+  deleteLeaderboardSnapshot,
   fetchLeaderboardSnapshots,
   fetchSnapshotById,
 } from "./api/leaderboard";

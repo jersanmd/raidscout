@@ -320,6 +320,54 @@ export async function saveLeaderboardSnapshot(
   return data.id;
 }
 
+export async function deleteLeaderboardSnapshot(
+  snapshotId: string,
+  serverId: string,
+  period: string
+): Promise<void> {
+  // Get the snapshot to find its finalized_at
+  const { data: snap } = await supabase
+    .from("leaderboard_snapshots")
+    .select("finalized_at")
+    .eq("id", snapshotId)
+    .single();
+
+  // Find the previous snapshot for the same period to restore its reset date
+  const resetKey = period.startsWith("weekly:") ? `leaderboard_reset_at:${period.replace("weekly:", "")}` : "leaderboard_reset_at";
+  let prevResetAt: string | null = null;
+  if (snap) {
+    const { data: prev } = await supabase
+      .from("leaderboard_snapshots")
+      .select("finalized_at")
+      .eq("server_id", serverId)
+      .eq("period", period)
+      .lt("finalized_at", (snap as any).finalized_at)
+      .order("finalized_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    prevResetAt = (prev as any)?.finalized_at ?? null;
+  }
+
+  // Delete the snapshot
+  const { error } = await supabase
+    .from("leaderboard_snapshots")
+    .delete()
+    .eq("id", snapshotId);
+  if (error) throw error;
+
+  // Restore the previous reset date (or remove if no previous snapshot)
+  if (prevResetAt) {
+    await supabase.from("app_settings").upsert(
+      { key: resetKey, value: prevResetAt, server_id: serverId },
+      { onConflict: "key, server_id" }
+    );
+  } else {
+    await supabase.from("app_settings").delete().eq("key", resetKey).eq("server_id", serverId);
+  }
+
+  writeAuditEntry({ action: AuditAction.LEADERBOARD_RESET, server_id: serverId, details: { unfinalized: snapshotId, period } });
+}
+
 export async function fetchLeaderboardSnapshots(serverId?: string | null): Promise<
   { id: string; finalized_at: string; period_start?: string; period: string; ranking_count: number; top_name?: string; top_points?: number }[]
 > {

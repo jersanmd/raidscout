@@ -91,7 +91,7 @@ export function LeaderboardView() {
   const [participantDeathTime, setParticipantDeathTime] = useState("");
 
   // Leaderboard snapshots
-  const { snapshots, finalizeResults, viewingSnapshot, loadSnapshot, clearViewing } =
+  const { snapshots, finalizeResults, deleteSnapshot, viewingSnapshot, loadSnapshot, clearViewing } =
     useLeaderboardSnapshots();
   const [finalizing, setFinalizing] = useState(false);
   const [showSnapshots, setShowSnapshots] = useState<string | null>(null);
@@ -100,6 +100,8 @@ export function LeaderboardView() {
   const [guildFilter, setGuildFilter] = useState<string>("all");
   const [showFinalizeConfirm, setShowFinalizeConfirm] = useState<string | null>(null);
   const [finalizeTime, setFinalizeTime] = useState("");
+  const [showUnfinalizeConfirm, setShowUnfinalizeConfirm] = useState<{ id: string; period: string; label: string } | null>(null);
+  const [unfinalizing, setUnfinalizing] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState<string | null>(null);
   const [resetLoading, setResetLoading] = useState(false);
   const [copiedShare, setCopiedShare] = useState(false);
@@ -1082,30 +1084,40 @@ export function LeaderboardView() {
                     : "Monthly";
 
                 return (
-                  <button
-                    key={snap.id}
-                    onClick={() => { prevShowSnapshots.current = showSnapshots; setShowSnapshots(null); loadSnapshot(snap.id); }}
-                    className="w-full flex items-start gap-2 px-2.5 py-2 rounded-lg bg-[#18181b]/50 border border-[#27272a]/50 hover:border-[#52525b] transition text-left"
-                  >
-                    <History className="w-3.5 h-3.5 text-[#a1a1aa] shrink-0 mt-0.5" />
-                    <div className="flex-1 min-w-0 space-y-0.5">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="text-[10px] font-medium text-[#71717a] bg-[#27272a]/50 px-1.5 py-0.5 rounded">
-                          {periodLabel}
-                        </span>
-                        <span className="text-[10px] text-[#71717a]">{snap.ranking_count} ranked</span>
-                      </div>
-                      <p className="text-[11px] text-[#d4d4d8]">
-                        {fmt(periodStart)} → {fmt(finalized)}
-                      </p>
-                      {snap.top_name && (
-                        <p className="text-[10px] text-amber-400/80 truncate">
-                          🥇 {snap.top_name} · {snap.top_points} pt{snap.top_points !== 1 ? 's' : ''}
+                  <div key={snap.id} className="flex items-start gap-1">
+                    <button
+                      onClick={() => { prevShowSnapshots.current = showSnapshots; setShowSnapshots(null); loadSnapshot(snap.id); }}
+                      className="flex-1 flex items-start gap-2 px-2.5 py-2 rounded-lg bg-[#18181b]/50 border border-[#27272a]/50 hover:border-[#52525b] transition text-left"
+                    >
+                      <History className="w-3.5 h-3.5 text-[#a1a1aa] shrink-0 mt-0.5" />
+                      <div className="flex-1 min-w-0 space-y-0.5">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="text-[10px] font-medium text-[#71717a] bg-[#27272a]/50 px-1.5 py-0.5 rounded">
+                            {periodLabel}
+                          </span>
+                          <span className="text-[10px] text-[#71717a]">{snap.ranking_count} ranked</span>
+                        </div>
+                        <p className="text-[11px] text-[#d4d4d8]">
+                          {fmt(periodStart)} → {fmt(finalized)}
                         </p>
-                      )}
-                    </div>
-                    <ChevronRight className="w-3.5 h-3.5 text-[#52525b] mt-0.5" />
-                  </button>
+                        {snap.top_name && (
+                          <p className="text-[10px] text-amber-400/80 truncate">
+                            🥇 {snap.top_name} · {snap.top_points} pt{snap.top_points !== 1 ? 's' : ''}
+                          </p>
+                        )}
+                      </div>
+                      <ChevronRight className="w-3.5 h-3.5 text-[#52525b] mt-0.5" />
+                    </button>
+                    {currentServer?.role === "owner" && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setShowUnfinalizeConfirm({ id: snap.id, period: snap.period, label: periodLabel }); }}
+                        className="p-1.5 text-[#52525b] hover:text-red-400 hover:bg-red-400/10 rounded-lg transition shrink-0 mt-0.5"
+                        title="Undo finalization"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
                 );
               })}
             </div>
@@ -1580,6 +1592,45 @@ export function LeaderboardView() {
                 className="px-4 py-2 rounded-md text-sm font-medium bg-[#fafafa] hover:bg-[#e4e4e7] text-[#09090b] transition disabled:opacity-50 flex items-center gap-2">
                 {finalizing && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                 Finalize
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Unfinalize confirmation */}
+      {showUnfinalizeConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60" onClick={() => setShowUnfinalizeConfirm(null)} />
+          <div className="relative bg-[#18181b] border border-[#27272a] rounded-xl w-full max-w-sm shadow-lg p-6 space-y-4">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-full bg-red-500/10 flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-5 h-5 text-red-400" />
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-[#fafafa]">Undo Finalization</h3>
+                <p className="text-xs text-[#71717a] mt-1">
+                  Delete this snapshot and restore the previous reset date. Points will be recalculated from the earlier period.
+                </p>
+              </div>
+            </div>
+            <p className="text-xs text-[#a1a1aa] bg-[#0d0d11] rounded p-2">
+              {showUnfinalizeConfirm.label} snapshot — rankings will be lost.
+            </p>
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setShowUnfinalizeConfirm(null)} disabled={unfinalizing}
+                className="px-4 py-2 rounded-md text-sm text-[#71717a] hover:text-[#fafafa] transition disabled:opacity-50">Cancel</button>
+              <button onClick={async () => {
+                setUnfinalizing(true);
+                try {
+                  await deleteSnapshot(showUnfinalizeConfirm.id, showUnfinalizeConfirm.period);
+                  toast("success", "Finalization undone. Points restored.");
+                } catch { toast("error", "Failed to undo finalization"); }
+                finally { setUnfinalizing(false); setShowUnfinalizeConfirm(null); }
+              }} disabled={unfinalizing}
+                className="px-4 py-2 rounded-md text-sm font-medium bg-red-500/20 text-red-400 hover:bg-red-500/30 transition disabled:opacity-50 flex items-center gap-2">
+                {unfinalizing && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                Undo Finalization
               </button>
             </div>
           </div>
