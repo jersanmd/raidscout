@@ -27,7 +27,7 @@ Guild members exist as rows in the `members` table (added by officers) but have 
 ### Solution: Self-Service Claim with Approval
 
 1. **Player signs up** with email/password on RaidScout
-2. **Lands on "Join a Server" page** — sees a search input (server name or invite code) and a list of servers they've been invited to
+2. **Lands on "Join a Server" page** — shows: (a) servers they're already a member of, (b) a search input for server name or invite code, (c) list of servers they have pending/accepted/declined claims on
 3. **Player enters** their in-game character name and submits a claim request
 4. **Owner/moderator sees** notification badge in top bar with pending claim count
 5. **Reviews and accepts/declines** from the top bar dropdown
@@ -89,7 +89,10 @@ PlayerX signs up → searches server → enters "PlayerX" → submits claim
 | `owner` | Full control including DKP settings, moderator promotion, billing |
 
 ### Player Notification
-When a claim is accepted or declined, the player sees a banner on next login (stored in a `claim_notifications` table or derived from `member_claim_requests.status`). Email notification deferred to future release.
+When a claim is accepted or declined:
+- **On next login**: Check `get_my_claims()` for newly resolved claims. Show a dismissible banner: "Your claim for 'PlayerX' on ServerName was accepted!" or "declined — Reason: ..."
+- **Top bar badge for the player**: If they have a resolved-but-unread claim, show a green check or red X indicator (not counted in the officer badge).
+- **Email**: Deferred to future release.
 
 ---
 
@@ -165,6 +168,7 @@ CREATE TABLE public.dkp_config (
 ```sql
 ALTER TABLE public.items ADD COLUMN is_up_for_bid BOOLEAN DEFAULT false;
 ALTER TABLE public.items ADD COLUMN dkp_cost INTEGER;
+ALTER TABLE public.items ADD COLUMN dkp_min_bid INTEGER DEFAULT 1;
 ALTER TABLE public.items ADD COLUMN bid_end_time TIMESTAMPTZ;
 ```
 
@@ -176,8 +180,8 @@ ALTER TABLE public.items ADD COLUMN bid_end_time TIMESTAMPTZ;
 
 | RPC | Purpose |
 |-----|---------|
-| `award_dkp_on_kill(p_death_record_id)` | Auto-award DKP to all current attendees. **Idempotent logic**: queries existing `dkp_transactions` for this `death_record_id`, diffs current vs previously awarded attendees, only creates transactions for new attendees (earn) and removed attendees (deduct). Called after kill AND after attendance edits via `ParticipantModal`. |
-| `adjust_member_dkp(p_member_id, p_server_id, p_amount, p_reason)` | Manual adjustment (moderator/owner). |
+| `award_dkp_on_kill(p_death_record_id)` | Auto-award DKP to current attendees. **Idempotent**: diffs current vs previously awarded attendees via existing `dkp_transactions`. Only creates net-new earn transactions and net-removal deduction transactions. If all attendees removed, all previous DKP for this kill is deducted (net 0). |
+| `adjust_member_dkp(p_member_id, p_server_id, p_amount, p_reason)` | Manual adjustment (moderator/owner). Creates a reversible audit trail. |
 
 ### 2.2 DKP Bidding (Web UI Only)
 
@@ -190,7 +194,9 @@ Bidding happens exclusively in the RaidScout web UI to keep bid amounts private.
 | `place_bid(p_item_id, p_amount)` | Member places a blind bid. Validates item is up for bid. Immediately deducts DKP from balance. If member already has an active bid on this item, refunds old bid and places new one. |
 | `cancel_bid(p_bid_id)` | Member cancels their own active bid. Refunds DKP. |
 | `get_item_bids(p_item_id)` | Returns all bids for an item (officer only). Bid amounts hidden until auction ends (silent mode). |
-| `resolve_bid(p_bid_id, p_action)` | Officer resolves. 'award': sets bid status to 'won', creates item distribution via existing `item_distributions` table, marks all other bids 'lost' (refunds their DKP), clears item's bid flags. 'cancel': refunds DKP, item stays available. Sets `resolved_at`. |
+| `resolve_auction(p_item_id, p_winner_bid_id)` | Officer picks winner. Sets winner bid to 'won' (DKP already deducted at bid time — no double-charge). Marks all other bids 'lost' (refunds their DKP). Clears item's bid flags and creates item distribution. If `p_winner_bid_id` is NULL, cancels the auction (refunds all). |
+
+**Race condition protection**: `place_bid` uses `SELECT ... FOR UPDATE` on the item row to prevent concurrent bid conflicts. `resolve_auction` locks the item row during resolution.
 
 ### 2.3 DKP Status (Discord Bot — Read Only)
 
@@ -214,6 +220,7 @@ Discord bot provides status commands only. No bidding via Discord (bids are priv
 | `get_member_dkp(p_member_id, p_server_id)` | Balance + recent transactions |
 | `get_server_dkp_rankings(p_server_id)` | Top DKP holders (server-wide) |
 | `get_active_bids(p_server_id)` | All active bids for officer resolution |
+| `get_member_dkp_history(p_member_id, p_server_id, p_limit, p_cursor)` | Paginated transaction history (cursor-based, 50 per page). |
 
 ---
 
@@ -234,7 +241,7 @@ New navigation tab between Leaderboard and Members.
 Modify `InventoryView`:
 - Items marked "Up for Bid" show a gavel icon, DKP cost, and time remaining
 - **Officer modal**: "Mark for Bid" — sets DKP cost and duration
-- **Officer modal**: "Resolve Bids" — shows all bids (amounts hidden until resolved), pick winner
+- **Officer modal**: "Resolve Bids" — shows all bids (amounts hidden until resolved), pick winner. Calls `resolve_auction`.
 - **Member action**: Bid button on bid-eligible items → opens bid form with DKP balance
 - Winner gets item auto-distributed, DKP auto-deducted, losers refunded nothing (silent auction)
 
@@ -289,12 +296,14 @@ New tab: **DKP Settings**
 - **Duplicate claim**: Unique constraint prevents same user from submitting duplicate pending claims for the same name on the same server
 - **Member leaves server**: If member is removed from `members` table, their DKP balance is preserved (transactions reference member_id). On re-add, balance is restored.
 - **DKP enabled mid-server**: When DKP is first enabled, all existing members start at 0 DKP. No backfill for past kills.
-- **Bid on expired auction**: Bids placed after `bid_end_time` are rejected by `place_bid` RPC. Officer can manually resolve any remaining active bids after expiration.
+- **Bid on expired auction**: `place_bid` rejects. Expired active bids keep their `active` status until officer resolves. Officer can filter by `bid_end_time < now()` to find stale auctions.
+- **Undo bid resolution**: `resolve_auction` can be called again on the same item to change the winner. Previous winner's DKP deduction is refunded, item distribution deleted, new winner selected.
 - **Name matching**: Claim approval matches case-insensitively AND trims whitespace (" PlayerX " matches "playerx").
 - **DKP on attendance edit**: `award_dkp_on_kill` is idempotent and recalculates based on current attendance. Adding a member → they earn DKP. Removing a member → their DKP is deducted (creates a negative transaction). Callers: `useRecordDeath` after kill AND `ParticipantModal` after attendance changes.
 - **Bid immediately deducts DKP**: Placing a bid deducts DKP (creates `spend_bid` transaction). Losing bid refunds (creates `earn_adjustment` transaction). Cancelling bid refunds. Changing bid refunds old, deducts new.
 - **Bid with insufficient DKP**: Web UI rejects if `dkp_balance - all_active_bids < bid_amount`. The DKP is already reserved for other active bids.
-- **Top bar badge with no server selected**: Badge hidden. Only shows count for `currentServer.id`.
+- **DKP for activities**: Not in v1. If activity DKP is needed later, add `award_dkp_on_activity` RPC — same pattern as kills.
+- **Transaction history pagination**: Cursor-based, 50 per page via `get_member_dkp_history`.
 
 ---
 
@@ -323,7 +332,7 @@ New tab: **DKP Settings**
 |-------|-----------|------|
 | 0 — Member Claim | 1 migration, 4 RPCs, signup flow, "Join Server" page, top bar claim badge | 2 |
 | 1 — Schema | 4 tables, 1 view, item extensions | 1 |
-| 2 — Backend | 10 RPCs, 4 bot commands | 2-3 |
+| 2 — Backend | 11 RPCs, 4 bot commands | 2-3 |
 | 3 — Frontend | 1 new page, 1 top bar badge, 2 integrations, 1 settings tab, claim notification banner | 4-5 |
 | 4 — Audit | 12 audit actions, 1 permission | 0.5 |
 | 5 — Polish | Edge cases, RLS, tests | 1 |
