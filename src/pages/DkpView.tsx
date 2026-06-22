@@ -143,7 +143,7 @@ function LiveAuction({ serverId, isStaff, memberId, tz, toast, queryClient }: an
       : items.length === 0 ? <div className="px-4 py-8 text-center"><Gavel className="w-8 h-8 text-[#3f3f46] mx-auto mb-2" /><p className="text-xs text-[#71717a]">No active auctions</p></div>
       : <div className="divide-y divide-[#1e1e2a]/50">{items.map((it: any) => <AuctionRow key={it.item_id} item={it} isStaff={isStaff} memberId={memberId} tz={tz} onBid={() => { setShowBid(it.item_id); setBidAmt(1); setError(null); }} onResolve={() => setShowResolve(it.item_id)} />)}</div>}
 
-      {showMark && <MarkModal name={markName} setName={setMarkName} cost={markCost} setCost={setMarkCost} end={markEnd} setEnd={setMarkEnd} acting={acting} error={error} onClose={() => setShowMark(false)} onMark={doMark} />}
+      {showMark && <MarkModal name={markName} setName={setMarkName} cost={markCost} setCost={setMarkCost} end={markEnd} setEnd={setMarkEnd} acting={acting} error={error} onClose={() => setShowMark(false)} onMark={doMark} serverId={serverId} />}
       {showBid && <BidModalUI itemId={showBid} bidAmt={bidAmt} setBidAmt={setBidAmt} acting={acting} error={error} onClose={() => setShowBid(null)} onBid={() => doBid(showBid)} />}
       {showResolve && <ResolveModalUI itemId={showResolve} onClose={() => setShowResolve(null)} onResolve={(w: string | null) => doResolve(showResolve, w)} />}
     </div>
@@ -171,14 +171,62 @@ function AuctionRow({ item, isStaff, memberId, tz, onBid, onResolve }: any) {
   );
 }
 
-function MarkModal({ name, setName, cost, setCost, end, setEnd, acting, error, onClose, onMark }: any) {
+function MarkModal({ name, setName, cost, setCost, end, setEnd, acting, error, onClose, onMark, serverId }: any) {
+  const [search, setSearch] = useState("");
+  const [results, setResults] = useState<any[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<any>(null);
+
+  const handleSearch = async (q: string) => {
+    setSearch(q);
+    if (!q.trim()) { setResults([]); return; }
+    setSearching(true);
+    try {
+      const { data } = await supabase.from("items").select("id, name, image_url").eq("server_id", serverId).ilike("name", `%${q.trim()}%`).limit(8);
+      setResults(data || []);
+    } catch { setResults([]); } finally { setSearching(false); }
+  };
+
+  const selectItem = (item: any) => {
+    setSelectedItem(item);
+    setName(item.name);
+    setSearch("");
+    setResults([]);
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose}>
       <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-5 w-80 shadow-xl" onClick={e => e.stopPropagation()}>
         <h3 className="text-sm font-semibold text-[#fafafa] mb-3">Mark Item for Bid</h3>
         {error && <p className="text-xs text-red-400 mb-2"><AlertTriangle className="w-3 h-3 inline mr-1" />{error}</p>}
         <div className="space-y-3">
-          <div><label className="text-[10px] text-[#71717a]">Item Name</label><input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full bg-[#0d0d11] border border-[#27272a] rounded px-2 py-1.5 text-sm text-[#fafafa] outline-none mt-1" placeholder="Search item name..." /></div>
+          <div className="relative">
+            <label className="text-[10px] text-[#71717a]">Item</label>
+            {selectedItem ? (
+              <div className="flex items-center gap-2 mt-1 p-2 rounded bg-[#0d0d11] border border-[#27272a]">
+                {selectedItem.image_url ? <img src={selectedItem.image_url} className="w-8 h-8 rounded object-cover" /> : <Image className="w-8 h-8 text-[#3f3f46]" />}
+                <span className="text-sm text-[#fafafa] flex-1 truncate">{selectedItem.name}</span>
+                <button onClick={() => { setSelectedItem(null); setName(""); }} className="text-[#52525b] hover:text-[#fafafa]"><X className="w-3.5 h-3.5" /></button>
+              </div>
+            ) : (
+              <input type="text" value={search} onChange={e => handleSearch(e.target.value)}
+                className="w-full bg-[#0d0d11] border border-[#27272a] rounded px-2 py-1.5 text-sm text-[#fafafa] outline-none mt-1 placeholder:text-[#52525b]" placeholder="Search catalog item..." />
+            )}
+            {searching && <Loader2 className="w-3.5 h-3.5 text-[#52525b] animate-spin absolute right-2 top-7" />}
+            {results.length > 0 && !selectedItem && (
+              <div className="absolute z-10 left-0 right-0 mt-1 bg-[#0d0d11] border border-[#27272a] rounded-lg overflow-hidden max-h-40 overflow-y-auto">
+                {results.map(item => (
+                  <button key={item.id} onClick={() => selectItem(item)} className="w-full flex items-center gap-2 px-2.5 py-2 hover:bg-[#18181b] transition text-left">
+                    {item.image_url ? <img src={item.image_url} className="w-7 h-7 rounded object-cover shrink-0" /> : <Image className="w-7 h-7 text-[#3f3f46] shrink-0" />}
+                    <span className="text-xs text-[#d4d4d8] truncate">{item.name}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+            {search && !searching && results.length === 0 && !selectedItem && (
+              <p className="text-[10px] text-[#52525b] mt-1">No items found. Add it to the catalog first.</p>
+            )}
+          </div>
           <div><label className="text-[10px] text-[#71717a]">DKP Cost</label><input type="number" value={cost} onChange={e => setCost(parseInt(e.target.value) || 0)} className="w-full bg-[#0d0d11] border border-[#27272a] rounded px-2 py-1.5 text-sm text-[#fafafa] outline-none mt-1" min={1} /></div>
           <div><label className="text-[10px] text-[#71717a]">End Date & Time</label><input type="datetime-local" value={end} onChange={e => setEnd(e.target.value)} className="w-full bg-[#0d0d11] border border-[#27272a] rounded px-2 py-1.5 text-sm text-[#fafafa] outline-none mt-1 [color-scheme:dark]" /></div>
           <div className="flex gap-2"><button onClick={onClose} className="flex-1 py-2 rounded text-sm bg-[#27272a] text-[#d4d4d8]">Cancel</button><button onClick={onMark} disabled={acting || !name.trim()} className="flex-1 py-2 rounded text-sm bg-amber-500/20 text-amber-400 font-medium disabled:opacity-40">{acting ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : "Mark for Bid"}</button></div>
