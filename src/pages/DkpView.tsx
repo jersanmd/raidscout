@@ -182,7 +182,7 @@ function MarkModal({ name, setName, cost, setCost, end, setEnd, acting, error, o
     if (!q.trim()) { setResults([]); return; }
     setSearching(true);
     try {
-      const { data } = await supabase.from("items").select("id, name, image_url").eq("server_id", serverId).ilike("name", `%${q.trim()}%`).limit(8);
+      const { data } = await supabase.from("items").select("id, name, image_url, games!inner(name)").eq("server_id", serverId).ilike("name", `%${q.trim()}%`).limit(8);
       setResults(data || []);
     } catch { setResults([]); } finally { setSearching(false); }
   };
@@ -205,7 +205,7 @@ function MarkModal({ name, setName, cost, setCost, end, setEnd, acting, error, o
             {selectedItem ? (
               <div className="flex items-center gap-2 mt-1 p-2 rounded bg-[#0d0d11] border border-[#27272a]">
                 {selectedItem.image_url ? <img src={selectedItem.image_url} className="w-8 h-8 rounded object-cover" /> : <Image className="w-8 h-8 text-[#3f3f46]" />}
-                <span className="text-sm text-[#fafafa] flex-1 truncate">{selectedItem.name}</span>
+                <div className="min-w-0 flex-1"><span className="text-sm text-[#fafafa] truncate block">{selectedItem.name}</span><span className="text-[9px] text-[#52525b]">{selectedItem.games?.name}</span></div>
                 <button onClick={() => { setSelectedItem(null); setName(""); }} className="text-[#52525b] hover:text-[#fafafa]"><X className="w-3.5 h-3.5" /></button>
               </div>
             ) : (
@@ -218,7 +218,7 @@ function MarkModal({ name, setName, cost, setCost, end, setEnd, acting, error, o
                 {results.map(item => (
                   <button key={item.id} onClick={() => selectItem(item)} className="w-full flex items-center gap-2 px-2.5 py-2 hover:bg-[#18181b] transition text-left">
                     {item.image_url ? <img src={item.image_url} className="w-7 h-7 rounded object-cover shrink-0" /> : <Image className="w-7 h-7 text-[#3f3f46] shrink-0" />}
-                    <span className="text-xs text-[#d4d4d8] truncate">{item.name}</span>
+                    <div className="min-w-0"><span className="text-xs text-[#d4d4d8] truncate block">{item.name}</span><span className="text-[9px] text-[#52525b]">{item.games?.name}</span></div>
                   </button>
                 ))}
               </div>
