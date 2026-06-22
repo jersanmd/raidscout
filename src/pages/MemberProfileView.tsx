@@ -574,12 +574,29 @@ export function MemberProfileView() {
   const dailyActivity = useMemo(() => {
     if (!profile) return [];
     const now = Date.now();
-    const rangeDays = activityDays > 0 ? activityDays : 365; // "Max" = 365 days
-    const bucketDays = rangeDays <= 7 ? 1 : rangeDays <= 30 ? 1 : rangeDays <= 60 ? 2 : 7;
-    const buckets: { label: string; hunts: number; activities: number; loot: number }[] = [];
 
+    // Align start with server timezone boundaries when possible
+    let rangeStart: number;
+    let rangeDays: number;
+    let bucketDays: number;
+
+    if (activityDays === 7) {
+      rangeStart = weekStart.getTime();
+      rangeDays = Math.ceil((now - rangeStart) / 86400000);
+      bucketDays = 1;
+    } else if (activityDays === 30) {
+      rangeStart = monthStart.getTime();
+      rangeDays = Math.ceil((now - rangeStart) / 86400000);
+      bucketDays = 1;
+    } else {
+      rangeDays = activityDays > 0 ? activityDays : 365;
+      bucketDays = rangeDays <= 60 ? 2 : 7;
+      rangeStart = now - rangeDays * 86400000;
+    }
+
+    const buckets: { label: string; hunts: number; activities: number; loot: number }[] = [];
     for (let i = 0; i < rangeDays; i += bucketDays) {
-      const start = now - (rangeDays - i) * 86400000;
+      const start = rangeStart + i * 86400000;
       const end = Math.min(now, start + bucketDays * 86400000);
       buckets.push({
         label: bucketDays >= 7
@@ -591,7 +608,7 @@ export function MemberProfileView() {
       });
     }
     return buckets;
-  }, [profile, activityDays]);
+  }, [profile, activityDays, weekStart, monthStart]);
 
   const timeline = useMemo(() => {
     if (!profile) return [];
@@ -629,7 +646,7 @@ export function MemberProfileView() {
   return (
     <div className="w-full max-w-[100%] 2xl:max-w-[1600px] mx-auto px-3 sm:px-4 py-4 sm:py-6 space-y-4 sm:space-y-5">
       {/* Back */}
-      <button onClick={() => navigate(isViewer ? "/" : "/members")} className="flex items-center gap-1.5 text-[#a1a1aa] hover:text-[#fafafa] text-sm transition">
+      <button onClick={() => navigate(-1)} className="flex items-center gap-1.5 text-[#a1a1aa] hover:text-[#fafafa] text-sm transition">
         <ArrowLeft className="w-4 h-4"/>{isViewer ? "Back to RaidScout" : "Back to Members"}
       </button>
 
