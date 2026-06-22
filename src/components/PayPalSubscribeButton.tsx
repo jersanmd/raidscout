@@ -242,7 +242,7 @@ export function PayPalSubscribeButton({
           </div>
         </div>
       )}
-      <div className={`relative ${className}`} style={{ minWidth: "400px", maxWidth: "500px", width: "100%" }}>
+      <div className={`relative z-0 ${className}`} style={{ minWidth: "400px", maxWidth: "500px", width: "100%" }}>
         <div ref={containerRef} />
         {cardError && (
           <div className="mt-3 p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-xs text-red-400 flex items-start gap-2">
