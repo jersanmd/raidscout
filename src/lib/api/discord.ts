@@ -126,7 +126,7 @@ export async function sendCpReminder(serverId: string): Promise<{ ok: boolean; r
 
 // ── Progress Thread ─────────────────────────────────────────
 
-export async function createProgressThread(serverId: string): Promise<{ ok: boolean; reason?: string; thread_name?: string; succeeded?: number; failed?: number }> {
+export async function createProgressThread(serverId: string, excludeConfigIds?: string[]): Promise<{ ok: boolean; reason?: string; thread_name?: string; succeeded?: number; failed?: number }> {
   const { data: { session } } = await supabase.auth.getSession();
   if (!session?.access_token) return { ok: false, reason: "Not authenticated" };
 
@@ -139,7 +139,7 @@ export async function createProgressThread(serverId: string): Promise<{ ok: bool
         "Authorization": `Bearer ${session.access_token}`,
         "apikey": supabaseKey,
       },
-      body: JSON.stringify({ server_id: serverId }),
+      body: JSON.stringify({ server_id: serverId, exclude_config_ids: excludeConfigIds || [] }),
     });
     if (!res.ok) {
       const err = await res.text().catch(() => "");

@@ -9,7 +9,7 @@ import { writeAuditEntry, AuditAction } from "@/lib/api/audit";
 import { useServerId, useHasPermission, useServer } from "@/contexts/ServerContext";
 import { ExpiredGate } from "@/components/ExpiredGate";
 import type { Guild, Member, CpUpdate } from "@/types";
-import { Users, Plus, Pencil, Trash2, Loader2, X, Check, UserPlus, CheckCircle, AlertTriangle, Image, Upload, Copy, Shield, Search, ChevronLeft, ChevronRight, TrendingUp, ChevronUp, ChevronDown, Tag, Sword, Swords, ShieldHalf, ShieldCheck, Crosshair, Wand, Heart, Zap, Flame, Snowflake, Skull, Star, Crown, Anchor, Gavel, Axe, Target, Footprints, HandMetal, Megaphone, Calendar, Clock, Eye, EyeOff, Package, MoreHorizontal, Download } from "lucide-react";
+import { Users, Plus, Pencil, Trash2, Loader2, X, Check, UserPlus, CheckCircle, XCircle, AlertTriangle, Image, Upload, Copy, Shield, Search, ChevronLeft, ChevronRight, TrendingUp, ChevronUp, ChevronDown, Tag, Sword, Swords, ShieldHalf, ShieldCheck, Crosshair, Wand, Heart, Zap, Flame, Snowflake, Skull, Star, Crown, Anchor, Gavel, Axe, Target, Footprints, HandMetal, Megaphone, Calendar, Clock, Eye, EyeOff, Package, MoreHorizontal, Download } from "lucide-react";
 import { guildColor } from "@/lib/constants";
 import { GearTrackingTab } from "@/components/GearTrackingTab";
 
@@ -63,6 +63,7 @@ export function MembersView() {
   const [demandConfirmText, setDemandConfirmText] = useState("");
   const [discordConfigs, setDiscordConfigs] = useState<any[]>([]);
   const [dcLoading, setDcLoading] = useState(false);
+  const [excludedDiscordConfigIds, setExcludedDiscordConfigIds] = useState<Set<string>>(new Set());
 
   // Backdated CP Update modal
   const [cpModalMember, setCpModalMember] = useState<Member | null>(null);
@@ -625,6 +626,7 @@ export function MembersView() {
   const startDemandConfirm = async () => {
     setDemandModalOpen(true);
     setDemandConfirmText("");
+    setExcludedDiscordConfigIds(new Set());
     setDcLoading(true);
     try {
       // Fetch discord configs to check which ones have progress_channel_id
@@ -643,16 +645,19 @@ export function MembersView() {
     setDemandModalOpen(false);
     setDemandConfirmText("");
     setDiscordConfigs([]);
+    setExcludedDiscordConfigIds(new Set());
   };
   const executeDemandCpUpdate = async () => {
     if (!serverId || cpReminding) return;
     setDemandModalOpen(false);
     setDemandConfirmText("");
     setDiscordConfigs([]);
+    setExcludedDiscordConfigIds(new Set());
     setCpReminding(true);
     try {
-      // First try creating a progress thread
-      const threadResult = await createProgressThread(serverId);
+      // First try creating a progress thread, excluding toggled-off configs
+      const excludeIds = [...excludedDiscordConfigIds];
+      const threadResult = await createProgressThread(serverId, excludeIds);
       if (threadResult.ok) {
         const s = threadResult.succeeded ?? 1;
         const f = threadResult.failed ?? 0;
@@ -1980,17 +1985,35 @@ export function MembersView() {
               </div>
             ) : (
               <>
-                {/* Discord servers with progress channel */}
+                {/* Discord servers with progress channel — click to toggle */}
                 {discordConfigs.filter((c: any) => c.progress_channel_id).length > 0 && (
                   <div className="mb-3">
-                    <p className="text-[10px] text-[#71717a] uppercase tracking-wider mb-1.5">Will create threads in:</p>
-                    {discordConfigs.filter((c: any) => c.progress_channel_id).map((c: any) => (
-                      <div key={c.id} className="flex items-center gap-2 text-xs text-[#a1a1aa] py-1">
-                        <CheckCircle className="w-3.5 h-3.5 text-green-400 shrink-0" />
-                        <span className="text-[#fafafa]">{c.label || "Unknown"}</span>
-                        {c.notification_prefix && <span className="text-[10px] text-[#52525b]">({c.notification_prefix})</span>}
-                      </div>
-                    ))}
+                    <p className="text-[10px] text-[#71717a] uppercase tracking-wider mb-1.5">Click to toggle — will create threads in:</p>
+                    {discordConfigs.filter((c: any) => c.progress_channel_id).map((c: any) => {
+                      const isExcluded = excludedDiscordConfigIds.has(c.progress_channel_id);
+                      return (
+                        <button
+                          key={c.id}
+                          onClick={() => {
+                            setExcludedDiscordConfigIds(prev => {
+                              const next = new Set(prev);
+                              if (next.has(c.progress_channel_id)) next.delete(c.progress_channel_id);
+                              else next.add(c.progress_channel_id);
+                              return next;
+                            });
+                          }}
+                          className={`flex items-center gap-2 text-xs py-1 w-full text-left rounded px-1 -mx-1 transition ${isExcluded ? "opacity-40 hover:opacity-70" : "hover:bg-[#09090b]"}`}
+                        >
+                          {isExcluded ? (
+                            <XCircle className="w-3.5 h-3.5 text-[#52525b] shrink-0" />
+                          ) : (
+                            <CheckCircle className="w-3.5 h-3.5 text-green-400 shrink-0" />
+                          )}
+                          <span className={isExcluded ? "text-[#52525b] line-through" : "text-[#fafafa]"}>{c.label || "Unknown"}</span>
+                          {c.notification_prefix && <span className="text-[10px] text-[#52525b]">({c.notification_prefix})</span>}
+                        </button>
+                      );
+                    })}
                   </div>
                 )}
 
@@ -1999,14 +2022,14 @@ export function MembersView() {
                   <div className="mb-3 bg-amber-500/10 border border-amber-500/20 rounded-lg p-3">
                     <p className="text-[10px] text-amber-400 font-medium uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
                       <AlertTriangle className="w-3.5 h-3.5" />
-                      Will NOT receive threads:
+                      No progress channel:
                     </p>
                     {discordConfigs.filter((c: any) => !c.progress_channel_id).map((c: any) => (
                       <div key={c.id} className="text-xs text-amber-300/80 py-0.5">
                         • {c.label || "Unknown Discord server"} — use <code className="px-1 py-0.5 bg-amber-500/10 rounded text-[10px] text-amber-300">!progresshere</code> in their Discord
                       </div>
                     ))}
-                    <p className="text-[10px] text-amber-400/60 mt-1.5">Only servers with a progress channel configured will receive the update thread.</p>
+                    <p className="text-[10px] text-amber-400/60 mt-1.5">These servers need a progress channel configured to receive threads.</p>
                   </div>
                 )}
 

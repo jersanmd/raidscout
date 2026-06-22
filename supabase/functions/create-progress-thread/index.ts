@@ -18,7 +18,7 @@ serve(async (req: Request) => {
   }
 
   try {
-    const { server_id } = await req.json();
+    const { server_id, exclude_config_ids } = await req.json();
     if (!server_id) {
       return new Response(JSON.stringify({ ok: false, reason: "Missing server_id" }), {
         status: 400, headers: { "Content-Type": "application/json", ...CORS_HEADERS },
@@ -37,7 +37,11 @@ serve(async (req: Request) => {
     const configs = await dcRes.json();
 
     const progressConfigs = (configs || []).filter((c: any) => c.progress_channel_id);
-    if (progressConfigs.length === 0) {
+
+    // Filter out excluded configs
+    const excludeSet = new Set(exclude_config_ids || []);
+    const activeConfigs = progressConfigs.filter((c: any) => !excludeSet.has(c.progress_channel_id));
+    if (activeConfigs.length === 0) {
       return new Response(JSON.stringify({ ok: false, reason: "No progress channel configured" }), {
         status: 200, headers: { "Content-Type": "application/json", ...CORS_HEADERS },
       });
@@ -59,12 +63,12 @@ serve(async (req: Request) => {
       hour: "numeric", minute: "2-digit", timeZone: serverTz, timeZoneName: "short",
     })}`;
 
-    console.log(`[create-progress-thread] Found ${progressConfigs.length} progress config(s), tz=${serverTz}, bot URL: ${botUrl}`);
+    console.log(`[create-progress-thread] Found ${progressConfigs.length} progress config(s), ${activeConfigs.length} active after exclusions, tz=${serverTz}, bot URL: ${botUrl}`);
 
-    // Create a thread in each configured progress channel
+    // Create a thread in each active progress channel
     const results: { guild: string; channel_id: string; ok: boolean; thread_id?: string; error?: string }[] = [];
 
-    for (const config of progressConfigs) {
+    for (const config of activeConfigs) {
       try {
         const ping = config.notification_prefix || "@everyone";
         const guildLabel = config.label || "Unknown Guild";
