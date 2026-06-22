@@ -290,15 +290,42 @@ function BidModalUI({ itemId, bidAmt, setBidAmt, acting, error, onClose, onBid }
 
 function ResolveModalUI({ itemId, onClose, onResolve }: { itemId: string; onClose: () => void; onResolve: (w: string | null) => void }) {
   const { data: bids = [] } = useQuery({ queryKey: ["item_bids", itemId], queryFn: () => getItemBids(itemId), enabled: !!itemId });
+  const { data: item } = useQuery({ queryKey: ["item", itemId], queryFn: async () => { const { data } = await supabase.from("items").select("name").eq("id", itemId).single(); return data; }, enabled: !!itemId });
+  const itemName = item?.name || "this item";
   const active = bids.filter((b: ItemBid) => b.status === "active");
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [cancelInput, setCancelInput] = useState("");
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose}>
       <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-5 w-96 max-h-[70vh] overflow-y-auto shadow-xl" onClick={e => e.stopPropagation()}>
-        <h3 className="text-sm font-semibold text-[#fafafa] mb-1">Resolve Auction</h3><p className="text-[10px] text-[#71717a] mb-3">{active.length} active bid{active.length !== 1 ? "s" : ""}</p>
+        <div className="flex items-center justify-between mb-1">
+          <h3 className="text-sm font-semibold text-[#fafafa]">Resolve Auction</h3>
+          <button onClick={onClose} className="text-[#52525b] hover:text-[#fafafa] p-1"><X className="w-4 h-4" /></button>
+        </div>
+        <p className="text-[10px] text-[#71717a] mb-3">{active.length} active bid{active.length !== 1 ? "s" : ""}{item?.name ? ` · ${item.name}` : ""}</p>
         {active.length === 0 ? <p className="text-xs text-[#52525b] text-center py-4">No active bids.</p>
         : <div className="space-y-1 mb-3">{active.map(bid => (
             <div key={bid.id} className="flex items-center justify-between p-2 rounded bg-[#0d0d11] border border-[#1e1e2a]"><div><p className="text-xs text-[#fafafa]">{bid.member_name}</p><p className="text-[10px] text-[#52525b]">{new Date(bid.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</p></div><div className="flex items-center gap-2"><span className="text-sm font-bold text-amber-400">{bid.bid_amount}</span><button onClick={() => onResolve(bid.id)} className="px-2 py-1 rounded text-[10px] bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30"><Check className="w-3 h-3" /></button></div></div>))}</div>}
-        <div className="flex gap-2"><button onClick={() => onResolve(null)} className="flex-1 py-2 rounded text-sm bg-red-500/10 text-red-400">Cancel Auction</button><button onClick={onClose} className="flex-1 py-2 rounded text-sm bg-[#27272a] text-[#d4d4d8]">Close</button></div>
+
+        {showCancelConfirm ? (
+          <div className="space-y-3 border-t border-[#27272a] pt-3">
+            <p className="text-xs text-[#fafafa]">Type <span className="text-red-400 font-bold">{itemName}</span> to confirm cancellation:</p>
+            <input type="text" value={cancelInput} onChange={e => setCancelInput(e.target.value)} placeholder={itemName} autoFocus
+              className="w-full bg-[#0d0d11] border border-[#27272a] rounded px-2 py-1.5 text-sm text-[#fafafa] outline-none placeholder:text-[#52525b]" />
+            <div className="flex gap-2">
+              <button onClick={() => { setShowCancelConfirm(false); setCancelInput(""); }} className="flex-1 py-2 rounded text-sm bg-[#27272a] text-[#d4d4d8]">Back</button>
+              <button onClick={() => { if (cancelInput.trim() === itemName) { onResolve(null); setShowCancelConfirm(false); setCancelInput(""); } }} disabled={cancelInput.trim() !== itemName}
+                className="flex-1 py-2 rounded text-sm font-medium bg-red-500/20 text-red-400 disabled:opacity-30 hover:bg-red-500/30 transition">Confirm Cancel</button>
+            </div>
+          </div>
+        ) : (
+          <div className="border-t border-[#27272a] pt-3">
+            <button onClick={() => setShowCancelConfirm(true)} className="w-full py-2 rounded text-sm bg-red-500/10 text-red-400 hover:bg-red-500/20 transition">
+              Cancel Auction
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
