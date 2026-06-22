@@ -281,6 +281,7 @@ export {
   getItemBids,
   resolveAuction,
   getActiveBids,
+  getActiveAuctions,
   getDkpConfig,
   saveDkpConfig,
 } from "./api/dkp";
@@ -291,6 +292,7 @@ export type {
   DkpBid,
   ItemBid,
   DkpConfig,
+  ActiveAuction,
 } from "./api/dkp";
 
 // Activity guilds

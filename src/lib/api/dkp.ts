@@ -174,6 +174,25 @@ export async function getActiveBids(serverId: string): Promise<DkpBid[]> {
   return (data as DkpBid[]) ?? [];
 }
 
+export interface ActiveAuction {
+  item_id: string;
+  item_name: string;
+  image_url: string | null;
+  rarity: string | null;
+  dkp_cost: number;
+  bid_end_time: string;
+  highest_bid: number;
+  bid_count: number;
+}
+
+export async function getActiveAuctions(serverId: string): Promise<ActiveAuction[]> {
+  const { data, error } = await supabase.rpc("get_active_auctions", {
+    p_server_id: serverId,
+  });
+  if (error) throw error;
+  return (data as ActiveAuction[]) ?? [];
+}
+
 // ── DKP Config ──────────────────────────────────────────────
 
 export async function getDkpConfig(serverId: string): Promise<DkpConfig | null> {

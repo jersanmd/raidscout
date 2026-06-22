@@ -5,10 +5,10 @@ import { useServer } from "@/contexts/ServerContext";
 import { useServerId } from "@/contexts/ServerContext";
 import { useToast } from "@/contexts/ToastContext";
 import {
-  getMemberDkp, getServerDkpRankings, getMemberDkpHistory, getActiveBids,
+  getMemberDkp, getServerDkpRankings, getMemberDkpHistory, getActiveAuctions,
   getDkpConfig, markItemForBid, placeBid, getItemBids, resolveAuction,
   supabase,
-  type DkpBalance, type DkpRanking, type DkpTransaction, type DkpBid, type ItemBid,
+  type DkpBalance, type DkpRanking, type DkpTransaction, type DkpBid, type ItemBid, type ActiveAuction,
 } from "@/lib/supabase";
 import { Coins, TrendingUp, TrendingDown, History, Gavel, Loader2, Shield, Clock, Check, X, AlertTriangle, Image, Plus } from "lucide-react";
 
@@ -100,14 +100,7 @@ function LiveAuction({ serverId, isStaff, memberId, tz, toast, queryClient }: an
   const [acting, setActing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const { data: bids = [], isLoading } = useQuery({ queryKey: ["dkp_active_bids", serverId], queryFn: () => getActiveBids(serverId), refetchInterval: 10_000 });
-
-  const items = bids.reduce((acc: any[], b: DkpBid) => {
-    const e = acc.find(a => a.item_id === b.item_id);
-    if (e) { e.bid_count++; if (b.bid_amount > (e.highest_bid || 0)) e.highest_bid = b.bid_amount; }
-    else acc.push({ item_id: b.item_id, item_name: b.item_name, highest_bid: b.bid_amount, bid_count: 1 });
-    return acc;
-  }, []);
+  const { data: auctions = [], isLoading } = useQuery({ queryKey: ["dkp_active_auctions", serverId], queryFn: () => getActiveAuctions(serverId), refetchInterval: 10_000 });
 
   const doMark = async () => {
     if (!markName.trim()) return; setActing(true); setError(null);
@@ -119,7 +112,7 @@ function LiveAuction({ serverId, isStaff, memberId, tz, toast, queryClient }: an
         .neq("status", "rejected").ilike("name", `%${markName.trim()}%`).limit(1);
       if (!items?.length) { setError("Item not found"); setActing(false); return; }
       await markItemForBid(items[0].id, markCost, markEnd ? new Date(markEnd + ":00").toISOString() : null);
-      queryClient.invalidateQueries({ queryKey: ["dkp_active_bids"] });
+      queryClient.invalidateQueries({ queryKey: ["dkp_active_auctions"] });
       toast("success", `"${markName.trim()}" marked for bid.`);
       setShowMark(false); setMarkName(""); setMarkEnd("");
     } catch (err: any) { setError(err?.message || "Failed"); } finally { setActing(false); }
@@ -127,13 +120,13 @@ function LiveAuction({ serverId, isStaff, memberId, tz, toast, queryClient }: an
 
   const doBid = async (itemId: string) => {
     setActing(true); setError(null);
-    try { await placeBid(itemId, bidAmt); queryClient.invalidateQueries({ queryKey: ["dkp_balance"] }); queryClient.invalidateQueries({ queryKey: ["dkp_active_bids"] }); toast("success", `Bid placed.`); setShowBid(null); }
+    try { await placeBid(itemId, bidAmt); queryClient.invalidateQueries({ queryKey: ["dkp_balance"] }); queryClient.invalidateQueries({ queryKey: ["dkp_active_auctions"] }); toast("success", `Bid placed.`); setShowBid(null); }
     catch (err: any) { setError(err?.message || "Failed"); } finally { setActing(false); }
   };
 
   const doResolve = async (itemId: string, winnerId: string | null) => {
     setActing(true);
-    try { await resolveAuction(itemId, winnerId); queryClient.invalidateQueries({ queryKey: ["dkp_active_bids"] }); queryClient.invalidateQueries({ queryKey: ["dkp_balance"] }); toast("success", winnerId ? "Auction resolved." : "Auction cancelled."); setShowResolve(null); }
+    try { await resolveAuction(itemId, winnerId); queryClient.invalidateQueries({ queryKey: ["dkp_active_auctions"] }); queryClient.invalidateQueries({ queryKey: ["dkp_balance"] }); toast("success", winnerId ? "Auction resolved." : "Auction cancelled."); setShowResolve(null); }
     catch (err: any) { setError(err?.message || "Failed"); } finally { setActing(false); }
   };
 
@@ -144,8 +137,8 @@ function LiveAuction({ serverId, isStaff, memberId, tz, toast, queryClient }: an
         {isStaff && <button onClick={() => { setShowMark(true); setMarkName(""); setMarkCost(10); setError(null); const now = new Date(); const local = new Date(now.toLocaleString("en-US", { timeZone: tz })); local.setHours(23, 59, 0, 0); const pad = (n: number) => String(n).padStart(2, "0"); setMarkEnd(`${local.getFullYear()}-${pad(local.getMonth()+1)}-${pad(local.getDate())}T23:59`); }} className="text-[10px] px-2 py-0.5 rounded bg-[#27272a] text-[#a1a1aa] hover:text-amber-400 transition"><Plus className="w-3 h-3 inline mr-1" />Mark for Bid</button>}
       </div>
       {isLoading ? <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 text-[#52525b] animate-spin" /></div>
-      : items.length === 0 ? <div className="px-4 py-8 text-center"><Gavel className="w-8 h-8 text-[#3f3f46] mx-auto mb-2" /><p className="text-xs text-[#71717a]">No active auctions</p></div>
-      : <div className="divide-y divide-[#1e1e2a]/50">{items.map((it: any) => <AuctionRow key={it.item_id} item={it} isStaff={isStaff} memberId={memberId} tz={tz} onBid={() => { setShowBid(it.item_id); setBidAmt(1); setError(null); }} onResolve={() => setShowResolve(it.item_id)} />)}</div>}
+      : auctions.length === 0 ? <div className="px-4 py-8 text-center"><Gavel className="w-8 h-8 text-[#3f3f46] mx-auto mb-2" /><p className="text-xs text-[#71717a]">No active auctions</p></div>
+      : <div className="divide-y divide-[#1e1e2a]/50">{auctions.map((it: ActiveAuction) => <AuctionRow key={it.item_id} item={it} isStaff={isStaff} memberId={memberId} tz={tz} onBid={() => { setShowBid(it.item_id); setBidAmt(1); setError(null); }} onResolve={() => setShowResolve(it.item_id)} />)}</div>}
 
       {showMark && <MarkModal name={markName} setName={setMarkName} cost={markCost} setCost={setMarkCost} end={markEnd} setEnd={setMarkEnd} acting={acting} error={error} onClose={() => setShowMark(false)} onMark={doMark} serverId={serverId} />}
       {showBid && <BidModalUI itemId={showBid} bidAmt={bidAmt} setBidAmt={setBidAmt} acting={acting} error={error} onClose={() => setShowBid(null)} onBid={() => doBid(showBid)} />}
@@ -157,19 +150,18 @@ function LiveAuction({ serverId, isStaff, memberId, tz, toast, queryClient }: an
 const RARITY_COLORS: Record<string, string> = { common: "#71717a", uncommon: "#22c55e", rare: "#3b82f6", epic: "#a855f7", legendary: "#f59e0b", mythic: "#ef4444" };
 function rc(rarity?: string) { return RARITY_COLORS[rarity?.toLowerCase() ?? ""] || "#71717a"; }
 
-function AuctionRow({ item, isStaff, memberId, tz, onBid, onResolve }: any) {
-  const { data: d } = useQuery({ queryKey: ["item", item.item_id], queryFn: async () => { const { data } = await supabase.from("items").select("image_url, bid_end_time, rarity").eq("id", item.item_id).single(); return data; }, enabled: !!item.item_id });
-  const end = d?.bid_end_time ? new Date(d.bid_end_time) : null;
-  const ended = end && end < new Date();
+function AuctionRow({ item, isStaff, memberId, tz, onBid, onResolve }: { item: ActiveAuction; isStaff: boolean; memberId: string | null; tz: string; onBid: () => void; onResolve: () => void }) {
+  const end = item.bid_end_time ? new Date(item.bid_end_time) : null;
+  const ended = end ? end < new Date() : false;
   const left = end ? Math.max(0, Math.ceil((end.getTime() - Date.now()) / 60000)) : 0;
   const disp = end ? end.toLocaleString("en-US", { timeZone: tz, month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "";
-  const rarityColor = rc(d?.rarity);
+  const rarityColor = rc(item.rarity ?? undefined);
   return (
     <div className="flex items-center gap-3 px-4 py-3 hover:bg-[#18181b]/50 transition">
-      {d?.image_url ? <img src={d.image_url} className="w-10 h-10 rounded-lg object-cover shrink-0 border border-[#1e1e2a]" style={{ backgroundColor: rarityColor + "20" }} /> : <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: rarityColor + "18" }}><Image className="w-4 h-4" style={{ color: rarityColor }} /></div>}
+      {item.image_url ? <img src={item.image_url} className="w-10 h-10 rounded-lg object-cover shrink-0 border border-[#1e1e2a]" style={{ backgroundColor: rarityColor + "20" }} /> : <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: rarityColor + "18" }}><Image className="w-4 h-4" style={{ color: rarityColor }} /></div>}
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium truncate" style={{ color: rarityColor }}>{item.item_name}</p>
-        <div className="flex items-center gap-2 text-[10px]"><span className="text-amber-400 font-bold">{item.highest_bid} DKP</span><span className="text-[#52525b]">· {item.bid_count} bid{item.bid_count !== 1 ? "s" : ""}</span>{!ended && <span className="text-[#52525b] flex items-center gap-0.5"><Clock className="w-3 h-3" />{left > 60 ? `${Math.ceil(left/60)}h` : `${left}min`}</span>}{ended && <span className="text-red-400">Ended</span>}{disp && <span className="text-[#52525b]">· {disp}</span>}</div>
+        <div className="flex items-center gap-2 text-[10px]"><span className="text-amber-400 font-bold">{item.highest_bid || item.dkp_cost} DKP</span><span className="text-[#52525b]">· {item.bid_count} bid{item.bid_count !== 1 ? "s" : ""}</span>{!ended && <span className="text-[#52525b] flex items-center gap-0.5"><Clock className="w-3 h-3" />{left > 60 ? `${Math.ceil(left/60)}h` : `${left}min`}</span>}{ended && <span className="text-red-400">Ended</span>}{disp && <span className="text-[#52525b]">· {disp}</span>}</div>
       </div>
       <div className="flex items-center gap-1 shrink-0">
         {memberId && !ended && <button onClick={onBid} className="px-2 py-1 rounded text-[10px] bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 transition"><Coins className="w-3 h-3 inline mr-0.5" />Bid</button>}
