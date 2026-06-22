@@ -358,11 +358,24 @@ export function LeaderboardView() {
 
   const buildSnapshotShareText = (snap: LeaderboardSnapshot) => {
     const periodLabel = snap.period.startsWith("weekly") ? "Weekly" : snap.period.startsWith("monthly") ? "Monthly" : "All Time";
+    // Compute date range for display
+    const finalized = new Date(snap.finalized_at);
+    const rawPs = (snap as any).period_start;
+    let ps: Date;
+    if (rawPs && new Date(rawPs).getTime() > 86400000) {
+      ps = new Date(rawPs);
+    } else {
+      const prevSnap = snapshots.filter(s => s.period === snap.period && new Date(s.finalized_at) < finalized).sort((a, b) => new Date(b.finalized_at).getTime() - new Date(a.finalized_at).getTime())[0];
+      if (prevSnap) { ps = new Date(prevSnap.finalized_at); }
+      else { ps = new Date(finalized); ps.setDate(ps.getDate() - 7); ps.setHours(0, 0, 0, 0); }
+    }
+    const fmtDate = (d: Date) => d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+    const range = `${fmtDate(ps)} → ${fmtDate(finalized)}`;
     const lines = snap.rankings.map((r, i) => {
       const medal = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i + 1}.`;
       return `${medal} ${r.memberName} — ${r.points} pts`;
     });
-    return `🏆 ${currentServer?.name} — ${periodLabel} Results\n\n${lines.join("\n")}\n\n📊 raidscout.com`;
+    return `🏆 ${currentServer?.name} — ${periodLabel} Results (${range})\n\n${lines.join("\n")}\n\n📊 raidscout.com`;
   };
 
   // ── Attendance Export ─────────────────────────────────────
