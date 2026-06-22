@@ -1,12 +1,13 @@
 import { useState, useEffect } from "react";
-import { supabase, createServer, fetchVisibleGames } from "@/lib/supabase";
+import { supabase, createServer, fetchVisibleGames, submitClaimRequest, getMyClaims } from "@/lib/supabase";
 import { useServer } from "@/contexts/ServerContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { Loader2, Plus, Key, Server, ArrowRight, LogOut, Gamepad2 } from "lucide-react";
+import { Loader2, Plus, Key, Server, ArrowRight, LogOut, Gamepad2, Search, Shield, Clock, CheckCircle, XCircle, AlertTriangle } from "lucide-react";
+import type { ClaimRequest } from "@/lib/supabase";
 
 export function NoServerView() {
   const { refreshServers } = useServer();
-  const { signOut } = useAuth();
+  const { signOut, user } = useAuth();
   const [mode, setMode] = useState<"choose" | "create" | "join">("choose");
   const [serverName, setServerName] = useState("");
   const [guildName, setGuildName] = useState("");
@@ -18,12 +19,58 @@ export function NoServerView() {
   const [seed, setSeed] = useState(true);
   const [gamesLoading, setGamesLoading] = useState(true);
 
+  // Claim feature
+  const [claimSearch, setClaimSearch] = useState("");
+  const [claimResults, setClaimResults] = useState<any[]>([]);
+  const [claimSearching, setClaimSearching] = useState(false);
+  const [myClaims, setMyClaims] = useState<ClaimRequest[]>([]);
+  const [claimsLoading, setClaimsLoading] = useState(true);
+  const [claimServer, setClaimServer] = useState<any>(null);
+  const [claimName, setClaimName] = useState("");
+  const [claimSubmitting, setClaimSubmitting] = useState(false);
+  const [claimError, setClaimError] = useState<string | null>(null);
+  const [claimSuccess, setClaimSuccess] = useState<string | null>(null);
+
   useEffect(() => {
     fetchVisibleGames()
       .then(setGames)
       .catch(() => setGames([]))
       .finally(() => setGamesLoading(false));
   }, []);
+
+  // Load user's existing claims
+  useEffect(() => {
+    if (!user) return;
+    getMyClaims()
+      .then(setMyClaims)
+      .catch(() => setMyClaims([]))
+      .finally(() => setClaimsLoading(false));
+  }, [user]);
+
+  const handleClaimSearch = async () => {
+    if (!claimSearch.trim()) return;
+    setClaimSearching(true);
+    try {
+      const { data } = await supabase.from("servers").select("id, name").ilike("name", `%${claimSearch.trim()}%`).limit(8);
+      setClaimResults(data || []);
+    } catch { setClaimResults([]); } finally { setClaimSearching(false); }
+  };
+
+  const handleSubmitClaim = async () => {
+    if (!claimServer || !claimName.trim()) return;
+    setClaimSubmitting(true);
+    setClaimError(null);
+    setClaimSuccess(null);
+    try {
+      await submitClaimRequest(claimServer.id, claimName.trim());
+      setClaimSuccess(`Claim submitted for "${claimName.trim()}" in ${claimServer.name}.`);
+      setClaimServer(null);
+      setClaimName("");
+      getMyClaims().then(setMyClaims).catch(() => {});
+    } catch (err: any) {
+      setClaimError(err?.message || "Failed to submit claim");
+    } finally { setClaimSubmitting(false); }
+  };
 
   const handleCreate = async () => {
     const serverTrimmed = serverName.trim();
@@ -172,7 +219,7 @@ export function NoServerView() {
               <div className="flex-1 h-px bg-neutral-800/40" />
             </div>
 
-            {/* ── Join form ── */}
+            {/* ── Join by invite ── */}
             <div className="flex gap-2">
               <input
                 type="text"
@@ -189,6 +236,68 @@ export function NoServerView() {
               >
                 {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Join"}
               </button>
+            </div>
+
+            {/* ── Separator ── */}
+            <div className="flex items-center gap-3">
+              <div className="flex-1 h-px bg-neutral-800/40" />
+              <span className="text-[10px] text-neutral-600 font-mono">or</span>
+              <div className="flex-1 h-px bg-neutral-800/40" />
+            </div>
+
+            {/* ── Claim Profile ── */}
+            <div className="space-y-3">
+              <p className="text-[10px] text-neutral-500 text-center">Claim your existing profile</p>
+              {claimSuccess && <p className="text-xs text-emerald-400 bg-emerald-500/5 border border-emerald-500/20 rounded-lg px-3 py-2"><CheckCircle className="w-3 h-3 inline mr-1" />{claimSuccess}</p>}
+              {claimError && <p className="text-xs text-red-400 bg-red-500/5 border border-red-500/20 rounded-lg px-3 py-2"><AlertTriangle className="w-3 h-3 inline mr-1" />{claimError}</p>}
+
+              {!claimServer ? (
+                <div className="space-y-2">
+                  <div className="flex gap-2">
+                    <input type="text" value={claimSearch} onChange={e => setClaimSearch(e.target.value)} onKeyDown={e => e.key === "Enter" && handleClaimSearch()}
+                      placeholder="Search your server..." className="flex-1 bg-[#0d0e11] border border-neutral-800 rounded-lg px-3 py-2 text-xs text-white placeholder-neutral-600 outline-none focus:border-neutral-700 transition" />
+                    <button onClick={handleClaimSearch} disabled={claimSearching || !claimSearch.trim()}
+                      className="px-3 py-2 rounded-lg text-xs bg-neutral-800 text-neutral-300 hover:bg-neutral-700 transition disabled:opacity-40"><Search className="w-3.5 h-3.5" /></button>
+                  </div>
+                  {claimSearching && <Loader2 className="w-4 h-4 text-neutral-500 animate-spin mx-auto" />}
+                  {claimResults.map(s => (
+                    <button key={s.id} onClick={() => { setClaimServer(s); setClaimName(""); setClaimError(null); }}
+                      className="w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-[#18191d]/60 border border-neutral-800/60 hover:bg-[#1c1d22] transition text-left">
+                      <Server className="w-3.5 h-3.5 text-neutral-500 shrink-0" />
+                      <span className="text-xs text-neutral-200">{s.name}</span>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[#18191d] border border-neutral-700">
+                    <Server className="w-3.5 h-3.5 text-neutral-400 shrink-0" />
+                    <span className="text-xs text-neutral-200">{claimServer.name}</span>
+                    <button onClick={() => { setClaimServer(null); setClaimError(null); }} className="ml-auto text-neutral-500 hover:text-neutral-300"><XCircle className="w-3.5 h-3.5" /></button>
+                  </div>
+                  <input type="text" value={claimName} onChange={e => setClaimName(e.target.value)} onKeyDown={e => e.key === "Enter" && handleSubmitClaim()}
+                    placeholder="Your in-game name..." className="w-full bg-[#0d0e11] border border-neutral-800 rounded-lg px-3 py-2 text-xs text-white placeholder-neutral-600 outline-none focus:border-neutral-700 transition" />
+                  <button onClick={handleSubmitClaim} disabled={claimSubmitting || !claimName.trim()}
+                    className="w-full py-2 rounded-lg text-xs font-bold bg-amber-500/10 border border-amber-500/30 text-amber-400 hover:bg-amber-500/20 transition disabled:opacity-40">
+                    {claimSubmitting ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : "Submit Claim"}
+                  </button>
+                </div>
+              )}
+
+              {/* Existing claims */}
+              {!claimsLoading && myClaims.length > 0 && (
+                <div className="space-y-1">
+                  <p className="text-[10px] text-neutral-600">Your Claims</p>
+                  {myClaims.map(c => (
+                    <div key={c.id} className="flex items-center gap-2 px-3 py-1.5 rounded bg-[#18191d]/40 border border-neutral-800/40 text-xs">
+                      <span className="text-neutral-300 truncate flex-1">{c.server_name} · {c.requested_name}</span>
+                      {c.status === "pending" && <span className="text-[10px] text-amber-400 flex items-center gap-0.5"><Clock className="w-3 h-3" />Pending</span>}
+                      {c.status === "accepted" && <span className="text-[10px] text-emerald-400 flex items-center gap-0.5"><CheckCircle className="w-3 h-3" />Accepted</span>}
+                      {c.status === "declined" && <span className="text-[10px] text-red-400 flex items-center gap-0.5"><XCircle className="w-3 h-3" />Declined</span>}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* ── Sign out ── */}
