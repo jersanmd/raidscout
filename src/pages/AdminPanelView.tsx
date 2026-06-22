@@ -1090,7 +1090,7 @@ export function AdminPanelView() {
             case "discord_ping_set": return `Ping set to "${d.ping || "(default)"}"`;
             case "leaderboard_finalize": return `${d.period || "?"}: ${d.rankings ?? 0} players`;
             case "leaderboard_reset": return `Leaderboard reset (${d.period || "?"})`;
-            case "leaderboard_adjust_points": return `${d.points != null ? (d.points > 0 ? "+" : "") + d.points + " pts" : "?"}`;
+            case "leaderboard_adjust_points": return `${d.member_name ? d.member_name + ": " : ""}${d.points != null ? (d.points > 0 ? "+" : "") + d.points + " pts" : "?"}${d.reason ? ` — ${d.reason}` : ""}`;
             case "leaderboard_reset_guild": return `Guild reset: ${d.deleted_attendance ?? 0} att, ${d.deleted_adjustments ?? 0} adj`;
             case "settings_update": {
               const entries = Object.entries(d).filter(([k]) => k !== "discord_user");

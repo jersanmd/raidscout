@@ -1428,7 +1428,7 @@ export function LeaderboardView() {
                     setAdjustLoading(true);
                     setAdjustError(null);
                     try {
-                      await adjustMemberPoints(adjustMember.id, serverId, adjustValue, adjustReason);
+                      await adjustMemberPoints(adjustMember.id, serverId, adjustValue, adjustReason, adjustMember.name);
                       // Refresh leaderboard
                       queryClient.invalidateQueries({ queryKey: ["leaderboard"] });
                       setAdjustMember(null);

@@ -96,7 +96,8 @@ export async function adjustMemberPoints(
   memberId: string,
   serverId: string,
   points: number,
-  reason: string = ""
+  reason: string = "",
+  memberName: string = ""
 ): Promise<string> {
   const { data, error } = await supabase
     .rpc("adjust_member_points", {
@@ -106,7 +107,7 @@ export async function adjustMemberPoints(
       p_reason: reason,
     });
   if (error) throw error;
-  writeAuditEntry({ action: AuditAction.LEADERBOARD_ADJUST_POINTS, server_id: serverId, target_id: memberId, details: { points, reason } });
+  writeAuditEntry({ action: AuditAction.LEADERBOARD_ADJUST_POINTS, server_id: serverId, target_id: memberId, details: { points, reason, member_name: memberName || null } });
   return data as string;
 }
 
