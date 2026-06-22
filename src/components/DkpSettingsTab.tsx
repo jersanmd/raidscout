@@ -44,11 +44,7 @@ export function DkpSettingsTab() {
       writeAuditEntry({
         action: AuditAction.DKP_CONFIG_UPDATE,
         server_id: serverId,
-        details: {
-          enabled,
-          dkp_multiplier: multiplier,
-          bid_duration_minutes: bidDuration,
-        },
+        details: { enabled, dkp_multiplier: multiplier, bid_duration_minutes: bidDuration },
       });
       toast("success", "DKP settings saved.");
       setSaveError(null);

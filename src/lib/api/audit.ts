@@ -379,8 +379,7 @@ export async function writeAuditEntry(entry: {
   viewer_key?: string;
   discord_actor?: string;
 }): Promise<void> {
-  // Fire-and-forget: don't block the caller on audit failure
-  supabase
+  const { error } = await supabase
     .rpc("write_audit_entry", {
       p_action: entry.action,
       p_server_id: entry.server_id,
@@ -389,15 +388,11 @@ export async function writeAuditEntry(entry: {
       p_details: entry.details || {},
       p_viewer_key: entry.viewer_key || null,
       p_discord_actor: entry.discord_actor || null,
-    })
-    .then(
-      ({ error }) => {
-        if (error) console.warn("[audit] write failed:", error.message, error.code);
-      },
-      (err: any) => {
-        console.warn("[audit] RPC error:", err?.message || err);
-      },
-    );
+    });
+  if (error) {
+    console.warn("[audit] write failed:", error.message, error.code);
+    throw error;
+  }
 }
 
 /** Fetch audit log entries with cursor pagination (by id) and optional action filter. */
