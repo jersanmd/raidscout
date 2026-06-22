@@ -3,11 +3,12 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerId } from "@/contexts/ServerContext";
 import { getDkpConfig, saveDkpConfig, adjustMemberDkp, type DkpConfig } from "@/lib/supabase";
 import { supabase } from "@/lib/supabase";
-import { Coins, Loader2, Save } from "lucide-react";
+import { Coins, Loader2, Save, AlertTriangle } from "lucide-react";
 
 export function DkpSettingsTab() {
   const serverId = useServerId();
   const queryClient = useQueryClient();
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const { data: config, isLoading } = useQuery({
     queryKey: ["dkp_config", serverId],
@@ -32,6 +33,7 @@ export function DkpSettingsTab() {
   const handleSave = async () => {
     if (!serverId) return;
     setSaving(true);
+    setSaveError(null);
     try {
       await saveDkpConfig(serverId, {
         enabled,
@@ -41,8 +43,8 @@ export function DkpSettingsTab() {
       queryClient.invalidateQueries({ queryKey: ["dkp_config", serverId] });
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
-    } catch (err) {
-      console.error("Failed to save DKP config:", err);
+    } catch (err: any) {
+      setSaveError(err?.message || "Failed to save. Only owners and moderators can update DKP settings.");
     } finally {
       setSaving(false);
     }
@@ -108,6 +110,12 @@ export function DkpSettingsTab() {
       </div>
 
       {/* Save */}
+      {saveError && (
+        <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-xs text-red-400 flex items-start gap-2">
+          <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+          {saveError}
+        </div>
+      )}
       <button
         onClick={handleSave}
         disabled={saving}

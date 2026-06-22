@@ -84,9 +84,9 @@ DROP POLICY IF EXISTS "Anyone can read dkp config" ON public.dkp_config;
 CREATE POLICY "Anyone can read dkp config" ON public.dkp_config FOR SELECT USING (true);
 
 DROP POLICY IF EXISTS "Owner can update dkp config" ON public.dkp_config;
-CREATE POLICY "Owner can update dkp config" ON public.dkp_config
+CREATE POLICY "Owner and mods can update dkp config" ON public.dkp_config
   FOR ALL USING (
-    EXISTS (SELECT 1 FROM public.server_members WHERE server_id = dkp_config.server_id AND user_id = auth.uid() AND role = 'owner')
+    EXISTS (SELECT 1 FROM public.server_members WHERE server_id = dkp_config.server_id AND user_id = auth.uid() AND role IN ('owner', 'moderator'))
   );
 
 -- 5. Items table extensions
