@@ -14,6 +14,9 @@ export interface DkpTransaction {
   type: string;
   reason: string | null;
   created_at: string;
+  boss_name?: string | null;
+  death_time?: string | null;
+  guild_name?: string | null;
 }
 
 export interface DkpRanking {
