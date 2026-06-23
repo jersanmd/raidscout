@@ -425,10 +425,6 @@ async function runSpawnCron() {
 
           if (!nextStart || nextStart <= nowAct) continue;
 
-          // Debug: log computed activity schedule
-          const displayTz = activity.schedule_tz || tz;
-          console.log(`[cron:activity] server=${serverId} activity="${activity.name}" schedule_type=${activity.schedule_type} schedule_tz=${activity.schedule_tz || "(none→UTC)"} display_tz=${displayTz} schedule=${JSON.stringify(activity.schedule)} nextStart=${nextStart.toISOString()} localTime=${nextStart.toLocaleTimeString("en-US", {timeZone: displayTz, hour: "2-digit", minute: "2-digit", hour12: true})}`);
-
           const startUnix = Math.floor(nextStart.getTime() / 1000);
           const nowUnix = Math.floor(Date.now() / 1000);
           const secsUntilStart = startUnix - nowUnix;
