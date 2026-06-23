@@ -6,6 +6,10 @@
 - **History page — activity flood on pagination** — `fetchActivityHistory` had no limit when `cursor` was set, dumping all 500+ activities into every `loadMore` call and burying boss entries. Now limited to 50 per page when cursor-only (and moot with day-based pagination).
 - **History page `hasMore` falsely false** — Initial `hasMore` was `result.length >= 50`, but the 2-day `since` filter could trim results below 50 even with hundreds of older records. Changed to `result.length > 0`.
 
+## 🤖 Discord Bot
+
+- **Activity spawn notifications never fired** — The spawn cron only matched `schedule_type === "one_time"` and `schedule_type === "recurring"`, but activities in the DB use `fixed_hours` and `fixed_schedule` — there is no `recurring` type. Both `fixed_hours` (daily recurring) and `fixed_schedule` (weekly recurring) activities were silently skipped every tick, never getting 5-minute warnings, threads, or "starting now" notifications. Fixed by replacing `"recurring"` with `"fixed_schedule"` and adding a `"fixed_hours"` handler that parses the schedule time string/object and computes the next daily occurrence.
+
 ## ✨ Enhancements
 
 - **History timeline — attendance count** — Both boss kills and activity completions now show a `👤 N` attendance counter inline. Boss records use `attendance_records(id)` (already in the query); activities now include `activity_attendance(id)` in the nested select. Zero-attendance entries show `👤 0`.
