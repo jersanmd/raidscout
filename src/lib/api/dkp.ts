@@ -88,6 +88,13 @@ export async function adjustMemberDkp(
   return data as string;
 }
 
+export async function resetAllDkp(serverId: string): Promise<void> {
+  const { error } = await supabase.rpc("reset_all_dkp", {
+    p_server_id: serverId,
+  });
+  if (error) throw error;
+}
+
 // ── DKP Queries ─────────────────────────────────────────────
 
 export async function getMemberDkp(memberId: string, serverId: string): Promise<DkpBalance> {

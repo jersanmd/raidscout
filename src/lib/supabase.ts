@@ -273,6 +273,7 @@ export type { ClaimRequest, PendingClaim } from "./api/claims";
 export {
   awardDkpOnKill,
   adjustMemberDkp,
+  resetAllDkp,
   getMemberDkp,
   getServerDkpRankings,
   getMemberDkpHistory,

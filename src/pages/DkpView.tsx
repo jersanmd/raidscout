@@ -6,7 +6,7 @@ import { useServer } from "@/contexts/ServerContext";
 import { useServerId } from "@/contexts/ServerContext";
 import { useToast } from "@/contexts/ToastContext";
 import {
-  getMemberDkp, getServerDkpRankings, getMemberDkpHistory, getActiveAuctions, getPastAuctions, deletePastAuction, adjustMemberDkp, toggleItemDistributed,
+  getMemberDkp, getServerDkpRankings, getMemberDkpHistory, getActiveAuctions, getPastAuctions, deletePastAuction, adjustMemberDkp, resetAllDkp, toggleItemDistributed,
   getDkpConfig, markItemForBid, placeBid, getItemBids, resolveAuction,
   supabase,
   type DkpBalance, type DkpRanking, type DkpTransaction, type ItemBid, type ActiveAuction, type PastAuction,
@@ -122,6 +122,10 @@ function Leaderboard({ serverId, isStaff, toast, queryClient }: { serverId: stri
   const [adjReason, setAdjReason] = useState("");
   const [adjActing, setAdjActing] = useState(false);
   const [selectedMember, setSelectedMember] = useState<{ id: string; name: string; balance: number } | null>(null);
+  const [showResetModal, setShowResetModal] = useState(false);
+  const [resetConfirm, setResetConfirm] = useState("");
+  const [resetActing, setResetActing] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
 
   const guilds = [...new Set(rankings.map(r => r.guild_name).filter(Boolean))].sort() as string[];
 
@@ -158,9 +162,28 @@ function Leaderboard({ serverId, isStaff, toast, queryClient }: { serverId: stri
     } catch (err: any) { toast("error", err?.message || "Failed to adjust DKP"); }
     finally { setAdjActing(false); }
   };
+
+  const handleResetDkp = async () => {
+    setResetActing(true);
+    try {
+      await resetAllDkp(serverId);
+      queryClient.invalidateQueries({ queryKey: ["dkp_rankings", serverId] });
+      queryClient.invalidateQueries({ queryKey: ["dkp_balance"] });
+      queryClient.invalidateQueries({ queryKey: ["dkp_history"] });
+      queryClient.invalidateQueries({ queryKey: ["dkp_auctions"] });
+      toast("success", "All DKP has been reset to 0");
+      setShowResetModal(false);
+      setResetConfirm("");
+    } catch (err: any) {
+      toast("error", err?.message || "Failed to reset DKP");
+    } finally {
+      setResetActing(false);
+    }
+  };
+
   return (
     <div className="bg-[#0d0d11] border border-[#1e1e2a] rounded-xl overflow-hidden">
-      <div className="px-4 py-3 border-b border-[#1e1e2a] flex items-center justify-between gap-2 flex-wrap"><span className="text-xs font-semibold text-[#71717a] uppercase tracking-wider shrink-0">Leaderboard</span><div className="flex items-center gap-2"><select value={guildFilter} onChange={e => handleGuildChange(e.target.value)} className="bg-[#18181b] border border-[#27272a] rounded px-2 py-1 text-[11px] text-[#d4d4d8] outline-none focus:border-[#3f3f46]"><option value="">All Guilds</option>{guilds.map(g => <option key={g} value={g}>{g}</option>)}</select><input type="text" placeholder="Search..." value={search} onChange={e => { setSearch(e.target.value); setShowCount(15); }} className="bg-[#18181b] border border-[#27272a] rounded px-2 py-1 text-[11px] text-[#d4d4d8] outline-none w-full max-w-40 focus:border-[#3f3f46]" /></div></div>
+      <div className="px-4 py-3 border-b border-[#1e1e2a] flex items-center justify-between gap-2 flex-wrap"><span className="text-xs font-semibold text-[#71717a] uppercase tracking-wider shrink-0">Leaderboard</span><div className="flex items-center gap-2"><div className="relative"><button onClick={() => setShowHelp(!showHelp)} className="w-5 h-5 rounded-full border border-[#27272a] text-[10px] font-bold text-[#71717a] hover:text-[#fafafa] hover:border-[#52525b] transition flex items-center justify-center" title="How DKP works">?</button>{showHelp && <div className="absolute top-full mt-2 right-0 z-50 w-72 bg-[#18181b] border border-[#27272a] rounded-xl p-4 shadow-xl"><p className="text-xs text-[#d4d4d8] leading-relaxed">DKP points are earned from <span className="text-emerald-400 font-medium">boss kills</span> based on configured point rules. <span className="text-amber-400 font-medium">Adjustments</span> can be made by staff. <span className="text-red-400 font-medium">Bid spends</span> are deducted from your balance at auction resolution.</p><button onClick={() => setShowHelp(false)} className="mt-2 text-[10px] text-[#71717a] hover:text-[#fafafa] underline">Got it</button></div></div><select value={guildFilter} onChange={e => handleGuildChange(e.target.value)} className="bg-[#18181b] border border-[#27272a] rounded px-2 py-1 text-[11px] text-[#d4d4d8] outline-none focus:border-[#3f3f46]"><option value="">All Guilds</option>{guilds.map(g => <option key={g} value={g}>{g}</option>)}</select><input type="text" placeholder="Search..." value={search} onChange={e => { setSearch(e.target.value); setShowCount(15); }} className="bg-[#18181b] border border-[#27272a] rounded px-2 py-1 text-[11px] text-[#d4d4d8] outline-none w-full max-w-40 focus:border-[#3f3f46]" />{isStaff && <button onClick={() => setShowResetModal(true)} className="text-[10px] px-2 py-1 rounded border border-red-500/30 text-red-400 hover:bg-red-500/10 hover:border-red-500/60 transition shrink-0" title="Reset all DKP to 0">Reset</button>}</div></div>
       {isLoading ? <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 text-[#52525b] animate-spin" /></div>
       : filtered.length === 0 ? <div className="px-4 py-6 text-center"><p className="text-xs text-[#71717a]">{search ? "No members match" : "No DKP earned yet."}</p></div>
       : <div className="divide-y divide-[#1e1e2a]/50">{visible.map((r, i) => {
@@ -189,6 +212,20 @@ function Leaderboard({ serverId, isStaff, toast, queryClient }: { serverId: stri
         )})}
         {hasMore && <button onClick={() => setShowCount(c => c + 15)} className="w-full px-4 py-2 text-xs text-[#a1a1aa] hover:text-[#fafafa] hover:bg-[#18181b] transition">Show more...</button>}
       </div>}
+      {showResetModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={() => { setShowResetModal(false); setResetConfirm(""); }}>
+          <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-5 w-96 shadow-xl" onClick={e => e.stopPropagation()}>
+            <h3 className="text-sm font-semibold text-red-400 mb-1">Reset All DKP</h3>
+            <p className="text-xs text-[#a1a1aa] mb-4">This will permanently delete all DKP transactions, cancel active auctions, and clear all bid history for this server. <span className="font-bold text-[#fafafa]">This cannot be undone.</span></p>
+            <p className="text-[10px] text-[#71717a] mb-2">Type <span className="font-bold text-[#fafafa]">reset all dkp</span> to confirm:</p>
+            <input type="text" value={resetConfirm} onChange={e => setResetConfirm(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && resetConfirm.toLowerCase() === "reset all dkp") handleResetDkp(); }} className="w-full bg-[#0d0d11] border border-[#27272a] rounded px-3 py-2 text-xs text-[#fafafa] outline-none mb-4" placeholder="reset all dkp" autoFocus />
+            <div className="flex gap-2">
+              <button onClick={() => { setShowResetModal(false); setResetConfirm(""); }} className="flex-1 py-2 rounded text-sm bg-[#27272a] text-[#d4d4d8]">Cancel</button>
+              <button onClick={handleResetDkp} disabled={resetConfirm.toLowerCase() !== "reset all dkp" || resetActing} className="flex-1 py-2 rounded text-sm bg-red-500/20 text-red-400 font-medium disabled:opacity-40">{resetActing ? "Resetting..." : "Reset All DKP"}</button>
+            </div>
+          </div>
+        </div>
+      )}
       {selectedMember && <MemberHistoryModal memberId={selectedMember.id} memberName={selectedMember.name} balance={selectedMember.balance} serverId={serverId} onClose={() => setSelectedMember(null)} />}
     </div>
   );
