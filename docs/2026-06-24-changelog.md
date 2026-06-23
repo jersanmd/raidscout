@@ -51,3 +51,45 @@
 - **`!bidstatus` supports multiple concurrent auctions** — When multiple auctions exist for the same item, shows a compact list with per-auction quantity, cost, and time remaining.
 - **Bot auto-resolve queries `dkp_auctions`** — Updated from `items?is_up_for_bid=eq.true` to `dkp_auctions?status=eq.active`.
 - **Staging bot target** — Bot deploys use `fly.staging.toml` for testing (`raidscout-staging`).
+
+## 📢 DKP Real-time Notifications & Toasts
+
+- **Outbid toast banner** — When someone outbids you, a bounce-animated toast appears in the bottom-right corner. Shows the current bid amount and item name in rarity color. "Your DKP has been refunded. Tap to bid again." Auto-dismisses after 8 seconds.
+- **Won auction toast banner** — Emerald-styled toast when you win an auction. 🏆 "You won [Item] for X DKP." Tap to view the item.
+- **Stacked toasts** — Multiple simultaneous notifications stack vertically. Newest on top, older ones shift down. Each independently dismissible.
+- **Tap to navigate & highlight** — Clicking a toast navigates to `/dkp` and scrolls to the highlighted auction row with an amber glow + ring + pulse animation that fades after 4 seconds.
+- **Mark read on interaction** — Clicking a toast, its ×, or auto-dismiss all mark the notification as read, updating the bell badge count.
+- **Realtime notifications table** — `notifications` table added to `supabase_realtime` publication with `REPLICA IDENTITY FULL` for instant push delivery.
+- **"Finalizing..." badge animation** — Replaced static badge with spinning Loader2 + amber pulse animation on ended auctions.
+
+## 🔔 Notification Bell Improvements
+
+- **Mark all read on open** — Clicking the bell icon now calls `markAllRead()` immediately, clearing the red badge without clicking each item.
+- **DKP notification navigation** — Clicking a DKP notification in the dropdown navigates to `/dkp`. Member unlink notification navigates to `/join`.
+
+## 🔄 DKP Leaderboard Reset
+
+- **Reset DKP button** — Red "Reset" button in the Leaderboard header (staff-only). Opens a confirmation modal requiring the user to type "confirm".
+- **Per-guild reset** — Guild checklist in the reset modal with member counts. Only selected guilds are reset; unchecked guilds keep their points. "Select all" / "Clear all" buttons.
+- **Preserves history** — Reset inserts negative adjustments to zero out balances instead of deleting transactions. DKP history, auction history, and bid history remain intact.
+- **Detailed audit log** — Reset writes `LEADERBOARD_RESET` or `LEADERBOARD_RESET_GUILD` audit entries with per-guild member counts and total DKP wiped.
+- **Help tooltip (?)** — Question mark button explains how DKP points are earned (boss kills), adjusted (staff), and spent (bids).
+
+## 🎨 UI Polish
+
+- **Leaderboard header restacked** — Search, guild dropdown, reset button, and help icon on their own line below the "Leaderboard" label. Search input fills available space.
+- **DKP not-enabled screen improved** — Staff see instructions + link to DKP Settings. Non-staff see a message directing them to contact server owner.
+- **Notification body phrasing** — All em dashes replaced with periods. Outbid body emphasizes current bid first: "The current bid on [Item] is now X DKP."
+
+## 🗄️ Database
+
+- **Migration 155**: `reset_all_dkp` RPC — accepts optional `p_guild_names TEXT[]` for per-guild filtering
+- **Migration 156**: Added guild filter parameter to `reset_all_dkp`
+- **Migration 157**: Fixed `guild_id` → `dkp_guild_id` in items table reference
+- **Migration 158**: Rewrote `reset_all_dkp` to preserve history via adjustments
+- **Migration 159**: Added `notifications` table to Realtime publication
+- **Migration 160**: Improved outbid notification body to show new bid amount
+- **Migration 161**: Rephrased outbid notification to emphasize current bid
+- **Migration 162**: Replaced em dash with period in outbid notification
+- **Migration 163**: Replaced em dash in `dkp_lost` notification title
+- **Migration 164**: Added `item_name` and `rarity` to notification metadata for colored toast rendering

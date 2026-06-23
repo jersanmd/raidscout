@@ -418,14 +418,17 @@ function LiveAuction({ serverId, isStaff, memberId, tz, toast, queryClient, high
       .then(({ data }) => { if (data) setMyGuildId(data.guild_id); });
   }, [memberId]);
 
-  // Scroll to highlighted item on mount
+  // Scroll to highlighted item on mount, auto-clear highlight after 4s
+  const [activeHighlight, setActiveHighlight] = useState<string | undefined>(highlightItemId);
   useEffect(() => {
     if (!highlightItemId) return;
+    setActiveHighlight(highlightItemId);
     const timer = setTimeout(() => {
       document.getElementById(`auction-${highlightItemId}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
-    }, 300); // wait for render
-    return () => clearTimeout(timer);
-  }, [highlightItemId, auctions]);
+    }, 300);
+    const clear = setTimeout(() => setActiveHighlight(undefined), 4000);
+    return () => { clearTimeout(timer); clearTimeout(clear); };
+  }, [highlightItemId]);
 
   // Filter: non-staff only see unrestricted items or items for their guild
   const visibleAuctions = isStaff ? auctions : auctions.filter((a: ActiveAuction) => !a.guild_id || a.guild_id === myGuildId);
@@ -483,7 +486,7 @@ function LiveAuction({ serverId, isStaff, memberId, tz, toast, queryClient, high
       </div>
       {isLoading ? <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 text-[#52525b] animate-spin" /></div>
       : visibleAuctions.length === 0 ? <div className="px-4 py-8 text-center"><Gavel className="w-8 h-8 text-[#3f3f46] mx-auto mb-2" /><p className="text-xs text-[#71717a]">No active auctions</p></div>
-      : <div className="divide-y divide-[#1e1e2a]/50">{visibleAuctions.map((it: ActiveAuction) => <AuctionRow key={it.auction_id} item={it} isStaff={isStaff} memberId={memberId} tz={tz} onBid={() => { setShowBid(it.auction_id); setBidAmt(Math.max(it.dkp_cost || 1, (it.highest_bid || 0) + 1)); setError(null); }} onResolve={() => setShowResolve(it.auction_id)} onViewBids={() => setShowBids({ itemId: it.item_id, auctionId: it.auction_id })} isHighlighted={highlightItemId === it.item_id} />)}</div>}
+      : <div className="divide-y divide-[#1e1e2a]/50">{visibleAuctions.map((it: ActiveAuction) => <AuctionRow key={it.auction_id} item={it} isStaff={isStaff} memberId={memberId} tz={tz} onBid={() => { setShowBid(it.auction_id); setBidAmt(Math.max(it.dkp_cost || 1, (it.highest_bid || 0) + 1)); setError(null); }} onResolve={() => setShowResolve(it.auction_id)} onViewBids={() => setShowBids({ itemId: it.item_id, auctionId: it.auction_id })} isHighlighted={activeHighlight === it.auction_id} />)}</div>}
 
       {showMark && <MarkModal name={markName} setName={setMarkName} cost={markCost} setCost={setMarkCost} end={markEnd} setEnd={setMarkEnd} acting={acting} error={error} onClose={() => setShowMark(false)} onMark={doMark} serverId={serverId} guildId={markGuild} setGuildId={setMarkGuild} qty={markQty} setQty={setMarkQty} />}
       {showBid && <BidModalUI auctionId={showBid} bidAmt={bidAmt} setBidAmt={setBidAmt} acting={acting} error={error} onClose={() => setShowBid(null)} onBid={() => doBid(showBid)} memberId={memberId} serverId={serverId} highestBid={auctions.find((a: ActiveAuction) => a.auction_id === showBid)?.highest_bid ?? 0} />}
@@ -539,7 +542,7 @@ function AuctionRow({ item, isStaff, memberId, tz, onBid, onResolve, onViewBids,
   const endLocal = item.bid_end_time ? new Date(item.bid_end_time).toLocaleString("en-US", { timeZone: tz, month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "";
   const fmt = (n: number) => String(n).padStart(2, "0");
   return (
-    <div id={`auction-${item.item_id}`} className={`flex items-center gap-3 px-4 py-3 hover:bg-[#18181b]/50 transition cursor-pointer ${isHighlighted ? "bg-amber-500/10 ring-1 ring-amber-500/40 animate-pulse" : ""}`} onClick={onViewBids}>
+    <div id={`auction-${item.auction_id}`} className={`flex items-center gap-3 px-4 py-3 hover:bg-[#18181b]/50 transition cursor-pointer ${isHighlighted ? "bg-amber-500/10 ring-1 ring-amber-500/40 animate-pulse" : ""}`} onClick={onViewBids}>
       {item.image_url ? <img src={item.image_url} className="w-10 h-10 rounded-lg object-cover shrink-0 border border-[#1e1e2a]" style={{ backgroundColor: rarityColor + "20" }} /> : <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: rarityColor + "18" }}><Image className="w-4 h-4" style={{ color: rarityColor }} /></div>}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5">

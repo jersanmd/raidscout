@@ -60,8 +60,13 @@ export function Layout() {
   const [discordGuilds, setDiscordGuilds] = useState<{ guild_id: string; name: string; icon_url: string | null }[]>([]);
   const { notifications, unreadCount, markRead, markAllRead } = useNotifications();
   const { unreadClaim, dismiss: dismissClaim } = useClaimNotifications();
-  const [outbidToast, setOutbidToast] = useState<{ id: string; title: string; body: string; itemId: string } | null>(null);
+  const [toasts, setToasts] = useState<{ id: string; type: string; title: string; body: string; itemId: string; itemName?: string; rarity?: string }[]>([]);
   const seenNotifRef = useRef<Set<string>>(new Set());
+
+  const dismissToast = (notifId: string) => {
+    setToasts(prev => prev.filter(t => t.id !== notifId));
+    markRead(notifId);
+  };
 
   // When a claim is accepted, invalidate member queries so DKP auto-refreshes
   const queryClient = useQueryClient();
@@ -72,29 +77,29 @@ export function Layout() {
     }
   }, [unreadClaim, queryClient]);
 
-  // Show toast when outbid via Realtime notification
+  // Show toasts when outbid or won via Realtime notification
   useEffect(() => {
     for (const n of notifications) {
-      if (n.type === "dkp_outbid" && !n.read && !seenNotifRef.current.has(n.id)) {
-        seenNotifRef.current.add(n.id);
-        const meta = n.metadata as Record<string, any> | undefined;
-        setOutbidToast({
-          id: n.id,
-          title: n.title,
-          body: n.body || "",
-          itemId: meta?.item_id || "",
-        });
-        break; // show one at a time
-      }
+      if (n.read || seenNotifRef.current.has(n.id)) continue;
+      const isOutbid = n.type === "dkp_outbid";
+      const isWon = n.type === "dkp_won";
+      if (!isOutbid && !isWon) continue;
+      seenNotifRef.current.add(n.id);
+      const meta = n.metadata as Record<string, any> | undefined;
+      const toast = {
+        id: n.id,
+        type: n.type,
+        title: n.title,
+        body: n.body || "",
+        itemId: meta?.item_id || meta?.auction_id || "",
+        itemName: meta?.item_name || undefined,
+        rarity: meta?.rarity || undefined,
+      };
+      setToasts(prev => [...prev, toast]);
+      // Auto-dismiss after 8 seconds
+      setTimeout(() => { setToasts(prev => prev.filter(t => t.id !== n.id)); markRead(n.id); }, 8000);
     }
   }, [notifications]);
-
-  // Auto-dismiss outbid toast after 8 seconds
-  useEffect(() => {
-    if (!outbidToast) return;
-    const t = setTimeout(() => setOutbidToast(null), 8000);
-    return () => clearTimeout(t);
-  }, [outbidToast]);
 
   // ── Server switch loading overlay ──
   const [serverSwitching, setServerSwitching] = useState(false);
@@ -238,23 +243,37 @@ export function Layout() {
   return (
     <div className="h-dvh bg-[#09090b] flex flex-col overflow-hidden" onClick={() => { showUserMenu && setShowUserMenu(false); showNotifications && setShowNotifications(false); }}>
       {adminJoining && (<div className="fixed inset-0 z-[100] bg-[#09090b]/80 flex items-center justify-center"><div className="text-center space-y-3"><Loader2 className="w-8 h-8 text-[#a1a1aa] animate-spin mx-auto" /><p className="text-sm text-[#a1a1aa]">Joining server as owner{"\u2026"}</p></div></div>)}
-      {/* Outbid toast banner */}
-      {outbidToast && (
-        <div className="fixed top-14 left-1/2 -translate-x-1/2 z-[90] animate-in slide-in-from-top-2 fade-in duration-300">
-          <button
-            onClick={() => { navigate(`/dkp?highlight=${outbidToast.itemId}`); setOutbidToast(null); }}
-            className="flex items-center gap-3 bg-[#18181b] border border-amber-500/30 rounded-xl px-4 py-3 shadow-2xl shadow-amber-500/10 hover:border-amber-500/60 transition cursor-pointer max-w-md"
-          >
-            <span className="text-lg shrink-0">↗️</span>
-            <div className="text-left min-w-0">
-              <p className="text-xs font-semibold text-amber-400">{outbidToast.title}</p>
-              <p className="text-[11px] text-[#a1a1aa] line-clamp-2">{outbidToast.body}</p>
-              <p className="text-[10px] text-amber-500/70 mt-1">Tap to view item →</p>
+      {/* DKP toast banners (outbid / won) — stacked bottom-right */}
+      {toasts.length > 0 && (
+        <div className="fixed bottom-4 right-4 z-[90] flex flex-col-reverse gap-2 max-w-md">
+          {toasts.map((t) => (
+            <div key={t.id} className="animate-bounce-in-right">
+              <button
+                onClick={() => { navigate(`/dkp?highlight=${t.itemId}`); dismissToast(t.id); }}
+                className={`flex items-center gap-3 rounded-xl px-4 py-3 shadow-2xl transition cursor-pointer border w-full ${t.type === "dkp_won" ? "bg-[#18181b] border-emerald-500/30 shadow-emerald-500/10 hover:border-emerald-500/60" : "bg-[#18181b] border-amber-500/30 shadow-amber-500/10 hover:border-amber-500/60"}`}
+              >
+                <span className="text-lg shrink-0">{t.type === "dkp_won" ? "🏆" : "↗️"}</span>
+                <div className="text-left min-w-0">
+                  <p className={`text-xs font-semibold ${t.type === "dkp_won" ? "text-emerald-400" : "text-amber-400"}`}>{t.title}</p>
+                  <p className="text-[11px] text-[#a1a1aa] line-clamp-2">
+                    {t.itemName
+                      ? (() => {
+                          const rc = (r?: string) => ({ common: "#a1a1aa", uncommon: "#22c55e", rare: "#3b82f6", epic: "#a855f7", legendary: "#f59e0b", mythic: "#ef4444" })[r?.toLowerCase() ?? ""] || "#a1a1aa";
+                          const parts = t.body.split(t.itemName!);
+                          if (parts.length === 1) return t.body;
+                          return <>{parts[0]}<span style={{ color: rc(t.rarity) }} className="font-medium">{t.itemName}</span>{parts.slice(1).join(t.itemName!)}</>;
+                        })()
+                      : t.body
+                    }
+                  </p>
+                  <p className={`text-[10px] mt-1 ${t.type === "dkp_won" ? "text-emerald-500/70" : "text-amber-500/70"}`}>Tap to view →</p>
+                </div>
+                <button onClick={(e) => { e.stopPropagation(); dismissToast(t.id); }} className="text-[#71717a] hover:text-[#fafafa] shrink-0 self-start mt-1">
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </button>
             </div>
-            <button onClick={(e) => { e.stopPropagation(); setOutbidToast(null); }} className="text-[#71717a] hover:text-[#fafafa] shrink-0">
-              <X className="w-3.5 h-3.5" />
-            </button>
-          </button>
+          ))}
         </div>
       )}
       {/* Server switch overlay — covers tab content until data settles */}

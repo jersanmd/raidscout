@@ -170,6 +170,16 @@ html.dark body {
   animation: bounce-in 0.4s ease-out;
 }
 
+@keyframes bounce-in-right {
+  0% { transform: translateX(20px) scale(0.9); opacity: 0; }
+  50% { transform: translateX(-4px) scale(1.02); opacity: 1; }
+  100% { transform: translateX(0) scale(1); opacity: 1; }
+}
+
+.animate-bounce-in-right {
+  animation: bounce-in-right 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
 @keyframes slide-up {
   0% { transform: translateY(16px); opacity: 0; }
   100% { transform: translateY(0); opacity: 1; }
