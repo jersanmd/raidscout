@@ -19,6 +19,34 @@ export async function markActivityAttendance(activityInstanceId: string, memberI
   if (error) throw error;
 }
 
+export async function copyActivityAttendance(sourceInstanceId: string, targetInstanceId: string): Promise<{ copied: number; skipped: number }> {
+  const { data: sourceRecords } = await supabase
+    .from("activity_attendance")
+    .select("member_id, present")
+    .eq("activity_instance_id", sourceInstanceId);
+  if (!sourceRecords?.length) return { copied: 0, skipped: 0 };
+
+  const { data: existingRecords } = await supabase
+    .from("activity_attendance")
+    .select("member_id")
+    .eq("activity_instance_id", targetInstanceId);
+  const existingIds = new Set((existingRecords ?? []).map((r: any) => r.member_id));
+
+  const toInsert = sourceRecords.filter((r: any) => !existingIds.has(r.member_id));
+  if (toInsert.length > 0) {
+    const { error } = await supabase
+      .from("activity_attendance")
+      .insert(toInsert.map((r: any) => ({
+        activity_instance_id: targetInstanceId,
+        member_id: r.member_id,
+        present: r.present,
+      })));
+    if (error) throw error;
+  }
+
+  return { copied: toInsert.length, skipped: sourceRecords.length - toInsert.length };
+}
+
 export async function finalizeActivity(activityId: string, serverId?: string): Promise<string> {
   const now = new Date().toISOString();
   const { data, error } = await supabase

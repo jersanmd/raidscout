@@ -69,7 +69,11 @@ export function HistoryView() {
     try {
       const result = await fetchHistoryFromSupabase(serverId, since, undefined, null, 50);
       setHistory(result);
-      setHasMore(result.length >= 50);
+      // Always assume more exist — the `since` filter (2 days) may have
+      // trimmed results below the limit, but older records could still exist.
+      // loadMore (which doesn't use `since`) will set hasMore=false naturally.
+      // Only exception: empty result means truly no records at all.
+      setHasMore(result.length > 0);
     } catch {
       setHistory([]);
     } finally {
@@ -83,7 +87,10 @@ export function HistoryView() {
     if (!last) return;
     setLoadingMore(true);
     try {
-      const result = await fetchHistoryFromSupabase(serverId, since, undefined, last.deathTime, 50);
+      // Don't pass `since` here — cursor-based pagination should go
+      // back indefinitely, not be capped at the initial 2-day window.
+      // Use createdAt (always defined) instead of deathTime (undefined for activities).
+      const result = await fetchHistoryFromSupabase(serverId, undefined, undefined, last.createdAt, 50);
       setHistory(prev => [...prev, ...result]);
       setHasMore(result.length >= 50);
     } catch {
@@ -91,7 +98,7 @@ export function HistoryView() {
     } finally {
       setLoadingMore(false);
     }
-  }, [loadingMore, hasMore, serverId, since, history]);
+  }, [loadingMore, hasMore, serverId, history]);
 
   useEffect(() => { fetchInitial(); }, [fetchInitial]);
 
@@ -543,7 +550,10 @@ export function HistoryView() {
                             {entry.type === "activity" ? "Activity" : entry.spawnType === "fixed_schedule" ? "Schedule" : `+${diffH}h`}
                           </span>
                           {(entry.deathRecordId || entry.activityInstanceId) && (
-                            <Users className="w-3 h-3 text-[#52525b]" />
+                            <span className="flex items-center gap-1 text-[10px] font-mono text-[#a1a1aa]">
+                              <Users className="w-3 h-3" />
+                              {entry.attendanceCount ?? "…"}
+                            </span>
                           )}
                         </div>
                         <div className="flex items-center gap-2 text-xs mt-0.5 font-mono">
