@@ -1,16 +1,18 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { useServer } from "@/contexts/ServerContext";
 import { useServerId } from "@/contexts/ServerContext";
 import { useToast } from "@/contexts/ToastContext";
 import {
-  getMemberDkp, getServerDkpRankings, getMemberDkpHistory, getActiveAuctions, getPastAuctions,
+  getMemberDkp, getServerDkpRankings, getMemberDkpHistory, getActiveAuctions, getPastAuctions, deletePastAuction, adjustMemberDkp, toggleItemDistributed,
   getDkpConfig, markItemForBid, placeBid, getItemBids, resolveAuction,
   supabase,
   type DkpBalance, type DkpRanking, type DkpTransaction, type ItemBid, type ActiveAuction, type PastAuction,
 } from "@/lib/supabase";
-import { Coins, TrendingUp, TrendingDown, History, Gavel, Loader2, Shield, Clock, Check, X, AlertTriangle, Image, Plus, Eye } from "lucide-react";
+import { AuditAction, writeAuditEntry } from "@/lib/api/audit";
+import { Coins, TrendingUp, TrendingDown, History, Gavel, Loader2, Shield, Clock, Check, X, AlertTriangle, Image, Plus, Eye, Hourglass, Trash2, Pencil, CheckCircle, Package } from "lucide-react";
+import { guildColor } from "@/lib/constants";
 
 export function DkpView() {
   const { user, isViewer } = useAuth();
@@ -32,28 +34,43 @@ function DkpContent({ serverId }: { serverId: string }) {
   const queryClient = useQueryClient();
   const tz = currentServer?.timezone || "UTC";
   const isStaff = currentServer?.role === "owner" || currentServer?.role === "moderator";
-  const [memberId, setMemberId] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!user) return;
-    supabase.from("members").select("id").eq("server_id", serverId).eq("user_id", user.id).maybeSingle()
-      .then(({ data }) => { if (data) setMemberId(data.id); });
-  }, [user, serverId]);
+  // Wrap in React Query so it can be invalidated after claim acceptance
+  const { data: memberId, isLoading: memberLoading } = useQuery({
+    queryKey: ["my_member_id", serverId, user?.id],
+    queryFn: async () => {
+      if (!user) return null;
+      const { data } = await supabase.from("members").select("id")
+        .eq("server_id", serverId).eq("user_id", user.id).maybeSingle();
+      return data?.id ?? null;
+    },
+    enabled: !!serverId && !!user,
+    staleTime: 30_000,
+    refetchInterval: 15_000,
+  });
 
   const { data: dkpConfig } = useQuery({ queryKey: ["dkp_config", serverId], queryFn: () => getDkpConfig(serverId), enabled: !!serverId });
   if (!dkpConfig?.enabled) return <Empty icon={Coins} text="DKP is not enabled on this server." />;
 
+  const hideLeaderboard = dkpConfig.hide_from_players && !isStaff;
+
   return (
-    <div className="max-w-5xl mx-auto px-4 py-6 space-y-6">
-      <div className="flex items-center gap-2"><Coins className="w-5 h-5 text-amber-400" /><h2 className="text-lg font-bold text-[#fafafa]">DKP</h2></div>
+    <div className="max-w-[100%] 2xl:max-w-[1600px] mx-auto px-3 sm:px-4 py-4 sm:py-6 space-y-4 sm:space-y-6">
+      <div className="flex items-center gap-3 mb-2">
+        <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-[#18181b] border border-[#27272a]">
+          <Coins className="w-5 h-5 text-[#fafafa]" />
+        </div>
+        <h2 className="text-xl font-bold text-[#fafafa]">DKP</h2>
+      </div>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-1 space-y-4">
-          {memberId ? <Ledger memberId={memberId} serverId={serverId} /> : <div className="bg-[#0d0d11] border border-[#1e1e2a] rounded-xl p-6 text-center"><Shield className="w-6 h-6 text-[#52525b] mx-auto mb-1" /><p className="text-xs text-[#71717a]">Claim your profile to view DKP</p></div>}
-          <Leaderboard serverId={serverId} />
+          {memberLoading ? <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 text-[#52525b] animate-spin" /></div>
+          : memberId ? <Ledger memberId={memberId} serverId={serverId} /> : <div className="bg-[#0d0d11] border border-[#1e1e2a] rounded-xl p-5 text-center space-y-3"><Shield className="w-6 h-6 text-[#52525b] mx-auto" /><p className="text-xs text-[#71717a]">Claim your profile to view DKP</p><p className="text-[10px] text-[#52525b] leading-relaxed">Don't have access yet? Go to <a href="/join" className="text-blue-400 hover:text-blue-300 underline">Join a Server</a> to claim your in-game character.</p></div>}
+          {!hideLeaderboard ? <Leaderboard serverId={serverId} isStaff={isStaff} toast={toast} queryClient={queryClient} /> : <div className="bg-[#0d0d11] border border-[#1e1e2a] rounded-xl p-5 text-center space-y-3"><Shield className="w-6 h-6 text-[#52525b] mx-auto" /><p className="text-xs text-[#71717a]">Leaderboard hidden</p><p className="text-[10px] text-[#52525b] leading-relaxed">The guild officers have disabled the public leaderboard. Your points are still tracked normally.</p></div>}
         </div>
         <div className="lg:col-span-2 space-y-4">
           <LiveAuction serverId={serverId} isStaff={isStaff} memberId={memberId} tz={tz} toast={toast} queryClient={queryClient} />
-          <AuctionHistory serverId={serverId} />
+          <AuctionHistory serverId={serverId} memberId={memberId} isStaff={isStaff} queryClient={queryClient} toast={toast} />
           {memberId && <HistorySection memberId={memberId} serverId={serverId} />}
         </div>
       </div>
@@ -76,16 +93,154 @@ function Ledger({ memberId, serverId }: { memberId: string; serverId: string }) 
   );
 }
 
-function Leaderboard({ serverId }: { serverId: string }) {
-  const { data: rankings = [], isLoading } = useQuery({ queryKey: ["dkp_rankings", serverId], queryFn: () => getServerDkpRankings(serverId), refetchInterval: 30_000 });
+function Leaderboard({ serverId, isStaff, toast, queryClient }: { serverId: string; isStaff: boolean; toast: any; queryClient: any }) {
+  const { data: rankings = [], isLoading } = useQuery({ queryKey: ["dkp_rankings", serverId], queryFn: () => getServerDkpRankings(serverId), refetchInterval: 30_000, staleTime: 0 });
+  const [showCount, setShowCount] = useState(15);
+  const [search, setSearch] = useState("");
+  const [guildFilter, setGuildFilter] = useState<string>(() => {
+    try { return localStorage.getItem(`dkp_guild_filter_${serverId}`) || ""; } catch { return ""; }
+  });
+  const [adjustId, setAdjustId] = useState<string | null>(null);
+  const [adjAmount, setAdjAmount] = useState(0);
+  const [adjReason, setAdjReason] = useState("");
+  const [adjActing, setAdjActing] = useState(false);
+  const [selectedMember, setSelectedMember] = useState<{ id: string; name: string; balance: number } | null>(null);
+
+  const guilds = [...new Set(rankings.map(r => r.guild_name).filter(Boolean))].sort() as string[];
+
+  const handleGuildChange = (g: string) => {
+    setGuildFilter(g);
+    setShowCount(15);
+    try { localStorage.setItem(`dkp_guild_filter_${serverId}`, g); } catch {}
+  };
+
+  useEffect(() => { if (!adjustId) return; const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") { setAdjustId(null); setAdjAmount(0); setAdjReason(""); } }; window.addEventListener("keydown", onKey); return () => window.removeEventListener("keydown", onKey); }, [adjustId]);
+  
+  let filtered = search ? rankings.filter(r => r.member_name.toLowerCase().includes(search.toLowerCase())) : rankings;
+  if (guildFilter) filtered = filtered.filter(r => r.guild_name === guildFilter);
+  const visible = filtered.slice(0, showCount);
+  const hasMore = showCount < filtered.length;
+
+  const handleAdjust = async (memberId: string, memberName: string) => {
+    if (!adjAmount || adjAmount === 0) return;
+    setAdjActing(true);
+    try {
+      await adjustMemberDkp(memberId, serverId, adjAmount, adjReason || undefined);
+      writeAuditEntry({
+        action: AuditAction.DKP_ADJUST,
+        server_id: serverId,
+        target_type: "member",
+        target_id: memberId,
+        details: { member_name: memberName, amount: adjAmount, reason: adjReason },
+      }).catch(() => {});
+      queryClient.invalidateQueries({ queryKey: ["dkp_rankings", serverId] });
+      queryClient.invalidateQueries({ queryKey: ["dkp_balance"] });
+      queryClient.invalidateQueries({ queryKey: ["dkp_history"] });
+      toast("success", `${adjAmount > 0 ? "+" : ""}${adjAmount} DKP ${adjAmount > 0 ? "added to" : "deducted from"} ${memberName}`);
+      setAdjustId(null); setAdjAmount(0); setAdjReason("");
+    } catch (err: any) { toast("error", err?.message || "Failed to adjust DKP"); }
+    finally { setAdjActing(false); }
+  };
   return (
     <div className="bg-[#0d0d11] border border-[#1e1e2a] rounded-xl overflow-hidden">
-      <div className="px-4 py-3 border-b border-[#1e1e2a]"><span className="text-xs font-semibold text-[#71717a] uppercase tracking-wider">Leaderboard</span></div>
+      <div className="px-4 py-3 border-b border-[#1e1e2a] flex items-center justify-between gap-2 flex-wrap"><span className="text-xs font-semibold text-[#71717a] uppercase tracking-wider shrink-0">Leaderboard</span><div className="flex items-center gap-2"><select value={guildFilter} onChange={e => handleGuildChange(e.target.value)} className="bg-[#18181b] border border-[#27272a] rounded px-2 py-1 text-[11px] text-[#d4d4d8] outline-none focus:border-[#3f3f46]"><option value="">All Guilds</option>{guilds.map(g => <option key={g} value={g}>{g}</option>)}</select><input type="text" placeholder="Search..." value={search} onChange={e => { setSearch(e.target.value); setShowCount(15); }} className="bg-[#18181b] border border-[#27272a] rounded px-2 py-1 text-[11px] text-[#d4d4d8] outline-none w-full max-w-40 focus:border-[#3f3f46]" /></div></div>
       {isLoading ? <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 text-[#52525b] animate-spin" /></div>
-      : rankings.length === 0 ? <div className="px-4 py-6 text-center"><p className="text-xs text-[#71717a]">No DKP earned yet.</p></div>
-      : <div className="divide-y divide-[#1e1e2a]/50">{rankings.slice(0, 15).map(r => (
-          <div key={r.member_id} className="flex items-center gap-3 px-4 py-2"><span className="text-[10px] font-bold text-[#52525b] w-5 text-right">{r.rank}</span><span className="text-xs text-[#d4d4d8] flex-1 truncate">{r.member_name}</span><span className="text-xs font-bold text-amber-400 tabular-nums">{r.balance}</span></div>
-        ))}</div>}
+      : filtered.length === 0 ? <div className="px-4 py-6 text-center"><p className="text-xs text-[#71717a]">{search ? "No members match" : "No DKP earned yet."}</p></div>
+      : <div className="divide-y divide-[#1e1e2a]/50">{visible.map((r, i) => {
+          const gc = r.guild_name ? guildColor(r.guild_name) : null;
+          const displayRank = guildFilter || search ? i + 1 : r.rank;
+          return (
+          <div key={r.member_id}>
+            <div onClick={() => setSelectedMember({ id: r.member_id, name: r.member_name, balance: r.balance })} className="flex items-center gap-3 px-4 py-2 cursor-pointer hover:bg-[#18181b] transition"><span className="text-[10px] font-bold text-[#52525b] w-5 text-right">{displayRank}</span><span className="text-xs text-[#d4d4d8] flex-1 truncate">{r.member_name}</span>{gc && <span className={`flex items-center gap-1 text-[9px] font-medium px-1.5 py-0.5 rounded border shrink-0 ${gc.bg} ${gc.text} ${gc.border}`}><Shield className="w-2.5 h-2.5" />{r.guild_name}</span>}<span className="text-xs font-bold text-amber-400 tabular-nums">{r.balance}</span>{isStaff && <button onClick={(e) => { e.stopPropagation(); setAdjustId(r.member_id); setAdjAmount(0); setAdjReason(""); }} className="text-[10px] px-1.5 py-0.5 rounded border border-[#27272a] text-[#71717a] hover:text-[#fafafa] hover:border-[#52525b] transition shrink-0" title="Adjust DKP">±</button>}</div>
+      {isStaff && adjustId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={() => { setAdjustId(null); setAdjAmount(0); setAdjReason(""); }}>
+          <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-5 w-80 shadow-xl" onClick={e => e.stopPropagation()}>
+            <h3 className="text-sm font-semibold text-[#fafafa] mb-1">{rankings.find(r => r.member_id === adjustId)?.member_name}</h3>
+            <p className="text-[10px] text-[#71717a] mb-4">Balance: <span className="text-amber-400 font-bold">{rankings.find(r => r.member_id === adjustId)?.balance ?? 0} DKP</span></p>
+            <div className="space-y-3">
+              <input type="text" inputMode="numeric" placeholder="Amount (use - to deduct)" value={adjAmount || ""} onChange={e => { const v = parseInt(e.target.value); setAdjAmount(isNaN(v) ? 0 : v); }} onKeyDown={e => { if (e.key === "Enter") handleAdjust(adjustId, rankings.find(r => r.member_id === adjustId)?.member_name ?? ""); }} className="w-full bg-[#0d0d11] border border-[#27272a] rounded px-2 py-2 text-lg font-bold text-[#fafafa] outline-none text-center" autoFocus />
+              <input type="text" placeholder="Reason (optional)" value={adjReason} onChange={e => setAdjReason(e.target.value)} onKeyDown={e => { if (e.key === "Enter") handleAdjust(adjustId, rankings.find(r => r.member_id === adjustId)?.member_name ?? ""); }} className="w-full bg-[#0d0d11] border border-[#27272a] rounded px-2 py-1.5 text-xs text-[#d4d4d8] outline-none" />
+              <div className="flex gap-2">
+                <button onClick={() => { setAdjustId(null); setAdjAmount(0); setAdjReason(""); }} className="flex-1 py-2 rounded text-sm bg-[#27272a] text-[#d4d4d8]">Cancel</button>
+                <button onClick={() => handleAdjust(adjustId, rankings.find(r => r.member_id === adjustId)?.member_name ?? "")} disabled={adjActing || adjAmount === 0} className="flex-1 py-2 rounded text-sm bg-amber-500/20 text-amber-400 font-medium disabled:opacity-40">{adjActing ? "..." : adjAmount > 0 ? `Add ${adjAmount} DKP` : adjAmount < 0 ? `Deduct ${Math.abs(adjAmount)} DKP` : "Enter amount"}</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+          </div>
+        )})}
+        {hasMore && <button onClick={() => setShowCount(c => c + 15)} className="w-full px-4 py-2 text-xs text-[#a1a1aa] hover:text-[#fafafa] hover:bg-[#18181b] transition">Show more...</button>}
+      </div>}
+      {selectedMember && <MemberHistoryModal memberId={selectedMember.id} memberName={selectedMember.name} balance={selectedMember.balance} serverId={serverId} onClose={() => setSelectedMember(null)} />}
+    </div>
+  );
+}
+
+function MemberHistoryModal({ memberId, memberName, balance, serverId, onClose }: { memberId: string; memberName: string; balance: number; serverId: string; onClose: () => void }) {
+  const [cursor, setCursor] = useState<string | undefined>();
+  const [all, setAll] = useState<DkpTransaction[]>([]);
+  const [loadingMore, setLoadingMore] = useState(false);
+
+  const { data: txns = [], isLoading } = useQuery({
+    queryKey: ["dkp_history", memberId, serverId, cursor],
+    queryFn: async () => {
+      const r = await getMemberDkpHistory(memberId, serverId, 30, cursor);
+      if (cursor) setAll(p => [...p, ...r]); else setAll(r);
+      setLoadingMore(false);
+      return r;
+    },
+    staleTime: 0,
+    enabled: !!memberId,
+  });
+
+  const display = cursor ? all : txns;
+  const hasMore = txns.length === 30;
+
+  const loadMore = () => {
+    if (display.length > 0) {
+      setCursor(display[display.length - 1]?.created_at);
+      setLoadingMore(true);
+    }
+  };
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose}>
+      <div className="bg-[#09090b] border border-[#27272a] rounded-xl p-5 w-96 max-h-[70vh] overflow-y-auto shadow-xl" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <h3 className="text-sm font-semibold text-[#fafafa]">{memberName}</h3>
+            <p className="text-[10px] text-[#71717a]">Balance: <span className="text-amber-400 font-bold">{balance} DKP</span></p>
+          </div>
+          <button onClick={onClose} className="text-[#52525b] hover:text-[#a1a1aa] transition p-1 -mr-1" title="Close"><X className="w-4 h-4" /></button>
+        </div>
+        {isLoading && display.length === 0 ? <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 text-[#52525b] animate-spin" /></div>
+        : display.length === 0 ? <p className="text-xs text-[#52525b] text-center py-4">No transactions yet.</p>
+        : <>
+          <div className="divide-y divide-[#1e1e2a]/50">
+            {display.map(txn => (
+              <div key={txn.id} className="flex items-center justify-between py-2">
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs text-[#d4d4d8] truncate">{txn.reason || txn.type}{txn.bidder_name && <> by <span className="text-[#a1a1aa]">{txn.bidder_name}</span></>}{txn.item_name && <> — <span style={{ color: rc(txn.item_rarity ?? undefined) }}>{txn.item_name}</span></>}{txn.boss_name && <> — {txn.boss_name}</>}</p>
+                  <p className="text-[10px] text-[#52525b]">{new Date(txn.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</p>
+                </div>
+                <span className={`text-sm font-bold tabular-nums shrink-0 ml-2 ${txn.amount > 0 ? "text-emerald-400" : "text-red-400"}`}>{txn.amount > 0 ? "+" : ""}{txn.amount}</span>
+              </div>
+            ))}
+          </div>
+          {hasMore && (
+            <button onClick={loadMore} disabled={loadingMore} className="w-full mt-2 py-2 text-xs text-[#a1a1aa] hover:text-[#fafafa] hover:bg-[#18181b] rounded transition">
+              {loadingMore ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : "Load more..."}
+            </button>
+          )}
+        </>}
+      </div>
     </div>
   );
 }
@@ -94,15 +249,39 @@ function LiveAuction({ serverId, isStaff, memberId, tz, toast, queryClient }: an
   const [showMark, setShowMark] = useState(false);
   const [showBid, setShowBid] = useState<string | null>(null);
   const [showResolve, setShowResolve] = useState<string | null>(null);
-  const [showBids, setShowBids] = useState<string | null>(null);
+  const [showBids, setShowBids] = useState<{ itemId: string; auctionId: string } | null>(null);
   const [markName, setMarkName] = useState("");
   const [markCost, setMarkCost] = useState(10);
   const [markEnd, setMarkEnd] = useState("");
+  const [markGuild, setMarkGuild] = useState<string | null>(null);
+  const [markQty, setMarkQty] = useState(1);
   const [bidAmt, setBidAmt] = useState(0);
   const [acting, setActing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const { data: auctions = [], isLoading } = useQuery({ queryKey: ["dkp_active_auctions", serverId], queryFn: () => getActiveAuctions(serverId), refetchInterval: 10_000 });
+  const { data: auctions = [], isLoading } = useQuery({ queryKey: ["dkp_active_auctions", serverId], queryFn: () => getActiveAuctions(serverId), refetchInterval: 5_000, staleTime: 0 });
+
+  // Fetch member's guild for guild-restriction filtering
+  const [myGuildId, setMyGuildId] = useState<string | null>(null);
+  useEffect(() => {
+    if (!memberId) return;
+    supabase.from("members").select("guild_id").eq("id", memberId).single()
+      .then(({ data }) => { if (data) setMyGuildId(data.guild_id); });
+  }, [memberId]);
+
+  // Filter: non-staff only see unrestricted items or items for their guild
+  const visibleAuctions = isStaff ? auctions : auctions.filter((a: ActiveAuction) => !a.guild_id || a.guild_id === myGuildId);
+
+  // When bot resolves an item (it disappears from active), immediately refresh past auctions
+  const prevIdsRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    const currentIds = new Set(auctions.map((a: ActiveAuction) => a.item_id));
+    const removed = [...prevIdsRef.current].filter(id => !currentIds.has(id));
+    if (removed.length > 0) {
+      queryClient.invalidateQueries({ queryKey: ["dkp_past_auctions", serverId] });
+    }
+    prevIdsRef.current = currentIds;
+  }, [auctions, serverId, queryClient]);
 
   const doMark = async () => {
     if (!markName.trim()) return; setActing(true); setError(null);
@@ -113,45 +292,71 @@ function LiveAuction({ serverId, isStaff, memberId, tz, toast, queryClient }: an
         .or(gameSlug ? `game.eq.${gameSlug},server_id.eq.${serverId}` : `server_id.eq.${serverId}`)
         .neq("status", "rejected").ilike("name", `%${markName.trim()}%`).limit(1);
       if (!items?.length) { setError("Item not found"); setActing(false); return; }
-      await markItemForBid(items[0].id, markCost, markEnd ? new Date(markEnd + ":00").toISOString() : null);
+      await markItemForBid(items[0].id, markCost, serverId, markName.trim(), markEnd ? serverLocalToUTC(markEnd, tz) : undefined, undefined, markGuild || null, markQty);
       queryClient.invalidateQueries({ queryKey: ["dkp_active_auctions"] });
       toast("success", `"${markName.trim()}" marked for bid.`);
-      setShowMark(false); setMarkName(""); setMarkEnd("");
+      setShowMark(false); setMarkName(""); setMarkEnd(""); setMarkGuild(null); setMarkQty(1);
     } catch (err: any) { setError(err?.message || "Failed"); toast("error", err?.message || "Failed to mark item for bid"); } finally { setActing(false); }
   };
 
-  const doBid = async (itemId: string) => {
+  const doBid = async (auctionId: string) => {
     setActing(true); setError(null);
-    try { await placeBid(itemId, bidAmt); queryClient.invalidateQueries({ queryKey: ["dkp_balance"] }); queryClient.invalidateQueries({ queryKey: ["dkp_active_auctions"] }); toast("success", `Bid placed.`); setShowBid(null); }
+    try { await placeBid(auctionId, bidAmt, serverId, auctions.find((a: ActiveAuction) => a.auction_id === auctionId)?.item_name); queryClient.invalidateQueries({ queryKey: ["dkp_balance"] }); queryClient.invalidateQueries({ queryKey: ["dkp_active_auctions"] }); queryClient.invalidateQueries({ queryKey: ["dkp_rankings", serverId] }); queryClient.invalidateQueries({ queryKey: ["dkp_history"] }); toast("success", `Bid placed.`); setShowBid(null); }
     catch (err: any) { setError(err?.message || "Failed"); toast("error", err?.message || "Failed to place bid"); } finally { setActing(false); }
   };
 
-  const doResolve = async (itemId: string, winnerId: string | null) => {
+  const doResolve = async (auctionId: string, winnerId: string | null) => {
     setActing(true);
-    try { await resolveAuction(itemId, winnerId); queryClient.invalidateQueries({ queryKey: ["dkp_active_auctions"] }); queryClient.invalidateQueries({ queryKey: ["dkp_balance"] }); toast("success", winnerId ? "Auction resolved." : "Auction cancelled."); setShowResolve(null); }
+    try { await resolveAuction(auctionId, winnerId, serverId, auctions.find((a: ActiveAuction) => a.auction_id === auctionId)?.item_name); queryClient.invalidateQueries({ queryKey: ["dkp_active_auctions"] }); queryClient.invalidateQueries({ queryKey: ["dkp_balance"] }); queryClient.invalidateQueries({ queryKey: ["dkp_rankings", serverId] }); queryClient.invalidateQueries({ queryKey: ["dkp_past_auctions", serverId] }); queryClient.invalidateQueries({ queryKey: ["dkp_history"] }); toast("success", winnerId ? "Auction resolved." : "Auction cancelled."); setShowResolve(null); }
     catch (err: any) { setError(err?.message || "Failed"); toast("error", err?.message || "Failed to resolve auction"); } finally { setActing(false); }
   };
 
   return (
-    <div className="bg-[#0d0d11] border border-[#1e1e2a] rounded-xl overflow-hidden">
-      <div className="px-4 py-3 border-b border-[#1e1e2a] flex items-center justify-between">
-        <div className="flex items-center gap-2"><Gavel className="w-4 h-4 text-amber-400" /><span className="text-xs font-semibold text-[#71717a] uppercase tracking-wider">Live Auction</span></div>
-        {isStaff && <button onClick={() => { setShowMark(true); setMarkName(""); setMarkCost(10); setError(null); const now = new Date(); const local = new Date(now.toLocaleString("en-US", { timeZone: tz })); local.setHours(23, 59, 0, 0); const pad = (n: number) => String(n).padStart(2, "0"); setMarkEnd(`${local.getFullYear()}-${pad(local.getMonth()+1)}-${pad(local.getDate())}T23:59`); }} className="text-[10px] px-2 py-0.5 rounded bg-[#27272a] text-[#a1a1aa] hover:text-amber-400 transition"><Plus className="w-3 h-3 inline mr-1" />Mark for Bid</button>}
+    <div className="bg-[#0d0d11] border-2 border-amber-500/20 rounded-xl overflow-hidden shadow-lg shadow-amber-500/5">
+      <div className="px-4 py-3 border-b border-amber-500/10 flex items-center justify-between bg-amber-500/[0.03]">
+        <div className="flex items-center gap-2">
+          <span className="relative flex h-2 w-2">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-400"></span>
+          </span>
+          <Gavel className="w-4 h-4 text-amber-400" /><span className="text-xs font-bold text-amber-400 uppercase tracking-wider">Live Auction</span>
+        </div>
+        {isStaff && <button onClick={() => { setShowMark(true); setMarkName(""); setMarkCost(10); setMarkGuild(null); setMarkQty(1); setError(null); const now = new Date(); const local = new Date(now.toLocaleString("en-US", { timeZone: tz })); local.setHours(23, 59, 0, 0); const pad = (n: number) => String(n).padStart(2, "0"); setMarkEnd(`${local.getFullYear()}-${pad(local.getMonth()+1)}-${pad(local.getDate())}T23:59`); }} className="px-4 py-1.5 rounded-lg text-xs font-semibold bg-amber-500/15 text-amber-400 border border-amber-500/30 hover:bg-amber-500/25 transition"><Plus className="w-3.5 h-3.5 inline mr-1.5" />Mark Item for Bid</button>}
       </div>
       {isLoading ? <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 text-[#52525b] animate-spin" /></div>
-      : auctions.length === 0 ? <div className="px-4 py-8 text-center"><Gavel className="w-8 h-8 text-[#3f3f46] mx-auto mb-2" /><p className="text-xs text-[#71717a]">No active auctions</p></div>
-      : <div className="divide-y divide-[#1e1e2a]/50">{auctions.map((it: ActiveAuction) => <AuctionRow key={it.item_id} item={it} isStaff={isStaff} memberId={memberId} tz={tz} onBid={() => { setShowBid(it.item_id); setBidAmt(Math.max(it.dkp_cost || 1, (it.highest_bid || 0) + 1)); setError(null); }} onResolve={() => setShowResolve(it.item_id)} onViewBids={() => setShowBids(it.item_id)} />)}</div>}
+      : visibleAuctions.length === 0 ? <div className="px-4 py-8 text-center"><Gavel className="w-8 h-8 text-[#3f3f46] mx-auto mb-2" /><p className="text-xs text-[#71717a]">No active auctions</p></div>
+      : <div className="divide-y divide-[#1e1e2a]/50">{visibleAuctions.map((it: ActiveAuction) => <AuctionRow key={it.auction_id} item={it} isStaff={isStaff} memberId={memberId} tz={tz} onBid={() => { setShowBid(it.auction_id); setBidAmt(Math.max(it.dkp_cost || 1, (it.highest_bid || 0) + 1)); setError(null); }} onResolve={() => setShowResolve(it.auction_id)} onViewBids={() => setShowBids({ itemId: it.item_id, auctionId: it.auction_id })} />)}</div>}
 
-      {showMark && <MarkModal name={markName} setName={setMarkName} cost={markCost} setCost={setMarkCost} end={markEnd} setEnd={setMarkEnd} acting={acting} error={error} onClose={() => setShowMark(false)} onMark={doMark} serverId={serverId} />}
-      {showBid && <BidModalUI itemId={showBid} bidAmt={bidAmt} setBidAmt={setBidAmt} acting={acting} error={error} onClose={() => setShowBid(null)} onBid={() => doBid(showBid)} memberId={memberId} serverId={serverId} />}
-      {showResolve && <ResolveModalUI itemId={showResolve} onClose={() => setShowResolve(null)} onResolve={(w: string | null) => doResolve(showResolve, w)} />}
-      {showBids && <BidsModal itemId={showBids} onClose={() => setShowBids(null)} />}
+      {showMark && <MarkModal name={markName} setName={setMarkName} cost={markCost} setCost={setMarkCost} end={markEnd} setEnd={setMarkEnd} acting={acting} error={error} onClose={() => setShowMark(false)} onMark={doMark} serverId={serverId} guildId={markGuild} setGuildId={setMarkGuild} qty={markQty} setQty={setMarkQty} />}
+      {showBid && <BidModalUI auctionId={showBid} bidAmt={bidAmt} setBidAmt={setBidAmt} acting={acting} error={error} onClose={() => setShowBid(null)} onBid={() => doBid(showBid)} memberId={memberId} serverId={serverId} highestBid={auctions.find((a: ActiveAuction) => a.auction_id === showBid)?.highest_bid ?? 0} />}
+      {showResolve && <ResolveModalUI auctionId={showResolve} onClose={() => setShowResolve(null)} onResolve={(w: string | null) => doResolve(showResolve, w)} />}
+      {showBids && <BidsModal itemId={showBids.itemId} auctionId={showBids.auctionId} onClose={() => setShowBids(null)} />}
     </div>
   );
 }
 
 const RARITY_COLORS: Record<string, string> = { common: "#71717a", uncommon: "#22c55e", rare: "#3b82f6", epic: "#a855f7", legendary: "#f59e0b", mythic: "#ef4444" };
 function rc(rarity?: string) { return RARITY_COLORS[rarity?.toLowerCase() ?? ""] || "#71717a"; }
+
+/** Convert a datetime-local string (YYYY-MM-DDTHH:MM) in the given IANA timezone to an ISO 8601 UTC string. */
+function serverLocalToUTC(dateTimeLocal: string, tz: string): string {
+  const match = dateTimeLocal.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/);
+  if (!match) return new Date(dateTimeLocal).toISOString(); // fallback for unexpected formats
+  const [, y, mo, d, h, mi] = match.map(Number);
+
+  // Detect the timezone offset for this date using Intl.DateTimeFormat
+  const ref = new Date(Date.UTC(y, mo - 1, d, 12, 0, 0)); // noon UTC avoids DST midnight edge cases
+  const parts = new Intl.DateTimeFormat("en-US", { timeZone: tz, timeZoneName: "longOffset" }).formatToParts(ref);
+  const tzStr = parts.find(p => p.type === "timeZoneName")?.value || "GMT";
+  const offMatch = tzStr.match(/GMT([+-])(\d{2}):(\d{2})/);
+  const offsetMin = offMatch
+    ? (offMatch[1] === "-" ? -1 : 1) * (parseInt(offMatch[2]) * 60 + parseInt(offMatch[3]))
+    : 0;
+
+  // UTC = local - offset  (e.g. Manila 23:59 → UTC = Date.UTC(23,59) - 480min = 15:59 UTC)
+  const utcMs = Date.UTC(y, mo - 1, d, h, mi) - offsetMin * 60 * 1000;
+  return new Date(utcMs).toISOString();
+}
 
 function useCountdown(endTime: string | null) {
   const [now, setNow] = useState(Date.now());
@@ -176,34 +381,52 @@ function AuctionRow({ item, isStaff, memberId, tz, onBid, onResolve, onViewBids 
   const endLocal = item.bid_end_time ? new Date(item.bid_end_time).toLocaleString("en-US", { timeZone: tz, month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "";
   const fmt = (n: number) => String(n).padStart(2, "0");
   return (
-    <div className="flex items-center gap-3 px-4 py-3 hover:bg-[#18181b]/50 transition">
+    <div className="flex items-center gap-3 px-4 py-3 hover:bg-[#18181b]/50 transition cursor-pointer" onClick={onViewBids}>
       {item.image_url ? <img src={item.image_url} className="w-10 h-10 rounded-lg object-cover shrink-0 border border-[#1e1e2a]" style={{ backgroundColor: rarityColor + "20" }} /> : <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: rarityColor + "18" }}><Image className="w-4 h-4" style={{ color: rarityColor }} /></div>}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5">
-          <p className="text-sm font-medium truncate" style={{ color: rarityColor }}>{item.item_name}</p>
-          {item.rarity && <span className="text-[8px] px-1 py-0.5 rounded font-medium uppercase shrink-0" style={{ backgroundColor: rarityColor + "20", color: rarityColor }}>{item.rarity}</span>}
-          {isWinning && <span className="text-[8px] px-1 py-0.5 rounded font-medium bg-emerald-500/10 text-emerald-400 shrink-0">Winning</span>}
+          <p className="text-sm font-medium truncate" style={{ color: rarityColor }}>{item.item_name}{item.quantity > 1 && <span className="text-[#71717a] ml-1">x{item.quantity}</span>}</p>
+          {item.guild_name && (
+            <span className={`flex items-center gap-0.5 text-[8px] px-1 py-0.5 rounded border shrink-0 ${guildColor(item.guild_name).bg} ${guildColor(item.guild_name).text} ${guildColor(item.guild_name).border}`}>
+              <Shield className="w-2 h-2" />{item.guild_name}
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-2 text-[10px]">
           <span className="text-amber-400 font-bold">{item.highest_bid || item.dkp_cost} DKP</span>
-          <button onClick={onViewBids} className="text-[#52525b] hover:text-[#d4d4d8] transition">{item.bid_count} bid{item.bid_count !== 1 ? "s" : ""}</button>
+          <button onClick={(e) => { e.stopPropagation(); onViewBids(); }} className="text-[#52525b] hover:text-[#d4d4d8] transition">{item.bid_count} bid{item.bid_count !== 1 ? "s" : ""}</button>
           {!ended ? <span className={`flex items-center gap-0.5 tabular-nums ${endingSoon ? "text-red-400 animate-pulse" : "text-[#a1a1aa]"}`}><Clock className="w-3 h-3" />{cd.days > 0 ? `${cd.days}d ` : ""}{fmt(cd.hours)}:{fmt(cd.minutes)}:{fmt(cd.seconds)}</span> : <span className="text-red-400">Ended</span>}
           <span className="text-[#52525b]">· {endLocal}</span>
         </div>
       </div>
       <div className="flex items-center gap-1 shrink-0">
-        {memberId && !ended && <button onClick={onBid} className="px-2 py-1 rounded text-[10px] bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 transition"><Coins className="w-3 h-3 inline mr-0.5" />Bid</button>}
-        {isStaff && <button onClick={onResolve} className="px-2 py-1 rounded text-[10px] bg-[#27272a] text-[#a1a1aa] hover:text-[#fafafa] transition">Resolve</button>}
+        {memberId && !ended && !isWinning && <button onClick={(e) => { e.stopPropagation(); onBid(); }} className="px-5 py-1.5 rounded text-xs font-medium bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 transition"><Coins className="w-3.5 h-3.5 inline mr-1" />Bid</button>}
+        {memberId && !ended && isWinning && <span className="px-2 py-1 rounded text-[10px] bg-emerald-500/10 text-emerald-400 font-medium" title="You're the highest bidder. Wait to be outbid before bidding again."><Check className="w-3 h-3 inline mr-0.5" />You're Winning</span>}
+        {memberId && ended && <span className="px-2 py-1 rounded text-[10px] bg-[#27272a] text-[#71717a] italic"><Hourglass className="w-3 h-3 inline mr-0.5" />Finalizing...</span>}
+        {isStaff && <button onClick={(e) => { e.stopPropagation(); onResolve(); }} className="px-5 py-1.5 rounded text-xs font-medium bg-red-500/10 text-red-400 hover:bg-red-500/20 transition">Cancel</button>}
       </div>
     </div>
   );
 }
 
-function MarkModal({ name, setName, cost, setCost, end, setEnd, acting, error, onClose, onMark, serverId }: any) {
+function MarkModal({ name, setName, cost, setCost, end, setEnd, acting, error, onClose, onMark, serverId, guildId, setGuildId, qty, setQty }: any) {
   const [search, setSearch] = useState("");
   const [results, setResults] = useState<any[]>([]);
   const [searching, setSearching] = useState(false);
   const [selectedItem, setSelectedItem] = useState<any>(null);
+
+  // Fetch guilds for the guild-restriction dropdown
+  const { data: guilds = [] } = useQuery({
+    queryKey: ["guilds", serverId],
+    queryFn: async () => { const { data } = await supabase.from("guilds").select("id, name").eq("server_id", serverId).order("name"); return data || []; },
+    enabled: !!serverId,
+  });
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
 
   const handleSearch = async (q: string) => {
     setSearch(q);
@@ -229,25 +452,28 @@ function MarkModal({ name, setName, cost, setCost, end, setEnd, acting, error, o
   const selColor = rc(selectedItem?.rarity);
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose}>
-      <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-5 w-80 shadow-xl" onClick={e => e.stopPropagation()}>
-        <h3 className="text-sm font-semibold text-[#fafafa] mb-3">Mark Item for Bid</h3>
+      <div className="bg-[#09090b] border border-[#27272a] rounded-xl p-5 w-96 max-w-[95vw] shadow-xl" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-semibold text-[#fafafa]">Mark Item for Bid</h3>
+          <button onClick={onClose} className="text-[#52525b] hover:text-[#a1a1aa] transition p-1 -mr-1" title="Close"><X className="w-4 h-4" /></button>
+        </div>
         {error && <p className="text-xs text-red-400 mb-2"><AlertTriangle className="w-3 h-3 inline mr-1" />{error}</p>}
         <div className="space-y-3">
           <div className="relative">
             <label className="text-[10px] text-[#71717a]">Item</label>
             {selectedItem ? (
-              <div className="flex items-center gap-2 mt-1 p-2 rounded bg-[#0d0d11] border border-[#27272a]">
+              <div className="flex items-center gap-2 mt-1 p-2 rounded bg-[#18181b] border border-[#27272a]">
                 {selectedItem.image_url ? <img src={selectedItem.image_url} className="w-8 h-8 rounded object-cover border border-[#1e1e2a]" style={{ backgroundColor: selColor + "20" }} /> : <div className="w-8 h-8 rounded flex items-center justify-center" style={{ backgroundColor: selColor + "18" }}><Image className="w-4 h-4" style={{ color: selColor }} /></div>}
                 <span className="text-sm flex-1 truncate" style={{ color: selColor }}>{selectedItem.name}</span>
                 <button onClick={() => { setSelectedItem(null); setName(""); }} className="text-[#52525b] hover:text-[#fafafa]"><X className="w-3.5 h-3.5" /></button>
               </div>
             ) : (
               <input type="text" value={search} onChange={e => handleSearch(e.target.value)}
-                className="w-full bg-[#0d0d11] border border-[#27272a] rounded px-2 py-1.5 text-sm text-[#fafafa] outline-none mt-1 placeholder:text-[#52525b]" placeholder="Search catalog item..." />
+                className="w-full bg-[#18181b] border border-[#27272a] rounded px-2 py-1.5 text-sm text-[#fafafa] outline-none mt-1 placeholder:text-[#52525b]" placeholder="Search catalog item..." />
             )}
             {searching && <Loader2 className="w-3.5 h-3.5 text-[#52525b] animate-spin absolute right-2 top-7" />}
             {results.length > 0 && !selectedItem && (
-              <div className="absolute z-10 left-0 right-0 mt-1 bg-[#0d0d11] border border-[#27272a] rounded-lg overflow-hidden max-h-40 overflow-y-auto">
+              <div className="absolute z-10 left-0 right-0 mt-1 bg-[#18181b] border border-[#27272a] rounded-lg overflow-hidden max-h-40 overflow-y-auto">
                 {results.map(item => <ItemResult key={item.id} item={item} onSelect={selectItem} />)}
               </div>
             )}
@@ -255,9 +481,19 @@ function MarkModal({ name, setName, cost, setCost, end, setEnd, acting, error, o
               <p className="text-[10px] text-[#52525b] mt-1">No items found. Add it to the catalog first.</p>
             )}
           </div>
-          <div><label className="text-[10px] text-[#71717a]">DKP Cost</label><input type="number" value={cost} onChange={e => setCost(parseInt(e.target.value) || 0)} className="w-full bg-[#0d0d11] border border-[#27272a] rounded px-2 py-1.5 text-sm text-[#fafafa] outline-none mt-1" min={1} /></div>
-          <div><label className="text-[10px] text-[#71717a]">End Date & Time</label><input type="datetime-local" value={end} onChange={e => setEnd(e.target.value)} className="w-full bg-[#0d0d11] border border-[#27272a] rounded px-2 py-1.5 text-sm text-[#fafafa] outline-none mt-1 [color-scheme:dark]" /></div>
-          <div className="flex gap-2"><button onClick={onClose} className="flex-1 py-2 rounded text-sm bg-[#27272a] text-[#d4d4d8]">Cancel</button><button onClick={onMark} disabled={acting || !name.trim()} className="flex-1 py-2 rounded text-sm bg-amber-500/20 text-amber-400 font-medium disabled:opacity-40">{acting ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : "Mark for Bid"}</button></div>
+          <div><label className="text-[10px] text-[#71717a]">DKP Cost</label><input type="text" inputMode="numeric" value={cost || ""} onChange={e => { const v = parseInt(e.target.value); setCost(isNaN(v) ? 0 : v); }} className="w-full bg-[#18181b] border border-[#27272a] rounded px-2 py-1.5 text-sm text-[#fafafa] outline-none mt-1" /></div>
+          <div className="flex gap-3">
+            <div className="flex-1"><label className="text-[10px] text-[#71717a]">Quantity</label><input type="text" inputMode="numeric" value={qty || ""} onChange={e => { const raw = e.target.value; if (raw === "") { setQty(0); return; } const v = parseInt(raw); setQty(isNaN(v) ? 0 : v); }} onBlur={() => { if (!qty || qty < 1) setQty(1); }} className="w-full bg-[#18181b] border border-[#27272a] rounded px-2 py-1.5 text-sm text-[#fafafa] outline-none mt-1" /></div>
+            <div className="flex-1"><label className="text-[10px] text-[#71717a]">End Date & Time</label><input type="datetime-local" value={end} onChange={e => setEnd(e.target.value)} className="w-full bg-[#18181b] border border-[#27272a] rounded px-2 py-1.5 text-sm text-[#fafafa] outline-none mt-1 [color-scheme:dark]" /></div>
+          </div>
+          <div>
+            <label className="text-[10px] text-[#71717a]">Restrict to Guild <span className="text-[#52525b]">(optional)</span></label>
+            <select value={guildId || ""} onChange={e => setGuildId(e.target.value || null)} className="w-full bg-[#18181b] border border-[#27272a] rounded px-2 py-1.5 text-sm text-[#d4d4d8] outline-none mt-1">
+              <option value="">All Guilds</option>
+              {guilds.map((g: any) => <option key={g.id} value={g.id}>{g.name}</option>)}
+            </select>
+          </div>
+          <button onClick={onMark} disabled={acting || !name.trim()} className="w-full py-2 rounded text-sm bg-[#27272a] text-[#fafafa] font-medium disabled:opacity-40 hover:bg-[#3f3f46] transition">{acting ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : "Mark for Bid"}</button>
         </div>
       </div>
     </div>
@@ -274,90 +510,126 @@ function ItemResult({ item, onSelect }: { item: any; onSelect: (item: any) => vo
   );
 }
 
-function BidModalUI({ itemId, bidAmt, setBidAmt, acting, error, onClose, onBid, memberId, serverId }: any) {
-  const { data: item } = useQuery({ queryKey: ["item", itemId], queryFn: async () => { const { data } = await supabase.from("items").select("name, image_url, dkp_min_bid, bid_end_time, rarity").eq("id", itemId).single(); return data; }, enabled: !!itemId });
+function BidModalUI({ auctionId, bidAmt, setBidAmt, acting, error, onClose, onBid, memberId, serverId, highestBid }: any) {
+  const { data: item } = useQuery({ queryKey: ["auction_item", auctionId], queryFn: async () => { const { data } = await supabase.from("dkp_auctions").select("item_id, dkp_cost, bid_end_time, items:item_id(name, image_url, rarity)").eq("id", auctionId).single(); const it = data?.items as any; return { name: it?.name, image_url: it?.image_url, rarity: it?.rarity, dkp_cost: data?.dkp_cost, bid_end_time: data?.bid_end_time }; }, enabled: !!auctionId });
   const { data: balance } = useQuery({ queryKey: ["dkp_balance", memberId, serverId], queryFn: () => getMemberDkp(memberId, serverId), enabled: !!memberId && !!serverId });
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
   const end = item?.bid_end_time ? new Date(item.bid_end_time) : null;
   const left = end ? Math.max(0, Math.ceil((end.getTime() - Date.now()) / 60000)) : 0;
+  const hasEnded = left <= 0;
   const rarityColor = rc(item?.rarity);
-  const min = item?.dkp_min_bid ?? 1;
-  const presets = [min, min + 5, min + 10, min + 25].filter((v, i, a) => a.indexOf(v) === i);
+  const effectiveMin = Math.max(item?.dkp_cost ?? 1, (highestBid ?? 0) + 1);
+  const presets = [effectiveMin, effectiveMin + 5, effectiveMin + 10, effectiveMin + 25].filter((v, i, a) => a.indexOf(v) === i);
+  const overBudget = balance != null && bidAmt > balance.balance;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose}>
-      <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-5 w-80 shadow-xl" onClick={e => e.stopPropagation()}>
-        {item?.image_url ? <img src={item.image_url} className="w-full h-32 object-cover rounded-lg mb-3 border border-[#1e1e2a]" style={{ backgroundColor: rarityColor + "20" }} /> : <div className="w-full h-32 rounded-lg mb-3 flex items-center justify-center" style={{ backgroundColor: rarityColor + "18" }}><Image className="w-8 h-8" style={{ color: rarityColor }} /></div>}
+      <div className="bg-[#09090b] border border-[#27272a] rounded-xl p-5 w-80 shadow-xl" onClick={e => e.stopPropagation()}>
+        <div className="flex items-start justify-between mb-3">
+          {item?.image_url ? <img src={item.image_url} className="w-12 h-12 rounded-lg object-cover shrink-0 border border-[#27272a]" style={{ backgroundColor: rarityColor + "20" }} /> : <div className="w-12 h-12 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: rarityColor + "18" }}><Image className="w-5 h-5" style={{ color: rarityColor }} /></div>}
+          <button onClick={onClose} className="text-[#52525b] hover:text-[#a1a1aa] transition p-1 -mr-1 -mt-1" title="Close"><X className="w-4 h-4" /></button>
+        </div>
         <h3 className="text-sm font-semibold" style={{ color: rarityColor }}>{item?.name || "Item"}</h3>
         <div className="flex items-center gap-2 mt-0.5">
-          <p className="text-[10px] text-[#71717a]">Min bid: {min} DKP · {left > 0 ? `${left}min left` : "Ended"}</p>
-          {balance != null && <span className="text-[10px] text-amber-400 ml-auto">{balance.balance} DKP available</span>}
+          <p className="text-[10px] text-[#71717a]">Min bid: {effectiveMin} DKP · {hasEnded ? "Ended" : `${left}min left`}</p>
+          {balance != null && <span className={`text-[10px] ml-auto ${overBudget ? "text-red-400" : "text-[#a1a1aa]"}`}>{balance.balance} DKP available</span>}
         </div>
+        {hasEnded && <p className="text-xs text-[#a1a1aa] mt-2 flex items-center gap-1"><Hourglass className="w-3 h-3" />Bidding has ended — awaiting finalization.</p>}
         {error && <p className="text-xs text-red-400 mt-2"><AlertTriangle className="w-3 h-3 inline mr-1" />{error}</p>}
         <div className="mt-3 space-y-3">
-          <div className="flex gap-1.5 flex-wrap">{presets.map(p => <button key={p} onClick={() => setBidAmt(p)} className={`px-2.5 py-1 rounded text-[10px] font-medium transition ${bidAmt === p ? "bg-amber-500/20 text-amber-400 border border-amber-500/30" : "bg-[#27272a] text-[#a1a1aa] hover:text-[#fafafa]"}`}>+{p}</button>)}</div>
-          <input type="number" value={bidAmt} onChange={e => setBidAmt(parseInt(e.target.value) || 0)} className="w-full bg-[#0d0d11] border border-[#27272a] rounded px-2 py-2 text-lg font-bold text-[#fafafa] outline-none text-center" min={min} autoFocus />
-          <div className="flex gap-2"><button onClick={onClose} className="flex-1 py-2 rounded text-sm bg-[#27272a] text-[#d4d4d8]">Cancel</button><button onClick={onBid} disabled={acting || bidAmt < min} className="flex-1 py-2 rounded text-sm bg-amber-500/20 text-amber-400 font-medium disabled:opacity-40">{acting ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : "Place Bid"}</button></div>
+          <div className="flex gap-1.5 flex-wrap">{presets.map(p => <button key={p} onClick={() => setBidAmt(p)} className={`px-2.5 py-1 rounded text-[10px] font-medium transition ${bidAmt === p ? "bg-[#3f3f46] text-[#fafafa] border border-[#52525b]" : "bg-[#18181b] border border-[#27272a] text-[#a1a1aa] hover:text-[#fafafa]"}`}>+{p}</button>)}</div>
+          <input type="text" inputMode="numeric" value={bidAmt || ""} onChange={e => { const v = parseInt(e.target.value); setBidAmt(isNaN(v) ? 0 : v); }} className={`w-full bg-[#18181b] border rounded px-2 py-2 text-lg font-bold outline-none text-center ${overBudget ? "border-red-500/50 text-red-400" : "border-[#27272a] text-[#fafafa]"}`} min={effectiveMin} autoFocus disabled={hasEnded} />
+          <button onClick={onBid} disabled={acting || bidAmt < effectiveMin || overBudget || hasEnded} className="w-full py-2 rounded text-sm bg-[#27272a] text-[#fafafa] font-medium disabled:opacity-40 hover:bg-[#3f3f46] transition">{acting ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : hasEnded ? "Finalizing..." : "Place Bid"}</button>
         </div>
       </div>
     </div>
   );
 }
 
-function ResolveModalUI({ itemId, onClose, onResolve }: { itemId: string; onClose: () => void; onResolve: (w: string | null) => void }) {
-  const { data: bids = [] } = useQuery({ queryKey: ["item_bids", itemId], queryFn: () => getItemBids(itemId), enabled: !!itemId });
-  const { data: item } = useQuery({ queryKey: ["item", itemId], queryFn: async () => { const { data } = await supabase.from("items").select("name").eq("id", itemId).single(); return data; }, enabled: !!itemId });
-  const itemName = item?.name || "this item";
+function ResolveModalUI({ auctionId, onClose, onResolve }: { auctionId: string; onClose: () => void; onResolve: (w: string | null) => void }) {
+  const { data: bids = [] } = useQuery({ queryKey: ["auction_bids", auctionId], queryFn: async () => { const { data } = await supabase.from("dkp_bids").select("id, member_id, bid_amount, status, created_at, members:member_id(name)").eq("auction_id", auctionId).order("bid_amount", { ascending: false }); return (data || []).map((b: any) => ({ ...b, member_name: b.members?.name })); }, enabled: !!auctionId });
+  const { data: auction } = useQuery({ queryKey: ["auction", auctionId], queryFn: async () => { const { data } = await supabase.from("dkp_auctions").select("item_id, items:item_id(name)").eq("id", auctionId).single(); return data; }, enabled: !!auctionId });
+  const auctionItem = (auction as any)?.items as any;
+  const itemName = auctionItem?.name || "this item";
   const active = bids.filter((b: ItemBid) => b.status === "active");
-  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [cancelInput, setCancelInput] = useState("");
 
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose}>
-      <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-5 w-96 max-h-[70vh] overflow-y-auto shadow-xl" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between mb-1">
-          <h3 className="text-sm font-semibold text-[#fafafa]">Resolve Auction</h3>
-          <button onClick={onClose} className="text-[#52525b] hover:text-[#fafafa] p-1"><X className="w-4 h-4" /></button>
+      <div className="bg-[#09090b] border border-[#27272a] rounded-xl p-5 w-80 shadow-xl" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-semibold text-[#fafafa]">Cancel Auction</h3>
+          <button onClick={onClose} className="text-[#52525b] hover:text-[#a1a1aa] transition p-1 -mr-1"><X className="w-4 h-4" /></button>
         </div>
-        <p className="text-[10px] text-[#71717a] mb-3">{active.length} active bid{active.length !== 1 ? "s" : ""}{item?.name ? ` · ${item.name}` : ""}</p>
-        {active.length === 0 ? <p className="text-xs text-[#52525b] text-center py-4">No active bids.</p>
-        : <div className="space-y-1 mb-3">{active.map(bid => (
-            <div key={bid.id} className="flex items-center justify-between p-2 rounded bg-[#0d0d11] border border-[#1e1e2a]"><div><p className="text-xs text-[#fafafa]">{bid.member_name}</p><p className="text-[10px] text-[#52525b]">{new Date(bid.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</p></div><div className="flex items-center gap-2"><span className="text-sm font-bold text-amber-400">{bid.bid_amount}</span><button onClick={() => onResolve(bid.id)} className="px-2 py-1 rounded text-[10px] bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30"><Check className="w-3 h-3" /></button></div></div>))}</div>}
+        <p className="text-[10px] text-[#71717a] mb-3">{active.length} active bid{active.length !== 1 ? "s" : ""}{auctionItem?.name ? ` · ${auctionItem.name}` : ""}</p>
 
-        {showCancelConfirm ? (
-          <div className="space-y-3 border-t border-[#27272a] pt-3">
-            <p className="text-xs text-[#fafafa]">Type <span className="text-red-400 font-bold">{itemName}</span> to confirm cancellation:</p>
-            <input type="text" value={cancelInput} onChange={e => setCancelInput(e.target.value)} placeholder={itemName} autoFocus
-              className="w-full bg-[#0d0d11] border border-[#27272a] rounded px-2 py-1.5 text-sm text-[#fafafa] outline-none placeholder:text-[#52525b]" />
-            <div className="flex gap-2">
-              <button onClick={() => { setShowCancelConfirm(false); setCancelInput(""); }} className="flex-1 py-2 rounded text-sm bg-[#27272a] text-[#d4d4d8]">Back</button>
-              <button onClick={() => { if (cancelInput.trim() === itemName) { onResolve(null); setShowCancelConfirm(false); setCancelInput(""); } }} disabled={cancelInput.trim() !== itemName}
-                className="flex-1 py-2 rounded text-sm font-medium bg-red-500/20 text-red-400 disabled:opacity-30 hover:bg-red-500/30 transition">Confirm Cancel</button>
+        {active.length > 0 && (
+          <div className="space-y-1 mb-3">{active.map(bid => (
+            <div key={bid.id} className="flex items-center justify-between p-2 rounded bg-[#18181b] border border-[#27272a]">
+              <div><p className="text-xs text-[#fafafa]">{bid.member_name}</p><p className="text-[10px] text-[#52525b]">{new Date(bid.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</p></div>
+              <div className="flex items-center gap-2"><span className="text-sm font-bold text-amber-400">{bid.bid_amount}</span></div>
             </div>
-          </div>
-        ) : (
-          <div className="border-t border-[#27272a] pt-3">
-            <button onClick={() => setShowCancelConfirm(true)} className="w-full py-2 rounded text-sm bg-red-500/10 text-red-400 hover:bg-red-500/20 transition">
-              Cancel Auction
-            </button>
-          </div>
+          ))}</div>
         )}
+
+        <div className="space-y-3 border-t border-[#27272a] pt-3">
+          <p className="text-xs text-[#fafafa]">Type <span className="text-red-400 font-bold">{itemName}</span> to confirm cancellation:</p>
+          <input type="text" value={cancelInput} onChange={e => setCancelInput(e.target.value)} placeholder={itemName} autoFocus
+            className="w-full bg-[#18181b] border border-[#27272a] rounded px-2 py-1.5 text-sm text-[#fafafa] outline-none placeholder:text-[#52525b]" />
+          <div className="flex gap-2">
+            <button onClick={onClose} className="flex-1 py-2 rounded text-sm bg-[#27272a] text-[#d4d4d8]">Back</button>
+            <button onClick={() => { if (cancelInput.trim() === itemName) { onResolve(null); onClose(); } }} disabled={cancelInput.trim() !== itemName}
+              className="flex-1 py-2 rounded text-sm font-medium bg-red-500/20 text-red-400 disabled:opacity-30 hover:bg-red-500/30 transition">Cancel Auction</button>
+          </div>
+        </div>
       </div>
     </div>
   );
 }
 
-function BidsModal({ itemId, onClose }: { itemId: string; onClose: () => void }) {
+function BidsModal({ itemId, auctionId, onClose, startedAfter, resolvedBefore }: { itemId: string; auctionId?: string | null; onClose: () => void; startedAfter?: string; resolvedBefore?: string }) {
   const { data: bids = [], isLoading } = useQuery({ queryKey: ["item_bids", itemId], queryFn: () => getItemBids(itemId), enabled: !!itemId });
-  const all = [...bids].sort((a: ItemBid, b: ItemBid) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  // Filter by auction if provided, then apply time window for past auctions
+  const all = [...bids]
+    .filter(b => !auctionId || b.auction_id === auctionId)
+    .filter(b => !startedAfter || new Date(b.created_at) >= new Date(startedAfter))
+    .filter(b => !resolvedBefore || new Date(b.created_at) <= new Date(resolvedBefore))
+    .sort((a: ItemBid, b: ItemBid) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose}>
-      <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-5 w-96 max-h-[70vh] overflow-y-auto shadow-xl" onClick={e => e.stopPropagation()}>
-        <h3 className="text-sm font-semibold text-[#fafafa] mb-1">All Bids</h3>
-        <p className="text-[10px] text-[#71717a] mb-3">{all.length} bid{all.length !== 1 ? "s" : ""} total</p>
+      <div className="bg-[#09090b] border border-[#27272a] rounded-xl p-5 w-96 max-h-[70vh] overflow-y-auto shadow-xl" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <h3 className="text-sm font-semibold text-[#fafafa]">All Bids</h3>
+            <p className="text-[10px] text-[#71717a]">{all.length} bid{all.length !== 1 ? "s" : ""} total</p>
+          </div>
+          <button onClick={onClose} className="text-[#52525b] hover:text-[#a1a1aa] transition p-1 -mr-1" title="Close">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
         {isLoading ? <div className="flex justify-center py-4"><Loader2 className="w-5 h-5 text-[#52525b] animate-spin" /></div>
         : all.length === 0 ? <p className="text-xs text-[#52525b] text-center py-4">No bids yet.</p>
-        : <div className="space-y-1 mb-3">
+        : <div className="space-y-1">
           {all.map((bid: ItemBid) => (
-            <div key={bid.id} className="flex items-center justify-between p-2 rounded bg-[#0d0d11] border border-[#1e1e2a]">
+            <div key={bid.id} className="flex items-center justify-between p-2 rounded bg-[#18181b] border border-[#27272a]">
               <div><p className="text-xs text-[#fafafa]">{bid.member_name}</p><p className="text-[10px] text-[#52525b]">{new Date(bid.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</p></div>
               <div className="flex items-center gap-2">
                 <span className={`text-sm font-bold tabular-nums ${bid.status === "active" ? "text-amber-400" : bid.status === "won" ? "text-emerald-400" : "text-[#52525b]"}`}>{bid.bid_amount} DKP</span>
@@ -368,26 +640,52 @@ function BidsModal({ itemId, onClose }: { itemId: string; onClose: () => void })
             </div>
           ))}
         </div>}
-        <button onClick={onClose} className="w-full py-2 rounded text-sm bg-[#27272a] text-[#d4d4d8]">Close</button>
       </div>
     </div>
   );
 }
 
-function AuctionHistory({ serverId }: { serverId: string }) {
-  const [selectedItem, setSelectedItem] = useState<string | null>(null);
+function AuctionHistory({ serverId, memberId, isStaff, queryClient, toast }: { serverId: string; memberId: string | null; isStaff: boolean; queryClient: any; toast: any }) {
+  const [selectedItem, setSelectedItem] = useState<{ itemId: string; auctionId: string; startedAt: string; resolvedAt: string } | null>(null);
+  const [auctionSearch, setAuctionSearch] = useState("");
   const { data: auctions = [], isLoading } = useQuery({
     queryKey: ["dkp_past_auctions", serverId],
     queryFn: () => getPastAuctions(serverId),
-    refetchInterval: 30_000,
+    refetchInterval: 10_000,
     staleTime: 10_000,
   });
 
+  // Resolve current member name
+  const [myName, setMyName] = useState<string | null>(null);
+  useEffect(() => {
+    if (!memberId) return;
+    supabase.from("members").select("name").eq("id", memberId).single()
+      .then(({ data }) => { if (data) setMyName(data.name); });
+  }, [memberId]);
+
+  const handleDelete = async (e: React.MouseEvent, a: PastAuction) => {
+    e.stopPropagation();
+    if (!confirm(`Delete auction "${a.item_name}" (round ${a.auction_round})? This removes all bids and transactions for this cycle.`)) return;
+    try {
+      await deletePastAuction(a.item_id, a.auction_round);
+      queryClient.invalidateQueries({ queryKey: ["dkp_past_auctions", serverId] });
+      queryClient.invalidateQueries({ queryKey: ["dkp_history"] });
+      queryClient.invalidateQueries({ queryKey: ["dkp_rankings", serverId] });
+      queryClient.invalidateQueries({ queryKey: ["dkp_balance"] });
+      toast("success", `Auction "${a.item_name}" deleted.`);
+    } catch (err: any) {
+      toast("error", err?.message || "Failed to delete auction");
+    }
+  };
+
   return (
     <div className="bg-[#0d0d11] border border-[#1e1e2a] rounded-xl overflow-hidden">
-      <div className="px-4 py-3 border-b border-[#1e1e2a] flex items-center gap-2">
-        <Gavel className="w-4 h-4 text-[#52525b]" />
-        <span className="text-xs font-semibold text-[#71717a] uppercase tracking-wider">Auction History</span>
+      <div className="px-4 py-3 border-b border-[#1e1e2a] flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 shrink-0">
+          <Gavel className="w-4 h-4 text-[#52525b]" />
+          <span className="text-xs font-semibold text-[#71717a] uppercase tracking-wider">Auction History</span>
+        </div>
+        <input type="text" placeholder="Search..." value={auctionSearch} onChange={e => setAuctionSearch(e.target.value)} className="bg-[#18181b] border border-[#27272a] rounded px-2 py-1 text-[11px] text-[#d4d4d8] outline-none w-full max-w-40 focus:border-[#3f3f46]" />
       </div>
       {isLoading ? (
         <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 text-[#52525b] animate-spin" /></div>
@@ -397,50 +695,147 @@ function AuctionHistory({ serverId }: { serverId: string }) {
           <p className="text-xs text-[#71717a]">No past auctions</p>
         </div>
       ) : (
-        <div className="divide-y divide-[#1e1e2a]/50 max-h-80 overflow-y-auto">
-          {auctions.map((a: PastAuction) => (
-            <div
-              key={a.item_id}
-              onClick={() => setSelectedItem(a.item_id)}
-              className="flex items-center gap-3 px-4 py-2.5 cursor-pointer hover:bg-[#18181b] transition"
-            >
-              {a.image_url ? (
-                <img src={a.image_url} alt={a.item_name} className="w-8 h-8 rounded object-cover border border-[#27272a] shrink-0" />
-              ) : (
-                <div className="w-8 h-8 rounded bg-[#18181b] border border-[#27272a] flex items-center justify-center shrink-0">
-                  <Image className="w-4 h-4 text-[#52525b]" />
-                </div>
-              )}
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-xs text-[#d4d4d8] truncate">{a.item_name}</span>
-                  {a.rarity && (
-                    <span className="text-[9px] font-medium px-1 rounded" style={{ backgroundColor: rc(a.rarity) + "20", color: rc(a.rarity) }}>{a.rarity}</span>
-                  )}
-                </div>
-                <div className="flex items-center gap-2 text-[10px] text-[#52525b] mt-0.5">
-                  <span>{a.bid_count} bid{a.bid_count !== 1 ? "s" : ""}</span>
-                  <span>·</span>
-                  <span className="text-amber-400 font-medium">{a.winning_bid} DKP</span>
-                  {a.winner_name ? (
-                    <>
-                      <span>·</span>
-                      <span className="text-[#a1a1aa]">{a.winner_name}</span>
-                    </>
-                  ) : (
-                    <>
-                      <span>·</span>
-                      <span className="text-[#52525b] italic">Cancelled</span>
-                    </>
-                  )}
-                </div>
-              </div>
-              <Eye className="w-3 h-3 text-[#52525b] shrink-0" />
-            </div>
-          ))}
-        </div>
+        <AuctionList auctions={auctions} auctionSearch={auctionSearch} myName={myName} isStaff={isStaff} handleDelete={handleDelete} setSelectedItem={setSelectedItem} queryClient={queryClient} serverId={serverId} toast={toast} />
       )}
-      {selectedItem && <BidsModal itemId={selectedItem} onClose={() => setSelectedItem(null)} />}
+      {selectedItem && <BidsModal itemId={selectedItem.itemId} auctionId={selectedItem.auctionId} startedAfter={selectedItem.startedAt} resolvedBefore={selectedItem.resolvedAt} onClose={() => setSelectedItem(null)} />}
+    </div>
+  );
+}
+
+function AuctionList({ auctions, auctionSearch, myName, isStaff, handleDelete, setSelectedItem, queryClient, serverId, toast }: { auctions: PastAuction[]; auctionSearch: string; myName: string | null; isStaff: boolean; handleDelete: (e: React.MouseEvent, a: PastAuction) => void; setSelectedItem: (v: any) => void; queryClient: any; serverId: string; toast: any }) {
+  const [showCount, setShowCount] = useState(30);
+  useEffect(() => { setShowCount(30); }, [auctionSearch]);
+  const filtered = auctionSearch ? auctions.filter(a => a.item_name.toLowerCase().includes(auctionSearch.toLowerCase())) : auctions;
+  if (filtered.length === 0) return <div className="px-4 py-6 text-center"><p className="text-xs text-[#71717a]">No items match</p></div>;
+
+  const visible = filtered.slice(0, showCount);
+  const hasMore = showCount < filtered.length;
+
+  // Group by date period
+  const now = new Date();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const yesterdayStart = new Date(todayStart.getTime() - 86400000);
+  const weekStart = new Date(todayStart.getTime() - 7 * 86400000);
+  const monthStart = new Date(todayStart.getTime() - 30 * 86400000);
+
+  const getDateGroup = (d: string): string => {
+    const date = new Date(d);
+    if (date >= todayStart) return "Today";
+    if (date >= yesterdayStart) return "Yesterday";
+    if (date >= weekStart) return "This Week";
+    if (date >= monthStart) return "This Month";
+    return "Older";
+  };
+
+  const groups: { label: string; items: PastAuction[] }[] = [];
+  for (const a of visible) {
+    const group = getDateGroup(a.resolved_at || a.started_at);
+    const last = groups[groups.length - 1];
+    if (last && last.label === group) last.items.push(a);
+    else groups.push({ label: group, items: [a] });
+  }
+
+  const [distributing, setDistributing] = useState<string | null>(null);
+
+  const handleToggleDistributed = async (e: React.MouseEvent, a: PastAuction) => {
+    e.stopPropagation();
+    const key = `${a.item_id}::${a.auction_round}`;
+    setDistributing(key);
+    try {
+      await toggleItemDistributed(a.item_id, a.auction_round, !a.distributed);
+      queryClient.invalidateQueries({ queryKey: ["dkp_past_auctions", serverId] });
+      toast("success", a.distributed ? `"${a.item_name}" marked as not distributed.` : `"${a.item_name}" marked as distributed.`);
+    } catch (err: any) {
+      toast("error", err?.message || "Failed to update");
+    } finally {
+      setDistributing(null);
+    }
+  };
+  return (
+    <div className="max-h-96 overflow-y-auto">
+      {groups.map(group => (
+        <div key={group.label}>
+          <div className="px-4 py-1.5 bg-[#0d0d11] border-b border-[#1e1e2a]/30 sticky top-0 z-10">
+            <span className="text-[10px] font-semibold text-[#52525b] uppercase tracking-wider">{group.label}</span>
+          </div>
+          <div className="divide-y divide-[#1e1e2a]/50">
+            {group.items.map((a: PastAuction) => {
+        const isMyWin = myName && a.winner_name === myName;
+        const startDate = a.started_at ? new Date(a.started_at).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "";
+        const endDate = a.resolved_at ? new Date(a.resolved_at).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "";
+        const rColor = rc(a.rarity ?? undefined);
+        return (
+        <div
+          key={`${a.item_id}-${a.resolved_at}`}
+          onClick={() => setSelectedItem({ itemId: a.item_id, auctionId: a.auction_id, startedAt: a.started_at, resolvedAt: a.resolved_at })}
+          className="flex items-center gap-3 px-4 py-2.5 cursor-pointer hover:bg-[#18181b] transition"
+        >
+          {a.image_url ? (
+            <img src={a.image_url} alt={a.item_name} className="w-8 h-8 rounded object-cover border border-[#27272a] shrink-0" style={{ backgroundColor: rColor + "20" }} />
+          ) : (
+            <div className="w-8 h-8 rounded border border-[#27272a] flex items-center justify-center shrink-0" style={{ backgroundColor: rColor + "18" }}>
+              <Image className="w-4 h-4" style={{ color: rColor }} />
+            </div>
+          )}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs truncate" style={{ color: rColor }}>{a.item_name}</span>
+              {a.guild_name && (
+                <span className={`flex items-center gap-0.5 text-[8px] px-1 py-0.5 rounded border shrink-0 ${guildColor(a.guild_name).bg} ${guildColor(a.guild_name).text} ${guildColor(a.guild_name).border}`}>
+                  <Shield className="w-2 h-2" />{a.guild_name}
+                </span>
+              )}
+              {isMyWin && (
+                <span className="text-[8px] px-1 py-0.5 rounded font-medium bg-emerald-500/10 text-emerald-400 shrink-0">You Won!</span>
+              )}
+            </div>
+            <div className="flex items-center gap-2 text-[10px] text-[#52525b] mt-0.5">
+              <span>{a.bid_count} bid{a.bid_count !== 1 ? "s" : ""}</span>
+              <span>·</span>
+              <span className="text-amber-400 font-medium">{a.winning_bid} DKP</span>
+              {a.winner_name ? (
+                <>
+                  <span>·</span>
+                  <span className="text-[#a1a1aa]">{a.winner_name}</span>
+                </>
+              ) : a.bid_count > 0 ? (
+                <>
+                  <span>·</span>
+                  <span className="text-[#52525b] italic">Cancelled</span>
+                </>
+              ) : (
+                <>
+                  <span>·</span>
+                  <span className="text-[#52525b] italic">No bids</span>
+                </>
+              )}
+              {endDate && <><span>·</span><span className="text-[#52525b]">{startDate} → {endDate}</span></>}
+              {a.distributed && <><span>·</span><span className="flex items-center gap-0.5 text-emerald-400"><CheckCircle className="w-2.5 h-2.5" />Distributed</span></>}
+            </div>
+          </div>
+          <div className="flex items-center gap-1 shrink-0">
+            {isStaff && (
+              <button onClick={(e) => handleToggleDistributed(e, a)} disabled={distributing === `${a.item_id}::${a.auction_round}`} className={`text-[10px] px-1.5 py-0.5 rounded border transition ${a.distributed ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20" : "border-[#27272a] text-[#52525b] hover:text-[#a1a1aa] hover:border-[#3f3f46]"}`}>
+                {distributing === `${a.item_id}::${a.auction_round}` ? <Loader2 className="w-3 h-3 animate-spin" /> : a.distributed ? "✓ Distributed" : "Distribute"}
+              </button>
+            )}
+            <Eye className="w-3 h-3 text-[#52525b]" />
+            {isStaff && (
+              <button onClick={(e) => handleDelete(e, a)} className="text-[#52525b] hover:text-red-400 transition" title="Delete auction">
+                <Trash2 className="w-3 h-3" />
+              </button>
+            )}
+          </div>
+        </div>
+      )})}
+          </div>
+        </div>
+      ))}
+      {hasMore && (
+        <button onClick={() => setShowCount(c => c + 30)} className="w-full px-4 py-2 text-xs text-[#a1a1aa] hover:text-[#fafafa] hover:bg-[#18181b] transition border-t border-[#1e1e2a]/50">
+          Load more... ({filtered.length - visible.length} remaining)
+        </button>
+      )}
     </div>
   );
 }
@@ -450,15 +845,45 @@ function HistorySection({ memberId, serverId }: { memberId: string; serverId: st
   const [all, setAll] = useState<DkpTransaction[]>([]);
   const { data: txns = [], isLoading } = useQuery({ queryKey: ["dkp_history", memberId, serverId, cursor], queryFn: async () => { const r = await getMemberDkpHistory(memberId, serverId, 20, cursor); if (cursor) setAll(p => [...p, ...r]); else setAll(r); return r; }, staleTime: 0 });
   const display = cursor ? all : txns;
+  const [selectedTxn, setSelectedTxn] = useState<DkpTransaction | null>(null);
   return (
     <div className="bg-[#0d0d11] border border-[#1e1e2a] rounded-xl overflow-hidden">
       <div className="px-4 py-3 border-b border-[#1e1e2a] flex items-center gap-2"><History className="w-4 h-4 text-[#52525b]" /><span className="text-xs font-semibold text-[#71717a] uppercase tracking-wider">DKP History</span></div>
       {isLoading && display.length === 0 ? <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 text-[#52525b] animate-spin" /></div>
       : display.length === 0 ? <div className="px-4 py-6 text-center"><p className="text-xs text-[#71717a]">No transactions yet.</p></div>
       : <div className="divide-y divide-[#1e1e2a]/50">{display.map(txn => (
-          <div key={txn.id} className="flex items-center justify-between px-4 py-2.5"><div className="min-w-0"><p className="text-xs text-[#d4d4d8] truncate">{txn.reason || txn.type}{txn.boss_name && <> — {txn.boss_name}{txn.guild_name && <span className="text-[#a1a1aa]"> ({txn.guild_name})</span>}</>}</p>
+          <div key={txn.id} onClick={() => setSelectedTxn(txn)} className="flex items-center justify-between px-4 py-2.5 cursor-pointer hover:bg-[#18181b] transition"><div className="min-w-0"><p className="text-xs text-[#d4d4d8] truncate">{txn.reason || txn.type}{txn.bidder_name && <> by <span className="text-[#a1a1aa]">{txn.bidder_name}</span></>}{txn.item_name && <> — <span style={{ color: rc(txn.item_rarity ?? undefined) }}>{txn.item_name}</span>{txn.item_guild_name && <span className={`inline-flex items-center gap-0.5 text-[8px] px-1 py-0.5 rounded border ml-1 align-middle ${guildColor(txn.item_guild_name).bg} ${guildColor(txn.item_guild_name).text} ${guildColor(txn.item_guild_name).border}`}><Shield className="w-2 h-2" />{txn.item_guild_name}</span>}</>}{txn.boss_name && <> — {txn.boss_name}{txn.guild_name && <span className="text-[#a1a1aa]"> ({txn.guild_name})</span>}</>}</p>
             <p className="text-[10px] text-[#52525b]">{new Date(txn.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</p></div><span className={`text-sm font-bold tabular-nums shrink-0 ${txn.amount > 0 ? "text-emerald-400" : "text-red-400"}`}>{txn.amount > 0 ? "+" : ""}{txn.amount}</span></div>))}
         {txns.length === 20 && <button onClick={() => setCursor(display[display.length - 1]?.created_at)} className="w-full px-4 py-2 text-xs text-[#a1a1aa] hover:text-[#fafafa] hover:bg-[#18181b] transition">Load more...</button>}</div>}
+      {selectedTxn && <TxnDetailModal txn={selectedTxn} onClose={() => setSelectedTxn(null)} />}
+    </div>
+  );
+}
+
+function TxnDetailModal({ txn, onClose }: { txn: DkpTransaction; onClose: () => void }) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose}>
+      <div className="bg-[#09090b] border border-[#27272a] rounded-xl p-5 w-80 shadow-xl" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-semibold text-[#fafafa]">{txn.reason || txn.type}</h3>
+          <button onClick={onClose} className="text-[#52525b] hover:text-[#a1a1aa] transition p-1 -mr-1"><X className="w-4 h-4" /></button>
+        </div>
+        <div className="space-y-2 text-xs">
+          <div className="flex justify-between"><span className="text-[#71717a]">Amount</span><span className={`font-bold ${txn.amount > 0 ? "text-emerald-400" : "text-red-400"}`}>{txn.amount > 0 ? "+" : ""}{txn.amount} DKP</span></div>
+          <div className="flex justify-between"><span className="text-[#71717a]">Type</span><span className="text-[#d4d4d8]">{txn.type}</span></div>
+          {txn.item_name && <div className="flex justify-between"><span className="text-[#71717a]">Item</span><span style={{ color: rc(txn.item_rarity ?? undefined) }}>{txn.item_name}</span></div>}
+          {txn.bidder_name && <div className="flex justify-between"><span className="text-[#71717a]">Bidder</span><span className="text-[#d4d4d8]">{txn.bidder_name}</span></div>}
+          {txn.boss_name && <div className="flex justify-between"><span className="text-[#71717a]">Boss</span><span className="text-[#d4d4d8]">{txn.boss_name}</span></div>}
+          {txn.guild_name && <div className="flex justify-between"><span className="text-[#71717a]">Guild</span><span className="text-[#d4d4d8]">{txn.guild_name}</span></div>}
+          <div className="flex justify-between"><span className="text-[#71717a]">Date</span><span className="text-[#d4d4d8]">{new Date(txn.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" })}</span></div>
+        </div>
+      </div>
     </div>
   );
 }

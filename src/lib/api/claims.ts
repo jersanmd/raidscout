@@ -62,6 +62,14 @@ export async function reviewClaimRequest(
   return data as string | null;
 }
 
+/** Unlink a claimed member — clears members.user_id (owner/mod only) */
+export async function unlinkMember(memberId: string): Promise<void> {
+  const { error } = await supabase.rpc("unlink_member", {
+    p_member_id: memberId,
+  });
+  if (error) throw error;
+}
+
 /** Mark a claim as read (player dismisses notification) */
 export async function markClaimRead(claimId: string): Promise<void> {
   const { error } = await supabase

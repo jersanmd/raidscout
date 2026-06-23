@@ -1008,11 +1008,11 @@ export function LandingPage() {
           </div>
 
           {/* Auth Card */}
-          <div className="relative rounded-2xl bg-[#18181b] border border-[#27272a] p-6 shadow-2xl shadow-black/40 overflow-hidden">
+          <div className="relative rounded-2xl bg-[#09090b] border border-[#27272a] p-6 shadow-2xl shadow-black/40 overflow-hidden">
             <div className="relative z-10">
                 <form onSubmit={handleSubmit} className="space-y-4">
                   {/* Sign In / Sign Up tabs */}
-                  <div className="flex bg-white/[0.03] rounded-xl p-1 mb-2">
+                  <div className="flex bg-[#18181b] rounded-xl p-1 mb-2">
                     <button type="button" onClick={() => { setIsSignUp(false); setError(null); setSuccess(null); setResetSent(false); setAcceptedTerms(false); setConfirmPassword(""); }}
                       className={`flex-1 py-2 rounded-lg text-xs font-medium transition-all duration-200 ${!isSignUp ? "bg-white/[0.06] text-[#fafafa] shadow-sm" : "text-[#fafafa]/40 hover:text-[#fafafa]/70"}`}>Sign In</button>
                     <button type="button" onClick={() => { setIsSignUp(true); setError(null); setSuccess(null); setResetSent(false); setAcceptedTerms(false); setConfirmPassword(""); }}
@@ -1023,14 +1023,14 @@ export function LandingPage() {
                     <div className="relative">
                       <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#fafafa]/30" />
                       <input type="email" value={email} onChange={e => setEmail(e.target.value)} required placeholder="you@example.com"
-                        className="w-full pl-10 pr-4 py-3 bg-white/[0.03] border border-white/[0.08] rounded-xl text-[#fafafa] placeholder-white/20 text-sm outline-none focus:border-sky-500/50 focus:ring-1 focus:ring-sky-500/20 transition-all duration-200" />
+                        className="w-full pl-10 pr-4 py-3 bg-[#18181b] border border-[#27272a] rounded-xl text-[#fafafa] placeholder-[#71717a] text-sm outline-none focus:border-[#52525b] transition" />
                     </div>
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-emerald-400/50 mb-2 ml-1 font-mono tracking-wider uppercase">{">>"} Password</label>
                     <div className="relative">
                       <input type={showPassword ? "text" : "password"} value={password} onChange={e => setPassword(e.target.value)} required minLength={6} placeholder="••••••••"
-                        className="w-full px-4 py-3 bg-white/[0.03] border border-white/[0.08] rounded-xl text-[#fafafa] placeholder-white/20 text-sm outline-none focus:border-sky-500/50 focus:ring-1 focus:ring-sky-500/20 transition-all duration-200 pr-10" />
+                        className="w-full px-4 py-3 bg-[#18181b] border border-[#27272a] rounded-xl text-[#fafafa] placeholder-[#71717a] text-sm outline-none focus:border-[#52525b] transition pr-10" />
                       <button type="button" onClick={() => { setShowPassword(!showPassword); if (isSignUp) setShowConfirmPassword(!showPassword); }} className={`absolute right-3 top-1/2 -translate-y-1/2 transition ${showPassword ? "text-sky-400" : "text-[#fafafa]/25 hover:text-[#fafafa]/50"}`} tabIndex={-1}>
                         {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                       </button>
@@ -1057,12 +1057,12 @@ export function LandingPage() {
                       <label className="block text-xs font-medium text-emerald-400/50 mb-2 ml-1 font-mono tracking-wider uppercase">{">>"} Confirm Password</label>
                       <div className="relative">
                         <input type={showConfirmPassword ? "text" : "password"} value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} required minLength={6} placeholder="••••••••"
-                          className={`w-full px-4 py-3 bg-white/[0.03] border rounded-xl text-[#fafafa] placeholder-white/20 text-sm outline-none transition-all duration-200 pr-10 ${
+                          className={`w-full px-4 py-3 bg-[#18181b] border rounded-xl text-[#fafafa] placeholder-[#71717a] text-sm outline-none transition pr-10 ${
                             confirmPassword && password !== confirmPassword
                               ? "border-red-500/50 focus:border-red-500/50 focus:ring-1 focus:ring-red-500/20"
                               : confirmPassword && password === confirmPassword
                                 ? "border-emerald-500/50 focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20"
-                                : "border-white/[0.08] focus:border-sky-500/50 focus:ring-1 focus:ring-sky-500/20"
+                                : "border-[#27272a] focus:border-[#52525b]"
                           }`} />
                         <button type="button" onClick={() => { setShowConfirmPassword(!showConfirmPassword); setShowPassword(!showConfirmPassword); }} className={`absolute right-3 top-1/2 -translate-y-1/2 transition ${showConfirmPassword ? "text-sky-400" : "text-[#fafafa]/25 hover:text-[#fafafa]/50"}`} tabIndex={-1}>
                           {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}

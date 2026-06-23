@@ -32,6 +32,25 @@ export function NoServerView() {
   const [claimError, setClaimError] = useState<string | null>(null);
   const [claimSuccess, setClaimSuccess] = useState<string | null>(null);
 
+  // Check for recent unlink notifications
+  const [unlinkNotice, setUnlinkNotice] = useState<{ member_name: string; created_at: string } | null>(null);
+  useEffect(() => {
+    if (!user) return;
+    supabase.from("notifications")
+      .select("metadata, created_at")
+      .eq("user_id", user.id)
+      .eq("type", "member_unlinked")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .then(({ data }) => {
+        if (data?.length) {
+          const meta = data[0].metadata as any;
+          setUnlinkNotice({ member_name: meta?.member_name ?? "a character", created_at: data[0].created_at });
+        }
+      })
+      .catch(() => {});
+  }, [user]);
+
   useEffect(() => {
     fetchVisibleGames()
       .then(setGames)
@@ -167,6 +186,19 @@ export function NoServerView() {
                 Choose a game to start tracking bosses and activities.
               </p>
             </div>
+
+            {/* ── Unlink notice ── */}
+            {unlinkNotice && (
+              <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 px-4 py-3 space-y-1">
+                <p className="text-xs text-amber-400 font-medium flex items-center gap-1.5">
+                  <AlertTriangle className="w-3.5 h-3.5" />
+                  Profile Unlinked
+                </p>
+                <p className="text-[11px] text-amber-400/80 leading-relaxed">
+                  <strong>{unlinkNotice.member_name}</strong> was unlinked from your account by a server moderator. You can submit a new claim below to regain access.
+                </p>
+              </div>
+            )}
 
             {/* ── Game options ── */}
             <div className="space-y-2">

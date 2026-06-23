@@ -69,7 +69,8 @@ export function LeaderboardView() {
     }
   };
   const { data: entries = [], isLoading } = useLeaderboard(period);
-  const { user, isViewer } = useAuth();
+  const { user, isViewer, userRole } = useAuth();
+  const isAdmin = userRole === "admin";
   const { toast } = useToast();
   const serverId = useServerId();
   const queryClient = useQueryClient();
@@ -123,7 +124,6 @@ export function LeaderboardView() {
   const canAdjustPoints = useHasPermission("can_manage_points");
   const canExportAttendance = useHasPermission("can_manage_points");
   const isStaff = !isViewer && (currentServer?.role === "owner" || currentServer?.role === "moderator");
-  const isOwner = currentServer?.role === "owner";
   const [carouselPage, setCarouselPage] = useState(0);
   const touchStartX = useRef(0);
   const touchDeltaX = useRef(0);
@@ -947,7 +947,7 @@ export function LeaderboardView() {
                                       Finalize
                                     </button>
                                   )}
-                                  {isOwner && guildName && (
+                                  {isAdmin && guildName && (
                                     <button onClick={(e) => { e.stopPropagation(); setShowResetConfirm(guildName); }} className="text-xs px-2.5 py-1 rounded bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 transition flex items-center gap-1" title={`Reset all ${guildName} points`}>
                                       <RotateCcw className="w-3.5 h-3.5" />Reset
                                     </button>

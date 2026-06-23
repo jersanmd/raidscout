@@ -4,7 +4,7 @@ import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { useMembers } from "@/hooks/useMembers";
 import { useAuth } from "@/contexts/AuthContext";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
-import { updateMemberName, deleteMember, upsertMember, isSupabaseConfigured, fetchGuilds, setMemberGuild, bulkAddMembers, supabase, fetchStaticParties, createParty, deleteParty, addMemberToParty, removeMemberFromParty, type StaticParty, sendCpReminder, createProgressThread, addBackdatedCpUpdate, fetchMemberCpHistory, editCpUpdate, deleteCpUpdate } from "@/lib/supabase";
+import { updateMemberName, deleteMember, upsertMember, isSupabaseConfigured, fetchGuilds, setMemberGuild, bulkAddMembers, supabase, fetchStaticParties, createParty, deleteParty, addMemberToParty, removeMemberFromParty, type StaticParty, sendCpReminder, createProgressThread, addBackdatedCpUpdate, fetchMemberCpHistory, editCpUpdate, deleteCpUpdate, unlinkMember } from "@/lib/supabase";
 import { writeAuditEntry, AuditAction } from "@/lib/api/audit";
 import { useServerId, useHasPermission, useServer } from "@/contexts/ServerContext";
 import { ExpiredGate } from "@/components/ExpiredGate";
@@ -16,7 +16,7 @@ import { GearTrackingTab } from "@/components/GearTrackingTab";
 export function MembersView() {
   const { user, isViewer } = useAuth();
   const serverId = useServerId();
-  const { currentServer } = useServer();
+  const { currentServer, refreshServers } = useServer();
   const isStaff = currentServer?.role === "owner" || currentServer?.role === "moderator";
   const canManageRaidMembers = useHasPermission("can_manage_members");
 
@@ -56,6 +56,9 @@ export function MembersView() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleteConfirmName, setDeleteConfirmName] = useState("");
   const [deleting, setDeleting] = useState(false);
+  const [unlinkId, setUnlinkId] = useState<string | null>(null);
+  const [unlinkConfirmName, setUnlinkConfirmName] = useState("");
+  const [unlinking, setUnlinking] = useState(false);
   const [toast, setToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
   // CP Reminder
@@ -606,7 +609,7 @@ export function MembersView() {
 
   // Bulk add
   const [showBulkModal, setShowBulkModal] = useState(false);
-  useEscapeKey(() => { setShowBulkModal(false); setBulkNames(""); setDeleteId(null); setDeleteConfirmName(""); });
+  useEscapeKey(() => { setShowBulkModal(false); setBulkNames(""); setDeleteId(null); setDeleteConfirmName(""); setUnlinkId(null); setUnlinkConfirmName(""); });
 
   useEscapeKey(() => { setCpModalMember(null); setCpModalFocused(false); }, !!cpModalMember);
   useEscapeKey(() => { setHistoryMember(null); setEditingHistoryId(null); setDeletingHistoryId(null); }, !!historyMember);
@@ -1077,6 +1080,23 @@ export function MembersView() {
       showToast("error", err instanceof Error ? err.message : "Failed to delete member");
     } finally {
       setDeleting(false);
+    }
+  };
+
+  const handleUnlink = async (id: string) => {
+    const memberName = members.find((m) => m.id === id)?.name ?? "";
+    setUnlinking(true);
+    try {
+      await unlinkMember(id);
+      setUnlinkId(null);
+      setUnlinkConfirmName("");
+      invalidate();
+      refreshServers();
+      showToast("success", `"${memberName}" unlinked from user`);
+    } catch (err) {
+      showToast("error", err instanceof Error ? err.message : "Failed to unlink member");
+    } finally {
+      setUnlinking(false);
     }
   };
 
@@ -2493,7 +2513,20 @@ export function MembersView() {
                         ) : (
                           <div className="flex-1 min-w-0 flex items-center gap-1.5">
                             <Link to={`/members/${member.id}`} className="text-[#fafafa] text-sm font-medium truncate hover:text-[#e4e4e7] transition">{member.name}</Link>
-                            {(member as any).user_id && <span className="text-[10px] text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded font-medium shrink-0" title="Claimed member">Claimed</span>}
+                            {(member as any).user_id && (
+                              <>
+                                <span className="text-[10px] text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded font-medium shrink-0" title="Claimed member">Claimed</span>
+                                {isStaff && (
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); e.preventDefault(); setUnlinkId(member.id); setUnlinkConfirmName(""); }}
+                                    className="text-[10px] text-[#52525b] hover:text-red-400 transition shrink-0 sm:opacity-0 group-hover:opacity-100"
+                                    title="Unlink this member from their claimed user"
+                                  >
+                                    <X className="w-3 h-3" />
+                                  </button>
+                                )}
+                              </>
+                            )}
                           </div>
                         )}
 
@@ -2841,6 +2874,56 @@ export function MembersView() {
                   <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                 ) : (
                   "Delete"
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+        );
+      })()}
+
+      {/* Unlink confirmation */}
+      {unlinkId && (() => {
+        const targetName = members.find((m) => m.id === unlinkId)?.name ?? "";
+        const confirmed = unlinkConfirmName.trim().toLowerCase() === targetName.toLowerCase();
+        return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60" onClick={() => { setUnlinkId(null); setUnlinkConfirmName(""); }} />
+          <div className="relative bg-[#09090b] border border-[#27272a] rounded-xl w-full max-w-xs shadow-2xl p-4 space-y-4">
+            <p className="text-[#fafafa] text-sm text-center">
+              Unlink <span className="font-bold">{targetName}</span> from their claimed user?
+            </p>
+            <p className="text-[10px] text-[#71717a] text-center -mt-2">
+              This will remove the user association. The member can be claimed again later.
+            </p>
+            <div>
+              <p className="text-[10px] text-[#71717a] mb-1.5 text-center">Type <span className="text-[#fafafa] font-mono">{targetName}</span> to confirm:</p>
+              <input
+                value={unlinkConfirmName}
+                onChange={(e) => setUnlinkConfirmName(e.target.value)}
+                placeholder={targetName}
+                autoFocus
+                className="w-full px-3 py-2 bg-[#18181b] border border-[#27272a] rounded-lg text-sm text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-red-500/50 text-center"
+                onKeyDown={(e) => { if (e.key === "Enter" && confirmed) handleUnlink(unlinkId); }}
+              />
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => { setUnlinkId(null); setUnlinkConfirmName(""); }}
+                disabled={unlinking}
+                className="flex-1 py-2 rounded-lg bg-[#18181b] text-[#d4d4d8] text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleUnlink(unlinkId)}
+                disabled={unlinking || !confirmed}
+                className="flex-1 py-2 rounded-lg bg-red-600 text-white text-sm flex items-center justify-center gap-1.5 disabled:opacity-40 transition"
+              >
+                {unlinking ? (
+                  <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                ) : (
+                  "Unlink"
                 )}
               </button>
             </div>

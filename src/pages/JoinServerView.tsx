@@ -20,12 +20,24 @@ export function JoinServerView() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  // Redirect if already on a server
+  // Check for recent unlink notifications
+  const [unlinkNotice, setUnlinkNotice] = useState<{ member_name: string; created_at: string } | null>(null);
   useEffect(() => {
-    if (currentServer) {
-      navigate("/", { replace: true });
-    }
-  }, [currentServer, navigate]);
+    if (!user) return;
+    supabase.from("notifications")
+      .select("metadata, created_at")
+      .eq("user_id", user.id)
+      .eq("type", "member_unlinked")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .then(({ data }) => {
+        if (data?.length) {
+          const meta = data[0].metadata as any;
+          setUnlinkNotice({ member_name: meta?.member_name ?? "a character", created_at: data[0].created_at });
+        }
+      })
+      .catch(() => {});
+  }, [user]);
 
   // Load user's existing claims
   useEffect(() => {
@@ -117,6 +129,19 @@ export function JoinServerView() {
         </div>
       )}
 
+      {/* Unlink notice */}
+      {unlinkNotice && (
+        <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 px-4 py-3 space-y-1">
+          <p className="text-xs text-amber-400 font-medium flex items-center gap-1.5">
+            <AlertTriangle className="w-3.5 h-3.5" />
+            Profile Unlinked
+          </p>
+          <p className="text-[11px] text-amber-400/80 leading-relaxed">
+            <strong>{unlinkNotice.member_name}</strong> was unlinked from your account by a server moderator. You can submit a new claim below to regain access.
+          </p>
+        </div>
+      )}
+
       {/* Search */}
       <div className="bg-[#0d0d11] border border-[#1e1e2a] rounded-xl p-5 space-y-4">
         <h3 className="text-sm font-semibold text-[#fafafa] flex items-center gap-2">
@@ -155,7 +180,7 @@ export function JoinServerView() {
                   <div>
                     <p className="text-sm text-[#fafafa] font-medium">{srv.name}</p>
                     {isPending && <p className="text-[10px] text-amber-400 flex items-center gap-1"><Clock className="w-3 h-3" /> Pending approval</p>}
-                    {isAccepted && <p className="text-[10px] text-emerald-400 flex items-center gap-1"><CheckCircle className="w-3 h-3" /> Accepted — refresh to access</p>}
+                    {isAccepted && <p className="text-[10px] text-emerald-400 flex items-center gap-1"><CheckCircle className="w-3 h-3" /> Accepted — you now have access!</p>}
                     {isDeclined && <p className="text-[10px] text-red-400 flex items-center gap-1"><XCircle className="w-3 h-3" /> Declined{existingClaim?.decline_reason ? `: ${existingClaim.decline_reason}` : ""}</p>}
                   </div>
                   {!isPending && !isAccepted && (

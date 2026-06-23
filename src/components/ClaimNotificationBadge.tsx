@@ -20,14 +20,17 @@ export function ClaimNotificationBadge() {
   const [declineReason, setDeclineReason] = useState<string>("");
   const [decliningId, setDecliningId] = useState<string | null>(null);
   const [acting, setActing] = useState<string | null>(null); // request id being acted on
+  const PAGE_SIZE = 10;
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
 
   // Fetch pending claims for the current server
   const { data: pendingClaims = [], isLoading } = useQuery({
     queryKey: ["pending_claims", serverId],
     queryFn: () => getPendingClaims(serverId!),
     enabled: !!serverId && !!user && !isViewer,
-    refetchInterval: 60_000, // fallback poll every 60s
-    staleTime: 10_000,
+    refetchInterval: 30_000,
+    refetchOnMount: true,
+    staleTime: 0,
   });
 
   // Realtime subscription: detect new claims instantly
@@ -42,6 +45,16 @@ export function ClaimNotificationBadge() {
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [serverId, queryClient]);
+
+  // Refetch when opening dropdown
+  const handleToggle = useCallback(() => {
+    if (!open) {
+      queryClient.invalidateQueries({ queryKey: ["pending_claims", serverId] });
+      queryClient.refetchQueries({ queryKey: ["pending_claims", serverId] });
+      setVisibleCount(PAGE_SIZE);
+    }
+    setOpen(!open);
+  }, [open, serverId, queryClient]);
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -103,7 +116,7 @@ export function ClaimNotificationBadge() {
   return (
     <div className="relative" data-claim-badge>
       <button
-        onClick={() => setOpen(!open)}
+        onClick={handleToggle}
         className="relative flex items-center gap-1 px-2 py-1.5 rounded-lg text-[#a1a1aa] hover:text-[#fafafa] hover:bg-[#27272a] transition"
         title="Member claims"
       >
@@ -139,8 +152,8 @@ export function ClaimNotificationBadge() {
               {hasUnread && <p className="text-[10px] text-emerald-400 mt-1">You have resolved claims</p>}
             </div>
           ) : (
-            <div className="max-h-72 overflow-y-auto divide-y divide-[#1e1e2a]/50">
-              {pendingClaims.map(claim => (
+            <div className="overflow-y-auto divide-y divide-[#1e1e2a]/50">
+              {pendingClaims.slice(0, visibleCount).map(claim => (
                 <div key={claim.id} className="px-4 py-3 hover:bg-[#18181b]/50 transition">
                   {/* Name + email */}
                   <div className="flex items-start justify-between gap-2 mb-2">
@@ -183,6 +196,14 @@ export function ClaimNotificationBadge() {
                   )}
                 </div>
               ))}
+              {visibleCount < pendingClaims.length && (
+                <button
+                  onClick={() => setVisibleCount(v => v + PAGE_SIZE)}
+                  className="w-full px-4 py-2.5 text-[11px] text-[#a1a1aa] hover:text-[#fafafa] hover:bg-[#18181b]/50 transition font-medium"
+                >
+                  Load More ({pendingClaims.length - visibleCount} remaining)
+                </button>
+              )}
             </div>
           )}
         </div>

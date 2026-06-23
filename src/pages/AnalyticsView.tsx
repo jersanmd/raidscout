@@ -720,10 +720,10 @@ function KillsTrendChart({ dates, series, detail, guilds }: {
       {hoverIdx != null && tooltipPct && (
         <div
           ref={tooltipRef}
-          className={`absolute z-20 pointer-events-auto ${hoverIdx > n * 0.7 ? "right-0" : hoverIdx < n * 0.15 ? "left-0" : "-translate-x-1/2"}`}
-          style={hoverIdx > n * 0.7
-            ? { right: `${100 - parseFloat(tooltipPct.left)}%`, bottom: `${100 - parseFloat(tooltipPct.top)}%` }
-            : hoverIdx < n * 0.15
+          className={`absolute z-20 pointer-events-auto ${hoverIdx > n * 0.4 ? "-translate-x-[calc(100%-16px)]" : hoverIdx < n * 0.12 ? "left-0" : "-translate-x-1/2"}`}
+          style={hoverIdx > n * 0.4
+            ? { left: tooltipPct.left, bottom: `${100 - parseFloat(tooltipPct.top)}%` }
+            : hoverIdx < n * 0.12
             ? { left: `${Math.max(0, parseFloat(tooltipPct.left) - 2)}%`, bottom: `${100 - parseFloat(tooltipPct.top)}%` }
             : { left: tooltipPct.left, bottom: `${100 - parseFloat(tooltipPct.top)}%` }
           }

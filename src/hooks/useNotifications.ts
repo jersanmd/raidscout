@@ -34,6 +34,10 @@ const TYPE_ICONS: Record<string, string> = {
   import_export: "📦",
   invite_code_change: "🔗",
   viewer_key_generated: "👁️",
+  dkp_outbid: "↗️",
+  dkp_won: "🏆",
+  dkp_lost: "✖️",
+  member_unlinked: "🔓",
 };
 
 export function typeIcon(type: string): string {
@@ -68,6 +72,21 @@ export function useNotifications() {
   useEffect(() => {
     fetchNotifications();
   }, [fetchNotifications]);
+
+  // Realtime subscription for new notifications
+  useEffect(() => {
+    if (!user) return;
+    const channel = supabase
+      .channel("notifications-" + user.id)
+      .on("postgres_changes",
+        { event: "INSERT", schema: "public", table: "notifications", filter: `user_id=eq.${user.id}` },
+        (payload) => {
+          setNotifications((prev) => [payload.new as Notification, ...prev]);
+        }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [user]);
 
   const markRead = useCallback(async (id: string) => {
     setNotifications((prev) =>

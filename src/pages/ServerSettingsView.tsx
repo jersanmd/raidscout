@@ -1043,7 +1043,7 @@ export function ServerSettingsView() {
   return (
     <div className="max-w-[100%] 2xl:max-w-[1600px] mx-auto px-3 sm:px-4 py-4 sm:py-6 overflow-x-hidden">
       <div className="flex items-center gap-3 mb-3 sm:mb-0">
-        <button onClick={() => navigate("/")} className="text-[#a1a1aa] hover:text-[#fafafa] p-1">
+        <button onClick={() => navigate(-1)} className="text-[#a1a1aa] hover:text-[#fafafa] p-1">
           <ArrowLeft className="w-5 h-5" />
         </button>
         <h2 className="text-lg sm:text-xl font-bold text-[#fafafa]">Server Settings</h2>
@@ -1052,8 +1052,8 @@ export function ServerSettingsView() {
 
       {/* Mobile tab bar */}
       <div className="sm:hidden flex flex-wrap items-center gap-1 pb-1 mt-2">
-        {(["general","guilds","bosses","boss-points","boss-guilds","activities","activity-points","activity-guilds","members","integrations","account","dkp",...(isOwner?["danger"]:[])] as string[]).map((key) => {
-          const labels: Record<string,string> = {general:"General",guilds:"Guilds",bosses:"Bosses","boss-points":"Boss Points","boss-guilds":"Boss Guild Assignments",activities:"Activities","activity-points":"Activity Points","activity-guilds":"Activity Guild Assignments",members:"Moderator/Permissions",integrations:"Integrations",account:"Account",dkp:"DKP",danger:"Danger"};
+        {(["general","guilds","dkp","bosses","boss-points","boss-guilds","activities","activity-points","activity-guilds","members","integrations","account",...(isOwner?["danger"]:[])] as string[]).map((key) => {
+          const labels: Record<string,string> = {general:"General",guilds:"Guilds",dkp:"DKP",bosses:"Bosses","boss-points":"Boss Points","boss-guilds":"Boss Guild Assignments",activities:"Activities","activity-points":"Activity Points","activity-guilds":"Activity Guild Assignments",members:"Moderator/Permissions",integrations:"Integrations",account:"Account",danger:"Danger"};
           const locked = (isExpired && GATED_TABS.has(key)) || (!isStaff && (GATED_TABS.has(key) || STAFF_TABS.has(key)));
           return <button key={key} onClick={() => { if (!locked) setTabAndUrl(key); }}
             disabled={locked}
@@ -1085,9 +1085,9 @@ export function ServerSettingsView() {
           </div>
           {showCreateModal && <CreateServerModal onClose={() => setShowCreateModal(false)} />}
           <nav className="bg-[#18181b] border border-[#27272a] rounded-xl p-1 space-y-0.5">
-            {(["general","guilds","bosses","boss-points","boss-guilds","activities","activity-points","activity-guilds","members","integrations","account","dkp",...(isOwner?["danger"]:[])] as string[]).map((key) => {
-              const icons: Record<string,React.ComponentType<{className?:string}>> = {general:Settings,guilds:Shield,bosses:Skull,"boss-points":Trophy,"boss-guilds":Swords,activities:Calendar,"activity-points":Trophy,"activity-guilds":Calendar,members:Users,integrations:Bell,account:Key,dkp:Coins,danger:AlertTriangle};
-              const labels: Record<string,string> = {general:"General",guilds:"Guilds",bosses:"Bosses","boss-points":"Boss Points","boss-guilds":"Boss Guild Assignments",activities:"Activities","activity-points":"Activity Points","activity-guilds":"Activity Guild Assignments",members:"Moderator/Permissions",integrations:"Integrations",account:"Account",dkp:"DKP",danger:"Danger"};
+            {(["general","guilds","dkp","bosses","boss-points","boss-guilds","activities","activity-points","activity-guilds","members","integrations","account",...(isOwner?["danger"]:[])] as string[]).map((key) => {
+              const icons: Record<string,React.ComponentType<{className?:string}>> = {general:Settings,guilds:Shield,dkp:Coins,bosses:Skull,"boss-points":Trophy,"boss-guilds":Swords,activities:Calendar,"activity-points":Trophy,"activity-guilds":Calendar,members:Users,integrations:Bell,account:Key,danger:AlertTriangle};
+              const labels: Record<string,string> = {general:"General",guilds:"Guilds",dkp:"DKP",bosses:"Bosses","boss-points":"Boss Points","boss-guilds":"Boss Guild Assignments",activities:"Activities","activity-points":"Activity Points","activity-guilds":"Activity Guild Assignments",members:"Moderator/Permissions",integrations:"Integrations",account:"Account",danger:"Danger"};
               const Icon = icons[key];
               const locked = (isExpired && GATED_TABS.has(key)) || (!isStaff && (GATED_TABS.has(key) || STAFF_TABS.has(key)));
               return <button key={key} onClick={() => { if (!locked) setTabAndUrl(key); }}
@@ -2187,195 +2187,188 @@ export function ServerSettingsView() {
       {/* Members Tab */}
       {tab === "members" && (() => {
         const visibleMembers = members.filter(m => !adminUserIds.has(m.user_id));
+        const owners = visibleMembers.filter(m => m.role === "owner");
+        const moderators = visibleMembers.filter(m => m.role === "moderator");
+        const regulars = visibleMembers.filter(m => m.role !== "owner" && m.role !== "moderator");
+
+        const renderMemberRow = (m: any) => {
+          const isExpanded = expandedModPerms === m.user_id;
+          const perms = modPermsData[m.user_id] ?? DEFAULT_MODERATOR_PERMISSIONS;
+          return (
+          <div key={m.user_id}>
+            <div
+              className={`flex items-center justify-between px-3 py-2 rounded-lg bg-[#18181b]/30 text-sm group ${m.role === "moderator" && isOwner ? "cursor-pointer hover:bg-[#18181b]/50 transition" : ""}`}
+              onClick={() => m.role === "moderator" && isOwner && handleToggleModPerms(m.user_id)}
+              title={m.role === "moderator" && isOwner ? "Click to manage permissions" : undefined}
+            >
+            <span className="text-[#d4d4d8] text-xs min-w-0 flex items-center gap-1.5">
+              <span className="truncate">{m.email ?? m.user_id}</span>
+              {verificationStatus[m.user_id] !== undefined && (
+                verificationStatus[m.user_id] ? (
+                  <span className="text-emerald-400 flex items-center gap-1 shrink-0" title="Email verified">
+                    <MailCheck className="w-3 h-3" />
+                    <span className="text-[10px] text-emerald-400/70 hidden sm:inline">Verified</span>
+                  </span>
+                ) : (
+                  <span className="text-amber-400 flex items-center gap-1 shrink-0" title="Email not verified">
+                    <MailWarning className="w-3 h-3" />
+                    <span className="text-[10px] text-amber-400/70 hidden sm:inline">Not verified</span>
+                  </span>
+                )
+              )}
+            </span>
+            <div className="flex items-center gap-2">
+              {isOwner && m.role === "moderator" && (
+                <span className={`text-[10px] px-2 py-0.5 rounded transition flex items-center gap-1 whitespace-nowrap ${isExpanded ? "bg-[#27272a] text-[#d4d4d8]" : "bg-[#18181b] text-[#52525b] group-hover:text-[#a1a1aa] group-hover:bg-[#27272a]"}`}>
+                  {isExpanded ? <ChevronUp className="w-3 h-3 shrink-0" /> : <Settings className="w-3 h-3 shrink-0" />}
+                  <span className="hidden sm:inline">{isExpanded ? "Hide" : "Permissions"}</span>
+                </span>
+              )}
+              {isOwner && m.role === "moderator" && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); handleRemoveMod(m.user_id); }}
+                  className="p-1 rounded text-[#71717a] hover:text-[#f87171] hover:bg-red-900/20 transition"
+                  title="Remove moderator"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              )}
+            </div>
+          </div>
+          {isOwner && m.role === "moderator" && (
+            <div className={`transition-all duration-300 ease-in-out overflow-hidden ${isExpanded ? "max-h-[800px] opacity-100" : "max-h-0 opacity-0"}`}>
+              <div className="border-t border-[#27272a]/50 px-3 py-3 bg-[#18181b]/30 space-y-3">
+                <div className="space-y-1">
+                  <span className="text-xs font-medium text-[#fafafa]">Permissions for {m.email ?? "moderator"}</span>
+                  <p className="text-[10px] text-[#52525b] leading-relaxed">Toggle what this moderator can access. Changes apply immediately after saving.</p>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {PERMISSION_SECTIONS.map(section => (
+                    <div key={section.section} className="space-y-1.5">
+                      <span className="text-[10px] font-semibold text-[#71717a] uppercase tracking-wider">{section.section}</span>
+                      {section.items.map(({ key, label }) => (
+                        <label key={key} className="flex items-center gap-2 cursor-pointer group">
+                          <input
+                            type="checkbox"
+                            checked={perms[key] === true}
+                            onChange={() => handleTogglePermission(m.user_id, key)}
+                            className="rounded border-[#3f3f46] bg-[#18181b] focus:ring-[#52525b]/50 cursor-pointer w-3.5 h-3.5 text-[#a1a1aa]"
+                          />
+                          <span className="group-hover:text-[#d4d4d8] transition text-xs text-[#a1a1aa]">{label}</span>
+                        </label>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+                <button
+                  onClick={() => handleSavePermissions(m.user_id)}
+                  disabled={savingPerms === m.user_id}
+                  className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded bg-[#fafafa] hover:bg-[#e4e4e7] text-[#09090b] transition disabled:opacity-50"
+                >
+                  {savingPerms === m.user_id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                  Save Permissions
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+        );
+      };
+
         return (
         <div className="space-y-4">
+          {membersLoading ? (
+            <div className="flex items-center justify-center py-8"><Loader2 className="w-5 h-5 text-[#71717a] animate-spin" /></div>
+          ) : (
+          <>
+          {/* Server Owner */}
           <section className="bg-[#18181b] border border-[#27272a] rounded-xl p-4 space-y-3">
             <h3 className="text-sm font-semibold text-[#a1a1aa] uppercase tracking-wider flex items-center gap-1.5">
-              <Users className="w-3 h-3" /> Members ({visibleMembers.length})
+              <Crown className="w-3 h-3" /> Server Owner
             </h3>
-            {isOwner && visibleMembers.some(m => m.role === "moderator") && (
-              <p className="text-[10px] text-[#52525b] leading-relaxed">
-                <Settings className="w-3 h-3 inline mr-1 -mt-0.5" />
-                Click a moderator to manage their permissions. Each toggle controls what they can access and modify. Changes save immediately.
-              </p>
-            )}
-            {membersLoading ? (
-              <div className="flex items-center justify-center py-3">
-                <Loader2 className="w-4 h-4 text-[#71717a] animate-spin" />
-              </div>
-            ) : visibleMembers.length === 0 ? (
-              <p className="text-xs text-[#71717a]">No members yet.</p>
-            ) : (
-              <div className="space-y-1">
-                {visibleMembers.map((m) => {
-                  const isExpanded = expandedModPerms === m.user_id;
-                  const perms = modPermsData[m.user_id] ?? DEFAULT_MODERATOR_PERMISSIONS;
-                  return (
-                  <div key={m.user_id}>
-                    <div
-                      className={`flex items-center justify-between px-3 py-2 rounded-lg bg-[#18181b]/30 text-sm group ${m.role === "moderator" && isOwner ? "cursor-pointer hover:bg-[#18181b]/50 transition" : ""}`}
-                      onClick={() => m.role === "moderator" && isOwner && handleToggleModPerms(m.user_id)}
-                      title={m.role === "moderator" && isOwner ? "Click to manage permissions" : undefined}
-                    >
-                    <span className="text-[#d4d4d8] text-xs min-w-0 flex items-center gap-1.5">
-                      <span className="truncate">{m.email ?? m.user_id}</span>
-                      {verificationStatus[m.user_id] !== undefined && (
-                        verificationStatus[m.user_id] ? (
-                          <span className="text-emerald-400 flex items-center gap-1 shrink-0" title="Email verified">
-                            <MailCheck className="w-3 h-3" />
-                            <span className="text-[10px] text-emerald-400/70 hidden sm:inline">Verified</span>
-                          </span>
-                        ) : (
-                          <span className="text-amber-400 flex items-center gap-1 shrink-0" title="Email not verified">
-                            <MailWarning className="w-3 h-3" />
-                            <span className="text-[10px] text-amber-400/70 hidden sm:inline">Not verified</span>
-                          </span>
-                        )
-                      )}
-                    </span>
-                    <div className="flex items-center gap-2">
-                      {isOwner && m.role === "moderator" && (
-                        <span className={`text-[10px] px-2 py-0.5 rounded transition flex items-center gap-1 whitespace-nowrap ${isExpanded ? "bg-[#27272a] text-[#d4d4d8]" : "bg-[#18181b] text-[#52525b] group-hover:text-[#a1a1aa] group-hover:bg-[#27272a]"}`}>
-                          {isExpanded ? <ChevronUp className="w-3 h-3 shrink-0" /> : <Settings className="w-3 h-3 shrink-0" />}
-                          <span className="hidden sm:inline">{isExpanded ? "Hide" : "Permissions"}</span>
-                        </span>
-                      )}
-                      <span className={`text-xs px-1.5 py-0.5 rounded ${
-                        m.role === "owner" ? "text-[#a1a1aa] bg-[#18181b]" : "text-[#a1a1aa] bg-[#18181b]"
-                      }`}>
-                        {m.role}
-                      </span>
-                      {isOwner && m.role === "moderator" && (
-                        <button
-                          onClick={(e) => { e.stopPropagation(); handleRemoveMod(m.user_id); }}
-                          className="p-1 rounded text-[#71717a] hover:text-[#f87171] hover:bg-red-900/20 transition"
-                          title="Remove moderator"
-                        >
-                          <X className="w-3 h-3" />
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                  {/* Permissions panel — slide down for moderators */}
-                  {isOwner && m.role === "moderator" && (
-                    <div className={`transition-all duration-300 ease-in-out overflow-hidden ${isExpanded ? "max-h-[800px] opacity-100" : "max-h-0 opacity-0"}`}>
-                      <div className="border-t border-[#27272a]/50 px-3 py-3 bg-[#18181b]/30 space-y-3">
-                        <div className="space-y-1">
-                          <span className="text-xs font-medium text-[#fafafa]">Permissions for {m.email ?? "moderator"}</span>
-                          <p className="text-[10px] text-[#52525b] leading-relaxed">Toggle what this moderator can access. Changes apply immediately after saving.</p>
-                        </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          {PERMISSION_SECTIONS.map(section => (
-                            <div key={section.section} className="space-y-1.5">
-                              <span className="text-[10px] font-semibold text-[#71717a] uppercase tracking-wider">{section.section}</span>
-                              {section.items.map(({ key, label }) => (
-                                <label key={key} className="flex items-center gap-2 cursor-pointer group">
-                                  <input
-                                    type="checkbox"
-                                    checked={perms[key] === true}
-                                    onChange={() => handleTogglePermission(m.user_id, key)}
-                                    className="rounded border-[#3f3f46] bg-[#18181b] focus:ring-[#52525b]/50 cursor-pointer w-3.5 h-3.5 text-[#a1a1aa]"
-                                  />
-                                  <span className="group-hover:text-[#d4d4d8] transition text-xs text-[#a1a1aa]">{label}</span>
-                                </label>
-                              ))}
-                            </div>
-                          ))}
-                        </div>
-                        <button
-                          onClick={() => handleSavePermissions(m.user_id)}
-                          disabled={savingPerms === m.user_id}
-                          className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded bg-[#fafafa] hover:bg-[#e4e4e7] text-[#09090b] transition disabled:opacity-50"
-                        >
-                          {savingPerms === m.user_id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
-                          Save Permissions
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-                );
-              })}
-              </div>
-            )}
-          </section>
-
-          {/* Add Moderator — owner only */}
-          {isOwner && (
-          <section className="bg-[#18181b] border border-[#27272a] rounded-xl p-4 space-y-3">
-            <h3 className="text-sm font-semibold text-[#a1a1aa] uppercase tracking-wider flex items-center gap-1.5">
-              <UserPlus className="w-3 h-3" /> Add Moderator
-            </h3>
-            <p className="text-sm text-[#a1a1aa]">
-              Moderators can manage bosses, configure Discord webhooks, and edit server settings.
-            </p>
-            <div className="flex gap-2">
-              <input
-                type="email"
-                value={modEmail}
-                onChange={(e) => setModEmail(e.target.value)}
-                placeholder="user@email.com"
-                onKeyDown={(e) => e.key === "Enter" && handleAddMod()}
-                className="flex-1 bg-[#18181b] border border-[#27272a] rounded-lg px-3 py-2 text-sm text-[#fafafa] placeholder-[#71717a] outline-none focus:border-[#52525b] transition"
-              />
-              <button
-                onClick={handleAddMod}
-                disabled={addingMod || !modEmail.trim()}
-                className="flex items-center gap-1 px-3 py-2 rounded-lg text-xs font-medium bg-[#fafafa] text-[#09090b] hover:bg-[#e4e4e7] transition disabled:opacity-50"
-              >
-                {addingMod ? <Loader2 className="w-3 h-3 animate-spin" /> : <UserPlus className="w-3 h-3" />}
-                Add
-              </button>
+            <p className="text-[10px] text-[#52525b] leading-relaxed">The server owner has full access to all settings, data, and management features. Only the owner can transfer ownership or delete the server.</p>
+            <div className="space-y-1">
+              {owners.length === 0 ? <p className="text-xs text-[#71717a] italic">No owner assigned.</p> : owners.map(renderMemberRow)}
             </div>
-          </section>
-          )}
-
-          {isOwner && (() => {
-            const moderators = members.filter((m) => m.role === "moderator" && !adminUserIds.has(m.user_id));
-            return (
-            <section className="bg-[#18181b] border border-[#27272a] rounded-xl p-4 space-y-3">
-              <h3 className="text-sm font-semibold text-[#fafafa]">Ownership</h3>
-
-              <div>
-                <h4 className="text-xs font-semibold text-[#a1a1aa] flex items-center gap-1 mb-2">
-                  <Crown className="w-3 h-3" /> Transfer Ownership
-                </h4>
-                <p className="text-xs text-[#a1a1aa] mb-2">
-                  Transfer ownership to a verified moderator. You'll become a moderator.
-                </p>
-                {moderators.filter(m => verificationStatus[m.user_id]).length === 0 ? (
+            {isOwner && (() => {
+              const transferMods = members.filter((m: any) => m.role === "moderator" && !adminUserIds.has(m.user_id));
+              return (
+              <div className="pt-3 border-t border-[#27272a] space-y-3">
+                <h4 className="text-xs font-semibold text-[#a1a1aa] flex items-center gap-1.5"><Crown className="w-3 h-3" /> Transfer Ownership</h4>
+                <p className="text-[10px] text-[#52525b] leading-relaxed">Transfer ownership to a verified moderator. You'll become a moderator.</p>
+                {transferMods.filter((m: any) => verificationStatus[m.user_id]).length === 0 ? (
                   <p className="text-xs text-[#71717a] italic">No verified moderators to transfer to.</p>
                 ) : (
                 <div className="flex gap-2">
                   <select
                     value={transferId}
                     onChange={(e) => setTransferId(e.target.value)}
-                    className="flex-1 bg-[#18181b] border border-[#27272a] rounded-lg px-3 py-2 text-xs text-[#fafafa] outline-none focus:border-[#52525b] transition"
+                    className="flex-1 bg-[#18181b] border border-[#27272a] rounded-lg px-3 py-2 text-sm text-[#fafafa] outline-none focus:border-[#52525b] transition"
                   >
-                    <option value="">Select a verified moderator...</option>
-                    {moderators.map((m) => {
-                      const isVerified = verificationStatus[m.user_id];
-                      return (
-                        <option key={m.user_id} value={m.user_id} disabled={!isVerified}>
-                          {m.email ?? m.user_id}{!isVerified ? " (not verified)" : ""}
-                        </option>
-                      );
-                    })}
+                    <option value="">Select a moderator...</option>
+                    {transferMods.filter((m: any) => verificationStatus[m.user_id]).map((m: any) => (
+                      <option key={m.user_id} value={m.user_id}>{m.email ?? m.user_id}</option>
+                    ))}
                   </select>
                   <button
                     onClick={handleTransfer}
                     disabled={transferring || !transferId}
                     className="flex items-center gap-1 px-3 py-2 rounded-lg text-xs font-medium bg-[#fafafa] text-[#09090b] hover:bg-[#e4e4e7] transition disabled:opacity-50"
                   >
-                    {transferring ? <Loader2 className="w-3 h-3 animate-spin" /> : <Crown className="w-3 h-3" />}
-                    Transfer
+                    {transferring ? <Loader2 className="w-3 h-3 animate-spin" /> : "Transfer"}
                   </button>
                 </div>
                 )}
               </div>
-            </section>
-            );
-          })()}
+              );
+            })()}
+          </section>
+
+          {/* Moderators */}
+          <section className="bg-[#18181b] border border-[#27272a] rounded-xl p-4 space-y-3">
+            <h3 className="text-sm font-semibold text-[#a1a1aa] uppercase tracking-wider flex items-center gap-1.5">
+              <Shield className="w-3 h-3" /> Moderators ({moderators.length})
+            </h3>
+            <p className="text-[10px] text-[#52525b] leading-relaxed">Moderators can be granted fine-grained permissions. Click a moderator to manage what they can access. The owner can add or remove moderators at any time.</p>
+            <div className="space-y-1">
+              {moderators.length === 0 ? <p className="text-xs text-[#71717a] italic">No moderators yet.</p> : moderators.map(renderMemberRow)}
+            </div>
+            {isOwner && (
+            <div className="pt-3 border-t border-[#27272a] space-y-3">
+              <h4 className="text-xs font-semibold text-[#a1a1aa] flex items-center gap-1.5"><UserPlus className="w-3 h-3" /> Add Moderator</h4>
+              <div className="flex gap-2">
+                <input
+                  type="email"
+                  value={modEmail}
+                  onChange={(e) => setModEmail(e.target.value)}
+                  placeholder="user@email.com"
+                  onKeyDown={(e) => e.key === "Enter" && handleAddMod()}
+                  className="flex-1 bg-[#18181b] border border-[#27272a] rounded-lg px-3 py-2 text-sm text-[#fafafa] placeholder-[#71717a] outline-none focus:border-[#52525b] transition"
+                />
+                <button
+                  onClick={handleAddMod}
+                  disabled={addingMod || !modEmail.trim()}
+                  className="flex items-center gap-1 px-3 py-2 rounded-lg text-xs font-medium bg-[#fafafa] text-[#09090b] hover:bg-[#e4e4e7] transition disabled:opacity-50"
+                >
+                  {addingMod ? <Loader2 className="w-3 h-3 animate-spin" /> : <UserPlus className="w-3 h-3" />}
+                  Add
+                </button>
+              </div>
+            </div>
+            )}
+          </section>
+
+          {/* Regular Members */}
+          <section className="bg-[#18181b] border border-[#27272a] rounded-xl p-4 space-y-3">
+            <h3 className="text-sm font-semibold text-[#a1a1aa] uppercase tracking-wider flex items-center gap-1.5">
+              <Users className="w-3 h-3" /> Members ({regulars.length})
+            </h3>
+            <p className="text-[10px] text-[#52525b] leading-relaxed">Regular members can view server data and participate in activities. They cannot access server settings or management features.</p>
+            <div className="space-y-1">
+              {regulars.length === 0 ? <p className="text-xs text-[#71717a] italic">No members yet.</p> : regulars.map(renderMemberRow)}
+            </div>
+          </section>
+          </>)}
         </div>
         );
       })()}

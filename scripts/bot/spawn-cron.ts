@@ -182,11 +182,11 @@ async function runSpawnCron() {
 
   // ── Auto-resolve expired DKP auctions ──────────────────
   supabaseQuerySafe<any>(
-    `items?select=id&is_up_for_bid=eq.true&bid_end_time=lte.${new Date().toISOString()}&limit=50`
+    `dkp_auctions?select=id,item_id&status=eq.active&bid_end_time=lte.${new Date().toISOString()}&limit=50`
   ).then(rows => {
     if (rows?.length) {
-      for (const item of rows) {
-        supabaseRpc("auto_resolve_auction", { p_item_id: item.id }).catch(() => {});
+      for (const auction of rows) {
+        supabaseRpc("auto_resolve_auction", { p_item_id: auction.item_id }).catch(() => {});
       }
     }
   }).catch(() => {});

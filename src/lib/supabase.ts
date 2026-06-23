@@ -265,6 +265,7 @@ export {
   getMyClaims,
   reviewClaimRequest,
   markClaimRead,
+  unlinkMember,
 } from "./api/claims";
 export type { ClaimRequest, PendingClaim } from "./api/claims";
 
@@ -285,6 +286,8 @@ export {
   getActiveBids,
   getActiveAuctions,
   getPastAuctions,
+  deletePastAuction,
+  toggleItemDistributed,
   getDkpConfig,
   saveDkpConfig,
 } from "./api/dkp";

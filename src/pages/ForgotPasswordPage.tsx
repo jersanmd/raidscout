@@ -73,7 +73,7 @@ export function ForgotPasswordPage() {
           Back to RaidScout
         </Link>
 
-        <div className="bg-[#18181b] border border-[#27272a] rounded-2xl p-6 sm:p-8">
+        <div className="bg-[#09090b] border border-[#27272a] rounded-2xl p-6 sm:p-8">
           {sent ? (
             <div className="text-center space-y-4">
               <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-emerald-500/10">
@@ -120,7 +120,7 @@ export function ForgotPasswordPage() {
                       onChange={(e) => setEmail(e.target.value)}
                       required
                       placeholder="you@example.com"
-                      className="w-full pl-10 pr-4 py-3 bg-[#09090b] border border-[#27272a] rounded-xl text-sm text-[#fafafa] placeholder-[#71717a] outline-none focus:border-[#52525b] transition"
+                      className="w-full pl-10 pr-4 py-3 bg-[#18181b] border border-[#27272a] rounded-xl text-sm text-[#fafafa] placeholder-[#71717a] outline-none focus:border-[#52525b] transition"
                     />
                   </div>
                 </div>

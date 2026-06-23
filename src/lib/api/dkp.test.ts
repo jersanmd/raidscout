@@ -92,13 +92,13 @@ describe("DKP API", () => {
   describe("markItemForBid", () => {
     it("marks item with end time", async () => {
       mockRpc.mockResolvedValueOnce({ data: null, error: null });
-      await markItemForBid("item-1", 50, "2026-12-31T23:59:00Z");
+      await markItemForBid("item-1", 50, "server-1", "Test Item", "2026-12-31T23:59:00Z");
       expect(mockRpc).toHaveBeenCalledWith("mark_item_for_bid", expect.objectContaining({ p_item_id: "item-1", p_dkp_cost: 50 }));
     });
 
     it("marks item without end time (null)", async () => {
       mockRpc.mockResolvedValueOnce({ data: null, error: null });
-      await markItemForBid("item-1", 50, null);
+      await markItemForBid("item-1", 50, "server-1", "Test Item", undefined);
       expect(mockRpc).toHaveBeenCalledWith("mark_item_for_bid", expect.objectContaining({ p_bid_end_time: null }));
     });
   });
@@ -106,7 +106,7 @@ describe("DKP API", () => {
   describe("placeBid", () => {
     it("places a bid and returns bid ID", async () => {
       mockRpc.mockResolvedValueOnce({ data: "bid-1", error: null });
-      const result = await placeBid("item-1", 100);
+      const result = await placeBid("item-1", 100, "server-1", "Test Item");
       expect(result).toBe("bid-1");
     });
 
@@ -119,13 +119,13 @@ describe("DKP API", () => {
   describe("resolveAuction", () => {
     it("awards to winner", async () => {
       mockRpc.mockResolvedValueOnce({ data: null, error: null });
-      await resolveAuction("item-1", "bid-1");
+      await resolveAuction("item-1", "bid-1", "server-1", "Test Item");
       expect(mockRpc).toHaveBeenCalledWith("resolve_auction", { p_item_id: "item-1", p_winner_bid_id: "bid-1" });
     });
 
     it("cancels auction with null winner", async () => {
       mockRpc.mockResolvedValueOnce({ data: null, error: null });
-      await resolveAuction("item-1", null);
+      await resolveAuction("item-1", null, "server-1", "Test Item");
       expect(mockRpc).toHaveBeenCalledWith("resolve_auction", { p_item_id: "item-1", p_winner_bid_id: null });
     });
   });

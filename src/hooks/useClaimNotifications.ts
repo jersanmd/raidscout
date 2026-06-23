@@ -32,16 +32,23 @@ export function useClaimNotifications() {
   useEffect(() => {
     if (!user) return;
     const dismissedIds = getDismissedIds();
-    getMyClaims()
-      .then(claims => {
-        const unread = claims.find(
-          c => (c.status === "accepted" || c.status === "declined")
-            && !c.is_read
-            && !dismissedIds.has(c.id)
-        );
-        setUnreadClaim(unread || null);
-      })
-      .catch(() => {});
+
+    const check = () => {
+      getMyClaims()
+        .then(claims => {
+          const unread = claims.find(
+            c => (c.status === "accepted" || c.status === "declined")
+              && !c.is_read
+              && !dismissedIds.has(c.id)
+          );
+          setUnreadClaim(unread || null);
+        })
+        .catch(() => {});
+    };
+
+    check();
+    const interval = setInterval(check, 30_000); // Poll every 30s
+    return () => clearInterval(interval);
   }, [user]);
 
   const dismiss = async () => {

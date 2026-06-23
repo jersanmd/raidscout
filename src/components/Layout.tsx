@@ -23,6 +23,7 @@ import { TIMEZONES } from "@/lib/timezones";
 import { BotStatusIndicator } from "@/components/BotStatusIndicator";
 import { ClaimNotificationBadge } from "@/components/ClaimNotificationBadge";
 import { useClaimNotifications } from "@/hooks/useClaimNotifications";
+import { useQueryClient } from "@tanstack/react-query";
 
 let _audioCtx: AudioContext | null = null;
 function getAudioContext(): AudioContext { if (!_audioCtx || _audioCtx.state === "closed") _audioCtx = new AudioContext(); return _audioCtx; }
@@ -59,6 +60,15 @@ export function Layout() {
   const [discordGuilds, setDiscordGuilds] = useState<{ guild_id: string; name: string; icon_url: string | null }[]>([]);
   const { notifications, unreadCount, markRead, markAllRead } = useNotifications();
   const { unreadClaim, dismiss: dismissClaim } = useClaimNotifications();
+
+  // When a claim is accepted, invalidate member queries so DKP auto-refreshes
+  const queryClient = useQueryClient();
+  useEffect(() => {
+    if (unreadClaim?.status === "accepted") {
+      queryClient.invalidateQueries({ queryKey: ["my_member_id"] });
+      queryClient.invalidateQueries({ queryKey: ["dkp_balance"] });
+    }
+  }, [unreadClaim, queryClient]);
 
   // ── Server switch loading overlay ──
   const [serverSwitching, setServerSwitching] = useState(false);
@@ -145,8 +155,8 @@ export function Layout() {
 
   const NAV_GROUPS = [
     { label: "Operations", abbr: "Ops", items: [{ to: "/", icon: Swords, label: "Bosses / Activities", end: true },{ to: "/schedule", icon: Calendar, label: "Schedule" },{ to: "/history", icon: Clock, label: "History" }] },
-    { label: "Management", abbr: "Mgmt", items: [{ to: "/leaderboard", icon: Trophy, label: "Leaderboard" },{ to: "/dkp", icon: Coins, label: "DKP" },{ to: "/members", icon: Users, label: "Members" }] },
-    { label: "Assets", abbr: "Asts", items: [{ to: "/inventory", icon: Package, label: "Inventory" }] },
+    { label: "Management", abbr: "Mgmt", items: [{ to: "/leaderboard", icon: Trophy, label: "Leaderboard" },{ to: "/members", icon: Users, label: "Members" }] },
+    { label: "Assets", abbr: "Asts", items: [{ to: "/inventory", icon: Package, label: "Inventory" },{ to: "/dkp", icon: Coins, label: "DKP" }] },
     { label: "Insights", abbr: "Ins", items: [{ to: "/analytics", icon: BarChart3, label: "Analytics" }] },
   ].filter(g => g.items.length > 0);
 
@@ -300,6 +310,8 @@ export function Layout() {
                         onClick={() => {
                           if (!n.read) markRead(n.id);
                           setExpandedNotifId(expandedNotifId === n.id ? null : n.id);
+                          if (n.type.startsWith("dkp_")) { setShowNotifications(false); navigate("/dkp"); }
+                          if (n.type === "member_unlinked") { setShowNotifications(false); navigate("/join"); }
                         }}
                         className={`w-full text-left px-4 py-3 border-b border-white/[0.03] hover:bg-[#1a1a1e] transition ${!n.read ? "bg-amber-500/[0.03]" : ""}`}
                       >

@@ -1421,14 +1421,35 @@ export async function handleMessage(msg: any) {
     const itemName = content.slice(matchedPrefix.length + rawCmd.length).trim();
     if (!itemName) return reply("Usage: `!bidstatus Item Name`");
     try {
-      const items = await supabaseQuerySafe(`items?server_id=eq.${serverId}&name=ilike.*${encodeURIComponent(itemName)}*&is_up_for_bid=eq.true&limit=5`);
-      if (!items || items.length === 0) return reply(`No item matching "${itemName}" is up for bid.`);
-      const item = items[0];
-      const bids = await supabaseRpc("get_item_bids", { p_item_id: item.id });
+      // Query active auctions with matching item name
+      const auctions = await supabaseQuerySafe(`dkp_auctions?select=id,item_id,dkp_cost,bid_end_time,quantity,items:item_id(name)&status=eq.active&server_id=eq.${serverId}&items.name=ilike.*${encodeURIComponent(itemName)}*&limit=10`);
+      if (!auctions || auctions.length === 0) return reply(`No active auction matching "${itemName}" found.`);
+
+      const item = (auctions[0].items as any) ?? {};
+      const bids = await supabaseRpc("get_item_bids", { p_item_id: auctions[0].item_id });
       const activeCount = (bids || []).filter((b: any) => b.status === "active").length;
-      const endTime = item.bid_end_time ? new Date(item.bid_end_time) : null;
-      const timeLeft = endTime && endTime > new Date() ? Math.ceil((endTime.getTime() - Date.now()) / 60000) : 0;
-      return reply(`🔨 **${item.name}** is up for bid!\n💰 DKP Cost: ${item.dkp_cost ?? "?"} · Min Bid: ${item.dkp_min_bid ?? 1}\n👥 Active Bids: ${activeCount}${timeLeft > 0 ? ` · ${timeLeft}min remaining` : " · Ended"}\n🔗 Bid on the website: https://www.raidscout.com`);
+
+      if (auctions.length === 1) {
+        const a = auctions[0];
+        const endTime = a.bid_end_time ? new Date(a.bid_end_time) : null;
+        const timeLeft = endTime && endTime > new Date() ? Math.ceil((endTime.getTime() - Date.now()) / 60000) : 0;
+        const qty = a.quantity && a.quantity > 1 ? ` (x${a.quantity})` : "";
+        return reply(`🔨 **${item?.name ?? "Item"}**${qty} is up for bid!\n💰 DKP Cost: ${a.dkp_cost ?? "?"} DKP\n👥 Active Bids: ${activeCount}${timeLeft > 0 ? ` · ${timeLeft}min remaining` : " · Ended"}\n🔗 Bid on the website: https://www.raidscout.com`);
+      }
+
+      // Multiple concurrent auctions — show a compact list
+      const fmtTime = (end: string | null) => {
+        if (!end) return "?";
+        const ms = new Date(end).getTime() - Date.now();
+        if (ms <= 0) return "Ended";
+        const m = Math.ceil(ms / 60000);
+        return m >= 60 ? `${Math.floor(m / 60)}h ${m % 60}m` : `${m}m`;
+      };
+      const lines = auctions.map((a: any) => {
+        const qty = a.quantity && a.quantity > 1 ? `x${a.quantity}` : "x1";
+        return `• ${qty} · ${a.dkp_cost ?? "?"} DKP · ${fmtTime(a.bid_end_time)} left`;
+      });
+      return reply(`🔨 **${item?.name ?? "Item"}** — ${auctions.length} active auctions\n👥 Total Active Bids: ${activeCount}\n${lines.join("\n")}\n🔗 Bid on the website: https://www.raidscout.com`);
     } catch (err: any) {
       console.error("[bot] bidstatus error:", err);
       return reply(`❌ ${err.message}`);
