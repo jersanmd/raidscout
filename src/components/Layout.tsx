@@ -277,7 +277,7 @@ export function Layout() {
         <div className="relative shrink-0">
           <button
             ref={notifBtnRef}
-            onClick={(e) => { e.stopPropagation(); setShowNotifications(!showNotifications); }}
+            onClick={(e) => { e.stopPropagation(); if (!showNotifications && unreadCount > 0) markAllRead(); setShowNotifications(!showNotifications); }}
             className="relative flex items-center justify-center p-1.5 rounded-md text-[#fafafa]/70 hover:text-[#fafafa] hover:bg-[#18181b] transition"
             title="Notifications"
           >

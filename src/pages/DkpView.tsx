@@ -549,7 +549,7 @@ function AuctionRow({ item, isStaff, memberId, tz, onBid, onResolve, onViewBids 
       <div className="flex items-center gap-1 shrink-0">
         {memberId && !ended && !isWinning && <button onClick={(e) => { e.stopPropagation(); onBid(); }} className="px-5 py-1.5 rounded text-xs font-medium bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 transition"><Coins className="w-3.5 h-3.5 inline mr-1" />Bid</button>}
         {memberId && !ended && isWinning && <span className="px-2 py-1 rounded text-[10px] bg-emerald-500/10 text-emerald-400 font-medium" title="You're the highest bidder. Wait to be outbid before bidding again."><Check className="w-3 h-3 inline mr-0.5" />You're Winning</span>}
-        {memberId && ended && <span className="px-2 py-1 rounded text-[10px] bg-[#27272a] text-[#71717a] italic"><Hourglass className="w-3 h-3 inline mr-0.5" />Finalizing...</span>}
+        {memberId && ended && <span className="px-2 py-1 rounded text-[10px] bg-amber-500/10 text-amber-400 font-medium animate-pulse"><Loader2 className="w-3 h-3 inline mr-1 animate-spin" />Finalizing...</span>}
         {isStaff && <button onClick={(e) => { e.stopPropagation(); onResolve(); }} className="px-5 py-1.5 rounded text-xs font-medium bg-red-500/10 text-red-400 hover:bg-red-500/20 transition">Cancel</button>}
       </div>
     </div>
