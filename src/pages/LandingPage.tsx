@@ -740,7 +740,7 @@ export function LandingPage() {
               </div>
 
               {/* Member Profiles */}
-              <div className="group p-5 rounded-xl bg-[#18181b] border border-white/[0.04] hover:border-white/[0.10] hover:bg-white/[0.01] hover:-translate-y-1 transition-all duration-300">
+              <div className="group p-5 rounded-xl bg-[#18181b] border border-white/[0.04] hover:border-white/[0.10] hover:bg-white/[0.01] hover:-translate-y-1 transition-all duration-300 lg:col-span-2">
                 <div className="p-2.5 rounded-xl bg-[#18181b] border border-[#27272a] text-[#a1a1aa] w-fit mb-4 group-hover:scale-110 transition-transform duration-200">
                   <User className="w-5 h-5" />
                 </div>
@@ -750,15 +750,11 @@ export function LandingPage() {
 
               {/* Viewer Mode (spans 2 cols on lg) */}
               <div className="group p-5 rounded-xl bg-[#18181b] border border-white/[0.04] hover:border-white/[0.10] hover:bg-white/[0.01] hover:-translate-y-1 transition-all duration-300 lg:col-span-2">
-                <div className="flex items-center gap-3">
-                  <div className="p-2.5 rounded-xl bg-[#18181b] border border-[#27272a] text-[#a1a1aa] shrink-0 group-hover:scale-110 transition-transform duration-200">
-                    <Eye className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-sm text-[#fafafa] group-hover:text-[#fafafa] transition-colors mb-1">Viewer Mode</h3>
-                    <p className="text-xs text-[#fafafa]/80 leading-relaxed">Share a link so your members can watch timers. No account or login required.</p>
-                  </div>
+                <div className="p-2.5 rounded-xl bg-[#18181b] border border-[#27272a] text-[#a1a1aa] w-fit mb-4 group-hover:scale-110 transition-transform duration-200">
+                  <Eye className="w-5 h-5" />
                 </div>
+                <h3 className="font-semibold text-sm text-[#fafafa] group-hover:text-[#fafafa] transition-colors mb-2">Viewer Mode</h3>
+                <p className="text-xs text-[#fafafa]/80 leading-relaxed">Share a link so your members can watch timers. No account or login required.</p>
               </div>
             </div>
           </div>

@@ -1,8 +1,50 @@
-# 🚀 Monetization Deployment Checklist
+# 🚀 Production Deployment Checklist — v0.16.0 (DKP + Unlink)
 
-## 1. PayPal — Production Setup
-- [ ] Go to [paypal.com/business](https://www.paypal.com/business) and create a **Live REST API app**
-- [ ] Copy the **Live Client ID** (starts with `Af` or `AQ`, NOT `sb-`)
+## Pre-Deployment
+
+- [ ] All changes committed and pushed to `master`
+- [ ] `git status` is clean
+
+## Database (Production Supabase `cjuacehmienztxrhwnlg`)
+
+- [ ] Push migrations: `npx supabase db push --include-all`
+- [ ] Verify migrations 099-154 applied
+- [ ] Enable Realtime: `ALTER PUBLICATION supabase_realtime ADD TABLE public.member_claim_requests`
+- [ ] Set replica identity: `ALTER TABLE public.member_claim_requests REPLICA IDENTITY FULL`
+- [ ] Test RPCs: `get_active_auctions`, `place_bid`, `auto_resolve_auction`, `unlink_member`
+
+## Frontend (Vercel)
+
+- [ ] Build: `npx vite build`
+- [ ] Deploy: `vercel deploy --prod`
+- [ ] Verify landing page (DKP card, SEO tags, structured data)
+- [ ] Verify `/join` (unlink banner)
+- [ ] Verify DKP page (new header, sidebar order, settings tab order)
+- [ ] Verify analytics tooltip
+- [ ] Verify claims popup Load More
+
+## Discord Bot (Fly.io `raidscout-bot`)
+
+- [ ] Build: `npx esbuild scripts/discord-bot-gateway.ts --bundle --platform=node --target=node22 --outfile=dist/bot.cjs --external:ws --format=cjs`
+- [ ] Deploy: `fly deploy`
+- [ ] Verify: `fly status` shows healthy
+- [ ] Test: `!bidstatus`, `!dkp`, `!spawn`, `!kill`
+
+## E2E Smoke Test
+
+- [ ] Create server → claim member → mark item → place bid
+- [ ] Outbid test: second user bids higher → refund + notification
+- [ ] Auto-resolve: let auction expire → highest bidder wins
+- [ ] Auction history: each auction listed separately, bids filtered per auction
+- [ ] Unlink member: confirm modal → notification → `/join` banner → re-claim → appears in popup
+- [ ] Mobile: DKP page, settings tabs, sidebar
+
+## Post-Deployment
+
+- [ ] Monitor Fly logs: `fly logs`
+- [ ] Verify `robots.txt`, `sitemap.xml`, `llms.txt` accessible
+- [ ] Tag release: `git tag v0.16.0 && git push --tags`
+
 - [ ] Update `.env.production`:
   ```
   VITE_PAYPAL_CLIENT_ID=AfO3suZ...  ← your LIVE client ID
