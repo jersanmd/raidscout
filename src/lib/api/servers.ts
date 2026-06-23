@@ -180,6 +180,7 @@ export async function fetchModeratorPermissions(serverId: string): Promise<Recor
       can_manage_points: row.can_manage_points ?? false,
       can_manage_integrations: row.can_manage_integrations ?? false,
       can_manage_server_content: row.can_manage_server_content ?? false,
+      can_manage_dkp: row.can_manage_dkp ?? false,
     };
   }
   return result;

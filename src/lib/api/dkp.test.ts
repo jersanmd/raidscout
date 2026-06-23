@@ -39,10 +39,10 @@ describe("DKP API", () => {
 
   describe("getMemberDkp", () => {
     it("returns balance for a member", async () => {
-      mockRpc.mockResolvedValueOnce({ data: [{ balance: 150, earned_this_week: 50, spent_this_week: 20 }], error: null });
+      mockRpc.mockResolvedValueOnce({ data: [{ balance: 150, earned_total: 50, spent_total: 20 }], error: null });
       const result = await getMemberDkp("member-1", "server-1");
       expect(result.balance).toBe(150);
-      expect(result.earned_this_week).toBe(50);
+      expect(result.earned_total).toBe(50);
       expect(mockRpc).toHaveBeenCalledWith("get_member_dkp", { p_member_id: "member-1", p_server_id: "server-1" });
     });
 
@@ -50,7 +50,7 @@ describe("DKP API", () => {
       mockRpc.mockResolvedValueOnce({ data: [], error: null });
       const result = await getMemberDkp("member-1", "server-1");
       expect(result.balance).toBe(0);
-      expect(result.earned_this_week).toBe(0);
+      expect(result.earned_total).toBe(0);
     });
 
     it("throws on error", async () => {
@@ -112,7 +112,7 @@ describe("DKP API", () => {
 
     it("throws on insufficient DKP", async () => {
       mockRpc.mockResolvedValueOnce({ data: null, error: { message: "Insufficient DKP" } });
-      await expect(placeBid("item-1", 1000)).rejects.toThrow();
+      await expect(placeBid("auction-1", 1000, "server-1")).rejects.toThrow();
     });
   });
 

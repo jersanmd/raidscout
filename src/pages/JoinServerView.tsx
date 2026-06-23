@@ -24,19 +24,18 @@ export function JoinServerView() {
   const [unlinkNotice, setUnlinkNotice] = useState<{ member_name: string; created_at: string } | null>(null);
   useEffect(() => {
     if (!user) return;
-    supabase.from("notifications")
-      .select("metadata, created_at")
-      .eq("user_id", user.id)
-      .eq("type", "member_unlinked")
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .then(({ data }) => {
-        if (data?.length) {
-          const meta = data[0].metadata as any;
-          setUnlinkNotice({ member_name: meta?.member_name ?? "a character", created_at: data[0].created_at });
-        }
-      })
-      .catch(() => {});
+    try {
+      const { data } = await supabase.from("notifications")
+        .select("metadata, created_at")
+        .eq("user_id", user.id)
+        .eq("type", "member_unlinked")
+        .order("created_at", { ascending: false })
+        .limit(1);
+      if (data?.length) {
+        const meta = data[0].metadata as any;
+        setUnlinkNotice({ member_name: meta?.member_name ?? "a character", created_at: data[0].created_at });
+      }
+    } catch {}
   }, [user]);
 
   // Load user's existing claims
