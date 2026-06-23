@@ -389,8 +389,8 @@ async function runSpawnCron() {
 
           if (activity.schedule_type === "one_time" && activity.start_time) {
             nextStart = new Date(activity.start_time);
-          } else if (activity.schedule_type === "recurring" && activity.schedule) {
-            // Find next occurrence within 24h
+          } else if (activity.schedule_type === "fixed_schedule" && activity.schedule) {
+            // Weekly recurring: find next slot from schedule array
             const schedTz = activity.schedule_tz || tz;
             for (let d = 0; d <= 7; d++) {
               const check = new Date(nowAct);
@@ -399,6 +399,28 @@ async function runSpawnCron() {
                 const c = scheduleSlotToUTC(schedTz, check, slot.day, slot.time);
                 if (c > nowAct && (!nextStart || c < nextStart)) {
                   nextStart = c;
+                }
+              }
+            }
+          } else if (activity.schedule_type === "fixed_hours" && activity.schedule) {
+            // Daily recurring at a fixed time (schedule is "HH:MM" string or { time: "HH:MM" })
+            const schedTz = activity.schedule_tz || tz;
+            const raw = activity.schedule;
+            const schedObj = (typeof raw === "object" && raw !== null && !Array.isArray(raw) && "time" in raw)
+              ? (raw as { time: string; start_date?: string; timezone?: string })
+              : null;
+            const timeStr: string | null = schedObj ? schedObj.time : (typeof raw === "string" ? raw : null);
+            if (timeStr) {
+              const [h, m] = timeStr.split(":").map(Number);
+              if (!isNaN(h) && !isNaN(m)) {
+                const slotUtc = scheduleSlotToUTC(schedTz, nowAct, nowAct.getDay(), timeStr);
+                if (slotUtc > nowAct) {
+                  nextStart = slotUtc;
+                } else {
+                  // Already passed today — tomorrow
+                  const tomorrow = new Date(nowAct);
+                  tomorrow.setDate(tomorrow.getDate() + 1);
+                  nextStart = scheduleSlotToUTC(schedTz, tomorrow, tomorrow.getDay(), timeStr);
                 }
               }
             }

@@ -96,11 +96,12 @@ export async function fetchHistoryFromSupabase(
       ownerGuildName: guildMap.get(d.display_owner_guild_id ?? d.owner_guild_id),
       ownerGuildId: d.display_owner_guild_id ?? d.owner_guild_id,
       bossImageUrl: boss.image_url ?? null,
+      attendanceCount: d.attendance_records?.length ?? 0,
     };
   });
 
   // Fetch and merge activity history
-  const activityEntries = await fetchActivityHistory(sid, since, until);
+  const activityEntries = await fetchActivityHistory(sid, since, until, cursor);
 
   return [...bossEntries, ...activityEntries].sort(
     (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
@@ -108,20 +109,24 @@ export async function fetchHistoryFromSupabase(
 }
 
 /** Fetch finished activity instances for history */
-async function fetchActivityHistory(sid: string, since?: string, until?: string): Promise<HistoryEntry[]> {
+async function fetchActivityHistory(sid: string, since?: string, until?: string, cursor?: string | null): Promise<HistoryEntry[]> {
   let query = supabase
     .from("activity_instances")
     .select(`
       id, start_time, end_time, activity_id,
-      activities!inner(id, name, schedule_type, image_url, server_id)
+      activities!inner(id, name, schedule_type, image_url, server_id),
+      activity_attendance(id)
     `)
     .eq("activities.server_id", sid)
     .not("end_time", "is", null)
     .order("end_time", { ascending: false });
 
+  if (cursor) query = query.lt("end_time", cursor);
   if (since) query = query.gte("end_time", since);
   if (until) query = query.lte("end_time", until);
-  if (!since && !until) query = query.limit(200);
+  if (!since && !until && !cursor) query = query.limit(200);
+  // Always limit when paginating with cursor only (no since/until window)
+  if (cursor && !since && !until) query = query.limit(50);
 
   const { data, error } = await query;
   if (error) throw error;
@@ -139,6 +144,7 @@ async function fetchActivityHistory(sid: string, since?: string, until?: string)
       deathRecordId: undefined,
       createdAt: inst.end_time,
       ownerGuildName: undefined,
+      attendanceCount: inst.activity_attendance?.length ?? 0,
     };
   });
 }

@@ -334,21 +334,24 @@ export function BotStatusIndicator() {
         className="relative flex items-center gap-1.5 px-2 py-1 rounded-md text-[#fafafa]/70 hover:text-[#fafafa] hover:bg-[#18181b] transition text-xs font-medium"
         title={`Bot: ${loading ? "Checking..." : error ? "Unreachable" : isOnline ? "Online" : "Offline"}`}
       >
+        <span className="hidden sm:inline text-[#71717a] text-[11px]">RaidScout Bot</span>
         {loading ? (
           <Loader2 className="w-3 h-3 text-[#a1a1aa] animate-spin" />
         ) : (
           <span
-            className={`w-2 h-2 rounded-full ${
+            className={`w-2.5 h-2.5 rounded-full ${
               error
-                ? "bg-red-500"
+                ? "bg-red-500 shadow-[0_0_6px_rgba(239,68,68,0.5)]"
                 : isOnline
-                  ? "bg-green-500 shadow-[0_0_6px_rgba(34,197,94,0.5)]"
-                  : "bg-yellow-500"
+                  ? "bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]"
+                  : "bg-yellow-500 shadow-[0_0_6px_rgba(234,179,8,0.5)]"
             }`}
           />
         )}
-        <span className="hidden sm:inline">
-          {loading ? "Checking..." : error ? "Offline" : isOnline ? "RaidScout Bot Online" : "RaidScout Bot Offline"}
+        <span className={`hidden sm:inline font-semibold ${
+          loading ? "text-[#a1a1aa]" : error ? "text-red-400" : isOnline ? "text-green-400" : "text-yellow-400"
+        }`}>
+          {loading ? "Checking..." : error ? "Offline" : isOnline ? "Online" : "Offline"}
         </span>
       </button>
 

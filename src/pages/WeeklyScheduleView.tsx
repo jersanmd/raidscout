@@ -31,6 +31,7 @@ import { useActivities } from "@/hooks/useActivities";
 import { writeAuditEntry, AuditAction } from "@/lib/api/audit";
 import { useCopyAttendance } from "@/hooks/useAttendance";
 import { calculateActivityInfo } from "@/lib/activityCalculator";
+import { copyActivityAttendance } from "@/lib/api/activities";
 import { fetchDeathsInWindow } from "@/lib/api/deaths";
 import type { WeekDaySpawns, SpawnInfo, Boss, BossGuild, Guild, ActivityInstance, ActivityInfo, Activity, DeathRecord } from "@/types";
 
@@ -164,6 +165,32 @@ export function WeeklyScheduleView() {
     }
   }, [weekOffset]);
 
+  // ── Activity attendance counts ──────────────────────────
+  const activityInstanceIds = useMemo(() =>
+    activityInstances.filter(inst => inst.end_time).map(inst => inst.id),
+  [activityInstances]);
+  const { data: activityAttendanceCounts = new Map<string, number>() } = useQuery({
+    queryKey: ["activity_attendance_counts", currentServer?.id, ...activityInstanceIds],
+    queryFn: async () => {
+      if (!activityInstanceIds.length) return new Map<string, number>();
+      const map = new Map<string, number>();
+      for (let i = 0; i < activityInstanceIds.length; i += 100) {
+        const batch = activityInstanceIds.slice(i, i + 100);
+        const { data } = await supabase
+          .from("activity_attendance")
+          .select("activity_instance_id")
+          .in("activity_instance_id", batch);
+        for (const r of (data ?? [])) {
+          map.set(r.activity_instance_id, (map.get(r.activity_instance_id) || 0) + 1);
+        }
+      }
+      return map;
+    },
+    enabled: activityInstanceIds.length > 0,
+    staleTime: 0,
+    refetchInterval: 3_000,
+  });
+
   // No limit on scrolling back — user can go as far as their data exists
   const prevWeekDisabled = false;
   const nextWeekDisabled = weekOffset >= 4;
@@ -248,6 +275,46 @@ export function WeeklyScheduleView() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [copySource, copyConfirm]);
+
+  // ── Activity copy attendance ────────────────────────────
+  const [activityCopySource, setActivityCopySource] = useState<{ activityInstanceId: string; activityName: string } | null>(null);
+  const [activityCopyToast, setActivityCopyToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
+
+  const handleActivityCopyStart = useCallback((e: React.MouseEvent, instanceId: string, name: string) => {
+    e.stopPropagation();
+    setActivityCopySource({ activityInstanceId: instanceId, activityName: name });
+  }, []);
+
+  const handleActivityCopyTarget = useCallback(async (e: React.MouseEvent, targetInstanceId: string, targetName: string) => {
+    e.stopPropagation();
+    if (!activityCopySource) return;
+    if (targetInstanceId === activityCopySource.activityInstanceId) {
+      setActivityCopyToast({ type: "error", message: "Can't copy to the same activity." });
+      return;
+    }
+    try {
+      const result = await copyActivityAttendance(activityCopySource.activityInstanceId, targetInstanceId);
+      setActivityCopyToast({ type: "success", message: `Copied ${result.copied} attendance${result.copied !== 1 ? "s" : ""}${result.skipped > 0 ? ` (${result.skipped} already present)` : ""}.` });
+    } catch (err: any) {
+      setActivityCopyToast({ type: "error", message: err?.message ?? "Failed to copy attendance." });
+    }
+    setActivityCopySource(null);
+  }, [activityCopySource]);
+
+  useEffect(() => {
+    if (!activityCopyToast) return;
+    const t = setTimeout(() => setActivityCopyToast(null), 3500);
+    return () => clearTimeout(t);
+  }, [activityCopyToast]);
+
+  // ESC to exit activity copy mode
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && activityCopySource) setActivityCopySource(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [activityCopySource]);
 
   // Edit death time modal
   const [editDeath, setEditDeath] = useState<{ deathRecordId: string; bossName: string; deathTime: string } | null>(null);
@@ -583,6 +650,23 @@ export function WeeklyScheduleView() {
         </div>
       )}
 
+      {/* Activity copy toast */}
+      {activityCopyToast && (
+        <div className={`mb-4 p-2.5 rounded-lg text-xs font-medium flex items-center gap-2 ${activityCopyToast.type === "success" ? "bg-emerald-900/20 border border-emerald-700/40 text-emerald-400" : "bg-red-900/20 border border-red-700/40 text-red-400"}`}>
+          {activityCopyToast.type === "success" ? <CheckCheck className="w-3.5 h-3.5" /> : <X className="w-3.5 h-3.5" />}
+          {activityCopyToast.message}
+        </div>
+      )}
+
+      {/* Activity copy banner */}
+      {activityCopySource && (
+        <div className="mb-4 p-2.5 rounded-lg bg-blue-900/20 border border-blue-700/40 text-blue-400 text-xs font-medium flex items-center gap-2">
+          <Copy className="w-3.5 h-3.5" />
+          Copying attendance from <span className="text-[#fafafa]">{activityCopySource.activityName}</span> — click another completed activity to paste.
+          <button onClick={() => setActivityCopySource(null)} className="ml-auto p-0.5 rounded hover:bg-blue-800/30 transition"><X className="w-3.5 h-3.5" /></button>
+        </div>
+      )}
+
       {/* Copy confirm dialog */}
       {copyConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={() => setCopyConfirm(null)}>
@@ -743,6 +827,7 @@ export function WeeklyScheduleView() {
                       const isFinished = info.status === "completed";
                       const isActive = info.status === "active";
                       const canFinish = ((!isViewer && isStaff) || (isViewer && viewerCanMarkDied));
+                      const actAttCount = info.activityInstance?.id ? (activityAttendanceCounts.get(info.activityInstance.id) ?? 0) : 0;
                       return (
                       <div key={`act-m-${item.idx}`}
                         onClick={() => {
@@ -769,6 +854,24 @@ export function WeeklyScheduleView() {
                           )}
                           {isActive && (
                             <span className="text-[10px] text-emerald-400 font-medium">Active</span>
+                          )}
+                          {isFinished && actAttCount > 0 && (
+                            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-emerald-900/40 border border-emerald-700/50 text-[#6ee7b7] text-[9px] font-bold">
+                              <Users className="w-2.5 h-2.5" />{actAttCount}
+                            </span>
+                          )}
+                          {isFinished && info.activityInstance?.id && actAttCount > 0 && !isViewer && (
+                            activityCopySource?.activityInstanceId === info.activityInstance.id ? (
+                              <span className="text-[10px] text-blue-400 font-medium">Source</span>
+                            ) : activityCopySource ? (
+                              <button onClick={(e) => handleActivityCopyTarget(e, info.activityInstance!.id, info.activity.name)} className="p-0.5 rounded hover:bg-[#27272a] text-blue-400 hover:text-blue-300 transition" title="Paste attendance here">
+                                <CopyCheck className="w-3 h-3" />
+                              </button>
+                            ) : (
+                              <button onClick={(e) => handleActivityCopyStart(e, info.activityInstance!.id, info.activity.name)} className="p-0.5 rounded hover:bg-[#27272a] text-[#52525b] hover:text-[#a1a1aa] transition" title="Copy attendance to another activity">
+                                <Copy className="w-3 h-3" />
+                              </button>
+                            )
                           )}
                         </div>
                         <div className="text-right">
@@ -919,6 +1022,7 @@ export function WeeklyScheduleView() {
                       const isFinished = info.status === "completed";
                       const isActive = info.status === "active";
                       const canFinish = ((!isViewer && isStaff) || (isViewer && viewerCanMarkDied));
+                      const actAttCount = info.activityInstance?.id ? (activityAttendanceCounts.get(info.activityInstance.id) ?? 0) : 0;
                       return (
                       <div key={`act-${item.idx}`}
                         onClick={() => {
@@ -949,6 +1053,45 @@ export function WeeklyScheduleView() {
                             <span className="text-[9px] text-emerald-400 font-medium">Active</span>
                           ) : (
                             <span className="text-[9px] text-blue-400">Countdown</span>
+                          )}
+                          {isFinished && actAttCount > 0 && (
+                            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-emerald-900/40 border border-emerald-700/50 text-[#6ee7b7] text-[9px] font-bold">
+                              <Users className="w-2.5 h-2.5" />{actAttCount}
+                            </span>
+                          )}
+                          {isFinished && info.activityInstance?.id && actAttCount > 0 && !isViewer && (
+                            activityCopySource?.activityInstanceId === info.activityInstance.id ? (
+                              <span className="text-[10px] text-blue-400 font-medium">Source</span>
+                            ) : activityCopySource ? (
+                              <button onClick={(e) => handleActivityCopyTarget(e, info.activityInstance!.id, info.activity.name)} className="p-0.5 rounded hover:bg-[#27272a] text-blue-400 hover:text-blue-300 transition" title="Paste attendance here">
+                                <CopyCheck className="w-3 h-3" />
+                              </button>
+                            ) : (
+                              <button onClick={(e) => handleActivityCopyStart(e, info.activityInstance!.id, info.activity.name)} className="p-0.5 rounded hover:bg-[#27272a] text-[#52525b] hover:text-[#a1a1aa] transition" title="Copy attendance to another activity">
+                                <Copy className="w-3 h-3" />
+                              </button>
+                            )
+                          )}
+                        </div>
+                      </div>
+                    );}
+                          {isFinished && actAttCount > 0 && (
+                            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-emerald-900/40 border border-emerald-700/50 text-[#6ee7b7] text-[9px] font-bold">
+                              <Users className="w-2.5 h-2.5" />{actAttCount}
+                            </span>
+                          )}
+                          {isFinished && info.activityInstance?.id && actAttCount > 0 && !isViewer && (
+                            activityCopySource?.activityInstanceId === info.activityInstance.id ? (
+                              <span className="text-[10px] text-blue-400 font-medium">Source</span>
+                            ) : activityCopySource ? (
+                              <button onClick={(e) => handleActivityCopyTarget(e, info.activityInstance!.id, info.activity.name)} className="p-0.5 rounded hover:bg-[#27272a] text-blue-400 hover:text-blue-300 transition" title="Paste attendance here">
+                                <CopyCheck className="w-3 h-3" />
+                              </button>
+                            ) : (
+                              <button onClick={(e) => handleActivityCopyStart(e, info.activityInstance!.id, info.activity.name)} className="p-0.5 rounded hover:bg-[#27272a] text-[#52525b] hover:text-[#a1a1aa] transition" title="Copy attendance to another activity">
+                                <Copy className="w-3 h-3" />
+                              </button>
+                            )
                           )}
                         </div>
                       </div>

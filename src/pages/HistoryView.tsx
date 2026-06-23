@@ -70,7 +70,11 @@ export function HistoryView() {
     try {
       const result = await fetchHistoryFromSupabase(serverId, since, undefined, null, 50);
       setHistory(result);
-      setHasMore(result.length >= 50);
+      // Always assume more exist — the `since` filter (2 days) may have
+      // trimmed results below the limit, but older records could still exist.
+      // loadMore (which doesn't use `since`) will set hasMore=false naturally.
+      // Only exception: empty result means truly no records at all.
+      setHasMore(result.length > 0);
     } catch {
       setHistory([]);
     } finally {
@@ -79,20 +83,34 @@ export function HistoryView() {
   }, [configured, user, isViewer, serverId, since]);
 
   const loadMore = useCallback(async () => {
-    if (loadingMore || !hasMore || !serverId) return;
-    const last = history[history.length - 1];
-    if (!last) return;
+    if (loadingMore || !hasMore || !serverId || history.length === 0) return;
     setLoadingMore(true);
     try {
-      const result = await fetchHistoryFromSupabase(serverId, since, undefined, last.deathTime, 50);
+      // Day-based pagination: find the oldest day currently loaded,
+      // then fetch the entire day before it. No cursors, no gaps.
+      const oldest = history.reduce((min, e) => {
+        const t = new Date(e.createdAt).getTime();
+        return t < min ? t : min;
+      }, Infinity);
+      const oldestDay = new Date(oldest);
+      oldestDay.setHours(0, 0, 0, 0);
+      const dayEnd = new Date(oldestDay);
+      const dayStart = new Date(oldestDay.getTime() - 24 * 60 * 60 * 1000);
+      const result = await fetchHistoryFromSupabase(
+        serverId,
+        dayStart.toISOString(),
+        dayEnd.toISOString(),
+        null,
+        500,
+      );
       setHistory(prev => [...prev, ...result]);
-      setHasMore(result.length >= 50);
+      setHasMore(result.length > 0);
     } catch {
       // ignore
     } finally {
       setLoadingMore(false);
     }
-  }, [loadingMore, hasMore, serverId, since, history]);
+  }, [loadingMore, hasMore, serverId, history]);
 
   useEffect(() => { fetchInitial(); }, [fetchInitial]);
 
@@ -544,7 +562,10 @@ export function HistoryView() {
                             {entry.type === "activity" ? "Activity" : entry.spawnType === "fixed_schedule" ? "Schedule" : `+${diffH}h`}
                           </span>
                           {(entry.deathRecordId || entry.activityInstanceId) && (
-                            <Users className="w-3 h-3 text-[#52525b]" />
+                            <span className="flex items-center gap-1 text-[10px] font-mono text-[#a1a1aa]">
+                              <Users className="w-3 h-3" />
+                              {entry.attendanceCount ?? "…"}
+                            </span>
                           )}
                         </div>
                         <div className="flex items-center gap-2 text-xs mt-0.5 font-mono">
