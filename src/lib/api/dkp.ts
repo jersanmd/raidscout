@@ -254,7 +254,6 @@ export async function getPastAuctions(serverId: string): Promise<PastAuction[]> 
     .select("id, name, image_url, rarity, dkp_cost")
     .or(gameSlug ? `game.eq.${gameSlug},server_id.eq.${serverId}` : `server_id.eq.${serverId}`)
     .eq("is_up_for_bid", false)
-    .not("dkp_cost", "is", null)
     .order("name");
 
   if (!items?.length) return [];

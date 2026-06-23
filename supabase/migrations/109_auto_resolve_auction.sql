@@ -27,7 +27,7 @@ BEGIN
   UPDATE public.dkp_bids SET status = 'cancelled', resolved_at = now()
   WHERE item_id = p_item_id AND status = 'active';
 
-  -- Clear item bid flags
-  UPDATE public.items SET is_up_for_bid = false, dkp_cost = NULL, bid_end_time = NULL WHERE id = p_item_id;
+  -- Clear item bid flags (keep dkp_cost for auction history)
+  UPDATE public.items SET is_up_for_bid = false, bid_end_time = NULL WHERE id = p_item_id;
 END;
 $$;

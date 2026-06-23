@@ -456,13 +456,7 @@ function HistorySection({ memberId, serverId }: { memberId: string; serverId: st
       {isLoading && display.length === 0 ? <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 text-[#52525b] animate-spin" /></div>
       : display.length === 0 ? <div className="px-4 py-6 text-center"><p className="text-xs text-[#71717a]">No transactions yet.</p></div>
       : <div className="divide-y divide-[#1e1e2a]/50">{display.map(txn => (
-          <div key={txn.id} className="flex items-center justify-between px-4 py-2.5"><div className="min-w-0"><p className="text-xs text-[#d4d4d8] truncate">{txn.reason || txn.type}</p>
-            {txn.boss_name && (
-              <p className="text-[10px] text-[#52525b] truncate">
-                {txn.boss_name}
-                {txn.guild_name && <span> — <span className="text-[#a1a1aa]">{txn.guild_name}</span></span>}
-              </p>
-            )}
+          <div key={txn.id} className="flex items-center justify-between px-4 py-2.5"><div className="min-w-0"><p className="text-xs text-[#d4d4d8] truncate">{txn.reason || txn.type}{txn.boss_name && <> — {txn.boss_name}{txn.guild_name && <span className="text-[#a1a1aa]"> ({txn.guild_name})</span>}</>}</p>
             <p className="text-[10px] text-[#52525b]">{new Date(txn.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</p></div><span className={`text-sm font-bold tabular-nums shrink-0 ${txn.amount > 0 ? "text-emerald-400" : "text-red-400"}`}>{txn.amount > 0 ? "+" : ""}{txn.amount}</span></div>))}
         {txns.length === 20 && <button onClick={() => setCursor(display[display.length - 1]?.created_at)} className="w-full px-4 py-2 text-xs text-[#a1a1aa] hover:text-[#fafafa] hover:bg-[#18181b] transition">Load more...</button>}</div>}
     </div>
