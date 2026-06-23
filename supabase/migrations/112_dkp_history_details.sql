@@ -1,4 +1,5 @@
 -- 112: get_member_dkp_history - include boss name, death time, guild for kill entries
+DROP FUNCTION IF EXISTS public.get_member_dkp_history(uuid, uuid, integer, timestamptz);
 CREATE OR REPLACE FUNCTION public.get_member_dkp_history(
   p_member_id UUID,
   p_server_id UUID,
