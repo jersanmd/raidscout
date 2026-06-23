@@ -4,8 +4,8 @@ import { supabase } from "./client";
 
 export interface DkpBalance {
   balance: number;
-  earned_this_week: number;
-  spent_this_week: number;
+  earned_total: number;
+  spent_total: number;
 }
 
 export interface DkpTransaction {
@@ -84,7 +84,7 @@ export async function getMemberDkp(memberId: string, serverId: string): Promise<
     p_server_id: serverId,
   });
   if (error) throw error;
-  return (data?.[0] ?? { balance: 0, earned_this_week: 0, spent_this_week: 0 }) as DkpBalance;
+  return (data?.[0] ?? { balance: 0, earned_total: 0, spent_total: 0 }) as DkpBalance;
 }
 
 export async function getServerDkpRankings(serverId: string): Promise<DkpRanking[]> {
@@ -167,6 +167,13 @@ export async function resolveAuction(itemId: string, winnerBidId?: string | null
   if (error) throw error;
 }
 
+export async function autoResolveAuction(itemId: string): Promise<void> {
+  const { error } = await supabase.rpc("auto_resolve_auction", {
+    p_item_id: itemId,
+  });
+  if (error) throw error;
+}
+
 export async function getActiveBids(serverId: string): Promise<DkpBid[]> {
   const { data, error } = await supabase.rpc("get_active_bids", {
     p_server_id: serverId,
@@ -185,6 +192,18 @@ export interface ActiveAuction {
   highest_bid: number;
   bid_count: number;
   top_bidder_member_id: string | null;
+}
+
+export interface PastAuction {
+  item_id: string;
+  item_name: string;
+  image_url: string | null;
+  rarity: string | null;
+  dkp_cost: number;
+  winner_name: string | null;
+  winning_bid: number;
+  bid_count: number;
+  resolved_at: string;
 }
 
 export async function getActiveAuctions(serverId: string): Promise<ActiveAuction[]> {
@@ -222,6 +241,60 @@ export async function getActiveAuctions(serverId: string): Promise<ActiveAuction
     bid_count: bidMap[i.id]?.total ?? 0,
     top_bidder_member_id: bidMap[i.id]?.topBidderId ?? null,
   }));
+}
+
+export async function getPastAuctions(serverId: string): Promise<PastAuction[]> {
+  const { data: sv } = await supabase.from("servers").select("game").eq("id", serverId).single();
+  const gameSlug = sv?.game ?? undefined;
+
+  const { data: items } = await supabase.from("items")
+    .select("id, name, image_url, rarity, dkp_cost")
+    .or(gameSlug ? `game.eq.${gameSlug},server_id.eq.${serverId}` : `server_id.eq.${serverId}`)
+    .eq("is_up_for_bid", false)
+    .not("dkp_cost", "is", null)
+    .order("name");
+
+  if (!items?.length) return [];
+
+  const itemIds = items.map(i => i.id);
+
+  // Get resolved bids for these items
+  const { data: bids } = await supabase
+    .from("dkp_bids")
+    .select("id, item_id, member_id, bid_amount, status, resolved_at, members!inner(name)")
+    .in("item_id", itemIds)
+    .in("status", ["won", "lost", "cancelled"])
+    .order("resolved_at", { ascending: false });
+
+  // Build maps per item
+  const winnerMap: Record<string, { name: string; amount: number; resolvedAt: string } | null> = {};
+  const countMap: Record<string, number> = {};
+
+  for (const b of (bids ?? []) as any[]) {
+    countMap[b.item_id] = (countMap[b.item_id] || 0) + 1;
+    if (b.status === "won" && !winnerMap[b.item_id]) {
+      winnerMap[b.item_id] = {
+        name: b.members?.name ?? "Unknown",
+        amount: b.bid_amount,
+        resolvedAt: b.resolved_at,
+      };
+    }
+  }
+
+  return items
+    .filter(i => countMap[i.id] > 0)
+    .map((i: any) => ({
+      item_id: i.id,
+      item_name: i.name,
+      image_url: i.image_url,
+      rarity: i.rarity,
+      dkp_cost: i.dkp_cost ?? 0,
+      winner_name: winnerMap[i.id]?.name ?? null,
+      winning_bid: winnerMap[i.id]?.amount ?? 0,
+      bid_count: countMap[i.id] ?? 0,
+      resolved_at: winnerMap[i.id]?.resolvedAt ?? "",
+    }))
+    .sort((a, b) => new Date(b.resolved_at).getTime() - new Date(a.resolved_at).getTime());
 }
 
 // ── DKP Config ──────────────────────────────────────────────

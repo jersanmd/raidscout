@@ -1075,27 +1075,6 @@ export function WeeklyScheduleView() {
                         </div>
                       </div>
                     );}
-                          {isFinished && actAttCount > 0 && (
-                            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-emerald-900/40 border border-emerald-700/50 text-[#6ee7b7] text-[9px] font-bold">
-                              <Users className="w-2.5 h-2.5" />{actAttCount}
-                            </span>
-                          )}
-                          {isFinished && info.activityInstance?.id && actAttCount > 0 && !isViewer && (
-                            activityCopySource?.activityInstanceId === info.activityInstance.id ? (
-                              <span className="text-[10px] text-blue-400 font-medium">Source</span>
-                            ) : activityCopySource ? (
-                              <button onClick={(e) => handleActivityCopyTarget(e, info.activityInstance!.id, info.activity.name)} className="p-0.5 rounded hover:bg-[#27272a] text-blue-400 hover:text-blue-300 transition" title="Paste attendance here">
-                                <CopyCheck className="w-3 h-3" />
-                              </button>
-                            ) : (
-                              <button onClick={(e) => handleActivityCopyStart(e, info.activityInstance!.id, info.activity.name)} className="p-0.5 rounded hover:bg-[#27272a] text-[#52525b] hover:text-[#a1a1aa] transition" title="Copy attendance to another activity">
-                                <Copy className="w-3 h-3" />
-                              </button>
-                            )
-                          )}
-                        </div>
-                      </div>
-                    );}
                   });
                 })()
               )}

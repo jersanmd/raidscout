@@ -310,15 +310,15 @@ $$;
 
 -- 9. Get member DKP
 CREATE OR REPLACE FUNCTION public.get_member_dkp(p_member_id UUID, p_server_id UUID)
-RETURNS TABLE(balance BIGINT, earned_this_week BIGINT, spent_this_week BIGINT)
+RETURNS TABLE(balance BIGINT, earned_total BIGINT, spent_total BIGINT)
 LANGUAGE sql
 SECURITY DEFINER
 SET search_path = ''
 AS $$
   SELECT 
     COALESCE(SUM(amount), 0)::BIGINT AS balance,
-    COALESCE(SUM(CASE WHEN amount > 0 AND created_at > now() - INTERVAL '7 days' THEN amount ELSE 0 END), 0)::BIGINT AS earned_this_week,
-    COALESCE(SUM(CASE WHEN amount < 0 AND created_at > now() - INTERVAL '7 days' THEN -amount ELSE 0 END), 0)::BIGINT AS spent_this_week
+    COALESCE(SUM(CASE WHEN amount > 0 THEN amount ELSE 0 END), 0)::BIGINT AS earned_total,
+    COALESCE(SUM(CASE WHEN amount < 0 THEN -amount ELSE 0 END), 0)::BIGINT AS spent_total
   FROM public.dkp_transactions
   WHERE member_id = p_member_id AND server_id = p_server_id;
 $$;

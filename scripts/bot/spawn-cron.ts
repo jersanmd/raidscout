@@ -180,6 +180,17 @@ async function runSpawnCron() {
   // Count only servers being processed (notification + thread + command channels)
   serversChecked = serverIds.length;
 
+  // ── Auto-resolve expired DKP auctions ──────────────────
+  supabaseQuerySafe<any>(
+    `items?select=id&is_up_for_bid=eq.true&bid_end_time=lte.${new Date().toISOString()}&limit=50`
+  ).then(rows => {
+    if (rows?.length) {
+      for (const item of rows) {
+        supabaseRpc("auto_resolve_auction", { p_item_id: item.id }).catch(() => {});
+      }
+    }
+  }).catch(() => {});
+
   const serverResults = await concurrentMap(serverIds, 5, async (serverId) => {
     let bossCount = 0;
     

@@ -5,10 +5,10 @@ import { useServer } from "@/contexts/ServerContext";
 import { useServerId } from "@/contexts/ServerContext";
 import { useToast } from "@/contexts/ToastContext";
 import {
-  getMemberDkp, getServerDkpRankings, getMemberDkpHistory, getActiveAuctions,
+  getMemberDkp, getServerDkpRankings, getMemberDkpHistory, getActiveAuctions, getPastAuctions,
   getDkpConfig, markItemForBid, placeBid, getItemBids, resolveAuction,
   supabase,
-  type DkpBalance, type DkpRanking, type DkpTransaction, type ItemBid, type ActiveAuction,
+  type DkpBalance, type DkpRanking, type DkpTransaction, type ItemBid, type ActiveAuction, type PastAuction,
 } from "@/lib/supabase";
 import { Coins, TrendingUp, TrendingDown, History, Gavel, Loader2, Shield, Clock, Check, X, AlertTriangle, Image, Plus, Eye } from "lucide-react";
 
@@ -53,6 +53,7 @@ function DkpContent({ serverId }: { serverId: string }) {
         </div>
         <div className="lg:col-span-2 space-y-4">
           <LiveAuction serverId={serverId} isStaff={isStaff} memberId={memberId} tz={tz} toast={toast} queryClient={queryClient} />
+          <AuctionHistory serverId={serverId} />
           {memberId && <HistorySection memberId={memberId} serverId={serverId} />}
         </div>
       </div>
@@ -68,8 +69,8 @@ function Ledger({ memberId, serverId }: { memberId: string; serverId: string }) 
       <h3 className="text-xs font-semibold text-[#71717a] uppercase tracking-wider">DKP Ledger</h3>
       <div className="text-center"><p className="text-4xl font-extrabold text-amber-400">{balance?.balance ?? 0}</p><p className="text-[10px] text-[#71717a] mt-1">Available DKP</p></div>
       <div className="grid grid-cols-2 gap-2 text-center">
-        <div className="bg-[#18181b] rounded-lg p-2"><TrendingUp className="w-3 h-3 text-emerald-400 mx-auto mb-0.5" /><p className="text-sm font-bold text-emerald-400">+{balance?.earned_this_week ?? 0}</p><p className="text-[9px] text-[#52525b]">Earned (7d)</p></div>
-        <div className="bg-[#18181b] rounded-lg p-2"><TrendingDown className="w-3 h-3 text-red-400 mx-auto mb-0.5" /><p className="text-sm font-bold text-red-400">-{balance?.spent_this_week ?? 0}</p><p className="text-[9px] text-[#52525b]">Spent (7d)</p></div>
+        <div className="bg-[#18181b] rounded-lg p-2"><TrendingUp className="w-3 h-3 text-emerald-400 mx-auto mb-0.5" /><p className="text-sm font-bold text-emerald-400">+{balance?.earned_total ?? 0}</p><p className="text-[9px] text-[#52525b]">Earned (All Time)</p></div>
+        <div className="bg-[#18181b] rounded-lg p-2"><TrendingDown className="w-3 h-3 text-red-400 mx-auto mb-0.5" /><p className="text-sm font-bold text-red-400">-{balance?.spent_total ?? 0}</p><p className="text-[9px] text-[#52525b]">Spent (All Time)</p></div>
       </div>
     </div>
   );
@@ -369,6 +370,77 @@ function BidsModal({ itemId, onClose }: { itemId: string; onClose: () => void })
         </div>}
         <button onClick={onClose} className="w-full py-2 rounded text-sm bg-[#27272a] text-[#d4d4d8]">Close</button>
       </div>
+    </div>
+  );
+}
+
+function AuctionHistory({ serverId }: { serverId: string }) {
+  const [selectedItem, setSelectedItem] = useState<string | null>(null);
+  const { data: auctions = [], isLoading } = useQuery({
+    queryKey: ["dkp_past_auctions", serverId],
+    queryFn: () => getPastAuctions(serverId),
+    refetchInterval: 30_000,
+    staleTime: 10_000,
+  });
+
+  return (
+    <div className="bg-[#0d0d11] border border-[#1e1e2a] rounded-xl overflow-hidden">
+      <div className="px-4 py-3 border-b border-[#1e1e2a] flex items-center gap-2">
+        <Gavel className="w-4 h-4 text-[#52525b]" />
+        <span className="text-xs font-semibold text-[#71717a] uppercase tracking-wider">Auction History</span>
+      </div>
+      {isLoading ? (
+        <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 text-[#52525b] animate-spin" /></div>
+      ) : auctions.length === 0 ? (
+        <div className="px-4 py-8 text-center">
+          <Gavel className="w-8 h-8 text-[#3f3f46] mx-auto mb-2" />
+          <p className="text-xs text-[#71717a]">No past auctions</p>
+        </div>
+      ) : (
+        <div className="divide-y divide-[#1e1e2a]/50 max-h-80 overflow-y-auto">
+          {auctions.map((a: PastAuction) => (
+            <div
+              key={a.item_id}
+              onClick={() => setSelectedItem(a.item_id)}
+              className="flex items-center gap-3 px-4 py-2.5 cursor-pointer hover:bg-[#18181b] transition"
+            >
+              {a.image_url ? (
+                <img src={a.image_url} alt={a.item_name} className="w-8 h-8 rounded object-cover border border-[#27272a] shrink-0" />
+              ) : (
+                <div className="w-8 h-8 rounded bg-[#18181b] border border-[#27272a] flex items-center justify-center shrink-0">
+                  <Image className="w-4 h-4 text-[#52525b]" />
+                </div>
+              )}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs text-[#d4d4d8] truncate">{a.item_name}</span>
+                  {a.rarity && (
+                    <span className="text-[9px] font-medium px-1 rounded" style={{ backgroundColor: rc(a.rarity) + "20", color: rc(a.rarity) }}>{a.rarity}</span>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 text-[10px] text-[#52525b] mt-0.5">
+                  <span>{a.bid_count} bid{a.bid_count !== 1 ? "s" : ""}</span>
+                  <span>·</span>
+                  <span className="text-amber-400 font-medium">{a.winning_bid} DKP</span>
+                  {a.winner_name ? (
+                    <>
+                      <span>·</span>
+                      <span className="text-[#a1a1aa]">{a.winner_name}</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>·</span>
+                      <span className="text-[#52525b] italic">Cancelled</span>
+                    </>
+                  )}
+                </div>
+              </div>
+              <Eye className="w-3 h-3 text-[#52525b] shrink-0" />
+            </div>
+          ))}
+        </div>
+      )}
+      {selectedItem && <BidsModal itemId={selectedItem} onClose={() => setSelectedItem(null)} />}
     </div>
   );
 }
