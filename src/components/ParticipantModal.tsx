@@ -10,7 +10,7 @@ import { RallyImageOverlay } from "@/components/RallyImageOverlay";
 import { useMembers } from "@/hooks/useMembers";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { useServerId } from "@/contexts/ServerContext";
-import { markActivityAttendance, fetchActivityAttendance, fetchActivityInstance, setActivityRallyImages, setActivityPartyLeaders } from "@/lib/supabase";
+import { markActivityAttendance, fetchActivityAttendance, fetchActivityInstance, setActivityRallyImages, setActivityPartyLeaders, awardDkpOnKill } from "@/lib/supabase";
 import { extractNamesWithAI } from "@/lib/vision";
 import {
   fetchGuilds,
@@ -155,6 +155,7 @@ export function ParticipantModal({
             queryClient.invalidateQueries({ queryKey: ["activities"] });
           } else {
             await removeAttendance.mutateAsync({ attendanceId: att.id, deathRecordId, memberName, bossName });
+            awardDkpOnKill(deathRecordId).catch(() => {});
           }
         }
       } else {
@@ -166,6 +167,7 @@ export function ParticipantModal({
           queryClient.invalidateQueries({ queryKey: ["activities"] });
         } else {
           await addAttendance.mutateAsync({ deathRecordId, memberId, memberName, bossName });
+          awardDkpOnKill(deathRecordId).catch(() => {});
         }
       }
     } finally {
@@ -497,6 +499,7 @@ export function ParticipantModal({
           await addAttendance.mutateAsync({ deathRecordId, memberId: id, memberName: name, bossName });
         } catch (err) { console.error("[ParticipantModal] bulk addAttendance failed for member:", id, err); }
       }
+      if (toAdd.length > 0) awardDkpOnKill(deathRecordId).catch(() => {});
 
       // Keep scan results for overlay display (don't clear exact/fuzzy)
       const allDetected = [...exactNames, ...fuzzyMap.keys(), ...unmatched];
@@ -577,6 +580,7 @@ export function ParticipantModal({
         }
       } catch (err) { console.error("[ParticipantModal] manual attendance operation failed:", err); }
     }
+    awardDkpOnKill(deathRecordId).catch(() => {});
 
     setUnmatchedNames([]);
     setAiDetectedNames(null);
@@ -778,6 +782,7 @@ export function ParticipantModal({
                                                 );
                                               } catch (err) { console.error("[ParticipantModal] unmatched addAttendance failed:", member.id, err); }
                                             }
+                                            awardDkpOnKill(deathRecordId).catch(() => {});
                                             setUnmatchedNames((prev) =>
                                               prev.filter((n) => n !== name),
                                             );

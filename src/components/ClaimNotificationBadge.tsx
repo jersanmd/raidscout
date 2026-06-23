@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { useServerId, useServer } from "@/contexts/ServerContext";
-import { getPendingClaims, reviewClaimRequest, markClaimRead, getMyClaims, type PendingClaim, type ClaimRequest } from "@/lib/supabase";
+import { getPendingClaims, reviewClaimRequest, markClaimRead, getMyClaims, isSupabaseConfigured, supabase, type PendingClaim, type ClaimRequest } from "@/lib/supabase";
 import { writeAuditEntry, AuditAction } from "@/lib/api/audit";
 import { UserCheck, Check, X, Loader2 } from "lucide-react";
 
@@ -26,9 +26,22 @@ export function ClaimNotificationBadge() {
     queryKey: ["pending_claims", serverId],
     queryFn: () => getPendingClaims(serverId!),
     enabled: !!serverId && !!user && !isViewer,
-    refetchInterval: 30_000, // poll every 30s
+    refetchInterval: 60_000, // fallback poll every 60s
     staleTime: 10_000,
   });
+
+  // Realtime subscription: detect new claims instantly
+  useEffect(() => {
+    if (!serverId || !isSupabaseConfigured()) return;
+    const channel = supabase
+      .channel("claim-changes")
+      .on("postgres_changes",
+        { event: "*", schema: "public", table: "member_claim_requests", filter: `server_id=eq.${serverId}` },
+        () => { queryClient.invalidateQueries({ queryKey: ["pending_claims", serverId] }); }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [serverId, queryClient]);
 
   // Close dropdown on outside click
   useEffect(() => {
