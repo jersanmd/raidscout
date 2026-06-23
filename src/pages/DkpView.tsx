@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { Link } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { useServer } from "@/contexts/ServerContext";
@@ -11,7 +12,7 @@ import {
   type DkpBalance, type DkpRanking, type DkpTransaction, type ItemBid, type ActiveAuction, type PastAuction,
 } from "@/lib/supabase";
 import { AuditAction, writeAuditEntry } from "@/lib/api/audit";
-import { Coins, TrendingUp, TrendingDown, History, Gavel, Loader2, Shield, Clock, Check, X, AlertTriangle, Image, Plus, Eye, Hourglass, Trash2, Pencil, CheckCircle, Package } from "lucide-react";
+import { Coins, TrendingUp, TrendingDown, History, Gavel, Loader2, Shield, Clock, Check, X, AlertTriangle, Image, Plus, Eye, Hourglass, Trash2, Pencil, CheckCircle, Package, Settings } from "lucide-react";
 import { guildColor } from "@/lib/constants";
 
 export function DkpView() {
@@ -50,7 +51,23 @@ function DkpContent({ serverId }: { serverId: string }) {
   });
 
   const { data: dkpConfig } = useQuery({ queryKey: ["dkp_config", serverId], queryFn: () => getDkpConfig(serverId), enabled: !!serverId });
-  if (!dkpConfig?.enabled) return <Empty icon={Coins} text="DKP is not enabled on this server." />;
+  if (!dkpConfig?.enabled) return (
+    <div className="max-w-4xl mx-auto px-4 py-20 text-center">
+      <Coins className="w-10 h-10 text-[#3f3f46] mx-auto mb-3" />
+      <p className="text-sm text-[#fafafa] font-medium mb-1">DKP is not enabled</p>
+      {isStaff ? (
+        <>
+          <p className="text-xs text-[#71717a] mb-3">Enable it in Server Settings to start running auctions.</p>
+          <Link to="/server-settings?tab=dkp" className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-medium bg-[#18181b] border border-[#27272a] text-[#d4d4d8] hover:bg-[#27272a] hover:text-[#fafafa] transition">
+            <Settings className="w-3.5 h-3.5" />
+            Go to DKP Settings
+          </Link>
+        </>
+      ) : (
+        <p className="text-xs text-[#71717a]">Contact your server owner or moderator to enable it.</p>
+      )}
+    </div>
+  );
 
   const hideLeaderboard = dkpConfig.hide_from_players && !isStaff;
 
