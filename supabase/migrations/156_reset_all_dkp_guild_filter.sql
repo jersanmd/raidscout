@@ -53,7 +53,7 @@ BEGIN
   IF v_guild_ids IS NOT NULL THEN
     UPDATE public.items SET is_up_for_bid = false, bid_end_time = NULL, dkp_cost = NULL
     WHERE server_id = p_server_id AND is_up_for_bid = true
-      AND (guild_id IS NULL OR guild_id = ANY(v_guild_ids));
+      AND (dkp_guild_id IS NULL OR dkp_guild_id = ANY(v_guild_ids));
   ELSE
     UPDATE public.items SET is_up_for_bid = false, bid_end_time = NULL, dkp_cost = NULL
     WHERE server_id = p_server_id AND is_up_for_bid = true;

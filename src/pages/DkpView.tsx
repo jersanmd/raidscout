@@ -167,11 +167,31 @@ function Leaderboard({ serverId, isStaff, toast, queryClient }: { serverId: stri
   const handleResetDkp = async () => {
     setResetActing(true);
     try {
+      const guildsToReset = resetGuilds.length > 0 ? resetGuilds : [...guilds];
+      const perGuild = guildsToReset.map(g => {
+        const members = rankings.filter(r => r.guild_name === g);
+        return { guild: g, members: members.length, totalDkp: members.reduce((s, r) => s + r.balance, 0) };
+      });
+      const totalMembers = perGuild.reduce((s, g) => s + g.members, 0);
+      const totalDkp = perGuild.reduce((s, g) => s + g.totalDkp, 0);
+
       await resetAllDkp(serverId, resetGuilds.length > 0 ? resetGuilds : undefined);
       queryClient.invalidateQueries({ queryKey: ["dkp_rankings", serverId] });
       queryClient.invalidateQueries({ queryKey: ["dkp_balance"] });
       queryClient.invalidateQueries({ queryKey: ["dkp_history"] });
       queryClient.invalidateQueries({ queryKey: ["dkp_auctions"] });
+
+      writeAuditEntry({
+        action: guildsToReset.length === guilds.length ? AuditAction.LEADERBOARD_RESET : AuditAction.LEADERBOARD_RESET_GUILD,
+        server_id: serverId,
+        target_type: "dkp",
+        details: {
+          guilds: perGuild,
+          total_members: totalMembers,
+          total_dkp_wiped: totalDkp,
+        },
+      }).catch(() => {});
+
       const msg = resetGuilds.length > 0 ? `DKP reset for ${resetGuilds.join(", ")}` : "All DKP has been reset to 0";
       toast("success", msg);
       setShowResetModal(false);
