@@ -2,3 +2,10 @@ User-agent: *
 Allow: /
 Disallow: /admin
 Sitemap: https://www.raidscout.com/sitemap.xml
+
+User-agent: ChatGPT-User
+User-agent: Google-Extended
+User-agent: anthropic-ai
+User-agent: CCBot
+Allow: /
+Sitemap: https://www.raidscout.com/sitemap.xml

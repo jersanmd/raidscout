@@ -1,0 +1,24 @@
+# RaidScout
+
+> RaidScout is a guild operations platform for competitive MMO guilds. Track bosses, manage rotations, run DKP auctions, scan rally screenshots, track gear, and more.
+
+## Core Pages
+
+- [Home](https://www.raidscout.com): Boss timers, DKP auctions, leaderboards, analytics
+- [Changelog](https://www.raidscout.com/changelog): Daily changelogs tracking every feature and fix
+- [Terms of Service](https://www.raidscout.com/terms)
+- [Privacy Policy](https://www.raidscout.com/privacy)
+- [Refund Policy](https://www.raidscout.com/refund)
+
+## Key Features
+
+- **Live Countdown Timers**: Real-time HH:MM:SS countdowns for every boss. Fixed Hours and Fixed Schedule spawn modes.
+- **Multi-Guild Rotation**: Per-kill, daily, and fixed-schedule rotation with weighted turns.
+- **DKP Auction System**: Live bidding with auto-resolve, soft-close, outbid refunds, guild restrictions.
+- **AI Rally Scanning**: Upload screenshots and AI detects player names automatically.
+- **Discord Bot**: 15+ commands, spawn/kill notifications, WebSocket gateway.
+- **Leaderboard & Points**: Configurable points per boss. Weekly/monthly/all-time rankings with finalization.
+- **Gear & Equipment**: Per-member gear tracking across all slots with enhancement badges.
+- **Inventory & Loot**: Full item catalog with rarity system, distribution tracking, analytics.
+- **Member Profiles**: CP trends, loot history, attendance, equipment grid, public profiles.
+- **Analytics**: Guild kill trends, CP growth, activity attendance with interactive charts.

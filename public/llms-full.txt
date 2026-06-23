@@ -1,0 +1,55 @@
+# RaidScout — Full Documentation for AI Agents
+
+## Overview
+
+RaidScout is a web-based guild operations platform for competitive MMO guilds. It supports any game via custom server creation, pre-seeded templates (LordNine: Infinite Class with 39 bosses), and flexible configuration. The platform handles boss spawn tracking, multi-guild kill rotation, DKP auction bidding, AI-powered rally screenshot scanning, loot distribution, gear tracking, combat power monitoring, attendance, leaderboards, and Discord bot integration.
+
+## Architecture
+
+- **Frontend**: React 18 + TypeScript + Vite + TanStack Query v4 + Tailwind CSS
+- **Backend**: Supabase (PostgreSQL, Auth, Realtime, Edge Functions, Storage)
+- **Discord Bot**: Node.js, esbuild, Fly.io deployment, Discord WebSocket Gateway
+- **Staging**: `aavobydtkonccgyfxrmw` (Supabase project)
+- **Production**: `cjuacehmienztxrhwnlg` (Supabase project)
+
+## Server Access Model
+
+Users create or join servers. Each server has:
+- **Owner**: Full control (settings, members, billing)
+- **Moderator**: Partial control (configurable permissions)
+- **Member**: Claimed profile access (view bosses, bid, view gear)
+- **Viewer**: Read-only access via invite key
+
+Members claim their in-game profile by name. Staff approve/decline claims. Unlink available to undo wrong claims.
+
+## DKP Auction System
+
+- `dkp_auctions` table: Separate auction concept from items. Each auction row has `item_id`, `dkp_cost`, `bid_end_time`, `guild_id`, `quantity`, `status` (active/cancelled/resolved).
+- `dkp_bids` table: Bids linked to `auction_id` and `member_id`. Statuses: active/won/lost/cancelled.
+- `dkp_transactions` table: DKP ledger (earn_kill, earn_adjustment, earn_refund, spend_bid).
+- `dkp_balances` view: Aggregated balance per member per server.
+- Key RPCs: `mark_item_for_bid`, `place_bid`, `resolve_auction`, `auto_resolve_auction`, `get_active_auctions`, `get_item_bids`, `get_resolved_bids`.
+- Soft-close: Bids in last 3 minutes extend auction by 3 minutes.
+- Auto-resolve: Discord bot cron resolves expired auctions, picking highest bidder.
+
+## Key Database Tables
+
+- `servers`: Server config with game, timezone, subscription, invite_code
+- `members`: Member profiles with user_id, discord_user_id, guild_id, class, combat_power
+- `guilds`: Guild names per server
+- `bosses`: Boss definitions with spawn_type, timer_hours, schedule, rotation_type
+- `death_records`: Kill history with killer_id, boss_id, death_time
+- `boss_guilds`: Guild rotation assignments per boss
+- `dkp_auctions`, `dkp_bids`, `dkp_transactions`: DKP system
+- `member_claim_requests`: Profile claim system
+- `server_members`: Server membership with role (owner/moderator/member)
+- `notifications`: User notifications with type, title, body, metadata
+- `items`: Item catalog with name, image_url, rarity, game/server_id
+
+## Discord Bot Commands
+
+- `!spawn`, `!kill`, `!forcespawn`, `!forcespawnall`, `!party`
+- `!dkp`, `!dkp top`, `!mybids`, `!bidstatus`
+- `!notifhere`, `!cmdhere`, `!threadhere`
+- `!updatestats`, `!editstats`, `!commands`
+- Multi-prefix support, custom aliases, timezone-aware

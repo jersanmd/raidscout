@@ -253,6 +253,23 @@ Complete item and loot tracking across your entire guild:
 - **Date-based versioning** — Auto-generated build version shown in footer. Manual `WIPE_STORAGE_KEY` controls when user preferences reset; routine deploys keep all settings.
 - **Sidebar** — Collapsed sidebar shows abbreviated section labels (Svrs, Ops, Mgmt, Asts, Ins) at matching font sizes. All items use fixed heights for consistent alignment across collapsed, hover overlay, and expanded states. Auto-collapse on settings pages without persisting.
 
+### 🏦 DKP Auction System
+
+Live Dragon Kill Points bidding with full automation:
+
+- **Mark items for bid** — Staff mark catalog items with DKP cost, duration, quantity, and optional guild restrictions. Search across game-level and server-level catalogs.
+- **Live Auction panel** — Real-time countdown timers, current highest bid, bid count, guild badges, and rarity-colored item display. Click any auction to view all bids filtered per-auction.
+- **Bid with presets** — One-click +1/+5/+10/+25 DKP increments above current highest. Manual input with balance display and over-budget warning.
+- **Soft-close** — Last-minute bids (< 3 min remaining) extend the auction by 3 minutes to prevent sniping.
+- **Outbid refunds** — Automatically refunds the previous highest bidder and sends a notification.
+- **Auto-resolve** — Discord bot resolves expired auctions by picking the highest bidder. Losers refunded automatically.
+- **Resolve/Cancel** — Staff can manually pick a winner or cancel (refunds all bidders).
+- **Auction History** — Past auctions grouped by date with winner, winning bid, bid count, guild badge, and distributed status. Load More pagination.
+- **DKP Ledger** — Balance, earned/spent totals, transaction history with boss/item details.
+- **Guild-restricted auctions** — Optional guild filter. Only members of the specified guild can bid.
+- **Distributed tracking** — Toggle to mark past auctions as distributed. Green check in history.
+- **Hide from players** — Config option hides the DKP leaderboard from non-staff while auctions remain visible.
+
 ### 👤 Member Profiles
 
 Deep-dive pages for every member in your guild:
