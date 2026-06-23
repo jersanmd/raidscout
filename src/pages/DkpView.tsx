@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { useServer } from "@/contexts/ServerContext";
@@ -35,6 +35,8 @@ function DkpContent({ serverId }: { serverId: string }) {
   const queryClient = useQueryClient();
   const tz = currentServer?.timezone || "UTC";
   const isStaff = currentServer?.role === "owner" || currentServer?.role === "moderator";
+  const [searchParams] = useSearchParams();
+  const highlightItemId = searchParams.get("highlight") || undefined;
 
   // Wrap in React Query so it can be invalidated after claim acceptance
   const { data: memberId, isLoading: memberLoading } = useQuery({
@@ -86,7 +88,7 @@ function DkpContent({ serverId }: { serverId: string }) {
           {!hideLeaderboard ? <Leaderboard serverId={serverId} isStaff={isStaff} toast={toast} queryClient={queryClient} /> : <div className="bg-[#0d0d11] border border-[#1e1e2a] rounded-xl p-5 text-center space-y-3"><Shield className="w-6 h-6 text-[#52525b] mx-auto" /><p className="text-xs text-[#71717a]">Leaderboard hidden</p><p className="text-[10px] text-[#52525b] leading-relaxed">The guild officers have disabled the public leaderboard. Your points are still tracked normally.</p></div>}
         </div>
         <div className="lg:col-span-2 space-y-4">
-          <LiveAuction serverId={serverId} isStaff={isStaff} memberId={memberId} tz={tz} toast={toast} queryClient={queryClient} />
+          <LiveAuction serverId={serverId} isStaff={isStaff} memberId={memberId} tz={tz} toast={toast} queryClient={queryClient} highlightItemId={highlightItemId} />
           <AuctionHistory serverId={serverId} memberId={memberId} isStaff={isStaff} queryClient={queryClient} toast={toast} />
           {memberId && <HistorySection memberId={memberId} serverId={serverId} />}
         </div>
@@ -392,7 +394,7 @@ function MemberHistoryModal({ memberId, memberName, balance, serverId, onClose }
   );
 }
 
-function LiveAuction({ serverId, isStaff, memberId, tz, toast, queryClient }: any) {
+function LiveAuction({ serverId, isStaff, memberId, tz, toast, queryClient, highlightItemId }: { serverId: string; isStaff: boolean; memberId: string | null; tz: string; toast: any; queryClient: any; highlightItemId?: string }) {
   const [showMark, setShowMark] = useState(false);
   const [showBid, setShowBid] = useState<string | null>(null);
   const [showResolve, setShowResolve] = useState<string | null>(null);
@@ -415,6 +417,15 @@ function LiveAuction({ serverId, isStaff, memberId, tz, toast, queryClient }: an
     supabase.from("members").select("guild_id").eq("id", memberId).single()
       .then(({ data }) => { if (data) setMyGuildId(data.guild_id); });
   }, [memberId]);
+
+  // Scroll to highlighted item on mount
+  useEffect(() => {
+    if (!highlightItemId) return;
+    const timer = setTimeout(() => {
+      document.getElementById(`auction-${highlightItemId}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 300); // wait for render
+    return () => clearTimeout(timer);
+  }, [highlightItemId, auctions]);
 
   // Filter: non-staff only see unrestricted items or items for their guild
   const visibleAuctions = isStaff ? auctions : auctions.filter((a: ActiveAuction) => !a.guild_id || a.guild_id === myGuildId);
@@ -472,7 +483,7 @@ function LiveAuction({ serverId, isStaff, memberId, tz, toast, queryClient }: an
       </div>
       {isLoading ? <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 text-[#52525b] animate-spin" /></div>
       : visibleAuctions.length === 0 ? <div className="px-4 py-8 text-center"><Gavel className="w-8 h-8 text-[#3f3f46] mx-auto mb-2" /><p className="text-xs text-[#71717a]">No active auctions</p></div>
-      : <div className="divide-y divide-[#1e1e2a]/50">{visibleAuctions.map((it: ActiveAuction) => <AuctionRow key={it.auction_id} item={it} isStaff={isStaff} memberId={memberId} tz={tz} onBid={() => { setShowBid(it.auction_id); setBidAmt(Math.max(it.dkp_cost || 1, (it.highest_bid || 0) + 1)); setError(null); }} onResolve={() => setShowResolve(it.auction_id)} onViewBids={() => setShowBids({ itemId: it.item_id, auctionId: it.auction_id })} />)}</div>}
+      : <div className="divide-y divide-[#1e1e2a]/50">{visibleAuctions.map((it: ActiveAuction) => <AuctionRow key={it.auction_id} item={it} isStaff={isStaff} memberId={memberId} tz={tz} onBid={() => { setShowBid(it.auction_id); setBidAmt(Math.max(it.dkp_cost || 1, (it.highest_bid || 0) + 1)); setError(null); }} onResolve={() => setShowResolve(it.auction_id)} onViewBids={() => setShowBids({ itemId: it.item_id, auctionId: it.auction_id })} isHighlighted={highlightItemId === it.item_id} />)}</div>}
 
       {showMark && <MarkModal name={markName} setName={setMarkName} cost={markCost} setCost={setMarkCost} end={markEnd} setEnd={setMarkEnd} acting={acting} error={error} onClose={() => setShowMark(false)} onMark={doMark} serverId={serverId} guildId={markGuild} setGuildId={setMarkGuild} qty={markQty} setQty={setMarkQty} />}
       {showBid && <BidModalUI auctionId={showBid} bidAmt={bidAmt} setBidAmt={setBidAmt} acting={acting} error={error} onClose={() => setShowBid(null)} onBid={() => doBid(showBid)} memberId={memberId} serverId={serverId} highestBid={auctions.find((a: ActiveAuction) => a.auction_id === showBid)?.highest_bid ?? 0} />}
@@ -519,7 +530,7 @@ function useCountdown(endTime: string | null) {
   return { ended: false, days: Math.floor(totalSec / 86400), hours: Math.floor((totalSec % 86400) / 3600), minutes: Math.floor((totalSec % 3600) / 60), seconds: totalSec % 60, totalMs };
 }
 
-function AuctionRow({ item, isStaff, memberId, tz, onBid, onResolve, onViewBids }: { item: ActiveAuction; isStaff: boolean; memberId: string | null; tz: string; onBid: () => void; onResolve: () => void; onViewBids: () => void }) {
+function AuctionRow({ item, isStaff, memberId, tz, onBid, onResolve, onViewBids, isHighlighted }: { item: ActiveAuction; isStaff: boolean; memberId: string | null; tz: string; onBid: () => void; onResolve: () => void; onViewBids: () => void; isHighlighted?: boolean }) {
   const cd = useCountdown(item.bid_end_time);
   const ended = cd.ended;
   const rarityColor = rc(item.rarity ?? undefined);
@@ -528,7 +539,7 @@ function AuctionRow({ item, isStaff, memberId, tz, onBid, onResolve, onViewBids 
   const endLocal = item.bid_end_time ? new Date(item.bid_end_time).toLocaleString("en-US", { timeZone: tz, month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "";
   const fmt = (n: number) => String(n).padStart(2, "0");
   return (
-    <div className="flex items-center gap-3 px-4 py-3 hover:bg-[#18181b]/50 transition cursor-pointer" onClick={onViewBids}>
+    <div id={`auction-${item.item_id}`} className={`flex items-center gap-3 px-4 py-3 hover:bg-[#18181b]/50 transition cursor-pointer ${isHighlighted ? "bg-amber-500/10 ring-1 ring-amber-500/40 animate-pulse" : ""}`} onClick={onViewBids}>
       {item.image_url ? <img src={item.image_url} className="w-10 h-10 rounded-lg object-cover shrink-0 border border-[#1e1e2a]" style={{ backgroundColor: rarityColor + "20" }} /> : <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: rarityColor + "18" }}><Image className="w-4 h-4" style={{ color: rarityColor }} /></div>}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5">

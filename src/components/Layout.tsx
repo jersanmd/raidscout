@@ -60,6 +60,8 @@ export function Layout() {
   const [discordGuilds, setDiscordGuilds] = useState<{ guild_id: string; name: string; icon_url: string | null }[]>([]);
   const { notifications, unreadCount, markRead, markAllRead } = useNotifications();
   const { unreadClaim, dismiss: dismissClaim } = useClaimNotifications();
+  const [outbidToast, setOutbidToast] = useState<{ id: string; title: string; body: string; itemId: string } | null>(null);
+  const seenNotifRef = useRef<Set<string>>(new Set());
 
   // When a claim is accepted, invalidate member queries so DKP auto-refreshes
   const queryClient = useQueryClient();
@@ -69,6 +71,30 @@ export function Layout() {
       queryClient.invalidateQueries({ queryKey: ["dkp_balance"] });
     }
   }, [unreadClaim, queryClient]);
+
+  // Show toast when outbid via Realtime notification
+  useEffect(() => {
+    for (const n of notifications) {
+      if (n.type === "dkp_outbid" && !n.read && !seenNotifRef.current.has(n.id)) {
+        seenNotifRef.current.add(n.id);
+        const meta = n.metadata as Record<string, any> | undefined;
+        setOutbidToast({
+          id: n.id,
+          title: n.title,
+          body: n.body || "",
+          itemId: meta?.item_id || "",
+        });
+        break; // show one at a time
+      }
+    }
+  }, [notifications]);
+
+  // Auto-dismiss outbid toast after 8 seconds
+  useEffect(() => {
+    if (!outbidToast) return;
+    const t = setTimeout(() => setOutbidToast(null), 8000);
+    return () => clearTimeout(t);
+  }, [outbidToast]);
 
   // ── Server switch loading overlay ──
   const [serverSwitching, setServerSwitching] = useState(false);
@@ -212,6 +238,25 @@ export function Layout() {
   return (
     <div className="h-dvh bg-[#09090b] flex flex-col overflow-hidden" onClick={() => { showUserMenu && setShowUserMenu(false); showNotifications && setShowNotifications(false); }}>
       {adminJoining && (<div className="fixed inset-0 z-[100] bg-[#09090b]/80 flex items-center justify-center"><div className="text-center space-y-3"><Loader2 className="w-8 h-8 text-[#a1a1aa] animate-spin mx-auto" /><p className="text-sm text-[#a1a1aa]">Joining server as owner{"\u2026"}</p></div></div>)}
+      {/* Outbid toast banner */}
+      {outbidToast && (
+        <div className="fixed top-14 left-1/2 -translate-x-1/2 z-[90] animate-in slide-in-from-top-2 fade-in duration-300">
+          <button
+            onClick={() => { navigate(`/dkp?highlight=${outbidToast.itemId}`); setOutbidToast(null); }}
+            className="flex items-center gap-3 bg-[#18181b] border border-amber-500/30 rounded-xl px-4 py-3 shadow-2xl shadow-amber-500/10 hover:border-amber-500/60 transition cursor-pointer max-w-md"
+          >
+            <span className="text-lg shrink-0">↗️</span>
+            <div className="text-left min-w-0">
+              <p className="text-xs font-semibold text-amber-400">{outbidToast.title}</p>
+              <p className="text-[11px] text-[#a1a1aa] line-clamp-2">{outbidToast.body}</p>
+              <p className="text-[10px] text-amber-500/70 mt-1">Tap to view item →</p>
+            </div>
+            <button onClick={(e) => { e.stopPropagation(); setOutbidToast(null); }} className="text-[#71717a] hover:text-[#fafafa] shrink-0">
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </button>
+        </div>
+      )}
       {/* Server switch overlay — covers tab content until data settles */}
       {serverSwitching && !adminJoining && (
         <div className="fixed inset-0 z-[90] flex items-center justify-center bg-[#09090b]">
