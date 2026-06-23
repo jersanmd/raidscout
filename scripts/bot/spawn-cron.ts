@@ -390,8 +390,9 @@ async function runSpawnCron() {
           if (activity.schedule_type === "one_time" && activity.start_time) {
             nextStart = new Date(activity.start_time);
           } else if (activity.schedule_type === "fixed_schedule" && activity.schedule) {
-            // Weekly recurring: find next slot from schedule array
-            const schedTz = activity.schedule_tz || tz;
+            // Weekly recurring: find next slot from schedule array.
+            // Schedule times are stored in UTC; only override if schedule_tz is explicitly set.
+            const schedTz = activity.schedule_tz || "UTC";
             for (let d = 0; d <= 7; d++) {
               const check = new Date(nowAct);
               check.setDate(check.getDate() + d);
@@ -403,37 +404,21 @@ async function runSpawnCron() {
               }
             }
           } else if (activity.schedule_type === "fixed_hours" && activity.schedule) {
-            // Daily recurring at a fixed time (schedule is "HH:MM" string or { time: "HH:MM" })
-            // Compute directly in the target timezone — don't use scheduleSlotToUTC
-            // because its day-of-week logic can shift by a day when server UTC crosses midnight.
-            const schedTz = activity.schedule_tz || tz;
+            // Daily recurring at a fixed time. Schedule times are stored in UTC.
             const raw = activity.schedule;
             const schedObj = (typeof raw === "object" && raw !== null && !Array.isArray(raw) && "time" in raw)
-              ? (raw as { time: string; start_date?: string; timezone?: string })
+              ? (raw as { time: string })
               : null;
             const timeStr: string | null = schedObj ? schedObj.time : (typeof raw === "string" ? raw : null);
             if (timeStr) {
               const [h, m] = timeStr.split(":").map(Number);
               if (!isNaN(h) && !isNaN(m)) {
-                // Get today's date in the target timezone, then build a naive UTC date
-                const todayLocal = nowAct.toLocaleDateString("en-CA", { timeZone: schedTz });
-                const [y, mo, d] = todayLocal.split("-").map(Number);
-                const naiveUtc = new Date(Date.UTC(y, mo - 1, d, h, m));
-                // Compute timezone offset for that moment
-                const utcStr = naiveUtc.toLocaleTimeString("en-US", { timeZone: "UTC", hour12: false, hour: "2-digit", minute: "2-digit" });
-                const tzStr = naiveUtc.toLocaleTimeString("en-US", { timeZone: schedTz, hour12: false, hour: "2-digit", minute: "2-digit" });
-                const [utcH, utcM] = utcStr.split(":").map(Number);
-                const [tzH, tzM] = tzStr.split(":").map(Number);
-                let offsetMin = (tzH * 60 + tzM) - (utcH * 60 + utcM);
-                if (offsetMin > 720) offsetMin -= 1440;
-                if (offsetMin < -720) offsetMin += 1440;
-                const todayUtc = new Date(naiveUtc.getTime() - offsetMin * 60_000);
-
-                if (todayUtc > nowAct) {
-                  nextStart = todayUtc;
+                const today = new Date(nowAct);
+                today.setUTCHours(h, m, 0, 0);
+                if (today > nowAct) {
+                  nextStart = today;
                 } else {
-                  // Already passed today — tomorrow
-                  nextStart = new Date(todayUtc.getTime() + 24 * 60 * 60_000);
+                  nextStart = new Date(today.getTime() + 24 * 60 * 60_000);
                 }
               }
             }
@@ -442,7 +427,8 @@ async function runSpawnCron() {
           if (!nextStart || nextStart <= nowAct) continue;
 
           // Debug: log computed activity schedule
-          console.log(`[cron:activity] server=${serverId} activity="${activity.name}" schedule_type=${activity.schedule_type} sched_tz=${activity.schedule_tz || tz} server_tz=${tz} schedule=${JSON.stringify(activity.schedule)} nextStart=${nextStart.toISOString()} localTime=${nextStart.toLocaleTimeString("en-US", {timeZone: activity.schedule_tz || tz, hour: "2-digit", minute: "2-digit", hour12: true})}`);
+          const displayTz = activity.schedule_tz || tz;
+          console.log(`[cron:activity] server=${serverId} activity="${activity.name}" schedule_type=${activity.schedule_type} schedule_tz=${activity.schedule_tz || "(none→UTC)"} display_tz=${displayTz} schedule=${JSON.stringify(activity.schedule)} nextStart=${nextStart.toISOString()} localTime=${nextStart.toLocaleTimeString("en-US", {timeZone: displayTz, hour: "2-digit", minute: "2-digit", hour12: true})}`);
 
           const startUnix = Math.floor(nextStart.getTime() / 1000);
           const nowUnix = Math.floor(Date.now() / 1000);
