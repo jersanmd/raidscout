@@ -82,17 +82,28 @@ export function HistoryView() {
   }, [configured, user, isViewer, serverId, since]);
 
   const loadMore = useCallback(async () => {
-    if (loadingMore || !hasMore || !serverId) return;
-    const last = history[history.length - 1];
-    if (!last) return;
+    if (loadingMore || !hasMore || !serverId || history.length === 0) return;
     setLoadingMore(true);
     try {
-      // Don't pass `since` here — cursor-based pagination should go
-      // back indefinitely, not be capped at the initial 2-day window.
-      // Use createdAt (always defined) instead of deathTime (undefined for activities).
-      const result = await fetchHistoryFromSupabase(serverId, undefined, undefined, last.createdAt, 50);
+      // Day-based pagination: find the oldest day currently loaded,
+      // then fetch the entire day before it. No cursors, no gaps.
+      const oldest = history.reduce((min, e) => {
+        const t = new Date(e.createdAt).getTime();
+        return t < min ? t : min;
+      }, Infinity);
+      const oldestDay = new Date(oldest);
+      oldestDay.setHours(0, 0, 0, 0);
+      const dayEnd = new Date(oldestDay);
+      const dayStart = new Date(oldestDay.getTime() - 24 * 60 * 60 * 1000);
+      const result = await fetchHistoryFromSupabase(
+        serverId,
+        dayStart.toISOString(),
+        dayEnd.toISOString(),
+        null,
+        500,
+      );
       setHistory(prev => [...prev, ...result]);
-      setHasMore(result.length >= 50);
+      setHasMore(result.length > 0);
     } catch {
       // ignore
     } finally {

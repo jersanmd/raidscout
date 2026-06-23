@@ -100,7 +100,7 @@ export async function fetchHistoryFromSupabase(
     };
   });
 
-  // Fetch and merge activity history (pass cursor so pagination works)
+  // Fetch and merge activity history
   const activityEntries = await fetchActivityHistory(sid, since, until, cursor);
 
   return [...bossEntries, ...activityEntries].sort(
@@ -125,6 +125,8 @@ async function fetchActivityHistory(sid: string, since?: string, until?: string,
   if (since) query = query.gte("end_time", since);
   if (until) query = query.lte("end_time", until);
   if (!since && !until && !cursor) query = query.limit(200);
+  // Always limit when paginating with cursor only (no since/until window)
+  if (cursor && !since && !until) query = query.limit(50);
 
   const { data, error } = await query;
   if (error) throw error;
