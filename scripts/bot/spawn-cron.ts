@@ -391,13 +391,12 @@ async function runSpawnCron() {
             nextStart = new Date(activity.start_time);
           } else if (activity.schedule_type === "fixed_schedule" && activity.schedule) {
             // Weekly recurring: find next slot from schedule array.
-            // Schedule times are stored in UTC; only override if schedule_tz is explicitly set.
-            const schedTz = activity.schedule_tz || "UTC";
+            // Schedule times are stored in UTC — always convert from UTC.
             for (let d = 0; d <= 7; d++) {
               const check = new Date(nowAct);
               check.setDate(check.getDate() + d);
               for (const slot of activity.schedule) {
-                const c = scheduleSlotToUTC(schedTz, check, slot.day, slot.time);
+                const c = scheduleSlotToUTC("UTC", check, slot.day, slot.time);
                 if (c > nowAct && (!nextStart || c < nextStart)) {
                   nextStart = c;
                 }
@@ -471,7 +470,8 @@ async function runSpawnCron() {
             if (!sentNotifs.has(warnDedupKey)) {
               sentNotifs.set(warnDedupKey, Date.now());
               recordNotification("activity_spawning", serverId, activity.id, startUnix);
-              const timeStr = nextStart.toLocaleTimeString("en-US", { timeZone: tz, hour: "2-digit", minute: "2-digit", hour12: true });
+              const displayTz = activity.schedule_tz || tz;
+              const timeStr = nextStart.toLocaleTimeString("en-US", { timeZone: displayTz, hour: "2-digit", minute: "2-digit", hour12: true });
               broadcastNotification(serverId, {},
                 "",
                 `📋 **${activity.name}** starting in 5 min${guildTag} — ${timeStr}`
