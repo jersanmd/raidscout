@@ -401,37 +401,34 @@ async function runSpawnCron() {
           if (activity.schedule_type === "one_time" && activity.start_time) {
             nextStart = new Date(activity.start_time);
           } else if (activity.schedule_type === "fixed_schedule" && activity.schedule) {
-            // Weekly recurring: find next slot from schedule array
-            const schedTz = activity.schedule_tz || tz;
+            // Weekly recurring: find next slot from schedule array.
+            // Schedule times are stored in UTC — always convert from UTC.
             for (let d = 0; d <= 7; d++) {
               const check = new Date(nowAct);
               check.setDate(check.getDate() + d);
               for (const slot of activity.schedule) {
-                const c = scheduleSlotToUTC(schedTz, check, slot.day, slot.time);
+                const c = scheduleSlotToUTC("UTC", check, slot.day, slot.time);
                 if (c > nowAct && (!nextStart || c < nextStart)) {
                   nextStart = c;
                 }
               }
             }
           } else if (activity.schedule_type === "fixed_hours" && activity.schedule) {
-            // Daily recurring at a fixed time (schedule is "HH:MM" string or { time: "HH:MM" })
-            const schedTz = activity.schedule_tz || tz;
+            // Daily recurring at a fixed time. Schedule times are stored in UTC.
             const raw = activity.schedule;
             const schedObj = (typeof raw === "object" && raw !== null && !Array.isArray(raw) && "time" in raw)
-              ? (raw as { time: string; start_date?: string; timezone?: string })
+              ? (raw as { time: string })
               : null;
             const timeStr: string | null = schedObj ? schedObj.time : (typeof raw === "string" ? raw : null);
             if (timeStr) {
               const [h, m] = timeStr.split(":").map(Number);
               if (!isNaN(h) && !isNaN(m)) {
-                const slotUtc = scheduleSlotToUTC(schedTz, nowAct, nowAct.getDay(), timeStr);
-                if (slotUtc > nowAct) {
-                  nextStart = slotUtc;
+                const today = new Date(nowAct);
+                today.setUTCHours(h, m, 0, 0);
+                if (today > nowAct) {
+                  nextStart = today;
                 } else {
-                  // Already passed today — tomorrow
-                  const tomorrow = new Date(nowAct);
-                  tomorrow.setDate(tomorrow.getDate() + 1);
-                  nextStart = scheduleSlotToUTC(schedTz, tomorrow, tomorrow.getDay(), timeStr);
+                  nextStart = new Date(today.getTime() + 24 * 60 * 60_000);
                 }
               }
             }
@@ -480,7 +477,8 @@ async function runSpawnCron() {
             if (!sentNotifs.has(warnDedupKey)) {
               sentNotifs.set(warnDedupKey, Date.now());
               recordNotification("activity_spawning", serverId, activity.id, startUnix);
-              const timeStr = nextStart.toLocaleTimeString("en-US", { timeZone: tz, hour: "2-digit", minute: "2-digit", hour12: true });
+              const displayTz = activity.schedule_tz || tz;
+              const timeStr = nextStart.toLocaleTimeString("en-US", { timeZone: displayTz, hour: "2-digit", minute: "2-digit", hour12: true });
               broadcastNotification(serverId, {},
                 "",
                 `📋 **${activity.name}** starting in 5 min${guildTag} — ${timeStr}`
