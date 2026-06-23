@@ -1,4 +1,4 @@
--- 155: Reset DKP points for a server, optionally filtered by guilds (staff only)
+-- 156: Add guild filter parameter to reset_all_dkp
 CREATE OR REPLACE FUNCTION public.reset_all_dkp(p_server_id UUID, p_guild_names TEXT[] DEFAULT NULL)
 RETURNS VOID
 LANGUAGE plpgsql
@@ -8,7 +8,6 @@ AS $$
 DECLARE
   v_guild_ids UUID[];
 BEGIN
-  -- Only owner/moderator can reset
   IF NOT EXISTS (
     SELECT 1 FROM public.server_members sm
     WHERE sm.server_id = p_server_id AND sm.user_id = auth.uid()
@@ -17,7 +16,6 @@ BEGIN
     RAISE EXCEPTION 'Not authorized';
   END IF;
 
-  -- Resolve guild names to IDs if provided
   IF p_guild_names IS NOT NULL AND array_length(p_guild_names, 1) > 0 THEN
     SELECT array_agg(id) INTO v_guild_ids
     FROM public.guilds
@@ -28,7 +26,6 @@ BEGIN
     END IF;
   END IF;
 
-  -- Delete DKP transactions for specified guilds (or all if none specified)
   IF v_guild_ids IS NOT NULL THEN
     DELETE FROM public.dkp_transactions
     WHERE server_id = p_server_id
@@ -37,7 +34,6 @@ BEGIN
     DELETE FROM public.dkp_transactions WHERE server_id = p_server_id;
   END IF;
 
-  -- Delete bids for specified guilds (or all)
   IF v_guild_ids IS NOT NULL THEN
     DELETE FROM public.dkp_bids
     WHERE server_id = p_server_id
@@ -46,7 +42,6 @@ BEGIN
     DELETE FROM public.dkp_bids WHERE server_id = p_server_id;
   END IF;
 
-  -- Cancel active auctions restricted to specified guilds (or all)
   IF v_guild_ids IS NOT NULL THEN
     UPDATE public.dkp_auctions SET status = 'cancelled'
     WHERE server_id = p_server_id AND status = 'active'
@@ -55,7 +50,6 @@ BEGIN
     UPDATE public.dkp_auctions SET status = 'cancelled' WHERE server_id = p_server_id AND status = 'active';
   END IF;
 
-  -- Clear is_up_for_bid on items for specified guilds (or all)
   IF v_guild_ids IS NOT NULL THEN
     UPDATE public.items SET is_up_for_bid = false, bid_end_time = NULL, dkp_cost = NULL
     WHERE server_id = p_server_id AND is_up_for_bid = true

@@ -88,9 +88,10 @@ export async function adjustMemberDkp(
   return data as string;
 }
 
-export async function resetAllDkp(serverId: string): Promise<void> {
+export async function resetAllDkp(serverId: string, guildNames?: string[]): Promise<void> {
   const { error } = await supabase.rpc("reset_all_dkp", {
     p_server_id: serverId,
+    p_guild_names: guildNames?.length ? guildNames : null,
   });
   if (error) throw error;
 }
