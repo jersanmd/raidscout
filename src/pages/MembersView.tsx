@@ -96,6 +96,8 @@ export function MembersView() {
   const [newClassName, setNewClassName] = useState("");
   const [newClassIcon, setNewClassIcon] = useState<string>("Sword");
   const [classSearch, setClassSearch] = useState("");
+  const [classSearchOpen, setClassSearchOpen] = useState(false);
+  const classSearchRef = useRef<HTMLInputElement>(null);
   const [progressSearch, setProgressSearch] = useState("");
   const progressGuildKey = `progress-guild-${serverId ?? "global"}`;
   const [progressGuildFilter, setProgressGuildFilter] = useState<string>(() => {
@@ -2185,17 +2187,26 @@ export function MembersView() {
               Assign Classes to Members
             </h3>
             <div className="flex items-center gap-2">
-              <div className="relative w-48">
-                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#52525b]" />
-                <input
-                  type="text"
-                  value={classSearch}
-                  onChange={(e) => setClassSearch(e.target.value)}
-                  placeholder="Search members..."
-                  className="w-full pl-8 pr-3 py-1.5 bg-[#09090b] border border-[#27272a] rounded-lg text-xs text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#52525b]"
-                />
-              </div>
-              {guilds.length > 0 && (
+              <div className="flex items-center gap-2">
+                {classSearchOpen ? (
+                  <div className="relative w-48 ml-auto">
+                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#52525b]" />
+                    <input
+                      ref={classSearchRef}
+                      type="text"
+                      value={classSearch}
+                      onChange={(e) => setClassSearch(e.target.value)}
+                      placeholder="Search members..."
+                      className="w-full pl-8 pr-3 py-1.5 bg-[#18181b] border border-[#27272a] rounded-lg text-xs text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#52525b] animate-slide-up"
+                      autoFocus
+                    />
+                  </div>
+                ) : (
+                  <button onClick={() => setClassSearchOpen(true)} className="ml-auto p-1 rounded text-[#71717a] hover:text-[#fafafa] hover:bg-[#27272a] transition" title="Search">
+                    <Search className="w-3.5 h-3.5" />
+                  </button>
+                )}
+                {guilds.length > 0 && (
                 <div className="relative">
                   <button
                     onClick={() => setClassAssignGuildOpen(!classAssignGuildOpen)}
@@ -2238,6 +2249,7 @@ export function MembersView() {
                   )}
                 </div>
               )}
+              </div>
             </div>
           </div>
           {members.length === 0 ? (

@@ -334,22 +334,32 @@ export async function getPastAuctions(serverId: string): Promise<PastAuction[]> 
   const bidsForAuctions = ((bids as any[]) || []).filter((b: any) => b.auction_id && auctionIds.includes(b.auction_id));
   if (!bidsForAuctions.length && auctions.length === 0) return [];
 
-  // Group bids by auction_id
-  const auctionBidMap = new Map<string, { bids: any[]; winner: { name: string; amount: number } | null }>();
+  // Group bids by auction_id and extract auction_round
+  const auctionBidMap = new Map<string, { bids: any[]; winner: { name: string; amount: number } | null; auctionRound: number }>();
   for (const b of bidsForAuctions) {
-    const e = auctionBidMap.get(b.auction_id) || { bids: [], winner: null };
+    const e = auctionBidMap.get(b.auction_id) || { bids: [], winner: null, auctionRound: b.auction_round ?? 1 };
     e.bids.push(b);
+    if (!e.auctionRound || b.auction_round > e.auctionRound) e.auctionRound = b.auction_round ?? 1;
     if (b.status === "won" && (!e.winner || b.bid_amount > e.winner.amount)) {
       e.winner = { name: b.member_name ?? "Unknown", amount: b.bid_amount };
     }
     auctionBidMap.set(b.auction_id, e);
   }
 
+  // Query distributed status for all (item_id, auction_round, auction_id) tuples
+  const itemIds = auctions.map((a: any) => a.item_id);
+  const { data: distributedRows } = await supabase
+    .from("dkp_distributed")
+    .select("item_id, auction_round, auction_id")
+    .in("item_id", itemIds);
+  const distributedSet = new Set((distributedRows || []).map((d: any) => `${d.item_id}::${d.auction_round}::${d.auction_id}`));
+
   return auctions.map((a: any) => {
     const item = a.items as any;
     const round = auctionBidMap.get(a.id);
     const roundBids = round?.bids ?? [];
     const winner = round?.winner ?? null;
+    const auctionRound = round?.auctionRound ?? 1;
     const highestBid = roundBids.reduce((max: number, b: any) => b.bid_amount > max ? b.bid_amount : max, 0);
     return {
       auction_id: a.id,
@@ -367,8 +377,8 @@ export async function getPastAuctions(serverId: string): Promise<PastAuction[]> 
       resolved_at: roundBids.length > 0
         ? roundBids.reduce((max: string, b: any) => b.resolved_at > max ? b.resolved_at : max, roundBids[0].resolved_at)
         : a.created_at,
-      auction_round: 1,
-      distributed: false,
+      auction_round: auctionRound,
+      distributed: distributedSet.has(`${a.item_id}::${auctionRound}::${a.id}`),
       guild_name: a.guild_id ? (guildMap.get(a.guild_id) ?? null) : null,
     };
   }).sort((a, b) => new Date(b.resolved_at).getTime() - new Date(a.resolved_at).getTime());
@@ -382,10 +392,11 @@ export async function deletePastAuction(itemId: string, auctionRound: number): P
   if (error) throw error;
 }
 
-export async function toggleItemDistributed(itemId: string, auctionRound: number, distributed: boolean): Promise<void> {
+export async function toggleItemDistributed(itemId: string, auctionRound: number, auctionId: string, distributed: boolean): Promise<void> {
   const { error } = await supabase.rpc("toggle_item_distributed", {
     p_item_id: itemId,
     p_auction_round: auctionRound,
+    p_auction_id: auctionId,
     p_distributed: distributed,
   });
   if (error) throw error;

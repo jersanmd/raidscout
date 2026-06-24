@@ -633,7 +633,7 @@ export function MemberProfileView() {
   }, [profile]);
 
   if (isLoading) return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 text-[#71717a] animate-spin"/></div>;
-  if (!profile) return <div className="text-center py-20"><p className="text-[#71717a]">Member not found.</p><button onClick={() => navigate(-1)} className="mt-4 text-[#a1a1aa] hover:text-[#fafafa] text-sm">← Go back</button></div>;
+  if (!profile) return <div className="text-center py-20"><p className="text-[#71717a]">Member not found.</p><button onClick={() => isViewer ? navigate("/") : navigate(-1)} className="mt-4 text-[#a1a1aa] hover:text-[#fafafa] text-sm">← Go back</button></div>;
 
   const filteredTimeline = timelineFilter === "all" ? timeline : timeline.filter(e => e.type === timelineFilter);
 
@@ -646,7 +646,7 @@ export function MemberProfileView() {
   return (
     <div className="w-full max-w-[100%] 2xl:max-w-[1600px] mx-auto px-3 sm:px-4 py-4 sm:py-6 space-y-4 sm:space-y-5">
       {/* Back */}
-      <button onClick={() => navigate(-1)} className="flex items-center gap-1.5 text-[#a1a1aa] hover:text-[#fafafa] text-sm transition">
+      <button onClick={() => isViewer ? navigate("/") : navigate(-1)} className="flex items-center gap-1.5 text-[#a1a1aa] hover:text-[#fafafa] text-sm transition">
         <ArrowLeft className="w-4 h-4"/>{isViewer ? "Back to RaidScout" : "Back to Members"}
       </button>
 

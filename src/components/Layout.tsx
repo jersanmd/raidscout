@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { NavLink, Outlet, useNavigate, useLocation, Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -60,7 +60,8 @@ export function Layout() {
   const [discordGuilds, setDiscordGuilds] = useState<{ guild_id: string; name: string; icon_url: string | null }[]>([]);
   const { notifications, unreadCount, markRead, markAllRead } = useNotifications();
   const { unreadClaim, dismiss: dismissClaim } = useClaimNotifications();
-  const [toasts, setToasts] = useState<{ id: string; type: string; title: string; body: string; itemId: string; itemName?: string; rarity?: string }[]>([]);
+  const [toasts, setToasts] = useState<{ id: string; type: string; title: string; body: string; itemId: string; itemName?: string; rarity?: string; imageUrl?: string }[]>([]);
+  const [confetti, setConfetti] = useState(false);
   const seenNotifRef = useRef<Set<string>>(new Set());
 
   const dismissToast = (notifId: string) => {
@@ -94,8 +95,10 @@ export function Layout() {
         itemId: meta?.item_id || meta?.auction_id || "",
         itemName: meta?.item_name || undefined,
         rarity: meta?.rarity || undefined,
+        imageUrl: meta?.image_url || undefined,
       };
       setToasts(prev => [...prev, toast]);
+      if (isWon) { setConfetti(true); setTimeout(() => setConfetti(false), 3000); }
       // Auto-dismiss after 8 seconds
       setTimeout(() => { setToasts(prev => prev.filter(t => t.id !== n.id)); markRead(n.id); }, 8000);
     }
@@ -252,7 +255,11 @@ export function Layout() {
                 onClick={() => { navigate(`/dkp?highlight=${t.itemId}`); dismissToast(t.id); }}
                 className={`flex items-center gap-3 rounded-xl px-4 py-3 shadow-2xl transition cursor-pointer border w-full ${t.type === "dkp_won" ? "bg-[#18181b] border-emerald-500/30 shadow-emerald-500/10 hover:border-emerald-500/60" : "bg-[#18181b] border-amber-500/30 shadow-amber-500/10 hover:border-amber-500/60"}`}
               >
-                <span className="text-lg shrink-0">{t.type === "dkp_won" ? "🏆" : "↗️"}</span>
+                {t.imageUrl ? (
+                  <img src={t.imageUrl} alt="" className="w-9 h-9 rounded object-cover border border-[#27272a] shrink-0" />
+                ) : (
+                  <span className="text-lg shrink-0">{t.type === "dkp_won" ? "🏆" : "↗️"}</span>
+                )}
                 <div className="text-left min-w-0">
                   <p className={`text-xs font-semibold ${t.type === "dkp_won" ? "text-emerald-400" : "text-amber-400"}`}>{t.title}</p>
                   <p className="text-[11px] text-[#a1a1aa] line-clamp-2">
@@ -401,6 +408,25 @@ export function Layout() {
             document.body
           )}
         </div>
+        {/* Confetti burst on win */}
+        {confetti && (
+          <div className="fixed inset-0 z-[95] pointer-events-none">
+            {Array.from({ length: 40 }).map((_, i) => (
+              <div
+                key={i}
+                className="absolute w-2 h-2 rounded-full animate-confetti"
+                style={{
+                  left: `${40 + Math.random() * 20}%`,
+                  top: '-10px',
+                  backgroundColor: ['#f59e0b','#ef4444','#22c55e','#3b82f6','#a855f7','#ec4899'][i % 6],
+                  animationDelay: `${Math.random() * 0.8}s`,
+                  animationDuration: `${1.5 + Math.random() * 2}s`,
+                  '--tx': `${(Math.random() - 0.5) * 400}px`,
+                } as React.CSSProperties}
+              />
+            ))}
+          </div>
+        )}
         {/* User dropdown */}
         <div className="relative shrink-0">
           <button ref={menuBtnRef} onClick={()=>{if(!showUserMenu&&menuBtnRef.current){const r=menuBtnRef.current.getBoundingClientRect();setMenuPos({top:r.bottom+4,right:Math.max(4,window.innerWidth-r.right)})}setShowUserMenu(!showUserMenu)}} className="flex items-center gap-1.5 text-[#fafafa]/70 hover:text-[#fafafa] text-sm transition p-1.5 rounded-md hover:bg-[#18181b]" title="Account"><User className="w-4 h-4"/><span className="hidden sm:block text-xs max-w-[100px] truncate">{user?.email?.split("@")[0]}</span><ChevronDown className={`w-3 h-3 transition ${showUserMenu?"rotate-180":""}`}/></button>

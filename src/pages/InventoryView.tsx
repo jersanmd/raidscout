@@ -134,6 +134,8 @@ export function InventoryView() {
   const [showCreateCollection, setShowCreateCollection] = useState(false);
   const [newCollectionName, setNewCollectionName] = useState("");
   const [collectionItemSearch, setCollectionItemSearch] = useState("");
+  const [collectionItemSearchOpen, setCollectionItemSearchOpen] = useState(false);
+  const collectionItemSearchRef = useRef<HTMLInputElement>(null);
   const [collCatFilter, setCollCatFilter] = useState("");
   const [collRarityFilter, setCollRarityFilter] = useState("");
   const [matrixSort, setMatrixSort] = useState<"name" | "owned-desc" | "owned-asc" | "cp-desc" | "cp-asc">("name");
@@ -145,6 +147,8 @@ export function InventoryView() {
     try { return localStorage.getItem("raidscout-matrix-guild") || ""; } catch { return ""; }
   });
   const [matrixPlayerSearch, setMatrixPlayerSearch] = useState("");
+  const [matrixPlayerSearchOpen, setMatrixPlayerSearchOpen] = useState(true);
+  const matrixPlayerSearchRef = useRef<HTMLInputElement>(null);
   const [deleteCollectionTarget, setDeleteCollectionTarget] = useState<{ id: string; name: string } | null>(null);
 
   const { data: collections = [], isLoading: collectionsLoading } = useQuery({
@@ -224,14 +228,18 @@ export function InventoryView() {
     queryKey: ["distributions", serverId],
     queryFn: () => fetchDistributions(serverId, undefined, undefined, 10),
     enabled: configured,
+    staleTime: 30_000,
   });
 
-  // Reset accumulator when raw data changes (new fetch, no cursor)
+  // Reset accumulator when server changes (not on every refetch)
+  const prevServerForDist = useRef(serverId);
   useEffect(() => {
+    if (prevServerForDist.current === serverId) return;
+    prevServerForDist.current = serverId;
     setDistCursor(null);
     setDistAccum([]);
     setDistHasMore(distributionsRaw.length >= 10);
-  }, [distributionsRaw]);
+  }, [serverId, distributionsRaw.length]);
 
   const distributions = distCursor ? distAccum : distributionsRaw;
 
@@ -495,7 +503,13 @@ export function InventoryView() {
   });
 
   const deleteDistMutation = useMutation({
-    mutationFn: (id: string) => deleteDistribution(id),
+    mutationFn: async (distId: string) => {
+      // Clear dkp_distributed for this item (if distributed via DKP auction)
+      if (deleteConfirm?.itemId) {
+        await supabaseClient.rpc("clear_item_distributed", { p_item_id: deleteConfirm.itemId });
+      }
+      return deleteDistribution(distId);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["distributions", serverId] });
       queryClient.invalidateQueries({ queryKey: ["itemDistributionStats", serverId] });
@@ -504,6 +518,8 @@ export function InventoryView() {
   });
 
   const [itemSearch, setItemSearch] = useState("");
+  const [itemSearchOpen, setItemSearchOpen] = useState(true);
+  const itemSearchRef = useRef<HTMLInputElement>(null);
   const [pendingFilter, setPendingFilter] = useState(false);
   const [deleteItemTarget, setDeleteItemTarget] = useState<{ id: string; name: string } | null>(null);
   const [deleteItemConfirm, setDeleteItemConfirm] = useState("");
@@ -511,6 +527,8 @@ export function InventoryView() {
   const [rarityFilter, setRarityFilter] = useState<string | null>(null);
 
   const [histSearch, setHistSearch] = useState("");
+  const [histSearchOpen, setHistSearchOpen] = useState(true);
+  const histSearchRef = useRef<HTMLInputElement>(null);
   const [histRarityFilter, setHistRarityFilter] = useState<string | null>(null);
 
   // When searching, fetch a larger batch so the search covers all history
@@ -535,10 +553,16 @@ export function InventoryView() {
 
   // Analytics: search filters
   const [analyticsItemSearch, setAnalyticsItemSearch] = useState("");
+  const [analyticsItemSearchOpen, setAnalyticsItemSearchOpen] = useState(false);
+  const analyticsItemSearchRef = useRef<HTMLInputElement>(null);
   const [analyticsRecipientSearch, setAnalyticsRecipientSearch] = useState("");
+  const [analyticsRecipientSearchOpen, setAnalyticsRecipientSearchOpen] = useState(false);
+  const analyticsRecipientSearchRef = useRef<HTMLInputElement>(null);
 
   // Recipients tab search & sort
   const [recipientSearch, setRecipientSearch] = useState("");
+  const [recipientSearchOpen, setRecipientSearchOpen] = useState(false);
+  const recipientSearchRef = useRef<HTMLInputElement>(null);
   const [recipientGuildFilter, setRecipientGuildFilter] = useState<string>(() => {
     try { return localStorage.getItem("raidscout-recipient-guild") || ""; } catch { return ""; }
   });
@@ -549,7 +573,7 @@ export function InventoryView() {
   const RARITY_SORT_ORDER: Record<string, number> = { mythic: 0, legendary: 1, epic: 2, rare: 3, uncommon: 4, common: 5 };
 
   // Delete confirmation
-  const [deleteConfirm, setDeleteConfirm] = useState<{ distId: string; itemName: string } | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ distId: string; itemId: string; itemName: string } | null>(null);
   const [deleteConfirmName, setDeleteConfirmName] = useState("");
 
   // Lazy-loading state for catalog
@@ -710,27 +734,37 @@ export function InventoryView() {
           {/* Search + Rarity Filters */}
           <div className="space-y-3">
             <div className="flex items-center gap-2">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#52525b]" />
-                <input
-                  value={itemSearch}
-                  onChange={(e) => setItemSearch(e.target.value)}
-                  placeholder="Search items..."
-                  className="w-full pl-9 pr-9 py-2.5 bg-[#18181b] border border-[#27272a] rounded-xl text-sm text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#52525b]"
-                />
-                {itemSearch && (
-                  <button onClick={() => setItemSearch("")} className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded text-[#52525b] hover:text-[#a1a1aa]">
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                )}
-              </div>
+            <div className="flex-1 min-w-0">
+              {itemSearchOpen ? (
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#52525b]" />
+                  <input
+                    ref={itemSearchRef}
+                    value={itemSearch}
+                    onChange={(e) => setItemSearch(e.target.value)}
+                    placeholder="Search items..."
+                    className="w-full pl-9 pr-9 py-2.5 bg-[#18181b] border border-[#27272a] rounded-xl text-sm text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#52525b] animate-slide-up"
+                    autoFocus
+                  />
+                  {itemSearch && (
+                    <button onClick={() => { setItemSearch(""); itemSearchRef.current?.focus(); }} className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded text-[#52525b] hover:text-[#a1a1aa]">
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <button onClick={() => setItemSearchOpen(true)} className="p-1 rounded text-[#71717a] hover:text-[#fafafa] hover:bg-[#27272a] transition" title="Search">
+                  <Search className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
               {canManageItems && (
                 <button
                   onClick={() => {
                     if (pendingFilter) { setPendingFilter(false); loadCatalogPage(0, itemSearch.trim() || undefined); }
                     else { setPendingFilter(true); setItemSearch(""); loadCatalogPage(0, undefined, true); }
                   }}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition border shrink-0 ${pendingFilter ? "bg-amber-500/15 text-amber-400 border-amber-500/30" : "bg-[#18181b] border-[#27272a] text-[#71717a] hover:text-[#d4d4d8]"}`}
+                  className={`flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-medium transition border shrink-0 ${pendingFilter ? "bg-amber-500/15 text-amber-400 border-amber-500/30" : "bg-[#18181b] border-[#27272a] text-[#71717a] hover:text-[#d4d4d8]"}`}
                 >
                   <Clock className="w-3 h-3" />
                   Pending
@@ -964,9 +998,9 @@ export function InventoryView() {
               {canManageItems && (
               <button
                 onClick={() => setShowCreateCollection(true)}
-                className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium bg-[#fafafa] text-[#09090b] hover:bg-[#e4e4e7] transition"
+                className="flex items-center gap-2 px-3 py-2.5 bg-[#fafafa] hover:bg-[#e4e4e7] text-[#09090b] rounded-xl text-xs font-medium transition"
               >
-                <Plus className="w-3 h-3" />New Collection
+                <Plus className="w-3.5 h-3.5" />New Collection
               </button>
               )}
             </div>
@@ -1204,15 +1238,28 @@ export function InventoryView() {
                         <option key={r} value={r} className="capitalize">{r}</option>
                       ))}
                     </select>
-                    <div className="relative">
-                      <Search className="w-3 h-3 text-[#52525b] absolute left-2 top-1/2 -translate-y-1/2" />
-                      <input
-                        value={collectionItemSearch}
-                        onChange={e => setCollectionItemSearch(e.target.value)}
-                        placeholder="Search name..."
-                        className="w-36 pl-6 pr-2 py-1 text-[11px] bg-[#18181b] border border-[#27272a] rounded-lg text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#3f3f46]"
-                      />
-                    </div>
+                    {collectionItemSearchOpen ? (
+                      <div className="relative">
+                        <Search className="w-3 h-3 text-[#52525b] absolute left-2 top-1/2 -translate-y-1/2" />
+                        <input
+                          ref={collectionItemSearchRef}
+                          value={collectionItemSearch}
+                          onChange={e => setCollectionItemSearch(e.target.value)}
+                          placeholder="Search name..."
+                          className="w-36 pl-6 pr-6 py-1 text-[11px] bg-[#18181b] border border-[#27272a] rounded-lg text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#3f3f46] animate-slide-up"
+                          autoFocus
+                        />
+                        {collectionItemSearch && (
+                          <button onClick={() => { setCollectionItemSearch(""); collectionItemSearchRef.current?.focus(); }} className="absolute right-1 top-1/2 -translate-y-1/2 text-[#52525b] hover:text-[#a1a1aa]">
+                            <X className="w-3 h-3" />
+                          </button>
+                        )}
+                      </div>
+                    ) : (
+                      <button onClick={() => setCollectionItemSearchOpen(true)} className="p-1 rounded text-[#71717a] hover:text-[#fafafa] hover:bg-[#27272a] transition shrink-0" title="Search">
+                        <Search className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -1313,21 +1360,29 @@ export function InventoryView() {
                     <span className="text-[#52525b] hidden sm:inline">Click cells to toggle</span>
                   </div>
                 </div>
-                <div className="relative sm:ml-auto">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#52525b]" />
-                  <input
-                    type="text"
-                    value={matrixPlayerSearch}
-                    onChange={(e) => setMatrixPlayerSearch(e.target.value)}
-                    placeholder="Search player…"
-                    className="w-36 sm:w-48 pl-9 pr-9 py-1.5 sm:py-2 text-xs sm:text-sm bg-[#18181b] border border-[#27272a] rounded-xl text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#52525b]"
-                  />
-                  {matrixPlayerSearch && (
-                    <button onClick={() => setMatrixPlayerSearch("")} className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded text-[#52525b] hover:text-[#a1a1aa]">
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                  )}
-                </div>
+                {matrixPlayerSearchOpen ? (
+                  <div className="relative sm:ml-auto">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#52525b]" />
+                    <input
+                      ref={matrixPlayerSearchRef}
+                      type="text"
+                      value={matrixPlayerSearch}
+                      onChange={(e) => setMatrixPlayerSearch(e.target.value)}
+                      placeholder="Search player…"
+                      className="w-36 sm:w-48 pl-9 pr-9 py-1.5 sm:py-2 text-xs sm:text-sm bg-[#18181b] border border-[#27272a] rounded-xl text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#52525b] animate-slide-up"
+                      autoFocus
+                    />
+                    {matrixPlayerSearch && (
+                      <button onClick={() => { setMatrixPlayerSearch(""); matrixPlayerSearchRef.current?.focus(); }} className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded text-[#52525b] hover:text-[#a1a1aa]">
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <button onClick={() => setMatrixPlayerSearchOpen(true)} className="sm:ml-auto p-1 rounded text-[#71717a] hover:text-[#fafafa] hover:bg-[#27272a] transition shrink-0" title="Search">
+                    <Search className="w-3.5 h-3.5" />
+                  </button>
+                )}
               </div>
 
               {matrixItems.length === 0 ? (
@@ -1473,23 +1528,31 @@ export function InventoryView() {
         <div className="space-y-6">
           {/* Search + Rarity Filters */}
           <div className="space-y-3">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#52525b]" />
-              <input
-                value={histSearch}
-                onChange={(e) => setHistSearch(e.target.value)}
-                placeholder="Search by item or player name..."
-                className="w-full pl-9 pr-9 py-2 sm:py-2.5 bg-[#18181b] border border-[#27272a] rounded-xl text-xs sm:text-sm text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#52525b]"
-              />
-              {histSearch && !searchFetching && (
-                <button onClick={() => setHistSearch("")} className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded text-[#52525b] hover:text-[#a1a1aa]">
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              )}
-              {searchFetching && (
-                <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#52525b] animate-spin" />
-              )}
-            </div>
+            {histSearchOpen ? (
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#52525b]" />
+                <input
+                  ref={histSearchRef}
+                  value={histSearch}
+                  onChange={(e) => setHistSearch(e.target.value)}
+                  placeholder="Search by item or player name..."
+                  className="w-full pl-9 pr-9 py-2 sm:py-2.5 bg-[#18181b] border border-[#27272a] rounded-xl text-xs sm:text-sm text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#52525b] animate-slide-up"
+                  autoFocus
+                />
+                {histSearch && !searchFetching && (
+                  <button onClick={() => { setHistSearch(""); histSearchRef.current?.focus(); }} className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded text-[#52525b] hover:text-[#a1a1aa]">
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+                {searchFetching && (
+                  <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#52525b] animate-spin" />
+                )}
+              </div>
+            ) : (
+              <button onClick={() => setHistSearchOpen(true)} className="p-1 rounded text-[#71717a] hover:text-[#fafafa] hover:bg-[#27272a] transition shrink-0" title="Search">
+                <Search className="w-3.5 h-3.5" />
+              </button>
+            )}
             {availableRarities.length > 0 && (
               <div className="flex items-center gap-2 flex-wrap">
                 <button
@@ -1587,7 +1650,7 @@ export function InventoryView() {
                         </div>
                         {!isViewer && canManageItems && (
                         <button
-                          onClick={() => { setDeleteConfirm({ distId: d.id, itemName: item?.name ?? "Unknown" }); setDeleteConfirmName(""); }}
+                          onClick={() => { setDeleteConfirm({ distId: d.id, itemId: d.item_id, itemName: item?.name ?? "Unknown" }); setDeleteConfirmName(""); }}
                           className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-[#52525b] hover:text-red-400 hover:bg-red-400/10 transition-all shrink-0"
                           title="Delete distribution"
                         >
@@ -1724,20 +1787,28 @@ export function InventoryView() {
                 <option value="rarity">Rarity ↑</option>
                 <option value="rarity-desc">Rarity ↓</option>
               </select>
-              <div className="relative sm:ml-auto">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#52525b]" />
-                <input
-                  value={recipientSearch}
-                  onChange={(e) => setRecipientSearch(e.target.value)}
-                  placeholder="Search player..."
-                  className="w-36 sm:w-48 pl-9 pr-9 py-1.5 sm:py-2.5 text-xs sm:text-sm bg-[#18181b] border border-[#27272a] rounded-xl text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#52525b]"
-                />
-                {recipientSearch && (
-                  <button onClick={() => setRecipientSearch("")} className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded text-[#52525b] hover:text-[#a1a1aa]">
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                )}
-              </div>
+              {recipientSearchOpen ? (
+                <div className="relative sm:ml-auto">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#52525b]" />
+                  <input
+                    ref={recipientSearchRef}
+                    value={recipientSearch}
+                    onChange={(e) => setRecipientSearch(e.target.value)}
+                    placeholder="Search player..."
+                    className="w-36 sm:w-48 pl-9 pr-9 py-1.5 sm:py-2.5 text-xs sm:text-sm bg-[#18181b] border border-[#27272a] rounded-xl text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#52525b] animate-slide-up"
+                    autoFocus
+                  />
+                  {recipientSearch && (
+                    <button onClick={() => { setRecipientSearch(""); recipientSearchRef.current?.focus(); }} className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded text-[#52525b] hover:text-[#a1a1aa]">
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <button onClick={() => setRecipientSearchOpen(true)} className="sm:ml-auto p-1 rounded text-[#71717a] hover:text-[#fafafa] hover:bg-[#27272a] transition shrink-0" title="Search">
+                  <Search className="w-3.5 h-3.5" />
+                </button>
+              )}
             </div>
           </div>
           {filteredPlayers.length === 0 ? (
@@ -1877,20 +1948,28 @@ export function InventoryView() {
                   <Package className="w-4 h-4 text-[#a1a1aa]" />
                   Most Distributed Items
                 </h3>
-                <div className="relative">
-                  <Search className="w-3 h-3 text-[#52525b] absolute left-2 top-1/2 -translate-y-1/2" />
-                  <input
-                    value={analyticsItemSearch}
-                    onChange={(e) => setAnalyticsItemSearch(e.target.value)}
-                    placeholder="Search..."
-                    className="w-28 pl-6 pr-6 py-1 text-[11px] bg-[#09090b] border border-[#27272a] rounded-lg text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#3f3f46]"
-                  />
-                  {analyticsItemSearch && (
-                    <button onClick={() => setAnalyticsItemSearch("")} className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[#52525b] hover:text-[#a1a1aa]">
-                      <X className="w-3 h-3" />
-                    </button>
-                  )}
-                </div>
+                {analyticsItemSearchOpen ? (
+                  <div className="relative">
+                    <Search className="w-3 h-3 text-[#52525b] absolute left-2 top-1/2 -translate-y-1/2" />
+                    <input
+                      ref={analyticsItemSearchRef}
+                      value={analyticsItemSearch}
+                      onChange={(e) => setAnalyticsItemSearch(e.target.value)}
+                      placeholder="Search..."
+                      className="w-28 pl-6 pr-6 py-1 text-[11px] bg-[#18181b] border border-[#27272a] rounded-lg text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#3f3f46] animate-slide-up"
+                      autoFocus
+                    />
+                    {analyticsItemSearch && (
+                      <button onClick={() => { setAnalyticsItemSearch(""); analyticsItemSearchRef.current?.focus(); }} className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[#52525b] hover:text-[#a1a1aa]">
+                        <X className="w-3 h-3" />
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <button onClick={() => setAnalyticsItemSearchOpen(true)} className="p-1 rounded text-[#71717a] hover:text-[#fafafa] hover:bg-[#27272a] transition shrink-0" title="Search">
+                    <Search className="w-3.5 h-3.5" />
+                  </button>
+                )}
               </div>
               {(() => {
                 const list = analyticsItemSearch
@@ -1940,20 +2019,28 @@ export function InventoryView() {
                   <Gift className="w-4 h-4 text-[#a1a1aa]" />
                   Top Recipients
                 </h3>
-                <div className="relative">
-                  <Search className="w-3 h-3 text-[#52525b] absolute left-2 top-1/2 -translate-y-1/2" />
-                  <input
-                    value={analyticsRecipientSearch}
-                    onChange={(e) => setAnalyticsRecipientSearch(e.target.value)}
-                    placeholder="Search..."
-                    className="w-28 pl-6 pr-6 py-1 text-[11px] bg-[#09090b] border border-[#27272a] rounded-lg text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#3f3f46]"
-                  />
-                  {analyticsRecipientSearch && (
-                    <button onClick={() => setAnalyticsRecipientSearch("")} className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[#52525b] hover:text-[#a1a1aa]">
-                      <X className="w-3 h-3" />
-                    </button>
-                  )}
-                </div>
+                {analyticsRecipientSearchOpen ? (
+                  <div className="relative">
+                    <Search className="w-3 h-3 text-[#52525b] absolute left-2 top-1/2 -translate-y-1/2" />
+                    <input
+                      ref={analyticsRecipientSearchRef}
+                      value={analyticsRecipientSearch}
+                      onChange={(e) => setAnalyticsRecipientSearch(e.target.value)}
+                      placeholder="Search..."
+                      className="w-28 pl-6 pr-6 py-1 text-[11px] bg-[#18181b] border border-[#27272a] rounded-lg text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#3f3f46] animate-slide-up"
+                      autoFocus
+                    />
+                    {analyticsRecipientSearch && (
+                      <button onClick={() => { setAnalyticsRecipientSearch(""); analyticsRecipientSearchRef.current?.focus(); }} className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[#52525b] hover:text-[#a1a1aa]">
+                        <X className="w-3 h-3" />
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <button onClick={() => setAnalyticsRecipientSearchOpen(true)} className="p-1 rounded text-[#71717a] hover:text-[#fafafa] hover:bg-[#27272a] transition shrink-0" title="Search">
+                    <Search className="w-3.5 h-3.5" />
+                  </button>
+                )}
               </div>
               {(() => {
                 const list = analyticsRecipientSearch

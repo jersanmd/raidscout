@@ -1,18 +1,20 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { Link, useSearchParams } from "react-router-dom";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { useServer } from "@/contexts/ServerContext";
 import { useServerId } from "@/contexts/ServerContext";
 import { useToast } from "@/contexts/ToastContext";
 import {
   getMemberDkp, getServerDkpRankings, getMemberDkpHistory, getActiveAuctions, getPastAuctions, deletePastAuction, adjustMemberDkp, resetAllDkp, toggleItemDistributed,
-  getDkpConfig, markItemForBid, placeBid, getItemBids, resolveAuction,
+  getDkpConfig, markItemForBid, placeBid, getItemBids, resolveAuction, createDistribution,
   supabase,
   type DkpBalance, type DkpRanking, type DkpTransaction, type ItemBid, type ActiveAuction, type PastAuction,
 } from "@/lib/supabase";
 import { AuditAction, writeAuditEntry } from "@/lib/api/audit";
-import { Coins, TrendingUp, TrendingDown, History, Gavel, Loader2, Shield, Clock, Check, X, AlertTriangle, Image, Plus, Eye, Hourglass, Trash2, Pencil, CheckCircle, Package, Settings } from "lucide-react";
+import { useMembers } from "@/hooks/useMembers";
+import { Coins, TrendingUp, TrendingDown, History, Gavel, Loader2, Shield, Clock, Check, X, AlertTriangle, Image, Plus, Eye, Hourglass, Trash2, Pencil, CheckCircle, Package, Settings, Search, Gift, Minus } from "lucide-react";
 import { guildColor } from "@/lib/constants";
 
 export function DkpView() {
@@ -97,16 +99,40 @@ function DkpContent({ serverId }: { serverId: string }) {
   );
 }
 
+function AnimatedNumber({ value }: { value: number }) {
+  const [display, setDisplay] = useState(value);
+  const prevRef = useRef(value);
+  useEffect(() => {
+    if (value === prevRef.current) return;
+    const start = prevRef.current;
+    const diff = value - start;
+    const duration = Math.min(800, Math.abs(diff) * 10);
+    const startTime = performance.now();
+    let raf: number;
+    const step = (now: number) => {
+      const elapsed = now - startTime;
+      const progress = Math.min(1, elapsed / duration);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      setDisplay(Math.round(start + diff * eased));
+      if (progress < 1) raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+    prevRef.current = value;
+    return () => cancelAnimationFrame(raf);
+  }, [value]);
+  return <>{display}</>;
+}
+
 function Ledger({ memberId, serverId }: { memberId: string; serverId: string }) {
   const { data: balance, isLoading } = useQuery({ queryKey: ["dkp_balance", memberId, serverId], queryFn: () => getMemberDkp(memberId, serverId), refetchInterval: 10_000 });
   if (isLoading) return <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 text-[#52525b] animate-spin" /></div>;
   return (
     <div className="bg-[#0d0d11] border border-[#1e1e2a] rounded-xl p-4 space-y-3">
       <h3 className="text-xs font-semibold text-[#71717a] uppercase tracking-wider">DKP Ledger</h3>
-      <div className="text-center"><p className="text-4xl font-extrabold text-amber-400">{balance?.balance ?? 0}</p><p className="text-[10px] text-[#71717a] mt-1">Available DKP</p></div>
+      <div className="text-center"><p className="text-4xl font-extrabold text-amber-400 tabular-nums"><AnimatedNumber value={balance?.balance ?? 0} /></p><p className="text-[10px] text-[#71717a] mt-1">Available DKP</p></div>
       <div className="grid grid-cols-2 gap-2 text-center">
-        <div className="bg-[#18181b] rounded-lg p-2"><TrendingUp className="w-3 h-3 text-emerald-400 mx-auto mb-0.5" /><p className="text-sm font-bold text-emerald-400">+{balance?.earned_total ?? 0}</p><p className="text-[9px] text-[#52525b]">Earned (All Time)</p></div>
-        <div className="bg-[#18181b] rounded-lg p-2"><TrendingDown className="w-3 h-3 text-red-400 mx-auto mb-0.5" /><p className="text-sm font-bold text-red-400">-{balance?.spent_total ?? 0}</p><p className="text-[9px] text-[#52525b]">Spent (All Time)</p></div>
+        <div className="bg-[#18181b] rounded-lg p-2"><TrendingUp className="w-3 h-3 text-emerald-400 mx-auto mb-0.5" /><p className="text-sm font-bold text-emerald-400">+<AnimatedNumber value={balance?.earned_total ?? 0} /></p><p className="text-[9px] text-[#52525b]">Earned (All Time)</p></div>
+        <div className="bg-[#18181b] rounded-lg p-2"><TrendingDown className="w-3 h-3 text-red-400 mx-auto mb-0.5" /><p className="text-sm font-bold text-red-400">-<AnimatedNumber value={balance?.spent_total ?? 0} /></p><p className="text-[9px] text-[#52525b]">Spent (All Time)</p></div>
       </div>
     </div>
   );
@@ -129,6 +155,22 @@ function Leaderboard({ serverId, isStaff, toast, queryClient }: { serverId: stri
   const [resetActing, setResetActing] = useState(false);
   const [resetGuilds, setResetGuilds] = useState<string[]>([]);
   const [showHelp, setShowHelp] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const searchRef = useRef<HTMLInputElement>(null);
+  const helpBtnRef = useRef<HTMLButtonElement>(null);
+
+  // Close help popover on outside click
+  useEffect(() => {
+    if (!showHelp) return;
+    const handler = (e: MouseEvent) => {
+      const t = e.target as HTMLElement;
+      if (helpBtnRef.current && !helpBtnRef.current.contains(t) && !t.closest("[data-help-popover]")) {
+        setShowHelp(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [showHelp]);
 
   const guilds = [...new Set(rankings.map(r => r.guild_name).filter(Boolean))].sort() as string[];
 
@@ -211,44 +253,65 @@ function Leaderboard({ serverId, isStaff, toast, queryClient }: { serverId: stri
       <div className="px-4 py-3 border-b border-[#1e1e2a] space-y-2">
         <span className="text-xs font-semibold text-[#71717a] uppercase tracking-wider">Leaderboard</span>
         <div className="flex items-center gap-2">
-          <input
-            type="text"
-            placeholder="Search..."
-            value={search}
-            onChange={e => { setSearch(e.target.value); setShowCount(15); }}
-            className="bg-[#18181b] border border-[#27272a] rounded px-2 py-1 text-[11px] text-[#d4d4d8] outline-none flex-1 min-w-0 focus:border-[#3f3f46]"
-          />
-          <select
-            value={guildFilter}
-            onChange={e => handleGuildChange(e.target.value)}
-            className="bg-[#18181b] border border-[#27272a] rounded px-2 py-1 text-[11px] text-[#d4d4d8] outline-none focus:border-[#3f3f46] shrink-0"
-          >
-            <option value="">All Guilds</option>
-            {guilds.map(g => <option key={g} value={g}>{g}</option>)}
-          </select>
-          {isStaff && (
-            <button
-              onClick={() => { setShowResetModal(true); setResetGuilds([...guilds]); }}
-              className="text-[10px] px-2 py-1 rounded border border-red-500/30 text-red-400 hover:bg-red-500/10 hover:border-red-500/60 transition shrink-0"
-              title="Reset DKP"
-            >Reset</button>
-          )}
-          <div className="relative shrink-0">
-            <button
-              onClick={() => setShowHelp(!showHelp)}
-              className="w-5 h-5 rounded-full border border-[#27272a] text-[10px] font-bold text-[#71717a] hover:text-[#fafafa] hover:border-[#52525b] transition flex items-center justify-center"
-              title="How DKP works"
-            >?</button>
-            {showHelp && (
-              <div className="absolute top-full mt-2 right-0 z-50 w-72 bg-[#18181b] border border-[#27272a] rounded-xl p-4 shadow-xl">
+          <div className="flex items-center gap-2 flex-1 min-w-0">
+            {searchOpen ? (
+              <input
+                ref={searchRef}
+                type="text"
+                placeholder="Search members..."
+                value={search}
+                onChange={e => { setSearch(e.target.value); setShowCount(15); }}
+                onBlur={() => { if (!search) setSearchOpen(false); }}
+                onKeyDown={e => { if (e.key === "Escape") { setSearch(""); setSearchOpen(false); } }}
+                className="bg-[#18181b] border border-[#27272a] rounded px-2 py-1 text-[11px] text-[#d4d4d8] outline-none flex-1 min-w-0 max-w-48 focus:border-[#3f3f46] animate-slide-up"
+                autoFocus
+              />
+            ) : (
+              <button
+                onClick={() => setSearchOpen(true)}
+                className="p-1 rounded text-[#71717a] hover:text-[#fafafa] hover:bg-[#27272a] transition shrink-0"
+                title="Search"
+              >
+                <Search className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+          <div className="flex items-center gap-2 shrink-0 ml-auto">
+            <select
+              value={guildFilter}
+              onChange={e => handleGuildChange(e.target.value)}
+              className="bg-[#18181b] border border-[#27272a] rounded px-2 py-1 text-[11px] text-[#d4d4d8] outline-none focus:border-[#3f3f46] shrink-0"
+            >
+              <option value="">All Guilds</option>
+              {guilds.map(g => <option key={g} value={g}>{g}</option>)}
+            </select>
+            {isStaff && (
+              <button
+                onClick={() => { setShowResetModal(true); setResetGuilds([...guilds]); }}
+                className="text-[10px] px-2 py-1 rounded border border-red-500/30 text-red-400 hover:bg-red-500/10 hover:border-red-500/60 transition shrink-0"
+                title="Reset DKP"
+              >Reset</button>
+            )}
+            <div className="relative shrink-0">
+              <button
+                ref={helpBtnRef}
+                onClick={() => setShowHelp(!showHelp)}
+                className="w-5 h-5 rounded-full border border-[#27272a] text-[10px] font-bold text-[#71717a] hover:text-[#fafafa] hover:border-[#52525b] transition flex items-center justify-center"
+                title="How DKP works"
+              >?</button>
+            {showHelp && helpBtnRef.current && createPortal(
+              <div className="fixed z-[9999] w-72 bg-[#18181b] border border-[#27272a] rounded-xl p-4 shadow-2xl" data-help-popover
+                style={{ top: helpBtnRef.current.getBoundingClientRect().bottom + 8, right: window.innerWidth - helpBtnRef.current.getBoundingClientRect().right }}>
                 <p className="text-xs text-[#d4d4d8] leading-relaxed">
                   DKP points are earned from <span className="text-emerald-400 font-medium">boss kills</span> based on configured point rules.
                   {' '}<span className="text-amber-400 font-medium">Adjustments</span> can be made by staff.
                   {' '}<span className="text-red-400 font-medium">Bid spends</span> are deducted from your balance at auction resolution.
                 </p>
                 <button onClick={() => setShowHelp(false)} className="mt-2 text-[10px] text-[#71717a] hover:text-[#fafafa] underline">Got it</button>
-              </div>
+              </div>,
+              document.body
             )}
+          </div>
           </div>
         </div>
       </div>
@@ -259,7 +322,7 @@ function Leaderboard({ serverId, isStaff, toast, queryClient }: { serverId: stri
           const displayRank = guildFilter || search ? i + 1 : r.rank;
           return (
           <div key={r.member_id}>
-            <div onClick={() => setSelectedMember({ id: r.member_id, name: r.member_name, balance: r.balance })} className="flex items-center gap-3 px-4 py-2 cursor-pointer hover:bg-[#18181b] transition"><span className="text-[10px] font-bold text-[#52525b] w-5 text-right">{displayRank}</span><span className="text-xs text-[#d4d4d8] flex-1 truncate">{r.member_name}</span>{gc && <span className={`flex items-center gap-1 text-[9px] font-medium px-1.5 py-0.5 rounded border shrink-0 ${gc.bg} ${gc.text} ${gc.border}`}><Shield className="w-2.5 h-2.5" />{r.guild_name}</span>}<span className="text-xs font-bold text-amber-400 tabular-nums">{r.balance}</span>{isStaff && <button onClick={(e) => { e.stopPropagation(); setAdjustId(r.member_id); setAdjAmount(0); setAdjReason(""); }} className="text-[10px] px-1.5 py-0.5 rounded border border-[#27272a] text-[#71717a] hover:text-[#fafafa] hover:border-[#52525b] transition shrink-0" title="Adjust DKP">±</button>}</div>
+            <div onClick={() => setSelectedMember({ id: r.member_id, name: r.member_name, balance: r.balance })} className="flex items-center gap-3 px-4 py-2 cursor-pointer hover:bg-[#18181b] transition card-lift"><span className={`text-[10px] font-bold w-5 text-right ${displayRank === 1 ? "text-amber-400" : displayRank === 2 ? "text-[#94a3b8]" : displayRank === 3 ? "text-amber-700" : "text-[#52525b]"}`}>{displayRank === 1 ? "🥇" : displayRank === 2 ? "🥈" : displayRank === 3 ? "🥉" : displayRank}</span><span className="text-xs text-[#d4d4d8] flex-1 truncate">{r.member_name}</span>{gc && <span className={`flex items-center gap-1 text-[9px] font-medium px-1.5 py-0.5 rounded border shrink-0 ${gc.bg} ${gc.text} ${gc.border}`}><Shield className="w-2.5 h-2.5" />{r.guild_name}</span>}<span className="text-xs font-bold text-amber-400 tabular-nums">{r.balance}</span>{isStaff && <button onClick={(e) => { e.stopPropagation(); setAdjustId(r.member_id); setAdjAmount(0); setAdjReason(""); }} className="text-[10px] px-1.5 py-0.5 rounded border border-[#27272a] text-[#71717a] hover:text-[#fafafa] hover:border-[#52525b] transition shrink-0" title="Adjust DKP">±</button>}</div>
       {isStaff && adjustId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={() => { setAdjustId(null); setAdjAmount(0); setAdjReason(""); }}>
           <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-5 w-80 shadow-xl" onClick={e => e.stopPropagation()}>
@@ -473,8 +536,8 @@ function LiveAuction({ serverId, isStaff, memberId, tz, toast, queryClient, high
   };
 
   return (
-    <div className="bg-[#0d0d11] border-2 border-amber-500/20 rounded-xl overflow-hidden shadow-lg shadow-amber-500/5">
-      <div className="px-4 py-3 border-b border-amber-500/10 flex items-center justify-between bg-amber-500/[0.03]">
+    <div className="bg-[#0d0d11] rounded-xl overflow-hidden shadow-lg shadow-amber-500/5 gradient-border">
+      <div className="px-4 py-3 border-b border-amber-500/10 flex items-center justify-between bg-gradient-to-r from-amber-500/[0.06] via-amber-500/[0.03] to-transparent">
         <div className="flex items-center gap-2">
           <span className="relative flex h-2 w-2">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
@@ -542,7 +605,9 @@ function AuctionRow({ item, isStaff, memberId, tz, onBid, onResolve, onViewBids,
   const endLocal = item.bid_end_time ? new Date(item.bid_end_time).toLocaleString("en-US", { timeZone: tz, month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "";
   const fmt = (n: number) => String(n).padStart(2, "0");
   return (
-    <div id={`auction-${item.auction_id}`} className={`flex items-center gap-3 px-4 py-3 hover:bg-[#18181b]/50 transition cursor-pointer ${isHighlighted ? "bg-amber-500/10 ring-1 ring-amber-500/40 animate-pulse" : ""}`} onClick={onViewBids}>
+    <div id={`auction-${item.auction_id}`} className={`relative flex items-center gap-3 px-4 py-3 hover:bg-[#18181b]/50 transition cursor-pointer card-lift group ${isHighlighted ? "bg-amber-500/10 ring-1 ring-amber-500/40 animate-pulse" : ""}`} onClick={onViewBids}>
+      {/* Progress bar */}
+      <div className="absolute bottom-0 left-0 h-0.5 rounded-b-xl transition-all duration-1000" style={{ width: `${ended ? 100 : Math.max(0, Math.min(100, (1 - cd.totalMs / (24 * 3600000)) * 100))}%`, backgroundColor: ended ? '#52525b' : cd.totalMs < 3600000 ? '#ef4444' : cd.totalMs < 10800000 ? '#f59e0b' : '#22c55e' }} />
       {item.image_url ? <img src={item.image_url} className="w-10 h-10 rounded-lg object-cover shrink-0 border border-[#1e1e2a]" style={{ backgroundColor: rarityColor + "20" }} /> : <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: rarityColor + "18" }}><Image className="w-4 h-4" style={{ color: rarityColor }} /></div>}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5">
@@ -809,6 +874,8 @@ function BidsModal({ itemId, auctionId, onClose, startedAfter, resolvedBefore }:
 function AuctionHistory({ serverId, memberId, isStaff, queryClient, toast }: { serverId: string; memberId: string | null; isStaff: boolean; queryClient: any; toast: any }) {
   const [selectedItem, setSelectedItem] = useState<{ itemId: string; auctionId: string; startedAt: string; resolvedAt: string } | null>(null);
   const [auctionSearch, setAuctionSearch] = useState("");
+  const [historySearchOpen, setHistorySearchOpen] = useState(false);
+  const historySearchRef = useRef<HTMLInputElement>(null);
   const { data: auctions = [], isLoading } = useQuery({
     queryKey: ["dkp_past_auctions", serverId],
     queryFn: () => getPastAuctions(serverId),
@@ -846,7 +913,27 @@ function AuctionHistory({ serverId, memberId, isStaff, queryClient, toast }: { s
           <Gavel className="w-4 h-4 text-[#52525b]" />
           <span className="text-xs font-semibold text-[#71717a] uppercase tracking-wider">Auction History</span>
         </div>
-        <input type="text" placeholder="Search..." value={auctionSearch} onChange={e => setAuctionSearch(e.target.value)} className="bg-[#18181b] border border-[#27272a] rounded px-2 py-1 text-[11px] text-[#d4d4d8] outline-none w-full max-w-40 focus:border-[#3f3f46]" />
+        {historySearchOpen ? (
+          <input
+            ref={historySearchRef}
+            type="text"
+            placeholder="Search auctions..."
+            value={auctionSearch}
+            onChange={e => setAuctionSearch(e.target.value)}
+            onBlur={() => { if (!auctionSearch) setHistorySearchOpen(false); }}
+            onKeyDown={e => { if (e.key === "Escape") { setAuctionSearch(""); setHistorySearchOpen(false); } }}
+            className="bg-[#18181b] border border-[#27272a] rounded px-2 py-1 text-[11px] text-[#d4d4d8] outline-none w-full max-w-40 focus:border-[#3f3f46] animate-slide-up"
+            autoFocus
+          />
+        ) : (
+          <button
+            onClick={() => setHistorySearchOpen(true)}
+            className="p-1 rounded text-[#71717a] hover:text-[#fafafa] hover:bg-[#27272a] transition shrink-0"
+            title="Search"
+          >
+            <Search className="w-3.5 h-3.5" />
+          </button>
+        )}
       </div>
       {isLoading ? (
         <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 text-[#52525b] animate-spin" /></div>
@@ -896,22 +983,69 @@ function AuctionList({ auctions, auctionSearch, myName, isStaff, handleDelete, s
     else groups.push({ label: group, items: [a] });
   }
 
-  const [distributing, setDistributing] = useState<string | null>(null);
+  // ── Distribute Modal State ──
+  const { data: allMembers = [] } = useMembers({ includeInactive: true });
+  const [showDistModal, setShowDistModal] = useState(false);
+  const [distAuction, setDistAuction] = useState<PastAuction | null>(null);
+  const [distMemberId, setDistMemberId] = useState("");
+  const [distMemberSearch, setDistMemberSearch] = useState("");
+  const [distQuantity, setDistQuantity] = useState(1);
+  const [distReason, setDistReason] = useState("");
 
-  const handleToggleDistributed = async (e: React.MouseEvent, a: PastAuction) => {
+  const openDistributeModal = (e: React.MouseEvent, a: PastAuction) => {
     e.stopPropagation();
-    const key = `${a.item_id}::${a.auction_round}`;
-    setDistributing(key);
-    try {
-      await toggleItemDistributed(a.item_id, a.auction_round, !a.distributed);
-      queryClient.invalidateQueries({ queryKey: ["dkp_past_auctions", serverId] });
-      toast("success", a.distributed ? `"${a.item_name}" marked as not distributed.` : `"${a.item_name}" marked as distributed.`);
-    } catch (err: any) {
-      toast("error", err?.message || "Failed to update");
-    } finally {
-      setDistributing(null);
+    setDistAuction(a);
+    setDistQuantity(1);
+    setDistReason(`Auction won — ${a.item_name} — ${a.winning_bid} DKP`);
+    setDistMemberSearch("");
+    setDistMemberId("");
+    // Try to auto-select winner if they're in members
+    if (a.winner_name) {
+      const winner = allMembers.find(m => m.name.toLowerCase() === a.winner_name?.toLowerCase());
+      if (winner) {
+        setDistMemberId(winner.id);
+        setDistMemberSearch(winner.name);
+      } else {
+        setDistMemberSearch(a.winner_name ?? "");
+      }
     }
+    setShowDistModal(true);
   };
+
+  const distMutation = useMutation({
+    mutationFn: () => {
+      if (!distAuction) throw new Error("No auction selected");
+      const member = allMembers.find(m => m.id === distMemberId);
+      return createDistribution({
+        server_id: serverId,
+        item_id: distAuction.item_id,
+        member_id: distMemberId,
+        player_name: member?.name ?? distAuction.winner_name ?? "Unknown",
+        quantity: distQuantity,
+        reason: distReason,
+      }, distAuction.item_name);
+    },
+    onSuccess: async () => {
+      // Also mark as distributed in auction history
+      if (distAuction) {
+        await toggleItemDistributed(distAuction.item_id, distAuction.auction_round, distAuction.auction_id, true).catch(() => {});
+      }
+      queryClient.invalidateQueries({ queryKey: ["dkp_past_auctions", serverId] });
+      queryClient.invalidateQueries({ queryKey: ["distributions", serverId] });
+
+      toast("success", `"${distAuction?.item_name}" distributed to ${distMemberSearch || distAuction?.winner_name}!`);
+      setShowDistModal(false);
+      setDistAuction(null);
+      setDistMemberId("");
+      setDistMemberSearch("");
+      setDistQuantity(1);
+      setDistReason("");
+    },
+    onError: (err: any) => {
+      toast("error", err?.message || "Failed to distribute");
+    },
+  });
+
   return (
     <div className="max-h-96 overflow-y-auto">
       {groups.map(group => (
@@ -975,9 +1109,9 @@ function AuctionList({ auctions, auctionSearch, myName, isStaff, handleDelete, s
             </div>
           </div>
           <div className="flex items-center gap-1 shrink-0">
-            {isStaff && (
-              <button onClick={(e) => handleToggleDistributed(e, a)} disabled={distributing === `${a.item_id}::${a.auction_round}`} className={`text-[10px] px-1.5 py-0.5 rounded border transition ${a.distributed ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20" : "border-[#27272a] text-[#52525b] hover:text-[#a1a1aa] hover:border-[#3f3f46]"}`}>
-                {distributing === `${a.item_id}::${a.auction_round}` ? <Loader2 className="w-3 h-3 animate-spin" /> : a.distributed ? "✓ Distributed" : "Distribute"}
+            {isStaff && !a.distributed && (
+              <button onClick={(e) => openDistributeModal(e, a)} disabled={distMutation.isPending} className="text-[10px] px-1.5 py-0.5 rounded border transition border-[#27272a] text-[#52525b] hover:text-[#a1a1aa] hover:border-[#3f3f46]">
+                Distribute
               </button>
             )}
             <Eye className="w-3 h-3 text-[#52525b]" />
@@ -996,6 +1130,64 @@ function AuctionList({ auctions, auctionSearch, myName, isStaff, handleDelete, s
         <button onClick={() => setShowCount(c => c + 30)} className="w-full px-4 py-2 text-xs text-[#a1a1aa] hover:text-[#fafafa] hover:bg-[#18181b] transition border-t border-[#1e1e2a]/50">
           Load more... ({filtered.length - visible.length} remaining)
         </button>
+      )}
+
+      {/* ── Distribute Modal ── */}
+      {showDistModal && distAuction && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setShowDistModal(false)}>
+          <div className="bg-[#09090b] border border-[#27272a] rounded-t-xl sm:rounded-xl p-5 w-full max-w-md mx-0 sm:mx-4 animate-slide-up" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-sm font-semibold text-[#fafafa]">Distribute Item</h3>
+                {(() => {
+                  const rColor = rc(distAuction.rarity ?? undefined);
+                  return (
+                    <p className="text-[11px] text-[#a1a1aa] mt-0.5">
+                      {distAuction.image_url && <img src={distAuction.image_url} alt="" className="w-6 h-6 rounded inline-block mr-1.5 object-cover border align-middle" style={{ borderColor: rColor, backgroundColor: rColor + "20" }} />}
+                      <span className="font-medium" style={{ color: rColor }}>{distAuction.item_name}</span>
+                      {" · "}<span className="text-amber-400 font-medium">{distAuction.winning_bid} DKP</span>
+                      {distAuction.winner_name && <span>{" · "}won by <span className="text-[#d4d4d8]">{distAuction.winner_name}</span></span>}
+                    </p>
+                  );
+                })()}
+              </div>
+              <button onClick={() => setShowDistModal(false)} className="text-[#52525b] hover:text-[#fafafa]"><X className="w-4 h-4" /></button>
+            </div>
+
+            <div className="space-y-3">
+              {/* Recipient — read-only */}
+              <div>
+                <label className="text-[10px] text-[#71717a] uppercase tracking-wider">Recipient</label>
+                <div className="mt-1 px-3 py-2 bg-[#18181b] border border-[#27272a] rounded-lg text-sm text-[#fafafa]">
+                  {distMemberSearch || distAuction.winner_name || "—"}
+                </div>
+              </div>
+
+              {/* Quantity — read-only */}
+              <div>
+                <label className="text-[10px] text-[#71717a] uppercase tracking-wider">Quantity</label>
+                <div className="mt-1 px-3 py-2 bg-[#18181b] border border-[#27272a] rounded-lg text-sm text-[#fafafa]">
+                  {distQuantity}
+                </div>
+              </div>
+
+              {/* Reason — read-only, full text visible */}
+              <div>
+                <label className="text-[10px] text-[#71717a] uppercase tracking-wider">Reason</label>
+                <div className="mt-1 px-3 py-2 bg-[#18181b] border border-[#27272a] rounded-lg text-sm text-[#fafafa] whitespace-pre-wrap break-words">
+                  {distReason}
+                </div>
+              </div>
+
+              <button onClick={() => distMutation.mutate()}
+                disabled={!distMemberId || distMutation.isPending}
+                className="w-full py-2.5 bg-[#fafafa] text-[#09090b] rounded-lg text-sm font-semibold hover:bg-[#e4e4e7] transition disabled:opacity-40 flex items-center justify-center gap-2">
+                {distMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Gift className="w-4 h-4" />}
+                {distMutation.isPending ? "Distributing..." : "Distribute"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
