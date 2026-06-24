@@ -11,6 +11,18 @@ import { createEventThreads } from "./threads";
 
 const sentNotifs = new Map<string, number>();
 
+// ── Concurrency-limited promise runner (avoids Discord 50/sec rate limit) ──
+async function batchRun(promises: Promise<void>[], concurrency = 10): Promise<void> {
+  const queue = [...promises];
+  async function worker() {
+    while (queue.length > 0) {
+      const p = queue.shift();
+      if (p) await p;
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(concurrency, queue.length) }, () => worker()));
+}
+
 // ── Persist dedup state so restarts don't re-fire notifications ──
 export function buildDedupKey(event: string, sid: string, tid: string, ts: number): string | null {
   switch (event) {
@@ -335,7 +347,7 @@ async function runSpawnCron() {
     }
 
     // ── Fire all boss notifications/threads concurrently ──
-    if (notifPromises.length > 0) await Promise.all(notifPromises);
+    if (notifPromises.length > 0) await batchRun(notifPromises, 10);
 
     // ── Activities (from RPC snapshot) ──────────────────────
     const activities = snap?.activities ?? await supabaseQuerySafe(
