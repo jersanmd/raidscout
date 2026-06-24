@@ -66,7 +66,7 @@ export function DkpSettingsTab() {
     return <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 text-[#52525b] animate-spin" /></div>;
   }
 
-  const hasChanges = config && (
+  const hasChanges = !config || (
     enabled !== config.enabled ||
     multiplier !== config.dkp_multiplier ||
     hideFromPlayers !== (config.hide_from_players ?? false)
