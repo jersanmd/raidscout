@@ -57,24 +57,32 @@ export async function createEventThreads(
   spawnUnix: number,
   ownerType: "boss" | "activity" = "boss",
   targetId?: string,
+  preFetched?: {
+    configs?: any[];
+    guildIdToName?: Map<string, string>;
+    tz?: string;
+    bossAssistRows?: any[];
+  },
 ) {
   try {
-    const configs = await supabaseQuerySafe(
-      `discord_configs?raidscout_server_id=eq.${serverId}&select=id,thread_channel_id,thread_guilds`
-    );
+    const configs = preFetched?.configs
+      ?? await supabaseQuerySafe(`discord_configs?raidscout_server_id=eq.${serverId}&select=id,thread_channel_id,thread_guilds`);
     if (!configs?.length) return;
 
     // Resolve thread_guilds UUIDs → guild names
-    const allThreadGuildIds = [...new Set(configs.flatMap((c: any) => c.thread_guilds || []))];
-    let guildIdToName = new Map<string, string>();
-    if (allThreadGuildIds.length > 0) {
-      const guildRows = await supabaseQuerySafe(
-        `guilds?select=id,name&id=in.(${allThreadGuildIds.join(",")})`
-      );
-      guildIdToName = new Map((guildRows || []).map((g: any) => [g.id, g.name]));
+    let guildIdToName: Map<string, string>;
+    if (preFetched?.guildIdToName) {
+      guildIdToName = preFetched.guildIdToName;
+    } else {
+      const allThreadGuildIds = [...new Set(configs.flatMap((c: any) => c.thread_guilds || []))];
+      guildIdToName = new Map<string, string>();
+      if (allThreadGuildIds.length > 0) {
+        const guildRows = await supabaseQuerySafe(`guilds?select=id,name&id=in.(${allThreadGuildIds.join(",")})`);
+        guildIdToName = new Map((guildRows || []).map((g: any) => [g.id, g.name]));
+      }
     }
 
-    const tz = await resolveServerTimezone(serverId).catch(() => "UTC");
+    const tz = preFetched?.tz ?? await resolveServerTimezone(serverId).catch(() => "UTC");
     const spawnDate = new Date(spawnUnix * 1000);
     const timeStr = spawnDate.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true, timeZone: tz });
     const dateStr = spawnDate.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: tz });
@@ -120,19 +128,16 @@ export async function createEventThreads(
       // ── Assist guild threads (owner_guild_id + assistant_guild_id from boss_assists) ──
       if (targetId && ownerType === "boss") {
         try {
-          const assists = await supabaseQuerySafe(
-            `boss_assists?boss_id=eq.${targetId}&select=owner_guild_id,assistant_guild_id`
-          );
+          const assists = preFetched?.bossAssistRows
+            ?? await supabaseQuerySafe(`boss_assists?boss_id=eq.${targetId}&select=owner_guild_id,assistant_guild_id`);
           if (assists?.length) {
-            // Collect ALL guild IDs involved: owners + assistants
+            // Use pre-fetched guild map if available, otherwise query
+            const guildNames = preFetched?.guildIdToName
+              ?? new Map((await supabaseQuerySafe(`guilds?select=id,name&id=in.(${[...new Set([...assists.map((a: any) => a.owner_guild_id), ...assists.map((a: any) => a.assistant_guild_id)])].join(",")})`)).map((g: any) => [String(g.id), String(g.name)]));
             const allIds = [...new Set([
               ...assists.map((a: any) => a.owner_guild_id),
               ...assists.map((a: any) => a.assistant_guild_id),
             ])];
-            const guildRows = await supabaseQuerySafe(
-              `guilds?select=id,name&id=in.(${allIds.join(",")})`
-            );
-            const guildNames = new Map<string, string>((guildRows || []).map((g: any) => [String(g.id), String(g.name)]));
             const resolvedAll = allIds.map((gid: string) => guildNames.get(gid) || gid).filter((n: string) => n !== guildName);
             console.log(`[thread] "${name}" assist guilds: [${resolvedAll.join(",")}]`);
 

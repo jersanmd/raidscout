@@ -131,50 +131,50 @@ async function runSpawnCron() {
   try {
 
   const configs = await supabaseQuerySafe(
-    `discord_configs?select=raidscout_server_id,discord_guild_id,notification_channel_id&notification_channel_id=not.is.null`
+    `discord_configs?select=raidscout_server_id,discord_guild_id,notification_channel_id,thread_channel_id,thread_guilds,command_channel_id&or=(notification_channel_id.not.is.null,thread_channel_id.not.is.null,command_channel_id.not.is.null)`
   );
 
   // Fetch active servers (exclude soft-deleted AND expired)
-  const allServers = await supabaseQuerySafe(`servers?select=id,trial_ends_at,subscription_ends_at&deleted_at=is.null`);
+  const allServers = await supabaseQuerySafe(`servers?select=id,trial_ends_at,subscription_ends_at,notification_prefix,timezone&deleted_at=is.null`);
   const now = new Date();
+  const serverInfoMap = new Map<string, any>();
   const activeServerIds = new Set((allServers || [])
     .filter((s: any) => {
-      // Active subscription overrides trial
+      serverInfoMap.set(s.id, s);
       if (s.subscription_ends_at && new Date(s.subscription_ends_at) > now) return true;
-      // Active trial
       if (s.trial_ends_at && new Date(s.trial_ends_at) > now) return true;
-      // Both expired or neither set
       return false;
     })
     .map((s: any) => s.id)
   );
 
-  // Fetch thread configs for logging (which Discord servers have auto-threads enabled)
-  const threadConfigs = await supabaseQuerySafe(
-    `discord_configs?select=raidscout_server_id,discord_guild_id,thread_channel_id,thread_guilds&thread_channel_id=not.is.null`
-  );
-  // Fetch command channel configs (servers with !cmdhere set)
-  const cmdConfigs = await supabaseQuerySafe(
-    `discord_configs?select=raidscout_server_id&command_channel_id=not.is.null`
-  );
-
-  if (!configs?.length && !threadConfigs?.length && !cmdConfigs?.length) return;
+  if (!configs?.length) return;
 
   // Map: serverId → [{ discord_guild_id, thread_guilds }]
   const serverThreadMap = new Map<string, { discordId: string; threadGuilds: string[] }[]>();
-  for (const tc of (threadConfigs || [])) {
+  for (const tc of ((configs || []) as any[]).filter((c: any) => c.thread_channel_id)) {
     const sid = tc.raidscout_server_id;
     if (!serverThreadMap.has(sid)) serverThreadMap.set(sid, []);
     serverThreadMap.get(sid)!.push({ discordId: tc.discord_guild_id, threadGuilds: tc.thread_guilds || [] });
   }
 
-  // Deduplicate by server_id — include notification, thread, and command configs, exclude soft-deleted
-  const allConfigServerIds = [
-    ...configs.map((c: any) => c.raidscout_server_id),
-    ...(threadConfigs || []).map((c: any) => c.raidscout_server_id),
-    ...(cmdConfigs || []).map((c: any) => c.raidscout_server_id),
-  ];
-  const serverIds = [...new Set(allConfigServerIds)]
+  // Build per-server notification configs and thread configs for passing to functions
+  const serverNotifConfigs = new Map<string, any[]>();
+  const serverThreadConfigs = new Map<string, any[]>();
+  for (const c of (configs as any[])) {
+    const sid = c.raidscout_server_id;
+    if (c.notification_channel_id) {
+      if (!serverNotifConfigs.has(sid)) serverNotifConfigs.set(sid, []);
+      serverNotifConfigs.get(sid)!.push(c);
+    }
+    if (c.thread_channel_id) {
+      if (!serverThreadConfigs.has(sid)) serverThreadConfigs.set(sid, []);
+      serverThreadConfigs.get(sid)!.push(c);
+    }
+  }
+
+  // Deduplicate by server_id
+  const serverIds = [...new Set((configs as any[]).map((c: any) => c.raidscout_server_id))]
     .filter((id: string) => activeServerIds.has(id));
 
   // Count only servers being processed (notification + thread + command channels)
@@ -355,7 +355,8 @@ async function runSpawnCron() {
               timeZone: tz || "Asia/Manila", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: true,
             });
             const text = `🟢 **${boss.name}** has spawned -- **${guildName}** ${timeStr}`;
-            await broadcastNotification(serverId, {}, "", text);
+            const serverPrefix = serverInfoMap.get(serverId)?.notification_prefix || "";
+            await broadcastNotification(serverId, {}, "", text, { configs: serverNotifConfigs.get(serverId), serverPrefix });
           }
           continue; // Don't re-process in 5-min block
         }
@@ -372,7 +373,8 @@ async function runSpawnCron() {
               timeZone: tz || "Asia/Manila", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: true,
             });
             const text = `⚠️ **${boss.name}** spawning in 5 min -- **${guildName}** ${timeStr}`;
-            await broadcastNotification(serverId, {}, "", text);
+            const serverPrefix = serverInfoMap.get(serverId)?.notification_prefix || "";
+            await broadcastNotification(serverId, {}, "", text, { configs: serverNotifConfigs.get(serverId), serverPrefix });
           }
 
           // Auto-thread with party list (independent of notification dedup)
@@ -380,7 +382,13 @@ async function runSpawnCron() {
           if (!sentNotifs.has(threadDedupKey)) {
             sentNotifs.set(threadDedupKey, Date.now());
             recordNotification("boss_thread", serverId, boss.id, spawnUnix);
-            await createEventThreads(serverId, boss.name, guildName, spawnUnix, "boss", boss.id).catch((err) => logError("cron", "createEventThreads failed", err, { serverId, boss: boss.name }));
+            const preFetchedThread = {
+              configs: serverThreadConfigs.get(serverId),
+              guildIdToName,
+              tz,
+              bossAssistRows: (serverBossAssists || []).filter((a: any) => a.boss_id === boss.id),
+            };
+            await createEventThreads(serverId, boss.name, guildName, spawnUnix, "boss", boss.id, preFetchedThread).catch((err) => logError("cron", "createEventThreads failed", err, { serverId, boss: boss.name }));
           }
         }
       } catch (bossErr: any) {
@@ -456,16 +464,16 @@ async function runSpawnCron() {
             if (!sentNotifs.has(threadDedupKey)) {
               sentNotifs.set(threadDedupKey, Date.now());
               recordNotification("activity_thread", serverId, activity.id, startUnix);
-              // Create a thread for EACH guild assigned to this activity
+              const preFetchedAct = { configs: serverThreadConfigs.get(serverId), guildIdToName, tz };
               if (actGuildNames.length > 0) {
                 for (const gn of actGuildNames) {
                   await createEventThreads(
-                    serverId, activity.name, gn, startUnix, "activity", activity.id
+                    serverId, activity.name, gn, startUnix, "activity", activity.id, preFetchedAct
                   ).catch((err) => logError("cron", "createEventThreads failed", err, { serverId, activity: activity.name, guild: gn }));
                 }
               } else {
                 await createEventThreads(
-                  serverId, activity.name, undefined, startUnix, "activity", activity.id
+                  serverId, activity.name, undefined, startUnix, "activity", activity.id, preFetchedAct
                 ).catch((err) => logError("cron", "createEventThreads failed", err, { serverId, activity: activity.name }));
               }
             }
@@ -479,9 +487,11 @@ async function runSpawnCron() {
               recordNotification("activity_spawning", serverId, activity.id, startUnix);
               const displayTz = activity.schedule_tz || tz;
               const timeStr = nextStart.toLocaleTimeString("en-US", { timeZone: displayTz, hour: "2-digit", minute: "2-digit", hour12: true });
+              const serverPrefix = serverInfoMap.get(serverId)?.notification_prefix || "";
               broadcastNotification(serverId, {},
                 "",
-                `📋 **${activity.name}** starting in 5 min${guildTag} — ${timeStr}`
+                `📋 **${activity.name}** starting in 5 min${guildTag} — ${timeStr}`,
+                { configs: serverNotifConfigs.get(serverId), serverPrefix }
               ).catch(() => {});
             }
           }
@@ -492,9 +502,11 @@ async function runSpawnCron() {
             if (!sentNotifs.has(startDedupKey)) {
               sentNotifs.set(startDedupKey, Date.now());
               recordNotification("activity_started", serverId, activity.id, startUnix);
+              const serverPrefix = serverInfoMap.get(serverId)?.notification_prefix || "";
               broadcastNotification(serverId, {},
                 "",
-                `📋 **${activity.name}** is starting now!${guildTag}`
+                `📋 **${activity.name}** is starting now!${guildTag}`,
+                { configs: serverNotifConfigs.get(serverId), serverPrefix }
               ).catch(() => {});
             }
           }

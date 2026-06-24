@@ -65,16 +65,16 @@ export async function broadcastNotification(
   _config: any,
   _sourceChannelId: string,
   message: string,
+  preFetched?: { configs?: any[]; serverPrefix?: string },
 ) {
   try {
-    const configs = await supabaseQuerySafe(
-      `discord_configs?raidscout_server_id=eq.${serverId}&select=notification_channel_id,discord_guild_id,notification_prefix`
-    );
+    const configs = preFetched?.configs
+      ?? await supabaseQuerySafe(`discord_configs?raidscout_server_id=eq.${serverId}&select=notification_channel_id,discord_guild_id,notification_prefix`);
+
     if (!configs?.length) return;
 
-    const rawPrefix = await supabaseQuerySafe(
-      `servers?select=notification_prefix&id=eq.${serverId}`
-    ).then(rows => rows?.[0]?.notification_prefix || "").catch(() => "");
+    const rawPrefix = preFetched?.serverPrefix
+      ?? await supabaseQuerySafe(`servers?select=notification_prefix&id=eq.${serverId}`).then(rows => rows?.[0]?.notification_prefix || "").catch(() => "");
 
     for (const cfg of configs) {
       const chId = cfg.notification_channel_id;
