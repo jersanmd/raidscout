@@ -403,7 +403,9 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
               <button
                 onClick={() => {
                   const d = nextSpawn || new Date();
-                  const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+                  // Format in server timezone for datetime-local input (matching bot's editkilltime)
+                  const parts = new Intl.DateTimeFormat("en-CA", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false }).formatToParts(d);
+                  const local = `${parts.find(p => p.type === "year")?.value}-${parts.find(p => p.type === "month")?.value}-${parts.find(p => p.type === "day")?.value}T${parts.find(p => p.type === "hour")?.value}:${parts.find(p => p.type === "minute")?.value}`;
                   setEditSpawnDate(local);
                   setShowEditSpawnModal(true);
                 }}
@@ -821,10 +823,17 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
                     const [datePart, timePart] = editSpawnDate.split("T");
                     const [y, m, d] = datePart.split("-").map(Number);
                     const [hh, mm] = timePart.split(":").map(Number);
-                    const localDate = new Date(y, m - 1, d, hh, mm);
-                    localStorage.setItem(`alert-urgent-${boss.name}-${localDate.getTime()}`, "1");
-                    localStorage.setItem(`alert-critical-${boss.name}-${localDate.getTime()}`, "1");
-                    onSetSpawnDate(boss.id, localDate);
+                    // Convert local server time to UTC (matching bot's editkilltime logic)
+                    const noonUtc = Date.UTC(y, m - 1, d, 12, 0, 0);
+                    const noonLocal = new Intl.DateTimeFormat("en-US", { timeZone: tz, hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(noonUtc));
+                    const [noonH] = noonLocal.split(":").map(Number);
+                    let tzOffsetH = noonH - 12;
+                    if (tzOffsetH > 12) tzOffsetH -= 24;
+                    if (tzOffsetH < -12) tzOffsetH += 24;
+                    const utcDate = new Date(Date.UTC(y, m - 1, d, hh - tzOffsetH, mm));
+                    localStorage.setItem(`alert-urgent-${boss.name}-${utcDate.getTime()}`, "1");
+                    localStorage.setItem(`alert-critical-${boss.name}-${utcDate.getTime()}`, "1");
+                    onSetSpawnDate(boss.id, utcDate);
                   }
                   setShowEditSpawnModal(false);
                 }}
