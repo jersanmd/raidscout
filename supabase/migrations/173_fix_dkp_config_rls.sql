@@ -1,5 +1,6 @@
 -- 173: Fix DKP config RLS — add WITH CHECK for INSERT (required for upsert to work)
 DROP POLICY IF EXISTS "Owner and mods can update dkp config" ON public.dkp_config;
+DROP POLICY IF EXISTS "Owner and mods can manage dkp config" ON public.dkp_config;
 
 CREATE POLICY "Owner and mods can manage dkp config" ON public.dkp_config
   FOR ALL USING (

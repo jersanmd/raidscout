@@ -661,13 +661,27 @@ function MarkModal({ name, setName, cost, setCost, end, setEnd, acting, error, o
     if (!q.trim()) { setResults([]); return; }
     setSearching(true);
     try {
-      const { data: sv } = await supabase.from("servers").select("game").eq("id", serverId).single();
-      const gameSlug = sv?.game ?? undefined;
-      const { data } = await supabase.from("items").select("id, name, image_url, rarity")
-        .or(gameSlug ? `game.eq.${gameSlug},server_id.eq.${serverId}` : `server_id.eq.${serverId}`)
-        .neq("status", "rejected").ilike("name", `%${q.trim()}%`).order("name").limit(8);
+      // Resolve game slug using same pattern as fetchItems in memberManagement.ts
+      const { data: sv } = await supabase.from("servers").select("game, game_id").eq("id", serverId).single();
+      let gameSlug: string | undefined = sv?.game ?? undefined;
+      if (!gameSlug && sv?.game_id) {
+        const { data: gd } = await supabase.from("games").select("slug").eq("id", sv.game_id).single();
+        gameSlug = gd?.slug ?? undefined;
+      }
+      // Build query with .or() FIRST (matching fetchItems pattern) to avoid PostgREST ordering issues
+      const orFilter = gameSlug
+        ? `game.eq.${gameSlug},server_id.eq.${serverId}`
+        : `server_id.eq.${serverId}`;
+      const { data, error } = await supabase.from("items")
+        .select("id, name, image_url, rarity")
+        .or(orFilter)
+        .neq("status", "rejected")
+        .ilike("name", `%${q.trim()}%`)
+        .order("name")
+        .limit(8);
+      if (error) { console.warn("MarkModal item search error:", error); }
       setResults(data || []);
-    } catch { setResults([]); } finally { setSearching(false); }
+    } catch (err) { console.warn("MarkModal search exception:", err); setResults([]); } finally { setSearching(false); }
   };
 
   const selectItem = (item: any) => {
@@ -893,19 +907,31 @@ function AuctionHistory({ serverId, memberId, isStaff, queryClient, toast }: { s
       .then(({ data }) => { if (data) setMyName(data.name); });
   }, [memberId]);
 
-  const handleDelete = async (e: React.MouseEvent, a: PastAuction) => {
+  // ── Delete Confirmation Modal State ──
+  const [deleteAuction, setDeleteAuction] = useState<PastAuction | null>(null);
+  const [deleteConfirmName, setDeleteConfirmName] = useState("");
+  const [deleteActing, setDeleteActing] = useState(false);
+
+  const handleDelete = (e: React.MouseEvent, a: PastAuction) => {
     e.stopPropagation();
-    if (!confirm(`Delete auction "${a.item_name}" (round ${a.auction_round})? This removes all bids and transactions for this cycle.`)) return;
+    setDeleteAuction(a);
+    setDeleteConfirmName("");
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteAuction) return;
+    setDeleteActing(true);
     try {
-      await deletePastAuction(a.item_id, a.auction_round);
+      await deletePastAuction(deleteAuction.item_id, deleteAuction.auction_round);
       queryClient.invalidateQueries({ queryKey: ["dkp_past_auctions", serverId] });
       queryClient.invalidateQueries({ queryKey: ["dkp_history"] });
       queryClient.invalidateQueries({ queryKey: ["dkp_rankings", serverId] });
       queryClient.invalidateQueries({ queryKey: ["dkp_balance"] });
-      toast("success", `Auction "${a.item_name}" deleted.`);
+      toast("success", `Auction "${deleteAuction.item_name}" deleted.`);
+      setDeleteAuction(null);
     } catch (err: any) {
       toast("error", err?.message || "Failed to delete auction");
-    }
+    } finally { setDeleteActing(false); }
   };
 
   return (
@@ -948,6 +974,49 @@ function AuctionHistory({ serverId, memberId, isStaff, queryClient, toast }: { s
         <AuctionList auctions={auctions} auctionSearch={auctionSearch} myName={myName} isStaff={isStaff} handleDelete={handleDelete} setSelectedItem={setSelectedItem} queryClient={queryClient} serverId={serverId} toast={toast} />
       )}
       {selectedItem && <BidsModal itemId={selectedItem.itemId} auctionId={selectedItem.auctionId} startedAfter={selectedItem.startedAt} resolvedBefore={selectedItem.resolvedAt} onClose={() => setSelectedItem(null)} />}
+
+      {/* ── Delete Auction Confirmation Modal ── */}
+      {deleteAuction && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setDeleteAuction(null)}>
+          <div className="bg-[#09090b] border border-[#27272a] rounded-xl p-5 w-96 max-w-[95vw] shadow-xl" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-sm font-semibold text-[#fafafa]">Delete Auction</h3>
+                <p className="text-[10px] text-[#71717a] mt-0.5">This action cannot be undone.</p>
+              </div>
+              <button onClick={() => setDeleteAuction(null)} className="text-[#52525b] hover:text-[#fafafa]"><X className="w-4 h-4" /></button>
+            </div>
+            <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 mb-4">
+              <p className="text-xs text-red-400">
+                Deleting <span className="text-[#fafafa] font-medium">"{deleteAuction.item_name}"</span> (round {deleteAuction.auction_round}) will permanently remove:
+              </p>
+              <ul className="text-[10px] text-red-400/80 mt-1.5 space-y-0.5 list-disc list-inside">
+                <li>All bids for this auction round</li>
+                <li>All DKP transactions for these bids</li>
+                <li>All distribution records</li>
+                <li>The auction itself from history</li>
+              </ul>
+            </div>
+            <label className="text-[10px] text-[#71717a] uppercase tracking-wider">Type the item name to confirm</label>
+            <input
+              type="text"
+              value={deleteConfirmName}
+              onChange={e => setDeleteConfirmName(e.target.value)}
+              placeholder={deleteAuction.item_name}
+              className="w-full bg-[#18181b] border border-[#27272a] rounded px-2 py-1.5 text-sm text-[#fafafa] outline-none mt-1 focus:border-red-500/50 focus:ring-1 focus:ring-red-500/20"
+              autoFocus
+              onKeyDown={e => { if (e.key === "Escape") setDeleteAuction(null); if (e.key === "Enter" && deleteConfirmName.toLowerCase().trim() === deleteAuction.item_name.toLowerCase().trim()) confirmDelete(); }}
+            />
+            <button
+              onClick={confirmDelete}
+              disabled={deleteActing || deleteConfirmName.toLowerCase().trim() !== deleteAuction.item_name.toLowerCase().trim()}
+              className="w-full mt-3 py-2 rounded text-sm bg-red-500/20 text-red-400 border border-red-500/30 font-medium disabled:opacity-30 disabled:cursor-not-allowed hover:bg-red-500/30 transition"
+            >
+              {deleteActing ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : "Delete Auction"}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

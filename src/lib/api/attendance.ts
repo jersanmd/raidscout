@@ -67,11 +67,11 @@ export async function addAttendance(
   if (session?.user) {
     const { data, error } = await supabase
       .from("attendance_records")
-      .insert({
+      .upsert({
         death_record_id: deathRecordId,
         member_id: memberId,
         server_id: sid,
-      })
+      }, { onConflict: "death_record_id,member_id" })
       .select()
       .single();
     if (error) throw error;

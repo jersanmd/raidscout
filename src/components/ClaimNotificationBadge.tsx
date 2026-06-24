@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { useServerId, useServer } from "@/contexts/ServerContext";
+import { useToast } from "@/contexts/ToastContext";
 import { getPendingClaims, reviewClaimRequest, markClaimRead, getMyClaims, isSupabaseConfigured, supabase, type PendingClaim, type ClaimRequest } from "@/lib/supabase";
 import { writeAuditEntry, AuditAction } from "@/lib/api/audit";
 import { UserCheck, Check, X, Loader2 } from "lucide-react";
@@ -16,6 +17,7 @@ export function ClaimNotificationBadge() {
   const { currentServer } = useServer();
   const serverId = useServerId();
   const queryClient = useQueryClient();
+  const toast = useToast();
   const [open, setOpen] = useState(false);
   const [declineReason, setDeclineReason] = useState<string>("");
   const [decliningId, setDecliningId] = useState<string | null>(null);
@@ -72,13 +74,25 @@ export function ClaimNotificationBadge() {
     try {
       await reviewClaimRequest(requestId, "accept");
       queryClient.invalidateQueries({ queryKey: ["pending_claims", serverId] });
-      writeAuditEntry({ action: AuditAction.MEMBER_CLAIM_ACCEPT, server_id: serverId!, details: { requested_name: requestedName, user_email: userEmail } }).catch(() => {});
+      writeAuditEntry({
+        action: AuditAction.MEMBER_CLAIM_ACCEPT,
+        server_id: serverId!,
+        target_type: "claim",
+        target_id: requestId,
+        details: {
+          requested_name: requestedName,
+          user_email: userEmail,
+          server_name: currentServer?.name,
+        },
+      }).catch(() => {});
+      toast("success", `"${requestedName}" claim accepted. They can now access the server.`);
     } catch (err: any) {
+      toast("error", err?.message || "Failed to accept claim");
       console.error("Failed to accept claim:", err?.message || err);
     } finally {
       setActing(null);
     }
-  }, [serverId, queryClient]);
+  }, [serverId, queryClient, toast, currentServer]);
 
   const handleDecline = useCallback(async (requestId: string, requestedName: string, userEmail: string) => {
     if (!declineReason.trim()) return;
@@ -88,13 +102,26 @@ export function ClaimNotificationBadge() {
       setDeclineReason("");
       setDecliningId(null);
       queryClient.invalidateQueries({ queryKey: ["pending_claims", serverId] });
-      writeAuditEntry({ action: AuditAction.MEMBER_CLAIM_DECLINE, server_id: serverId!, details: { requested_name: requestedName, user_email: userEmail, reason: declineReason.trim() } }).catch(() => {});
+      writeAuditEntry({
+        action: AuditAction.MEMBER_CLAIM_DECLINE,
+        server_id: serverId!,
+        target_type: "claim",
+        target_id: requestId,
+        details: {
+          requested_name: requestedName,
+          user_email: userEmail,
+          server_name: currentServer?.name,
+          reason: declineReason.trim(),
+        },
+      }).catch(() => {});
+      toast("success", `"${requestedName}" claim declined.`);
     } catch (err: any) {
+      toast("error", err?.message || "Failed to decline claim");
       console.error("Failed to decline claim:", err?.message || err);
     } finally {
       setActing(null);
     }
-  }, [serverId, queryClient, declineReason]);
+  }, [serverId, queryClient, declineReason, toast, currentServer]);
 
   // Also fetch the user's own claim notifications (for the green check indicator)
   const { data: myClaims = [] } = useQuery({
