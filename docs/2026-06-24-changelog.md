@@ -93,3 +93,38 @@
 - **Migration 162**: Replaced em dash with period in outbid notification
 - **Migration 163**: Replaced em dash in `dkp_lost` notification title
 - **Migration 164**: Added `item_name` and `rarity` to notification metadata for colored toast rendering
+
+## 📦 Auction Distribute Modal
+
+- **Distribute modal from auction history** — Clicking "Distribute" on a past auction opens a confirmation modal pre-filled with the auction winner as recipient, quantity 1, and reason "Auction won — [Item] — [Bid] DKP". All fields are read-only for review before confirming.
+- **Integrated with Inventory distributions** — Distributing via DKP creates a full `distributions` record (same flow as Inventory), writes an audit log, and marks the auction as distributed.
+- **Irreversible distribution** — Once distributed, the "Distribute" button disappears. A "✓ Distributed" label appears in the auction details line. To undo, delete the distribution in Inventory → History (also clears the `dkp_distributed` flag via `clear_item_distributed` RPC).
+- **Per-auction tracking** — `dkp_distributed` now uses `(item_id, auction_round, auction_id)` as primary key. Multiple auctions of the same item are tracked independently.
+- **Rarity-colored items** — Item image background and text use rarity color in the distribute modal.
+
+## 🔔 DKP Notifications with Item Images
+
+- **Item thumbnails in toast banners** — Outbid and won toast notifications now show the item's actual image instead of generic emoji icons. Falls back to emoji if no image URL.
+- **image_url in notification metadata** — `resolve_auction` and `place_bid` RPCs now include `image_url` in notification metadata.
+
+## 🛡️ DKP Reset — Deduction Only
+
+- **Reset no longer touches auctions** — `reset_all_dkp` now only inserts negative adjustment transactions to zero out DKP balances. Active auctions, bid history, and item bid flags are intentionally left untouched.
+- **Duplicate resolve prevention** — `resolve_auction` now checks `status = 'active'` before processing, preventing duplicate notifications from double-resolution.
+
+## 🗄️ Database (continued)
+
+- **Migration 165**: Added `auction_id` to `dkp_distributed` PK for per-auction tracking
+- **Migration 166**: Added `image_url` to DKP notification metadata (`dkp_won`, `dkp_lost`, `dkp_outbid`)
+- **Migration 167**: Added `status = 'active'` guard to `resolve_auction` to prevent duplicate notifications
+- **Migration 168**: Removed auction cancellation and bid flag clearing from `reset_all_dkp`
+- **Migration 169**: Added `clear_item_distributed` SECURITY DEFINER RPC for Inventory distribution deletion cleanup
+
+## 📱 UI Polish
+
+- **Header responsive** — Reduced gap and padding on mobile. Logo text hidden, all buttons icon-only. Fits all items on small screens.
+- **Claims popup centered on mobile** — Centered below the top bar with `left-1/2 -translate-x-1/2`. Right-aligned on desktop.
+- **Member profile back navigation** — Viewer mode navigates to `/`. Staff/members navigate to the previous page.
+- **Button height consistency** — Pending button, Add Item, and New Collection buttons now share the same `py-2.5 rounded-xl` dimensions.
+- **DKP layout** — Simple 2-column grid: left (Ledger + Leaderboard), right (Auctions). Single column on mobile.
+- **Build fixes** — Fixed infinite loop in Inventory distributions effect, TypeScript `never[]` inference in `getPastAuctions`, missing outer `</div>` in DkpView.
