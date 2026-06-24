@@ -606,10 +606,12 @@ function AuctionRow({ item, isStaff, memberId, tz, onBid, onResolve, onViewBids,
   const endingSoon = !ended && cd.totalMs < 3600000; // < 1 hour
   const endLocal = item.bid_end_time ? new Date(item.bid_end_time).toLocaleString("en-US", { timeZone: tz, month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "";
   const fmt = (n: number) => String(n).padStart(2, "0");
+  const totalDur = item.bid_end_time && item.created_at ? new Date(item.bid_end_time).getTime() - new Date(item.created_at).getTime() : 86400000;
+  const barPct = ended ? 100 : Math.max(0, Math.min(100, (1 - cd.totalMs / totalDur) * 100));
   return (
     <div id={`auction-${item.auction_id}`} className={`relative flex items-center gap-3 px-4 py-3 hover:bg-[#18181b]/50 transition cursor-pointer card-lift group ${isHighlighted ? "bg-amber-500/10 ring-1 ring-amber-500/40 animate-pulse" : ""}`} onClick={onViewBids}>
       {/* Progress bar */}
-      <div className="absolute bottom-0 left-0 h-0.5 rounded-b-xl transition-all duration-1000" style={{ width: `${ended ? 100 : Math.max(0, Math.min(100, (1 - cd.totalMs / (24 * 3600000)) * 100))}%`, backgroundColor: ended ? '#52525b' : cd.totalMs < 3600000 ? '#ef4444' : cd.totalMs < 10800000 ? '#f59e0b' : '#22c55e' }} />
+      <div className="absolute bottom-0 left-0 h-0.5 rounded-b-xl transition-all duration-1000" style={{ width: `${barPct}%`, backgroundColor: ended ? '#52525b' : cd.totalMs < 3600000 ? '#ef4444' : cd.totalMs < 10800000 ? '#f59e0b' : '#22c55e' }} />
       {item.image_url ? <img src={item.image_url} className="w-10 h-10 rounded-lg object-cover shrink-0 border border-[#1e1e2a]" style={{ backgroundColor: rarityColor + "20" }} /> : <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: rarityColor + "18" }}><Image className="w-4 h-4" style={{ color: rarityColor }} /></div>}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5">

@@ -245,6 +245,7 @@ export interface ActiveAuction {
   guild_id: string | null;
   guild_name: string | null;
   quantity: number;
+  created_at: string;
 }
 
 export interface PastAuction {
@@ -266,7 +267,7 @@ export interface PastAuction {
 
 export async function getActiveAuctions(serverId: string): Promise<ActiveAuction[]> {
   const { data: auctions } = await supabase.from("dkp_auctions")
-    .select("id, item_id, dkp_cost, bid_end_time, guild_id, quantity, items:item_id(name, image_url, rarity), guilds:guild_id(name)")
+    .select("id, item_id, dkp_cost, bid_end_time, guild_id, quantity, created_at, items:item_id(name, image_url, rarity), guilds:guild_id(name)")
     .eq("server_id", serverId)
     .eq("status", "active")
     .order("bid_end_time", { ascending: true });
@@ -304,6 +305,7 @@ export async function getActiveAuctions(serverId: string): Promise<ActiveAuction
     guild_id: a.guild_id ?? null,
     guild_name: a.guild_id ? (activeGuildMap.get(a.guild_id) ?? null) : null,
     quantity: a.quantity ?? 1,
+    created_at: a.created_at,
   }));
 }
 

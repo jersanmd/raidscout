@@ -17,6 +17,7 @@
 - **DKP settings icon grayscale** — Coins icon changed from amber to neutral gray, matching other settings icons.
 - **Attendance 409 Conflict fix** — Changed `addAttendance` from `.insert()` to `.upsert({ onConflict: "death_record_id,member_id" })` to handle duplicate participants gracefully.
 - **Toast destructure fix** — Fixed `const toast = useToast()` → `const { toast } = useToast()` in ClaimNotificationBadge.
+- **Auction progress bar based on actual duration** — Replaced fixed 24h window with `(1 − remaining / total) × 100` where total = `bid_end_time − created_at`. Falls back to 24h for legacy auctions.
 
 ## 📹 Landing Page
 
