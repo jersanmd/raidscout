@@ -1,5 +1,29 @@
 # June 24, 2026 — Changelog (v0.16.0)
 
+## 🔧 Production Database Fixes (June 24 afternoon)
+
+- **Server game column backfill (177)** — 30 servers had `game = NULL` but `game_id` set, breaking the Mark Item for Bid modal's catalog search. Backfilled `game` from `games.slug`.
+- **`dkp_auctions` RLS disabled (178)** — RLS was accidentally enabled on `dkp_auctions` with no policies, blocking `getActiveAuctions()` from reading live auctions. Now matches staging (RLS disabled).
+- **`delete_auction_round` fixed (179, 181, 182)** — Three fixes: (1) added `DELETE FROM dkp_auctions` so deleted items actually disappear from history, (2) reverted to `ANY(arr)` pattern to avoid RLS subquery issues with `dkp_bids`, (3) added orphaned auction cleanup for auctions with zero bids.
+- **`dkp_distributed` RLS disabled (182)** — Was enabled with no policies on production, silently blocking queries. Now disabled.
+- **Bid notifications restored (183)** — `place_bid` was redeployed by migration 175 without outbid notification inserts. Restored `dkp_outbid` notifications with `image_url`, `auction_id`, `new_bid_amount` in metadata.
+- **Resolve notifications restored (184)** — `resolve_auction` was also wiped by 175. Restored `dkp_won` and `dkp_lost` notifications for winners and losers.
+- **`get_resolved_bids` auth removed (185)** — Explicit `server_members` check was causing "Not authorized" errors. Removed (SECURITY DEFINER already handles access).
+- **Server creation game column restored (186)** — Migration 172 accidentally removed `game` from the `INSERT INTO servers` in `create_server_with_bosses`. Restored with `games.slug` subquery. Backfilled the 2 affected servers.
+
+## 🎨 Frontend Fixes
+
+- **Delete auction confirmation modal** — Replaced browser `confirm()` with a custom modal requiring the user to type the item name. Red-themed with consequences listed (bids, transactions, distribution records, auction removed).
+- **DKP settings icon grayscale** — Coins icon changed from amber to neutral gray, matching other settings icons.
+- **Attendance 409 Conflict fix** — Changed `addAttendance` from `.insert()` to `.upsert({ onConflict: "death_record_id,member_id" })` to handle duplicate participants gracefully.
+- **Toast destructure fix** — Fixed `const toast = useToast()` → `const { toast } = useToast()` in ClaimNotificationBadge.
+
+## 📹 Landing Page
+
+- **DKP video guide added** — Third video in the guides carousel: "RaidScout DKP Guide: Complete Setup, Character Claims & Loot Auctions" (`cjAEQ6Icbm0`).
+
+---
+
 ## 🏦 DKP Auction System
 
 - **Complete DKP auction system** — Guilds can now run DKP (Dragon Kill Points) bidding. Staff mark items for bid with configurable DKP cost, duration, quantity, and optional guild restrictions. Members place bids using their earned DKP. Highest bidder wins when the auction ends.

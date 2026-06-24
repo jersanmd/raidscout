@@ -161,6 +161,21 @@ Track repeatable guild activities alongside boss spawns:
 - **Attendance tracking** — Mark who participated, view activity attendance history.
 - **Soft-delete** — Three-state system: Active, Disabled, Soft-deleted (hidden).
 
+### 🏦 DKP Auction System
+
+Run Dragon Kill Points (DKP) bidding for loot distribution. Staff mark items for bid, members
+place bids using earned DKP, and the highest bidder wins.
+
+- **Mark items for bid** — Searchable catalog with item thumbnails. Set DKP cost, duration, quantity, and optional guild restrictions.
+- **Live auction panel** — Real-time countdown timers, current highest bid, bid count, guild badge, and rarity-colored item display.
+- **Bid modal** — Preset increments, balance display with over-budget warning. Soft-close extends auction by 3 minutes on late bids.
+- **Outbid refunds & notifications** — Previous highest bidder is automatically refunded and receives a toast notification with item image.
+- **Auto-resolve via Discord bot** — Bot picks the highest bidder when time expires. Losers refunded.
+- **Auction history** — Past auctions grouped by date with winner, bid count, distributed status. Delete with type-to-confirm modal.
+- **DKP ledger & leaderboard** — Per-member balance, earned/spent totals, guild-ranked leaderboard. Point adjustments with audit logging.
+- **DKP Settings** — Enable/disable per server, multiplier, default duration, hide leaderboard from players.
+- **Reset with history preservation** — Zero out balances via adjustments without deleting transaction history.
+
 ### 👥 Member Combat Power & Classes
 
 - **Combat Power** — Numeric field per member, inline-editable.
