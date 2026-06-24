@@ -607,7 +607,7 @@ function AuctionRow({ item, isStaff, memberId, tz, onBid, onResolve, onViewBids,
   const endLocal = item.bid_end_time ? new Date(item.bid_end_time).toLocaleString("en-US", { timeZone: tz, month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "";
   const fmt = (n: number) => String(n).padStart(2, "0");
   const totalDur = item.bid_end_time && item.created_at ? new Date(item.bid_end_time).getTime() - new Date(item.created_at).getTime() : 86400000;
-  const barPct = ended ? 100 : Math.max(0, Math.min(100, (1 - cd.totalMs / totalDur) * 100));
+  const barPct = ended ? 0 : Math.max(0, Math.min(100, (cd.totalMs / totalDur) * 100));
   return (
     <div id={`auction-${item.auction_id}`} className={`relative flex items-center gap-3 px-4 py-3 hover:bg-[#18181b]/50 transition cursor-pointer card-lift group ${isHighlighted ? "bg-amber-500/10 ring-1 ring-amber-500/40 animate-pulse" : ""}`} onClick={onViewBids}>
       {/* Progress bar */}
