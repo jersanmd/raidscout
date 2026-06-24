@@ -295,10 +295,10 @@ export function Layout() {
       <a href="#main-content" className="skip-to-content">Skip to content</a>
 
       {/* -- Top Bar -- */}
-      <header className="shrink-0 h-12 bg-[#0a0a0c] border-b border-[#1a1a1e] flex items-center px-4 gap-3 z-40">
-        <div className="flex items-center gap-2 shrink-0">
+      <header className="shrink-0 h-12 bg-[#0a0a0c] border-b border-[#1a1a1e] flex items-center px-2 sm:px-4 gap-1.5 sm:gap-3 z-40">
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
           <img src="/logo.png" alt="RaidScout" className="w-6 h-6 rounded-md" />
-          <span className="font-semibold text-[#fafafa] text-sm tracking-tight">RaidScout</span>
+          <span className="hidden sm:inline font-semibold text-[#fafafa] text-sm tracking-tight">RaidScout</span>
         </div>
         {/* Mobile server name + Pro badge */}
         {currentServer && (

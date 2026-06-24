@@ -337,7 +337,8 @@ export async function getPastAuctions(serverId: string): Promise<PastAuction[]> 
   // Group bids by auction_id and extract auction_round
   const auctionBidMap = new Map<string, { bids: any[]; winner: { name: string; amount: number } | null; auctionRound: number }>();
   for (const b of bidsForAuctions) {
-    const e = auctionBidMap.get(b.auction_id) || { bids: [], winner: null, auctionRound: b.auction_round ?? 1 };
+    const existing = auctionBidMap.get(b.auction_id);
+    const e = existing ?? { bids: [] as any[], winner: null as { name: string; amount: number } | null, auctionRound: b.auction_round ?? 1 };
     e.bids.push(b);
     if (!e.auctionRound || b.auction_round > e.auctionRound) e.auctionRound = b.auction_round ?? 1;
     if (b.status === "won" && (!e.winner || b.bid_amount > e.winner.amount)) {

@@ -133,7 +133,7 @@ export function ClaimNotificationBadge() {
 
       {/* Dropdown */}
       {open && (
-        <div className="absolute right-0 top-full mt-1 w-80 bg-[#0d0d11] border border-[#1e1e2a] rounded-xl shadow-2xl z-50 overflow-hidden">
+        <div className="absolute right-0 sm:right-0 left-1/2 sm:left-auto -translate-x-1/2 sm:translate-x-0 top-full mt-1 w-80 max-w-[calc(100vw-2rem)] bg-[#0d0d11] border border-[#1e1e2a] rounded-xl shadow-2xl z-50 overflow-hidden">
           {/* Header */}
           <div className="px-4 py-3 border-b border-[#1e1e2a] flex items-center justify-between">
             <div>

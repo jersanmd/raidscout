@@ -84,11 +84,13 @@ function DkpContent({ serverId }: { serverId: string }) {
         <h2 className="text-xl font-bold text-[#fafafa]">DKP</h2>
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-1 space-y-4">
+        {/* Left column */}
+        <div className="lg:col-span-1 space-y-4 sm:space-y-6">
           {memberLoading ? <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 text-[#52525b] animate-spin" /></div>
           : memberId ? <Ledger memberId={memberId} serverId={serverId} /> : <div className="bg-[#0d0d11] border border-[#1e1e2a] rounded-xl p-5 text-center space-y-3"><Shield className="w-6 h-6 text-[#52525b] mx-auto" /><p className="text-xs text-[#71717a]">Claim your profile to view DKP</p><p className="text-[10px] text-[#52525b] leading-relaxed">Don't have access yet? Go to <a href="/join" className="text-blue-400 hover:text-blue-300 underline">Join a Server</a> to claim your in-game character.</p></div>}
           {!hideLeaderboard ? <Leaderboard serverId={serverId} isStaff={isStaff} toast={toast} queryClient={queryClient} /> : <div className="bg-[#0d0d11] border border-[#1e1e2a] rounded-xl p-5 text-center space-y-3"><Shield className="w-6 h-6 text-[#52525b] mx-auto" /><p className="text-xs text-[#71717a]">Leaderboard hidden</p><p className="text-[10px] text-[#52525b] leading-relaxed">The guild officers have disabled the public leaderboard. Your points are still tracked normally.</p></div>}
         </div>
+        {/* Right column */}
         <div className="lg:col-span-2 space-y-4">
           <LiveAuction serverId={serverId} isStaff={isStaff} memberId={memberId} tz={tz} toast={toast} queryClient={queryClient} highlightItemId={highlightItemId} />
           <AuctionHistory serverId={serverId} memberId={memberId} isStaff={isStaff} queryClient={queryClient} toast={toast} />
