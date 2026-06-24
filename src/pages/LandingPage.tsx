@@ -217,6 +217,7 @@ export function LandingPage() {
   const GUIDES = [
     { id: import.meta.env.VITE_YOUTUBE_DEMO_ID || "dQw4w9WgXcQ", title: "What is RaidScout?", description: "Overview of the platform and all core features — boss timers, guild rotations, AI scanning, and more." },
     { id: "na_iii6gSwY", title: "How to Connect RaidScout to Your Discord Server", description: "Step-by-step guide: create a server, invite the bot, set up channels for commands, notifications, threads, and CP updates." },
+    { id: "cjAEQ6Icbm0", title: "RaidScout DKP Guide: Complete Setup, Character Claims & Loot Auctions", description: "Learn how the RaidScout DKP system works from start to finish." },
   ];
 
   // Live stats from Supabase

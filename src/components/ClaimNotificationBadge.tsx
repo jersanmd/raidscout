@@ -17,7 +17,7 @@ export function ClaimNotificationBadge() {
   const { currentServer } = useServer();
   const serverId = useServerId();
   const queryClient = useQueryClient();
-  const toast = useToast();
+  const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const [declineReason, setDeclineReason] = useState<string>("");
   const [decliningId, setDecliningId] = useState<string | null>(null);

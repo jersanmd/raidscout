@@ -75,7 +75,7 @@ export function DkpSettingsTab() {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-2">
-        <Coins className="w-5 h-5 text-amber-400" />
+        <Coins className="w-5 h-5 text-[#a1a1aa]" />
         <h3 className="text-lg font-bold text-[#fafafa]">DKP Settings</h3>
       </div>
 
