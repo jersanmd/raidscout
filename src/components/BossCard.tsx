@@ -5,6 +5,7 @@ import { useServer, useHasPermission } from "@/contexts/ServerContext";
 import { CountdownTimer } from "./CountdownTimer";
 import { DeathRecordModal } from "./DeathRecordModal";
 import { BossImage } from "./BossImage";
+import ShareableBossCard from "./ShareableBossCard";
 import { Repeat, Timer, Skull, CheckSquare, Square, Shield, Pencil, X, Calendar, Users, Star, CheckCircle, Plus } from "lucide-react";
 import { useUserTimezone, formatInTimezone } from "@/hooks/useUserTimezone";
 import { utcSlotToLocal } from "@/lib/scheduleTimezone";
@@ -199,6 +200,7 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
         )}
         <div className="flex gap-3 sm:gap-4 relative z-[1]">
           {/* Boss image / Activity image or icon */}
+          <div className="flex flex-col items-center gap-1 shrink-0">
           {isActivity ? (
             activity.image_url ? (
               <img
@@ -222,6 +224,14 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
             <BossImage bossName={boss.name} size="lg" />
             )
           )}
+          {!isActivity && (
+            <ShareableBossCard
+              spawn={spawn}
+              ownerGuildName={ownerGuildName}
+              serverName={currentServer?.name}
+            />
+          )}
+          </div>
 
           {/* Right side: all info */}
           <div className="flex-1 min-w-0 space-y-1.5">

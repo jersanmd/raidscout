@@ -16,6 +16,7 @@ import { AuditAction, writeAuditEntry } from "@/lib/api/audit";
 import { useMembers } from "@/hooks/useMembers";
 import { Coins, TrendingUp, TrendingDown, History, Gavel, Loader2, Shield, Clock, Check, X, AlertTriangle, Image, Plus, Eye, Hourglass, Trash2, Pencil, CheckCircle, Package, Settings, Search, Gift, Minus } from "lucide-react";
 import { guildColor } from "@/lib/constants";
+import AuctionTheater from "@/components/AuctionTheater";
 
 export function DkpView() {
   const { user, isViewer } = useAuth();
@@ -464,6 +465,7 @@ function LiveAuction({ serverId, isStaff, memberId, tz, toast, queryClient, high
   const [showBid, setShowBid] = useState<string | null>(null);
   const [showResolve, setShowResolve] = useState<string | null>(null);
   const [showBids, setShowBids] = useState<{ itemId: string; auctionId: string } | null>(null);
+  const [showTheater, setShowTheater] = useState<string | null>(null);
   const [markName, setMarkName] = useState("");
   const [markCost, setMarkCost] = useState(10);
   const [markEnd, setMarkEnd] = useState("");
@@ -527,7 +529,7 @@ function LiveAuction({ serverId, isStaff, memberId, tz, toast, queryClient, high
 
   const doBid = async (auctionId: string) => {
     setActing(true); setError(null);
-    try { await placeBid(auctionId, bidAmt, serverId, auctions.find((a: ActiveAuction) => a.auction_id === auctionId)?.item_name); queryClient.invalidateQueries({ queryKey: ["dkp_balance"] }); queryClient.invalidateQueries({ queryKey: ["dkp_active_auctions"] }); queryClient.invalidateQueries({ queryKey: ["dkp_rankings", serverId] }); queryClient.invalidateQueries({ queryKey: ["dkp_history"] }); toast("success", `Bid placed.`); setShowBid(null); }
+    try { await placeBid(auctionId, bidAmt, serverId, auctions.find((a: ActiveAuction) => a.auction_id === auctionId)?.item_name); queryClient.invalidateQueries({ queryKey: ["dkp_balance"] }); queryClient.invalidateQueries({ queryKey: ["dkp_active_auctions"] }); queryClient.invalidateQueries({ queryKey: ["dkp_theater_bids"] }); queryClient.invalidateQueries({ queryKey: ["dkp_rankings", serverId] }); queryClient.invalidateQueries({ queryKey: ["dkp_history"] }); toast("success", `Bid placed.`); setShowBid(null); }
     catch (err: any) { setError(err?.message || "Failed"); toast("error", err?.message || "Failed to place bid"); } finally { setActing(false); }
   };
 
@@ -551,12 +553,13 @@ function LiveAuction({ serverId, isStaff, memberId, tz, toast, queryClient, high
       </div>
       {isLoading ? <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 text-[#52525b] animate-spin" /></div>
       : visibleAuctions.length === 0 ? <div className="px-4 py-8 text-center"><Gavel className="w-8 h-8 text-[#3f3f46] mx-auto mb-2" /><p className="text-xs text-[#71717a]">No active auctions</p></div>
-      : <div className="divide-y divide-[#1e1e2a]/50">{visibleAuctions.map((it: ActiveAuction) => <AuctionRow key={it.auction_id} item={it} isStaff={isStaff} memberId={memberId} tz={tz} onBid={() => { setShowBid(it.auction_id); setBidAmt(Math.max(it.dkp_cost || 1, (it.highest_bid || 0) + 1)); setError(null); }} onResolve={() => setShowResolve(it.auction_id)} onViewBids={() => setShowBids({ itemId: it.item_id, auctionId: it.auction_id })} isHighlighted={activeHighlight === it.auction_id} />)}</div>}
+      : <div className="divide-y divide-[#1e1e2a]/50">{visibleAuctions.map((it: ActiveAuction) => <AuctionRow key={it.auction_id} item={it} isStaff={isStaff} memberId={memberId} tz={tz} onBid={() => { setShowBid(it.auction_id); setBidAmt(Math.max(it.dkp_cost || 1, (it.highest_bid || 0) + 1)); setError(null); }} onResolve={() => setShowResolve(it.auction_id)} onViewBids={() => setShowBids({ itemId: it.item_id, auctionId: it.auction_id })} onTheater={() => setShowTheater(it.auction_id)} isHighlighted={activeHighlight === it.auction_id} />)}</div>}
 
       {showMark && <MarkModal name={markName} setName={setMarkName} cost={markCost} setCost={setMarkCost} end={markEnd} setEnd={setMarkEnd} acting={acting} error={error} onClose={() => setShowMark(false)} onMark={doMark} serverId={serverId} guildId={markGuild} setGuildId={setMarkGuild} qty={markQty} setQty={setMarkQty} />}
       {showBid && <BidModalUI auctionId={showBid} bidAmt={bidAmt} setBidAmt={setBidAmt} acting={acting} error={error} onClose={() => setShowBid(null)} onBid={() => doBid(showBid)} memberId={memberId} serverId={serverId} highestBid={auctions.find((a: ActiveAuction) => a.auction_id === showBid)?.highest_bid ?? 0} />}
       {showResolve && <ResolveModalUI auctionId={showResolve} onClose={() => setShowResolve(null)} onResolve={(w: string | null) => doResolve(showResolve, w)} />}
       {showBids && <BidsModal itemId={showBids.itemId} auctionId={showBids.auctionId} onClose={() => setShowBids(null)} />}
+      {showTheater && <AuctionTheater auctionId={showTheater} serverId={serverId} onClose={() => setShowTheater(null)} />}
     </div>
   );
 }
@@ -598,7 +601,7 @@ function useCountdown(endTime: string | null) {
   return { ended: false, days: Math.floor(totalSec / 86400), hours: Math.floor((totalSec % 86400) / 3600), minutes: Math.floor((totalSec % 3600) / 60), seconds: totalSec % 60, totalMs };
 }
 
-function AuctionRow({ item, isStaff, memberId, tz, onBid, onResolve, onViewBids, isHighlighted }: { item: ActiveAuction; isStaff: boolean; memberId: string | null; tz: string; onBid: () => void; onResolve: () => void; onViewBids: () => void; isHighlighted?: boolean }) {
+function AuctionRow({ item, isStaff, memberId, tz, onBid, onResolve, onViewBids, onTheater, isHighlighted }: { item: ActiveAuction; isStaff: boolean; memberId: string | null; tz: string; onBid: () => void; onResolve: () => void; onViewBids: () => void; onTheater: () => void; isHighlighted?: boolean }) {
   const cd = useCountdown(item.bid_end_time);
   const ended = cd.ended;
   const rarityColor = rc(item.rarity ?? undefined);
@@ -630,6 +633,7 @@ function AuctionRow({ item, isStaff, memberId, tz, onBid, onResolve, onViewBids,
         </div>
       </div>
       <div className="flex items-center gap-1 shrink-0">
+        <button onClick={(e) => { e.stopPropagation(); onTheater(); }} className="px-1.5 py-1 rounded text-[10px] bg-[#18181b] border border-[#27272a] text-[#a1a1aa] hover:text-[#fafafa] hover:border-[#3f3f46] transition-colors" title="Auction Theater">🎭</button>
         {memberId && !ended && !isWinning && <button onClick={(e) => { e.stopPropagation(); onBid(); }} className="px-5 py-1.5 rounded text-xs font-medium bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 transition"><Coins className="w-3.5 h-3.5 inline mr-1" />Bid</button>}
         {memberId && !ended && isWinning && <span className="px-2 py-1 rounded text-[10px] bg-emerald-500/10 text-emerald-400 font-medium" title="You're the highest bidder. Wait to be outbid before bidding again."><Check className="w-3 h-3 inline mr-0.5" />You're Winning</span>}
         {memberId && ended && <span className="px-2 py-1 rounded text-[10px] bg-amber-500/10 text-amber-400 font-medium animate-pulse"><Loader2 className="w-3 h-3 inline mr-1 animate-spin" />Finalizing...</span>}
