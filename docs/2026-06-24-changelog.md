@@ -15,8 +15,11 @@
 - **`bot_server_snapshot` RPC index** — Added partial index `(server_id, boss_id, death_time DESC) WHERE is_initial_spawn IS NOT TRUE` on `death_records`. The existing index on `(server_id, death_time DESC)` didn't match the `ORDER BY boss_id, death_time DESC`, forcing Postgres to sort 18K+ rows per server per tick. New index enables index-only scan with no sorting.
 - **`create-progress-thread` edge function redeployed** — Both staging and production now have the latest exclusion logic so toggling off Discord servers in the Demand CP modal actually skips them.
 
-### 🎨 Frontend Fixes
+- **Fetch timeouts added** — Both `fetchWithRetry` (Supabase) and `discordFetch` (Discord) now use `AbortController` with timeouts: 30s Supabase, 20s Discord. Previously, Node.js `fetch` had no default timeout — a hung request would block the entire tick indefinitely. Now aborted requests retry 3× with exponential backoff, preventing 33+ minute silent periods.
 
+### 🎨 Frontend
+
+- **Onboarding checklist for new servers** — Staff (owner/moderator) see a 4-step animated checklist after creating a server: (1) Add raid members → `/members`, (2) Link Discord bot → `/server-settings?tab=integrations` with YouTube guide, (3) Record first boss kill — copies `!killed BossName`, (4) Explore DKP system → `/dkp` with YouTube guide. Each item auto-checks from live data. Entrance animation (slide+fade+scale), progress bar, check-bounce on completion, shimmer celebration when all done. Dismissible with cross-component sync (module-level state). Hides the old `DiscordWebhookBanner` and `NoMembersBanner` while showing, restores them on dismiss.
 - **Mythic rarity color in Gear Tracking** — `GearTrackingTab` was missing `mythic` from both `RARITY_COLORS` and `RARITY_SCORE`. Added with red (`#ef4444`) and score 20.
 - **Boss Card edit spawn time uses server timezone** — Changed from browser-local `new Date()` to `Date.UTC()` with timezone offset, matching the bot's `!editkilltime` logic. Pre-fill also uses server timezone via `Intl.DateTimeFormat`.
 - **Auction progress bar reversed** — Changed from 0→100 (elapsed) to 100→0 (remaining), making it a countdown bar. Green→amber→red→gray color transition.
