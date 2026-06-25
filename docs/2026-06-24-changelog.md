@@ -9,6 +9,7 @@
 - **Notifications and threads fire concurrently** — Boss loop collects all `broadcastNotification` and `createEventThreads` promises into an array, then fires them via `Promise.all` instead of sequential `await`. Spawn waves no longer block the loop.
 - **Concurrency limiter (`batchRun`)** — Caps Discord API calls at 10 concurrent to stay well under Discord's 50/sec rate limit. Protects against rate-limit errors at scale.
 - **Tick duration dropped from ~35s to ~5s** — The 3-7 AM spawn wave spike (19:00-23:00 UTC) now runs at near-baseline speed. Bot can comfortably handle 200-300 servers on a single Fly.io VM.
+- **`!killed` command optimized** — Three fixes for command timeouts during raid hours: (1) `serverGuilds`, `allBossGuilds`, and `prevDeaths` queries now run in parallel via `Promise.all` instead of sequentially, (2) `broadcastNotification` is now fire-and-forget (`.catch(() => {})`) instead of blocking the response, (3) command timeout increased from 15s → 25s. Result: `!killed` dropped from 15-18s to ~3-5s under load.
 - **`create-progress-thread` edge function redeployed** — Both staging and production now have the latest exclusion logic so toggling off Discord servers in the Demand CP modal actually skips them.
 
 ### 🎨 Frontend Fixes
@@ -16,6 +17,7 @@
 - **Mythic rarity color in Gear Tracking** — `GearTrackingTab` was missing `mythic` from both `RARITY_COLORS` and `RARITY_SCORE`. Added with red (`#ef4444`) and score 20.
 - **Boss Card edit spawn time uses server timezone** — Changed from browser-local `new Date()` to `Date.UTC()` with timezone offset, matching the bot's `!editkilltime` logic. Pre-fill also uses server timezone via `Intl.DateTimeFormat`.
 - **Auction progress bar reversed** — Changed from 0→100 (elapsed) to 100→0 (remaining), making it a countdown bar. Green→amber→red→gray color transition.
+- **Leaderboard Finalized Results vertical flow** — Rankings now flow top-to-bottom in columns (newspaper-style) instead of left-to-right (row-wise). Uses `grid-auto-flow: column` with computed row count so #1→#2→#3 fill the first column before wrapping to the next. Much easier to scan rankings in order.
 
 ### 📚 Documentation
 

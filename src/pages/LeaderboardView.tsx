@@ -1175,6 +1175,7 @@ export function LeaderboardView() {
               : d.toLocaleDateString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
           const count = viewingSnapshot.rankings.length;
           const cols = count <= 10 ? 1 : count <= 25 ? 2 : 3;
+          const rows = Math.ceil(count / cols);
           return (
             <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
               <div className="absolute inset-0 bg-black/60" onClick={clearViewing} />
@@ -1190,7 +1191,7 @@ export function LeaderboardView() {
                   <button onClick={clearViewing} className="text-[#a1a1aa] hover:text-[#fafafa] p-1"><X className="w-4 h-4" /></button>
                 </div>
                 <div className="overflow-y-auto p-2 flex-1">
-                  <div className={`grid gap-1 ${cols === 1 ? "grid-cols-1" : cols === 2 ? "grid-cols-2" : "grid-cols-3"}`}>
+                  <div className={`grid gap-1 ${cols === 1 ? "grid-cols-1" : cols === 2 ? "grid-cols-2" : "grid-cols-3"}`} style={{ gridAutoFlow: "column", gridTemplateRows: `repeat(${rows}, auto)` }}>
                     {viewingSnapshot.rankings.map((r) => {
                       const style = rankColors[r.rank];
                       return (
