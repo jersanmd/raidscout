@@ -1,5 +1,29 @@
 # June 24, 2026 — Changelog (v0.16.0)
 
+## June 25 — Follow-up Fixes & Optimizations
+
+### 🤖 Discord Bot Performance
+
+- **Redundant queries eliminated** — `broadcastNotification` and `createEventThreads` no longer re-query `discord_configs`, `servers`, `boss_assists`, and `guilds` per boss. Pre-fetched data from the cron loop's global queries and RPC snapshot is passed through instead. ~297 redundant REST calls/tick eliminated (~44% reduction).
+- **3 global config queries merged into 1** — Combined `discord_configs` queries (notifications, threads, commands) into a single `or=(...)` query. Also fetches `notification_prefix` and `timezone` from `servers` in the same global query.
+- **Notifications and threads fire concurrently** — Boss loop collects all `broadcastNotification` and `createEventThreads` promises into an array, then fires them via `Promise.all` instead of sequential `await`. Spawn waves no longer block the loop.
+- **Concurrency limiter (`batchRun`)** — Caps Discord API calls at 10 concurrent to stay well under Discord's 50/sec rate limit. Protects against rate-limit errors at scale.
+- **Tick duration dropped from ~35s to ~5s** — The 3-7 AM spawn wave spike (19:00-23:00 UTC) now runs at near-baseline speed. Bot can comfortably handle 200-300 servers on a single Fly.io VM.
+- **`create-progress-thread` edge function redeployed** — Both staging and production now have the latest exclusion logic so toggling off Discord servers in the Demand CP modal actually skips them.
+
+### 🎨 Frontend Fixes
+
+- **Mythic rarity color in Gear Tracking** — `GearTrackingTab` was missing `mythic` from both `RARITY_COLORS` and `RARITY_SCORE`. Added with red (`#ef4444`) and score 20.
+- **Boss Card edit spawn time uses server timezone** — Changed from browser-local `new Date()` to `Date.UTC()` with timezone offset, matching the bot's `!editkilltime` logic. Pre-fill also uses server timezone via `Intl.DateTimeFormat`.
+- **Auction progress bar reversed** — Changed from 0→100 (elapsed) to 100→0 (remaining), making it a countdown bar. Green→amber→red→gray color transition.
+
+### 📚 Documentation
+
+- **README DKP section** — Added full 🏦 DKP Auction System section covering mark-for-bid, live panel, bid modal, outbid notifications, auto-resolve, history, ledger, settings, and reset.
+- **Changelog restructured** — Production DB fixes and frontend changes organized into clear sections.
+
+---
+
 ## 🔧 Production Database Fixes (June 24 afternoon)
 
 - **Server game column backfill (177)** — 30 servers had `game = NULL` but `game_id` set, breaking the Mark Item for Bid modal's catalog search. Backfilled `game` from `games.slug`.
