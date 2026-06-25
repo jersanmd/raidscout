@@ -1,6 +1,6 @@
 # fly.staging.toml -- RaidScout Staging
 app = "raidscout-staging"
-primary_region = "nrt"
+primary_region = "sin"
 
 [build]
   dockerfile = "Dockerfile"
