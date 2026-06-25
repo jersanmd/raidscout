@@ -925,11 +925,13 @@ export async function handleMessage(msg: any) {
       else if (!explicitDay && deathTime > now2) deathTime.setUTCDate(deathTime.getUTCDate() - 1);
     }
 
-    const serverGuilds = await supabaseQuery(`guilds?server_id=eq.${serverId}`);
-    const allBossGuilds = await supabaseQuery(`boss_guilds?select=boss_id,guild_id,sort_order,day_of_week,mode`);
+    const [serverGuilds, allBossGuilds, prevDeaths] = await Promise.all([
+      supabaseQuery(`guilds?server_id=eq.${serverId}`),
+      supabaseQuery(`boss_guilds?select=boss_id,guild_id,sort_order,day_of_week,mode`),
+      supabaseQuery(`death_records?server_id=eq.${serverId}&boss_id=eq.${boss.id}&order=death_time.desc&limit=1`),
+    ]);
     const sgIds = new Set(serverGuilds.map((g: any) => g.id));
     const serverBossGuilds2 = allBossGuilds.filter((bg: any) => sgIds.has(bg.guild_id));
-    const prevDeaths = await supabaseQuery(`death_records?server_id=eq.${serverId}&boss_id=eq.${boss.id}&order=death_time.desc&limit=1`);
     const lastDeath2 = prevDeaths?.[0] ?? null;
     const gName = computeOwnerGuild(boss, serverBossGuilds2, serverGuilds, lastDeath2, deathTime, tz);
     const ownerGuildId = gName ? serverGuilds.find((g: any) => g.name === gName)?.id ?? null : null;
@@ -950,7 +952,7 @@ export async function handleMessage(msg: any) {
     const nextSpawnField = nextSpawnUnix > 0 ? { name: "Next Spawn", value: `<t:${nextSpawnUnix}:f>`, inline: true } : null;
     const deathTimeStr = deathTime.toLocaleString("en-US", { timeZone: tz || "Asia/Manila", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: true });
     const killText = `💀 **${boss.name}** killed by **${guildName || author}** ${deathTimeStr}`;
-    broadcastNotification(serverId, {}, channelId, killText);
+    broadcastNotification(serverId, {}, channelId, killText).catch(() => {});
     const unix = Math.floor(deathTime.getTime() / 1000);
     const replyFields: any[] = [{ name: "Death Time", value: `<t:${unix}:f>`, inline: true }, { name: "Recorded By", value: author, inline: true }];
     if (nextSpawnField) replyFields.push(nextSpawnField);

@@ -89,7 +89,7 @@ async function connect() {
       if (d.author?.id === botUserId) return;
       withCommandTracking(
         () => handleMessage(d),
-        15_000,
+        25_000,
         () => {
           fetch(`https://discord.com/api/v10/channels/${d.channel_id}/messages`, {
             method: "POST",
