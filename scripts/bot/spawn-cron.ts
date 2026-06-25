@@ -464,6 +464,10 @@ async function runSpawnCron() {
         }
       }
     }
+
+    // Fire activity notifications/threads (collected after boss batchRun above)
+    if (notifPromises.length > 0) await batchRun(notifPromises, 10);
+
     } catch (serverErr: any) {
       logError("cron", "Server processing failed", serverErr, { serverId });
     }

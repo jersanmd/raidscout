@@ -87,22 +87,22 @@ export async function createEventThreads(
     const timeStr = spawnDate.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true, timeZone: tz });
     const dateStr = spawnDate.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: tz });
 
+    // Fetch party list ONCE (not per-config) — avoids 3-5 redundant DB queries per config
+    let partyMessage = ".";
+    if (targetId) {
+      const parties = await fetchPartyList(serverId, targetId, ownerType);
+      const formatted = formatPartyListForThread(parties);
+      if (formatted) {
+        partyMessage = `**Party Setup -- ${name}**\n${formatted}`;
+      }
+    }
+
     for (const cfg of configs) {
       const channelId: string = cfg.thread_channel_id;
       const threadGuilds: string[] = cfg.thread_guilds || [];
       if (!channelId) continue;
 
-      // Build party list
-      let firstMessage = ".";
-      if (targetId) {
-        const parties = await fetchPartyList(serverId, targetId, ownerType);
-        const formatted = formatPartyListForThread(parties);
-        if (formatted) {
-          firstMessage = `**Party Setup -- ${name}**\n${formatted}`;
-        }
-      }
-
-      const hasParties = firstMessage !== ".";
+      const hasParties = partyMessage !== ".";
       const hasGuildOwner = !!guildName;
 
       // ── Guild whitelist check (use resolved guild names, not UUIDs) ──
@@ -119,7 +119,7 @@ export async function createEventThreads(
           continue;
         }
         const threadName = `${name}${guildName ? ` -- ${guildName}` : ""} -- ${dateStr}, ${timeStr}`;
-        const tid = await createThreadInChannel(channelId, threadName, firstMessage, guildName);
+        const tid = await createThreadInChannel(channelId, threadName, partyMessage, guildName);
         if (tid) threadCache.set(cacheKey, { threadId: tid, createdAt: Date.now() });
       } else {
         console.log(`[thread] ⏭️ Skip "${name}": owner=${guildName || "none"} whitelist=[${threadGuildNames.join(",")}]`);
