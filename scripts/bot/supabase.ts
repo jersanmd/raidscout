@@ -30,11 +30,16 @@ export async function safeCall<T>(label: string, fn: () => Promise<T>): Promise<
 
 const MAX_RETRIES = 3;
 const RETRY_DELAY_MS = 1000; // base delay, doubles each retry
+const FETCH_TIMEOUT_MS = 30_000; // 30s — prevents hung requests from blocking the bot
 
 async function fetchWithRetry(url: string, options: RequestInit, retries = MAX_RETRIES): Promise<Response> {
   for (let attempt = 0; attempt <= retries; attempt++) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
     try {
-      const res = await fetch(url, options);
+      const res = await fetch(url, { ...options, signal: controller.signal });
+      clearTimeout(timer);
+
       // Retry on 5xx server errors (transient)
       if (res.status >= 500 && attempt < retries) {
         const delay = RETRY_DELAY_MS * Math.pow(2, attempt);
@@ -44,8 +49,9 @@ async function fetchWithRetry(url: string, options: RequestInit, retries = MAX_R
       }
       return res;
     } catch (err: any) {
-      // Retry on network/fetch errors (DNS, connection refused, timeout, etc.)
-      if (attempt < retries && (err?.cause?.code === 'UND_ERR_CONNECT_TIMEOUT' || err?.cause?.code === 'ECONNREFUSED' || err?.cause?.code === 'ENOTFOUND' || err?.cause?.code === 'ETIMEDOUT' || err?.message?.includes('fetch failed'))) {
+      clearTimeout(timer);
+      // Retry on timeout/network/abort errors
+      if (attempt < retries && (err?.cause?.code === 'UND_ERR_CONNECT_TIMEOUT' || err?.cause?.code === 'ECONNREFUSED' || err?.cause?.code === 'ENOTFOUND' || err?.cause?.code === 'ETIMEDOUT' || err?.name === 'AbortError' || err?.message?.includes('fetch failed'))) {
         const delay = RETRY_DELAY_MS * Math.pow(2, attempt);
         console.warn(`[bot] Supabase fetch error, retrying in ${delay}ms (attempt ${attempt + 1}/${retries + 1}): ${err.message || err}`);
         await new Promise(r => setTimeout(r, delay));
