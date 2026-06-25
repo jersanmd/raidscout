@@ -143,7 +143,7 @@ async function runSpawnCron() {
   try {
 
   const configs = await supabaseQuerySafe(
-    `discord_configs?select=raidscout_server_id,discord_guild_id,notification_channel_id,thread_channel_id,thread_guilds,command_channel_id&or=(notification_channel_id.not.is.null,thread_channel_id.not.is.null,command_channel_id.not.is.null)`
+    `discord_configs?select=raidscout_server_id,discord_guild_id,notification_channel_id,notification_prefix,thread_channel_id,thread_guilds,command_channel_id&or=(notification_channel_id.not.is.null,thread_channel_id.not.is.null,command_channel_id.not.is.null)`
   );
 
   // Fetch active servers (exclude soft-deleted AND expired)
