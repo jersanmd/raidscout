@@ -35,6 +35,7 @@ import { DeathRecordModal } from "@/components/DeathRecordModal";
 import { FilterBar } from "@/components/FilterBar";
 import { UpcomingStrip } from "@/components/UpcomingStrip";
 import { UpcomingActivitiesStrip } from "@/components/UpcomingActivitiesStrip";
+import OnboardingChecklist from "@/components/OnboardingChecklist";
 import { SavingOverlay } from "@/components/SavingOverlay";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { AddBossModal } from "@/components/AddBossModal";
@@ -762,6 +763,9 @@ export function BossListView() {
           </>
         )}
       </div>
+
+      {/* Onboarding checklist — staff only, fresh server */}
+      <OnboardingChecklist />
 
       {/* Upcoming strip — next 3 bosses to spawn */}
       <UpcomingStrip ownerGuildName={ownerGuildName} />

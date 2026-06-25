@@ -418,6 +418,15 @@ button { transition: transform 0.1s ease, opacity 0.15s ease, background-color 0
   animation: warning-glitch-shift 4.5s ease-in-out infinite;
 }
 
+/* Onboarding checklist shimmer */
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+.animate-shimmer {
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
 .boss-card-warning:hover {
   animation: warning-border-pulse 1.2s ease-in-out infinite;
   border-color: rgba(245, 158, 11, 0.6) !important;

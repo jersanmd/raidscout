@@ -10,6 +10,7 @@ import { supabase } from "@/lib/supabase";
 import { CreateServerModal } from "@/components/CreateServerModal";
 import { DiscordWebhookBanner } from "@/components/DiscordWebhookBanner";
 import { NoMembersBanner } from "@/components/NoMembersBanner";
+import { useOnboardingProgress } from "@/hooks/useOnboardingProgress";
 import { SubscriptionBanner } from "@/components/SubscriptionBanner";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { useSpawnAlerts } from "@/hooks/useSpawnAlerts";
@@ -60,6 +61,7 @@ export function Layout() {
   const [discordGuilds, setDiscordGuilds] = useState<{ guild_id: string; name: string; icon_url: string | null }[]>([]);
   const { notifications, unreadCount, markRead, markAllRead } = useNotifications();
   const { unreadClaim, dismiss: dismissClaim } = useClaimNotifications();
+  const { show: onboardingShowing } = useOnboardingProgress();
   const [toasts, setToasts] = useState<{ id: string; type: string; title: string; body: string; itemId: string; itemName?: string; rarity?: string; imageUrl?: string }[]>([]);
   const [confetti, setConfetti] = useState(false);
   const seenNotifRef = useRef<Set<string>>(new Set());
@@ -452,7 +454,9 @@ export function Layout() {
         </aside>
 
         <div className="flex-1 flex flex-col min-w-0 min-h-0">
-          <DiscordWebhookBanner/><NoMembersBanner/><SubscriptionBanner/>
+          {!onboardingShowing && <DiscordWebhookBanner />}
+          {!onboardingShowing && <NoMembersBanner />}
+          <SubscriptionBanner/>
           {/* Claim notification banner */}
           {unreadClaim && (
             <div className={`px-4 py-2 text-xs text-center font-medium ${
