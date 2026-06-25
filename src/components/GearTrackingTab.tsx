@@ -21,6 +21,7 @@ const DEFAULT_TL_TEMPLATE = [
 ];
 
 const RARITY_COLORS: Record<string, string> = {
+  mythic: "#ef4444",
   legendary: "#f59e0b",
   epic: "#a855f7",
   rare: "#3b82f6",
@@ -29,6 +30,7 @@ const RARITY_COLORS: Record<string, string> = {
 };
 
 const RARITY_SCORE: Record<string, number> = {
+  mythic: 20,
   legendary: 10,
   epic: 5,
   rare: 3,
