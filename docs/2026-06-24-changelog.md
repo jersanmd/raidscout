@@ -24,6 +24,8 @@
 - **Boss Card edit spawn time uses server timezone** — Changed from browser-local `new Date()` to `Date.UTC()` with timezone offset, matching the bot's `!editkilltime` logic. Pre-fill also uses server timezone via `Intl.DateTimeFormat`.
 - **Auction progress bar reversed** — Changed from 0→100 (elapsed) to 100→0 (remaining), making it a countdown bar. Green→amber→red→gray color transition.
 - **Leaderboard Finalized Results vertical flow** — Rankings now flow top-to-bottom in columns (newspaper-style) instead of left-to-right (row-wise). Uses `grid-auto-flow: column` with computed row count so #1→#2→#3 fill the first column before wrapping to the next. Much easier to scan rankings in order.
+- **Shareable Boss Card** — Every boss card now has a Share button below the image. Generates a 600×340 styled PNG with boss name, status, spawn time, guild owner, progress bar, and RaidScout branding. One-click copies to clipboard — paste directly into Discord. Uses `html-to-image` for rendering, includes a toast ("Paste anywhere with Ctrl+V").
+- **DKP Auction Theater** — Live auctions now have a 🎭 button that opens a full-screen view. Shows item image with rarity glow, countdown timer (color transitions green→amber→red→gray), top bidders side-by-side, bid history, "Ended" state with pulse animation. New bids slide in with animation. Strict `auction_id` matching prevents cross-contamination between auction rounds. Refetches every 1s with zero cache.
 
 ### 📚 Documentation
 

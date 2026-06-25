@@ -55,6 +55,9 @@ the logistics so you can focus on hunting.
 All of this works **without accounts** via Viewer Mode, and **integrates directly into Discord**
 so your members never need to leave the app.
 
+New server owners get a **4-step animated onboarding checklist** to guide them through setup:
+add members, link Discord, record first kill, and explore DKP.
+
 ---
 
 ## ✨ Features
@@ -78,6 +81,7 @@ automatically:
 - **Per-Kill Rotation** — Guilds alternate every kill. Supports weighted turns (Guild A gets 2 kills, Guild B gets 1).
 - **Daily Rotation** — Guilds switch on a daily schedule. Each day of the week gets a different owner.
 - **Fixed Schedule** — Specific guilds own specific spawn windows (e.g., PANORTH gets the 14:00 spawn, PARAK gets the 22:00 spawn).
+- **📸 Shareable Boss Card** — One-click generates a styled PNG image with boss name, status, spawn time, guild owner, and progress bar. Copies to clipboard — paste directly into Discord.
 
 The rotation counter advances automatically on each kill — no manual tracking needed.
 
@@ -172,6 +176,7 @@ place bids using earned DKP, and the highest bidder wins.
 - **Outbid refunds & notifications** — Previous highest bidder is automatically refunded and receives a toast notification with item image.
 - **Auto-resolve via Discord bot** — Bot picks the highest bidder when time expires. Losers refunded.
 - **Auction history** — Past auctions grouped by date with winner, bid count, distributed status. Delete with type-to-confirm modal.
+- **🎭 Auction Theater** — Full-screen live view for any active auction. Shows item image with rarity glow, countdown timer (green→amber→red→gray), top bidders side-by-side with crown on leader, sliding bid animations, and bid history. Ideal for Discord screen share during raid loot distribution.
 - **DKP ledger & leaderboard** — Per-member balance, earned/spent totals, guild-ranked leaderboard. Point adjustments with audit logging.
 - **DKP Settings** — Enable/disable per server, multiplier, default duration, hide leaderboard from players.
 - **Reset with history preservation** — Zero out balances via adjustments without deleting transaction history.
