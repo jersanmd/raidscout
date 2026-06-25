@@ -80,6 +80,7 @@ let lastTickTime = 0;
 let lastServersChecked = 0;
 let lastBossesChecked = 0;
 let lastTickDurationMs = 0;
+let lastTickIntervalMs = 30_000;
 const recentTickDurations: number[] = []; // rolling buffer, last ~60 ticks (~30 min)
 const MAX_TICK_HISTORY = 60;
 
@@ -87,6 +88,7 @@ export function getCronStats() {
   return {
     last_tick_seconds_ago: lastTickTime ? Math.floor((Date.now() - lastTickTime) / 1000) : null,
     last_tick_duration_ms: lastTickDurationMs,
+    tick_interval_ms: lastTickIntervalMs,
     servers_checked: lastServersChecked,
     bosses_checked: lastBossesChecked,
     tick_history_ms: [...recentTickDurations],
@@ -108,30 +110,45 @@ export function startSpawnCron() {
   if (cronStarted) return;
   cronStarted = true;
 
-  // Staging runs at 60s to reduce Supabase load; production at 30s
-  const isStaging = process.env.FLY_APP_NAME === "raidscout-staging";
-  const TICK_MS = isStaging ? 60_000 : 30_000;
-
   // Preload dedup cache from DB so restarts don't re-fire notifications
-  // Fire-and-forget is fine — first tick is 30s away and preload takes <1s
   preloadDedupFromDb().catch((err) => logError("cron", "preloadDedupFromDb failed", err));
 
-  setInterval(async () => {
+  // Adaptive tick interval: speed up when fast, slow down under load
+  const isStaging = process.env.FLY_APP_NAME === "raidscout-staging";
+
+  function getAdaptiveInterval(): number {
+    if (recentTickDurations.length < 3) return 30_000;
+
+    const avg = recentTickDurations.reduce((a, b) => a + b, 0) / recentTickDurations.length;
+    let interval = 30_000;
+    if (avg >= 20_000) interval = 120_000;
+    else if (avg >= 10_000) interval = 90_000;
+    else if (avg >= 5_000) interval = 60_000;
+
+    lastTickIntervalMs = interval;
+    return interval;
+  }
+
+  async function scheduleTick() {
     if (tickRunning) {
       console.warn("[cron] Previous tick still running — skipping this tick");
-      return;
+    } else {
+      tickRunning = true;
+      try {
+        await runSpawnCron();
+      } catch (err: any) {
+        logError("cron", "Tick error", err);
+      } finally {
+        tickRunning = false;
+      }
     }
-    tickRunning = true;
-    try {
-      await runSpawnCron();
-    } catch (err: any) {
-      logError("cron", "Tick error", err);
-    } finally {
-      tickRunning = false;
-    }
-  }, TICK_MS);
+    const next = getAdaptiveInterval();
+    setTimeout(scheduleTick, next);
+  }
 
-  console.log(`Spawn cron started (${TICK_MS / 1000}s tick)`);
+  // First tick fires after a short delay, then adaptive
+  setTimeout(scheduleTick, 5_000);
+  console.log(`Spawn cron started (adaptive: 30s-120s based on load)`);
 }
 
 async function runSpawnCron() {

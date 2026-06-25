@@ -1987,7 +1987,8 @@ function SpawnCronCard({ data, connected, timezone }: { data: any; connected: bo
   const prev = history.length > 1 ? history[history.length - 2] : latest;
   const trend = latest > prev ? "up" : latest < prev ? "down" : "flat";
 
-  // Peak duration — persisted across refetches to avoid flicker
+  const intervalMs = data?.tick_interval_ms;
+  const intervalLabel = intervalMs ? `${intervalMs / 1000}s` : "—";
   const peakMs = hasData ? Math.max(...history) : 0;
   const peakTime = useMemo(() => {
     if (histData?.metrics) {
@@ -2017,7 +2018,7 @@ function SpawnCronCard({ data, connected, timezone }: { data: any; connected: bo
             <span className={`w-2 h-2 rounded-full ${connected ? 'bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.5)]' : 'bg-[#52525b]'}`} />
             <span className="text-[11px] font-semibold text-[#e4e4e7] tracking-wide">SPAWN CRON</span>
           </div>
-          <span className="text-[10px] text-[#52525b] font-mono">{BOT_URL.includes("staging") ? "60 seconds" : "30 seconds"}</span>
+          <span className="text-[10px] text-[#52525b] font-mono">every {intervalLabel}</span>
           {/* Time range filter */}
           <select
             value={timeRange}

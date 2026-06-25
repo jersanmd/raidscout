@@ -16,6 +16,7 @@
 - **`create-progress-thread` edge function redeployed** — Both staging and production now have the latest exclusion logic so toggling off Discord servers in the Demand CP modal actually skips them.
 
 - **Fetch timeouts added** — Both `fetchWithRetry` (Supabase) and `discordFetch` (Discord) now use `AbortController` with timeouts: 30s Supabase, 20s Discord. Previously, Node.js `fetch` had no default timeout — a hung request would block the entire tick indefinitely. Now aborted requests retry 3× with exponential backoff, preventing 33+ minute silent periods.
+- **Adaptive tick interval** — Replaced fixed `setInterval` with recursive `setTimeout` that adjusts interval based on rolling average of last 60 tick durations. < 5s avg → 30s, 5-10s → 60s, 10-20s → 90s, > 20s → 120s. Slows down under load to reduce Supabase strain, speeds back up when conditions improve. Live interval visible in Admin Panel (Spawn Cron card) and bot status popup. Both staging and production use adaptive intervals.
 
 ### 🎨 Frontend
 

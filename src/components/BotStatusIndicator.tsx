@@ -421,6 +421,16 @@ export function BotStatusIndicator() {
                       </span>
                     </div>
 
+                    {/* Tick Interval */}
+                    {status?.spawn_cron?.tick_interval_ms != null && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] text-[#a1a1aa]">Tick Interval</span>
+                        <span className="text-xs text-[#d4d4d8] font-mono">
+                          every {status.spawn_cron.tick_interval_ms / 1000}s
+                        </span>
+                      </div>
+                    )}
+
                     {/* Region */}
                     {status?.region && (
                       <div className="flex items-center justify-between">
@@ -441,20 +451,19 @@ export function BotStatusIndicator() {
                           Server Scan Duration (24h)
                         </span>
                         <span className="text-[10px] text-[#52525b]">
-                          {tickMetricsLoading ? (
-                            <Loader2 className="w-3 h-3 text-[#52525b] animate-spin inline" />
-                          ) : (
-                            (() => {
-                              if (tickMetrics.length < 2) return `${tickMetrics.length} scan${tickMetrics.length !== 1 ? "s" : ""}`;
-                              const intervals: number[] = [];
-                              for (let i = 1; i < Math.min(tickMetrics.length, 10); i++) {
-                                intervals.push(new Date(tickMetrics[i].ts).getTime() - new Date(tickMetrics[i - 1].ts).getTime());
-                              }
-                              const avg = intervals.reduce((a, b) => a + b, 0) / intervals.length;
-                              const secs = Math.round(avg / 1000);
-                              return `scans every ${secs}s`;
-                            })()
-                          )}
+                          {(() => {
+                            if (tickMetricsLoading) return null;
+                            const cfgInterval = status?.spawn_cron?.tick_interval_ms;
+                            if (cfgInterval) return `every ${cfgInterval / 1000}s`;
+                            if (tickMetrics.length < 2) return `${tickMetrics.length} scan${tickMetrics.length !== 1 ? "s" : ""}`;
+                            const intervals: number[] = [];
+                            for (let i = 1; i < Math.min(tickMetrics.length, 10); i++) {
+                              intervals.push(new Date(tickMetrics[i].ts).getTime() - new Date(tickMetrics[i - 1].ts).getTime());
+                            }
+                            const avg = intervals.reduce((a, b) => a + b, 0) / intervals.length;
+                            const secs = Math.round(avg / 1000);
+                            return `scans every ${secs}s`;
+                          })()}
                         </span>
                       </div>
                       {tickMetricsLoading ? (
