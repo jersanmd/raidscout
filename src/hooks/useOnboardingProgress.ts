@@ -11,6 +11,7 @@ export interface OnboardingItem {
   description: string;
   done: boolean;
   cta: { label: string; href?: string; copyText?: string };
+  videoUrl?: string;
 }
 
 const DKP_EXPLORED_KEY = "raidscout-onboarding-dkp-seen";
@@ -92,6 +93,7 @@ export function useOnboardingProgress() {
       description: "Get spawn notifications and auto-threads in your server.",
       done: discordLinked,
       cta: { label: "Setup Discord", href: "/server-settings?tab=integrations" },
+      videoUrl: "https://youtu.be/na_iii6gSwY",
     },
     {
       id: "firstkill",
@@ -106,6 +108,7 @@ export function useOnboardingProgress() {
       description: "Run fair auctions with bidding, auto-resolve, and transaction history.",
       done: dkpExplored,
       cta: { label: "Open DKP", href: "/dkp" },
+      videoUrl: "https://youtu.be/cjAEQ6Icbm0",
     },
   ], [hasMembers, discordLinked, hasKills, dkpExplored]);
 

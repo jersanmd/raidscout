@@ -78,22 +78,35 @@ function ChecklistItem({
 
       {/* CTA button */}
       {!item.done && (
-        <button
-          onClick={handleCta}
-          className="shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-medium bg-[#18181b] text-[#fafafa] hover:bg-[#27272a] active:scale-95 transition-all"
-        >
-          {copied ? (
-            <>
-              <CheckCheck className="w-3 h-3 text-emerald-400" />
-              Copied!
-            </>
-          ) : (
-            <>
-              {item.cta.label}
-              <ChevronRight className="w-3 h-3" />
-            </>
+        <div className="shrink-0 flex flex-col items-end gap-1">
+          <button
+            onClick={handleCta}
+            className="flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-medium bg-[#18181b] text-[#fafafa] hover:bg-[#27272a] active:scale-95 transition-all"
+          >
+            {copied ? (
+              <>
+                <CheckCheck className="w-3 h-3 text-emerald-400" />
+                Copied!
+              </>
+            ) : (
+              <>
+                {item.cta.label}
+                <ChevronRight className="w-3 h-3" />
+              </>
+            )}
+          </button>
+          {item.videoUrl && (
+            <a
+              href={item.videoUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-red-600/20 text-red-400 hover:bg-red-600/30 transition-colors"
+            >
+              <svg className="w-3 h-3" viewBox="0 0 24 24" fill="currentColor"><path d="M19.615 3.184c-3.604-.246-11.631-.245-15.23 0-3.897.266-4.356 2.62-4.385 8.816.029 6.185.484 8.549 4.385 8.816 3.6.245 11.626.246 15.23 0 3.897-.266 4.356-2.62 4.385-8.816-.029-6.185-.484-8.549-4.385-8.816zm-10.615 12.816v-8l8 3.993-8 4.007z"/></svg>
+              Watch Guide
+            </a>
           )}
-        </button>
+        </div>
       )}
     </div>
   );
