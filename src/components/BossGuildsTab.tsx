@@ -229,7 +229,7 @@ export function BossGuildsTab({ bosses, guilds, bossGuilds, onBossGuildsChange, 
                     className="w-3.5 h-3.5 rounded border-[#3f3f46] bg-[#18181b] text-[#a1a1aa] focus:ring-[#52525b]/50" />
                 )}
                 <span className="text-sm text-[#fafafa] font-medium">{boss.name}</span>
-                <span className={`text-[10px] px-1.5 py-0.5 rounded ${
+                <span className={`text-[11px] px-1.5 py-0.5 rounded ${
                   mode === "rotation" ? "bg-[#18181b] text-[#a1a1aa]" :
                   mode === "daily" ? "bg-[#18181b] text-[#a1a1aa]" :
                   mode === "schedule" ? "bg-[#18181b] text-[#a1a1aa]" :

@@ -150,7 +150,7 @@ export function ClaimNotificationBadge() {
         <UserCheck className="w-4 h-4" />
         <span className="text-[11px] font-medium hidden sm:inline">Claims</span>
         {(count > 0 || hasUnread) && (
-          <span className={`absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full text-[9px] font-bold flex items-center justify-center ${
+          <span className={`absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full text-[11px] font-bold flex items-center justify-center ${
             count > 0 ? "bg-red-500 text-white" : "bg-emerald-500 text-white"
           }`}>
             {count > 0 ? count : "✓"}
@@ -165,7 +165,7 @@ export function ClaimNotificationBadge() {
           <div className="px-4 py-3 border-b border-[#1e1e2a] flex items-center justify-between">
             <div>
               <span className="text-xs font-semibold text-[#fafafa]">Member Claims</span>
-              <span className="text-[10px] text-[#52525b] ml-1.5">{count} pending</span>
+              <span className="text-[11px] text-[#52525b] ml-1.5">{count} pending</span>
             </div>
             <button onClick={() => setOpen(false)} className="text-[#52525b] hover:text-[#fafafa]"><X className="w-3.5 h-3.5" /></button>
           </div>
@@ -176,7 +176,7 @@ export function ClaimNotificationBadge() {
             <div className="px-4 py-8 text-center">
               <UserCheck className="w-6 h-6 text-[#3f3f46] mx-auto mb-2" />
               <p className="text-xs text-[#71717a]">No pending claims</p>
-              {hasUnread && <p className="text-[10px] text-emerald-400 mt-1">You have resolved claims</p>}
+              {hasUnread && <p className="text-[11px] text-emerald-400 mt-1">You have resolved claims</p>}
             </div>
           ) : (
             <div className="overflow-y-auto divide-y divide-[#1e1e2a]/50">
@@ -186,9 +186,9 @@ export function ClaimNotificationBadge() {
                   <div className="flex items-start justify-between gap-2 mb-2">
                     <div className="min-w-0">
                       <p className="text-[13px] text-[#fafafa] font-medium truncate">{claim.requested_name}</p>
-                      <p className="text-[10px] text-[#52525b] truncate">{claim.user_email}</p>
+                      <p className="text-[11px] text-[#52525b] truncate">{claim.user_email}</p>
                     </div>
-                    <span className="text-[9px] text-[#52525b] shrink-0 mt-0.5">
+                    <span className="text-[11px] text-[#52525b] shrink-0 mt-0.5">
                       {new Date(claim.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
                     </span>
                   </div>
@@ -201,9 +201,9 @@ export function ClaimNotificationBadge() {
                         className="w-full bg-[#18181b] border border-[#27272a] rounded-lg px-2.5 py-1.5 text-[11px] text-[#fafafa] outline-none focus:border-red-500/50 placeholder:text-[#52525b]" autoFocus />
                       <div className="flex gap-1.5">
                         <button onClick={() => { setDecliningId(null); setDeclineReason(""); }}
-                          className="flex-1 py-1.5 rounded-lg text-[10px] bg-[#27272a] text-[#a1a1aa] hover:text-[#fafafa] transition">Cancel</button>
+                          className="flex-1 py-1.5 rounded-lg text-[11px] bg-[#27272a] text-[#a1a1aa] hover:text-[#fafafa] transition">Cancel</button>
                         <button onClick={() => handleDecline(claim.id, claim.requested_name, claim.user_email)} disabled={!declineReason.trim() || acting === claim.id}
-                          className="flex-1 py-1.5 rounded-lg text-[10px] font-medium bg-red-500/20 text-red-400 hover:bg-red-500/30 disabled:opacity-30 transition">
+                          className="flex-1 py-1.5 rounded-lg text-[11px] font-medium bg-red-500/20 text-red-400 hover:bg-red-500/30 disabled:opacity-30 transition">
                           {acting === claim.id ? <Loader2 className="w-3 h-3 animate-spin mx-auto" /> : "Confirm Decline"}
                         </button>
                       </div>
@@ -211,12 +211,12 @@ export function ClaimNotificationBadge() {
                   ) : (
                     <div className="flex gap-1.5">
                       <button onClick={() => handleAccept(claim.id, claim.requested_name, claim.user_email)} disabled={acting === claim.id}
-                        className="flex-1 py-1.5 rounded-lg text-[10px] font-medium bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 transition disabled:opacity-40 flex items-center justify-center gap-1">
+                        className="flex-1 py-1.5 rounded-lg text-[11px] font-medium bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 transition disabled:opacity-40 flex items-center justify-center gap-1">
                         {acting === claim.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
                         Accept
                       </button>
                       <button onClick={() => { setDecliningId(claim.id); setDeclineReason(""); }} disabled={acting === claim.id}
-                        className="py-1.5 px-3 rounded-lg text-[10px] bg-[#27272a] text-[#a1a1aa] hover:text-red-400 hover:bg-red-500/10 transition disabled:opacity-40">
+                        className="py-1.5 px-3 rounded-lg text-[11px] bg-[#27272a] text-[#a1a1aa] hover:text-red-400 hover:bg-red-500/10 transition disabled:opacity-40">
                         <X className="w-3 h-3" />
                       </button>
                     </div>

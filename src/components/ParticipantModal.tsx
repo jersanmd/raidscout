@@ -624,7 +624,7 @@ export function ParticipantModal({
         <div className="flex items-center justify-between p-4 border-b border-[#27272a] shrink-0">
           <div>
             <h3 className="text-sm font-bold text-[#fafafa]">{bossName}</h3>
-            <p className="text-[10px] text-[#71717a]">
+            <p className="text-[11px] text-[#71717a]">
               {new Date(deathTime).toLocaleString()}
             </p>
           </div>
@@ -672,7 +672,7 @@ export function ParticipantModal({
               {/* Rally Screenshot (AI) */}
               {!readOnly && (
                 <div>
-                  <p className="text-[10px] text-[#71717a] uppercase tracking-wider mb-1">
+                  <p className="text-[11px] text-[#71717a] uppercase tracking-wider mb-1">
                     Rally Screenshot (AI)
                   </p>
                   <input
@@ -718,19 +718,19 @@ export function ParticipantModal({
                         </button>
                       </div>
                       {aiLoading && (
-                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium bg-[#27272a] text-[#a1a1aa]">
+                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium bg-[#27272a] text-[#a1a1aa]">
                           <Loader2 className="w-3 h-3 animate-spin" />{" "}
                           Scanning...
                         </span>
                       )}
                       {aiError && (
-                        <p className="text-[10px] text-[#a1a1aa]">{aiError}</p>
+                        <p className="text-[11px] text-[#a1a1aa]">{aiError}</p>
                       )}
                       {aiDetectedNames && aiDetectedNames.length > 0 && (
                         <div className="space-y-1.5 p-2 rounded-lg bg-[#18181b] border border-[#27272a]">
                           {/* Already attended — gray */}
                           {alreadyAttendedNames.length > 0 && (
-                            <div className="text-[10px] text-[#71717a] px-1">
+                            <div className="text-[11px] text-[#71717a] px-1">
                               <Sparkles className="w-2.5 h-2.5 inline mr-1" />
                               {alreadyAttendedNames.length} already attending
                             </div>
@@ -849,7 +849,7 @@ export function ParticipantModal({
               {/* Saved rally images from DB */}
               {savedRallyUrls.length > 0 && (
                 <div className="mb-3">
-                  <p className="text-[10px] text-[#71717a] uppercase tracking-wider mb-1">
+                  <p className="text-[11px] text-[#71717a] uppercase tracking-wider mb-1">
                     Rally Screenshots ({savedRallyUrls.length})
                   </p>
                   <div className="flex flex-wrap gap-2">
@@ -890,7 +890,7 @@ export function ParticipantModal({
               {/* All Members — check = attending, uncheck = not */}
               <div>
                 <div className="flex items-center justify-between mb-1.5">
-                  <p className="text-[10px] text-[#71717a] uppercase tracking-wider">
+                  <p className="text-[11px] text-[#71717a] uppercase tracking-wider">
                     Participants ({attendance.length})
                   </p>
                 </div>
@@ -913,7 +913,7 @@ export function ParticipantModal({
                         {group.guildId && (
                           <div className="flex items-center gap-2 mb-1">
                             <div
-                              className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium ${group.color.bg} ${group.color.text} ${group.color.border} border w-fit`}
+                              className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-medium ${group.color.bg} ${group.color.text} ${group.color.border} border w-fit`}
                             >
                               <Shield className="w-2.5 h-2.5" />
                               {group.guildName}
@@ -957,7 +957,7 @@ export function ParticipantModal({
                           </div>
                         )}
                         {!group.guildId && guilds.length > 0 && (
-                          <p className="text-[10px] font-medium text-[#71717a] uppercase tracking-wider mb-1 px-1">
+                          <p className="text-[11px] font-medium text-[#71717a] uppercase tracking-wider mb-1 px-1">
                             No Guild
                           </p>
                         )}

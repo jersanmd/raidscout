@@ -47,287 +47,186 @@ function getBotUrl(): string {
   return "https://raidscout-bot.fly.dev";
 }
 
-// ── Interactive Trend Chart ────────────────────────────────
+// ── Interactive Trend Chart (SVG) ─────────────────────────
 function TickChart({ metrics, timezone }: { metrics: TickMetric[]; timezone: string }) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const pointsRef = useRef<{ x: number; y: number; idx: number }[]>([]);
+  const svgRef = useRef<SVGSVGElement>(null);
   const timezoneRef = useRef(timezone);
   timezoneRef.current = timezone;
-  const [tooltip, setTooltip] = useState<{ x: number; y: number; label: string; time: string; date: string } | null>(null);
+  const [tooltip, setTooltip] = useState<{ x: number; y: number; label: string; time: string } | null>(null);
 
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas || metrics.length === 0) return;
+  if (metrics.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-32 text-[11px] text-[#52525b]">
+        No tick data yet
+      </div>
+    );
+  }
 
-    const dpr = window.devicePixelRatio || 1;
-    const rect = canvas.getBoundingClientRect();
-    canvas.width = rect.width * dpr;
-    canvas.height = rect.height * dpr;
-    const ctx = canvas.getContext("2d")!;
-    ctx.scale(dpr, dpr);
+  // ── Compute layout ──────────────────────────────────────
+  const w = 320, h = 128;
+  const pad = { top: 8, right: 8, bottom: 20, left: 40 };
+  const chartW = w - pad.left - pad.right;
+  const chartH = h - pad.top - pad.bottom;
 
-    const w = rect.width;
-    const h = rect.height;
-    const pad = { top: 10, right: 12, bottom: 22, left: 44 };
-    const chartW = w - pad.left - pad.right;
-    const chartH = h - pad.top - pad.bottom;
+  // ── Scale data ──────────────────────────────────────────
+  const secs = metrics.map((m) => m.duration_ms / 1000);
+  const maxSec = Math.max(...secs, 0.001);
+  const minSec = Math.min(...secs);
+  const rangeS = maxSec - minSec || 1;
+  const dataStart = metrics[0].ts;
+  const dataEnd = Math.max(metrics[metrics.length - 1].ts, Date.now());
+  const timeRange = Math.max(dataEnd - dataStart, 60_000);
+  const rightEdge = pad.left + chartW;
 
-    ctx.clearRect(0, 0, w, h);
+  const toX = (ts: number) => pad.left + ((ts - dataStart) / timeRange) * chartW;
+  const toY = (val: number) => pad.top + chartH - ((val - minSec) / rangeS) * chartH;
 
-    // Clip to chart area
-    ctx.save();
-    ctx.beginPath();
-    ctx.rect(pad.left, pad.top, chartW, chartH);
-    ctx.clip();
+  // Build data points
+  const pts = metrics.map((m, i) => ({
+    x: toX(m.ts), y: toY(m.duration_ms / 1000), idx: i, duration_ms: m.duration_ms, ts: m.ts,
+  }));
+  const lastP = pts[pts.length - 1];
 
-    // Convert to seconds, find min/max
-    const secs = metrics.map((m) => m.duration_ms / 1000);
-    const maxSec = Math.max(...secs, 0.001);
-    const minSec = Math.min(...secs);
-    const range = maxSec - minSec || 1;
-
-    // Compute time range — start from first data point, extend to now
-    const dataStart = metrics[0].ts;
-    const dataEnd = Math.max(metrics[metrics.length - 1].ts, Date.now());
-    const timeRange = Math.max(dataEnd - dataStart, 60_000); // at least 1 minute
-
-    // Compute points + store in ref for mouse interaction
-    const points: { x: number; y: number; idx: number }[] = [];
-    for (let i = 0; i < metrics.length; i++) {
-      const frac = (secs[i] - minSec) / range;
-      const timeFrac = (metrics[i].ts - dataStart) / timeRange;
-      const x = pad.left + timeFrac * chartW;
-      const y = pad.top + chartH - frac * chartH;
-      points.push({ x, y, idx: i });
+  // ── Detect gaps ─────────────────────────────────────────
+  const GAP_THRESHOLD = 180_000;
+  const segments: { points: typeof pts }[] = [];
+  let segStart = 0;
+  for (let i = 1; i < metrics.length; i++) {
+    if (metrics[i].ts - metrics[i - 1].ts > GAP_THRESHOLD) {
+      segments.push({ points: pts.slice(segStart, i) });
+      segStart = i;
     }
-    pointsRef.current = points;
+  }
+  segments.push({ points: pts.slice(segStart) });
 
-    // Detect downtime gaps (>3 minutes between ticks = bot likely offline)
-    const GAP_THRESHOLD = 180_000; // 3 minutes
-    const segments: { start: number; end: number; points: typeof points }[] = [];
-    let segStart = 0;
-    for (let i = 1; i < metrics.length; i++) {
-      if (metrics[i].ts - metrics[i - 1].ts > GAP_THRESHOLD) {
-        segments.push({ start: segStart, end: i - 1, points: points.slice(segStart, i) });
-        segStart = i;
-      }
-    }
-    segments.push({ start: segStart, end: points.length - 1, points: points.slice(segStart) });
+  // ── SVG path builders ──────────────────────────────────
+  const areaPoints = (points: typeof pts) => {
+    if (points.length < 2) return "";
+    return `${points.map((p) => `${p.x},${p.y}`).join(" ")} ${points[points.length - 1].x},${pad.top + chartH} ${points[0].x},${pad.top + chartH}`;
+  };
+  const lineD = (points: typeof pts) => {
+    if (points.length < 2) return "";
+    return points.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ");
+  };
 
-    // Draw red gap backgrounds
-    ctx.fillStyle = "rgba(239,68,68,0.08)";
-    for (let s = 1; s < segments.length; s++) {
-      const gapStart = points[segments[s - 1].end].x;
-      const gapEnd = points[segments[s].start].x;
-      if (gapEnd > gapStart) {
-        ctx.fillRect(gapStart, pad.top, gapEnd - gapStart, chartH);
-      }
-    }
+  // ── Axis labels ─────────────────────────────────────────
+  const tickCount = 5;
+  const showDates = new Date(dataStart).toLocaleDateString("en-US", { timeZone: timezone })
+    !== new Date(dataEnd).toLocaleDateString("en-US", { timeZone: timezone });
+  const xLabels = Array.from({ length: tickCount }, (_, i) => {
+    const ts = dataStart + (timeRange / (tickCount - 1)) * i;
+    const d = new Date(ts);
+    const timeStr = d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: timezone });
+    const dateStr = d.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: timezone });
+    const label = showDates && (i === 0 || i === tickCount - 1) ? `${dateStr} ${timeStr}` : timeStr;
+    const x = pad.left + (i / (tickCount - 1)) * chartW;
+    const align = i === 0 ? "start" : i === tickCount - 1 ? "end" : "middle";
+    return { x, label, align };
+  });
 
-    // Draw green filled area + line per segment
-    for (const seg of segments) {
-      if (seg.points.length < 2) continue;
+  const yLabels = Array.from({ length: 4 }, (_, i) => {
+    const val = minSec + (rangeS / 3) * i;
+    const y = pad.top + chartH - (i / 3) * chartH;
+    const label = val >= 1 ? `${val.toFixed(1)}s` : `${(val * 1000).toFixed(0)}ms`;
+    return { y, label };
+  });
 
-      const lastP = seg.points[seg.points.length - 1];
-      const isLast = seg === segments[segments.length - 1];
-      const rightEdge = pad.left + chartW;
+  const thresholds = [0.2, 0.5].map((t) => ({ val: t, y: toY(t) })).filter((t) => t.y >= pad.top && t.y <= pad.top + chartH);
 
-      // Filled area under curve — only up to the last real data point
-      ctx.beginPath();
-      ctx.moveTo(seg.points[0].x, pad.top + chartH);
-      for (const p of seg.points) ctx.lineTo(p.x, p.y);
-      ctx.lineTo(lastP.x, pad.top + chartH);
-      ctx.closePath();
-      const areaGrad = ctx.createLinearGradient(0, pad.top, 0, pad.top + chartH);
-      areaGrad.addColorStop(0, "rgba(74,222,128,0.20)");
-      areaGrad.addColorStop(1, "rgba(74,222,128,0.02)");
-      ctx.fillStyle = areaGrad;
-      ctx.fill();
-
-      // Trend line with glow — only up to the last real data point
-      ctx.save();
-      ctx.shadowColor = "rgba(74,222,128,0.6)";
-      ctx.shadowBlur = 6;
-      ctx.strokeStyle = "#4ade80";
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.moveTo(seg.points[0].x, seg.points[0].y);
-      for (let i = 1; i < seg.points.length; i++) {
-        ctx.lineTo(seg.points[i].x, seg.points[i].y);
-      }
-      ctx.stroke();
-      ctx.restore();
-
-      // Red "no data" extension for the last segment (between last tick and now)
-      if (isLast && lastP.x < rightEdge) {
-        // Red filled area
-        ctx.beginPath();
-        ctx.moveTo(lastP.x, pad.top + chartH);
-        ctx.lineTo(lastP.x, lastP.y);
-        ctx.lineTo(rightEdge, lastP.y);
-        ctx.lineTo(rightEdge, pad.top + chartH);
-        ctx.closePath();
-        ctx.fillStyle = "rgba(239,68,68,0.08)";
-        ctx.fill();
-
-        // Red dashed line
-        ctx.setLineDash([3, 3]);
-        ctx.strokeStyle = "rgba(239,68,68,0.5)";
-        ctx.lineWidth = 1.5;
-        ctx.beginPath();
-        ctx.moveTo(lastP.x, lastP.y);
-        ctx.lineTo(rightEdge, lastP.y);
-        ctx.stroke();
-        ctx.setLineDash([]);
-      }
-    }
-
-    // Draw red dash at gap boundaries
-    ctx.setLineDash([2, 3]);
-    ctx.strokeStyle = "rgba(239,68,68,0.4)";
-    ctx.lineWidth = 0.5;
-    for (let s = 1; s < segments.length; s++) {
-      const x = points[segments[s].start].x;
-      ctx.beginPath();
-      ctx.moveTo(x, pad.top);
-      ctx.lineTo(x, pad.top + chartH);
-      ctx.stroke();
-    }
-    ctx.setLineDash([]);
-
-    // Draw data points with glow
-    ctx.save();
-    ctx.shadowColor = "rgba(74,222,128,0.8)";
-    ctx.shadowBlur = 4;
-    ctx.fillStyle = "#4ade80";
-    for (let i = 0; i < points.length; i++) {
-      if (i % Math.max(1, Math.floor(points.length / 30)) !== 0 && i !== points.length - 1) continue;
-      ctx.beginPath();
-      ctx.arc(points[i].x, points[i].y, 2, 0, Math.PI * 2);
-      ctx.fill();
-    }
-    ctx.restore();
-
-    // Threshold lines
-    ctx.setLineDash([3, 4]);
-    ctx.lineWidth = 0.5;
-    for (const thresh of [0.2, 0.5]) {
-      const y = pad.top + chartH - ((thresh - minSec) / range) * chartH;
-      if (y < pad.top || y > pad.top + chartH) continue;
-      ctx.strokeStyle = thresh === 0.2 ? "rgba(74,222,128,0.25)" : "rgba(74,222,128,0.12)";
-      ctx.beginPath();
-      ctx.moveTo(pad.left, y);
-      ctx.lineTo(pad.left + chartW, y);
-      ctx.stroke();
-    }
-    ctx.setLineDash([]);
-
-    ctx.restore(); // end clip
-
-    // Y-axis labels
-    ctx.fillStyle = "#52525b";
-    ctx.font = "9px sans-serif";
-    ctx.textAlign = "right";
-    for (let i = 0; i <= 3; i++) {
-      const val = minSec + (range / 3) * i;
-      const y = pad.top + chartH - (i / 3) * chartH;
-      const label = val >= 1 ? `${val.toFixed(1)}s` : `${(val * 1000).toFixed(0)}ms`;
-      ctx.fillText(label, pad.left - 6, y + 3);
-    }
-
-    // X-axis: time labels based on actual data range (5 evenly-spaced ticks)
-    const tickCount = 5;
-    const showDates = new Date(dataStart).toLocaleDateString("en-US", { timeZone: timezone })
-      !== new Date(dataEnd).toLocaleDateString("en-US", { timeZone: timezone });
-
-    for (let i = 0; i < tickCount; i++) {
-      const ts = dataStart + (timeRange / (tickCount - 1)) * i;
-      const d = new Date(ts);
-      const timeStr = d.toLocaleTimeString("en-US", {
-        hour: "2-digit", minute: "2-digit", hour12: false, timeZone: timezone,
-      });
-      const dateStr = d.toLocaleDateString("en-US", {
-        month: "short", day: "numeric", timeZone: timezone,
-      });
-      const label = showDates && (i === 0 || i === tickCount - 1)
-        ? `${dateStr} ${timeStr}`
-        : timeStr;
-      const x = pad.left + (i / (tickCount - 1)) * chartW;
-      if (i === 0) ctx.textAlign = "left";
-      else if (i === tickCount - 1) ctx.textAlign = "right";
-      else ctx.textAlign = "center";
-      ctx.fillText(label, x, h - 4);
-    }
-  }, [metrics, timezone]);
-
-  // ── Mouse interaction ──────────────────────────────────
-  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
-    const canvas = canvasRef.current;
-    if (!canvas || pointsRef.current.length === 0) return;
-    const rect = canvas.getBoundingClientRect();
-    const mx = e.clientX - rect.left;
-    const my = e.clientY - rect.top;
-    const pts = pointsRef.current;
+  // ── Mouse handler ──────────────────────────────────────
+  const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
+    const svg = svgRef.current;
+    if (!svg || pts.length === 0) return;
+    const rect = svg.getBoundingClientRect();
+    const scaleX = w / rect.width;
+    const mx = (e.clientX - rect.left) * scaleX;
     let nearest = pts[0];
     let minDist = Math.abs(pts[0].x - mx);
     for (let i = 1; i < pts.length; i++) {
       const d = Math.abs(pts[i].x - mx);
       if (d < minDist) { minDist = d; nearest = pts[i]; }
     }
-    const m = metrics[nearest.idx];
-    const dur = m.duration_ms >= 1000
-      ? `${(m.duration_ms / 1000).toFixed(2)}s`
-      : `${m.duration_ms}ms`;
-    const t = new Date(m.ts);
-    const tz = timezoneRef.current;
+    const dur = nearest.duration_ms >= 1000
+      ? `${(nearest.duration_ms / 1000).toFixed(2)}s` : `${nearest.duration_ms}ms`;
+    const t = new Date(nearest.ts);
     setTooltip({
-      x: rect.left + mx + 12,
-      y: rect.top + my - 52,
-      label: dur,
-      time: t.toLocaleString("en-US", {
-        month: "short", day: "numeric",
-        hour: "2-digit", minute: "2-digit", second: "2-digit",
-        hour12: false, timeZone: tz,
-      }),
-      date: "",
+      x: e.clientX + 12, y: e.clientY - 48, label: dur,
+      time: t.toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false, timeZone: timezoneRef.current }),
     });
-  }, [metrics]);
-
-  const handleMouseLeave = useCallback(() => {
-    setTooltip(null);
-  }, []);
-
-  if (metrics.length === 0) {
-    return (
-      <div className="flex items-center justify-center h-32 text-[10px] text-[#52525b]">
-        No tick data yet
-      </div>
-    );
-  }
+  };
 
   return (
     <div className="relative">
-      <canvas
-        ref={canvasRef}
-        className="w-full h-32 rounded cursor-crosshair"
-        style={{ backgroundColor: "#0a0f0a" }}
-        onMouseMove={handleMouseMove}
-        onMouseLeave={handleMouseLeave}
-      />
+      <svg ref={svgRef} viewBox={`0 0 ${w} ${h}`} className="w-full h-32 rounded cursor-crosshair" style={{ backgroundColor: "#0a0f0a" }}
+        onMouseMove={handleMouseMove} onMouseLeave={() => setTooltip(null)}>
+        <defs>
+          <clipPath id="chart-clip"><rect x={pad.left} y={pad.top} width={chartW} height={chartH} /></clipPath>
+          <linearGradient id="area-grad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="rgba(74,222,128,0.20)" /><stop offset="100%" stopColor="rgba(74,222,128,0.02)" />
+          </linearGradient>
+          <linearGradient id="red-grad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="rgba(239,68,68,0.08)" /><stop offset="100%" stopColor="rgba(239,68,68,0.02)" />
+          </linearGradient>
+        </defs>
+        <g clipPath="url(#chart-clip)">
+          {/* Red gap backgrounds */}
+          {segments.length > 1 && segments.slice(1).map((seg, i) => {
+            const prev = segments[i];
+            const gapX = prev.points[prev.points.length - 1].x;
+            const gapW = seg.points[0].x - gapX;
+            return gapW > 0 ? <rect key={`gap-${i}`} x={gapX} y={pad.top} width={gapW} height={chartH} fill="rgba(239,68,68,0.08)" /> : null;
+          })}
+          {/* Segments */}
+          {segments.map((seg, i) => {
+            if (seg.points.length < 2) return null;
+            const isLast = i === segments.length - 1;
+            return (
+              <g key={`seg-${i}`}>
+                <polygon points={areaPoints(seg.points)} fill="url(#area-grad)" />
+                <path d={lineD(seg.points)} fill="none" stroke="#4ade80" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+                {isLast && lastP.x < rightEdge && (
+                  <>
+                    <polygon points={`${lastP.x},${pad.top + chartH} ${lastP.x},${lastP.y} ${rightEdge},${lastP.y} ${rightEdge},${pad.top + chartH}`} fill="url(#red-grad)" />
+                    <line x1={lastP.x} y1={lastP.y} x2={rightEdge} y2={lastP.y} stroke="rgba(239,68,68,0.5)" strokeWidth={1.5} strokeDasharray="3,3" />
+                  </>
+                )}
+              </g>
+            );
+          })}
+          {/* Gap boundary dashes */}
+          {segments.length > 1 && segments.slice(1).map((seg, i) => (
+            <line key={`dash-${i}`} x1={seg.points[0].x} y1={pad.top} x2={seg.points[0].x} y2={pad.top + chartH} stroke="rgba(239,68,68,0.4)" strokeWidth={0.5} strokeDasharray="2,3" />
+          ))}
+          {/* Data points */}
+          {pts.filter((_, i) => i % Math.max(1, Math.floor(pts.length / 30)) === 0 || i === pts.length - 1).map((p) => (
+            <circle key={`pt-${p.idx}`} cx={p.x} cy={p.y} r={2} fill="#4ade80" />
+          ))}
+          {/* Threshold lines */}
+          {thresholds.map((t) => (
+            <line key={`th-${t.val}`} x1={pad.left} y1={t.y} x2={pad.left + chartW} y2={t.y} stroke={t.val === 0.2 ? "rgba(74,222,128,0.25)" : "rgba(74,222,128,0.12)"} strokeWidth={0.5} strokeDasharray="3,4" />
+          ))}
+        </g>
+        {/* Y-axis */}
+        {yLabels.map((l, i) => (
+          <text key={`y-${i}`} x={pad.left - 6} y={l.y + 3} fill="#52525b" fontSize={11} textAnchor="end" fontFamily="sans-serif">{l.label}</text>
+        ))}
+        {/* X-axis */}
+        {xLabels.map((l, i) => (
+          <text key={`x-${i}`} x={l.x} y={h - 4} fill="#52525b" fontSize={11} textAnchor={l.align as any} fontFamily="sans-serif">{l.label}</text>
+        ))}
+        {/* Hover overlay */}
+        <rect x={pad.left} y={pad.top} width={chartW} height={chartH} fill="transparent" className="cursor-crosshair" />
+      </svg>
       {tooltip && (
-        <div
-          className="fixed z-[10000] pointer-events-none bg-[#18181b] border border-[#3f3f46] rounded-lg px-2.5 py-1.5 shadow-lg"
-          style={{ left: tooltip.x, top: tooltip.y }}
-        >
+        <div className="fixed z-[10000] pointer-events-none bg-[#18181b] border border-[#3f3f46] rounded-lg px-2.5 py-1.5 shadow-lg" style={{ left: tooltip.x, top: tooltip.y }}>
           <div className="text-xs font-medium text-[#4ade80] font-mono">{tooltip.label}</div>
-          <div className="text-[10px] text-[#a1a1aa]">{tooltip.time}</div>
+          <div className="text-[11px] text-[#a1a1aa]">{tooltip.time}</div>
         </div>
       )}
     </div>
   );
 }
 
-// ── Component ──────────────────────────────────────────────
 export function BotStatusIndicator({ timezone }: { timezone: string }) {
   const [status, setStatus] = useState<BotStatus | null>(null);
   const [baseUptimeSec, setBaseUptimeSec] = useState(0);
@@ -562,7 +461,7 @@ export function BotStatusIndicator({ timezone }: { timezone: string }) {
                             return hrs >= 1 ? ` (${hrs.toFixed(1)}h)` : ` (${Math.round(hrs * 60)}m)`;
                           })() : ""}
                         </span>
-                        <span className="text-[10px] text-[#52525b]">
+                        <span className="text-[11px] text-[#52525b]">
                           {(() => {
                             if (tickMetricsLoading) return null;
                             const cfgInterval = status?.spawn_cron?.tick_interval_ms;
@@ -581,7 +480,7 @@ export function BotStatusIndicator({ timezone }: { timezone: string }) {
                       {tickMetricsLoading ? (
                         <div className="flex flex-col items-center justify-center h-32 gap-2">
                           <Loader2 className="w-5 h-5 text-[#a1a1aa] animate-spin" />
-                          <span className="text-[10px] text-[#52525b]">Fetching chart data…</span>
+                          <span className="text-[11px] text-[#52525b]">Fetching chart data…</span>
                         </div>
                       ) : (
                         <TickChart metrics={tickMetrics} timezone={timezone} />

@@ -116,7 +116,7 @@ export function ItemReviewTab({ gameSlug, onCountChange }: { gameSlug: string; o
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-[#fafafa] truncate text-[13px]">{item.name}</p>
-                <div className="flex items-center gap-2 text-[10px]">
+                <div className="flex items-center gap-2 text-[11px]">
                   <span style={{ color: rarityColor }} className="uppercase font-semibold">{item.rarity}</span>
                   {item.created_by_username && <span className="text-[#52525b]">by {item.created_by_username}</span>}
                   <span className="text-[#3f3f46]">{new Date(item.created_at).toLocaleDateString()}</span>

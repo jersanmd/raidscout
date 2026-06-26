@@ -470,7 +470,7 @@ export function GearTrackingTab() {
       <tr key={m.id} className="group border-b border-[#27272a]/30 hover:bg-[#09090b]/30 transition">
         <td className="py-2 px-3 sticky left-0 bg-[#18181b] group-hover:bg-[#131316] z-10 transition-colors">
           <div className="flex items-center gap-1.5">
-            {idx != null && <span className="text-[10px] text-[#52525b] font-mono w-4 shrink-0 text-right">{idx + 1}</span>}
+            {idx != null && <span className="text-[11px] text-[#52525b] font-mono w-4 shrink-0 text-right">{idx + 1}</span>}
             {m.class && classIcons[m.class] ? (() => {
               const CIcon = getClassIcon(classIcons[m.class]);
               const cc = classColors[m.class] || "#a1a1aa";
@@ -479,7 +479,7 @@ export function GearTrackingTab() {
             <span className="font-medium text-[#fafafa]">{m.name}</span>
           </div>
           {m.class && (
-            <span className="block text-[10px] ml-[22px] -mt-0.5" style={{ color: classColors[m.class] || "#71717a" }}>{m.class}</span>
+            <span className="block text-[11px] ml-[22px] -mt-0.5" style={{ color: classColors[m.class] || "#71717a" }}>{m.class}</span>
           )}
         </td>
         <td className="py-1.5 px-2 text-center text-xs text-[#a1a1aa] font-mono tabular-nums">
@@ -524,12 +524,12 @@ export function GearTrackingTab() {
                       <Star className="w-5 h-5" style={{ color: rarityColor }} />
                     )}
                     {enh > 0 && (
-                      <span className="absolute right-0 bottom-1.5 text-[9px] font-black text-amber-400 bg-gradient-to-t from-black/20 to-transparent rounded-bl-lg rounded-tr-lg pl-1.5 pr-1 pt-1 pb-0.5 leading-none drop-shadow-[0_1px_1px_rgba(0,0,0,0.5)]">+{enh}</span>
+                      <span className="absolute right-0 bottom-1.5 text-[11px] font-black text-amber-400 bg-gradient-to-t from-black/20 to-transparent rounded-bl-lg rounded-tr-lg pl-1.5 pr-1 pt-1 pb-0.5 leading-none drop-shadow-[0_1px_1px_rgba(0,0,0,0.5)]">+{enh}</span>
                     )}
                   </div>
                 </div>
               ) : (
-                <span className="text-[10px] text-[#3f3f46]">—</span>
+                <span className="text-[11px] text-[#3f3f46]">—</span>
               )}
             </td>
           );
@@ -614,8 +614,8 @@ export function GearTrackingTab() {
                         >
                           {CIcon && <CIcon className="w-3.5 h-3.5 shrink-0" style={{ color: cc }} />}
                           <span className="font-medium flex-1">{m.name}</span>
-                          {m.class && <span className="text-[10px] opacity-60">{m.class}</span>}
-                          {m.combat_power ? <span className="text-[10px] font-mono tabular-nums opacity-60">{m.combat_power.toLocaleString()}</span> : null}
+                          {m.class && <span className="text-[11px] opacity-60">{m.class}</span>}
+                          {m.combat_power ? <span className="text-[11px] font-mono tabular-nums opacity-60">{m.combat_power.toLocaleString()}</span> : null}
                         </button>
                       );
                     })}
@@ -673,7 +673,7 @@ export function GearTrackingTab() {
                             : 'bg-[#18181b]/40 border-dashed border-[#27272a] hover:border-[#3f3f46] hover:bg-[#18181b]/60'
                         } ${isActive ? 'ring-1 ring-[#fafafa]/30 border-[#52525b]' : ''}`}
                       >
-                        <p className="text-[10px] text-[#71717a] uppercase tracking-wider mb-2">{slotId}</p>
+                        <p className="text-[11px] text-[#71717a] uppercase tracking-wider mb-2">{slotId}</p>
                         {currentItem ? (
                           <div className="flex items-center gap-2.5">
                             <div className="w-12 h-12 rounded-lg flex items-center justify-center shrink-0 relative" style={{ backgroundColor: `${rc}18` }}>
@@ -682,14 +682,14 @@ export function GearTrackingTab() {
                               ) : (
                                 <Star className="w-6 h-6" style={{ color: rc }} />
                               )}
-                              <span className="absolute right-0 bottom-2 text-[10px] font-black text-amber-400 bg-gradient-to-t from-black/20 to-transparent rounded-bl-lg rounded-tr-lg pl-1.5 pr-1 pt-1 pb-0.5 leading-none drop-shadow-[0_1px_1px_rgba(0,0,0,0.5)]">+{currentEnh}</span>
+                              <span className="absolute right-0 bottom-2 text-[11px] font-black text-amber-400 bg-gradient-to-t from-black/20 to-transparent rounded-bl-lg rounded-tr-lg pl-1.5 pr-1 pt-1 pb-0.5 leading-none drop-shadow-[0_1px_1px_rgba(0,0,0,0.5)]">+{currentEnh}</span>
                             </div>
                             <div className="min-w-0">
                               <p className="text-xs font-medium truncate" style={{ color: rc }}>{currentItem.name}</p>
                             </div>
                           </div>
                         ) : (
-                          <div className="flex items-center justify-center h-14 text-[#3f3f46] text-[10px]">
+                          <div className="flex items-center justify-center h-14 text-[#3f3f46] text-[11px]">
                             Empty
                           </div>
                         )}
@@ -719,7 +719,7 @@ export function GearTrackingTab() {
                         value={pickerSearch}
                         onChange={e => setPickerSearch(e.target.value)}
                         placeholder="Search items..."
-                        className="w-full px-2 py-1.5 bg-[#09090b] border border-[#27272a] rounded text-[10px] text-[#fafafa] placeholder-[#52525b] focus:outline-none mb-2 shrink-0"
+                        className="w-full px-2 py-1.5 bg-[#09090b] border border-[#27272a] rounded text-[11px] text-[#fafafa] placeholder-[#52525b] focus:outline-none mb-2 shrink-0"
                         autoFocus
                       />
                       <div className="overflow-y-auto flex-1 space-y-0.5">
@@ -747,7 +747,7 @@ export function GearTrackingTab() {
                               </div>
                               <div className="min-w-0 flex-1">
                                 <p className="truncate" style={{ color: rc }}>{item.name}</p>
-                                <p className="text-[9px] text-[#52525b] capitalize">{item.rarity}</p>
+                                <p className="text-[11px] text-[#52525b] capitalize">{item.rarity}</p>
                               </div>
                             </button>
                           );
@@ -755,7 +755,7 @@ export function GearTrackingTab() {
                       </div>
                       {currentItemId && (
                         <div className="mt-2 pt-2 border-t border-[#27272a] flex items-center gap-2 shrink-0">
-                          <span className="text-[10px] text-[#71717a]">Enhance:</span>
+                          <span className="text-[11px] text-[#71717a]">Enhance:</span>
                           <input
                             type="text" inputMode="numeric" value={currentEnh || ""}
                             onChange={e => {
@@ -795,7 +795,7 @@ export function GearTrackingTab() {
       {/* Guild filter */}
       {orderedGuilds.length > 1 && (
         <div className="flex items-center gap-2 justify-end">
-          <label className="text-[10px] text-[#71717a] tracking-wider">Filter By Guild:</label>
+          <label className="text-[11px] text-[#71717a] tracking-wider">Filter By Guild:</label>
           <div className="relative">
             <button
               onClick={() => setGuildFilterOpen(!guildFilterOpen)}
@@ -867,7 +867,7 @@ export function GearTrackingTab() {
             <div className="px-4 py-2 border-b border-[#27272a] flex items-center gap-2">
               <Shield className={`w-3.5 h-3.5 shrink-0 ${color.text}`} />
               <span className={`text-xs font-semibold ${color.text}`}>{g.name}</span>
-              <span className="text-[10px] text-[#52525b]">{gMembers.length} member{gMembers.length !== 1 ? "s" : ""}</span>
+              <span className="text-[11px] text-[#52525b]">{gMembers.length} member{gMembers.length !== 1 ? "s" : ""}</span>
               <div className="flex items-center gap-0.5 ml-auto">
                 <button onClick={() => moveGuild(g.id, -1)} disabled={gi === 0} className="p-0.5 text-[#52525b] hover:text-[#fafafa] disabled:opacity-30 transition">
                   <ChevronUp className="w-3 h-3" />
@@ -880,7 +880,7 @@ export function GearTrackingTab() {
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="text-[10px] text-[#71717a] uppercase tracking-wider border-b border-[#27272a]">
+                  <tr className="text-[11px] text-[#71717a] uppercase tracking-wider border-b border-[#27272a]">
                     <th onClick={() => toggleSort("name")} className="text-left py-2 px-3 sticky left-0 bg-[#18181b] z-10 cursor-pointer hover:bg-[#27272a]/30 transition select-none group">
                       <span className={sortCol === "name" ? "text-[#fafafa]" : "group-hover:text-[#a1a1aa]"}>Player</span>
                       <span className="ml-1 inline-block w-3 text-center">{sortCol === "name" ? (sortDir === "asc" ? "▲" : "▼") : "⇅"}</span>
@@ -912,12 +912,12 @@ export function GearTrackingTab() {
           <div className="px-4 py-2 border-b border-[#27272a] flex items-center gap-2">
             <div className="w-2 h-2 rounded-full shrink-0 bg-[#3f3f46]" />
             <span className="text-xs font-semibold text-[#a1a1aa]">No Guild</span>
-            <span className="text-[10px] text-[#52525b]">{guildMembers.get(null)!.length} member{guildMembers.get(null)!.length !== 1 ? "s" : ""}</span>
+            <span className="text-[11px] text-[#52525b]">{guildMembers.get(null)!.length} member{guildMembers.get(null)!.length !== 1 ? "s" : ""}</span>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-[10px] text-[#71717a] uppercase tracking-wider border-b border-[#27272a]">
+                <tr className="text-[11px] text-[#71717a] uppercase tracking-wider border-b border-[#27272a]">
                   <th onClick={() => toggleSort("name")} className="text-left py-2 px-3 sticky left-0 bg-[#18181b] z-10 cursor-pointer hover:bg-[#27272a]/30 transition select-none group">
                     <span className={sortCol === "name" ? "text-[#fafafa]" : "group-hover:text-[#a1a1aa]"}>Player</span>
                     <span className="ml-1 inline-block w-3 text-center">{sortCol === "name" ? (sortDir === "asc" ? "▲" : "▼") : "⇅"}</span>

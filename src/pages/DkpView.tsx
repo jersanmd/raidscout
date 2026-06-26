@@ -88,8 +88,8 @@ function DkpContent({ serverId }: { serverId: string }) {
         {/* Left column */}
         <div className="lg:col-span-1 space-y-4 sm:space-y-6">
           {memberLoading ? <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 text-[#52525b] animate-spin" /></div>
-          : memberId ? <Ledger memberId={memberId} serverId={serverId} /> : <div className="bg-[#0d0d11] border border-[#1e1e2a] rounded-xl p-5 text-center space-y-3"><Shield className="w-6 h-6 text-[#52525b] mx-auto" /><p className="text-xs text-[#71717a]">Claim your profile to view DKP</p><p className="text-[10px] text-[#52525b] leading-relaxed">Don't have access yet? Go to <a href="/join" className="text-blue-400 hover:text-blue-300 underline">Join a Server</a> to claim your in-game character.</p></div>}
-          {!hideLeaderboard ? <Leaderboard serverId={serverId} isStaff={isStaff} toast={toast} queryClient={queryClient} /> : <div className="bg-[#0d0d11] border border-[#1e1e2a] rounded-xl p-5 text-center space-y-3"><Shield className="w-6 h-6 text-[#52525b] mx-auto" /><p className="text-xs text-[#71717a]">Leaderboard hidden</p><p className="text-[10px] text-[#52525b] leading-relaxed">The guild officers have disabled the public leaderboard. Your points are still tracked normally.</p></div>}
+          : memberId ? <Ledger memberId={memberId} serverId={serverId} /> : <div className="bg-[#0d0d11] border border-[#1e1e2a] rounded-xl p-5 text-center space-y-3"><Shield className="w-6 h-6 text-[#52525b] mx-auto" /><p className="text-xs text-[#71717a]">Claim your profile to view DKP</p><p className="text-[11px] text-[#52525b] leading-relaxed">Don't have access yet? Go to <a href="/join" className="text-blue-400 hover:text-blue-300 underline">Join a Server</a> to claim your in-game character.</p></div>}
+          {!hideLeaderboard ? <Leaderboard serverId={serverId} isStaff={isStaff} toast={toast} queryClient={queryClient} /> : <div className="bg-[#0d0d11] border border-[#1e1e2a] rounded-xl p-5 text-center space-y-3"><Shield className="w-6 h-6 text-[#52525b] mx-auto" /><p className="text-xs text-[#71717a]">Leaderboard hidden</p><p className="text-[11px] text-[#52525b] leading-relaxed">The guild officers have disabled the public leaderboard. Your points are still tracked normally.</p></div>}
         </div>
         {/* Right column */}
         <div className="lg:col-span-2 space-y-4">
@@ -132,10 +132,10 @@ function Ledger({ memberId, serverId }: { memberId: string; serverId: string }) 
   return (
     <div className="bg-[#0d0d11] border border-[#1e1e2a] rounded-xl p-4 space-y-3">
       <h3 className="text-xs font-semibold text-[#71717a] uppercase tracking-wider">DKP Ledger</h3>
-      <div className="text-center"><p className="text-4xl font-extrabold text-amber-400 tabular-nums"><AnimatedNumber value={balance?.balance ?? 0} /></p><p className="text-[10px] text-[#71717a] mt-1">Available DKP</p></div>
+      <div className="text-center"><p className="text-4xl font-extrabold text-amber-400 tabular-nums"><AnimatedNumber value={balance?.balance ?? 0} /></p><p className="text-[11px] text-[#71717a] mt-1">Available DKP</p></div>
       <div className="grid grid-cols-2 gap-2 text-center">
-        <div className="bg-[#18181b] rounded-lg p-2"><TrendingUp className="w-3 h-3 text-emerald-400 mx-auto mb-0.5" /><p className="text-sm font-bold text-emerald-400">+<AnimatedNumber value={balance?.earned_total ?? 0} /></p><p className="text-[9px] text-[#52525b]">Earned (All Time)</p></div>
-        <div className="bg-[#18181b] rounded-lg p-2"><TrendingDown className="w-3 h-3 text-red-400 mx-auto mb-0.5" /><p className="text-sm font-bold text-red-400">-<AnimatedNumber value={balance?.spent_total ?? 0} /></p><p className="text-[9px] text-[#52525b]">Spent (All Time)</p></div>
+        <div className="bg-[#18181b] rounded-lg p-2"><TrendingUp className="w-3 h-3 text-emerald-400 mx-auto mb-0.5" /><p className="text-sm font-bold text-emerald-400">+<AnimatedNumber value={balance?.earned_total ?? 0} /></p><p className="text-[11px] text-[#52525b]">Earned (All Time)</p></div>
+        <div className="bg-[#18181b] rounded-lg p-2"><TrendingDown className="w-3 h-3 text-red-400 mx-auto mb-0.5" /><p className="text-sm font-bold text-red-400">-<AnimatedNumber value={balance?.spent_total ?? 0} /></p><p className="text-[11px] text-[#52525b]">Spent (All Time)</p></div>
       </div>
     </div>
   );
@@ -291,7 +291,7 @@ function Leaderboard({ serverId, isStaff, toast, queryClient }: { serverId: stri
             {isStaff && (
               <button
                 onClick={() => { setShowResetModal(true); setResetGuilds([...guilds]); }}
-                className="text-[10px] px-2 py-1 rounded border border-red-500/30 text-red-400 hover:bg-red-500/10 hover:border-red-500/60 transition shrink-0"
+                className="text-[11px] px-2 py-1 rounded border border-red-500/30 text-red-400 hover:bg-red-500/10 hover:border-red-500/60 transition shrink-0"
                 title="Reset DKP"
               >Reset</button>
             )}
@@ -299,7 +299,7 @@ function Leaderboard({ serverId, isStaff, toast, queryClient }: { serverId: stri
               <button
                 ref={helpBtnRef}
                 onClick={() => setShowHelp(!showHelp)}
-                className="w-5 h-5 rounded-full border border-[#27272a] text-[10px] font-bold text-[#71717a] hover:text-[#fafafa] hover:border-[#52525b] transition flex items-center justify-center"
+                className="w-5 h-5 rounded-full border border-[#27272a] text-[11px] font-bold text-[#71717a] hover:text-[#fafafa] hover:border-[#52525b] transition flex items-center justify-center"
                 title="How DKP works"
               >?</button>
             {showHelp && helpBtnRef.current && createPortal(
@@ -310,7 +310,7 @@ function Leaderboard({ serverId, isStaff, toast, queryClient }: { serverId: stri
                   {' '}<span className="text-amber-400 font-medium">Adjustments</span> can be made by staff.
                   {' '}<span className="text-red-400 font-medium">Bid spends</span> are deducted from your balance at auction resolution.
                 </p>
-                <button onClick={() => setShowHelp(false)} className="mt-2 text-[10px] text-[#71717a] hover:text-[#fafafa] underline">Got it</button>
+                <button onClick={() => setShowHelp(false)} className="mt-2 text-[11px] text-[#71717a] hover:text-[#fafafa] underline">Got it</button>
               </div>,
               document.body
             )}
@@ -325,12 +325,12 @@ function Leaderboard({ serverId, isStaff, toast, queryClient }: { serverId: stri
           const displayRank = guildFilter || search ? i + 1 : r.rank;
           return (
           <div key={r.member_id}>
-            <div onClick={() => setSelectedMember({ id: r.member_id, name: r.member_name, balance: r.balance })} className="flex items-center gap-3 px-4 py-2 cursor-pointer hover:bg-[#18181b] transition card-lift"><span className={`text-[10px] font-bold w-5 text-right ${displayRank === 1 ? "text-amber-400" : displayRank === 2 ? "text-[#94a3b8]" : displayRank === 3 ? "text-amber-700" : "text-[#52525b]"}`}>{displayRank === 1 ? "🥇" : displayRank === 2 ? "🥈" : displayRank === 3 ? "🥉" : displayRank}</span><span className="text-xs text-[#d4d4d8] flex-1 truncate">{r.member_name}</span>{gc && <span className={`flex items-center gap-1 text-[9px] font-medium px-1.5 py-0.5 rounded border shrink-0 ${gc.bg} ${gc.text} ${gc.border}`}><Shield className="w-2.5 h-2.5" />{r.guild_name}</span>}<span className="text-xs font-bold text-amber-400 tabular-nums">{r.balance}</span>{isStaff && <button onClick={(e) => { e.stopPropagation(); setAdjustId(r.member_id); setAdjAmount(0); setAdjReason(""); }} className="text-[10px] px-1.5 py-0.5 rounded border border-[#27272a] text-[#71717a] hover:text-[#fafafa] hover:border-[#52525b] transition shrink-0" title="Adjust DKP">±</button>}</div>
+            <div onClick={() => setSelectedMember({ id: r.member_id, name: r.member_name, balance: r.balance })} className="flex items-center gap-3 px-4 py-2 cursor-pointer hover:bg-[#18181b] transition card-lift"><span className={`text-[11px] font-bold w-5 text-right ${displayRank === 1 ? "text-amber-400" : displayRank === 2 ? "text-[#94a3b8]" : displayRank === 3 ? "text-amber-700" : "text-[#52525b]"}`}>{displayRank === 1 ? "🥇" : displayRank === 2 ? "🥈" : displayRank === 3 ? "🥉" : displayRank}</span><span className="text-xs text-[#d4d4d8] flex-1 truncate">{r.member_name}</span>{gc && <span className={`flex items-center gap-1 text-[11px] font-medium px-1.5 py-0.5 rounded border shrink-0 ${gc.bg} ${gc.text} ${gc.border}`}><Shield className="w-2.5 h-2.5" />{r.guild_name}</span>}<span className="text-xs font-bold text-amber-400 tabular-nums">{r.balance}</span>{isStaff && <button onClick={(e) => { e.stopPropagation(); setAdjustId(r.member_id); setAdjAmount(0); setAdjReason(""); }} className="text-[11px] px-1.5 py-0.5 rounded border border-[#27272a] text-[#71717a] hover:text-[#fafafa] hover:border-[#52525b] transition shrink-0" title="Adjust DKP">±</button>}</div>
       {isStaff && adjustId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={() => { setAdjustId(null); setAdjAmount(0); setAdjReason(""); }}>
           <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-5 w-80 shadow-xl" onClick={e => e.stopPropagation()}>
             <h3 className="text-sm font-semibold text-[#fafafa] mb-1">{rankings.find(r => r.member_id === adjustId)?.member_name}</h3>
-            <p className="text-[10px] text-[#71717a] mb-4">Balance: <span className="text-amber-400 font-bold">{rankings.find(r => r.member_id === adjustId)?.balance ?? 0} DKP</span></p>
+            <p className="text-[11px] text-[#71717a] mb-4">Balance: <span className="text-amber-400 font-bold">{rankings.find(r => r.member_id === adjustId)?.balance ?? 0} DKP</span></p>
             <div className="space-y-3">
               <input type="text" inputMode="numeric" placeholder="Amount (use - to deduct)" value={adjAmount || ""} onChange={e => { const v = parseInt(e.target.value); setAdjAmount(isNaN(v) ? 0 : v); }} onKeyDown={e => { if (e.key === "Enter") handleAdjust(adjustId, rankings.find(r => r.member_id === adjustId)?.member_name ?? ""); }} className="w-full bg-[#0d0d11] border border-[#27272a] rounded px-2 py-2 text-lg font-bold text-[#fafafa] outline-none text-center" autoFocus />
               <input type="text" placeholder="Reason (optional)" value={adjReason} onChange={e => setAdjReason(e.target.value)} onKeyDown={e => { if (e.key === "Enter") handleAdjust(adjustId, rankings.find(r => r.member_id === adjustId)?.member_name ?? ""); }} className="w-full bg-[#0d0d11] border border-[#27272a] rounded px-2 py-1.5 text-xs text-[#d4d4d8] outline-none" />
@@ -353,7 +353,7 @@ function Leaderboard({ serverId, isStaff, toast, queryClient }: { serverId: stri
             <p className="text-xs text-[#a1a1aa] mb-3">This will permanently delete DKP transactions, cancel active auctions, and clear bid history for the selected guilds. <span className="font-bold text-[#fafafa]">This cannot be undone.</span></p>
             {guilds.length > 0 && (
               <div className="mb-3">
-                <p className="text-[10px] text-[#71717a] mb-2">Select guilds to reset:</p>
+                <p className="text-[11px] text-[#71717a] mb-2">Select guilds to reset:</p>
                 <div className="space-y-1.5 max-h-40 overflow-y-auto">
                   {guilds.map(g => {
                     const checked = resetGuilds.includes(g);
@@ -366,19 +366,19 @@ function Leaderboard({ serverId, isStaff, toast, queryClient }: { serverId: stri
                           className="rounded border-[#3f3f46] bg-[#0d0d11] accent-red-500"
                         />
                         <span className="text-xs text-[#d4d4d8]">{g}</span>
-                        <span className="text-[10px] text-[#52525b] ml-auto">{rankings.filter(r => r.guild_name === g).length} members</span>
+                        <span className="text-[11px] text-[#52525b] ml-auto">{rankings.filter(r => r.guild_name === g).length} members</span>
                       </label>
                     );
                   })}
                 </div>
                 <div className="flex gap-2 mt-2">
-                  <button onClick={() => setResetGuilds([...guilds])} className="text-[10px] text-[#a1a1aa] hover:text-[#fafafa] underline">Select all</button>
-                  <button onClick={() => setResetGuilds([])} className="text-[10px] text-[#a1a1aa] hover:text-[#fafafa] underline">Clear all</button>
+                  <button onClick={() => setResetGuilds([...guilds])} className="text-[11px] text-[#a1a1aa] hover:text-[#fafafa] underline">Select all</button>
+                  <button onClick={() => setResetGuilds([])} className="text-[11px] text-[#a1a1aa] hover:text-[#fafafa] underline">Clear all</button>
                 </div>
               </div>
             )}
-            {resetGuilds.length === 0 && guilds.length > 0 && <p className="text-[10px] text-amber-400 mb-3">No guilds selected — no DKP will be reset.</p>}
-            <p className="text-[10px] text-[#71717a] mb-2">Type <span className="font-bold text-[#fafafa]">confirm</span> to reset:</p>
+            {resetGuilds.length === 0 && guilds.length > 0 && <p className="text-[11px] text-amber-400 mb-3">No guilds selected — no DKP will be reset.</p>}
+            <p className="text-[11px] text-[#71717a] mb-2">Type <span className="font-bold text-[#fafafa]">confirm</span> to reset:</p>
             <input type="text" value={resetConfirm} onChange={e => setResetConfirm(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && resetConfirm.toLowerCase() === "confirm" && resetGuilds.length > 0) handleResetDkp(); }} className="w-full bg-[#0d0d11] border border-[#27272a] rounded px-3 py-2 text-xs text-[#fafafa] outline-none mb-4" placeholder="confirm" autoFocus />
             <div className="flex gap-2">
               <button onClick={() => { setShowResetModal(false); setResetConfirm(""); setResetGuilds([]); }} className="flex-1 py-2 rounded text-sm bg-[#27272a] text-[#d4d4d8]">Cancel</button>
@@ -431,7 +431,7 @@ function MemberHistoryModal({ memberId, memberName, balance, serverId, onClose }
         <div className="flex items-center justify-between mb-3">
           <div>
             <h3 className="text-sm font-semibold text-[#fafafa]">{memberName}</h3>
-            <p className="text-[10px] text-[#71717a]">Balance: <span className="text-amber-400 font-bold">{balance} DKP</span></p>
+            <p className="text-[11px] text-[#71717a]">Balance: <span className="text-amber-400 font-bold">{balance} DKP</span></p>
           </div>
           <button onClick={onClose} className="text-[#52525b] hover:text-[#a1a1aa] transition p-1 -mr-1" title="Close"><X className="w-4 h-4" /></button>
         </div>
@@ -443,7 +443,7 @@ function MemberHistoryModal({ memberId, memberName, balance, serverId, onClose }
               <div key={txn.id} className="flex items-center justify-between py-2">
                 <div className="min-w-0 flex-1">
                   <p className="text-xs text-[#d4d4d8] truncate">{txn.reason || txn.type}{txn.bidder_name && <> by <span className="text-[#a1a1aa]">{txn.bidder_name}</span></>}{txn.item_name && <> — <span style={{ color: rc(txn.item_rarity ?? undefined) }}>{txn.item_name}</span></>}{txn.boss_name && <> — {txn.boss_name}</>}</p>
-                  <p className="text-[10px] text-[#52525b]">{new Date(txn.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</p>
+                  <p className="text-[11px] text-[#52525b]">{new Date(txn.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</p>
                 </div>
                 <span className={`text-sm font-bold tabular-nums shrink-0 ml-2 ${txn.amount > 0 ? "text-emerald-400" : "text-red-400"}`}>{txn.amount > 0 ? "+" : ""}{txn.amount}</span>
               </div>
@@ -625,7 +625,7 @@ function AuctionRow({ item, isStaff, memberId, tz, onBid, onResolve, onViewBids,
             </span>
           )}
         </div>
-        <div className="flex items-center gap-2 text-[10px]">
+        <div className="flex items-center gap-2 text-[11px]">
           <span className="text-amber-400 font-bold">{item.highest_bid || item.dkp_cost} DKP</span>
           <button onClick={(e) => { e.stopPropagation(); onViewBids(); }} className="text-[#52525b] hover:text-[#d4d4d8] transition">{item.bid_count} bid{item.bid_count !== 1 ? "s" : ""}</button>
           {!ended ? <span className={`flex items-center gap-0.5 tabular-nums ${endingSoon ? "text-red-400 animate-pulse" : "text-[#a1a1aa]"}`}><Clock className="w-3 h-3" />{cd.days > 0 ? `${cd.days}d ` : ""}{fmt(cd.hours)}:{fmt(cd.minutes)}:{fmt(cd.seconds)}</span> : <span className="text-red-400">Ended</span>}
@@ -633,10 +633,10 @@ function AuctionRow({ item, isStaff, memberId, tz, onBid, onResolve, onViewBids,
         </div>
       </div>
       <div className="flex items-center gap-1 shrink-0">
-        <button onClick={(e) => { e.stopPropagation(); onTheater(); }} className="px-1.5 py-1 rounded text-[10px] bg-[#18181b] border border-[#27272a] text-[#a1a1aa] hover:text-[#fafafa] hover:border-[#3f3f46] transition-colors" title="Auction Theater">🎭</button>
+        <button onClick={(e) => { e.stopPropagation(); onTheater(); }} className="px-1.5 py-1 rounded text-[11px] bg-[#18181b] border border-[#27272a] text-[#a1a1aa] hover:text-[#fafafa] hover:border-[#3f3f46] transition-colors" title="Auction Theater">🎭</button>
         {memberId && !ended && !isWinning && <button onClick={(e) => { e.stopPropagation(); onBid(); }} className="px-5 py-1.5 rounded text-xs font-medium bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 transition"><Coins className="w-3.5 h-3.5 inline mr-1" />Bid</button>}
-        {memberId && !ended && isWinning && <span className="px-2 py-1 rounded text-[10px] bg-emerald-500/10 text-emerald-400 font-medium" title="You're the highest bidder. Wait to be outbid before bidding again."><Check className="w-3 h-3 inline mr-0.5" />You're Winning</span>}
-        {memberId && ended && <span className="px-2 py-1 rounded text-[10px] bg-amber-500/10 text-amber-400 font-medium animate-pulse"><Loader2 className="w-3 h-3 inline mr-1 animate-spin" />Finalizing...</span>}
+        {memberId && !ended && isWinning && <span className="px-2 py-1 rounded text-[11px] bg-emerald-500/10 text-emerald-400 font-medium" title="You're the highest bidder. Wait to be outbid before bidding again."><Check className="w-3 h-3 inline mr-0.5" />You're Winning</span>}
+        {memberId && ended && <span className="px-2 py-1 rounded text-[11px] bg-amber-500/10 text-amber-400 font-medium animate-pulse"><Loader2 className="w-3 h-3 inline mr-1 animate-spin" />Finalizing...</span>}
         {isStaff && <button onClick={(e) => { e.stopPropagation(); onResolve(); }} className="px-5 py-1.5 rounded text-xs font-medium bg-red-500/10 text-red-400 hover:bg-red-500/20 transition">Cancel</button>}
       </div>
     </div>
@@ -708,7 +708,7 @@ function MarkModal({ name, setName, cost, setCost, end, setEnd, acting, error, o
         {error && <p className="text-xs text-red-400 mb-2"><AlertTriangle className="w-3 h-3 inline mr-1" />{error}</p>}
         <div className="space-y-3">
           <div className="relative">
-            <label className="text-[10px] text-[#71717a]">Item</label>
+            <label className="text-[11px] text-[#71717a]">Item</label>
             {selectedItem ? (
               <div className="flex items-center gap-2 mt-1 p-2 rounded bg-[#18181b] border border-[#27272a]">
                 {selectedItem.image_url ? <img src={selectedItem.image_url} className="w-8 h-8 rounded object-cover border border-[#1e1e2a]" style={{ backgroundColor: selColor + "20" }} /> : <div className="w-8 h-8 rounded flex items-center justify-center" style={{ backgroundColor: selColor + "18" }}><Image className="w-4 h-4" style={{ color: selColor }} /></div>}
@@ -726,16 +726,16 @@ function MarkModal({ name, setName, cost, setCost, end, setEnd, acting, error, o
               </div>
             )}
             {search && !searching && results.length === 0 && !selectedItem && (
-              <p className="text-[10px] text-[#52525b] mt-1">No items found. Add it to the catalog first.</p>
+              <p className="text-[11px] text-[#52525b] mt-1">No items found. Add it to the catalog first.</p>
             )}
           </div>
-          <div><label className="text-[10px] text-[#71717a]">DKP Cost</label><input type="text" inputMode="numeric" value={cost || ""} onChange={e => { const v = parseInt(e.target.value); setCost(isNaN(v) ? 0 : v); }} className="w-full bg-[#18181b] border border-[#27272a] rounded px-2 py-1.5 text-sm text-[#fafafa] outline-none mt-1" /></div>
+          <div><label className="text-[11px] text-[#71717a]">DKP Cost</label><input type="text" inputMode="numeric" value={cost || ""} onChange={e => { const v = parseInt(e.target.value); setCost(isNaN(v) ? 0 : v); }} className="w-full bg-[#18181b] border border-[#27272a] rounded px-2 py-1.5 text-sm text-[#fafafa] outline-none mt-1" /></div>
           <div className="flex gap-3">
-            <div className="flex-1"><label className="text-[10px] text-[#71717a]">Quantity</label><input type="text" inputMode="numeric" value={qty || ""} onChange={e => { const raw = e.target.value; if (raw === "") { setQty(0); return; } const v = parseInt(raw); setQty(isNaN(v) ? 0 : v); }} onBlur={() => { if (!qty || qty < 1) setQty(1); }} className="w-full bg-[#18181b] border border-[#27272a] rounded px-2 py-1.5 text-sm text-[#fafafa] outline-none mt-1" /></div>
-            <div className="flex-1"><label className="text-[10px] text-[#71717a]">End Date & Time</label><input type="datetime-local" value={end} onChange={e => setEnd(e.target.value)} className="w-full bg-[#18181b] border border-[#27272a] rounded px-2 py-1.5 text-sm text-[#fafafa] outline-none mt-1 [color-scheme:dark]" /></div>
+            <div className="flex-1"><label className="text-[11px] text-[#71717a]">Quantity</label><input type="text" inputMode="numeric" value={qty || ""} onChange={e => { const raw = e.target.value; if (raw === "") { setQty(0); return; } const v = parseInt(raw); setQty(isNaN(v) ? 0 : v); }} onBlur={() => { if (!qty || qty < 1) setQty(1); }} className="w-full bg-[#18181b] border border-[#27272a] rounded px-2 py-1.5 text-sm text-[#fafafa] outline-none mt-1" /></div>
+            <div className="flex-1"><label className="text-[11px] text-[#71717a]">End Date & Time</label><input type="datetime-local" value={end} onChange={e => setEnd(e.target.value)} className="w-full bg-[#18181b] border border-[#27272a] rounded px-2 py-1.5 text-sm text-[#fafafa] outline-none mt-1 [color-scheme:dark]" /></div>
           </div>
           <div>
-            <label className="text-[10px] text-[#71717a]">Restrict to Guild <span className="text-[#52525b]">(optional)</span></label>
+            <label className="text-[11px] text-[#71717a]">Restrict to Guild <span className="text-[#52525b]">(optional)</span></label>
             <select value={guildId || ""} onChange={e => setGuildId(e.target.value || null)} className="w-full bg-[#18181b] border border-[#27272a] rounded px-2 py-1.5 text-sm text-[#d4d4d8] outline-none mt-1">
               <option value="">All Guilds</option>
               {guilds.map((g: any) => <option key={g.id} value={g.id}>{g.name}</option>)}
@@ -784,13 +784,13 @@ function BidModalUI({ auctionId, bidAmt, setBidAmt, acting, error, onClose, onBi
         </div>
         <h3 className="text-sm font-semibold" style={{ color: rarityColor }}>{item?.name || "Item"}</h3>
         <div className="flex items-center gap-2 mt-0.5">
-          <p className="text-[10px] text-[#71717a]">Min bid: {effectiveMin} DKP · {hasEnded ? "Ended" : `${left}min left`}</p>
-          {balance != null && <span className={`text-[10px] ml-auto ${overBudget ? "text-red-400" : "text-[#a1a1aa]"}`}>{balance.balance} DKP available</span>}
+          <p className="text-[11px] text-[#71717a]">Min bid: {effectiveMin} DKP · {hasEnded ? "Ended" : `${left}min left`}</p>
+          {balance != null && <span className={`text-[11px] ml-auto ${overBudget ? "text-red-400" : "text-[#a1a1aa]"}`}>{balance.balance} DKP available</span>}
         </div>
         {hasEnded && <p className="text-xs text-[#a1a1aa] mt-2 flex items-center gap-1"><Hourglass className="w-3 h-3" />Bidding has ended — awaiting finalization.</p>}
         {error && <p className="text-xs text-red-400 mt-2"><AlertTriangle className="w-3 h-3 inline mr-1" />{error}</p>}
         <div className="mt-3 space-y-3">
-          <div className="flex gap-1.5 flex-wrap">{presets.map(p => <button key={p} onClick={() => setBidAmt(p)} className={`px-2.5 py-1 rounded text-[10px] font-medium transition ${bidAmt === p ? "bg-[#3f3f46] text-[#fafafa] border border-[#52525b]" : "bg-[#18181b] border border-[#27272a] text-[#a1a1aa] hover:text-[#fafafa]"}`}>+{p}</button>)}</div>
+          <div className="flex gap-1.5 flex-wrap">{presets.map(p => <button key={p} onClick={() => setBidAmt(p)} className={`px-2.5 py-1 rounded text-[11px] font-medium transition ${bidAmt === p ? "bg-[#3f3f46] text-[#fafafa] border border-[#52525b]" : "bg-[#18181b] border border-[#27272a] text-[#a1a1aa] hover:text-[#fafafa]"}`}>+{p}</button>)}</div>
           <input type="text" inputMode="numeric" value={bidAmt || ""} onChange={e => { const v = parseInt(e.target.value); setBidAmt(isNaN(v) ? 0 : v); }} className={`w-full bg-[#18181b] border rounded px-2 py-2 text-lg font-bold outline-none text-center ${overBudget ? "border-red-500/50 text-red-400" : "border-[#27272a] text-[#fafafa]"}`} min={effectiveMin} autoFocus disabled={hasEnded} />
           <button onClick={onBid} disabled={acting || bidAmt < effectiveMin || overBudget || hasEnded} className="w-full py-2 rounded text-sm bg-[#27272a] text-[#fafafa] font-medium disabled:opacity-40 hover:bg-[#3f3f46] transition">{acting ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : hasEnded ? "Finalizing..." : "Place Bid"}</button>
         </div>
@@ -820,12 +820,12 @@ function ResolveModalUI({ auctionId, onClose, onResolve }: { auctionId: string; 
           <h3 className="text-sm font-semibold text-[#fafafa]">Cancel Auction</h3>
           <button onClick={onClose} className="text-[#52525b] hover:text-[#a1a1aa] transition p-1 -mr-1"><X className="w-4 h-4" /></button>
         </div>
-        <p className="text-[10px] text-[#71717a] mb-3">{active.length} active bid{active.length !== 1 ? "s" : ""}{auctionItem?.name ? ` · ${auctionItem.name}` : ""}</p>
+        <p className="text-[11px] text-[#71717a] mb-3">{active.length} active bid{active.length !== 1 ? "s" : ""}{auctionItem?.name ? ` · ${auctionItem.name}` : ""}</p>
 
         {active.length > 0 && (
           <div className="space-y-1 mb-3">{active.map(bid => (
             <div key={bid.id} className="flex items-center justify-between p-2 rounded bg-[#18181b] border border-[#27272a]">
-              <div><p className="text-xs text-[#fafafa]">{bid.member_name}</p><p className="text-[10px] text-[#52525b]">{new Date(bid.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</p></div>
+              <div><p className="text-xs text-[#fafafa]">{bid.member_name}</p><p className="text-[11px] text-[#52525b]">{new Date(bid.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</p></div>
               <div className="flex items-center gap-2"><span className="text-sm font-bold text-amber-400">{bid.bid_amount}</span></div>
             </div>
           ))}</div>
@@ -867,7 +867,7 @@ function BidsModal({ itemId, auctionId, onClose, startedAfter, resolvedBefore }:
         <div className="flex items-center justify-between mb-3">
           <div>
             <h3 className="text-sm font-semibold text-[#fafafa]">All Bids</h3>
-            <p className="text-[10px] text-[#71717a]">{all.length} bid{all.length !== 1 ? "s" : ""} total</p>
+            <p className="text-[11px] text-[#71717a]">{all.length} bid{all.length !== 1 ? "s" : ""} total</p>
           </div>
           <button onClick={onClose} className="text-[#52525b] hover:text-[#a1a1aa] transition p-1 -mr-1" title="Close">
             <X className="w-4 h-4" />
@@ -878,12 +878,12 @@ function BidsModal({ itemId, auctionId, onClose, startedAfter, resolvedBefore }:
         : <div className="space-y-1">
           {all.map((bid: ItemBid) => (
             <div key={bid.id} className="flex items-center justify-between p-2 rounded bg-[#18181b] border border-[#27272a]">
-              <div><p className="text-xs text-[#fafafa]">{bid.member_name}</p><p className="text-[10px] text-[#52525b]">{new Date(bid.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</p></div>
+              <div><p className="text-xs text-[#fafafa]">{bid.member_name}</p><p className="text-[11px] text-[#52525b]">{new Date(bid.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</p></div>
               <div className="flex items-center gap-2">
                 <span className={`text-sm font-bold tabular-nums ${bid.status === "active" ? "text-amber-400" : bid.status === "won" ? "text-emerald-400" : "text-[#52525b]"}`}>{bid.bid_amount} DKP</span>
-                {bid.status === "active" && <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400">Active</span>}
-                {bid.status === "won" && <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400">Won</span>}
-                {bid.status === "cancelled" && <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#27272a] text-[#52525b]">Refunded</span>}
+                {bid.status === "active" && <span className="text-[11px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400">Active</span>}
+                {bid.status === "won" && <span className="text-[11px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400">Won</span>}
+                {bid.status === "cancelled" && <span className="text-[11px] px-1.5 py-0.5 rounded bg-[#27272a] text-[#52525b]">Refunded</span>}
               </div>
             </div>
           ))}
@@ -988,7 +988,7 @@ function AuctionHistory({ serverId, memberId, isStaff, queryClient, toast }: { s
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h3 className="text-sm font-semibold text-[#fafafa]">Delete Auction</h3>
-                <p className="text-[10px] text-[#71717a] mt-0.5">This action cannot be undone.</p>
+                <p className="text-[11px] text-[#71717a] mt-0.5">This action cannot be undone.</p>
               </div>
               <button onClick={() => setDeleteAuction(null)} className="text-[#52525b] hover:text-[#fafafa]"><X className="w-4 h-4" /></button>
             </div>
@@ -996,14 +996,14 @@ function AuctionHistory({ serverId, memberId, isStaff, queryClient, toast }: { s
               <p className="text-xs text-red-400">
                 Deleting <span className="text-[#fafafa] font-medium">"{deleteAuction.item_name}"</span> (round {deleteAuction.auction_round}) will permanently remove:
               </p>
-              <ul className="text-[10px] text-red-400/80 mt-1.5 space-y-0.5 list-disc list-inside">
+              <ul className="text-[11px] text-red-400/80 mt-1.5 space-y-0.5 list-disc list-inside">
                 <li>All bids for this auction round</li>
                 <li>All DKP transactions for these bids</li>
                 <li>All distribution records</li>
                 <li>The auction itself from history</li>
               </ul>
             </div>
-            <label className="text-[10px] text-[#71717a] uppercase tracking-wider">Type the item name to confirm</label>
+            <label className="text-[11px] text-[#71717a] uppercase tracking-wider">Type the item name to confirm</label>
             <input
               type="text"
               value={deleteConfirmName}
@@ -1128,7 +1128,7 @@ function AuctionList({ auctions, auctionSearch, myName, isStaff, handleDelete, s
       {groups.map(group => (
         <div key={group.label}>
           <div className="px-4 py-1.5 bg-[#0d0d11] border-b border-[#1e1e2a]/30 sticky top-0 z-10">
-            <span className="text-[10px] font-semibold text-[#52525b] uppercase tracking-wider">{group.label}</span>
+            <span className="text-[11px] font-semibold text-[#52525b] uppercase tracking-wider">{group.label}</span>
           </div>
           <div className="divide-y divide-[#1e1e2a]/50">
             {group.items.map((a: PastAuction) => {
@@ -1161,7 +1161,7 @@ function AuctionList({ auctions, auctionSearch, myName, isStaff, handleDelete, s
                 <span className="text-[8px] px-1 py-0.5 rounded font-medium bg-emerald-500/10 text-emerald-400 shrink-0">You Won!</span>
               )}
             </div>
-            <div className="flex items-center gap-2 text-[10px] text-[#52525b] mt-0.5">
+            <div className="flex items-center gap-2 text-[11px] text-[#52525b] mt-0.5">
               <span>{a.bid_count} bid{a.bid_count !== 1 ? "s" : ""}</span>
               <span>·</span>
               <span className="text-amber-400 font-medium">{a.winning_bid} DKP</span>
@@ -1187,7 +1187,7 @@ function AuctionList({ auctions, auctionSearch, myName, isStaff, handleDelete, s
           </div>
           <div className="flex items-center gap-1 shrink-0">
             {isStaff && !a.distributed && (
-              <button onClick={(e) => openDistributeModal(e, a)} disabled={distMutation.isPending} className="text-[10px] px-1.5 py-0.5 rounded border transition border-[#27272a] text-[#52525b] hover:text-[#a1a1aa] hover:border-[#3f3f46]">
+              <button onClick={(e) => openDistributeModal(e, a)} disabled={distMutation.isPending} className="text-[11px] px-1.5 py-0.5 rounded border transition border-[#27272a] text-[#52525b] hover:text-[#a1a1aa] hover:border-[#3f3f46]">
                 Distribute
               </button>
             )}
@@ -1234,7 +1234,7 @@ function AuctionList({ auctions, auctionSearch, myName, isStaff, handleDelete, s
             <div className="space-y-3">
               {/* Recipient — read-only */}
               <div>
-                <label className="text-[10px] text-[#71717a] uppercase tracking-wider">Recipient</label>
+                <label className="text-[11px] text-[#71717a] uppercase tracking-wider">Recipient</label>
                 <div className="mt-1 px-3 py-2 bg-[#18181b] border border-[#27272a] rounded-lg text-sm text-[#fafafa]">
                   {distMemberSearch || distAuction.winner_name || "—"}
                 </div>
@@ -1242,7 +1242,7 @@ function AuctionList({ auctions, auctionSearch, myName, isStaff, handleDelete, s
 
               {/* Quantity — read-only */}
               <div>
-                <label className="text-[10px] text-[#71717a] uppercase tracking-wider">Quantity</label>
+                <label className="text-[11px] text-[#71717a] uppercase tracking-wider">Quantity</label>
                 <div className="mt-1 px-3 py-2 bg-[#18181b] border border-[#27272a] rounded-lg text-sm text-[#fafafa]">
                   {distQuantity}
                 </div>
@@ -1250,7 +1250,7 @@ function AuctionList({ auctions, auctionSearch, myName, isStaff, handleDelete, s
 
               {/* Reason — read-only, full text visible */}
               <div>
-                <label className="text-[10px] text-[#71717a] uppercase tracking-wider">Reason</label>
+                <label className="text-[11px] text-[#71717a] uppercase tracking-wider">Reason</label>
                 <div className="mt-1 px-3 py-2 bg-[#18181b] border border-[#27272a] rounded-lg text-sm text-[#fafafa] whitespace-pre-wrap break-words">
                   {distReason}
                 </div>
@@ -1283,7 +1283,7 @@ function HistorySection({ memberId, serverId }: { memberId: string; serverId: st
       : display.length === 0 ? <div className="px-4 py-6 text-center"><p className="text-xs text-[#71717a]">No transactions yet.</p></div>
       : <div className="divide-y divide-[#1e1e2a]/50">{display.map(txn => (
           <div key={txn.id} onClick={() => setSelectedTxn(txn)} className="flex items-center justify-between px-4 py-2.5 cursor-pointer hover:bg-[#18181b] transition"><div className="min-w-0"><p className="text-xs text-[#d4d4d8] truncate">{txn.reason || txn.type}{txn.bidder_name && <> by <span className="text-[#a1a1aa]">{txn.bidder_name}</span></>}{txn.item_name && <> — <span style={{ color: rc(txn.item_rarity ?? undefined) }}>{txn.item_name}</span>{txn.item_guild_name && <span className={`inline-flex items-center gap-0.5 text-[8px] px-1 py-0.5 rounded border ml-1 align-middle ${guildColor(txn.item_guild_name).bg} ${guildColor(txn.item_guild_name).text} ${guildColor(txn.item_guild_name).border}`}><Shield className="w-2 h-2" />{txn.item_guild_name}</span>}</>}{txn.boss_name && <> — {txn.boss_name}{txn.guild_name && <span className="text-[#a1a1aa]"> ({txn.guild_name})</span>}</>}</p>
-            <p className="text-[10px] text-[#52525b]">{new Date(txn.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</p></div><span className={`text-sm font-bold tabular-nums shrink-0 ${txn.amount > 0 ? "text-emerald-400" : "text-red-400"}`}>{txn.amount > 0 ? "+" : ""}{txn.amount}</span></div>))}
+            <p className="text-[11px] text-[#52525b]">{new Date(txn.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</p></div><span className={`text-sm font-bold tabular-nums shrink-0 ${txn.amount > 0 ? "text-emerald-400" : "text-red-400"}`}>{txn.amount > 0 ? "+" : ""}{txn.amount}</span></div>))}
         {txns.length === 20 && <button onClick={() => setCursor(display[display.length - 1]?.created_at)} className="w-full px-4 py-2 text-xs text-[#a1a1aa] hover:text-[#fafafa] hover:bg-[#18181b] transition">Load more...</button>}</div>}
       {selectedTxn && <TxnDetailModal txn={selectedTxn} onClose={() => setSelectedTxn(null)} />}
     </div>

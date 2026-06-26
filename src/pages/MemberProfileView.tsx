@@ -49,7 +49,7 @@ function GearSlot({ slotName, item, enh, rc }: { slotName: string; item: any; en
       <div className={`w-[88px] rounded-lg flex flex-col items-center justify-center border border-[#27272a] transition-all duration-200 ${
         item ? "hover:scale-[1.03] cursor-default" : "border-dashed"
       }`}>
-        <p className="text-[9px] text-[#52525b] uppercase tracking-wider mb-0.5">{slotName}</p>
+        <p className="text-[11px] text-[#52525b] uppercase tracking-wider mb-0.5">{slotName}</p>
         {item ? (
           <>
             <div className="w-16 h-16 rounded-xl flex items-center justify-center relative" style={{ backgroundColor: `${rc}14` }}>
@@ -59,10 +59,10 @@ function GearSlot({ slotName, item, enh, rc }: { slotName: string; item: any; en
                 <Star className="w-8 h-8" style={{ color: rc }} />
               )}
               {enh > 0 && (
-                <span className="absolute right-[8%] bottom-[8%] text-[10px] font-black text-amber-400 bg-black/60 rounded-full px-1.5 leading-none py-0.5">+{enh}</span>
+                <span className="absolute right-[8%] bottom-[8%] text-[11px] font-black text-amber-400 bg-black/60 rounded-full px-1.5 leading-none py-0.5">+{enh}</span>
               )}
             </div>
-            <p className="text-[9px] font-medium mt-0.5 text-center w-full leading-tight" style={{ color: rc }}>{item.name}</p>
+            <p className="text-[11px] font-medium mt-0.5 text-center w-full leading-tight" style={{ color: rc }}>{item.name}</p>
           </>
         ) : (
           <div className="w-16 h-16 rounded-xl flex items-center justify-center bg-transparent">
@@ -666,18 +666,18 @@ export function MemberProfileView() {
             <div className="min-w-0">
               <h1 className="text-xl font-bold text-[#fafafa] truncate">{profile.name}</h1>
               <div className="flex flex-wrap items-center gap-2 mt-1">
-                {memberGuild && gColor && <span className={`text-[10px] px-1.5 py-0.5 rounded border flex items-center gap-1 ${gColor.bg} ${gColor.text} ${gColor.border}`}><Shield className="w-2.5 h-2.5"/>{memberGuild.name}</span>}
+                {memberGuild && gColor && <span className={`text-[11px] px-1.5 py-0.5 rounded border flex items-center gap-1 ${gColor.bg} ${gColor.text} ${gColor.border}`}><Shield className="w-2.5 h-2.5"/>{memberGuild.name}</span>}
                 {profile.class && classIcons[profile.class] && (() => {
                   const CIcon = getClassIcon(classIcons[profile.class]);
                   const color = classColors[profile.class] || "#a1a1aa";
                   return (
-                    <span className="text-[10px] px-1.5 py-0.5 rounded border flex items-center gap-1" style={{ color, borderColor: `${color}40`, backgroundColor: `${color}15` }}>
+                    <span className="text-[11px] px-1.5 py-0.5 rounded border flex items-center gap-1" style={{ color, borderColor: `${color}40`, backgroundColor: `${color}15` }}>
                       <CIcon className="w-2.5 h-2.5"/>{profile.class}
                     </span>
                   );
                 })()}
-                {profile.discord_user_id && <span className="text-[10px] text-[#52525b] flex items-center gap-1"><MessageSquare className="w-2.5 h-2.5"/>Discord linked</span>}
-                <span className="text-[10px] text-[#52525b] flex items-center gap-1"><Calendar className="w-2.5 h-2.5"/>Joined {fmtDate(profile.created_at)}</span>
+                {profile.discord_user_id && <span className="text-[11px] text-[#52525b] flex items-center gap-1"><MessageSquare className="w-2.5 h-2.5"/>Discord linked</span>}
+                <span className="text-[11px] text-[#52525b] flex items-center gap-1"><Calendar className="w-2.5 h-2.5"/>Joined {fmtDate(profile.created_at)}</span>
               </div>
             </div>
           </div>
@@ -685,7 +685,7 @@ export function MemberProfileView() {
           {risks.length > 0 && (
             <div className="flex flex-wrap gap-1.5 sm:self-center">
               {risks.map(r => (
-                <span key={r} className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium bg-red-500/10 border border-red-500/20 text-red-400">
+                <span key={r} className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium bg-red-500/10 border border-red-500/20 text-red-400">
                   <AlertTriangle className="w-3 h-3"/>{r}
                 </span>
               ))}
@@ -697,10 +697,10 @@ export function MemberProfileView() {
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mt-5">
           <div className="bg-[#09090b] rounded-lg p-3 flex items-center gap-3">
             <ScoreGauge score={score}/>
-            <div><p className="text-[10px] text-[#71717a] uppercase tracking-wider">Score</p><p className="text-xs text-[#52525b]">/100</p></div>
+            <div><p className="text-[11px] text-[#71717a] uppercase tracking-wider">Score</p><p className="text-xs text-[#52525b]">/100</p></div>
           </div>
           <div className="bg-[#09090b] rounded-lg p-3">
-            <p className="text-[10px] text-[#71717a] uppercase tracking-wider">Combat Power</p>
+            <p className="text-[11px] text-[#71717a] uppercase tracking-wider">Combat Power</p>
             <p className="text-lg font-bold text-[#fafafa] mt-0.5">{fmtCp(profile.current_cp)}</p>
             {(() => {
               const growth = profile.cp_growth_30d ?? 0;
@@ -717,11 +717,11 @@ export function MemberProfileView() {
           </div>
           <div className="bg-[#09090b] rounded-lg p-3 col-span-2 sm:col-span-1">
             <div className="flex items-center justify-between mb-1.5">
-              <p className="text-[10px] text-[#71717a] uppercase tracking-wider">Events</p>
+              <p className="text-[11px] text-[#71717a] uppercase tracking-wider">Events</p>
               <div className="flex gap-0.5">
                 {(["weekly", "monthly", "all"] as const).map(r => (
                   <button key={r} onClick={() => setEventsRange(r)}
-                    className={`text-[9px] px-1.5 py-0.5 rounded transition ${eventsRange === r ? "bg-[#27272a] text-[#fafafa]" : "text-[#52525b] hover:text-[#a1a1aa]"}`}>
+                    className={`text-[11px] px-1.5 py-0.5 rounded transition ${eventsRange === r ? "bg-[#27272a] text-[#fafafa]" : "text-[#52525b] hover:text-[#a1a1aa]"}`}>
                     {r === "weekly" ? "Week" : r === "monthly" ? "Month" : "All"}
                   </button>
                 ))}
@@ -730,7 +730,7 @@ export function MemberProfileView() {
             <p className="text-lg font-bold text-[#fafafa]">
               {eventsDisplay}<span className="text-[#52525b] text-sm font-normal">/{eventsRange === "weekly" ? totalEventsWeek : eventsRange === "monthly" ? totalEventsMonth : totalEventsSinceJoined}</span>
             </p>
-            <p className="text-[10px] text-[#52525b]">
+            <p className="text-[11px] text-[#52525b]">
               {(() => {
                 if (!profile) return "";
                 const start = eventsRange === "weekly" ? weekStart : eventsRange === "monthly" ? monthStart : new Date(0);
@@ -750,7 +750,7 @@ export function MemberProfileView() {
             className="bg-[#09090b] rounded-lg p-3 col-span-2 sm:col-span-1 overflow-hidden cursor-pointer hover:bg-[#0f0f12] transition"
             onClick={() => document.getElementById("loot-history")?.scrollIntoView({ behavior: "smooth", block: "start" })}
           >
-            <p className="text-[10px] text-[#71717a] uppercase tracking-wider">Items Received</p>
+            <p className="text-[11px] text-[#71717a] uppercase tracking-wider">Items Received</p>
             <p className="text-2xl font-bold text-[#fafafa] mt-0.5">{(profile.loot_history || []).length}</p>
             <div className="flex items-end gap-1.5 mt-2" style={{ height: 40 }}>
               {[
@@ -764,9 +764,9 @@ export function MemberProfileView() {
                 const barH = Math.max(3, Math.min(24, Math.round((b.count / max) * 12)));
                 return (
                   <div key={b.label} className="flex-1 flex flex-col items-center gap-0.5" title={`${b.label}: ${b.count} items`}>
-                    <span className="text-[10px] text-[#a1a1aa] font-medium tabular-nums">{b.count}</span>
+                    <span className="text-[11px] text-[#a1a1aa] font-medium tabular-nums">{b.count}</span>
                     <div className="w-full bg-[#a78bfa]/50 rounded-t" style={{ height: barH }} />
-                    <span className="text-[9px] text-[#52525b]">{b.label}</span>
+                    <span className="text-[11px] text-[#52525b]">{b.label}</span>
                   </div>
                 );
               })}
@@ -781,8 +781,8 @@ export function MemberProfileView() {
           <div className="mt-3 bg-[#09090b] rounded-lg p-2.5 sm:p-3">
             <div className="flex items-center gap-1.5 sm:gap-2 mb-1 flex-wrap">
               {cpTrend === "up" ? <TrendingUp className="w-3.5 h-3.5 text-green-400 shrink-0"/> : cpTrend === "down" ? <TrendingUp className="w-3.5 h-3.5 text-red-400 rotate-180 shrink-0"/> : <TrendingUp className="w-3.5 h-3.5 text-[#a1a1aa] shrink-0"/>}
-              <span className="text-[10px] text-[#71717a] uppercase tracking-wider">CP Trend</span>
-              <span className="hidden sm:inline text-[10px] text-[#52525b]">(last {cpSparkData.length})</span>
+              <span className="text-[11px] text-[#71717a] uppercase tracking-wider">CP Trend</span>
+              <span className="hidden sm:inline text-[11px] text-[#52525b]">(last {cpSparkData.length})</span>
               <span className="flex-1 hidden sm:block"/>
               <span className="text-xs sm:text-sm font-bold font-mono" style={{ color: cpTrendColor }}>{fmtCp(lastCp)}</span>
               {cpPctChange != null && (
@@ -837,7 +837,7 @@ export function MemberProfileView() {
           <div className="flex items-center gap-2 mb-3">
             <Package className="w-4 h-4 text-amber-400 shrink-0" />
             <h2 className="text-xs font-semibold text-[#a1a1aa] uppercase tracking-wider">Equipment</h2>
-            <span className="text-[10px] text-[#52525b] ml-auto">
+            <span className="text-[11px] text-[#52525b] ml-auto">
               {gearSlotDefs.filter((s: any) => gearMap[s.name]?.catalog_item_id).length}/{gearSlotDefs.length} slots equipped
             </span>
           </div>
@@ -866,7 +866,7 @@ export function MemberProfileView() {
               <button
                 key={r.days}
                 onClick={() => setActivityDays(r.days)}
-                className={`px-2 py-0.5 rounded text-[10px] font-medium transition ${activityDays === r.days ? "bg-[#27272a] text-[#fafafa]" : "text-[#52525b] hover:text-[#a1a1aa]"}`}
+                className={`px-2 py-0.5 rounded text-[11px] font-medium transition ${activityDays === r.days ? "bg-[#27272a] text-[#fafafa]" : "text-[#52525b] hover:text-[#a1a1aa]"}`}
               >
                 {r.label}
               </button>
@@ -915,7 +915,7 @@ export function MemberProfileView() {
             <div className="flex gap-1 ml-auto">
               {["all","cp","attendance","note"].map(f => (
                 <button key={f} onClick={() => setTimelineFilter(f)}
-                  className={`px-2 py-1 rounded text-[10px] font-medium capitalize transition ${timelineFilter === f ? "bg-[#27272a] text-[#fafafa]" : "text-[#52525b] hover:text-[#a1a1aa]"}`}>
+                  className={`px-2 py-1 rounded text-[11px] font-medium capitalize transition ${timelineFilter === f ? "bg-[#27272a] text-[#fafafa]" : "text-[#52525b] hover:text-[#a1a1aa]"}`}>
                   {f}
                 </button>
               ))}
@@ -933,8 +933,8 @@ export function MemberProfileView() {
                       <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${cfg.dot}`}/>
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-[10px] font-medium text-[#71717a] uppercase">{cfg.label}</span>
-                          <span className="text-[10px] text-[#52525b]">{fmtDateTime(entry.date)}</span>
+                          <span className="text-[11px] font-medium text-[#71717a] uppercase">{cfg.label}</span>
+                          <span className="text-[11px] text-[#52525b]">{fmtDateTime(entry.date)}</span>
                         </div>
                         {entry.type === "cp" && (() => {
                           const change = cpChronoChange.get(entry.data.id) ?? null;
@@ -947,7 +947,7 @@ export function MemberProfileView() {
                                   {change > 0 ? "+" : ""}{change.toLocaleString()}
                                 </span>
                               )}
-                              <span className={`ml-2 text-[10px] px-1.5 py-0.5 rounded ${entry.data.status === "approved" ? "bg-green-500/10 text-green-400" : entry.data.status === "rejected" ? "bg-red-500/10 text-red-400" : "bg-yellow-500/10 text-yellow-400"}`}>
+                              <span className={`ml-2 text-[11px] px-1.5 py-0.5 rounded ${entry.data.status === "approved" ? "bg-green-500/10 text-green-400" : entry.data.status === "rejected" ? "bg-red-500/10 text-red-400" : "bg-yellow-500/10 text-yellow-400"}`}>
                                 {entry.data.status}
                               </span>
                             </p>
@@ -1004,7 +1004,7 @@ export function MemberProfileView() {
             <div className="flex items-center gap-2 mb-3">
               <TrendingUp className="w-4 h-4 text-purple-400"/>
               <h2 className="text-xs font-semibold text-[#a1a1aa] uppercase tracking-wider">Performance Score</h2>
-              <span className="text-[10px] text-[#52525b] ml-auto">{weeklyPerf.length} weeks</span>
+              <span className="text-[11px] text-[#52525b] ml-auto">{weeklyPerf.length} weeks</span>
             </div>
             {weeklyPerf.length > 1 ? (
               <div style={{ height: 180, minHeight: 180, minWidth: 200 }}>
@@ -1031,7 +1031,7 @@ export function MemberProfileView() {
             ) : (
               <p className="text-sm text-[#52525b] py-4 text-center">Collecting data for performance tracking</p>
             )}
-            <p className="text-[10px] text-[#52525b] mt-2 leading-relaxed border-t border-[#27272a] pt-2">
+            <p className="text-[11px] text-[#52525b] mt-2 leading-relaxed border-t border-[#27272a] pt-2">
               <span className="text-[#a1a1aa] font-medium">How it works:</span> Your score is based on <span className="text-blue-400">attendance (40%)</span>, <span className="text-purple-400">CP growth (40%)</span>, and <span className="text-amber-400">activity (20%)</span> each week. Score increases as you attend more events, grow your combat power, and stay active.
             </p>
             {accountSummary && accountSummary.length > 0 && (
@@ -1050,7 +1050,7 @@ export function MemberProfileView() {
             <div id="loot-history" className="px-4 py-3 border-b border-[#27272a] flex items-center gap-2">
               <Package className="w-4 h-4 text-amber-400"/>
               <h2 className="text-xs font-semibold text-[#a1a1aa] uppercase tracking-wider">Loot History</h2>
-              <span className="text-[10px] text-[#52525b] ml-auto">{(profile.loot_history || []).length} items</span>
+              <span className="text-[11px] text-[#52525b] ml-auto">{(profile.loot_history || []).length} items</span>
             </div>
             <div className="p-3 sm:p-4 max-h-96 overflow-y-auto">
               <div className="space-y-1">
@@ -1071,9 +1071,9 @@ export function MemberProfileView() {
                   )}
                   <div className="min-w-0 flex-1">
                     <p className="text-sm truncate" style={{ color: rc }}>{loot.items?.name || "Unknown Item"}</p>
-                    <p className="text-[10px] text-[#52525b]">{timeAgo(loot.distributed_at)}{loot.reason ? ` · ${loot.reason}` : ""}</p>
+                    <p className="text-[11px] text-[#52525b]">{timeAgo(loot.distributed_at)}{loot.reason ? ` · ${loot.reason}` : ""}</p>
                   </div>
-                  <span className="text-[10px] font-mono text-[#a1a1aa]">×{loot.quantity}</span>
+                  <span className="text-[11px] font-mono text-[#a1a1aa]">×{loot.quantity}</span>
                 </div>
                 );
               })}
@@ -1089,7 +1089,7 @@ export function MemberProfileView() {
         <div className="flex items-center gap-2 mb-3">
           <TrendingUp className="w-4 h-4 text-purple-400"/>
           <h2 className="text-xs font-semibold text-[#a1a1aa] uppercase tracking-wider">Performance Score</h2>
-          <span className="text-[10px] text-[#52525b] ml-auto">{weeklyPerf.length} weeks</span>
+          <span className="text-[11px] text-[#52525b] ml-auto">{weeklyPerf.length} weeks</span>
         </div>
         {weeklyPerf.length > 1 ? (
           <div style={{ height: 180, minHeight: 180, minWidth: 200 }}>
@@ -1116,7 +1116,7 @@ export function MemberProfileView() {
         ) : (
           <p className="text-sm text-[#52525b] py-4 text-center">Collecting data for performance tracking</p>
         )}
-        <p className="text-[10px] text-[#52525b] mt-2 leading-relaxed border-t border-[#27272a] pt-2">
+        <p className="text-[11px] text-[#52525b] mt-2 leading-relaxed border-t border-[#27272a] pt-2">
           <span className="text-[#a1a1aa] font-medium">How it works:</span> Your score is based on <span className="text-blue-400">attendance (40%)</span>, <span className="text-purple-400">CP growth (40%)</span>, and <span className="text-amber-400">activity (20%)</span> each week. Score increases as you attend more events, grow your combat power, and stay active.
         </p>
         {accountSummary && accountSummary.length > 0 && (
@@ -1155,7 +1155,7 @@ export function MemberProfileView() {
                 <div key={note.id} className="bg-[#09090b] rounded-lg p-3 group">
                   <p className="text-sm text-[#d4d4d8]">{note.note}</p>
                   <div className="flex items-center justify-between mt-1.5">
-                    <span className="text-[10px] text-[#52525b]">{timeAgo(note.created_at)}</span>
+                    <span className="text-[11px] text-[#52525b]">{timeAgo(note.created_at)}</span>
                     {!isViewer && (
                     <button onClick={() => deleteNoteMutation.mutate(note.id)}
                       className="opacity-0 group-hover:opacity-100 text-[#52525b] hover:text-red-400 transition"><Trash2 className="w-3 h-3"/></button>

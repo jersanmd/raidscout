@@ -51,7 +51,7 @@ export function RallyImageOverlay({
           {attendingNames.map((name) => (
             <span
               key={`attending-${name}`}
-              className="inline-flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium bg-emerald-900/80 text-emerald-200 border border-emerald-700/50"
+              className="inline-flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium bg-emerald-900/80 text-emerald-200 border border-emerald-700/50"
             >
               <Check className="w-2.5 h-2.5 shrink-0" />
               {name}
@@ -62,7 +62,7 @@ export function RallyImageOverlay({
           {exactMatches.map((name) => (
             <span
               key={`exact-${name}`}
-              className="inline-flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium bg-emerald-900/80 text-emerald-200 border border-emerald-700/50"
+              className="inline-flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium bg-emerald-900/80 text-emerald-200 border border-emerald-700/50"
               title={`Matched & checked: ${name}`}
             >
               <Check className="w-2.5 h-2.5 shrink-0" />
@@ -74,7 +74,7 @@ export function RallyImageOverlay({
           {[...fuzzyMatches.entries()].map(([detected, member]) => (
             <span
               key={`fuzzy-${detected}`}
-              className="inline-flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium bg-amber-900/80 text-amber-200 border border-amber-700/50"
+              className="inline-flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium bg-amber-900/80 text-amber-200 border border-amber-700/50"
             >
               <Check className="w-2.5 h-2.5 shrink-0" />
               {member.name}
@@ -85,7 +85,7 @@ export function RallyImageOverlay({
           {unmatched.map((name) => (
             <span
               key={`unm-${name}`}
-              className="inline-flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium bg-red-900/80 text-red-200 border border-red-700/50"
+              className="inline-flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium bg-red-900/80 text-red-200 border border-red-700/50"
               title={`Not matched — needs manual add: ${name}`}
             >
               <AlertCircle className="w-2.5 h-2.5 shrink-0" />
@@ -97,7 +97,7 @@ export function RallyImageOverlay({
           {alreadyAttended.map((name) => (
             <span
               key={`att-${name}`}
-              className="inline-flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium bg-[#3f3f46] text-[#a1a1aa] border border-[#52525b]"
+              className="inline-flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium bg-[#3f3f46] text-[#a1a1aa] border border-[#52525b]"
               title={`Already attending: ${name}`}
             >
               <Sparkles className="w-2.5 h-2.5 shrink-0" />
@@ -109,22 +109,22 @@ export function RallyImageOverlay({
         {/* Summary count row */}
         <div className="flex items-center gap-2 mt-1.5">
           {attendingNames.length > 0 && (
-            <span className="text-[10px] text-emerald-400">
+            <span className="text-[11px] text-emerald-400">
               {attendingNames.length} ✓ checked
             </span>
           )}
           {exactMatches.length > 0 && (
-            <span className="text-[10px] text-emerald-400">
+            <span className="text-[11px] text-emerald-400">
               {exactMatches.length} AI ✓
             </span>
           )}
           {fuzzyMatches.size > 0 && (
-            <span className="text-[10px] text-amber-400">
+            <span className="text-[11px] text-amber-400">
               {fuzzyMatches.size} AI ~
             </span>
           )}
           {unmatched.length > 0 && (
-            <span className="text-[10px] text-red-400">
+            <span className="text-[11px] text-red-400">
               {unmatched.length} AI ?
             </span>
           )}

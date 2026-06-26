@@ -257,14 +257,14 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
                 ownerGuildNames.map((gn, i) => {
                   const c = guildColor(gn);
                   return (
-                    <span key={i} className={`flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded border shrink-0 ${c.bg} ${c.text} ${c.border}`}>
+                    <span key={i} className={`flex items-center gap-1 text-[11px] font-medium px-1.5 py-0.5 rounded border shrink-0 ${c.bg} ${c.text} ${c.border}`}>
                       <Shield className="w-3 h-3" />
                       {gn}
                     </span>
                   );
                 })
               ) : displayOwner && (() => { const c = guildColor(displayOwner); return (
-                <span className={`flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded border shrink-0 ${c.bg} ${c.text} ${c.border}`}>
+                <span className={`flex items-center gap-1 text-[11px] font-medium px-1.5 py-0.5 rounded border shrink-0 ${c.bg} ${c.text} ${c.border}`}>
                   <Shield className="w-3 h-3" />
                   {displayOwner}
                 </span>
@@ -287,11 +287,11 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
                     </div>
                     {/* Recurrence / schedule info */}
                     {activity.schedule_type === "fixed_hours" && activity.duration_minutes ? (
-                      <div className="text-[10px] text-[#52525b] font-mono">
+                      <div className="text-[11px] text-[#52525b] font-mono">
                         Every {activity.duration_minutes >= 60 ? `${Math.floor(activity.duration_minutes / 60)}h${activity.duration_minutes % 60 > 0 ? ` ${activity.duration_minutes % 60}m` : ""}` : `${activity.duration_minutes}m`}
                       </div>
                     ) : Array.isArray(activity.schedule) && activity.schedule.length > 0 ? (
-                      <div className="text-[10px] text-[#52525b] font-mono">
+                      <div className="text-[11px] text-[#52525b] font-mono">
                         {activity.schedule
                           .map((s: any) => {
                             const local = utcSlotToLocal(s.day, s.time, tz);
@@ -338,7 +338,7 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
                     </div>
                     {/* Respawn / schedule info */}
                     {boss.spawn_type === "fixed_schedule" && boss.schedule && Array.isArray(boss.schedule) && boss.schedule.length > 0 ? (
-                      <div className="text-[10px] text-[#52525b] font-mono">
+                      <div className="text-[11px] text-[#52525b] font-mono">
                         {boss.schedule
                           .map((s: any) => {
                             const local = utcSlotToLocal(s.day, s.time, tz);
@@ -347,7 +347,7 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
                           .join("  ·  ")}
                       </div>
                     ) : boss.respawn_hours ? (
-                      <div className="text-[10px] text-[#52525b] font-mono">+{boss.respawn_hours}h respawn</div>
+                      <div className="text-[11px] text-[#52525b] font-mono">+{boss.respawn_hours}h respawn</div>
                     ) : null}
                   </div>
                 ) : (
@@ -453,11 +453,11 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
         {/* No guild assigned — bosses only */}
         {!compact && !multiMode && !isViewer && !isActivity && !hasGuilds && canRotateGuilds && (
           <div className="mt-2 pt-2 border-t border-white/[0.05] relative z-[1]">
-            <span className="text-[10px] text-[#71717a] font-mono uppercase tracking-wider">Guild</span>
+            <span className="text-[11px] text-[#71717a] font-mono uppercase tracking-wider">Guild</span>
             <div className="flex items-center gap-1 mt-1.5">
               <button
                 onClick={() => navigate(`/server-settings?tab=boss-guilds`)}
-                className="flex-1 text-center px-2 py-1 rounded text-[10px] font-semibold border border-dashed border-[#3f3f46] text-[#a1a1aa] hover:text-[#fafafa] hover:border-[#52525b] hover:bg-[#27272a] transition"
+                className="flex-1 text-center px-2 py-1 rounded text-[11px] font-semibold border border-dashed border-[#3f3f46] text-[#a1a1aa] hover:text-[#fafafa] hover:border-[#52525b] hover:bg-[#27272a] transition"
               >
                 <span className="flex items-center justify-center gap-1">
                   <Shield className="w-3 h-3" />
@@ -470,9 +470,9 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
         {/* Placeholder — bosses with no guilds, no permission (keeps card height consistent) */}
         {!compact && !multiMode && !isViewer && !isActivity && !hasGuilds && !canRotateGuilds && (
           <div className="mt-2 pt-2 border-t border-white/[0.05] relative z-[1]">
-            <span className="text-[10px] text-[#3f3f46] font-mono uppercase tracking-wider">Guild</span>
+            <span className="text-[11px] text-[#3f3f46] font-mono uppercase tracking-wider">Guild</span>
             <div className="flex items-center gap-1 mt-1.5">
-              <span className="flex-1 text-center px-2 py-1 rounded text-[10px] font-semibold text-[#3f3f46]">—</span>
+              <span className="flex-1 text-center px-2 py-1 rounded text-[11px] font-semibold text-[#3f3f46]">—</span>
             </div>
           </div>
         )}
@@ -480,11 +480,11 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
         {/* No guild assigned — activities */}
         {!compact && !multiMode && !isViewer && isActivity && !hasGuilds && canRotateGuilds && (
           <div className="mt-2 pt-2 border-t border-white/[0.05] relative z-[1]">
-            <span className="text-[10px] text-[#71717a] font-mono uppercase tracking-wider">Guild</span>
+            <span className="text-[11px] text-[#71717a] font-mono uppercase tracking-wider">Guild</span>
             <div className="flex items-center gap-1 mt-1.5">
               <button
                 onClick={() => navigate(`/server-settings?tab=activity-guilds`)}
-                className="flex-1 text-center px-2 py-1 rounded text-[10px] font-semibold border border-dashed border-[#3f3f46] text-[#a1a1aa] hover:text-[#fafafa] hover:border-[#52525b] hover:bg-[#27272a] transition"
+                className="flex-1 text-center px-2 py-1 rounded text-[11px] font-semibold border border-dashed border-[#3f3f46] text-[#a1a1aa] hover:text-[#fafafa] hover:border-[#52525b] hover:bg-[#27272a] transition"
               >
                 <span className="flex items-center justify-center gap-1">
                   <Shield className="w-3 h-3" />
@@ -497,9 +497,9 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
         {/* Placeholder — activities with no guilds, no permission */}
         {!compact && !multiMode && !isViewer && isActivity && !hasGuilds && !canRotateGuilds && (
           <div className="mt-2 pt-2 border-t border-white/[0.05] relative z-[1]">
-            <span className="text-[10px] text-[#3f3f46] font-mono uppercase tracking-wider">Guild</span>
+            <span className="text-[11px] text-[#3f3f46] font-mono uppercase tracking-wider">Guild</span>
             <div className="flex items-center gap-1 mt-1.5">
-              <span className="flex-1 text-center px-2 py-1 rounded text-[10px] font-semibold text-[#3f3f46]">—</span>
+              <span className="flex-1 text-center px-2 py-1 rounded text-[11px] font-semibold text-[#3f3f46]">—</span>
             </div>
           </div>
         )}
@@ -507,7 +507,7 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
         {/* Rotation guild row — activities */}
         {!compact && !multiMode && !isViewer && isActivity && rotationGuilds && rotationGuilds.length > 0 && (
           <div className="mt-2 pt-2 border-t border-white/[0.05] relative z-[1]">
-            <span className="text-[10px] text-[#71717a] font-mono uppercase tracking-wider">
+            <span className="text-[11px] text-[#71717a] font-mono uppercase tracking-wider">
               Rotation {rotationMode ? `· ${rotationMode}` : ""}
             </span>
             <div className="flex items-center gap-1 mt-1.5 flex-wrap">
@@ -516,7 +516,7 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
                 return (
                   <div
                     key={i}
-                    className={`flex-1 text-center px-2 py-1 rounded text-[10px] font-semibold border ${isCurrent ? `${g.color.bg} ${g.color.text} ${g.color.border} shadow-sm` : "bg-[#18181b] border-[#27272a] text-[#52525b]"}`}
+                    className={`flex-1 text-center px-2 py-1 rounded text-[11px] font-semibold border ${isCurrent ? `${g.color.bg} ${g.color.text} ${g.color.border} shadow-sm` : "bg-[#18181b] border-[#27272a] text-[#52525b]"}`}
                   >
                     {g.name}
                   </div>
@@ -529,7 +529,7 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
         {/* Rotation guild row — bosses only */}
         {!compact && !multiMode && !isViewer && !isActivity && rotationGuilds && rotationGuilds.length > 0 && canRotateGuilds && (
           <div className="mt-2 pt-2 border-t border-white/[0.05] relative z-[1]">
-            <span className="text-[10px] text-[#71717a] font-mono uppercase tracking-wider">
+            <span className="text-[11px] text-[#71717a] font-mono uppercase tracking-wider">
               Rotation {rotationMode ? `· ${rotationMode}` : ""}
             </span>
             <div className="flex items-center gap-1 mt-1.5 flex-wrap">
@@ -539,7 +539,7 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
                   <button
                     key={i}
                     onClick={(e) => { e.stopPropagation(); setOptimisticOwner(g.name); onSetRotation?.(i); }}
-                    className={`flex-1 text-center px-2 py-1 rounded text-[10px] font-semibold border transition-all duration-200 hover:scale-105 active:scale-95 ${
+                    className={`flex-1 text-center px-2 py-1 rounded text-[11px] font-semibold border transition-all duration-200 hover:scale-105 active:scale-95 ${
                       isCurrent
                         ? `${g.color.bg} ${g.color.text} ${g.color.border} shadow-sm`
                         : "bg-[#18181b] border-[#27272a] text-[#52525b] hover:text-[#a1a1aa] hover:border-[#3f3f46]"
@@ -711,13 +711,13 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
                   <div className="w-56 shrink-0 rounded-lg border border-dashed border-[#3f3f46] bg-[#09090b]/50 p-2 space-y-1 self-start"
                     onDragOver={(e) => e.preventDefault()}
                     onDrop={(e) => { e.preventDefault(); const mid = e.dataTransfer.getData("text/plain"); if (mid) handleDropUnassigned(mid); }}>
-                    <p className="text-[10px] text-[#52525b] uppercase tracking-wider px-2 py-1">Unassigned ({filteredMembers.length})</p>
+                    <p className="text-[11px] text-[#52525b] uppercase tracking-wider px-2 py-1">Unassigned ({filteredMembers.length})</p>
                     <div className="px-1">
                       <input type="text" value={newPartyUnassignedSearch} onChange={(e) => setNewPartyUnassignedSearch(e.target.value)}
-                        placeholder="Search..." className="w-full px-2 py-1 bg-[#09090b] border border-[#27272a] rounded text-[10px] text-[#fafafa] placeholder-[#52525b] focus:outline-none focus:border-[#52525b]" />
+                        placeholder="Search..." className="w-full px-2 py-1 bg-[#09090b] border border-[#27272a] rounded text-[11px] text-[#fafafa] placeholder-[#52525b] focus:outline-none focus:border-[#52525b]" />
                     </div>
                     {searchedMembers.length === 0 ? (
-                      <p className="text-[10px] text-[#3f3f46] text-center py-4">All members placed</p>
+                      <p className="text-[11px] text-[#3f3f46] text-center py-4">All members placed</p>
                     ) : (
                       searchedMembers.map(m => {
                         const g = guilds.find(g => g.id === m.guild_id);
@@ -727,10 +727,10 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
                             onDragStart={(e) => { e.dataTransfer.setData("text/plain", m.id); e.dataTransfer.effectAllowed = "move"; }}
                             onDoubleClick={() => handleAutoAssign(m.id)}
                             className="flex items-center gap-2 px-2 py-1.5 rounded bg-[#18181b] border border-[#27272a] text-xs text-[#d4d4d8] cursor-grab active:cursor-grabbing hover:border-[#52525b] transition">
-                            <span className="w-5 h-5 rounded bg-[#09090b] flex items-center justify-center text-[10px] text-[#71717a] font-bold shrink-0">{m.name.charAt(0)}</span>
+                            <span className="w-5 h-5 rounded bg-[#09090b] flex items-center justify-center text-[11px] text-[#71717a] font-bold shrink-0">{m.name.charAt(0)}</span>
                             <span className="truncate flex-1">{m.name}</span>
                             {g && c && (
-                              <span className={`shrink-0 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] border ${c.bg} ${c.text} ${c.border}`}>
+                              <span className={`shrink-0 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[11px] border ${c.bg} ${c.text} ${c.border}`}>
                                 <Shield className="w-2.5 h-2.5" />{g.name}
                               </span>
                             )}
@@ -747,7 +747,7 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
                       const slots: (Member | null)[] = Array.from({ length: newPartySize }, (_, s) => boxMembers[s] ?? null);
                       return (
                         <div key={i} className="w-[180px] shrink-0 rounded-lg border border-[#27272a] bg-[#18181b]/30 p-2 space-y-0.5">
-                          <p className="text-[10px] text-[#52525b] uppercase tracking-wider px-1 flex items-center justify-between">
+                          <p className="text-[11px] text-[#52525b] uppercase tracking-wider px-1 flex items-center justify-between">
                             <span>Party {i + 1} <span className="text-[#3f3f46]">({box.length}/{newPartySize})</span></span>
                             {box.length > 0 && (
                               <button onClick={() => setNewPartyBoxes(prev => { const b = [...prev]; b[i] = []; return b; })}
@@ -766,7 +766,7 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
                                   onDragOver={(e) => e.preventDefault()}
                                   onDrop={(e) => { e.preventDefault(); e.stopPropagation(); const mid = e.dataTransfer.getData("text/plain"); if (mid) handleDropInSlot(i, s, mid); }}
                                   className="flex items-center gap-1.5 px-2 py-1 rounded bg-[#09090b] border border-[#27272a] text-xs text-[#d4d4d8] group cursor-grab active:cursor-grabbing">
-                                  <span className="w-4 h-4 rounded bg-[#18181b] flex items-center justify-center text-[9px] text-[#71717a] font-bold shrink-0">{m.name.charAt(0)}</span>
+                                  <span className="w-4 h-4 rounded bg-[#18181b] flex items-center justify-center text-[11px] text-[#71717a] font-bold shrink-0">{m.name.charAt(0)}</span>
                                   <span className="truncate flex-1">{m.name}</span>
                                   {g && c && (
                                     <span className={`shrink-0 inline-flex items-center gap-0.5 px-1 py-0 rounded text-[8px] border ${c.bg} ${c.text} ${c.border}`}>
@@ -951,30 +951,30 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
                             <CheckCircle className="w-3 h-3 text-emerald-400 shrink-0" />
                             <span className="text-[11px] font-medium text-[#fafafa] truncate">{party.name}</span>
                             {memberGuildNames.length === 1 ? (
-                              <span className={`shrink-0 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] border ${guildColor(memberGuildNames[0]).bg} ${guildColor(memberGuildNames[0]).text} ${guildColor(memberGuildNames[0]).border}`}>
+                              <span className={`shrink-0 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[11px] border ${guildColor(memberGuildNames[0]).bg} ${guildColor(memberGuildNames[0]).text} ${guildColor(memberGuildNames[0]).border}`}>
                                 <Shield className="w-2.5 h-2.5" />{memberGuildNames[0]}
                               </span>
                             ) : memberGuildNames.length > 1 ? (
-                              <span className="shrink-0 text-[9px] text-[#71717a]">({memberGuildNames.join(", ")})</span>
+                              <span className="shrink-0 text-[11px] text-[#71717a]">({memberGuildNames.join(", ")})</span>
                             ) : g && c ? (
-                              <span className={`shrink-0 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] border ${c.bg} ${c.text} ${c.border}`}>
+                              <span className={`shrink-0 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[11px] border ${c.bg} ${c.text} ${c.border}`}>
                                 <Shield className="w-2.5 h-2.5" />{g.name}
                               </span>
                             ) : null}
                           </div>
-                          <span className="text-[10px] text-[#52525b] shrink-0 ml-1">{partyMembers.length}</span>
+                          <span className="text-[11px] text-[#52525b] shrink-0 ml-1">{partyMembers.length}</span>
                         </div>
                         {partyMembers.length > 0 ? (
                           <div className="flex flex-wrap gap-1 mb-1.5">
                             {partyMembers.map(m => (
-                              <span key={m.id} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-[#18181b] border border-[#27272a] text-[10px] text-[#d4d4d8]">
-                                <span className="w-3.5 h-3.5 rounded bg-[#09090b] flex items-center justify-center text-[9px] text-[#71717a] font-bold">{m.name.charAt(0)}</span>
+                              <span key={m.id} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-[#18181b] border border-[#27272a] text-[11px] text-[#d4d4d8]">
+                                <span className="w-3.5 h-3.5 rounded bg-[#09090b] flex items-center justify-center text-[11px] text-[#71717a] font-bold">{m.name.charAt(0)}</span>
                                 {m.name}
                               </span>
                             ))}
                           </div>
                         ) : (
-                          <p className="text-[10px] text-[#3f3f46] mb-1.5">Empty party</p>
+                          <p className="text-[11px] text-[#3f3f46] mb-1.5">Empty party</p>
                         )}
                         <button
                           onClick={async () => {
@@ -982,7 +982,7 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
                             await unlinkParty(party.id, serverId ?? undefined, party.name, party.guild_name ?? undefined, boss.name).catch(() => {});
                             setParties(prev => prev.map(p => p.id === party.id ? { ...p, boss_id: null } : p));
                           }}
-                          className="w-full text-center px-2 py-1 text-[10px] text-[#71717a] hover:text-[#f87171] rounded hover:bg-[#27272a] transition">
+                          className="w-full text-center px-2 py-1 text-[11px] text-[#71717a] hover:text-[#f87171] rounded hover:bg-[#27272a] transition">
                           Unlink from {boss.name}
                         </button>
                       </div>
@@ -991,7 +991,7 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
 
                   return (
                     <div className="space-y-2">
-                      <p className="text-[10px] text-[#71717a] uppercase tracking-wider">
+                      <p className="text-[11px] text-[#71717a] uppercase tracking-wider">
                         Custom parties for {boss.name} ({linked.length})
                       </p>
                       {linked.map(renderParty)}
@@ -1055,23 +1055,23 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
                           {isLinked && <CheckCircle className="w-3 h-3 text-emerald-400 shrink-0" />}
                           <span className="text-[11px] font-medium text-[#fafafa] truncate">{party.name}</span>
                           {memberGuildNames.length === 1 ? (
-                            <span className={`shrink-0 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] border ${guildColor(memberGuildNames[0]).bg} ${guildColor(memberGuildNames[0]).text} ${guildColor(memberGuildNames[0]).border}`}>
+                            <span className={`shrink-0 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[11px] border ${guildColor(memberGuildNames[0]).bg} ${guildColor(memberGuildNames[0]).text} ${guildColor(memberGuildNames[0]).border}`}>
                               <Shield className="w-2.5 h-2.5" />{memberGuildNames[0]}
                             </span>
                           ) : memberGuildNames.length > 1 ? (
-                            <span className="shrink-0 text-[9px] text-[#71717a]">({memberGuildNames.join(", ")})</span>
+                            <span className="shrink-0 text-[11px] text-[#71717a]">({memberGuildNames.join(", ")})</span>
                           ) : g && c ? (
-                            <span className={`shrink-0 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] border ${c.bg} ${c.text} ${c.border}`}>
+                            <span className={`shrink-0 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[11px] border ${c.bg} ${c.text} ${c.border}`}>
                               <Shield className="w-2.5 h-2.5" />{g.name}
                             </span>
                           ) : null}
                         </div>
-                        <span className="text-[10px] text-[#52525b] shrink-0 ml-1">{partyMembers.length}</span>
+                        <span className="text-[11px] text-[#52525b] shrink-0 ml-1">{partyMembers.length}</span>
                       </div>
                       <div className="flex flex-wrap gap-1 mb-1.5">
                         {partyMembers.map(m => (
-                          <span key={m.id} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-[#18181b] border border-[#27272a] text-[10px] text-[#d4d4d8]">
-                            <span className="w-3.5 h-3.5 rounded bg-[#09090b] flex items-center justify-center text-[9px] text-[#71717a] font-bold">{m.name.charAt(0)}</span>
+                          <span key={m.id} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-[#18181b] border border-[#27272a] text-[11px] text-[#d4d4d8]">
+                            <span className="w-3.5 h-3.5 rounded bg-[#09090b] flex items-center justify-center text-[11px] text-[#71717a] font-bold">{m.name.charAt(0)}</span>
                             {m.name}
                           </span>
                         ))}
@@ -1083,7 +1083,7 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
                             await unlinkParty(party.id, serverId ?? undefined, party.name, party.guild_name ?? undefined, isActivity ? activity?.name : boss.name).catch(() => {});
                             setParties(prev => prev.map(p => p.id === party.id ? { ...p, boss_id: null, activity_id: null } : p));
                           }}
-                          className="w-full text-center px-2 py-1 text-[10px] text-[#71717a] hover:text-[#f87171] rounded hover:bg-[#27272a] transition">Unlink</button>
+                          className="w-full text-center px-2 py-1 text-[11px] text-[#71717a] hover:text-[#f87171] rounded hover:bg-[#27272a] transition">Unlink</button>
                       ) : (
                         <button
                           onClick={async () => {
@@ -1096,7 +1096,7 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
                               setParties(prev => prev.map(p => p.id === party.id ? { ...p, boss_id: boss.id, boss_name: boss.name } : p));
                             }
                           }}
-                          className="w-full text-center px-2 py-1.5 rounded text-[10px] font-medium bg-[#fafafa] text-[#09090b] hover:bg-[#e4e4e7] transition">Assign to {isActivity ? activity?.name : boss.name}</button>
+                          className="w-full text-center px-2 py-1.5 rounded text-[11px] font-medium bg-[#fafafa] text-[#09090b] hover:bg-[#e4e4e7] transition">Assign to {isActivity ? activity?.name : boss.name}</button>
                       )}
                     </div>
                   );
@@ -1118,14 +1118,14 @@ export function BossCard({ spawn, onRecordDeath, onSetSpawnDate, onUrgentSpawn, 
                           <div key={guildName} className="space-y-2">
                             <div className="flex items-center gap-1.5 pb-1.5 border-b border-[#27272a]">
                               {guildName !== "Other" && col && (
-                                <span className={`shrink-0 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] border ${col.bg} ${col.text} ${col.border}`}>
+                                <span className={`shrink-0 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[11px] border ${col.bg} ${col.text} ${col.border}`}>
                                   <Shield className="w-2.5 h-2.5" />{guildName}
                                 </span>
                               )}
                               {guildName === "Other" && (
-                                <span className="text-[10px] text-[#52525b] uppercase tracking-wider">Other</span>
+                                <span className="text-[11px] text-[#52525b] uppercase tracking-wider">Other</span>
                               )}
-                              <span className="text-[10px] text-[#3f3f46]">{guildParties.length} {guildParties.length === 1 ? "party" : "parties"}</span>
+                              <span className="text-[11px] text-[#3f3f46]">{guildParties.length} {guildParties.length === 1 ? "party" : "parties"}</span>
                             </div>
                             {guildParties.map(renderStaticParty)}
                           </div>

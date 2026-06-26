@@ -112,7 +112,7 @@ export function GearPlanner({ memberId }: Props) {
       <div className="flex items-center gap-2 mb-4">
         <Package className="w-4 h-4 text-amber-400" />
         <h2 className="text-xs font-semibold text-[#a1a1aa] uppercase tracking-wider">Gear Planner</h2>
-        <span className="text-[10px] text-[#52525b] ml-auto">{equippedSlots.length}/{totalSlots} equipped</span>
+        <span className="text-[11px] text-[#52525b] ml-auto">{equippedSlots.length}/{totalSlots} equipped</span>
       </div>
 
       <div className="flex flex-col lg:flex-row gap-5">
@@ -165,7 +165,7 @@ export function GearPlanner({ memberId }: Props) {
         {/* Right: Stats panel */}
         <div className="lg:w-56 shrink-0">
           <div className="bg-[#09090b] border border-[#27272a] rounded-xl p-4 space-y-3">
-            <h3 className="text-[10px] text-[#71717a] uppercase tracking-wider font-medium">Gear Stats</h3>
+            <h3 className="text-[11px] text-[#71717a] uppercase tracking-wider font-medium">Gear Stats</h3>
 
             <div className="space-y-2">
               <StatRow label="Equipped" value={`${equippedSlots.length}/${totalSlots}`} />
@@ -175,7 +175,7 @@ export function GearPlanner({ memberId }: Props) {
 
             {/* Rarity breakdown */}
             <div className="pt-2 border-t border-[#27272a]">
-              <p className="text-[9px] text-[#52525b] uppercase tracking-wider mb-1.5">Rarity Breakdown</p>
+              <p className="text-[11px] text-[#52525b] uppercase tracking-wider mb-1.5">Rarity Breakdown</p>
               <div className="space-y-1">
                 {["legendary", "epic", "rare", "uncommon", "common"].map(rarity => {
                   const count = equippedSlots.filter(s => {
@@ -187,8 +187,8 @@ export function GearPlanner({ memberId }: Props) {
                   return (
                     <div key={rarity} className="flex items-center gap-1.5">
                       <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: RARITY_COLORS[rarity] }} />
-                      <span className="text-[10px] text-[#a1a1aa] capitalize flex-1">{rarity}</span>
-                      <span className="text-[10px] text-[#71717a] font-mono">{count}</span>
+                      <span className="text-[11px] text-[#a1a1aa] capitalize flex-1">{rarity}</span>
+                      <span className="text-[11px] text-[#71717a] font-mono">{count}</span>
                     </div>
                   );
                 })}

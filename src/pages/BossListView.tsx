@@ -677,7 +677,7 @@ export function BossListView() {
           </span>
         </div>
         <span className="w-px h-5 sm:h-6 bg-[#27272a]" />
-        <div className="flex gap-2 sm:gap-4 text-[10px] sm:text-xs">
+        <div className="flex gap-2 sm:gap-4 text-[11px] sm:text-xs">
           <span className="flex items-center gap-1 sm:gap-1.5 text-[#a1a1aa]">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 " />
             {spawns.filter((s) => s.status === "alive" && !(s as any).activity).length} Alive
@@ -744,7 +744,7 @@ export function BossListView() {
               </div>
             )}
             <div className="flex items-center gap-3 ml-auto">
-            <span className="text-[10px] text-[#52525b] uppercase tracking-wider font-mono hidden lg:inline">Viewer Permissions</span>
+            <span className="text-[11px] text-[#52525b] uppercase tracking-wider font-mono hidden lg:inline">Viewer Permissions</span>
             <label className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#18181b] border border-[#27272a] cursor-pointer hover:border-[#3f3f46] transition">
               <span className="text-[11px] text-[#a1a1aa]">Allow editing spawn time</span>
               <div className="relative">

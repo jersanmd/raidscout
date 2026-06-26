@@ -1124,9 +1124,9 @@ export function ServerSettingsView() {
                   }`}>
                   <Server className={`shrink-0 ${isActive ? "w-3.5 h-3.5" : "w-3 h-3"}`} />
                   <span className="text-xs truncate font-medium">{s.name}</span>
-                  <span className={`text-[9px] shrink-0 ${s.role === "owner" ? "text-amber-500/60" : "text-blue-400/60"}`}>{s.role === "owner" ? "Owner" : "Mod"}</span>
-                  {daysLeft > 0 && <span className="ml-auto shrink-0 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-semibold bg-amber-500/10 text-amber-300 border border-amber-500/20"><Crown className="w-2.5 h-2.5"/>Pro · {daysLeft}d</span>}
-                  {isExpired && <span className="ml-auto shrink-0 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-semibold bg-red-500/10 text-red-300 border border-red-500/20">Expired</span>}
+                  <span className={`text-[11px] shrink-0 ${s.role === "owner" ? "text-amber-500/60" : "text-blue-400/60"}`}>{s.role === "owner" ? "Owner" : "Mod"}</span>
+                  {daysLeft > 0 && <span className="ml-auto shrink-0 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-500/10 text-amber-300 border border-amber-500/20"><Crown className="w-2.5 h-2.5"/>Pro · {daysLeft}d</span>}
+                  {isExpired && <span className="ml-auto shrink-0 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[11px] font-semibold bg-red-500/10 text-red-300 border border-red-500/20">Expired</span>}
                   {isActive && !daysLeft && !isExpired && <Check className="w-3 h-3 text-[#a1a1aa] ml-auto" />}
                 </button>
                 );
@@ -1174,7 +1174,7 @@ export function ServerSettingsView() {
                   <AlertTriangle className="w-3.5 h-3.5" />
                   Change timezone to <strong>{pendingTimezone}</strong>?
                 </p>
-                <p className="text-[10px] text-amber-400/70">The Discord bot relies on this timezone. Boss spawn times and schedule days will shift.</p>
+                <p className="text-[11px] text-amber-400/70">The Discord bot relies on this timezone. Boss spawn times and schedule days will shift.</p>
                 <div className="flex gap-2">
                   <button
                     onClick={async () => {
@@ -1843,7 +1843,7 @@ export function ServerSettingsView() {
               <div className="bg-[#18181b]/50 border border-[#27272a] rounded-lg p-3 space-y-3">
                 <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
                   <div>
-                    <label className="text-[10px] text-[#71717a] block mb-1">Guild</label>
+                    <label className="text-[11px] text-[#71717a] block mb-1">Guild</label>
                     <select
                       value={newRuleGuildId}
                       onChange={e => setNewRuleGuildId(e.target.value)}
@@ -1856,7 +1856,7 @@ export function ServerSettingsView() {
                     </select>
                   </div>
                   <div>
-                    <label className="text-[10px] text-[#71717a] block mb-1">Start Hour</label>
+                    <label className="text-[11px] text-[#71717a] block mb-1">Start Hour</label>
                     <select
                       value={newRuleStartHour}
                       onChange={e => setNewRuleStartHour(Number(e.target.value))}
@@ -1868,7 +1868,7 @@ export function ServerSettingsView() {
                     </select>
                   </div>
                   <div>
-                    <label className="text-[10px] text-[#71717a] block mb-1">End Hour</label>
+                    <label className="text-[11px] text-[#71717a] block mb-1">End Hour</label>
                     <select
                       value={newRuleEndHour}
                       onChange={e => setNewRuleEndHour(Number(e.target.value))}
@@ -1880,7 +1880,7 @@ export function ServerSettingsView() {
                     </select>
                   </div>
                   <div>
-                    <label className="text-[10px] text-[#71717a] block mb-1">Multiplier</label>
+                    <label className="text-[11px] text-[#71717a] block mb-1">Multiplier</label>
                     <select
                       value={newRuleMultiplier}
                       onChange={e => setNewRuleMultiplier(Number(e.target.value))}
@@ -1936,7 +1936,7 @@ export function ServerSettingsView() {
                           />
                         </label>
                         <span className="text-xs font-medium text-[#fafafa] truncate">{guild?.name || "Unknown"}</span>
-                        <span className="text-[10px] text-[#71717a] shrink-0">
+                        <span className="text-[11px] text-[#71717a] shrink-0">
                           {startLabel} – {endLabel}
                         </span>
                       </div>
@@ -2053,26 +2053,26 @@ export function ServerSettingsView() {
               <div className="bg-[#18181b]/50 border border-[#27272a] rounded-lg p-3 space-y-3">
                 <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
                   <div>
-                    <label className="text-[10px] text-[#71717a] block mb-1">Guild</label>
+                    <label className="text-[11px] text-[#71717a] block mb-1">Guild</label>
                     <select value={newRuleGuildId} onChange={e => setNewRuleGuildId(e.target.value)} className="w-full bg-[#18181b] border border-[#27272a] rounded-lg px-2.5 py-1.5 text-xs text-[#fafafa]">
                       <option value="">Select guild...</option>
                       {guilds.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
                     </select>
                   </div>
                   <div>
-                    <label className="text-[10px] text-[#71717a] block mb-1">Start Hour</label>
+                    <label className="text-[11px] text-[#71717a] block mb-1">Start Hour</label>
                     <select value={newRuleStartHour} onChange={e => setNewRuleStartHour(Number(e.target.value))} className="w-full bg-[#18181b] border border-[#27272a] rounded-lg px-2.5 py-1.5 text-xs text-[#fafafa]">
                       {Array.from({ length: 24 }, (_, i) => <option key={i} value={i}>{i.toString().padStart(2, "0")}:00</option>)}
                     </select>
                   </div>
                   <div>
-                    <label className="text-[10px] text-[#71717a] block mb-1">End Hour</label>
+                    <label className="text-[11px] text-[#71717a] block mb-1">End Hour</label>
                     <select value={newRuleEndHour} onChange={e => setNewRuleEndHour(Number(e.target.value))} className="w-full bg-[#18181b] border border-[#27272a] rounded-lg px-2.5 py-1.5 text-xs text-[#fafafa]">
                       {Array.from({ length: 24 }, (_, i) => <option key={i} value={i}>{i.toString().padStart(2, "0")}:00</option>)}
                     </select>
                   </div>
                   <div>
-                    <label className="text-[10px] text-[#71717a] block mb-1">Multiplier</label>
+                    <label className="text-[11px] text-[#71717a] block mb-1">Multiplier</label>
                     <select value={newRuleMultiplier} onChange={e => setNewRuleMultiplier(Number(e.target.value))} className="w-full bg-[#18181b] border border-[#27272a] rounded-lg px-2.5 py-1.5 text-xs text-[#fafafa]">
                       {[1.5, 2, 2.5, 3, 4, 5].map(m => <option key={m} value={m}>{m}x</option>)}
                     </select>
@@ -2104,7 +2104,7 @@ export function ServerSettingsView() {
                           <input type="checkbox" checked={rule.enabled} onChange={() => handleToggleRule(rule.id, !rule.enabled)} className="w-3.5 h-3.5 rounded border-[#3f3f46] bg-[#18181b] text-[#a1a1aa] focus:ring-[#52525b]/50 cursor-pointer" />
                         </label>
                         <span className="text-xs font-medium text-[#fafafa] truncate">{guild?.name || "Unknown"}</span>
-                        <span className="text-[10px] text-[#71717a] shrink-0">{String(cfg.start_hour).padStart(2, "0")}:00 – {String(cfg.end_hour).padStart(2, "0")}:00</span>
+                        <span className="text-[11px] text-[#71717a] shrink-0">{String(cfg.start_hour).padStart(2, "0")}:00 – {String(cfg.end_hour).padStart(2, "0")}:00</span>
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
                         <span className="text-xs font-mono text-[#a1a1aa] font-bold">{cfg.multiplier}x</span>
@@ -2207,19 +2207,19 @@ export function ServerSettingsView() {
                 verificationStatus[m.user_id] ? (
                   <span className="text-emerald-400 flex items-center gap-1 shrink-0" title="Email verified">
                     <MailCheck className="w-3 h-3" />
-                    <span className="text-[10px] text-emerald-400/70 hidden sm:inline">Verified</span>
+                    <span className="text-[11px] text-emerald-400/70 hidden sm:inline">Verified</span>
                   </span>
                 ) : (
                   <span className="text-amber-400 flex items-center gap-1 shrink-0" title="Email not verified">
                     <MailWarning className="w-3 h-3" />
-                    <span className="text-[10px] text-amber-400/70 hidden sm:inline">Not verified</span>
+                    <span className="text-[11px] text-amber-400/70 hidden sm:inline">Not verified</span>
                   </span>
                 )
               )}
             </span>
             <div className="flex items-center gap-2">
               {isOwner && m.role === "moderator" && (
-                <span className={`text-[10px] px-2 py-0.5 rounded transition flex items-center gap-1 whitespace-nowrap ${isExpanded ? "bg-[#27272a] text-[#d4d4d8]" : "bg-[#18181b] text-[#52525b] group-hover:text-[#a1a1aa] group-hover:bg-[#27272a]"}`}>
+                <span className={`text-[11px] px-2 py-0.5 rounded transition flex items-center gap-1 whitespace-nowrap ${isExpanded ? "bg-[#27272a] text-[#d4d4d8]" : "bg-[#18181b] text-[#52525b] group-hover:text-[#a1a1aa] group-hover:bg-[#27272a]"}`}>
                   {isExpanded ? <ChevronUp className="w-3 h-3 shrink-0" /> : <Settings className="w-3 h-3 shrink-0" />}
                   <span className="hidden sm:inline">{isExpanded ? "Hide" : "Permissions"}</span>
                 </span>
@@ -2240,12 +2240,12 @@ export function ServerSettingsView() {
               <div className="border-t border-[#27272a]/50 px-3 py-3 bg-[#18181b]/30 space-y-3">
                 <div className="space-y-1">
                   <span className="text-xs font-medium text-[#fafafa]">Permissions for {m.email ?? "moderator"}</span>
-                  <p className="text-[10px] text-[#52525b] leading-relaxed">Toggle what this moderator can access. Changes apply immediately after saving.</p>
+                  <p className="text-[11px] text-[#52525b] leading-relaxed">Toggle what this moderator can access. Changes apply immediately after saving.</p>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {PERMISSION_SECTIONS.map(section => (
                     <div key={section.section} className="space-y-1.5">
-                      <span className="text-[10px] font-semibold text-[#71717a] uppercase tracking-wider">{section.section}</span>
+                      <span className="text-[11px] font-semibold text-[#71717a] uppercase tracking-wider">{section.section}</span>
                       {section.items.map(({ key, label }) => (
                         <label key={key} className="flex items-center gap-2 cursor-pointer group">
                           <input
@@ -2286,7 +2286,7 @@ export function ServerSettingsView() {
             <h3 className="text-sm font-semibold text-[#a1a1aa] uppercase tracking-wider flex items-center gap-1.5">
               <Crown className="w-3 h-3" /> Server Owner
             </h3>
-            <p className="text-[10px] text-[#52525b] leading-relaxed">The server owner has full access to all settings, data, and management features. Only the owner can transfer ownership or delete the server.</p>
+            <p className="text-[11px] text-[#52525b] leading-relaxed">The server owner has full access to all settings, data, and management features. Only the owner can transfer ownership or delete the server.</p>
             <div className="space-y-1">
               {owners.length === 0 ? <p className="text-xs text-[#71717a] italic">No owner assigned.</p> : owners.map(renderMemberRow)}
             </div>
@@ -2295,7 +2295,7 @@ export function ServerSettingsView() {
               return (
               <div className="pt-3 border-t border-[#27272a] space-y-3">
                 <h4 className="text-xs font-semibold text-[#a1a1aa] flex items-center gap-1.5"><Crown className="w-3 h-3" /> Transfer Ownership</h4>
-                <p className="text-[10px] text-[#52525b] leading-relaxed">Transfer ownership to a verified moderator. You'll become a moderator.</p>
+                <p className="text-[11px] text-[#52525b] leading-relaxed">Transfer ownership to a verified moderator. You'll become a moderator.</p>
                 {transferMods.filter((m: any) => verificationStatus[m.user_id]).length === 0 ? (
                   <p className="text-xs text-[#71717a] italic">No verified moderators to transfer to.</p>
                 ) : (
@@ -2329,7 +2329,7 @@ export function ServerSettingsView() {
             <h3 className="text-sm font-semibold text-[#a1a1aa] uppercase tracking-wider flex items-center gap-1.5">
               <Shield className="w-3 h-3" /> Moderators ({moderators.length})
             </h3>
-            <p className="text-[10px] text-[#52525b] leading-relaxed">Moderators can be granted fine-grained permissions. Click a moderator to manage what they can access. The owner can add or remove moderators at any time.</p>
+            <p className="text-[11px] text-[#52525b] leading-relaxed">Moderators can be granted fine-grained permissions. Click a moderator to manage what they can access. The owner can add or remove moderators at any time.</p>
             <div className="space-y-1">
               {moderators.length === 0 ? <p className="text-xs text-[#71717a] italic">No moderators yet.</p> : moderators.map(renderMemberRow)}
             </div>
@@ -2363,7 +2363,7 @@ export function ServerSettingsView() {
             <h3 className="text-sm font-semibold text-[#a1a1aa] uppercase tracking-wider flex items-center gap-1.5">
               <Users className="w-3 h-3" /> Members ({regulars.length})
             </h3>
-            <p className="text-[10px] text-[#52525b] leading-relaxed">Regular members can view server data and participate in activities. They cannot access server settings or management features.</p>
+            <p className="text-[11px] text-[#52525b] leading-relaxed">Regular members can view server data and participate in activities. They cannot access server settings or management features.</p>
             <div className="space-y-1">
               {regulars.length === 0 ? <p className="text-xs text-[#71717a] italic">No members yet.</p> : regulars.map(renderMemberRow)}
             </div>
@@ -3005,11 +3005,11 @@ function ConfirmEmailSection() {
       <h3 className="text-sm font-semibold text-[#fafafa] flex items-center gap-2">
         Email Confirmation
         {isActuallyConfirmed ? (
-          <span className="inline-flex items-center gap-1 text-[10px] font-medium text-emerald-400 bg-emerald-400/10 px-1.5 py-0.5 rounded">
+          <span className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-400 bg-emerald-400/10 px-1.5 py-0.5 rounded">
             <MailCheck className="w-3 h-3" /> Confirmed
           </span>
         ) : (
-          <span className="inline-flex items-center gap-1 text-[10px] font-medium text-amber-400 bg-amber-400/10 px-1.5 py-0.5 rounded">
+          <span className="inline-flex items-center gap-1 text-[11px] font-medium text-amber-400 bg-amber-400/10 px-1.5 py-0.5 rounded">
             <MailWarning className="w-3 h-3" /> Not Confirmed
           </span>
         )}
@@ -3261,7 +3261,7 @@ function BossPointsMatrix({
     <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-3 sm:p-4 max-w-full">
       {/* Search + Legend */}
       <div className="flex items-center gap-2 sm:gap-3 mb-3 flex-wrap">
-        <div className="flex items-center gap-2 sm:gap-3 text-[9px] sm:text-[10px] text-[#71717a] flex-wrap">
+        <div className="flex items-center gap-2 sm:gap-3 text-[11px] sm:text-[11px] text-[#71717a] flex-wrap">
           <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400" /> Fixed Hours</span>
           <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-violet-400" /> Schedule</span>
           <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-amber-400" /> One-time</span>
@@ -3274,12 +3274,12 @@ function BossPointsMatrix({
             placeholder="Search bosses..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-32 sm:w-40 bg-[#18181b] border border-[#27272a] rounded pl-7 pr-2 py-1 text-[10px] sm:text-xs text-[#fafafa] placeholder-[#52525b] outline-none focus:border-[#52525b] transition"
+            className="w-32 sm:w-40 bg-[#18181b] border border-[#27272a] rounded pl-7 pr-2 py-1 text-[11px] sm:text-xs text-[#fafafa] placeholder-[#52525b] outline-none focus:border-[#52525b] transition"
           />
         </div>
       </div>
       <div className="overflow-x-auto -mx-3 sm:mx-0">
-      <table className="w-full text-[10px] sm:text-xs">
+      <table className="w-full text-[11px] sm:text-xs">
         <thead>
           <tr>
             <th className="sticky left-0 bg-[#18181b] px-2 sm:px-3 py-1.5 sm:py-2 text-left text-[#a1a1aa] font-medium border-b border-r border-[#27272a]/50 z-10 min-w-[120px] sm:min-w-[160px]">
@@ -3287,7 +3287,7 @@ function BossPointsMatrix({
             </th>
             {guilds.map(g => (
               <th key={g.id} colSpan={3} className="px-1.5 sm:px-3 py-1.5 sm:py-2 text-center text-[#a1a1aa] font-medium border-b border-[#27272a]/50 border-l border-[#27272a]/30">
-                <span className="text-[10px] sm:text-xs">{g.name}</span>
+                <span className="text-[11px] sm:text-xs">{g.name}</span>
               </th>
             ))}
           </tr>
@@ -3295,7 +3295,7 @@ function BossPointsMatrix({
             <th className="sticky left-0 bg-[#18181b] px-3 py-1 border-r border-[#27272a]/50 z-10" />
             {guilds.map(g => (
               <Fragment key={g.id}>
-                <th className="px-2 py-1 text-center text-[10px] text-[#71717a] font-normal border-l border-[#27272a]/30">Pts</th>
+                <th className="px-2 py-1 text-center text-[11px] text-[#71717a] font-normal border-l border-[#27272a]/30">Pts</th>
                 <th className="px-2 py-1 text-center border-l-0">
                   <label className="flex items-center justify-center gap-1 cursor-pointer" title="Check/uncheck all salaries for this guild">
                     <input
@@ -3304,10 +3304,10 @@ function BossPointsMatrix({
                       onChange={() => handleCheckAllSalary(g.id)}
                       className="w-3 h-3 rounded border-[#3f3f46] bg-[#18181b] text-[#a1a1aa] focus:ring-[#52525b]/50 cursor-pointer"
                     />
-                    <span className="text-[10px] text-[#71717a] font-normal">Salary</span>
+                    <span className="text-[11px] text-[#71717a] font-normal">Salary</span>
                   </label>
                 </th>
-                <th className="px-2 py-1 text-center text-[10px] text-[#71717a] font-normal border-l border-[#27272a]/30">Ast</th>
+                <th className="px-2 py-1 text-center text-[11px] text-[#71717a] font-normal border-l border-[#27272a]/30">Ast</th>
               </Fragment>
             ))}
           </tr>
@@ -3378,7 +3378,7 @@ function BossPointsMatrix({
                             {ownerIds.map(oid => {
                               const ownerGuild = guilds.find(g => g.id === oid);
                               return (
-                                <span key={oid} className="inline-flex items-center gap-0.5 bg-purple-900/30 border border-[#27272a]/50 rounded px-1 py-0.5 text-[9px] text-[#d4d4d8] leading-none">
+                                <span key={oid} className="inline-flex items-center gap-0.5 bg-purple-900/30 border border-[#27272a]/50 rounded px-1 py-0.5 text-[11px] text-[#d4d4d8] leading-none">
                                   {ownerGuild?.name?.slice(0, 6) || "?"}
                                   <button
                                     onClick={(e) => { e.stopPropagation(); onAssistToggle(boss.id, oid, guild.id); }}
@@ -3395,7 +3395,7 @@ function BossPointsMatrix({
                                 <select
                                   value=""
                                   onChange={(e) => { if (e.target.value) { onAssistToggle(boss.id, e.target.value, guild.id); e.target.value = ""; }}}
-                                  className="bg-transparent text-[9px] text-[#71717a] hover:text-[#a1a1aa] cursor-pointer outline-none"
+                                  className="bg-transparent text-[11px] text-[#71717a] hover:text-[#a1a1aa] cursor-pointer outline-none"
                                 >
                                   <option value="">+</option>
                                   {availGuilds.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
@@ -3414,7 +3414,7 @@ function BossPointsMatrix({
         </tbody>
       </table>
       </div>
-      <p className="text-[10px] text-[#52525b] mt-2 text-center">
+      <p className="text-[11px] text-[#52525b] mt-2 text-center">
         Points default to server-wide value if not overridden. Salary is per-guild.
       </p>
     </div>
@@ -3784,7 +3784,7 @@ export function ServerActivityLogTab({ serverId, timezone = "UTC" }: { serverId:
       </div>
 
       {/* Action filter — collapsible checkboxes */}
-      <div className="text-[10px]">
+      <div className="text-[11px]">
         <div className="flex items-center justify-between gap-2 mb-1">
           <div className="flex items-center gap-2">
             {filtersExpanded && (
@@ -3871,7 +3871,7 @@ export function ServerActivityLogTab({ serverId, timezone = "UTC" }: { serverId:
       ) : (
         <div className="border border-[#1e1e2a] rounded-xl overflow-hidden" key={filterVersion}>
           {/* Desktop header */}
-          <div className="hidden sm:grid grid-cols-12 gap-3 px-4 py-2 border-b border-[#1e1e2a] bg-[#0d0d11]/50 text-[10px] font-semibold text-[#71717a] uppercase tracking-wider">
+          <div className="hidden sm:grid grid-cols-12 gap-3 px-4 py-2 border-b border-[#1e1e2a] bg-[#0d0d11]/50 text-[11px] font-semibold text-[#71717a] uppercase tracking-wider">
             <div className="col-span-3">Event</div>
             <div className="col-span-4">Details</div>
             <div className="col-span-2">Actor</div>
@@ -3892,10 +3892,10 @@ export function ServerActivityLogTab({ serverId, timezone = "UTC" }: { serverId:
                     <span className="text-[11px] text-[#d4d4d8] whitespace-normal break-words leading-relaxed">{formatDetails(entry)}</span>
                   </div>
                   <div className="col-span-1 min-w-0">
-                    <span className="text-[10px] text-[#71717a] truncate block">{actor}</span>
+                    <span className="text-[11px] text-[#71717a] truncate block">{actor}</span>
                   </div>
                   <div className="col-span-3 min-w-0">
-                    <span className="text-[10px] text-[#71717a] font-mono">{formatTime(entry.created_at)}</span>
+                    <span className="text-[11px] text-[#71717a] font-mono">{formatTime(entry.created_at)}</span>
                   </div>
                 </div>
                 {/* Mobile card */}
@@ -3903,10 +3903,10 @@ export function ServerActivityLogTab({ serverId, timezone = "UTC" }: { serverId:
                   <div className="flex items-center gap-2">
                     <span className={`shrink-0 w-1.5 h-1.5 rounded-full ${dot}`} />
                     <span className={`text-xs font-medium ${txt}`}>{formatActionLabel(entry.action)}</span>
-                    {isViewer && <span className="text-[9px] text-[#52525b] ml-auto">viewer</span>}
+                    {isViewer && <span className="text-[11px] text-[#52525b] ml-auto">viewer</span>}
                   </div>
                   <div className="text-[11px] text-[#d4d4d8]">{formatDetails(entry)}</div>
-                  <div className="flex items-center justify-between text-[10px]">
+                  <div className="flex items-center justify-between text-[11px]">
                     <span className="text-[#52525b]">{actor}</span>
                     <span className="text-[#71717a] font-mono">{formatTime(entry.created_at)}</span>
                   </div>

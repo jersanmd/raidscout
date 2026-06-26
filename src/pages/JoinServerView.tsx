@@ -180,9 +180,9 @@ export function JoinServerView() {
                 <div key={srv.id} className="flex items-center justify-between p-3 rounded-lg bg-[#18181b] border border-[#27272a]">
                   <div>
                     <p className="text-sm text-[#fafafa] font-medium">{srv.name}</p>
-                    {isPending && <p className="text-[10px] text-amber-400 flex items-center gap-1"><Clock className="w-3 h-3" /> Pending approval</p>}
-                    {isAccepted && <p className="text-[10px] text-emerald-400 flex items-center gap-1"><CheckCircle className="w-3 h-3" /> Accepted — you now have access!</p>}
-                    {isDeclined && <p className="text-[10px] text-red-400 flex items-center gap-1"><XCircle className="w-3 h-3" /> Declined{existingClaim?.decline_reason ? `: ${existingClaim.decline_reason}` : ""}</p>}
+                    {isPending && <p className="text-[11px] text-amber-400 flex items-center gap-1"><Clock className="w-3 h-3" /> Pending approval</p>}
+                    {isAccepted && <p className="text-[11px] text-emerald-400 flex items-center gap-1"><CheckCircle className="w-3 h-3" /> Accepted — you now have access!</p>}
+                    {isDeclined && <p className="text-[11px] text-red-400 flex items-center gap-1"><XCircle className="w-3 h-3" /> Declined{existingClaim?.decline_reason ? `: ${existingClaim.decline_reason}` : ""}</p>}
                   </div>
                   {!isPending && !isAccepted && (
                     <div className="flex items-center gap-2">

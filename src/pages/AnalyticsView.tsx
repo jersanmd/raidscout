@@ -311,7 +311,7 @@ export function AnalyticsView() {
               <span className="text-[#fafafa] w-24 shrink-0 truncate text-left">{h.name}</span>
               <span className="w-20 shrink-0 inline-flex items-center">
                 {guild && c && (
-                  <span className={`text-[10px] px-1.5 py-0.5 rounded border shrink-0 ${c.bg} ${c.text} ${c.border}`}>
+                  <span className={`text-[11px] px-1.5 py-0.5 rounded border shrink-0 ${c.bg} ${c.text} ${c.border}`}>
                     <Shield className="w-2.5 h-2.5 inline mr-0.5" />{guild.name}
                   </span>
                 )}
@@ -379,7 +379,7 @@ export function AnalyticsView() {
                 <span className="text-[#fafafa] w-16 sm:w-24 shrink-0 truncate text-left text-xs sm:text-sm">{e.player_name}</span>
                 <span className="w-14 sm:w-20 shrink-0 inline-flex items-center">
                   {guild && c && (
-                    <span className={`text-[9px] sm:text-[10px] px-1 sm:px-1.5 py-0.5 rounded border shrink-0 truncate ${c.bg} ${c.text} ${c.border}`}>
+                    <span className={`text-[11px] sm:text-[11px] px-1 sm:px-1.5 py-0.5 rounded border shrink-0 truncate ${c.bg} ${c.text} ${c.border}`}>
                       <Shield className="w-2 h-2 sm:w-2.5 sm:h-2.5 inline mr-0.5" />{guild.name}
                     </span>
                   )}
@@ -391,9 +391,9 @@ export function AnalyticsView() {
                     const barColor = guild ? resolveBarColor(guild.name, guilds.findIndex(x => x.id === guild.id), guilds) : "#3f3f46";
                     return (
                       <div className="h-full rounded flex items-center justify-end px-1.5 sm:px-2 gap-1 transition-all duration-200 group-hover/bar:brightness-125" style={{ width: `${Math.max((e.current_cp / maxCp) * 100, 8)}%`, backgroundColor: barColor }}>
-                        <span className="text-[10px] sm:text-[11px] text-white/80 font-mono font-bold drop-shadow-sm">{e.current_cp.toLocaleString()}</span>
+                        <span className="text-[11px] sm:text-[11px] text-white/80 font-mono font-bold drop-shadow-sm">{e.current_cp.toLocaleString()}</span>
                         {e.growth > 0 && (
-                          <span className="text-[8px] sm:text-[9px] text-white/70 font-mono drop-shadow whitespace-nowrap">
+                          <span className="text-[8px] sm:text-[11px] text-white/70 font-mono drop-shadow whitespace-nowrap">
                             +{e.growth.toLocaleString()}{pct > 0 ? ` (${pct.toFixed(1)}%)` : ""}
                           </span>
                         )}
@@ -426,7 +426,7 @@ export function AnalyticsView() {
               <span className="text-[#fafafa] w-24 shrink-0 truncate text-left">{b.name}</span>
               <span className="w-10 shrink-0">
                 {b.avg_attendance > 0 && (
-                  <span className="inline-flex items-center gap-0.5 text-[10px] text-[#a1a1aa]" title={`Average ${b.avg_attendance} attendees per kill`}>
+                  <span className="inline-flex items-center gap-0.5 text-[11px] text-[#a1a1aa]" title={`Average ${b.avg_attendance} attendees per kill`}>
                     <Users className="w-3 h-3" />~{b.avg_attendance}
                   </span>
                 )}
@@ -454,7 +454,7 @@ export function AnalyticsView() {
                   return (
                     <div key={gi} className="h-full flex items-center justify-end px-1.5 relative transition-all duration-200 group-hover/bar:brightness-110" style={{ width: `${pct}%`, backgroundColor: color }}>
                       {pct >= 3 && (
-                        <span className="text-[10px] text-white/80 font-mono font-bold drop-shadow-sm">{g.count}</span>
+                        <span className="text-[11px] text-white/80 font-mono font-bold drop-shadow-sm">{g.count}</span>
                       )}
                     </div>
                   );
@@ -499,7 +499,7 @@ export function AnalyticsView() {
                   return (
                     <div key={gi} className="h-full flex items-center justify-end px-1.5 relative transition-all duration-200 group-hover/bar:brightness-110" style={{ width: `${pct}%`, backgroundColor: color }}>
                       {pct >= 3 && (
-                        <span className="text-[10px] text-white/80 font-mono font-bold drop-shadow-sm">{g.count}</span>
+                        <span className="text-[11px] text-white/80 font-mono font-bold drop-shadow-sm">{g.count}</span>
                       )}
                     </div>
                   );
@@ -546,7 +546,7 @@ function StatCard({ icon, label, value, color, bg, subItems }: { icon: React.Rea
       {subItems && subItems.length > 0 && (
         <div className="mt-1.5 pt-1.5 border-t border-[#27272a] flex flex-wrap justify-center gap-x-2 gap-y-0.5">
           {subItems.map((s, i) => (
-            <span key={i} className="text-[10px] font-medium" style={{ color: s.color }}>
+            <span key={i} className="text-[11px] font-medium" style={{ color: s.color }}>
               {s.label} <span className="tabular-nums">{s.value}</span>
             </span>
           ))}
@@ -576,7 +576,7 @@ function GuildLegend({ guilds, series }: { guilds: Guild[]; series: { guild: str
         return (
           <div key={si} className="flex items-center gap-1">
             <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ backgroundColor: color }} />
-            <span className="text-[10px] text-[#71717a]">{label}</span>
+            <span className="text-[11px] text-[#71717a]">{label}</span>
           </div>
         );
       })}
@@ -706,9 +706,9 @@ function KillsTrendChart({ dates, series, detail, guilds }: {
               >
                 <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: color }} />
                 {c && s.guild ? (
-                  <span className={`text-[10px] px-1.5 py-0 rounded border ${c.bg} ${c.text} ${c.border}`}>{s.guild}</span>
+                  <span className={`text-[11px] px-1.5 py-0 rounded border ${c.bg} ${c.text} ${c.border}`}>{s.guild}</span>
                 ) : (
-                  <span className="text-[10px] text-[#a1a1aa]">{label}</span>
+                  <span className="text-[11px] text-[#a1a1aa]">{label}</span>
                 )}
               </button>
             );
@@ -769,7 +769,7 @@ function KillsTrendChart({ dates, series, detail, guilds }: {
                           <span className="text-[#a1a1aa] font-mono text-xs shrink-0">×{b.kills}</span>
                         )}
                         {c && (
-                          <span className={`text-[10px] px-1.5 py-0 rounded border shrink-0 ml-auto ${c.bg} ${c.text} ${c.border}`}>
+                          <span className={`text-[11px] px-1.5 py-0 rounded border shrink-0 ml-auto ${c.bg} ${c.text} ${c.border}`}>
                             {g!.name}
                           </span>
                         )}

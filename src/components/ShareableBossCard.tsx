@@ -185,7 +185,7 @@ export default function ShareableBossCard({ spawn, ownerGuildName, serverName }:
       <button
         onClick={generateAndCopy}
         disabled={capturing}
-        className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium bg-[#18181b] text-[#a1a1aa] hover:bg-[#27272a] hover:text-[#fafafa] transition-colors"
+        className="flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium bg-[#18181b] text-[#a1a1aa] hover:bg-[#27272a] hover:text-[#fafafa] transition-colors"
         title="Copy boss card image"
       >
         {capturing ? (

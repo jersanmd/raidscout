@@ -409,7 +409,7 @@ export function HistoryView() {
               <tr key={date.key} className="border-b border-[#27272a]/50 hover:bg-[#3f3f46]/20 transition">
                 <td className="py-2 px-3 sticky left-0 bg-[#18181b] whitespace-nowrap align-top">
                   <div className="text-[#d4d4d8] font-medium text-xs">{date.monthDay}</div>
-                  <div className="text-[10px] text-[#71717a]">{date.weekday}</div>
+                  <div className="text-[11px] text-[#71717a]">{date.weekday}</div>
                 </td>
                 {bosses.map(b => {
                   const entries = cells[date.key]?.[b.id];
@@ -424,11 +424,11 @@ export function HistoryView() {
                                 <span className="text-[11px] text-[#a1a1aa] font-mono">{entry.time}</span>
                                 <span>
                                   {g ? (
-                                    <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium border ${guildColor(g.name).bg} ${guildColor(g.name).text} ${guildColor(g.name).border}`}>
+                                    <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-medium border ${guildColor(g.name).bg} ${guildColor(g.name).text} ${guildColor(g.name).border}`}>
                                       {g.name}
                                     </span>
                                   ) : (
-                                    <span className="text-[#71717a] text-[10px]">—</span>
+                                    <span className="text-[#71717a] text-[11px]">—</span>
                                   )}
                                 </span>
                                 {i < entries.length - 1 && <div className="w-4 h-px bg-[#3f3f46] my-0.5" />}
@@ -554,15 +554,15 @@ export function HistoryView() {
                             {entry.type === "activity" ? entry.activityName : entry.bossName}
                           </span>
                           {entry.type !== "activity" && entry.ownerGuildName && (
-                            <span className={`text-[10px] font-medium ${guildColor(entry.ownerGuildName!).text}`}>
+                            <span className={`text-[11px] font-medium ${guildColor(entry.ownerGuildName!).text}`}>
                               {entry.ownerGuildName}
                             </span>
                           )}
-                          <span className="text-[10px] font-mono text-[#52525b]">
+                          <span className="text-[11px] font-mono text-[#52525b]">
                             {entry.type === "activity" ? "Activity" : entry.spawnType === "fixed_schedule" ? "Schedule" : `+${diffH}h`}
                           </span>
                           {(entry.deathRecordId || entry.activityInstanceId) && (
-                            <span className="flex items-center gap-1 text-[10px] font-mono text-[#a1a1aa]">
+                            <span className="flex items-center gap-1 text-[11px] font-mono text-[#a1a1aa]">
                               <Users className="w-3 h-3" />
                               {entry.attendanceCount ?? "…"}
                             </span>

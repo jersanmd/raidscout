@@ -131,7 +131,7 @@ function UpcomingActivitySlot({
             {ownerGuildNames.map((guildName) => {
               const c = guildColor(guildName);
               return (
-                <span key={guildName} className={`flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded border shrink-0 ${c.bg} ${c.text} ${c.border}`}>
+                <span key={guildName} className={`flex items-center gap-1 text-[11px] font-medium px-1.5 py-0.5 rounded border shrink-0 ${c.bg} ${c.text} ${c.border}`}>
                   <Shield className="w-2.5 h-2.5" />
                   {guildName}
                 </span>
@@ -141,7 +141,7 @@ function UpcomingActivitySlot({
         )}
         <div className="flex items-center gap-2 mt-0.5">
           <span className="text-xs text-[#52525b] font-mono">{formatTime(startTime)}</span>
-          <span className={`inline-flex items-center gap-1 text-[10px] ${threatLevel === "critical" ? "text-red-400" : threatLevel === "warning" ? "text-amber-400" : "text-[#71717a]"}`}>
+          <span className={`inline-flex items-center gap-1 text-[11px] ${threatLevel === "critical" ? "text-red-400" : threatLevel === "warning" ? "text-amber-400" : "text-[#71717a]"}`}>
             <span className={`w-1.5 h-1.5 rounded-full ${threatLevel === "critical" ? "bg-red-500" : threatLevel === "warning" ? "bg-amber-500" : "bg-[#52525b]"}`} />
             {threatLevel === "critical" ? "Now" : threatLevel === "warning" ? "Soon" : "Upcoming"}
           </span>

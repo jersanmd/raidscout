@@ -1306,7 +1306,7 @@ export function MembersView() {
               if (memberId) handleDropUnassigned(memberId);
             }}
           >
-            <p className="text-[10px] text-[#52525b] uppercase tracking-wider px-2 py-1">
+            <p className="text-[11px] text-[#52525b] uppercase tracking-wider px-2 py-1">
               Unassigned ({unassignedMembers.length})
             </p>
             {/* Search in unassigned */}
@@ -1316,11 +1316,11 @@ export function MembersView() {
                 value={unassignedSearch}
                 onChange={(e) => setUnassignedSearch(e.target.value)}
                 placeholder="Search..."
-                className="w-full px-2 py-1 bg-[#09090b] border border-[#27272a] rounded text-[10px] text-[#fafafa] placeholder-[#52525b] focus:outline-none focus:border-[#52525b]"
+                className="w-full px-2 py-1 bg-[#09090b] border border-[#27272a] rounded text-[11px] text-[#fafafa] placeholder-[#52525b] focus:outline-none focus:border-[#52525b]"
               />
             </div>
             {unassignedMembers.length === 0 ? (
-              <p className="text-[10px] text-[#3f3f46] text-center py-4">All members placed</p>
+              <p className="text-[11px] text-[#3f3f46] text-center py-4">All members placed</p>
             ) : (
               unassignedMembers
                 .filter(m => !unassignedSearch || m.name.toLowerCase().includes(unassignedSearch.toLowerCase()))
@@ -1338,12 +1338,12 @@ export function MembersView() {
                   onDoubleClick={() => handleAutoAssign(m.id)}
                   className="flex items-center gap-2 px-2 py-1.5 rounded bg-[#18181b] border border-[#27272a] text-xs text-[#d4d4d8] cursor-grab active:cursor-grabbing hover:border-[#52525b] transition"
                 >
-                  <span className="w-5 h-5 rounded bg-[#09090b] flex items-center justify-center text-[10px] text-[#71717a] font-bold shrink-0">
+                  <span className="w-5 h-5 rounded bg-[#09090b] flex items-center justify-center text-[11px] text-[#71717a] font-bold shrink-0">
                     {m.class && classIcons[m.class] ? (() => { const CIcon = getClassIcon(classIcons[m.class]); const color = classColors[m.class] || "#a1a1aa"; return <CIcon className="w-3 h-3" style={{ color }} />; })() : m.name.charAt(0)}
                   </span>
                   <span className="truncate flex-1">{m.name}</span>
                   {g && c && (
-                    <span className={`shrink-0 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] border ${c.bg} ${c.text} ${c.border}`}>
+                    <span className={`shrink-0 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[11px] border ${c.bg} ${c.text} ${c.border}`}>
                       <Shield className="w-2.5 h-2.5" />
                       {g.name}
                     </span>
@@ -1362,7 +1362,7 @@ export function MembersView() {
               const slots: (Member | null)[] = Array.from({ length: partySize }, (_, s) => boxMembers[s] ?? null);
               return (
                 <div key={i} className="w-[200px] shrink-0 rounded-lg border border-[#27272a] bg-[#18181b]/30 p-2 space-y-0.5">
-                  <p className="text-[10px] text-[#52525b] uppercase tracking-wider px-1 flex items-center justify-between">
+                  <p className="text-[11px] text-[#52525b] uppercase tracking-wider px-1 flex items-center justify-between">
                     <span>Party {i + 1} <span className="text-[#3f3f46]">({box.length}/{partySize})</span></span>
                     {box.length > 0 && (
                       <button
@@ -1400,12 +1400,12 @@ export function MembersView() {
                         }}
                         className="flex items-center gap-1.5 px-2 py-1 rounded bg-[#09090b] border border-[#27272a] text-xs text-[#d4d4d8] group cursor-grab active:cursor-grabbing"
                       >
-                        <span className="w-4 h-4 rounded bg-[#18181b] flex items-center justify-center text-[9px] text-[#71717a] font-bold shrink-0">
+                        <span className="w-4 h-4 rounded bg-[#18181b] flex items-center justify-center text-[11px] text-[#71717a] font-bold shrink-0">
                           {m.class && classIcons[m.class] ? (() => { const CIcon = getClassIcon(classIcons[m.class]); const color = classColors[m.class] || "#a1a1aa"; return <CIcon className="w-2.5 h-2.5" style={{ color }} />; })() : m.name.charAt(0)}
                         </span>
                         <span className="truncate flex-1">{m.name}</span>
                         {g && c && (
-                          <span className={`shrink-0 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] border ${c.bg} ${c.text} ${c.border}`}>
+                          <span className={`shrink-0 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[11px] border ${c.bg} ${c.text} ${c.border}`}>
                             <Shield className="w-2.5 h-2.5" />
                             {g.name}
                           </span>
@@ -1547,7 +1547,7 @@ export function MembersView() {
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setShowExportPopover(false)} />
                 <div className="absolute right-0 top-full mt-1 z-50 w-56 bg-[#18181b] border border-[#27272a] rounded-xl shadow-2xl p-3 space-y-2">
-                  <span className="text-[10px] font-semibold text-[#71717a] uppercase tracking-wider">Export Guilds</span>
+                  <span className="text-[11px] font-semibold text-[#71717a] uppercase tracking-wider">Export Guilds</span>
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input
                       type="checkbox"
@@ -1604,7 +1604,7 @@ export function MembersView() {
                 ) : (
                   <span className="text-[11px] text-[#52525b] font-medium">No Guild</span>
                 )}
-                <span className="text-[10px] text-[#52525b]">{group.members.length} member{group.members.length !== 1 ? "s" : ""}</span>
+                <span className="text-[11px] text-[#52525b]">{group.members.length} member{group.members.length !== 1 ? "s" : ""}</span>
                 {group.guild && (
                   <div className="flex items-center gap-0.5 ml-auto">
                     <button onClick={() => moveGuildUp(group.guild!.id)} disabled={gi === 0} className="p-0.5 rounded text-[#52525b] hover:text-[#fafafa] disabled:opacity-20 transition" title="Move up"><ChevronUp className="w-3.5 h-3.5" /></button>
@@ -1615,7 +1615,7 @@ export function MembersView() {
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="text-[10px] text-[#71717a] uppercase tracking-wider border-b border-[#27272a]/50">
+                    <tr className="text-[11px] text-[#71717a] uppercase tracking-wider border-b border-[#27272a]/50">
                       <th className="text-left py-2.5 px-2 w-[50%] cursor-pointer select-none hover:bg-[#27272a]/30 transition group" onClick={() => toggleSort("name")}>
                         <span className="inline-flex items-center gap-1">
                           <span className={sortColumn === "name" ? "text-[#fafafa]" : "group-hover:text-[#a1a1aa]"}>Member</span>
@@ -1635,7 +1635,7 @@ export function MembersView() {
                           <button
                             type="button"
                             onClick={(e) => { e.stopPropagation(); setShowWeeklyFraction(f => !f); }}
-                            className="ml-1 text-[10px] text-[#52525b] hover:text-[#a1a1aa] transition leading-none"
+                            className="ml-1 text-[11px] text-[#52525b] hover:text-[#a1a1aa] transition leading-none"
                             title={showWeeklyFraction ? "Show percentage" : "Show fraction"}
                           >
                             {showWeeklyFraction ? "⅞" : "%"}
@@ -1705,7 +1705,7 @@ export function MembersView() {
                       <tr key={m.id} className="border-b border-[#27272a]/30 hover:bg-[#09090b]/30 transition">
                         <td className="py-2.5 px-2 align-middle">
                           <Link to={`/members/${m.id}`} className="flex items-center gap-2 text-[#fafafa] hover:text-[#e4e4e7] transition text-sm -m-2 p-2 rounded">
-                            <span className="text-[10px] text-[#52525b] font-mono w-4 shrink-0 text-right">{i + 1}</span>
+                            <span className="text-[11px] text-[#52525b] font-mono w-4 shrink-0 text-right">{i + 1}</span>
                             {m.class && classIcons[m.class] && (() => { const CIcon = getClassIcon(classIcons[m.class]); const color = classColors[m.class] || "#a1a1aa"; return <CIcon className="w-3.5 h-3.5 shrink-0" style={{ color }} />; })()}
                             <span>{m.name}</span>
                           </Link>
@@ -1792,7 +1792,7 @@ export function MembersView() {
                               <button
                                 type="button"
                                 onClick={() => openHistory(m)}
-                                className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium bg-[#09090b] border border-[#27272a] text-[#a1a1aa] hover:text-[#fafafa] hover:border-[#52525b] transition whitespace-nowrap"
+                                className="flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium bg-[#09090b] border border-[#27272a] text-[#a1a1aa] hover:text-[#fafafa] hover:border-[#52525b] transition whitespace-nowrap"
                                 title="View CP history & profile"
                               >
                                 <Clock className="w-3 h-3 shrink-0" />
@@ -1801,7 +1801,7 @@ export function MembersView() {
                               <button
                                 type="button"
                                 onClick={() => openCpModal(m)}
-                                className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium bg-[#09090b] border border-[#27272a] text-[#a1a1aa] hover:text-[#fafafa] hover:border-[#52525b] transition whitespace-nowrap"
+                                className="flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium bg-[#09090b] border border-[#27272a] text-[#a1a1aa] hover:text-[#fafafa] hover:border-[#52525b] transition whitespace-nowrap"
                               >
                                 <Calendar className="w-3 h-3 shrink-0" />
                                 Add CP
@@ -1819,7 +1819,7 @@ export function MembersView() {
           )));
         })()}
 
-        <p className="text-[10px] text-[#52525b] text-center">
+        <p className="text-[11px] text-[#52525b] text-center">
           Members update their CP via Discord using <code className="px-1 py-0.5 bg-[#18181b] rounded text-[#a1a1aa]">!updatestats PlayerName CP</code>
         </p>
 
@@ -1837,12 +1837,12 @@ export function MembersView() {
 
               <div className="space-y-3">
                 <div>
-                  <label className="text-[10px] text-[#71717a] uppercase tracking-wider block mb-1">Member</label>
+                  <label className="text-[11px] text-[#71717a] uppercase tracking-wider block mb-1">Member</label>
                   <p className="text-sm text-[#fafafa] font-medium">{cpModalMember.name}</p>
                 </div>
 
                 <div>
-                  <label className="text-[10px] text-[#71717a] uppercase tracking-wider block mb-1">Combat Power</label>
+                  <label className="text-[11px] text-[#71717a] uppercase tracking-wider block mb-1">Combat Power</label>
                   <input
                     type="text"
                     inputMode="numeric"
@@ -1858,7 +1858,7 @@ export function MembersView() {
                 </div>
 
                 <div>
-                  <label className="text-[10px] text-[#71717a] uppercase tracking-wider block mb-1">Date (past week)</label>
+                  <label className="text-[11px] text-[#71717a] uppercase tracking-wider block mb-1">Date (past week)</label>
                   <input
                     type="date"
                     value={cpModalDate}
@@ -1867,7 +1867,7 @@ export function MembersView() {
                     max={new Date().toISOString().slice(0, 10)}
                     className="w-full px-3 py-2 bg-[#09090b] border border-[#27272a] rounded-lg text-sm text-[#fafafa] focus:outline-none focus:border-[#52525b] [color-scheme:dark]"
                   />
-                  <p className="text-[9px] text-[#52525b] mt-1">You can update CP anytime — no weekly limit.</p>
+                  <p className="text-[11px] text-[#52525b] mt-1">You can update CP anytime — no weekly limit.</p>
                 </div>
 
                 {cpModalError && (
@@ -1925,8 +1925,8 @@ export function MembersView() {
                     <div key={entry.id} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[#09090b] border border-[#27272a]/40 group">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                          <span className="text-[10px] text-[#52525b] font-mono">{fmtDate(entry.submitted_at)}</span>
-                          <span className={`text-[10px] px-1.5 py-0.5 rounded ${entry.status === "approved" ? "bg-green-500/10 text-green-400" : entry.status === "rejected" ? "bg-red-500/10 text-red-400" : "bg-yellow-500/10 text-yellow-400"}`}>
+                          <span className="text-[11px] text-[#52525b] font-mono">{fmtDate(entry.submitted_at)}</span>
+                          <span className={`text-[11px] px-1.5 py-0.5 rounded ${entry.status === "approved" ? "bg-green-500/10 text-green-400" : entry.status === "rejected" ? "bg-red-500/10 text-red-400" : "bg-yellow-500/10 text-yellow-400"}`}>
                             {entry.status}
                           </span>
                         </div>
@@ -1941,8 +1941,8 @@ export function MembersView() {
                               className="w-24 px-2 py-1 bg-[#18181b] border border-[#52525b] rounded text-xs text-[#fafafa] text-right focus:outline-none focus:border-[#a1a1aa]"
                               autoFocus
                             />
-                            <button onClick={() => handleHistoryEdit(entry.id)} className="px-2 py-1 rounded text-[10px] bg-green-600 text-white hover:bg-green-500 transition">Save</button>
-                            <button onClick={() => setEditingHistoryId(null)} className="px-2 py-1 rounded text-[10px] bg-[#27272a] text-[#a1a1aa] hover:text-[#fafafa] transition">Cancel</button>
+                            <button onClick={() => handleHistoryEdit(entry.id)} className="px-2 py-1 rounded text-[11px] bg-green-600 text-white hover:bg-green-500 transition">Save</button>
+                            <button onClick={() => setEditingHistoryId(null)} className="px-2 py-1 rounded text-[11px] bg-[#27272a] text-[#a1a1aa] hover:text-[#fafafa] transition">Cancel</button>
                           </div>
                         ) : (
                           <p className="text-sm text-[#fafafa] mt-0.5">
@@ -1958,9 +1958,9 @@ export function MembersView() {
                       </div>
                       {deletingHistoryId === entry.id ? (
                         <div className="flex items-center gap-1 shrink-0">
-                          <span className="text-[10px] text-red-400">Delete?</span>
-                          <button onClick={() => handleHistoryDelete(entry.id)} className="px-1.5 py-0.5 rounded text-[10px] bg-red-600 text-white hover:bg-red-500 transition">Yes</button>
-                          <button onClick={() => setDeletingHistoryId(null)} className="px-1.5 py-0.5 rounded text-[10px] bg-[#27272a] text-[#a1a1aa] hover:text-[#fafafa] transition">No</button>
+                          <span className="text-[11px] text-red-400">Delete?</span>
+                          <button onClick={() => handleHistoryDelete(entry.id)} className="px-1.5 py-0.5 rounded text-[11px] bg-red-600 text-white hover:bg-red-500 transition">Yes</button>
+                          <button onClick={() => setDeletingHistoryId(null)} className="px-1.5 py-0.5 rounded text-[11px] bg-[#27272a] text-[#a1a1aa] hover:text-[#fafafa] transition">No</button>
                         </div>
                       ) : (
                         <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition">
@@ -2011,7 +2011,7 @@ export function MembersView() {
                 {/* Discord servers with progress channel — click to toggle */}
                 {discordConfigs.filter((c: any) => c.progress_channel_id).length > 0 && (
                   <div className="mb-3">
-                    <p className="text-[10px] text-[#71717a] uppercase tracking-wider mb-1.5">Click to toggle — will create threads in:</p>
+                    <p className="text-[11px] text-[#71717a] uppercase tracking-wider mb-1.5">Click to toggle — will create threads in:</p>
                     {discordConfigs.filter((c: any) => c.progress_channel_id).map((c: any) => {
                       const isExcluded = excludedDiscordConfigIds.has(c.progress_channel_id);
                       return (
@@ -2033,7 +2033,7 @@ export function MembersView() {
                             <CheckCircle className="w-3.5 h-3.5 text-green-400 shrink-0" />
                           )}
                           <span className={isExcluded ? "text-[#52525b] line-through" : "text-[#fafafa]"}>{c.label || "Unknown"}</span>
-                          {c.notification_prefix && <span className="text-[10px] text-[#52525b]">({c.notification_prefix})</span>}
+                          {c.notification_prefix && <span className="text-[11px] text-[#52525b]">({c.notification_prefix})</span>}
                         </button>
                       );
                     })}
@@ -2043,16 +2043,16 @@ export function MembersView() {
                 {/* Discord servers WITHOUT progress channel — warning */}
                 {discordConfigs.filter((c: any) => !c.progress_channel_id).length > 0 && (
                   <div className="mb-3 bg-amber-500/10 border border-amber-500/20 rounded-lg p-3">
-                    <p className="text-[10px] text-amber-400 font-medium uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                    <p className="text-[11px] text-amber-400 font-medium uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
                       <AlertTriangle className="w-3.5 h-3.5" />
                       No progress channel:
                     </p>
                     {discordConfigs.filter((c: any) => !c.progress_channel_id).map((c: any) => (
                       <div key={c.id} className="text-xs text-amber-300/80 py-0.5">
-                        • {c.label || "Unknown Discord server"} — use <code className="px-1 py-0.5 bg-amber-500/10 rounded text-[10px] text-amber-300">!progresshere</code> in their Discord
+                        • {c.label || "Unknown Discord server"} — use <code className="px-1 py-0.5 bg-amber-500/10 rounded text-[11px] text-amber-300">!progresshere</code> in their Discord
                       </div>
                     ))}
-                    <p className="text-[10px] text-amber-400/60 mt-1.5">These servers need a progress channel configured to receive threads.</p>
+                    <p className="text-[11px] text-amber-400/60 mt-1.5">These servers need a progress channel configured to receive threads.</p>
                   </div>
                 )}
 
@@ -2101,7 +2101,7 @@ export function MembersView() {
             {classes.length > 0 && (
               <button
                 onClick={() => setShowClassCreator(v => !v)}
-                className="ml-auto text-[10px] text-[#52525b] hover:text-[#a1a1aa] transition flex items-center gap-1"
+                className="ml-auto text-[11px] text-[#52525b] hover:text-[#a1a1aa] transition flex items-center gap-1"
               >
                 {showClassCreator ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
                 {showClassCreator ? "Hide creator" : "Add class"}
@@ -2147,7 +2147,7 @@ export function MembersView() {
             </div>
           </div>
           <div className="flex items-center gap-1.5 mb-3">
-            <span className="text-[10px] text-[#52525b]">Color:</span>
+            <span className="text-[11px] text-[#52525b]">Color:</span>
             {CLASS_COLORS.map(color => {
               const used = Object.values(classColors).includes(color) && newClassColor !== color;
               return (
@@ -2216,7 +2216,7 @@ export function MembersView() {
                       const g = guilds.find(x => x.id === classAssignGuildFilter);
                       if (!g) return <span>Filter By Guild</span>;
                       const c = guildColor(g.name);
-                      return <span className={`inline-flex items-center gap-1 text-[10px] font-medium ${c.text}`}><Shield className="w-2.5 h-2.5" />{g.name}</span>;
+                      return <span className={`inline-flex items-center gap-1 text-[11px] font-medium ${c.text}`}><Shield className="w-2.5 h-2.5" />{g.name}</span>;
                     })() : <span>Filter By Guild</span>}
                     <ChevronDown className="w-3 h-3" />
                   </button>
@@ -2270,14 +2270,14 @@ export function MembersView() {
                   <div key={group.guild?.id ?? "__noguild__"} className="rounded-lg overflow-hidden border border-[#27272a]/50">
                     <div className="px-3 py-1.5 bg-[#09090b]/50 flex items-center gap-2">
                       {group.guild ? (
-                        <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium ${(() => { const c = guildColor(group.guild!.name); return `${c.bg} ${c.text} ${c.border}`; })()}`}>
+                        <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-medium ${(() => { const c = guildColor(group.guild!.name); return `${c.bg} ${c.text} ${c.border}`; })()}`}>
                           <Shield className="w-2.5 h-2.5" />
                           {group.guild.name}
                         </span>
                       ) : (
-                        <span className="text-[10px] text-[#52525b] font-medium">No Guild</span>
+                        <span className="text-[11px] text-[#52525b] font-medium">No Guild</span>
                       )}
-                      <span className="text-[9px] text-[#52525b]">{filtered.length} member{filtered.length !== 1 ? "s" : ""}</span>
+                      <span className="text-[11px] text-[#52525b]">{filtered.length} member{filtered.length !== 1 ? "s" : ""}</span>
                       {group.guild && (
                         <div className="flex items-center gap-0.5 ml-auto">
                           <button onClick={() => moveGuildUp(group.guild!.id)} disabled={gi === 0} className="p-0.5 rounded text-[#52525b] hover:text-[#fafafa] disabled:opacity-20 transition" title="Move up"><ChevronUp className="w-3 h-3" /></button>
@@ -2376,7 +2376,7 @@ export function MembersView() {
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setShowExportPopover(false)} />
                 <div className="absolute right-0 top-full mt-1 z-50 w-56 bg-[#18181b] border border-[#27272a] rounded-xl shadow-2xl p-3 space-y-2">
-                  <span className="text-[10px] font-semibold text-[#71717a] uppercase tracking-wider">Export Guilds</span>
+                  <span className="text-[11px] font-semibold text-[#71717a] uppercase tracking-wider">Export Guilds</span>
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input
                       type="checkbox"
@@ -2500,7 +2500,7 @@ export function MembersView() {
                             : 'bg-[#18181b] border-[#27272a] hover:border-[#3f3f46]'
                         }`}
                       >
-                        <span className="text-[10px] font-mono text-[#52525b] w-5 shrink-0">{(idx + 1).toString().padStart(2, "\u00A0")}</span>
+                        <span className="text-[11px] font-mono text-[#52525b] w-5 shrink-0">{(idx + 1).toString().padStart(2, "\u00A0")}</span>
                         <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-[#18181b] text-[#a1a1aa] font-bold text-sm shrink-0">
                           {member.class && classIcons[member.class] ? (() => {
                             const CIcon = getClassIcon(classIcons[member.class]);
@@ -2527,11 +2527,11 @@ export function MembersView() {
                             <Link to={`/members/${member.id}`} className="text-[#fafafa] text-sm font-medium truncate hover:text-[#e4e4e7] transition">{member.name}</Link>
                             {(member as any).user_id && (
                               <>
-                                <span className="text-[10px] text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded font-medium shrink-0" title="Claimed member">Claimed</span>
+                                <span className="text-[11px] text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded font-medium shrink-0" title="Claimed member">Claimed</span>
                                 {isStaff && (
                                   <button
                                     onClick={(e) => { e.stopPropagation(); e.preventDefault(); setUnlinkId(member.id); setUnlinkConfirmName(""); }}
-                                    className="text-[10px] text-[#52525b] hover:text-red-400 transition shrink-0 sm:opacity-0 group-hover:opacity-100"
+                                    className="text-[11px] text-[#52525b] hover:text-red-400 transition shrink-0 sm:opacity-0 group-hover:opacity-100"
                                     title="Unlink this member from their claimed user"
                                   >
                                     <X className="w-3 h-3" />
@@ -2605,7 +2605,7 @@ export function MembersView() {
                                 setToast({ type: "error", message: err?.message || "Failed to change guild" });
                               }
                             }}
-                            className="bg-[#18181b] border border-[#27272a] rounded px-1.5 py-1 text-[10px] sm:text-xs text-[#a1a1aa] outline-none focus:border-[#52525b] transition max-w-[100px] truncate shrink-0"
+                            className="bg-[#18181b] border border-[#27272a] rounded px-1.5 py-1 text-[11px] sm:text-xs text-[#a1a1aa] outline-none focus:border-[#52525b] transition max-w-[100px] truncate shrink-0"
                           >
                             <option value="">No guild</option>
                             {guilds.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
@@ -2778,7 +2778,7 @@ export function MembersView() {
             </div>
             <div className="p-4 space-y-3">
               <div>
-                <label className="text-[10px] text-[#71717a] uppercase tracking-wider">Member Name</label>
+                <label className="text-[11px] text-[#71717a] uppercase tracking-wider">Member Name</label>
                 <input
                   type="text"
                   value={addName}
@@ -2789,7 +2789,7 @@ export function MembersView() {
                 />
               </div>
               <div>
-                <label className="text-[10px] text-[#71717a] uppercase tracking-wider">Combat Power</label>
+                <label className="text-[11px] text-[#71717a] uppercase tracking-wider">Combat Power</label>
                 <input
                   type="number"
                   value={addCombatPower}
@@ -2800,7 +2800,7 @@ export function MembersView() {
               </div>
               {classes.length > 0 && (
                 <div>
-                  <label className="text-[10px] text-[#71717a] uppercase tracking-wider">Class</label>
+                  <label className="text-[11px] text-[#71717a] uppercase tracking-wider">Class</label>
                   <select
                     value={addClass}
                     onChange={(e) => setAddClass(e.target.value)}
@@ -2813,7 +2813,7 @@ export function MembersView() {
               )}
               {guilds.length > 0 && (
                 <div>
-                  <label className="text-[10px] text-[#71717a] uppercase tracking-wider">Guild</label>
+                  <label className="text-[11px] text-[#71717a] uppercase tracking-wider">Guild</label>
                   <select
                     value={addGuild}
                     onChange={(e) => setAddGuild(e.target.value)}
@@ -2859,7 +2859,7 @@ export function MembersView() {
               Delete <span className="font-bold">{targetName}</span>? This will also remove their attendance records.
             </p>
             <div>
-              <p className="text-[10px] text-[#71717a] mb-1.5 text-center">Type <span className="text-[#fafafa] font-mono">{targetName}</span> to confirm:</p>
+              <p className="text-[11px] text-[#71717a] mb-1.5 text-center">Type <span className="text-[#fafafa] font-mono">{targetName}</span> to confirm:</p>
               <input
                 value={deleteConfirmName}
                 onChange={(e) => setDeleteConfirmName(e.target.value)}
@@ -2905,11 +2905,11 @@ export function MembersView() {
             <p className="text-[#fafafa] text-sm text-center">
               Unlink <span className="font-bold">{targetName}</span> from their claimed user?
             </p>
-            <p className="text-[10px] text-[#71717a] text-center -mt-2">
+            <p className="text-[11px] text-[#71717a] text-center -mt-2">
               This will remove the user association. The member can be claimed again later.
             </p>
             <div>
-              <p className="text-[10px] text-[#71717a] mb-1.5 text-center">Type <span className="text-[#fafafa] font-mono">{targetName}</span> to confirm:</p>
+              <p className="text-[11px] text-[#71717a] mb-1.5 text-center">Type <span className="text-[#fafafa] font-mono">{targetName}</span> to confirm:</p>
               <input
                 value={unlinkConfirmName}
                 onChange={(e) => setUnlinkConfirmName(e.target.value)}
@@ -2954,7 +2954,7 @@ export function MembersView() {
             <p className="text-[#fafafa] text-sm text-center">
               Delete class <span className="font-bold">{name}</span>?
             </p>
-            <p className="text-[10px] text-[#71717a] text-center -mt-2">This will unassign this class from all members.</p>
+            <p className="text-[11px] text-[#71717a] text-center -mt-2">This will unassign this class from all members.</p>
             <div>
               <input
                 type="text"

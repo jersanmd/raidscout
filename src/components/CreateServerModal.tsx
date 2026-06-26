@@ -118,7 +118,7 @@ export function CreateServerModal({ onClose }: { onClose: () => void }) {
                       <p className="text-xs font-semibold text-[#d4d4d8] group-hover:text-[#fafafa] transition-colors">
                         {g.name}
                       </p>
-                      <p className="font-mono text-[10px] text-[#52525b]">
+                      <p className="font-mono text-[11px] text-[#52525b]">
                         {g.supported_spawn_types?.length || 0} spawn types preset
                       </p>
                     </div>
@@ -134,7 +134,7 @@ export function CreateServerModal({ onClose }: { onClose: () => void }) {
                     <p className="text-xs font-semibold text-[#d4d4d8] group-hover:text-[#fafafa] transition-colors">
                       Custom (no seed)
                     </p>
-                    <p className="font-mono text-[10px] text-[#52525b]">Start with an empty server</p>
+                    <p className="font-mono text-[11px] text-[#52525b]">Start with an empty server</p>
                   </div>
                   <ArrowRight className="w-4 h-4 text-[#3f3f46] shrink-0 group-hover:text-[#a1a1aa] group-hover:translate-x-0.5 transition-all" />
                 </button>

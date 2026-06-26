@@ -732,7 +732,7 @@ export function WeeklyScheduleView() {
                 </span>
               </div>
               {day.isToday && (
-                <span className="text-[10px] font-medium text-[#71717a]">Today</span>
+                <span className="text-[11px] font-medium text-[#71717a]">Today</span>
               )}
             </div>
 
@@ -783,10 +783,10 @@ export function WeeklyScheduleView() {
                           <span className={`w-2 h-2 rounded-full ${isDeathEvent ? "bg-[#a1a1aa]" : "bg-[#a1a1aa]"}`} />
                           <span className="text-[#fafafa] text-sm">{s.boss.name}</span>
                           {isDeathEvent && (
-                            <span className="text-[10px] text-red-400 inline-flex items-center gap-1">
+                            <span className="text-[11px] text-red-400 inline-flex items-center gap-1">
                               Killed <Users className="w-3 h-3" />
                               {attCount > 0 && (
-                                <span className="inline-flex items-center gap-0.5 ml-1 px-1.5 py-0.5 rounded-full bg-emerald-900/40 border border-emerald-700/50 text-[#6ee7b7] text-[9px] font-bold">
+                                <span className="inline-flex items-center gap-0.5 ml-1 px-1.5 py-0.5 rounded-full bg-emerald-900/40 border border-emerald-700/50 text-[#6ee7b7] text-[11px] font-bold">
                                   <CheckCheck className="w-2.5 h-2.5" />{attCount}
                                 </span>
                               )}
@@ -805,7 +805,7 @@ export function WeeklyScheduleView() {
                               }
                               else { gName = getOwnerGuildName(s.boss.id, day.day); }
                               if (!gName) return null;
-                              return <div className={`text-[10px] font-medium ${guildColor(gName).text}`}>{gName}</div>;
+                              return <div className={`text-[11px] font-medium ${guildColor(gName).text}`}>{gName}</div>;
                             })()}
                           </div>
                           {isDeathEvent && s.deathRecord && !isCopyTarget && attCount > 0 && !isViewer && isStaff && (
@@ -818,7 +818,7 @@ export function WeeklyScheduleView() {
                             </button>
                           )}
                           {isCopyTarget && !isViewer && (
-                            <span className="text-[10px] text-blue-400 font-medium">Paste here</span>
+                            <span className="text-[11px] text-blue-400 font-medium">Paste here</span>
                           )}
                         </div>
                       </div>
@@ -848,21 +848,21 @@ export function WeeklyScheduleView() {
                           <span className={`w-2 h-2 rounded-full ${isActive ? "bg-emerald-400" : isFinished ? "bg-[#a1a1aa]" : "bg-blue-400"}`} />
                           <span className="text-[#fafafa] text-sm">{info.activity.name}</span>
                           {isFinished && (
-                            <span className="text-[10px] text-red-400 inline-flex items-center gap-1">
+                            <span className="text-[11px] text-red-400 inline-flex items-center gap-1">
                               Finished <CheckCheck className="w-3 h-3" />
                             </span>
                           )}
                           {isActive && (
-                            <span className="text-[10px] text-emerald-400 font-medium">Active</span>
+                            <span className="text-[11px] text-emerald-400 font-medium">Active</span>
                           )}
                           {isFinished && actAttCount > 0 && (
-                            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-emerald-900/40 border border-emerald-700/50 text-[#6ee7b7] text-[9px] font-bold">
+                            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-emerald-900/40 border border-emerald-700/50 text-[#6ee7b7] text-[11px] font-bold">
                               <Users className="w-2.5 h-2.5" />{actAttCount}
                             </span>
                           )}
                           {isFinished && info.activityInstance?.id && actAttCount > 0 && !isViewer && (
                             activityCopySource?.activityInstanceId === info.activityInstance.id ? (
-                              <span className="text-[10px] text-blue-400 font-medium">Source</span>
+                              <span className="text-[11px] text-blue-400 font-medium">Source</span>
                             ) : activityCopySource ? (
                               <button onClick={(e) => handleActivityCopyTarget(e, info.activityInstance!.id, info.activity.name)} className="p-0.5 rounded hover:bg-[#27272a] text-blue-400 hover:text-blue-300 transition" title="Paste attendance here">
                                 <CopyCheck className="w-3 h-3" />
@@ -985,7 +985,7 @@ export function WeeklyScheduleView() {
                               </button>
                             )}
                             {isCopyTarget && !isViewer && (
-                              <span className="text-[9px] text-blue-400 font-medium">Paste</span>
+                              <span className="text-[11px] text-blue-400 font-medium">Paste</span>
                             )}
                             <div className="text-right">
                               <div className="text-[#a1a1aa]">
@@ -1001,16 +1001,16 @@ export function WeeklyScheduleView() {
                                   gName = getOwnerGuildName(s.boss.id, day.day);
                                 }
                                 if (!gName) return null;
-                                return <div className={`text-[9px] font-medium ${guildColor(gName).text}`}>{gName}</div>;
+                                return <div className={`text-[11px] font-medium ${guildColor(gName).text}`}>{gName}</div>;
                               })()}
                             </div>
                           </div>
                         </div>
                         {isDeathEvent && (
-                          <span className="text-[10px] text-red-400 font-medium flex items-center gap-1">
+                          <span className="text-[11px] text-red-400 font-medium flex items-center gap-1">
                             Killed <Users className="w-3 h-3" />
                             {attCount > 0 && (
-                              <span className="inline-flex items-center gap-0.5 ml-1 px-1.5 py-0.5 rounded-full bg-emerald-900/40 border border-emerald-700/50 text-[#6ee7b7] text-[9px] font-bold">
+                              <span className="inline-flex items-center gap-0.5 ml-1 px-1.5 py-0.5 rounded-full bg-emerald-900/40 border border-emerald-700/50 text-[#6ee7b7] text-[11px] font-bold">
                                 <CheckCheck className="w-2.5 h-2.5" />{attCount}
                               </span>
                             )}
@@ -1048,20 +1048,20 @@ export function WeeklyScheduleView() {
                         <div className="flex items-center gap-1">
                           <span className={`w-1.5 h-1.5 rounded-full ${isActive ? "bg-emerald-400" : isFinished ? "bg-[#a1a1aa]" : "bg-blue-400"}`} />
                           {isFinished ? (
-                            <span className="text-[9px] text-red-400">Finished</span>
+                            <span className="text-[11px] text-red-400">Finished</span>
                           ) : isActive ? (
-                            <span className="text-[9px] text-emerald-400 font-medium">Active</span>
+                            <span className="text-[11px] text-emerald-400 font-medium">Active</span>
                           ) : (
-                            <span className="text-[9px] text-blue-400">Countdown</span>
+                            <span className="text-[11px] text-blue-400">Countdown</span>
                           )}
                           {isFinished && actAttCount > 0 && (
-                            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-emerald-900/40 border border-emerald-700/50 text-[#6ee7b7] text-[9px] font-bold">
+                            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-emerald-900/40 border border-emerald-700/50 text-[#6ee7b7] text-[11px] font-bold">
                               <Users className="w-2.5 h-2.5" />{actAttCount}
                             </span>
                           )}
                           {isFinished && info.activityInstance?.id && actAttCount > 0 && !isViewer && (
                             activityCopySource?.activityInstanceId === info.activityInstance.id ? (
-                              <span className="text-[10px] text-blue-400 font-medium">Source</span>
+                              <span className="text-[11px] text-blue-400 font-medium">Source</span>
                             ) : activityCopySource ? (
                               <button onClick={(e) => handleActivityCopyTarget(e, info.activityInstance!.id, info.activity.name)} className="p-0.5 rounded hover:bg-[#27272a] text-blue-400 hover:text-blue-300 transition" title="Paste attendance here">
                                 <CopyCheck className="w-3 h-3" />
@@ -1225,7 +1225,7 @@ export function WeeklyScheduleView() {
             <p className="text-sm text-[#a1a1aa] mb-3">
               Select who killed <span className="text-[#fafafa] font-medium">{editGuildDeath.bossName}</span>
             </p>
-            <p className="text-[10px] text-[#71717a] mb-3">This does not affect the guild rotation sequence.</p>
+            <p className="text-[11px] text-[#71717a] mb-3">This does not affect the guild rotation sequence.</p>
             <div className="space-y-1 max-h-48 overflow-y-auto">
               <button
                 onClick={() => handleSetDisplayGuild(null)}

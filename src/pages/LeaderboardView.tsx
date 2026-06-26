@@ -234,7 +234,7 @@ export function LeaderboardView() {
     const IconComp = iconName ? getClassIcon(iconName) : null;
     return (
       <span
-        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium shrink-0"
+        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-medium shrink-0"
         style={{ backgroundColor: color ? `${color}20` : undefined, color: color ?? undefined, border: color ? `1px solid ${color}40` : undefined }}
         title={cls}
       >
@@ -875,23 +875,23 @@ export function LeaderboardView() {
                 </div>
                 <div className="flex flex-wrap gap-2 items-end">
                   <div className="flex flex-col gap-0.5">
-                    <label className="text-[10px] text-[#71717a]">Start</label>
+                    <label className="text-[11px] text-[#71717a]">Start</label>
                     <input type="date" value={exportStartDate} onChange={(e) => setExportStartDate(e.target.value)} className="px-2 py-1.5 bg-[#18181b] border border-[#27272a] rounded-lg text-[#fafafa] text-xs outline-none focus:ring-2 focus:ring-[#fafafa]/30/50 transition" />
                   </div>
                   <div className="flex flex-col gap-0.5">
-                    <label className="text-[10px] text-[#71717a]">End</label>
+                    <label className="text-[11px] text-[#71717a]">End</label>
                     <input type="date" value={exportEndDate} onChange={(e) => setExportEndDate(e.target.value)} className="px-2 py-1.5 bg-[#18181b] border border-[#27272a] rounded-lg text-[#fafafa] text-xs outline-none focus:ring-2 focus:ring-[#fafafa]/30/50 transition" />
                   </div>
                   <label className="flex items-center gap-1.5 cursor-pointer pb-1.5">
                     <input type="checkbox" checked={exportRankingsOnly} onChange={(e) => setExportRankingsOnly(e.target.checked)} className="w-3 h-3 rounded border-[#52525b] bg-[#18181b] text-[#a1a1aa] focus:ring-[#fafafa]/30 cursor-pointer" />
-                    <span className="text-[10px] text-[#a1a1aa] whitespace-nowrap">Rankings only</span>
+                    <span className="text-[11px] text-[#a1a1aa] whitespace-nowrap">Rankings only</span>
                   </label>
                   <button onClick={() => handleExportAttendance()} disabled={exportLoading || !exportStartDate || !exportEndDate} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-amber-500 text-[#fafafa] hover:bg-amber-500 transition disabled:opacity-50 flex items-center gap-1.5">
                     {exportLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
                     Export Excel
                   </button>
                 </div>
-                <p className="text-[10px] text-[#52525b]">{exportRankingsOnly ? "Exports a simple ranking list: rank, player, total points." : "Exports a pivot table + ranking side by side. Rows = bosses, columns = players."}</p>
+                <p className="text-[11px] text-[#52525b]">{exportRankingsOnly ? "Exports a simple ranking list: rank, player, total points." : "Exports a pivot table + ranking side by side. Rows = bosses, columns = players."}</p>
               </div>
             </div>
             <div className="relative">
@@ -1112,16 +1112,16 @@ export function LeaderboardView() {
                       <History className="w-3.5 h-3.5 text-[#a1a1aa] shrink-0 mt-0.5" />
                       <div className="flex-1 min-w-0 space-y-0.5">
                         <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className="text-[10px] font-medium text-[#71717a] bg-[#27272a]/50 px-1.5 py-0.5 rounded">
+                          <span className="text-[11px] font-medium text-[#71717a] bg-[#27272a]/50 px-1.5 py-0.5 rounded">
                             {periodLabel}
                           </span>
-                          <span className="text-[10px] text-[#71717a]">{snap.ranking_count} ranked</span>
+                          <span className="text-[11px] text-[#71717a]">{snap.ranking_count} ranked</span>
                         </div>
                         <p className="text-[11px] text-[#d4d4d8]">
                           {fmt(periodStart)} → {fmt(finalized)}
                         </p>
                         {snap.top_name && (
-                          <p className="text-[10px] text-amber-400/80 truncate">
+                          <p className="text-[11px] text-amber-400/80 truncate">
                             🥇 {snap.top_name} · {snap.top_points} pt{snap.top_points !== 1 ? 's' : ''}
                           </p>
                         )}
@@ -1185,7 +1185,7 @@ export function LeaderboardView() {
                     <button onClick={() => { clearViewing(); setShowSnapshots(prevShowSnapshots.current ?? "__all__"); }} className="text-[#a1a1aa] hover:text-[#fafafa] p-1 transition" title="Back to list"><ChevronLeft className="w-4 h-4" /></button>
                     <div>
                       <h3 className="text-[#fafafa] font-bold text-xs">Finalized Results</h3>
-                      <p className="text-[10px] text-[#71717a]">{fmt(periodStart)} → {fmt(finalized)} · {count} players</p>
+                      <p className="text-[11px] text-[#71717a]">{fmt(periodStart)} → {fmt(finalized)} · {count} players</p>
                     </div>
                   </div>
                   <button onClick={clearViewing} className="text-[#a1a1aa] hover:text-[#fafafa] p-1"><X className="w-4 h-4" /></button>
@@ -1197,10 +1197,10 @@ export function LeaderboardView() {
                       return (
                         <div key={r.memberId} className={`flex items-center gap-1.5 px-2 py-1 rounded border ${style?.bg ?? "bg-[#09090b]/50 border-[#27272a]/50"}`}>
                           <div className="flex items-center justify-center w-4 h-4 shrink-0">
-                            {style ? <span className="scale-75">{style.icon}</span> : <span className="text-[9px] font-bold text-[#71717a]">#{r.rank}</span>}
+                            {style ? <span className="scale-75">{style.icon}</span> : <span className="text-[11px] font-bold text-[#71717a]">#{r.rank}</span>}
                           </div>
                           <span className={`flex-1 text-[11px] font-semibold truncate ${style?.text ?? "text-[#fafafa]"}`}>{r.memberName}</span>
-                          <span className="text-[10px] font-bold text-amber-400 tabular-nums shrink-0">{r.points}pt</span>
+                          <span className="text-[11px] font-bold text-amber-400 tabular-nums shrink-0">{r.points}pt</span>
                         </div>
                       );
                     })}
@@ -1208,9 +1208,9 @@ export function LeaderboardView() {
                 </div>
                 {viewingSnapshot.rankings.length > 0 && (
                   <div className="p-2 border-t border-[#27272a] shrink-0 flex items-center gap-1.5 flex-wrap">
-                    <button onClick={() => { const text = buildSnapshotShareText(viewingSnapshot); navigator.clipboard.writeText(text); setCopiedShare(true); setTimeout(() => setCopiedShare(false), 2000); }} className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium bg-[#18181b] text-[#d4d4d8] hover:bg-[#27272a] transition">{copiedShare ? <CheckCheck className="w-3 h-3 text-emerald-400" /> : <CheckCheck className="w-3 h-3" />}{copiedShare ? "Copied!" : "Copy"}</button>
-                    <button onClick={() => { const text = buildSnapshotShareText(viewingSnapshot); const url = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent("https://www.raidscout.com")}&quote=${encodeURIComponent(text)}`; window.open(url, "_blank", "width=600,height=400"); }} className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium bg-[#1877F2]/20 text-[#1877F2] hover:bg-[#1877F2]/30 transition"><svg className="w-3 h-3" viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>FB</button>
-                    <button onClick={() => { const text = buildSnapshotShareText(viewingSnapshot); const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`; window.open(url, "_blank", "width=600,height=400"); }} className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium bg-[#18181b] text-[#d4d4d8] hover:bg-[#27272a] transition"><svg className="w-3 h-3" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>X</button>
+                    <button onClick={() => { const text = buildSnapshotShareText(viewingSnapshot); navigator.clipboard.writeText(text); setCopiedShare(true); setTimeout(() => setCopiedShare(false), 2000); }} className="flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium bg-[#18181b] text-[#d4d4d8] hover:bg-[#27272a] transition">{copiedShare ? <CheckCheck className="w-3 h-3 text-emerald-400" /> : <CheckCheck className="w-3 h-3" />}{copiedShare ? "Copied!" : "Copy"}</button>
+                    <button onClick={() => { const text = buildSnapshotShareText(viewingSnapshot); const url = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent("https://www.raidscout.com")}&quote=${encodeURIComponent(text)}`; window.open(url, "_blank", "width=600,height=400"); }} className="flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium bg-[#1877F2]/20 text-[#1877F2] hover:bg-[#1877F2]/30 transition"><svg className="w-3 h-3" viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>FB</button>
+                    <button onClick={() => { const text = buildSnapshotShareText(viewingSnapshot); const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`; window.open(url, "_blank", "width=600,height=400"); }} className="flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium bg-[#18181b] text-[#d4d4d8] hover:bg-[#27272a] transition"><svg className="w-3 h-3" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>X</button>
                   </div>
                 )}
               </div>
@@ -1238,7 +1238,7 @@ export function LeaderboardView() {
             <div className="flex items-center justify-between p-3 border-b border-[#27272a] shrink-0">
               <div>
                 <h3 className="text-sm font-bold text-[#fafafa]">{selectedMember.name}</h3>
-                <p className="text-[10px] text-[#71717a]">
+                <p className="text-[11px] text-[#71717a]">
                   {memberKills.length} kill{memberKills.length !== 1 ? "s" : ""}
                   {memberActivities.length > 0 && <> · {memberActivities.length} activit{memberActivities.length !== 1 ? "ies" : "y"}</>}
                   {" · "}
@@ -1295,16 +1295,16 @@ export function LeaderboardView() {
                       <span className="text-sm text-[#fafafa]">{item.name}</span>
                       {!isAdjustment && !isActivity && item.guild_name && (
                         <span
-                          className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-medium border ${guildColor(item.guild_name).bg} ${guildColor(item.guild_name).text} ${guildColor(item.guild_name).border}`}
+                          className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[11px] font-medium border ${guildColor(item.guild_name).bg} ${guildColor(item.guild_name).text} ${guildColor(item.guild_name).border}`}
                         >
                           <Shield className="w-2 h-2" />
                           {item.guild_name}
                         </span>
                       )}
-                      <span className={`text-[10px] font-medium ml-auto mr-2 ${isAdjustment ? (item.points >= 0 ? "text-emerald-400" : "text-red-400") : "text-amber-400"}`}>
+                      <span className={`text-[11px] font-medium ml-auto mr-2 ${isAdjustment ? (item.points >= 0 ? "text-emerald-400" : "text-red-400") : "text-amber-400"}`}>
                         {isAdjustment && item.points >= 0 ? "+" : ""}{item.points}
                       </span>
-                      <span className="text-[10px] text-[#52525b]">
+                      <span className="text-[11px] text-[#52525b]">
                         {new Date(item.time).toLocaleString("en-US", { timeZone: userTz,
                           month: "short",
                           day: "numeric",
@@ -1475,7 +1475,7 @@ export function LeaderboardView() {
               ) : (
                 filteredAdjustments.map((adj) => (
                   <div key={adj.id} className="flex items-start gap-2 px-2.5 py-2 rounded-lg bg-[#18181b]/50 border border-[#27272a]/50">
-                    <div className={`mt-0.5 w-6 h-6 rounded-full flex items-center justify-center shrink-0 text-[10px] font-bold ${
+                    <div className={`mt-0.5 w-6 h-6 rounded-full flex items-center justify-center shrink-0 text-[11px] font-bold ${
                       adj.points > 0 ? "bg-emerald-500/10 text-emerald-400" : "bg-red-900/30 text-red-400"
                     }`}>
                       {adj.points > 0 ? `+${adj.points}` : adj.points}
@@ -1485,9 +1485,9 @@ export function LeaderboardView() {
                         <span className="text-[11px] text-[#fafafa] font-medium">{adj.member_name}</span>
                       </div>
                       {adj.reason && (
-                        <p className="text-[10px] text-[#a1a1aa] mt-0.5">{adj.reason}</p>
+                        <p className="text-[11px] text-[#a1a1aa] mt-0.5">{adj.reason}</p>
                       )}
-                      <p className="text-[10px] text-[#52525b] mt-0.5">
+                      <p className="text-[11px] text-[#52525b] mt-0.5">
                         by {adj.adjusted_by_name} · {new Date(adj.created_at).toLocaleString()}
                       </p>
                     </div>
@@ -1671,7 +1671,7 @@ function ParticipantModalInline({
         <div className="flex items-center justify-between p-4 border-b border-[#27272a] shrink-0">
           <div>
             <h3 className="text-sm font-bold text-[#fafafa]">{bossName}</h3>
-            <p className="text-[10px] text-[#71717a]">{new Date(deathTime).toLocaleString()}</p>
+            <p className="text-[11px] text-[#71717a]">{new Date(deathTime).toLocaleString()}</p>
           </div>
           <button onClick={onClose} className="text-[#a1a1aa] hover:text-[#fafafa] transition p-1">
             <X className="w-4 h-4" />

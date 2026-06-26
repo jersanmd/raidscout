@@ -308,7 +308,7 @@ export function ServerBossesActivitiesTab({ mode = "all" }: { mode?: "all" | "bo
                 <h3 className="text-xs font-medium text-[#fafafa]">Guild Assignment</h3>
 
                 <div className="flex items-center gap-2">
-                  <span className="text-[10px] text-[#71717a] w-10">Mode:</span>
+                  <span className="text-[11px] text-[#71717a] w-10">Mode:</span>
                   <select
                     value={guildMode}
                     onChange={(e) => {
@@ -327,12 +327,12 @@ export function ServerBossesActivitiesTab({ mode = "all" }: { mode?: "all" | "bo
 
                 {(guildMode === "rotation" || guildMode === "daily") && (
                   <div className="space-y-1.5">
-                    <p className="text-[10px] text-[#71717a]">Guild order (first → last):</p>
+                    <p className="text-[11px] text-[#71717a]">Guild order (first → last):</p>
                     {selectedGuildIds.map((gid, idx) => {
                       const g = guilds.find(x => x.id === gid);
                       return (
                         <div key={gid} className="flex items-center gap-1 bg-[#09090b]/50 rounded px-2 py-1.5">
-                          <span className="text-[10px] text-[#71717a] w-4">{idx + 1}.</span>
+                          <span className="text-[11px] text-[#71717a] w-4">{idx + 1}.</span>
                           <span className="text-xs text-[#e4e4e7] flex-1">{g?.name ?? "Unknown"}</span>
                           <button onClick={() => moveGuild(gid, "up")} disabled={idx === 0} className="p-0.5 text-[#71717a] hover:text-[#a1a1aa] disabled:opacity-30"><ChevronUp className="w-3 h-3" /></button>
                           <button onClick={() => moveGuild(gid, "down")} disabled={idx === selectedGuildIds.length - 1} className="p-0.5 text-[#71717a] hover:text-[#a1a1aa] disabled:opacity-30"><ChevronDown className="w-3 h-3" /></button>
@@ -355,10 +355,10 @@ export function ServerBossesActivitiesTab({ mode = "all" }: { mode?: "all" | "bo
 
                 {guildMode === "schedule" && (
                   <div className="space-y-1.5">
-                    <p className="text-[10px] text-[#71717a]">Assign a guild per day:</p>
+                    <p className="text-[11px] text-[#71717a]">Assign a guild per day:</p>
                     {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day, i) => (
                       <div key={i} className="flex items-center gap-2">
-                        <span className="text-[10px] text-[#71717a] w-8">{day}</span>
+                        <span className="text-[11px] text-[#71717a] w-8">{day}</span>
                         <select
                           value={scheduleDays[i] ?? ""}
                           onChange={(e) => setScheduleDays(prev => ({ ...prev, [i]: e.target.value || null }))}
@@ -373,7 +373,7 @@ export function ServerBossesActivitiesTab({ mode = "all" }: { mode?: "all" | "bo
                 )}
 
                 {submittingGuilds && (
-                  <p className="text-[10px] text-[#71717a]">Assigning guilds to boss...</p>
+                  <p className="text-[11px] text-[#71717a]">Assigning guilds to boss...</p>
                 )}
               </div>
             )}
@@ -420,9 +420,9 @@ export function ServerBossesActivitiesTab({ mode = "all" }: { mode?: "all" | "bo
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-medium text-[#fafafa] truncate">{boss.name}</span>
                     {boss.is_custom ? (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#27272a] text-[#a1a1aa]">Custom</span>
+                      <span className="text-[11px] px-1.5 py-0.5 rounded bg-[#27272a] text-[#a1a1aa]">Custom</span>
                     ) : (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#18181b] border border-[#27272a] text-[#71717a]">Seeded</span>
+                      <span className="text-[11px] px-1.5 py-0.5 rounded bg-[#18181b] border border-[#27272a] text-[#71717a]">Seeded</span>
                     )}
                   </div>
                   <span className="text-xs text-[#71717a]">
@@ -497,7 +497,7 @@ export function ServerBossesActivitiesTab({ mode = "all" }: { mode?: "all" | "bo
                   {disabled.length > 0 && (
                     <>
                       <div className="flex items-center gap-2 pt-4 pb-1">
-                        <span className="text-[10px] text-[#71717a] uppercase tracking-wider">Disabled</span>
+                        <span className="text-[11px] text-[#71717a] uppercase tracking-wider">Disabled</span>
                         <div className="flex-1 h-px bg-[#27272a]" />
                       </div>
                       {disabled.map(renderRow)}
@@ -591,7 +591,7 @@ export function ServerBossesActivitiesTab({ mode = "all" }: { mode?: "all" | "bo
                 <h3 className="text-xs font-medium text-[#fafafa]">Guild Assignment</h3>
 
                 <div className="flex items-center gap-2">
-                  <span className="text-[10px] text-[#71717a] w-10">Mode:</span>
+                  <span className="text-[11px] text-[#71717a] w-10">Mode:</span>
                   <select
                     value={guildMode}
                     onChange={(e) => {
@@ -610,12 +610,12 @@ export function ServerBossesActivitiesTab({ mode = "all" }: { mode?: "all" | "bo
 
                 {(guildMode === "rotation" || guildMode === "daily") && (
                   <div className="space-y-1.5">
-                    <p className="text-[10px] text-[#71717a]">Guild order (first → last):</p>
+                    <p className="text-[11px] text-[#71717a]">Guild order (first → last):</p>
                     {selectedGuildIds.map((gid, idx) => {
                       const g = guilds.find(x => x.id === gid);
                       return (
                         <div key={gid} className="flex items-center gap-1 bg-[#09090b]/50 rounded px-2 py-1.5">
-                          <span className="text-[10px] text-[#71717a] w-4">{idx + 1}.</span>
+                          <span className="text-[11px] text-[#71717a] w-4">{idx + 1}.</span>
                           <span className="text-xs text-[#e4e4e7] flex-1">{g?.name ?? "Unknown"}</span>
                           <button onClick={() => moveGuild(gid, "up")} disabled={idx === 0} className="p-0.5 text-[#71717a] hover:text-[#a1a1aa] disabled:opacity-30"><ChevronUp className="w-3 h-3" /></button>
                           <button onClick={() => moveGuild(gid, "down")} disabled={idx === selectedGuildIds.length - 1} className="p-0.5 text-[#71717a] hover:text-[#a1a1aa] disabled:opacity-30"><ChevronDown className="w-3 h-3" /></button>
@@ -638,10 +638,10 @@ export function ServerBossesActivitiesTab({ mode = "all" }: { mode?: "all" | "bo
 
                 {guildMode === "schedule" && (
                   <div className="space-y-1.5">
-                    <p className="text-[10px] text-[#71717a]">Assign a guild per day:</p>
+                    <p className="text-[11px] text-[#71717a]">Assign a guild per day:</p>
                     {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day, i) => (
                       <div key={i} className="flex items-center gap-2">
-                        <span className="text-[10px] text-[#71717a] w-8">{day}</span>
+                        <span className="text-[11px] text-[#71717a] w-8">{day}</span>
                         <select
                           value={scheduleDays[i] ?? ""}
                           onChange={(e) => setScheduleDays(prev => ({ ...prev, [i]: e.target.value || null }))}
@@ -656,7 +656,7 @@ export function ServerBossesActivitiesTab({ mode = "all" }: { mode?: "all" | "bo
                 )}
 
                 {submittingGuilds && (
-                  <p className="text-[10px] text-[#71717a]">Assigning guilds to activity...</p>
+                  <p className="text-[11px] text-[#71717a]">Assigning guilds to activity...</p>
                 )}
               </div>
             )}
@@ -709,9 +709,9 @@ export function ServerBossesActivitiesTab({ mode = "all" }: { mode?: "all" | "bo
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-medium text-[#fafafa] truncate">{activity.name}</span>
                     {activity.is_custom ? (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#27272a] text-[#a1a1aa]">Custom</span>
+                      <span className="text-[11px] px-1.5 py-0.5 rounded bg-[#27272a] text-[#a1a1aa]">Custom</span>
                     ) : (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#18181b] border border-[#27272a] text-[#71717a]">Seeded</span>
+                      <span className="text-[11px] px-1.5 py-0.5 rounded bg-[#18181b] border border-[#27272a] text-[#71717a]">Seeded</span>
                     )}
                   </div>
                   <span className="text-xs text-[#71717a]">
@@ -787,7 +787,7 @@ export function ServerBossesActivitiesTab({ mode = "all" }: { mode?: "all" | "bo
                   {disabled.length > 0 && (
                     <>
                       <div className="flex items-center gap-2 pt-4 pb-1">
-                        <span className="text-[10px] text-[#71717a] uppercase tracking-wider">Disabled</span>
+                        <span className="text-[11px] text-[#71717a] uppercase tracking-wider">Disabled</span>
                         <div className="flex-1 h-px bg-[#27272a]" />
                       </div>
                       {disabled.map(renderRow)}

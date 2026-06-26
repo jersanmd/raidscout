@@ -156,23 +156,23 @@ export default function AuctionTheater({
           </h1>
           <div className="flex items-center gap-2 mt-1">
             <span
-              className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full"
+              className="text-[11px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full"
               style={{ background: rarityColor + "20", color: rarityColor }}
             >
               {rarity}
             </span>
             {auction.guild_name && (
-              <span className="text-[10px] text-[#71717a]">· {auction.guild_name} only</span>
+              <span className="text-[11px] text-[#71717a]">· {auction.guild_name} only</span>
             )}
             {auction.quantity > 1 && (
-              <span className="text-[10px] text-[#71717a]">· x{auction.quantity}</span>
+              <span className="text-[11px] text-[#71717a]">· x{auction.quantity}</span>
             )}
           </div>
         </div>
 
         {/* Countdown */}
         <div className="px-6 pb-1">
-          <div className="flex items-center justify-between text-[10px] text-[#71717a] mb-1">
+          <div className="flex items-center justify-between text-[11px] text-[#71717a] mb-1">
             <span className="flex items-center gap-1"><Timer className="w-3 h-3" />{ended ? "Ended" : "Remaining"}</span>
             <span className={`font-mono font-bold ${ended ? "text-red-400 animate-pulse" : ""}`} style={{ color: ended ? undefined : barColor }}>{timeStr}</span>
           </div>
@@ -208,7 +208,7 @@ export default function AuctionTheater({
                 >
                   {b.bid_amount}
                 </p>
-                <p className="text-[10px] text-[#52525b]">DKP</p>
+                <p className="text-[11px] text-[#52525b]">DKP</p>
               </div>
             ))
           ) : (
@@ -222,7 +222,7 @@ export default function AuctionTheater({
         {/* Bid history */}
         {bidHistory.length > 0 && (
           <div ref={bidScrollRef} className="flex-1 overflow-y-auto px-6 pb-2 max-h-32">
-            <p className="text-[10px] text-[#52525b] uppercase tracking-wider mb-2">Bid History</p>
+            <p className="text-[11px] text-[#52525b] uppercase tracking-wider mb-2">Bid History</p>
             <div className="space-y-1">
               {bidHistory.map((b: DkpBid) => (
                 <div key={b.id} className={`flex items-center justify-between text-[11px] ${isNew(b.id) ? "animate-slide-up" : ""}`}>

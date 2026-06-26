@@ -784,7 +784,7 @@ export function InventoryView() {
               <div className="flex items-center gap-2 flex-wrap">
                 <button
                   onClick={() => setRarityFilter(null)}
-                  className={`px-2.5 py-1 rounded-md text-[10px] font-medium transition ${
+                  className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition ${
                     !rarityFilter ? "bg-[#fafafa] text-[#09090b]" : "bg-[#27272a] text-[#a1a1aa] hover:text-[#e4e4e7]"
                   }`}
                 >
@@ -796,7 +796,7 @@ export function InventoryView() {
                     <button
                       key={r}
                       onClick={() => setRarityFilter(rarityFilter === r ? null : r)}
-                      className="px-2.5 py-1 rounded-md text-[10px] font-medium capitalize transition"
+                      className="px-2.5 py-1 rounded-md text-[11px] font-medium capitalize transition"
                       style={{
                         backgroundColor: rarityFilter === r ? `${color}20` : "#27272a",
                         color: rarityFilter === r ? color : "#a1a1aa",
@@ -848,17 +848,17 @@ export function InventoryView() {
                     <p className="text-[13px] font-medium truncate leading-tight" style={{ color: rarityColor }}>{item.name}</p>
                     <div className="flex items-center gap-2 flex-wrap">
                       <span
-                        className="text-[10px] font-semibold uppercase tracking-wider"
+                        className="text-[11px] font-semibold uppercase tracking-wider"
                         style={{ color: rarityColor }}
                       >
                         {item.rarity}
                         {isCatalog && <span className="ml-1 text-[#8b5cf6]/70 font-normal normal-case tracking-normal">{"\u00B7"} Catalog</span>}
                       </span>
                       {!isCatalog && item.created_by_username && (
-                        <span className="text-[9px] text-[#52525b] truncate">by {item.created_by_username}</span>
+                        <span className="text-[11px] text-[#52525b] truncate">by {item.created_by_username}</span>
                       )}
                       {item.status?.toLowerCase() === "pending" && (
-                        <span className="text-[9px] px-1.5 py-0.5 rounded font-medium bg-amber-500/15 text-amber-400 border border-amber-500/30">
+                        <span className="text-[11px] px-1.5 py-0.5 rounded font-medium bg-amber-500/15 text-amber-400 border border-amber-500/30">
                           Pending
                         </span>
                       )}
@@ -1034,7 +1034,7 @@ export function InventoryView() {
                         </div>
                         <div>
                           <h4 className="text-sm font-semibold text-[#fafafa] leading-tight">{c.name}</h4>
-                          <p className="text-[10px] text-[#52525b] mt-0.5">{totalItems} item{totalItems !== 1 ? "s" : ""}{playerCount != null ? ` · ${playerCount} player${playerCount !== 1 ? "s" : ""}` : ""}</p>
+                          <p className="text-[11px] text-[#52525b] mt-0.5">{totalItems} item{totalItems !== 1 ? "s" : ""}{playerCount != null ? ` · ${playerCount} player${playerCount !== 1 ? "s" : ""}` : ""}</p>
                         </div>
                       </div>
                       {/* Item previews */}
@@ -1043,14 +1043,14 @@ export function InventoryView() {
                           {previewItems.map(item => {
                             const rc = item.rarity ? RARITY_COLORS[item.rarity.toLowerCase() as ItemRarity] : "#a1a1aa";
                             return (
-                              <span key={item.id} className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-1 rounded-lg border bg-[#09090b]" style={{ color: rc, borderColor: rc + "20" }}>
+                              <span key={item.id} className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-1 rounded-lg border bg-[#09090b]" style={{ color: rc, borderColor: rc + "20" }}>
                                 {item.image_url && <img src={item.image_url} alt="" className="w-3.5 h-3.5 rounded object-cover" />}
                                 <span className="truncate max-w-[100px]">{item.name}</span>
                               </span>
                             );
                           })}
                           {totalItems > 4 && (
-                            <span className="inline-flex items-center text-[10px] font-medium px-2 py-1 rounded-lg border border-[#27272a] bg-[#09090b] text-[#52525b]">
+                            <span className="inline-flex items-center text-[11px] font-medium px-2 py-1 rounded-lg border border-[#27272a] bg-[#09090b] text-[#52525b]">
                               +{totalItems - 4} more
                             </span>
                           )}
@@ -1127,7 +1127,7 @@ export function InventoryView() {
                 <button onClick={() => { setCollectionMode("list"); setSelectedCollection(null); setCollectionItemSearch(""); setCollCatFilter(""); setCollRarityFilter(""); }} className="p-1 text-[#a1a1aa] hover:text-[#fafafa] transition"><ArrowLeft className="w-4 h-4" /></button>
                 <div>
                   <h3 className="text-sm font-semibold text-[#fafafa]">{currentCollection?.name}</h3>
-                  <p className="text-[10px] text-[#52525b]">{collItems.length} item{collItems.length !== 1 ? "s" : ""} in collection</p>
+                  <p className="text-[11px] text-[#52525b]">{collItems.length} item{collItems.length !== 1 ? "s" : ""} in collection</p>
                 </div>
                 <div className="flex-1" />
                 <button
@@ -1215,7 +1215,7 @@ export function InventoryView() {
                     <select
                       value={collCatFilter}
                       onChange={e => setCollCatFilter(e.target.value)}
-                      className="text-[10px] bg-[#18181b] border border-[#27272a] rounded-lg text-[#fafafa] px-2.5 py-1.5 focus:outline-none focus:border-[#3f3f46]"
+                      className="text-[11px] bg-[#18181b] border border-[#27272a] rounded-lg text-[#fafafa] px-2.5 py-1.5 focus:outline-none focus:border-[#3f3f46]"
                     >
                       <option value="">All Categories</option>
                       {topCategories.map((tc: any) => (
@@ -1231,7 +1231,7 @@ export function InventoryView() {
                     <select
                       value={collRarityFilter}
                       onChange={e => setCollRarityFilter(e.target.value)}
-                      className="text-[10px] bg-[#18181b] border border-[#27272a] rounded-lg text-[#fafafa] px-2.5 py-1.5 focus:outline-none focus:border-[#3f3f46]"
+                      className="text-[11px] bg-[#18181b] border border-[#27272a] rounded-lg text-[#fafafa] px-2.5 py-1.5 focus:outline-none focus:border-[#3f3f46]"
                     >
                       <option value="">All Rarities</option>
                       {RARITY_ORDER.filter(r => collRarities.includes(r)).map(r => (
@@ -1337,7 +1337,7 @@ export function InventoryView() {
                 <button onClick={() => { setCollectionMode(canManageItems ? "view" : "list"); if (!canManageItems) setSelectedCollection(null); }} className="p-1 text-[#a1a1aa] hover:text-[#fafafa] transition"><ArrowLeft className="w-4 h-4" /></button>
                 <div>
                   <h3 className="text-sm font-semibold text-[#fafafa]">{currentCollection?.name} — Ownership</h3>
-                  <p className="text-[10px] text-[#52525b]">{sortedPlayers.length} / {playersWithOwnership.length} players · {matrixItems.length} items</p>
+                  <p className="text-[11px] text-[#52525b]">{sortedPlayers.length} / {playersWithOwnership.length} players · {matrixItems.length} items</p>
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
                   <select
@@ -1347,14 +1347,14 @@ export function InventoryView() {
                       setMatrixGuildFilter(val);
                       try { localStorage.setItem("raidscout-matrix-guild", val); } catch {}
                     }}
-                    className="text-[10px] bg-[#18181b] border border-[#27272a] rounded-lg text-[#fafafa] px-2.5 py-1.5 focus:outline-none focus:border-[#3f3f46]"
+                    className="text-[11px] bg-[#18181b] border border-[#27272a] rounded-lg text-[#fafafa] px-2.5 py-1.5 focus:outline-none focus:border-[#3f3f46]"
                   >
                     <option value="">All Guilds</option>
                     {guildNames.map(g => (
                       <option key={g} value={g}>{g}</option>
                     ))}
                   </select>
-                  <div className="flex items-center gap-2 text-[10px] flex-wrap">
+                  <div className="flex items-center gap-2 text-[11px] flex-wrap">
                     <span className="flex items-center gap-1"><span className="w-3 h-3 rounded border border-emerald-500/20 bg-emerald-500/10 shrink-0" /> Distributed</span>
                     <span className="flex items-center gap-1"><span className="w-3 h-3 rounded border border-amber-500/20 bg-amber-500/10 shrink-0" /> Manual</span>
                     <span className="text-[#52525b] hidden sm:inline">Click cells to toggle</span>
@@ -1412,7 +1412,7 @@ export function InventoryView() {
                             </div>
                           </th>
                           {matrixItems.map(ci => (
-                            <th key={ci.item_id} className="sticky top-0 bg-[#18181b] px-3 py-2.5 text-center text-[10px] text-[#71717a] uppercase tracking-wider font-medium min-w-[80px]">
+                            <th key={ci.item_id} className="sticky top-0 bg-[#18181b] px-3 py-2.5 text-center text-[11px] text-[#71717a] uppercase tracking-wider font-medium min-w-[80px]">
                               <button
                                 onClick={() => {
                                   if (matrixItemSort === ci.item_id) {
@@ -1446,7 +1446,7 @@ export function InventoryView() {
                             <tr key={p.name} className="border-b border-[#27272a]/50 hover:bg-[#09090b]/30 transition group">
                               <td className="sticky left-0 z-10 bg-[#18181b] group-hover:bg-[#09090b]/30 px-4 py-2.5 font-medium text-xs transition-colors">
                                 <span className="flex items-center gap-2">
-                                  <span className="text-[10px] text-[#52525b] tabular-nums w-5 text-right shrink-0">{i + 1}</span>
+                                  <span className="text-[11px] text-[#52525b] tabular-nums w-5 text-right shrink-0">{i + 1}</span>
                                   <span className="text-[#fafafa]">{p.name}</span>
                                   {(() => {
                                     const m = members.find(m => m.id === p.name || m.name.toLowerCase().trim() === p.name.toLowerCase().trim());
@@ -1456,13 +1456,13 @@ export function InventoryView() {
                                     return (
                                       <>
                                         {g && (() => { const c = guildColor(g.name); return (
-                                          <span className={`flex items-center gap-0.5 text-[9px] font-medium px-1 py-0.5 rounded border shrink-0 ${c.bg} ${c.text} ${c.border}`}>
+                                          <span className={`flex items-center gap-0.5 text-[11px] font-medium px-1 py-0.5 rounded border shrink-0 ${c.bg} ${c.text} ${c.border}`}>
                                             <Shield className="w-2 h-2" />
                                             {g.name}
                                           </span>
                                         ); })()}
                                         {hasCp && (
-                                          <span className="text-[10px] text-[#71717a] tabular-nums shrink-0 font-mono">{m!.combat_power!.toLocaleString()}</span>
+                                          <span className="text-[11px] text-[#71717a] tabular-nums shrink-0 font-mono">{m!.combat_power!.toLocaleString()}</span>
                                         )}
                                       </>
                                     );
@@ -1501,7 +1501,7 @@ export function InventoryView() {
                                       }
                                       queryClient.invalidateQueries({ queryKey: ["manualOwnership", selectedCollection] });
                                     } : undefined}
-                                    className={`text-[10px] font-medium px-1.5 py-0.5 rounded border transition ${canManageItems ? "cursor-pointer" : "cursor-default"} ${isManual ? "text-amber-400 bg-amber-500/10 border-amber-500/20 hover:bg-amber-500/20" : isDistributed ? "text-emerald-400 bg-emerald-500/10 border-emerald-500/20 hover:bg-emerald-500/20" : "text-[#3f3f46] hover:text-[#a1a1aa] border-transparent hover:border-[#3f3f46]"}`}
+                                    className={`text-[11px] font-medium px-1.5 py-0.5 rounded border transition ${canManageItems ? "cursor-pointer" : "cursor-default"} ${isManual ? "text-amber-400 bg-amber-500/10 border-amber-500/20 hover:bg-amber-500/20" : isDistributed ? "text-emerald-400 bg-emerald-500/10 border-emerald-500/20 hover:bg-emerald-500/20" : "text-[#3f3f46] hover:text-[#a1a1aa] border-transparent hover:border-[#3f3f46]"}`}
                                     title={isManual ? "Manual ✓ — click to remove" : isDistributed ? "Distributed ✓ — click to mark not owned" : "Not owned — click to mark owned"}
                                   >
                                     {isManual ? "✎ Owned" : isDistributed ? "✓ Owned" : "—"}
@@ -1557,7 +1557,7 @@ export function InventoryView() {
               <div className="flex items-center gap-2 flex-wrap">
                 <button
                   onClick={() => setHistRarityFilter(null)}
-                  className={`px-2.5 py-1 rounded-md text-[10px] font-medium transition ${
+                  className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition ${
                     !histRarityFilter ? "bg-[#fafafa] text-[#09090b]" : "bg-[#27272a] text-[#a1a1aa] hover:text-[#e4e4e7]"
                   }`}
                 >
@@ -1569,7 +1569,7 @@ export function InventoryView() {
                     <button
                       key={r}
                       onClick={() => setHistRarityFilter(histRarityFilter === r ? null : r)}
-                      className="px-2.5 py-1 rounded-md text-[10px] font-medium capitalize transition"
+                      className="px-2.5 py-1 rounded-md text-[11px] font-medium capitalize transition"
                       style={{
                         backgroundColor: histRarityFilter === r ? `${color}20` : "#27272a",
                         color: histRarityFilter === r ? color : "#a1a1aa",
@@ -1608,7 +1608,7 @@ export function InventoryView() {
                 <div className="flex items-center gap-3 mb-3">
                   <div className="h-px flex-1 bg-[#27272a]" />
                   <span className="text-[11px] text-[#52525b] font-medium uppercase tracking-wider shrink-0">{date}</span>
-                  <span className="text-[10px] text-[#3f3f46]">{dists.length} distribution{dists.length !== 1 ? "s" : ""}</span>
+                  <span className="text-[11px] text-[#3f3f46]">{dists.length} distribution{dists.length !== 1 ? "s" : ""}</span>
                   <div className="h-px flex-1 bg-[#27272a]" />
                 </div>
                 <div className="space-y-1.5">
@@ -1644,7 +1644,7 @@ export function InventoryView() {
                               );
                             })()}
                             {d.reason && (
-                              <span className="text-[10px] text-[#52525b] truncate">{"\u00B7"} {d.reason}</span>
+                              <span className="text-[11px] text-[#52525b] truncate">{"\u00B7"} {d.reason}</span>
                             )}
                           </div>
                         </div>
@@ -1819,13 +1819,13 @@ export function InventoryView() {
                 <table className="w-full">
                   <thead>
                     <tr className="border-b border-[#27272a]">
-                      <th className="text-left px-4 py-2.5 text-[10px] text-[#71717a] uppercase tracking-wider font-medium w-36 cursor-pointer select-none hover:text-[#fafafa] transition" onClick={() => setRecipientPlayerSort(s => s === "most" ? "name-asc" : "most")}>
+                      <th className="text-left px-4 py-2.5 text-[11px] text-[#71717a] uppercase tracking-wider font-medium w-36 cursor-pointer select-none hover:text-[#fafafa] transition" onClick={() => setRecipientPlayerSort(s => s === "most" ? "name-asc" : "most")}>
                         <span className="flex items-center gap-1">
                           Name
                           {recipientPlayerSort === "name-asc" ? <ChevronUp className="w-3 h-3" /> : <ArrowUpDown className="w-3 h-3 opacity-40" />}
                         </span>
                       </th>
-                      <th className="text-left px-4 py-2.5 text-[10px] text-[#71717a] uppercase tracking-wider font-medium">Items Received</th>
+                      <th className="text-left px-4 py-2.5 text-[11px] text-[#71717a] uppercase tracking-wider font-medium">Items Received</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1840,14 +1840,14 @@ export function InventoryView() {
                         <tr key={p.player_name} className="border-b border-[#27272a] last:border-b-0 hover:bg-[#09090b]/50 transition">
                           <td className="px-4 py-2.5 align-top">
                             <div className="flex items-center gap-2">
-                              <div className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 text-[9px] font-bold" style={{ backgroundColor: cc + "20", color: cc }}>
+                              <div className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 text-[11px] font-bold" style={{ backgroundColor: cc + "20", color: cc }}>
                                 {CIcon ? <CIcon className="w-3 h-3" /> : p.player_name[0]}
                               </div>
                               <div className="min-w-0">
                                 <p className="text-xs font-medium truncate text-[#fafafa]">{p.player_name}</p>
                                 <div className="flex items-center gap-1 mt-0.5 flex-wrap">
                                   {gc && g && (
-                                    <span className={`flex items-center gap-0.5 text-[9px] font-medium px-1 py-0.5 rounded border ${gc.bg} ${gc.text} ${gc.border}`}>
+                                    <span className={`flex items-center gap-0.5 text-[11px] font-medium px-1 py-0.5 rounded border ${gc.bg} ${gc.text} ${gc.border}`}>
                                       <Shield className="w-2 h-2" />
                                       {g.name}
                                     </span>
@@ -1862,7 +1862,7 @@ export function InventoryView() {
                                 const item = items.find(i => i.id === d.item_id);
                                 const rc = item?.rarity ? RARITY_COLORS[item.rarity.toLowerCase() as ItemRarity] : "#a1a1aa";
                                 return (
-                                  <span key={d.id} className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded border border-[#27272a]" style={{ color: rc }}>
+                                  <span key={d.id} className="inline-flex items-center gap-1 text-[11px] font-medium px-1.5 py-0.5 rounded border border-[#27272a]" style={{ color: rc }}>
                                     {item?.image_url && <img src={item.image_url} alt="" className="w-3.5 h-3.5 rounded object-cover" style={{ backgroundColor: rc + "20" }} />}
                                     <span className="capitalize truncate max-w-[120px]">{item?.name ?? "Unknown"}</span>
                                     {d.quantity > 1 && <span className="font-mono opacity-70">x{d.quantity}</span>}
@@ -1987,7 +1987,7 @@ export function InventoryView() {
                     const pct = Math.max(4, (stat.total_quantity / maxQty) * 100);
                     return (
                       <button key={stat.item_id} onClick={() => setSelectedDistItem({ item_id: stat.item_id, item_name: stat.item_name })} className="w-full flex items-center gap-3 py-1.5 group hover:bg-[#27272a]/30 rounded px-1 -mx-1 transition text-left">
-                        <span className="text-[10px] font-mono text-[#3f3f46] w-4 shrink-0 text-right">{i + 1}</span>
+                        <span className="text-[11px] font-mono text-[#3f3f46] w-4 shrink-0 text-right">{i + 1}</span>
                         <div className="w-7 h-7 rounded flex items-center justify-center shrink-0" style={{ backgroundColor: `${rc}18` }}>
                           {item?.image_url ? (
                             <img src={item.image_url} alt="" className="w-5 h-5 rounded object-cover" />
@@ -2061,10 +2061,10 @@ export function InventoryView() {
                     const gc = g ? guildColor(g.name) : null;
                     return (
                       <button key={r.member_id} onClick={() => setSelectedRecipient(r)} className="w-full flex items-center gap-3 py-1.5 group hover:bg-[#27272a]/30 rounded px-1 -mx-1 transition">
-                        <span className="text-[10px] font-mono text-[#3f3f46] w-4 shrink-0 text-right">{i + 1}</span>
+                        <span className="text-[11px] font-mono text-[#3f3f46] w-4 shrink-0 text-right">{i + 1}</span>
                         <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0" style={{ backgroundColor: cc + "20" }}>
                           {ci && getClassIcon(ci) ? (() => { const CIcon = getClassIcon(ci)!; return <CIcon className="w-3.5 h-3.5" style={{ color: cc }} />; })() : (
-                            <span className="text-[10px] font-bold text-[#71717a]">{i + 1}</span>
+                            <span className="text-[11px] font-bold text-[#71717a]">{i + 1}</span>
                           )}
                         </div>
                         <div className="flex-1 min-w-0">
@@ -2074,7 +2074,7 @@ export function InventoryView() {
                                 {r.player_name}
                               </p>
                               {gc && g && (
-                                <span className={`flex items-center gap-0.5 text-[9px] font-medium px-1 py-0.5 rounded border shrink-0 ${gc.bg} ${gc.text} ${gc.border}`}>
+                                <span className={`flex items-center gap-0.5 text-[11px] font-medium px-1 py-0.5 rounded border shrink-0 ${gc.bg} ${gc.text} ${gc.border}`}>
                                   <Shield className="w-2 h-2" />
                                   {g.name}
                                 </span>
@@ -2124,17 +2124,17 @@ export function InventoryView() {
             </div>
             <div className="space-y-3">
               <div>
-                <label className="text-[10px] text-[#71717a] uppercase tracking-wider">Name</label>
+                <label className="text-[11px] text-[#71717a] uppercase tracking-wider">Name</label>
                 <input value={newItemName} onChange={e => setNewItemName(e.target.value)} placeholder="e.g. Dragon Heart" className="w-full mt-1 px-3 py-2 bg-[#18181b] border border-[#27272a] rounded-lg text-sm text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#52525b]" autoFocus />
               </div>
               <div>
-                <label className="text-[10px] text-[#71717a] uppercase tracking-wider">Description (optional)</label>
+                <label className="text-[11px] text-[#71717a] uppercase tracking-wider">Description (optional)</label>
                 <input value={newItemDesc} onChange={e => setNewItemDesc(e.target.value)} placeholder="Brief description" className="w-full mt-1 px-3 py-2 bg-[#18181b] border border-[#27272a] rounded-lg text-sm text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#52525b]" />
               </div>
 
               {/* Category */}
               <div>
-                <label className="text-[10px] text-[#71717a] uppercase tracking-wider">Category</label>
+                <label className="text-[11px] text-[#71717a] uppercase tracking-wider">Category</label>
                 <select
                   value={newItemParent}
                   onChange={e => {
@@ -2153,7 +2153,7 @@ export function InventoryView() {
               </div>
               {newItemParent && (gameCategories as any[]).some((c: any) => c.parent_id === newItemParent) && (
                 <div>
-                  <label className="text-[10px] text-[#71717a] uppercase tracking-wider">Subcategory</label>
+                  <label className="text-[11px] text-[#71717a] uppercase tracking-wider">Subcategory</label>
                   <select
                     value={newItemCategory}
                     onChange={e => setNewItemCategory(e.target.value || "")}
@@ -2169,7 +2169,7 @@ export function InventoryView() {
 
               {/* Image Upload */}
               <div>
-                <label className="text-[10px] text-[#71717a] uppercase tracking-wider">Image (optional)</label>
+                <label className="text-[11px] text-[#71717a] uppercase tracking-wider">Image (optional)</label>
                 {newItemImagePreview ? (
                   <div className="mt-1 relative rounded-lg overflow-hidden bg-[#18181b] border border-[#27272a]">
                     <img src={newItemImagePreview} alt="Preview" className="w-full h-32 object-contain" />
@@ -2191,8 +2191,8 @@ export function InventoryView() {
                     onClick={() => document.getElementById("item-image-upload")?.click()}
                   >
                     <Upload className="w-5 h-5 text-[#52525b] mx-auto mb-1" />
-                    <p className="text-[10px] text-[#52525b]"><span className="text-[#71717a] font-medium">Click to upload</span> or drag &amp; drop</p>
-                    <p className="text-[9px] text-[#52525b]/50 mt-0.5">or <kbd className="px-1 py-0.5 rounded bg-[#27272a] text-[#71717a] text-[9px]">Ctrl+V</kbd> paste from clipboard</p>
+                    <p className="text-[11px] text-[#52525b]"><span className="text-[#71717a] font-medium">Click to upload</span> or drag &amp; drop</p>
+                    <p className="text-[11px] text-[#52525b]/50 mt-0.5">or <kbd className="px-1 py-0.5 rounded bg-[#27272a] text-[#71717a] text-[11px]">Ctrl+V</kbd> paste from clipboard</p>
                   </div>
                 )}
                 <input id="item-image-upload" type="file" accept="image/*" className="hidden" onChange={e => {
@@ -2204,14 +2204,14 @@ export function InventoryView() {
 
               {/* Rarity */}
               <div>
-                <label className="text-[10px] text-[#71717a] uppercase tracking-wider">Rarity</label>
+                <label className="text-[11px] text-[#71717a] uppercase tracking-wider">Rarity</label>
                 <div className="flex gap-2 mt-1">
                   {(gameRarities as any[]).length > 0 ? (
                     (gameRarities as any[]).sort((a: any, b: any) => a.sort_order - b.sort_order).map((r: any) => (
                       <button
                         key={r.id}
                         onClick={() => setNewItemRarity(r.name as ItemRarity)}
-                        className="flex-1 py-1.5 rounded-md text-[10px] font-medium capitalize transition border"
+                        className="flex-1 py-1.5 rounded-md text-[11px] font-medium capitalize transition border"
                         style={{
                           borderColor: newItemRarity === r.name ? r.color : "#27272a",
                           color: newItemRarity === r.name ? r.color : "#52525b",
@@ -2226,7 +2226,7 @@ export function InventoryView() {
                       <button
                         key={r}
                         onClick={() => setNewItemRarity(r)}
-                        className="flex-1 py-1.5 rounded-md text-[10px] font-medium capitalize transition border"
+                        className="flex-1 py-1.5 rounded-md text-[11px] font-medium capitalize transition border"
                         style={{
                           borderColor: newItemRarity === r ? RARITY_COLORS[r] : "#27272a",
                           color: newItemRarity === r ? RARITY_COLORS[r] : "#52525b",
@@ -2261,21 +2261,21 @@ export function InventoryView() {
             </div>
             <div className="space-y-3">
               <div>
-                <label className="text-[10px] text-[#71717a] uppercase tracking-wider">Name</label>
+                <label className="text-[11px] text-[#71717a] uppercase tracking-wider">Name</label>
                 <input value={editName} onChange={(e) => setEditName(e.target.value)}
                   className="w-full mt-1 px-3 py-2 bg-[#18181b] border border-[#27272a] rounded-lg text-sm text-[#fafafa] focus:outline-none focus:border-[#52525b]" autoFocus />
               </div>
               <div>
-                <label className="text-[10px] text-[#71717a] uppercase tracking-wider">Description</label>
+                <label className="text-[11px] text-[#71717a] uppercase tracking-wider">Description</label>
                 <input value={editDesc} onChange={(e) => setEditDesc(e.target.value)}
                   className="w-full mt-1 px-3 py-2 bg-[#18181b] border border-[#27272a] rounded-lg text-sm text-[#fafafa] focus:outline-none focus:border-[#52525b]" />
               </div>
               <div>
-                <label className="text-[10px] text-[#71717a] uppercase tracking-wider">Rarity</label>
+                <label className="text-[11px] text-[#71717a] uppercase tracking-wider">Rarity</label>
                 <div className="flex gap-2 mt-1">
                   {RARITY_ORDER.map(r => (
                     <button key={r} onClick={() => setEditRarity(r)}
-                      className="flex-1 py-1.5 rounded-md text-[10px] font-medium capitalize transition border"
+                      className="flex-1 py-1.5 rounded-md text-[11px] font-medium capitalize transition border"
                       style={{
                         borderColor: editRarity === r ? RARITY_COLORS[r] : "#27272a",
                         color: editRarity === r ? RARITY_COLORS[r] : "#52525b",
@@ -2285,7 +2285,7 @@ export function InventoryView() {
                 </div>
               </div>
               <div>
-                <label className="text-[10px] text-[#71717a] uppercase tracking-wider">Image</label>
+                <label className="text-[11px] text-[#71717a] uppercase tracking-wider">Image</label>
                 {editImagePreview ? (
                   <div className="mt-1 relative rounded-lg overflow-hidden bg-[#18181b] border border-[#27272a]">
                     <img src={editImagePreview} alt="Preview" className="w-full h-32 object-contain" />
@@ -2299,7 +2299,7 @@ export function InventoryView() {
                     onDrop={(e) => { e.preventDefault(); setEditDragOver(false); const f = e.dataTransfer.files[0]; if (f) handleImageFileForEdit(f); }}
                     onClick={() => document.getElementById("edit-image-upload")?.click()}>
                     <Upload className="w-5 h-5 text-[#52525b] mx-auto mb-1" />
-                    <p className="text-[10px] text-[#52525b]"><span className="text-[#71717a] font-medium">Click to upload</span> or drag & drop</p>
+                    <p className="text-[11px] text-[#52525b]"><span className="text-[#71717a] font-medium">Click to upload</span> or drag & drop</p>
                   </div>
                 )}
                 <input id="edit-image-upload" type="file" accept="image/*" className="hidden"
@@ -2335,7 +2335,7 @@ export function InventoryView() {
             <div className="space-y-3">
               {/* Member search + select */}
               <div>
-                <label className="text-[10px] text-[#71717a] uppercase tracking-wider">Recipient</label>
+                <label className="text-[11px] text-[#71717a] uppercase tracking-wider">Recipient</label>
                 <div className="relative mt-1">
                   <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#52525b]" />
                   <input
@@ -2367,7 +2367,7 @@ export function InventoryView() {
 
               <div className="space-y-3">
                 <div>
-                  <label className="text-[10px] text-[#71717a] uppercase tracking-wider">Quantity</label>
+                  <label className="text-[11px] text-[#71717a] uppercase tracking-wider">Quantity</label>
                   <div className="flex items-center gap-1 mt-1">
                     <button onClick={() => setDistQuantity(q => Math.max(1, q - 1))}
                       className="p-2 rounded-lg bg-[#18181b] border border-[#27272a] text-[#a1a1aa] hover:text-[#fafafa] transition">
@@ -2383,7 +2383,7 @@ export function InventoryView() {
                   </div>
                 </div>
                 <div>
-                  <label className="text-[10px] text-[#71717a] uppercase tracking-wider">Reason</label>
+                  <label className="text-[11px] text-[#71717a] uppercase tracking-wider">Reason</label>
                   <input value={distReason} onChange={(e) => setDistReason(e.target.value)}
                     placeholder="e.g. Guild Boss"
                     className="w-full mt-1 px-3 py-2 bg-[#18181b] border border-[#27272a] rounded-lg text-sm text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#52525b]" />
@@ -2415,7 +2415,7 @@ export function InventoryView() {
                 <div className="flex items-center gap-2">
                   {CIcon && <CIcon className="w-5 h-5" style={{ color: cc }} />}
                   <h3 className="text-sm font-semibold" style={{ color: cc }}>{selectedRecipient.player_name}</h3>
-                  {m?.class && <span className="text-[10px] px-1.5 py-0.5 rounded font-medium capitalize" style={{ backgroundColor: cc + "20", color: cc }}>{m.class}</span>}
+                  {m?.class && <span className="text-[11px] px-1.5 py-0.5 rounded font-medium capitalize" style={{ backgroundColor: cc + "20", color: cc }}>{m.class}</span>}
                 </div>
                 <button onClick={() => setSelectedRecipient(null)} className="text-[#52525b] hover:text-[#fafafa]"><X className="w-4 h-4" /></button>
               </div>
@@ -2437,7 +2437,7 @@ export function InventoryView() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-xs truncate capitalize font-medium" style={{ color: rc }}>{item?.name ?? "Unknown"}</p>
-                          <p className="text-[10px]">
+                          <p className="text-[11px]">
                             {item?.rarity && <span className="capitalize" style={{ color: rc }}>{item.rarity}</span>}
                             {item?.rarity && d.reason ? " · " : ""}
                             <span className="text-[#71717a]">{d.reason || ""}</span>
@@ -2445,7 +2445,7 @@ export function InventoryView() {
                         </div>
                         <div className="text-right shrink-0">
                           <p className="text-xs font-mono font-semibold text-[#fafafa]">x{d.quantity}</p>
-                          <p className="text-[10px] text-[#52525b]">{new Date(d.distributed_at).toLocaleDateString()}</p>
+                          <p className="text-[11px] text-[#52525b]">{new Date(d.distributed_at).toLocaleDateString()}</p>
                         </div>
                       </div>
                     );
@@ -2490,13 +2490,13 @@ export function InventoryView() {
                     const gc = g ? guildColor(g.name) : null;
                     return (
                       <div key={r.member_id} className="flex items-center gap-2 p-2 rounded-lg bg-[#18181b] border border-[#27272a]">
-                        <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 text-[10px] font-bold" style={{ backgroundColor: cc + "20" }}>
+                        <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 text-[11px] font-bold" style={{ backgroundColor: cc + "20" }}>
                           {CIcon ? <CIcon className="w-3.5 h-3.5" style={{ color: cc }} /> : <span style={{ color: cc }}>{r.player_name[0]}</span>}
                         </div>
                         <div className="flex-1 min-w-0 flex flex-wrap items-center gap-x-2 gap-y-0.5">
                           <p className="text-xs truncate" style={{ color: cc }}>{r.player_name}</p>
                           {gc && g && (
-                            <span className={`flex items-center gap-1 text-[9px] font-medium px-1.5 py-0.5 rounded border shrink-0 ${gc.bg} ${gc.text} ${gc.border}`}>
+                            <span className={`flex items-center gap-1 text-[11px] font-medium px-1.5 py-0.5 rounded border shrink-0 ${gc.bg} ${gc.text} ${gc.border}`}>
                               <Shield className="w-2.5 h-2.5" />
                               {g.name}
                             </span>
@@ -2533,7 +2533,7 @@ export function InventoryView() {
               </p>
             </div>
             <div className="mb-4">
-              <label className="text-[10px] text-[#71717a] uppercase tracking-wider">Type the item name to confirm</label>
+              <label className="text-[11px] text-[#71717a] uppercase tracking-wider">Type the item name to confirm</label>
               <input
                 value={deleteConfirmName}
                 onChange={(e) => setDeleteConfirmName(e.target.value)}
@@ -2724,7 +2724,7 @@ function ItemTrendChart({ dates, series }: {
         {series.map((s, si) => (
           <div key={si} className="flex items-center gap-1.5">
             <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: s.color }} />
-            <span className="text-[10px] text-[#a1a1aa]">{s.label}</span>
+            <span className="text-[11px] text-[#a1a1aa]">{s.label}</span>
           </div>
         ))}
       </div>
@@ -2740,7 +2740,7 @@ function ItemTrendChart({ dates, series }: {
           }
           onMouseEnter={cancelHide} onMouseLeave={hideTip}>
           <div className="bg-[#18181b] border border-[#3f3f46] rounded-lg px-3 py-2 text-[11px] shadow-xl max-w-[200px]" style={{ transform: "translateY(-12px)" }}>
-            <div className="text-[#a1a1aa] text-[10px] mb-1.5 pb-1 border-b border-[#27272a]">{dates[hoverIdx]}</div>
+            <div className="text-[#a1a1aa] text-[11px] mb-1.5 pb-1 border-b border-[#27272a]">{dates[hoverIdx]}</div>
             <div className="space-y-0.5">
               {series.map((s, si) => {
                 const cnt = s.data[hoverIdx]?.count ?? 0;
@@ -2748,8 +2748,8 @@ function ItemTrendChart({ dates, series }: {
                 return (
                   <div key={si} className="flex items-center gap-1.5">
                     <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: s.color }} />
-                    <span className="text-[#e4e4e7] text-[10px]">{s.label}</span>
-                    <span className="text-[#a1a1aa] font-mono text-[10px] ml-auto">{cnt}</span>
+                    <span className="text-[#e4e4e7] text-[11px]">{s.label}</span>
+                    <span className="text-[#a1a1aa] font-mono text-[11px] ml-auto">{cnt}</span>
                   </div>
                 );
               })}

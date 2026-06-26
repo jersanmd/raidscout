@@ -559,12 +559,12 @@ export function AdminPanelView() {
                     <div className="flex items-center gap-2">
                       <h4 className="text-sm font-semibold text-[#fafafa] truncate">{s.name}</h4>
                       {!isExpanded && (
-                        <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] border ${subBadge.cls} shrink-0`}>
+                        <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] border ${subBadge.cls} shrink-0`}>
                           {subBadge.label}
                         </span>
                       )}
                       {s.game_name && (
-                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] text-[#a1a1aa] bg-[#27272a] shrink-0">
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] text-[#a1a1aa] bg-[#27272a] shrink-0">
                           {s.game_icon_url ? (
                             <img src={s.game_icon_url} alt="" className="w-3 h-3 rounded object-cover" />
                           ) : (
@@ -574,7 +574,7 @@ export function AdminPanelView() {
                         </span>
                       )}
                     </div>
-                    <p className="text-[10px] text-[#71717a] font-mono">{s.id?.substring(0, 12)}...</p>
+                    <p className="text-[11px] text-[#71717a] font-mono">{s.id?.substring(0, 12)}...</p>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#0d0d11] text-[11px] text-[#d4d4d8]">
@@ -582,7 +582,7 @@ export function AdminPanelView() {
                       {s.raid_member_count ?? 0}
                     </span>
                     <div className="hidden sm:block text-right">
-                      <p className="text-[10px] text-[#a1a1aa]">Created {new Date(s.created_at).toLocaleDateString()}</p>
+                      <p className="text-[11px] text-[#a1a1aa]">Created {new Date(s.created_at).toLocaleDateString()}</p>
                     </div>
                     {isExpanded ? <ChevronUp className="w-4 h-4 text-[#a1a1aa]" /> : <ChevronDown className="w-4 h-4 text-[#a1a1aa]" />}
                   </div>
@@ -599,52 +599,52 @@ export function AdminPanelView() {
                         <div className="grid grid-cols-5 gap-4">
                           <div className="text-center">
                             <p className="text-lg font-bold text-[#fafafa] tabular-nums">{stats.total_raid_members ?? 0}</p>
-                            <p className="text-[10px] text-[#71717a] uppercase tracking-wider">Players</p>
+                            <p className="text-[11px] text-[#71717a] uppercase tracking-wider">Players</p>
                           </div>
                           <div className="text-center">
                             <p className="text-lg font-bold text-[#fafafa] tabular-nums">{stats.member_count ?? 0}</p>
-                            <p className="text-[10px] text-[#71717a] uppercase tracking-wider">Mods</p>
+                            <p className="text-[11px] text-[#71717a] uppercase tracking-wider">Mods</p>
                           </div>
                           <div className="text-center">
                             <p className="text-lg font-bold text-[#fafafa] tabular-nums">{stats.boss_count ?? 0}</p>
-                            <p className="text-[10px] text-[#71717a] uppercase tracking-wider">Bosses</p>
+                            <p className="text-[11px] text-[#71717a] uppercase tracking-wider">Bosses</p>
                           </div>
                           <div className="text-center">
                             <p className="text-lg font-bold text-[#fafafa] tabular-nums">{stats.death_count ?? 0}</p>
-                            <p className="text-[10px] text-[#71717a] uppercase tracking-wider">Kills</p>
+                            <p className="text-[11px] text-[#71717a] uppercase tracking-wider">Kills</p>
                           </div>
                           <div className="text-center">
                             <p className={`text-lg font-bold tabular-nums ${stats.has_webhook ? 'text-emerald-300' : 'text-[#71717a]'}`}>
                               {stats.has_webhook ? 'ON' : 'OFF'}
                             </p>
-                            <p className={`text-[10px] uppercase tracking-wider ${stats.has_webhook ? 'text-emerald-400/60' : 'text-[#52525b]'}`}>Bot Alerts</p>
+                            <p className={`text-[11px] uppercase tracking-wider ${stats.has_webhook ? 'text-emerald-400/60' : 'text-[#52525b]'}`}>Bot Alerts</p>
                           </div>
                         </div>
 
                         {/* Subscription Status */}
                         <div key={`sub-${s.id}-${effectiveSubEnd ?? 'none'}`} className="border-t border-[#1e1e2a] pt-3">
-                          <p className="text-[10px] text-[#71717a] uppercase tracking-wider mb-2">Subscription</p>
+                          <p className="text-[11px] text-[#71717a] uppercase tracking-wider mb-2">Subscription</p>
                           <div className="flex items-center gap-4">
                             {isActive ? (
                               <>
                                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] bg-emerald-500/10 text-emerald-300 border border-emerald-500/20">
                                   ● Active — {subDays}d remaining
                                 </span>
-                                <span className="text-[10px] text-[#52525b]">Until {subEnd!.toLocaleDateString()}</span>
+                                <span className="text-[11px] text-[#52525b]">Until {subEnd!.toLocaleDateString()}</span>
                               </>
                             ) : isTrialing ? (
                               <>
                                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] bg-amber-500/10 text-amber-300 border border-amber-500/20">
                                   ● Trial — {trialDays}d remaining
                                 </span>
-                                <span className="text-[10px] text-[#52525b]">Until {trialEnd!.toLocaleDateString()}</span>
+                                <span className="text-[11px] text-[#52525b]">Until {trialEnd!.toLocaleDateString()}</span>
                               </>
                             ) : (
                               <>
                                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] bg-red-500/10 text-red-300 border border-red-500/20">
                                   ● Expired
                                 </span>
-                                {subEnd && <span className="text-[10px] text-[#52525b]">Ended {subEnd.toLocaleDateString()}</span>}
+                                {subEnd && <span className="text-[11px] text-[#52525b]">Ended {subEnd.toLocaleDateString()}</span>}
                               </>
                             )}
                           </div>
@@ -653,7 +653,7 @@ export function AdminPanelView() {
                         {/* Guild Tags — monochrome text, 40% opacity for zero-count */}
                         {stats.guild_members && stats.guild_members.length > 0 && (
                           <div className="border-t border-[#1e1e2a] pt-3">
-                            <p className="text-[10px] text-[#71717a] uppercase tracking-wider mb-2">
+                            <p className="text-[11px] text-[#71717a] uppercase tracking-wider mb-2">
                               Players by Guild <span className="text-[#52525b]">({stats.total_raid_members ?? 0} total)</span>
                             </p>
                             <div className="flex flex-wrap gap-1.5">
@@ -724,7 +724,7 @@ export function AdminPanelView() {
 
                         {/* Add Moderator — inline */}
                         <div className="flex items-center gap-2 pt-2 border-t border-[#1e1e2a]">
-                          <span className="text-[10px] text-[#71717a] uppercase tracking-wider shrink-0">Add Mod:</span>
+                          <span className="text-[11px] text-[#71717a] uppercase tracking-wider shrink-0">Add Mod:</span>
                           <input
                             type="email"
                             value={modEmailByServer[s.id] ?? ""}
@@ -791,16 +791,16 @@ export function AdminPanelView() {
                           placeholder="Search servers…"
                           value={serverSearch}
                           onChange={e => setServerSearch(e.target.value)}
-                          className="w-36 pl-7 pr-2 py-1 text-[10px] bg-[#0d0d11] border border-[#1e1e2a] rounded text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#52525b]"
+                          className="w-36 pl-7 pr-2 py-1 text-[11px] bg-[#0d0d11] border border-[#1e1e2a] rounded text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#52525b]"
                         />
                       </div>
-                      <span className="text-[10px] text-[#71717a]">Filter:</span>
+                      <span className="text-[11px] text-[#71717a]">Filter:</span>
                       <button onClick={() => setServerFilter("all")}
-                        className={`px-2 py-0.5 rounded text-[10px] font-medium transition ${serverFilter === "all" ? "bg-[#27272a] text-[#fafafa]" : "text-[#a1a1aa] hover:text-[#fafafa]"}`}>
+                        className={`px-2 py-0.5 rounded text-[11px] font-medium transition ${serverFilter === "all" ? "bg-[#27272a] text-[#fafafa]" : "text-[#a1a1aa] hover:text-[#fafafa]"}`}>
                         All
                       </button>
                       <button onClick={() => setServerFilter("bot")}
-                        className={`px-2 py-0.5 rounded text-[10px] font-medium transition flex items-center gap-1 ${serverFilter === "bot" ? "bg-[#27272a] text-[#fafafa]" : "text-[#a1a1aa] hover:text-[#fafafa]"}`}>
+                        className={`px-2 py-0.5 rounded text-[11px] font-medium transition flex items-center gap-1 ${serverFilter === "bot" ? "bg-[#27272a] text-[#fafafa]" : "text-[#a1a1aa] hover:text-[#fafafa]"}`}>
                         <Radio className="w-3 h-3" /> Bot Alerts
                       </button>
                     </div>
@@ -816,7 +816,7 @@ export function AdminPanelView() {
                       const sorted = [...byGame.entries()].sort(([a], [b]) => a === "Custom" ? 1 : b === "Custom" ? -1 : a.localeCompare(b));
                       return sorted.map(([game, svrs]) => (
                         <div key={game}>
-                          <h5 className="text-[10px] font-semibold text-[#71717a] uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                          <h5 className="text-[11px] font-semibold text-[#71717a] uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
                             <Gamepad2 className="w-3 h-3" /> {game} ({svrs.length})
                           </h5>
                           <div className="space-y-1.5 ml-2">
@@ -893,7 +893,7 @@ export function AdminPanelView() {
           ) : (
             <div className="border border-[#1e1e2a] rounded-xl overflow-hidden">
               {/* Table Header — hidden on mobile */}
-              <div className="hidden sm:grid grid-cols-12 gap-3 px-4 py-2.5 border-b border-[#1e1e2a] bg-[#0d0d11]/50 text-[10px] font-semibold text-[#71717a] uppercase tracking-wider">
+              <div className="hidden sm:grid grid-cols-12 gap-3 px-4 py-2.5 border-b border-[#1e1e2a] bg-[#0d0d11]/50 text-[11px] font-semibold text-[#71717a] uppercase tracking-wider">
                 <div className="col-span-3">Email</div>
                 <div className="col-span-2">User ID</div>
                 <div className="col-span-2">Verified</div>
@@ -927,28 +927,28 @@ export function AdminPanelView() {
                       <span className="text-sm text-[#fafafa] font-medium truncate block">{u.email ?? "No email"}</span>
                     </div>
                     <div className="col-span-2 min-w-0">
-                      <code className="text-[10px] text-[#52525b] font-mono truncate block">{u.user_id?.substring(0, 12)}...</code>
+                      <code className="text-[11px] text-[#52525b] font-mono truncate block">{u.user_id?.substring(0, 12)}...</code>
                     </div>
                     <div className="col-span-2">
                       {(() => {
                         const confirmedAt = u.email_confirmed_at;
                         const createdAt = u.created_at;
                         if (confirmedAt && createdAt && Math.abs(new Date(confirmedAt).getTime() - new Date(createdAt).getTime()) > 10_000) {
-                          return <span className="text-[10px] text-emerald-400 font-medium flex items-center gap-1"><CheckCircle className="w-3 h-3" /> Verified</span>;
+                          return <span className="text-[11px] text-emerald-400 font-medium flex items-center gap-1"><CheckCircle className="w-3 h-3" /> Verified</span>;
                         }
-                        return <span className="text-[10px] text-[#71717a] flex items-center gap-1"><XCircle className="w-3 h-3" /> Unverified</span>;
+                        return <span className="text-[11px] text-[#71717a] flex items-center gap-1"><XCircle className="w-3 h-3" /> Unverified</span>;
                       })()}
                     </div>
                     <div className="col-span-2">
                       {(() => {
-                        if (u.role === "admin") return <span className="text-[10px] text-amber-400 font-medium">Admin</span>;
-                        if (owners.has(u.user_id)) return <span className="text-[10px] text-emerald-400 font-medium">Owner</span>;
-                        if (moderators.has(u.user_id)) return <span className="text-[10px] text-sky-400 font-medium">Mod</span>;
-                        return <span className="text-[10px] text-[#71717a]">Member</span>;
+                        if (u.role === "admin") return <span className="text-[11px] text-amber-400 font-medium">Admin</span>;
+                        if (owners.has(u.user_id)) return <span className="text-[11px] text-emerald-400 font-medium">Owner</span>;
+                        if (moderators.has(u.user_id)) return <span className="text-[11px] text-sky-400 font-medium">Mod</span>;
+                        return <span className="text-[11px] text-[#71717a]">Member</span>;
                       })()}
                     </div>
                     <div className="col-span-2">
-                      <span className="text-[10px] text-[#71717a]">{new Date(u.created_at).toLocaleDateString()}</span>
+                      <span className="text-[11px] text-[#71717a]">{new Date(u.created_at).toLocaleDateString()}</span>
                     </div>
                     <div className="col-span-1 text-right">
                       {isExpanded ? <ChevronUp className="w-4 h-4 text-[#71717a] ml-auto" /> : <ChevronDown className="w-4 h-4 text-[#71717a] ml-auto" />}
@@ -956,7 +956,7 @@ export function AdminPanelView() {
                   </button>
                   {isExpanded && (
                     <div className="border-t border-[#1e1e2a] px-4 py-3 space-y-2 bg-[#09090b]/50">
-                      <p className="text-[10px] text-[#71717a] uppercase tracking-wider">Servers</p>
+                      <p className="text-[11px] text-[#71717a] uppercase tracking-wider">Servers</p>
                       {loadingServers ? (
                         <Loader2 className="w-4 h-4 text-[#71717a] animate-spin" />
                       ) : servers.length === 0 ? (
@@ -967,14 +967,14 @@ export function AdminPanelView() {
                             <div className="flex items-center gap-2">
                               <Server className="w-3.5 h-3.5 text-[#71717a]" />
                               <span className="text-sm text-[#fafafa] font-medium">{s.server_name}</span>
-                              <span className="text-[10px] text-[#71717a]">{s.role}</span>
+                              <span className="text-[11px] text-[#71717a]">{s.role}</span>
                             </div>
                             <button
                               onClick={() => {
                                 setCurrentServer({ id: s.server_id, name: s.server_name, owner_id: u.user_id, invite_code: s.server_id?.substring(0, 8) ?? "", created_at: (s as any).created_at, role: s.role as "owner" | "moderator" });
                                 navigate("/");
                               }}
-                              className="flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-medium bg-[#0d0d11] border border-[#1e1e2a] text-[#fafafa] hover:bg-[#27272a] transition"
+                              className="flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-medium bg-[#0d0d11] border border-[#1e1e2a] text-[#fafafa] hover:bg-[#27272a] transition"
                             >
                               <Eye className="w-3.5 h-3.5" />
                               View
@@ -1140,7 +1140,7 @@ export function AdminPanelView() {
           </div>
 
           {/* Action filter — collapsible checkboxes (same pattern as activity log) */}
-          <div className="text-[10px]">
+          <div className="text-[11px]">
             <div className="flex items-center justify-between gap-2 mb-1">
               <div className="flex items-center gap-2">
                 {auditFiltersExpanded && (
@@ -1221,7 +1221,7 @@ export function AdminPanelView() {
           ) : (
             <div className="border border-[#1e1e2a] rounded-xl overflow-hidden">
               {/* Desktop header */}
-              <div className="hidden sm:grid grid-cols-12 gap-3 px-4 py-2 border-b border-[#1e1e2a] bg-[#0d0d11]/50 text-[10px] font-semibold text-[#71717a] uppercase tracking-wider">
+              <div className="hidden sm:grid grid-cols-12 gap-3 px-4 py-2 border-b border-[#1e1e2a] bg-[#0d0d11]/50 text-[11px] font-semibold text-[#71717a] uppercase tracking-wider">
                 <div className="col-span-3">Event</div>
                 <div className="col-span-2">Server</div>
                 <div className="col-span-3">Details</div>
@@ -1253,11 +1253,11 @@ export function AdminPanelView() {
                       <span className="text-[11px] text-[#d4d4d8] whitespace-normal break-words leading-relaxed">{detailText}</span>
                     </div>
                     <div className="col-span-1 min-w-0">
-                      <span className="text-[10px] text-[#71717a] truncate block">{actor}</span>
-                      {isViewer && <span className="text-[9px] text-[#52525b] ml-1">viewer</span>}
+                      <span className="text-[11px] text-[#71717a] truncate block">{actor}</span>
+                      {isViewer && <span className="text-[11px] text-[#52525b] ml-1">viewer</span>}
                     </div>
                     <div className="col-span-2 min-w-0">
-                      <span className="text-[10px] text-[#71717a] font-mono tabular-nums">{new Date(entry.created_at).toLocaleDateString("en-US", { month: "2-digit", day: "2-digit", year: "numeric" })} {new Date(entry.created_at).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}</span>
+                      <span className="text-[11px] text-[#71717a] font-mono tabular-nums">{new Date(entry.created_at).toLocaleDateString("en-US", { month: "2-digit", day: "2-digit", year: "numeric" })} {new Date(entry.created_at).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}</span>
                     </div>
                   </div>
                   {/* Mobile card */}
@@ -1265,14 +1265,14 @@ export function AdminPanelView() {
                     <div className="flex items-center gap-2">
                       <span className={`shrink-0 w-1.5 h-1.5 rounded-full ${dot}`} />
                       <span className={`text-xs font-medium ${txt}`}>{formatActionLabel(entry.action)}</span>
-                      {isViewer && <span className="text-[9px] text-[#52525b] ml-auto">viewer</span>}
+                      {isViewer && <span className="text-[11px] text-[#52525b] ml-auto">viewer</span>}
                     </div>
                     <div className="text-[11px] text-[#d4d4d8]">{detailText}</div>
-                    <div className="flex items-center justify-between text-[10px]">
+                    <div className="flex items-center justify-between text-[11px]">
                       <span className="text-[#a1a1aa]">{serverName || "—"}</span>
                       <span className="text-[#71717a] font-mono">{new Date(entry.created_at).toLocaleDateString("en-US", { month: "2-digit", day: "2-digit", year: "numeric" })} {new Date(entry.created_at).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}</span>
                     </div>
-                    <div className="text-[10px] text-[#52525b]">{actor}</div>
+                    <div className="text-[11px] text-[#52525b]">{actor}</div>
                   </div>
                 </div>
                 );
@@ -1303,12 +1303,12 @@ export function AdminPanelView() {
                   <div className="w-full h-1.5 bg-[#0d0d11] rounded-full mt-2 overflow-hidden">
                     <div className="h-full bg-[#a1a1aa] rounded-full" style={{ width: `${Math.min(100, ((planUsage?.db_size_bytes || 0) / (8 * 1024 * 1024 * 1024)) * 100)}%` }} />
                   </div>
-                  <p className="text-[10px] text-[#71717a] mt-1">DB Size (8 GB limit)</p>
+                  <p className="text-[11px] text-[#71717a] mt-1">DB Size (8 GB limit)</p>
                 </div>
                 <div className="bg-[#0d0d11] border border-[#1e1e2a] rounded-xl p-4 text-center">
                   <p className="text-2xl font-bold text-[#a1a1aa]">{dbStats.cache_hit_ratio ?? '—'}%</p>
-                  <p className="text-[10px] text-[#71717a] mt-1">Cache Hit Ratio</p>
-                  <p className="text-[10px] text-[#52525b] mt-2">{planUsage?.total_rows?.toLocaleString() ?? '—'} rows · {planUsage?.table_count ?? dbStats.table_stats?.length ?? 0} tables</p>
+                  <p className="text-[11px] text-[#71717a] mt-1">Cache Hit Ratio</p>
+                  <p className="text-[11px] text-[#52525b] mt-2">{planUsage?.total_rows?.toLocaleString() ?? '—'} rows · {planUsage?.table_count ?? dbStats.table_stats?.length ?? 0} tables</p>
                 </div>
                 <div className="bg-[#0d0d11] border border-[#1e1e2a] rounded-xl p-4 text-center">
                   <p className="text-2xl font-bold text-[#fafafa]">{planUsage?.active_connections ?? dbStats.active_connections ?? '—'}<span className="text-sm text-[#71717a]">/{planUsage?.max_connections ?? dbStats.total_connections ?? '—'}</span></p>
@@ -1316,15 +1316,15 @@ export function AdminPanelView() {
                     <div className="h-full bg-blue-500 rounded-l-full" style={{ width: `${((planUsage?.active_connections || dbStats.active_connections || 0) / (planUsage?.max_connections || dbStats.total_connections || 1)) * 100}%` }} />
                     <div className="h-full bg-[#3f3f46] rounded-r-full" style={{ width: `${((planUsage?.idle_connections || 0) / (planUsage?.max_connections || dbStats.total_connections || 1)) * 100}%` }} />
                   </div>
-                  <div className="flex items-center justify-center gap-3 mt-1.5 text-[10px]">
+                  <div className="flex items-center justify-center gap-3 mt-1.5 text-[11px]">
                     <span className="text-[#a1a1aa] flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-blue-500 inline-block" />Active: {planUsage?.active_connections ?? dbStats.active_connections ?? 0}</span>
                     {planUsage?.idle_connections != null && <span className="text-[#71717a] flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-[#3f3f46] inline-block" />Idle: {planUsage.idle_connections}</span>}
                   </div>
                 </div>
                 <div className="bg-[#0d0d11] border border-[#1e1e2a] rounded-xl p-4 text-center">
                   <p className="text-xl font-bold text-[#fafafa]">{planUsage?.auth_users ?? '—'}</p>
-                  <p className="text-[10px] text-[#71717a] mt-1">Auth Users</p>
-                  <p className="text-[10px] text-[#52525b] mt-2">{planUsage?.active_auth_users_30d ?? 0} active 30d</p>
+                  <p className="text-[11px] text-[#71717a] mt-1">Auth Users</p>
+                  <p className="text-[11px] text-[#52525b] mt-2">{planUsage?.active_auth_users_30d ?? 0} active 30d</p>
                 </div>
               </div>
 
@@ -1334,11 +1334,11 @@ export function AdminPanelView() {
                   <div className="bg-[#0d0d11] border border-[#1e1e2a] rounded-xl p-4">
                     <p className="text-xs text-[#71717a] mb-1">Storage</p>
                     <p className="text-xl font-bold text-[#fafafa]">{planUsage.storage_size_pretty || '0 bytes'}</p>
-                    <p className="text-[10px] text-[#52525b] mt-2">{planUsage.storage_objects ?? 0} objects</p>
+                    <p className="text-[11px] text-[#52525b] mt-2">{planUsage.storage_objects ?? 0} objects</p>
                   </div>
                   <div className="bg-[#0d0d11] border border-[#1e1e2a] rounded-xl p-4">
                     <h4 className="text-xs font-semibold text-[#71717a] mb-1">Plan Limits (Pro)</h4>
-                    <div className="grid grid-cols-2 gap-1 text-[10px]">
+                    <div className="grid grid-cols-2 gap-1 text-[11px]">
                       <span className="text-[#71717a]">Database:</span><span className="text-[#fafafa] text-right">8 GB</span>
                       <span className="text-[#71717a]">Users:</span><span className="text-[#fafafa] text-right">100K</span>
                       <span className="text-[#71717a]">Storage:</span><span className="text-[#fafafa] text-right">100 GB</span>
@@ -1360,7 +1360,7 @@ export function AdminPanelView() {
                     <div key={t.table_name} className="bg-[#0d0d11] border border-[#1e1e2a] rounded-lg px-3 sm:px-4 py-2.5">
                       <div className="flex items-center justify-between gap-2 mb-1.5">
                         <span className="text-sm text-[#fafafa] font-medium truncate">{t.table_name}</span>
-                        <span className="text-[10px] text-[#71717a] shrink-0">~{t.row_estimate} rows</span>
+                        <span className="text-[11px] text-[#71717a] shrink-0">~{t.row_estimate} rows</span>
                       </div>
                       <div className="flex items-center gap-2">
                         <div className="flex-1 h-2 bg-[#0d0d11] rounded-full overflow-hidden">
@@ -1371,14 +1371,14 @@ export function AdminPanelView() {
                             }}
                           />
                         </div>
-                        <span className="text-[10px] text-[#71717a] w-14 text-right shrink-0">{t.size}</span>
+                        <span className="text-[11px] text-[#71717a] w-14 text-right shrink-0">{t.size}</span>
                       </div>
                     </div>
                   ))}
                 </div>
               </div>
 
-              <p className="text-[10px] text-[#52525b] text-right">
+              <p className="text-[11px] text-[#52525b] text-right">
                 Snapshot at {new Date(dbStats.timestamp).toLocaleString()}
               </p>
             </>
@@ -1402,24 +1402,24 @@ export function AdminPanelView() {
                   <p className={`text-lg font-bold ${cronStatus.active ? 'text-green-400' : 'text-[#f87171]'}`}>
                     {cronStatus.active ? 'ACTIVE' : 'INACTIVE'}
                   </p>
-                  <p className="text-[10px] text-[#71717a] mt-1">Cron Status</p>
+                  <p className="text-[11px] text-[#71717a] mt-1">Cron Status</p>
                 </div>
                 <div className="bg-[#0d0d11] border border-[#1e1e2a] rounded-xl p-4 text-center">
                   <Clock className="w-4 h-4 text-[#a1a1aa] mx-auto mb-2" />
                   <p className="text-xs text-[#d4d4d8] font-mono">
                     {cronStatus.last_run ? cronStatus.last_run : 'Never'}
                   </p>
-                  <p className="text-[10px] text-[#71717a] mt-1">Last Run (Manila)</p>
+                  <p className="text-[11px] text-[#71717a] mt-1">Last Run (Manila)</p>
                 </div>
                 <div className="bg-[#0d0d11] border border-[#1e1e2a] rounded-xl p-4 text-center">
                   <Server className="w-4 h-4 text-[#a1a1aa] mx-auto mb-2" />
                   <p className="text-lg font-bold text-[#d4d4d8]">{cronStatus.servers?.length ?? 0}</p>
-                  <p className="text-[10px] text-[#71717a] mt-1">Test Servers</p>
+                  <p className="text-[11px] text-[#71717a] mt-1">Test Servers</p>
                 </div>
                 <div className="bg-[#0d0d11] border border-[#1e1e2a] rounded-xl p-4 text-center">
                   <Skull className="w-4 h-4 text-[#f87171] mx-auto mb-2" />
                   <p className="text-lg font-bold text-[#fca5a5]">{cronStatus.total_kills?.toLocaleString() ?? 0}</p>
-                  <p className="text-[10px] text-[#71717a] mt-1">Total Kills</p>
+                  <p className="text-[11px] text-[#71717a] mt-1">Total Kills</p>
                 </div>
               </div>
 
@@ -1445,7 +1445,7 @@ export function AdminPanelView() {
                 </div>
               </div>
 
-              <p className="text-[10px] text-[#52525b]">Auto-refreshes every 30s. Cron runs every 5 min.</p>
+              <p className="text-[11px] text-[#52525b]">Auto-refreshes every 30s. Cron runs every 5 min.</p>
             </>
           )}
         </div>
@@ -1469,7 +1469,7 @@ export function AdminPanelView() {
                 placeholder="Search deleted…"
                 value={deletedSearch}
                 onChange={e => setDeletedSearch(e.target.value)}
-                className="w-40 pl-7 pr-2 py-1 text-[10px] bg-[#0d0d11] border border-[#1e1e2a] rounded text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#52525b]"
+                className="w-40 pl-7 pr-2 py-1 text-[11px] bg-[#0d0d11] border border-[#1e1e2a] rounded text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#52525b]"
               />
             </div>
           </div>
@@ -1553,21 +1553,21 @@ export function AdminPanelView() {
           {/* Summary cards */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             <div className="bg-[#0d0d11] border border-[#1e1e2a] rounded-lg p-3">
-              <p className="text-[10px] text-[#71717a] uppercase tracking-wider">Revenue</p>
+              <p className="text-[11px] text-[#71717a] uppercase tracking-wider">Revenue</p>
               <p className="text-lg font-semibold text-emerald-400 mt-0.5">${completedRevenue.toFixed(2)}</p>
-              {refundedAmount > 0 && <p className="text-[10px] text-red-400">-${refundedAmount.toFixed(2)} refunded</p>}
+              {refundedAmount > 0 && <p className="text-[11px] text-red-400">-${refundedAmount.toFixed(2)} refunded</p>}
             </div>
             <div className="bg-[#0d0d11] border border-[#1e1e2a] rounded-lg p-3">
-              <p className="text-[10px] text-[#71717a] uppercase tracking-wider">Transactions</p>
+              <p className="text-[11px] text-[#71717a] uppercase tracking-wider">Transactions</p>
               <p className="text-lg font-semibold text-[#fafafa] mt-0.5">{payments.length}</p>
-              <p className="text-[10px] text-[#52525b]">{completedCount} completed{refundedCount > 0 ? `, ${refundedCount} refunded` : ""}</p>
+              <p className="text-[11px] text-[#52525b]">{completedCount} completed{refundedCount > 0 ? `, ${refundedCount} refunded` : ""}</p>
             </div>
             <div className="bg-[#0d0d11] border border-[#1e1e2a] rounded-lg p-3">
-              <p className="text-[10px] text-[#71717a] uppercase tracking-wider">Net Revenue</p>
+              <p className="text-[11px] text-[#71717a] uppercase tracking-wider">Net Revenue</p>
               <p className="text-lg font-semibold text-[#fafafa] mt-0.5">${(completedRevenue - refundedAmount).toFixed(2)}</p>
             </div>
             <div className="bg-[#0d0d11] border border-[#1e1e2a] rounded-lg p-3">
-              <p className="text-[10px] text-[#71717a] uppercase tracking-wider">Avg / Payment</p>
+              <p className="text-[11px] text-[#71717a] uppercase tracking-wider">Avg / Payment</p>
               <p className="text-lg font-semibold text-[#fafafa] mt-0.5">${completedCount > 0 ? (completedRevenue / completedCount).toFixed(2) : "0.00"}</p>
             </div>
           </div>
@@ -1602,7 +1602,7 @@ export function AdminPanelView() {
                           <td className="px-3 py-2 text-right whitespace-nowrap"><span className={p.status === "refunded" ? "text-red-400" : "text-[#fafafa]"}>${p.amount}</span></td>
                           <td className="px-3 py-2 text-right whitespace-nowrap"><span className={p.status === "refunded" ? "text-red-400" : "text-[#a1a1aa]"}>+{p.days_added}d</span></td>
                           <td className="px-3 py-2 text-right whitespace-nowrap">
-                            <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium ${p.status === "completed" ? "bg-emerald-500/10 text-emerald-400" : "bg-red-500/10 text-red-400"}`}>
+                            <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-medium ${p.status === "completed" ? "bg-emerald-500/10 text-emerald-400" : "bg-red-500/10 text-red-400"}`}>
                               {p.status === "completed" ? <CheckCircle className="w-2.5 h-2.5" /> : <XCircle className="w-2.5 h-2.5" />}
                               {p.status}
                             </span>
@@ -1629,14 +1629,14 @@ export function AdminPanelView() {
               <span className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-[#ff5f57] shrink-0"></span>
               <span className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-[#febc2e] shrink-0"></span>
               <span className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-[#28c840] shrink-0"></span>
-              <span className="text-[9px] sm:text-[10px] text-[#52525b] ml-1 sm:ml-2 font-mono truncate">bot-logs — raidscout-bot</span>
+              <span className="text-[11px] sm:text-[11px] text-[#52525b] ml-1 sm:ml-2 font-mono truncate">bot-logs — raidscout-bot</span>
               <div className="flex-1" />
               <button onClick={() => refetchLogs()} className="p-0.5 rounded text-[#52525b] hover:text-[#a1a1aa] transition shrink-0" title="Refresh">
                 <RefreshCw className="w-3 h-3" />
               </button>
             </div>
             {/* Terminal body */}
-            <div ref={logScrollRef} className="h-[36rem] sm:h-96 overflow-y-auto overflow-x-hidden font-mono text-[10px] sm:text-[11px] leading-relaxed p-1.5 sm:p-2">
+            <div ref={logScrollRef} className="h-[36rem] sm:h-96 overflow-y-auto overflow-x-hidden font-mono text-[11px] sm:text-[11px] leading-relaxed p-1.5 sm:p-2">
               {logsLoading ? (
                 <div className="flex justify-center py-6"><Loader2 className="w-4 h-4 text-[#52525b] animate-spin" /></div>
               ) : !botLogs?.logs?.length ? (
@@ -1645,10 +1645,10 @@ export function AdminPanelView() {
                 botLogs.logs.map((l: any, i: number) => (
                   <div key={i} className="flex gap-1.5 py-[1px] hover:bg-[#0d0d11]/50">
                     <span className="text-[#3f3f46] shrink-0 w-[52px] sm:w-[75px] select-none">{l.ts ? new Date(l.ts).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", second: "2-digit", timeZone: timezone }) : "--:--:--"}</span>
-                    <span className={`shrink-0 w-8 sm:w-10 text-right select-none text-[10px] sm:text-[11px] ${
+                    <span className={`shrink-0 w-8 sm:w-10 text-right select-none text-[11px] sm:text-[11px] ${
                       l.level === "error" ? "text-[#ff5f57]" : l.level === "warn" ? "text-[#febc2e]" : "text-[#52525b]"
                     }`}>{l.level}</span>
-                    <span className={`whitespace-normal break-all sm:truncate text-[10px] sm:text-[11px] ${
+                    <span className={`whitespace-normal break-all sm:truncate text-[11px] sm:text-[11px] ${
                       l.level === "error" ? "text-[#ff5f57]" : l.level === "warn" ? "text-[#febc2e]" : "text-[#a1a1aa]"
                     }`}>{l.msg}</span>
                   </div>
@@ -1680,51 +1680,51 @@ export function AdminPanelView() {
                   <p className={`text-xs sm:text-lg font-bold ${botStatus.discord_connected ? 'text-emerald-300' : 'text-[#f87171]'}`}>
                     {botStatus.discord_connected ? 'ONLINE' : 'OFFLINE'}
                   </p>
-                  <p className="text-[9px] sm:text-[10px] text-[#52525b] mt-0.5 sm:mt-1 uppercase tracking-wider">Discord</p>
+                  <p className="text-[11px] sm:text-[11px] text-[#52525b] mt-0.5 sm:mt-1 uppercase tracking-wider">Discord</p>
                 </div>
                 <div className="bg-[#0d0d11] border border-[#1e1e2a] rounded-xl p-2 sm:p-4 text-center">
                   <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#52525b] mx-auto mb-1 sm:mb-2" />
-                  <p className="text-[10px] sm:text-xs text-[#d4d4d8] font-mono truncate">{liveUptime || botStatus.uptime_display}</p>
-                  <p className="text-[9px] sm:text-[10px] text-[#52525b] mt-0.5 sm:mt-1 uppercase tracking-wider">Uptime</p>
+                  <p className="text-[11px] sm:text-xs text-[#d4d4d8] font-mono truncate">{liveUptime || botStatus.uptime_display}</p>
+                  <p className="text-[11px] sm:text-[11px] text-[#52525b] mt-0.5 sm:mt-1 uppercase tracking-wider">Uptime</p>
                 </div>
                 <div className="bg-[#0d0d11] border border-[#1e1e2a] rounded-xl p-2 sm:p-4 text-center">
                   <HardDrive className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#52525b] mx-auto mb-1 sm:mb-2" />
                   <p className="text-xs sm:text-lg font-bold text-[#d4d4d8] truncate">{botStatus.memory_mb} / 1024 MB</p>
-                  <p className="text-[9px] sm:text-[10px] text-[#52525b] mt-0.5 sm:mt-1 uppercase tracking-wider">Memory</p>
+                  <p className="text-[11px] sm:text-[11px] text-[#52525b] mt-0.5 sm:mt-1 uppercase tracking-wider">Memory</p>
                 </div>
                 <div className="bg-[#0d0d11] border border-[#1e1e2a] rounded-xl p-2 sm:p-4 text-center">
                   <Radio className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#52525b] mx-auto mb-1 sm:mb-2" />
-                  <p className="text-[10px] sm:text-xs text-[#d4d4d8] truncate">{botStatus.region ? (FLY_REGIONS[botStatus.region] || botStatus.region.toUpperCase()) : "—"} · 2 vCPU</p>
-                  <p className="text-[9px] sm:text-[10px] text-[#52525b] mt-0.5 sm:mt-1 uppercase tracking-wider">Machine</p>
+                  <p className="text-[11px] sm:text-xs text-[#d4d4d8] truncate">{botStatus.region ? (FLY_REGIONS[botStatus.region] || botStatus.region.toUpperCase()) : "—"} · 2 vCPU</p>
+                  <p className="text-[11px] sm:text-[11px] text-[#52525b] mt-0.5 sm:mt-1 uppercase tracking-wider">Machine</p>
                 </div>
               </div>
 
               {/* Extra Info Cards — 3-col on all screens */}
               <div className="grid grid-cols-3 gap-2 sm:gap-3">
                 <div className="bg-[#0d0d11] border border-[#1e1e2a] rounded-xl p-2 sm:p-3 text-center">
-                  <p className="text-[10px] sm:text-xs text-[#d4d4d8] font-mono truncate">{botStatus.node_version}</p>
-                  <p className="text-[9px] sm:text-[10px] text-[#52525b] mt-0.5 uppercase tracking-wider">Node.js</p>
+                  <p className="text-[11px] sm:text-xs text-[#d4d4d8] font-mono truncate">{botStatus.node_version}</p>
+                  <p className="text-[11px] sm:text-[11px] text-[#52525b] mt-0.5 uppercase tracking-wider">Node.js</p>
                 </div>
                 <div className="bg-[#0d0d11] border border-[#1e1e2a] rounded-xl p-2 sm:p-3 text-center">
-                  <p className="text-[10px] sm:text-xs text-[#d4d4d8] font-mono">fly.io</p>
-                  <p className="text-[9px] sm:text-[10px] text-[#52525b] mt-0.5 uppercase tracking-wider">Platform</p>
+                  <p className="text-[11px] sm:text-xs text-[#d4d4d8] font-mono">fly.io</p>
+                  <p className="text-[11px] sm:text-[11px] text-[#52525b] mt-0.5 uppercase tracking-wider">Platform</p>
                 </div>
                 <div className="bg-[#0d0d11] border border-[#1e1e2a] rounded-xl p-2 sm:p-3 text-center">
-                  <p className="text-[10px] sm:text-xs text-[#d4d4d8] font-mono">{botStatus.region}</p>
-                  <p className="text-[9px] sm:text-[10px] text-[#52525b] mt-0.5 uppercase tracking-wider">Region</p>
+                  <p className="text-[11px] sm:text-xs text-[#d4d4d8] font-mono">{botStatus.region}</p>
+                  <p className="text-[11px] sm:text-[11px] text-[#52525b] mt-0.5 uppercase tracking-wider">Region</p>
                 </div>
               </div>
 
 
 
-              <p className="text-[10px] text-[#3f3f46]">Auto-refreshes every 15s.</p>
+              <p className="text-[11px] text-[#3f3f46]">Auto-refreshes every 15s.</p>
 
               {/* Maintenance Mode */}
               <div className="bg-[#0d0d11] border border-[#1e1e2a] rounded-xl p-3 sm:p-4 space-y-3">
                 <div className="flex flex-col gap-2">
                   <div>
                     <h4 className="text-sm font-semibold text-[#fafafa]">Maintenance Mode</h4>
-                    <p className="text-[10px] sm:text-xs text-[#71717a]">Block all non-admin users. Set an end time so users know when to return.</p>
+                    <p className="text-[11px] sm:text-xs text-[#71717a]">Block all non-admin users. Set an end time so users know when to return.</p>
                   </div>
                   <button
                     onClick={async () => {
@@ -1786,7 +1786,7 @@ export function AdminPanelView() {
               className={`flex flex-col items-center justify-center gap-0.5 px-1.5 py-1 min-w-[44px] rounded-lg transition-colors shrink-0 ${tab === id ? "text-[#fafafa]" : "text-[#52525b]"}`}
             >
               <Icon className="w-4 h-4" />
-              <span className="text-[9px] font-medium leading-none">{label}</span>
+              <span className="text-[11px] font-medium leading-none">{label}</span>
             </button>
           ))}
         </div>
@@ -2018,12 +2018,12 @@ function SpawnCronCard({ data, connected, timezone }: { data: any; connected: bo
             <span className={`w-2 h-2 rounded-full ${connected ? 'bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.5)]' : 'bg-[#52525b]'}`} />
             <span className="text-[11px] font-semibold text-[#e4e4e7] tracking-wide">SPAWN CRON</span>
           </div>
-          <span className="text-[10px] text-[#52525b] font-mono">every {intervalLabel}</span>
+          <span className="text-[11px] text-[#52525b] font-mono">every {intervalLabel}</span>
           {/* Time range filter */}
           <select
             value={timeRange}
             onChange={e => setTimeRange(e.target.value)}
-            className="bg-[#0d0d11] border border-[#1e1e2a] rounded px-1.5 py-0.5 text-[10px] text-[#a1a1aa] font-mono focus:outline-none focus:border-violet-500/30 cursor-pointer"
+            className="bg-[#0d0d11] border border-[#1e1e2a] rounded px-1.5 py-0.5 text-[11px] text-[#a1a1aa] font-mono focus:outline-none focus:border-violet-500/30 cursor-pointer"
           >
             <option value="live">Live</option>
             <option value="1h">1 Hour</option>
@@ -2040,19 +2040,19 @@ function SpawnCronCard({ data, connected, timezone }: { data: any; connected: bo
         </div>
         <div className="flex items-center gap-1.5 sm:gap-3 flex-wrap">
           <div className="flex items-center gap-1 sm:gap-1.5 bg-[#18181b] rounded-lg px-2 sm:px-3 py-1 sm:py-1.5 border border-[#27272a]">
-            <span className="text-[9px] sm:text-[10px] text-[#71717a] font-mono uppercase tracking-wider">avg</span>
-            <span className="text-xs sm:text-sm font-bold text-[#fafafa] font-mono">{(avg / 1000).toFixed(2)}<span className="text-[9px] sm:text-[10px] text-[#71717a] ml-0.5">s</span></span>
+            <span className="text-[11px] sm:text-[11px] text-[#71717a] font-mono uppercase tracking-wider">avg</span>
+            <span className="text-xs sm:text-sm font-bold text-[#fafafa] font-mono">{(avg / 1000).toFixed(2)}<span className="text-[11px] sm:text-[11px] text-[#71717a] ml-0.5">s</span></span>
           </div>
           <div className={`flex items-center gap-1 sm:gap-1.5 rounded-lg px-2 sm:px-3 py-1 sm:py-1.5 border ${trend === "up" ? "bg-emerald-500/10 border-emerald-500/20" : trend === "down" ? "bg-rose-500/10 border-rose-500/20" : "bg-[#18181b] border-[#27272a]"}`}>
-            <span className={`text-[10px] sm:text-xs ${trend === "up" ? "text-emerald-400" : trend === "down" ? "text-rose-400" : "text-[#71717a]"}`}>
+            <span className={`text-[11px] sm:text-xs ${trend === "up" ? "text-emerald-400" : trend === "down" ? "text-rose-400" : "text-[#71717a]"}`}>
               {trend === "up" ? "▲" : trend === "down" ? "▼" : "─"}
             </span>
-            <span className={`text-xs sm:text-sm font-bold font-mono ${trend === "up" ? "text-emerald-300" : trend === "down" ? "text-rose-300" : "text-[#a1a1aa]"}`}>{(latest / 1000).toFixed(2)}<span className="text-[9px] sm:text-[10px] opacity-60 ml-0.5">s</span></span>
+            <span className={`text-xs sm:text-sm font-bold font-mono ${trend === "up" ? "text-emerald-300" : trend === "down" ? "text-rose-300" : "text-[#a1a1aa]"}`}>{(latest / 1000).toFixed(2)}<span className="text-[11px] sm:text-[11px] opacity-60 ml-0.5">s</span></span>
           </div>
           {peakTime && (
             <div className="flex items-center gap-1 bg-[#18181b] rounded-lg px-2 py-1 border border-[#27272a]">
-              <span className="text-[9px] text-[#71717a] font-mono uppercase tracking-wider">peak</span>
-              <span className="text-[11px] sm:text-xs font-bold text-amber-300 font-mono">{(peakTime.ms / 1000).toFixed(2)}<span className="text-[9px] text-[#71717a] ml-0.5">s</span></span>
+              <span className="text-[11px] text-[#71717a] font-mono uppercase tracking-wider">peak</span>
+              <span className="text-[11px] sm:text-xs font-bold text-amber-300 font-mono">{(peakTime.ms / 1000).toFixed(2)}<span className="text-[11px] text-[#71717a] ml-0.5">s</span></span>
               <span className="text-[8px] text-[#52525b] hidden sm:inline">{peakTime.time}</span>
             </div>
           )}
@@ -2195,8 +2195,8 @@ function SpawnCronCard({ data, connected, timezone }: { data: any; connected: bo
         return (
           <div className="absolute z-20 pointer-events-none px-2.5 py-1.5 rounded-lg bg-[#18181b] border border-[#3f3f46] shadow-xl"
             style={{ top: `${pctY}%`, ...xStyle }}>
-            {dateStr && <div className="text-[9px] text-[#71717a] font-mono whitespace-nowrap mb-0.5">{dateStr}</div>}
-            <div className="text-[10px] font-mono text-[#fafafa] whitespace-nowrap">
+            {dateStr && <div className="text-[11px] text-[#71717a] font-mono whitespace-nowrap mb-0.5">{dateStr}</div>}
+            <div className="text-[11px] font-mono text-[#fafafa] whitespace-nowrap">
               Tick {tooltip.i + 1}: <span className="text-[#a78bfa] font-bold">{(tooltip.v / 1000).toFixed(2)}s</span>
             </div>
           </div>
@@ -2206,21 +2206,21 @@ function SpawnCronCard({ data, connected, timezone }: { data: any; connected: bo
       {/* Stats bar */}
       <div className="relative flex items-center justify-center gap-3 sm:gap-10 px-3 sm:px-4 pb-3 sm:pb-4 pt-1 border-t border-[#1e1e2a]">
         <div className="text-center">
-          <p className="text-[10px] text-[#52525b] uppercase tracking-wider">Duration</p>
+          <p className="text-[11px] text-[#52525b] uppercase tracking-wider">Duration</p>
           <p className="text-sm font-bold text-[#fafafa] font-mono">
-            {durationMs > 0 ? (durationMs / 1000).toFixed(2) : "—"}<span className="text-[10px] text-[#71717a] ml-0.5">s</span>
+            {durationMs > 0 ? (durationMs / 1000).toFixed(2) : "—"}<span className="text-[11px] text-[#71717a] ml-0.5">s</span>
           </p>
         </div>
         <div className="text-center">
-          <p className="text-[10px] text-[#52525b] uppercase tracking-wider">Servers</p>
+          <p className="text-[11px] text-[#52525b] uppercase tracking-wider">Servers</p>
           <p className="text-sm font-bold text-[#fafafa] font-mono">{servers}</p>
         </div>
         <div className="text-center">
-          <p className="text-[10px] text-[#52525b] uppercase tracking-wider">Bosses</p>
+          <p className="text-[11px] text-[#52525b] uppercase tracking-wider">Bosses</p>
           <p className="text-sm font-bold text-[#fafafa] font-mono">{bosses}</p>
         </div>
         <div className="text-center">
-          <p className="text-[10px] text-[#52525b] uppercase tracking-wider">Ticks</p>
+          <p className="text-[11px] text-[#52525b] uppercase tracking-wider">Ticks</p>
           <p className="text-sm font-bold text-[#fafafa] font-mono">{history.length || "—"}</p>
         </div>
       </div>

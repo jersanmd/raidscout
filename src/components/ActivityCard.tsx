@@ -35,7 +35,7 @@ export function ActivityCard({ info }: ActivityCardProps) {
                 <Calendar className="w-3.5 h-3.5 text-[#a1a1aa] shrink-0" />
               )}
             </span>
-            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full border shrink-0 tracking-wider text-[#71717a]">
+            <span className="text-[11px] font-bold px-1.5 py-0.5 rounded-full border shrink-0 tracking-wider text-[#71717a]">
               <span className={`inline-block w-1.5 h-1.5 rounded-full mr-1 ${
                 activity.schedule_type === "fixed_hours" ? "bg-emerald-500" :
                 activity.schedule_type === "fixed_schedule" ? "bg-violet-500" : "bg-amber-500"
@@ -43,7 +43,7 @@ export function ActivityCard({ info }: ActivityCardProps) {
               Activity
             </span>
             {(activity as any).category && (
-              <span className="text-[10px] text-[#52525b] font-mono truncate max-w-[120px]">{(activity as any).category}</span>
+              <span className="text-[11px] text-[#52525b] font-mono truncate max-w-[120px]">{(activity as any).category}</span>
             )}
           </div>
 
@@ -85,7 +85,7 @@ export function ActivityCard({ info }: ActivityCardProps) {
           </div>
 
           {/* Stats row */}
-          <div className="flex items-center gap-2 text-[10px] text-[#52525b] font-mono">
+          <div className="flex items-center gap-2 text-[11px] text-[#52525b] font-mono">
             {activity.party_size && (
               <span className="flex items-center gap-1">
                 <Users className="w-3 h-3" />{activity.party_size}

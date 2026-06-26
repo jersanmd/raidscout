@@ -256,20 +256,20 @@ export function BillingView() {
                   <span className="text-xs text-[#d4d4d8] font-medium">
                     {new Date(p.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
                   </span>
-                  <span className="text-[10px] text-[#52525b] font-normal sm:hidden">
+                  <span className="text-[11px] text-[#52525b] font-normal sm:hidden">
                     {new Date(p.created_at).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}
                   </span>
                 </div>
                 <div className="sm:col-span-2 flex items-center gap-2">
-                  <span className="text-[10px] text-[#52525b] sm:hidden">Amount:</span>
+                  <span className="text-[11px] text-[#52525b] sm:hidden">Amount:</span>
                   <span className="text-xs text-[#fafafa] font-semibold">${p.amount}</span>
                 </div>
                 <div className="sm:col-span-2 flex items-center gap-2">
-                  <span className="text-[10px] text-[#52525b] sm:hidden">Days:</span>
+                  <span className="text-[11px] text-[#52525b] sm:hidden">Days:</span>
                   <span className="text-xs text-[#d4d4d8]">+{p.days_added}d</span>
                 </div>
                 <div className="sm:col-span-3">
-                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold ${
+                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold ${
                     p.status === "completed" ? "bg-emerald-500/10 text-emerald-300 border border-emerald-500/20" : "bg-red-500/10 text-red-300 border border-red-500/20"
                   }`}>
                     {p.status === "completed" ? "Completed" : "Refunded"}
@@ -281,13 +281,13 @@ export function BillingView() {
                       href={`https://www.paypal.com/myaccount/transactions/details/${p.paypal_order_id}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 text-[10px] font-medium text-sky-600 hover:text-sky-700 hover:underline transition"
+                      className="inline-flex items-center gap-1 text-[11px] font-medium text-sky-600 hover:text-sky-700 hover:underline transition"
                     >
                       <Receipt className="w-3 h-3" />
                       Receipt
                     </a>
                   ) : (
-                    <span className="text-[10px] text-[#d1d5db]">—</span>
+                    <span className="text-[11px] text-[#d1d5db]">—</span>
                   )}
                 </span>
               </div>

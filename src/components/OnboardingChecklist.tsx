@@ -60,7 +60,7 @@ function ChecklistItem({
             strokeWidth={3}
           />
         ) : (
-          <span className="text-[10px] font-bold text-[#52525b]">{index + 1}</span>
+          <span className="text-[11px] font-bold text-[#52525b]">{index + 1}</span>
         )}
       </div>
 
@@ -100,7 +100,7 @@ function ChecklistItem({
               href={item.videoUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-red-600/20 text-red-400 hover:bg-red-600/30 transition-colors"
+              className="flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-red-600/20 text-red-400 hover:bg-red-600/30 transition-colors"
             >
               <svg className="w-3 h-3" viewBox="0 0 24 24" fill="currentColor"><path d="M19.615 3.184c-3.604-.246-11.631-.245-15.23 0-3.897.266-4.356 2.62-4.385 8.816.029 6.185.484 8.549 4.385 8.816 3.6.245 11.626.246 15.23 0 3.897-.266 4.356-2.62 4.385-8.816-.029-6.185-.484-8.549-4.385-8.816zm-10.615 12.816v-8l8 3.993-8 4.007z"/></svg>
               Watch Guide
@@ -192,7 +192,7 @@ export default function OnboardingChecklist() {
                   ? "RaidScout Ready"
                   : "Welcome to RaidScout"}
               </h3>
-              <p className="text-[10px] text-[#71717a]">
+              <p className="text-[11px] text-[#71717a]">
                 {celebrating
                   ? "Your server is fully configured! 🎉"
                   : allDone
@@ -229,7 +229,7 @@ export default function OnboardingChecklist() {
         {/* Footer quote */}
         {!allDone && !celebrating && (
           <div className="px-4 pb-3 pt-0.5">
-            <p className="text-[10px] text-[#52525b] italic text-center">
+            <p className="text-[11px] text-[#52525b] italic text-center">
               Tip: You can always access these features from the sidebar.
             </p>
           </div>

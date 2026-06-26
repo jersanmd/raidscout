@@ -111,7 +111,7 @@ function UpcomingSlot({
             {spawn.boss.name}
           </span>
           {guildName && (() => { const c = guildColor(guildName); return (
-            <span className={`flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded border shrink-0 ${c.bg} ${c.text} ${c.border}`}>
+            <span className={`flex items-center gap-1 text-[11px] font-medium px-1.5 py-0.5 rounded border shrink-0 ${c.bg} ${c.text} ${c.border}`}>
               <Shield className="w-2.5 h-2.5" />
               {guildName}
             </span>
@@ -121,7 +121,7 @@ function UpcomingSlot({
           <span className="text-xs text-[#52525b] font-mono">
             {spawn.nextSpawn ? formatTime(spawn.nextSpawn) : "—"}
           </span>
-          <span className={`inline-flex items-center gap-1 text-[10px] ${t.labelColor}`}>
+          <span className={`inline-flex items-center gap-1 text-[11px] ${t.labelColor}`}>
             <span className={`w-1.5 h-1.5 rounded-full ${t.dot}`} />
             {t.label}
           </span>

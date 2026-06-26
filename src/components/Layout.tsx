@@ -202,12 +202,12 @@ export function Layout() {
       <nav ref={serverNavRef} className="flex-1 overflow-y-auto py-2 px-2 space-y-3 scrollbar-thin">
         <div>
           {mode === "full" ? (
-            isViewer ? (<><div className="px-2 mb-0.5 text-[9px] font-semibold text-[#52525b] uppercase tracking-wider">Servers</div><div className="px-2.5 py-2 rounded-md bg-[#18181b] text-xs text-[#a1a1aa] flex items-center gap-2"><Eye className="w-3.5 h-3.5 shrink-0"/><span className="truncate">{viewerServerName||"Read-only"}</span></div></>)
-            : currentServer ? (<><div className="px-2 mb-0.5 text-[9px] font-semibold text-[#52525b] uppercase tracking-wider">Servers</div><div className="space-y-0.5">{servers.map(s=>{const n=new Date();const e=s.subscription_ends_at?new Date(s.subscription_ends_at):null;const t=s.trial_ends_at?new Date(s.trial_ends_at):null;const d=e?Math.ceil((e.getTime()-n.getTime())/86400000):0;const td=t?Math.ceil((t.getTime()-n.getTime())/86400000):0;const isActive=d>0;const isTrial=!isActive&&td>0;const isExpired=!isActive&&!isTrial&&(e||t);const isCurrent=s.id===currentServer.id;return(<button key={s.id} id={`server-${s.id}`} onClick={()=>{if(!isCurrent){setCurrentServer(s);onNavClick?.()}}} className={`w-full flex items-center gap-2.5 rounded-md text-sm transition text-left h-9 ${isCurrent?"px-2.5 bg-[#1e1e2a] text-[#fafafa]":"px-2.5 text-[#71717a] hover:text-[#d4d4d8] hover:bg-[#18181b]/50"}`}><Server className="w-4 h-4 shrink-0"/><span className="truncate">{s.name}</span>{!isCurrent && <span className={`ml-0.5 text-[10px] shrink-0 ${s.role==="owner"?"text-amber-500/60":"text-blue-400/60"}`}>{s.role==="owner"?"Owner":"Mod"}</span>}{isActive&&isCurrent?<span className="ml-auto shrink-0 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-amber-500/10 text-amber-300 border border-amber-500/20"><Crown className="w-2.5 h-2.5"/>Pro · {d}d</span>:isActive?<span className="ml-auto shrink-0 text-[10px] px-1 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">{d}d</span>:isTrial?<span className="ml-auto shrink-0 text-[10px] px-1 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">Trial {td}d</span>:isExpired?<span className="ml-auto shrink-0 text-[10px] px-1 py-0.5 rounded bg-red-500/10 text-red-400 border border-red-500/20">Exp</span>:null}</button>)})}</div></>) : !isAdmin ? (<button onClick={()=>{setShowCreate(true);onNavClick?.()}} className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-xs font-medium bg-[#fafafa] text-[#09090b] hover:bg-[#e4e4e7] transition"><Plus className="w-3.5 h-3.5"/>New Server</button>) : null
+            isViewer ? (<><div className="px-2 mb-0.5 text-[11px] font-semibold text-[#52525b] uppercase tracking-wider">Servers</div><div className="px-2.5 py-2 rounded-md bg-[#18181b] text-xs text-[#a1a1aa] flex items-center gap-2"><Eye className="w-3.5 h-3.5 shrink-0"/><span className="truncate">{viewerServerName||"Read-only"}</span></div></>)
+            : currentServer ? (<><div className="px-2 mb-0.5 text-[11px] font-semibold text-[#52525b] uppercase tracking-wider">Servers</div><div className="space-y-0.5">{servers.map(s=>{const n=new Date();const e=s.subscription_ends_at?new Date(s.subscription_ends_at):null;const t=s.trial_ends_at?new Date(s.trial_ends_at):null;const d=e?Math.ceil((e.getTime()-n.getTime())/86400000):0;const td=t?Math.ceil((t.getTime()-n.getTime())/86400000):0;const isActive=d>0;const isTrial=!isActive&&td>0;const isExpired=!isActive&&!isTrial&&(e||t);const isCurrent=s.id===currentServer.id;return(<button key={s.id} id={`server-${s.id}`} onClick={()=>{if(!isCurrent){setCurrentServer(s);onNavClick?.()}}} className={`w-full flex items-center gap-2.5 rounded-md text-sm transition text-left h-9 ${isCurrent?"px-2.5 bg-[#1e1e2a] text-[#fafafa]":"px-2.5 text-[#71717a] hover:text-[#d4d4d8] hover:bg-[#18181b]/50"}`}><Server className="w-4 h-4 shrink-0"/><span className="truncate">{s.name}</span>{!isCurrent && <span className={`ml-0.5 text-[11px] shrink-0 ${s.role==="owner"?"text-amber-500/60":"text-blue-400/60"}`}>{s.role==="owner"?"Owner":"Mod"}</span>}{isActive&&isCurrent?<span className="ml-auto shrink-0 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-500/10 text-amber-300 border border-amber-500/20"><Crown className="w-2.5 h-2.5"/>Pro · {d}d</span>:isActive?<span className="ml-auto shrink-0 text-[11px] px-1 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">{d}d</span>:isTrial?<span className="ml-auto shrink-0 text-[11px] px-1 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">Trial {td}d</span>:isExpired?<span className="ml-auto shrink-0 text-[11px] px-1 py-0.5 rounded bg-red-500/10 text-red-400 border border-red-500/20">Exp</span>:null}</button>)})}</div></>) : !isAdmin ? (<button onClick={()=>{setShowCreate(true);onNavClick?.()}} className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-xs font-medium bg-[#fafafa] text-[#09090b] hover:bg-[#e4e4e7] transition"><Plus className="w-3.5 h-3.5"/>New Server</button>) : null
           ) : (
             // Collapsed: abbreviated "Svrs" header + icon-only server list
             currentServer ? (<>
-              <div className="flex justify-center mb-0.5 text-[9px] font-semibold text-[#52525b] uppercase tracking-wider">Svrs</div>
+              <div className="flex justify-center mb-0.5 text-[11px] font-semibold text-[#52525b] uppercase tracking-wider">Svrs</div>
               <div className="flex flex-col items-center gap-0.5">
                 {servers.map(s => {
                   const isCurrent = s.id === currentServer.id;
@@ -228,7 +228,7 @@ export function Layout() {
         </div>
         {NAV_GROUPS.map(g=>(
           <div key={g.label}>
-            <div className={mode === "full" ? "px-2.5 mb-1 text-[10px] font-semibold text-[#52525b] uppercase tracking-wider" : "flex justify-center mb-1 text-[10px] font-semibold text-[#52525b] uppercase tracking-wider"}>{mode === "full" ? g.label : g.abbr}</div>
+            <div className={mode === "full" ? "px-2.5 mb-1 text-[11px] font-semibold text-[#52525b] uppercase tracking-wider" : "flex justify-center mb-1 text-[11px] font-semibold text-[#52525b] uppercase tracking-wider"}>{mode === "full" ? g.label : g.abbr}</div>
             <div className="space-y-0.5">{g.items.map(item=>(<NavLink key={item.to} to={item.to} end={item.end} onClick={onNavClick} className={mode === "full" ? ({isActive})=>`flex items-center gap-2.5 px-3 py-2 h-9 rounded-md text-sm font-medium transition-all duration-150 ${isActive?"bg-[#1a1a1e] text-[#fafafa]":"text-[#71717a] hover:text-[#d4d4d8] hover:bg-[#18181b]/50"}` : ({isActive})=>`flex items-center justify-center px-3 py-2 h-9 rounded-md text-sm font-medium transition ${isActive?"bg-[#1a1a1e] text-[#fafafa]":"text-[#71717a] hover:text-[#d4d4d8]"}`} title={mode === "full" ? undefined : item.label}><item.icon className="w-4 h-4 shrink-0"/>{mode === "full" && <span>{item.label}</span>}</NavLink>))}</div>
           </div>
         ))}
@@ -275,7 +275,7 @@ export function Layout() {
                       : t.body
                     }
                   </p>
-                  <p className={`text-[10px] mt-1 ${t.type === "dkp_won" ? "text-emerald-500/70" : "text-amber-500/70"}`}>Tap to view →</p>
+                  <p className={`text-[11px] mt-1 ${t.type === "dkp_won" ? "text-emerald-500/70" : "text-amber-500/70"}`}>Tap to view →</p>
                 </div>
                 <button onClick={(e) => { e.stopPropagation(); dismissToast(t.id); }} className="text-[#71717a] hover:text-[#fafafa] shrink-0 self-start mt-1">
                   <X className="w-3.5 h-3.5" />
@@ -306,7 +306,7 @@ export function Layout() {
         {currentServer && (
           <div className="md:hidden flex items-center gap-1 shrink-0 min-w-0 max-w-[40%]">
             <Server className="w-3 h-3 text-[#a1a1aa] shrink-0" />
-            <span className="text-[10px] text-[#d4d4d8] truncate font-medium">{currentServer.name}</span>
+            <span className="text-[11px] text-[#d4d4d8] truncate font-medium">{currentServer.name}</span>
             {(()=>{const n=new Date();const e=currentServer.subscription_ends_at?new Date(currentServer.subscription_ends_at):null;if(!e)return null;const d=Math.ceil((e.getTime()-n.getTime())/86400000);if(d>0)return(<span className="shrink-0 inline-flex items-center gap-0.5 px-1 py-0.5 rounded-full text-[8px] font-semibold bg-amber-500/10 text-amber-300 border border-amber-500/20"><Crown className="w-2 h-2"/>Pro</span>);return(<span className="shrink-0 inline-flex items-center gap-0.5 px-1 py-0.5 rounded-full text-[8px] font-semibold bg-red-500/10 text-red-300 border border-red-500/20">Expired</span>)})()}
           </div>
         )}
@@ -315,7 +315,7 @@ export function Layout() {
           <div className="hidden md:flex items-center gap-2.5 shrink-0 ml-1 pl-3 border-l border-[#27272a]">
             <div className="flex items-center gap-2 px-2.5 py-1 rounded-lg bg-[#18181b]/60 border border-[#27272a]/60">
               <span className="w-1.5 h-1.5 rounded-full bg-[#5865F2] shadow-[0_0_6px_rgba(88,101,242,0.5)]" />
-              <span className="text-[10px] text-[#8686f0] font-semibold tracking-wide">DISCORD CONNECTED</span>
+              <span className="text-[11px] text-[#8686f0] font-semibold tracking-wide">DISCORD CONNECTED</span>
             </div>
             {discordGuilds.map((g, i) => (
               <div key={g.guild_id} className="flex items-center gap-2 px-2 py-1 rounded-lg bg-[#18181b]/40 border border-[#27272a]/40 hover:border-[#3f3f46] transition-colors">
@@ -356,7 +356,7 @@ export function Layout() {
           >
             <Bell className="w-4 h-4" />
             {unreadCount > 0 && (
-              <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-[16px] rounded-full bg-red-500 text-[10px] font-bold text-white flex items-center justify-center px-1 leading-none">
+              <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-[16px] rounded-full bg-red-500 text-[11px] font-bold text-white flex items-center justify-center px-1 leading-none">
                 {unreadCount > 9 ? "9+" : unreadCount}
               </span>
             )}
@@ -393,7 +393,7 @@ export function Layout() {
                           <div className="min-w-0 flex-1">
                             <p className={`text-xs ${!n.read ? "text-[#fafafa] font-medium" : "text-[#d4d4d8]"}`}>{n.title}</p>
                             {n.body && <p className={`text-[11px] text-[#d4d4d8] mt-0.5 ${expandedNotifId !== n.id ? "line-clamp-2" : ""}`}>{n.body}</p>}
-                            <p className="text-[10px] text-[#71717a] mt-1">
+                            <p className="text-[11px] text-[#71717a] mt-1">
                               {new Date(n.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
                               {" � "}
                               {new Date(n.created_at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
@@ -480,14 +480,11 @@ export function Layout() {
       {/* -- Mobile Bottom Nav -- */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-[#09090b]/95 backdrop-blur-xl border-t border-[#27272a] safe-area-bottom">
         <div className="flex items-center justify-around h-14 max-w-lg mx-auto">
-          <NavLink to="/" end className={({isActive})=>`flex flex-col items-center justify-center gap-0.5 px-1 py-1 min-w-0 flex-1 rounded-lg transition-colors ${isActive?"text-[#fafafa]":"text-[#52525b]"}`}><Swords className="w-4 h-4"/><span className="text-[8px] font-medium">Bosses</span></NavLink>
-          <NavLink to="/schedule" className={({isActive})=>`flex flex-col items-center justify-center gap-0.5 px-1 py-1 min-w-0 flex-1 rounded-lg transition-colors ${isActive?"text-[#fafafa]":"text-[#52525b]"}`}><Calendar className="w-4 h-4"/><span className="text-[8px] font-medium">Sched</span></NavLink>
-          <NavLink to="/history" className={({isActive})=>`flex flex-col items-center justify-center gap-0.5 px-1 py-1 min-w-0 flex-1 rounded-lg transition-colors ${isActive?"text-[#fafafa]":"text-[#52525b]"}`}><Clock className="w-4 h-4"/><span className="text-[8px] font-medium">History</span></NavLink>
-          <NavLink to="/leaderboard" className={({isActive})=>`flex flex-col items-center justify-center gap-0.5 px-1 py-1 min-w-0 flex-1 rounded-lg transition-colors ${isActive?"text-[#fafafa]":"text-[#52525b]"}`}><Trophy className="w-4 h-4"/><span className="text-[8px] font-medium">Leaderboard</span></NavLink>
-          <NavLink to="/dkp" className={({isActive})=>`flex flex-col items-center justify-center gap-0.5 px-1 py-1 min-w-0 flex-1 rounded-lg transition-colors ${isActive?"text-[#fafafa]":"text-[#52525b]"}`}><Coins className="w-4 h-4"/><span className="text-[8px] font-medium">DKP</span></NavLink>
-          <NavLink to="/members" className={({isActive})=>`flex flex-col items-center justify-center gap-0.5 px-1 py-1 min-w-0 flex-1 rounded-lg transition-colors ${isActive?"text-[#fafafa]":"text-[#52525b]"}`}><Users className="w-4 h-4"/><span className="text-[8px] font-medium">Members</span></NavLink>
-          <NavLink to="/inventory" className={({isActive})=>`flex flex-col items-center justify-center gap-0.5 px-1 py-1 min-w-0 flex-1 rounded-lg transition-colors ${isActive?"text-[#fafafa]":"text-[#52525b]"}`}><Package className="w-4 h-4"/><span className="text-[8px] font-medium">Items</span></NavLink>
-          <NavLink to="/analytics" className={({isActive})=>`flex flex-col items-center justify-center gap-0.5 px-1 py-1 min-w-0 flex-1 rounded-lg transition-colors ${isActive?"text-[#fafafa]":"text-[#52525b]"}`}><BarChart3 className="w-4 h-4"/><span className="text-[8px] font-medium">Stats</span></NavLink>
+          <NavLink to="/" end className={({isActive})=>`flex flex-col items-center justify-center gap-0.5 px-1 py-1 min-w-0 flex-1 rounded-lg transition-colors ${isActive?"text-[#fafafa]":"text-[#52525b]"}`}><Swords className="w-4 h-4"/><span className="text-[11px] font-medium">Bosses</span></NavLink>
+          <NavLink to="/schedule" className={({isActive})=>`flex flex-col items-center justify-center gap-0.5 px-1 py-1 min-w-0 flex-1 rounded-lg transition-colors ${isActive?"text-[#fafafa]":"text-[#52525b]"}`}><Calendar className="w-4 h-4"/><span className="text-[11px] font-medium">Sched</span></NavLink>
+          <NavLink to="/dkp" className={({isActive})=>`flex flex-col items-center justify-center gap-0.5 px-1 py-1 min-w-0 flex-1 rounded-lg transition-colors ${isActive?"text-[#fafafa]":"text-[#52525b]"}`}><Coins className="w-4 h-4"/><span className="text-[11px] font-medium">DKP</span></NavLink>
+          <NavLink to="/members" className={({isActive})=>`flex flex-col items-center justify-center gap-0.5 px-1 py-1 min-w-0 flex-1 rounded-lg transition-colors ${isActive?"text-[#fafafa]":"text-[#52525b]"}`}><Users className="w-4 h-4"/><span className="text-[11px] font-medium">Members</span></NavLink>
+          <NavLink to="/leaderboard" className={({isActive})=>`flex flex-col items-center justify-center gap-0.5 px-1 py-1 min-w-0 flex-1 rounded-lg transition-colors ${isActive?"text-[#fafafa]":"text-[#52525b]"}`}><Trophy className="w-4 h-4"/><span className="text-[11px] font-medium">Rank</span></NavLink>
         </div>
       </nav>
 

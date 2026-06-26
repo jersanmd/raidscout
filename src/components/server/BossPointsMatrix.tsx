@@ -89,7 +89,7 @@ export function BossPointsMatrix({
   return (
     <div className="bg-[#09090b] border border-[#27272a] rounded-xl p-3 sm:p-4 max-w-full">
       <div className="flex items-center gap-2 sm:gap-3 mb-3 flex-wrap">
-        <div className="flex items-center gap-2 sm:gap-3 text-[9px] sm:text-[10px] text-[#71717a] flex-wrap">
+        <div className="flex items-center gap-2 sm:gap-3 text-[11px] sm:text-[11px] text-[#71717a] flex-wrap">
           <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400" /> Fixed Hours</span>
           <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-violet-400" /> Schedule</span>
           <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-amber-400" /> One-time</span>
@@ -102,12 +102,12 @@ export function BossPointsMatrix({
             placeholder="Search bosses..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-32 sm:w-40 bg-[#18181b] border border-[#27272a] rounded pl-7 pr-2 py-1 text-[10px] sm:text-xs text-[#fafafa] placeholder-[#52525b] outline-none focus:border-[#52525b] transition"
+            className="w-32 sm:w-40 bg-[#18181b] border border-[#27272a] rounded pl-7 pr-2 py-1 text-[11px] sm:text-xs text-[#fafafa] placeholder-[#52525b] outline-none focus:border-[#52525b] transition"
           />
         </div>
       </div>
       <div className="overflow-x-auto -mx-3 sm:mx-0">
-      <table className="w-full text-[10px] sm:text-xs">
+      <table className="w-full text-[11px] sm:text-xs">
         <thead>
           <tr>
             <th className="sticky left-0 bg-[#09090b] px-2 sm:px-3 py-1.5 sm:py-2 text-left text-[#a1a1aa] font-medium border-b border-r border-[#27272a]/50 z-10 min-w-[120px] sm:min-w-[160px]">
@@ -115,7 +115,7 @@ export function BossPointsMatrix({
             </th>
             {guilds.map(g => (
               <th key={g.id} colSpan={3} className="px-1.5 sm:px-3 py-1.5 sm:py-2 text-center text-[#a1a1aa] font-medium border-b border-[#27272a]/50 border-l border-[#27272a]/30">
-                <span className="text-[10px] sm:text-xs">{g.name}</span>
+                <span className="text-[11px] sm:text-xs">{g.name}</span>
               </th>
             ))}
           </tr>
@@ -123,7 +123,7 @@ export function BossPointsMatrix({
             <th className="sticky left-0 bg-[#09090b] px-3 py-1 border-r border-[#27272a]/50 z-10" />
             {guilds.map(g => (
               <Fragment key={g.id}>
-                <th className="px-2 py-1 text-center text-[10px] text-[#71717a] font-normal border-l border-[#27272a]/30">Pts</th>
+                <th className="px-2 py-1 text-center text-[11px] text-[#71717a] font-normal border-l border-[#27272a]/30">Pts</th>
                 <th className="px-2 py-1 text-center border-l-0">
                   <label className="flex items-center justify-center gap-1 cursor-pointer" title="Check/uncheck all salaries for this guild">
                     <input
@@ -132,10 +132,10 @@ export function BossPointsMatrix({
                       onChange={() => handleCheckAllSalary(g.id)}
                       className="w-3 h-3 rounded border-[#3f3f46] bg-[#18181b] text-[#a1a1aa] focus:ring-[#52525b]/50 cursor-pointer"
                     />
-                    <span className="text-[10px] text-[#71717a] font-normal">Salary</span>
+                    <span className="text-[11px] text-[#71717a] font-normal">Salary</span>
                   </label>
                 </th>
-                <th className="px-2 py-1 text-center text-[10px] text-[#71717a] font-normal border-l border-[#27272a]/30">Ast</th>
+                <th className="px-2 py-1 text-center text-[11px] text-[#71717a] font-normal border-l border-[#27272a]/30">Ast</th>
               </Fragment>
             ))}
           </tr>
@@ -201,7 +201,7 @@ export function BossPointsMatrix({
                             {ownerIds.map(oid => {
                               const ownerGuild = guilds.find(g => g.id === oid);
                               return (
-                                <span key={oid} className="inline-flex items-center gap-0.5 bg-purple-900/30 border border-[#27272a]/50 rounded px-1 py-0.5 text-[9px] text-[#d4d4d8] leading-none">
+                                <span key={oid} className="inline-flex items-center gap-0.5 bg-purple-900/30 border border-[#27272a]/50 rounded px-1 py-0.5 text-[11px] text-[#d4d4d8] leading-none">
                                   {ownerGuild?.name?.slice(0, 6) || "?"}
                                   <button
                                     onClick={(e) => { e.stopPropagation(); onAssistToggle(boss.id, oid, guild.id); }}
@@ -217,7 +217,7 @@ export function BossPointsMatrix({
                                 <select
                                   value=""
                                   onChange={(e) => { if (e.target.value) { onAssistToggle(boss.id, e.target.value, guild.id); e.target.value = ""; }}}
-                                  className="bg-transparent text-[9px] text-[#71717a] hover:text-[#a1a1aa] cursor-pointer outline-none"
+                                  className="bg-transparent text-[11px] text-[#71717a] hover:text-[#a1a1aa] cursor-pointer outline-none"
                                 >
                                   <option value="">+</option>
                                   {availGuilds.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
@@ -236,7 +236,7 @@ export function BossPointsMatrix({
         </tbody>
       </table>
       </div>
-      <p className="text-[10px] text-[#52525b] mt-2 text-center">
+      <p className="text-[11px] text-[#52525b] mt-2 text-center">
         Points default to server-wide value if not overridden. Salary is per-guild.
       </p>
     </div>

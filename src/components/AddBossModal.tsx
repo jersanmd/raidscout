@@ -128,13 +128,13 @@ export function AddBossModal({ open, onClose }: Props) {
           {guilds.length > 0 && (
             <div className="bg-[#18181b] border border-[#27272a] rounded-lg p-3 space-y-2">
               <h3 className="text-xs font-medium text-[#fafafa]">Guild Assignment</h3>
-              <p className="text-[10px] text-[#71717a]">
+              <p className="text-[11px] text-[#71717a]">
                 Optionally assign this boss to a guild now.
                 You can change this later in Server Settings.
               </p>
 
               <div className="flex items-center gap-2">
-                <span className="text-[10px] text-[#71717a] w-10">Mode:</span>
+                <span className="text-[11px] text-[#71717a] w-10">Mode:</span>
                 <select
                   value={guildMode}
                   onChange={(e) => {
@@ -154,15 +154,15 @@ export function AddBossModal({ open, onClose }: Props) {
               {/* Rotation & Daily modes */}
               {(guildMode === "rotation" || guildMode === "daily") && (
                 <div className="space-y-1.5">
-                  <p className="text-[10px] text-[#71717a]">Guild order (first → last):</p>
+                  <p className="text-[11px] text-[#71717a]">Guild order (first → last):</p>
                   {selectedGuildIds.length === 0 ? (
-                    <p className="text-[10px] text-[#52525b] italic">No guilds selected. Add at least one.</p>
+                    <p className="text-[11px] text-[#52525b] italic">No guilds selected. Add at least one.</p>
                   ) : (
                     selectedGuildIds.map((gid, idx) => {
                       const guild = guilds.find(g => g.id === gid);
                       return (
                         <div key={`${idx}-${gid}`} className="flex items-center gap-1 bg-[#09090b]/50 rounded px-2 py-1.5">
-                          <span className="text-[10px] text-[#71717a] w-4">{idx + 1}.</span>
+                          <span className="text-[11px] text-[#71717a] w-4">{idx + 1}.</span>
                           <span className="text-xs text-[#e4e4e7] flex-1">{guild?.name ?? "Unknown"}</span>
                           <button onClick={() => moveGuild(idx, "up")} disabled={idx === 0} className="p-0.5 text-[#71717a] hover:text-[#a1a1aa] disabled:opacity-30"><ChevronUp className="w-3 h-3" /></button>
                           <button onClick={() => moveGuild(idx, "down")} disabled={idx === selectedGuildIds.length - 1} className="p-0.5 text-[#71717a] hover:text-[#a1a1aa] disabled:opacity-30"><ChevronDown className="w-3 h-3" /></button>
@@ -189,10 +189,10 @@ export function AddBossModal({ open, onClose }: Props) {
               {/* Schedule mode */}
               {guildMode === "schedule" && (
                 <div className="space-y-1.5">
-                  <p className="text-[10px] text-[#71717a]">Assign a guild per day of the week:</p>
+                  <p className="text-[11px] text-[#71717a]">Assign a guild per day of the week:</p>
                   {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day, i) => (
                     <div key={i} className="flex items-center gap-2">
-                      <span className="text-[10px] text-[#71717a] w-8">{day}</span>
+                      <span className="text-[11px] text-[#71717a] w-8">{day}</span>
                       <select
                         value={scheduleDays[i] ?? ""}
                         onChange={(e) => setScheduleDays(prev => ({ ...prev, [i]: e.target.value || null }))}
@@ -209,7 +209,7 @@ export function AddBossModal({ open, onClose }: Props) {
               )}
 
               {submitting && (
-                <p className="text-[10px] text-[#71717a] mt-1">Assigning guilds to boss...</p>
+                <p className="text-[11px] text-[#71717a] mt-1">Assigning guilds to boss...</p>
               )}
             </div>
           )}

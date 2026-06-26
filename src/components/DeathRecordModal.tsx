@@ -592,7 +592,7 @@ export function DeathRecordModal({ boss, onClose, onSubmit, defaultDeathTime, hi
  {deathTime && <span className="text-[#a1a1aa] text-sm font-normal">{deathTime.toLocaleString()}</span>}
  <button
  onClick={() => setDeathTime(new Date())}
- className="ml-3 px-2 py-0.5 rounded text-[10px] font-medium bg-[#27272a] text-[#a1a1aa] hover:bg-white/[0.10] hover:text-[#fafafa] transition"
+ className="ml-3 px-2 py-0.5 rounded text-[11px] font-medium bg-[#27272a] text-[#a1a1aa] hover:bg-white/[0.10] hover:text-[#fafafa] transition"
  title={isActivity ? "Overwrite the end time with the current date and time" : "Overwrite the death time with the current date and time"}
  >
  Use current time
@@ -753,7 +753,7 @@ export function DeathRecordModal({ boss, onClose, onSubmit, defaultDeathTime, hi
  />
 
  {rallyPreviews.length > 0 && (
- <p className="text-[10px] text-[#52525b] mt-1">
+ <p className="text-[11px] text-[#52525b] mt-1">
  {rallyPreviews.length} image{rallyPreviews.length !== 1 ? "s" : ""} · Click to enlarge · Paste more with Ctrl+V
  </p>
  )}
@@ -946,7 +946,7 @@ export function DeathRecordModal({ boss, onClose, onSubmit, defaultDeathTime, hi
  {/* Pending (new) members — not yet in DB — hidden for viewers */}
  {!isViewer && pendingMembers.length > 0 && (
  <div className="mb-2">
- <p className="text-[10px] font-medium text-[#a1a1aa] uppercase tracking-wider mb-1 px-1">New</p>
+ <p className="text-[11px] font-medium text-[#a1a1aa] uppercase tracking-wider mb-1 px-1">New</p>
  <div className="flex flex-wrap gap-1.5">
  {pendingMembers.map((pm) => (
  <button
@@ -988,7 +988,7 @@ export function DeathRecordModal({ boss, onClose, onSubmit, defaultDeathTime, hi
  <div className="space-y-2">
  {filteredGroupedMembers.map((group) => (
  <div key={group.guildId ?? "ungrouped"}>
- <p className={`text-[10px] font-medium uppercase tracking-wider mb-1 px-1 ${group.guildId ? guildColor(group.guildName).text : "text-[#71717a]"}`}>
+ <p className={`text-[11px] font-medium uppercase tracking-wider mb-1 px-1 ${group.guildId ? guildColor(group.guildName).text : "text-[#71717a]"}`}>
  {group.guildName}
  <span className="text-[#52525b] ml-1">({group.members.length})</span>
  </p>
@@ -1074,7 +1074,7 @@ export function DeathRecordModal({ boss, onClose, onSubmit, defaultDeathTime, hi
  {/* Per-guild Party Leader search inputs */}
  {selectedIds.size > 0 && groupedMembers.length > 1 && (
  <div className="space-y-1.5">
- <span className="text-[10px] text-[#71717a] uppercase tracking-wider">Party Leaders (per guild)</span>
+ <span className="text-[11px] text-[#71717a] uppercase tracking-wider">Party Leaders (per guild)</span>
  {groupedMembers.filter(g => g.members.some(m => selectedIds.has(m.id))).map(g => {
  const guildKey = g.guildId ?? "_none_";
  const currentId = partyLeaders[guildKey];
@@ -1229,7 +1229,7 @@ function PartyLeaderSearch({
 
   return (
     <div key={guildKey} className="flex items-center gap-2">
-      <span className="text-[10px] text-[#71717a] w-16 truncate shrink-0" title={guildName}>{guildName}</span>
+      <span className="text-[11px] text-[#71717a] w-16 truncate shrink-0" title={guildName}>{guildName}</span>
       <div ref={ref} className="flex-1 relative">
         <input
           type="text"

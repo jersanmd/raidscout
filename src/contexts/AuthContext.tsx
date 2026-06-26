@@ -19,6 +19,7 @@ interface AuthState {
   viewerSignIn: (key: string) => Promise<{ error: string | null }>;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   signUp: (email: string, password: string) => Promise<{ error: string | null }>;
+  signInWithDiscord: () => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
   changePassword: (newPassword: string) => Promise<{ error: string | null }>;
 }
@@ -216,6 +217,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: error?.message ?? null };
   };
 
+  const signInWithDiscord = async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "discord",
+      options: { redirectTo: `${window.location.origin}/` },
+    });
+    return { error: error?.message ?? null };
+  };
+
   const viewerSignIn = async (key: string) => {
     const { data, error } = await supabase
       .rpc("get_server_by_viewer_key", { v_key: key.trim() });
@@ -244,7 +253,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ session, user, userRole, roleLoading, loading, isViewer, viewerServerId, viewerServerName, viewerKey, viewerCanEdit, viewerCanMarkDied, viewerDiscordWebhookUrl, viewerTimezone, viewerSignIn, signIn, signUp, signOut, changePassword }}>
+    <AuthContext.Provider value={{ session, user, userRole, roleLoading, loading, isViewer, viewerServerId, viewerServerName, viewerKey, viewerCanEdit, viewerCanMarkDied, viewerDiscordWebhookUrl, viewerTimezone, viewerSignIn, signIn, signUp, signInWithDiscord, signOut, changePassword }}>
       {children}
     </AuthContext.Provider>
   );
