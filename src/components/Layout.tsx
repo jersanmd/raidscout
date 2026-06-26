@@ -200,23 +200,6 @@ export function Layout() {
     return () => { cancelled = true; window.removeEventListener("discord-config-updated", handler); };
   }, [currentServer?.id, isViewer]);
   useSpawnAlerts((bossName) => { setSpawnToast(bossName.startsWith("\u26A0\uFE0F") ? bossName : `\u26A1 ${bossName} spawning in \u2264 5 min!`); playAlertSound(); setTimeout(() => setSpawnToast(null), 8000); });
-          <div key={g.label}>
-            <div className={mode === "full" ? "px-2.5 mb-1 text-[11px] font-semibold text-[#52525b] uppercase tracking-wider" : "flex justify-center mb-1 text-[11px] font-semibold text-[#52525b] uppercase tracking-wider"}>{mode === "full" ? g.label : g.abbr}</div>
-            <div className="space-y-0.5">{g.items.map(item=>(<NavLink key={item.to} to={item.to} end={item.end} onClick={onNavClick} className={mode === "full" ? ({isActive})=>`flex items-center gap-2.5 px-3 py-2 h-9 rounded-md text-sm font-medium transition-all duration-150 ${isActive?"bg-[#1a1a1e] text-[#fafafa]":"text-[#71717a] hover:text-[#d4d4d8] hover:bg-[#18181b]/50"}` : ({isActive})=>`flex items-center justify-center px-3 py-2 h-9 rounded-md text-sm font-medium transition ${isActive?"bg-[#1a1a1e] text-[#fafafa]":"text-[#71717a] hover:text-[#d4d4d8]"}`} title={mode === "full" ? undefined : item.label}><item.icon className="w-4 h-4 shrink-0"/>{mode === "full" && <span>{item.label}</span>}</NavLink>))}</div>
-          </div>
-        ))}
-      </nav>
-      <div className="border-t border-[#1a1a1e] p-2 space-y-0.5 shrink-0">
-        {hasServer&&!isViewer&&(<>
-          <NavLink to="/server-settings" onClick={onNavClick} className={({isActive})=>`flex items-center gap-2.5 px-2.5 py-2 h-9 rounded-md text-sm font-medium transition ${isActive?"bg-[#1a1a1e] text-[#fafafa]":"text-[#71717a] hover:text-[#d4d4d8] hover:bg-[#18181b]/50"}`} title={mode === "full" ? undefined : "Server Settings"}><Settings className="w-4 h-4 shrink-0"/>{mode === "full" && <span>Server Settings</span>}</NavLink>
-          <NavLink to="/billing" onClick={onNavClick} className={({isActive})=>`flex items-center gap-2.5 px-2.5 py-2 h-9 rounded-md text-sm font-medium transition ${isActive?"bg-[#1a1a1e] text-[#fafafa]":"text-[#71717a] hover:text-[#d4d4d8] hover:bg-[#18181b]/50"}`} title={mode === "full" ? undefined : "Billing"}><CreditCard className="w-4 h-4 shrink-0"/>{mode === "full" && <span>Billing</span>}</NavLink>
-        </>)}
-        <button onClick={toggleSidebar} className="w-full flex items-center gap-2.5 px-2.5 py-2 h-9 rounded-md text-sm text-[#52525b] hover:text-[#a1a1aa] hover:bg-[#18181b]/50 transition" title={mode === "full" ? undefined : (sidebarCollapsed ? "Expand" : "Collapse")}>
-          <PanelLeft className="w-4 h-4 shrink-0"/>{mode === "full" && <span>{sidebarCollapsed ? "Expand" : "Collapse"}</span>}
-        </button>
-      </div>
-    </>
-  );
 
   return (
     <div className="h-dvh bg-[#09090b] flex flex-col overflow-hidden" onClick={() => { showUserMenu && setShowUserMenu(false); showNotifications && setShowNotifications(false); }}>
