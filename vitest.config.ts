@@ -12,6 +12,10 @@ export default defineConfig({
       provider: "v8",
       include: ["src/lib/**", "src/hooks/**"],
     },
+    env: {
+      VITE_SUPABASE_URL: "https://placeholder.supabase.co",
+      VITE_SUPABASE_PUBLISHABLE_KEY: "placeholder-key",
+    },
   },
   resolve: {
     alias: {

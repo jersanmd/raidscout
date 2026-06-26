@@ -119,14 +119,16 @@ describe("DKP API", () => {
   describe("resolveAuction", () => {
     it("awards to winner", async () => {
       mockRpc.mockResolvedValueOnce({ data: null, error: null });
+      mockRpc.mockResolvedValueOnce({ data: null, error: null });
       await resolveAuction("item-1", "bid-1", "server-1", "Test Item");
-      expect(mockRpc).toHaveBeenCalledWith("resolve_auction", { p_item_id: "item-1", p_winner_bid_id: "bid-1" });
+      expect(mockRpc).toHaveBeenNthCalledWith(1, "resolve_auction", { p_auction_id: "item-1", p_winner_bid_id: "bid-1" });
     });
 
     it("cancels auction with null winner", async () => {
       mockRpc.mockResolvedValueOnce({ data: null, error: null });
+      mockRpc.mockResolvedValueOnce({ data: null, error: null });
       await resolveAuction("item-1", null, "server-1", "Test Item");
-      expect(mockRpc).toHaveBeenCalledWith("resolve_auction", { p_item_id: "item-1", p_winner_bid_id: null });
+      expect(mockRpc).toHaveBeenNthCalledWith(1, "resolve_auction", { p_auction_id: "item-1", p_winner_bid_id: null });
     });
   });
 
