@@ -20,6 +20,8 @@ export interface RarityRow {
 }
 
 /** Look up a rarity's color from a DB rarities array, falling back to hardcoded defaults. */
+import { fetchItemRarities } from "@/lib/api/games";
+export { fetchItemRarities };
 export function rarityColor(
   rarityName: string | null | undefined,
   rarities: RarityRow[],

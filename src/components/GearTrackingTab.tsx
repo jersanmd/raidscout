@@ -122,8 +122,8 @@ export function GearTrackingTab() {
         const item = g?.catalog_item || itemCatalogItems.find((c: any) => c.id === g?.catalog_item_id) || catalog.find(c => c.id === g?.catalog_item_id);
         return (item?.rarity || "common").toLowerCase();
       };
-      const scoreA = rarityScore(resolveRarity(ga)] || 0;
-      const scoreB = rarityScore(resolveRarity(gb)] || 0;
+      const scoreA = rarityScore(resolveRarity(ga)) || 0;
+      const scoreB = rarityScore(resolveRarity(gb)) || 0;
       if (scoreA !== scoreB) return dir * (scoreB - scoreA);
       // Tiebreaker: higher CP first
       const cpA = a.combat_power ?? 0;
@@ -476,7 +476,7 @@ export function GearTrackingTab() {
           if (!item && g?.catalog_item_id) {
             item = itemCatalogItems.find((c: any) => c.id === g.catalog_item_id) || catalog.find(c => c.id === g.catalog_item_id);
           }
-          const rarityColor = item ? rarityColor(item.rarity?.toLowerCase()] || "#a1a1aa" : undefined;
+          const rarityCol = item ? (rarityColor(item.rarity?.toLowerCase()) || "#a1a1aa") : undefined;
           const enh = g?.enhancement_level ?? 0;
 
           const handleSlotClick = () => {
@@ -501,11 +501,11 @@ export function GearTrackingTab() {
             <td key={slotId} className={`py-1.5 px-2 text-center ${canManage ? "cursor-pointer hover:bg-[#09090b]/50 transition" : ""}`} onClick={handleSlotClick} title={canManage ? "Click to change item" : undefined}>
               {item ? (
                 <div className="flex items-center justify-center">
-                  <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 relative" style={{ backgroundColor: `${rarityColor}18` }}>
+                  <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 relative" style={{ backgroundColor: `${rarityCol}18` }}>
                     {item.image_url ? (
                       <img src={item.image_url} alt={item.name} className="w-8 h-8 rounded object-cover" />
                     ) : (
-                      <Star className="w-5 h-5" style={{ color: rarityColor }} />
+                      <Star className="w-5 h-5" style={{ color: rarityCol }} />
                     )}
                     {enh > 0 && (
                       <span className="absolute right-0 bottom-1.5 text-[11px] font-black text-amber-400 bg-gradient-to-t from-black/20 to-transparent rounded-bl-lg rounded-tr-lg pl-1.5 pr-1 pt-1 pb-0.5 leading-none drop-shadow-[0_1px_1px_rgba(0,0,0,0.5)]">+{enh}</span>
@@ -644,7 +644,7 @@ export function GearTrackingTab() {
                     const currentItemId = edit?.itemId ?? existing?.catalog_item_id ?? "";
                     const currentEnh = edit?.enh ?? existing?.enhancement_level ?? 0;
                     const currentItem = itemCatalogItems.find((c: any) => c.id === currentItemId) || catalog.find(c => c.id === currentItemId);
-                    const rc = currentItem ? (rarityColor(currentItem.rarity?.toLowerCase()] || "#a1a1aa") : undefined;
+                    const rc = currentItem ? (rarityColor(currentItem.rarity?.toLowerCase()) || "#a1a1aa") : undefined;
                     const isActive = openSlotPicker === slotId;
 
                     return (
@@ -714,7 +714,7 @@ export function GearTrackingTab() {
                           — Empty —
                         </button>
                         {filtered.map((item: any) => {
-                          const rc = rarityColor(item.rarity?.toLowerCase()] || "#a1a1aa";
+                          const rc = rarityColor(item.rarity?.toLowerCase()) || "#a1a1aa";
                           const isSelected = item.id === currentItemId;
                           return (
                             <button
