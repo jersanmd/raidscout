@@ -896,10 +896,7 @@ export function InventoryView() {
             </div>
           )}
         </div>
-      );
-      })()}
-    })()}
-
+      )}
       {/* ── Collections Tab ── */}
       {tab === "collections" && (() => {
         const currentCollection = collections.find(c => c.id === selectedCollection);
@@ -2100,7 +2097,8 @@ export function InventoryView() {
             </div>
           </div>
         </div>
-      )}
+      );
+      })()}
 
       {/* â”€â”€ Create Item Modal â”€â”€ */}
       {showCreateItem && (

@@ -1106,6 +1106,22 @@ function AuctionList({ auctions, auctionSearch, myName, isStaff, handleDelete, s
       // Also mark as distributed in auction history
       if (distAuction) {
         await toggleItemDistributed(distAuction.item_id, distAuction.auction_round, distAuction.auction_id, true).catch(() => {});
+        // Detailed audit log for DKP distribution
+        writeAuditEntry({
+          action: AuditAction.DKP_ITEM_DISTRIBUTED,
+          server_id: serverId,
+          target_id: distAuction.item_id,
+          details: {
+            auction_id: distAuction.auction_id,
+            auction_round: distAuction.auction_round,
+            item_name: distAuction.item_name,
+            winner_name: distMemberSearch || distAuction.winner_name,
+            winning_bid: distAuction.winning_bid,
+            recipient_name: allMembers.find(m => m.id === distMemberId)?.name ?? distAuction.winner_name ?? "Unknown",
+            quantity: distQuantity,
+            reason: distReason,
+          },
+        });
       }
       queryClient.invalidateQueries({ queryKey: ["dkp_past_auctions", serverId] });
       queryClient.invalidateQueries({ queryKey: ["distributions", serverId] });

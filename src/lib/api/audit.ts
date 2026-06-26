@@ -160,6 +160,7 @@ export const AuditAction = {
   DKP_BID_REFUND: "dkp_bid_refund",
   DKP_ITEM_MARKED: "dkp_item_marked",
   DKP_ITEM_UNMARKED: "dkp_item_unmarked",
+  DKP_ITEM_DISTRIBUTED: "dkp_item_distributed",
 } as const;
 
 export type AuditActionType = (typeof AuditAction)[keyof typeof AuditAction];
@@ -363,6 +364,7 @@ export const AUDIT_ACTION_GROUPS: { label: string; actions: AuditActionType[] }[
       AuditAction.DKP_BID_REFUND,
       AuditAction.DKP_ITEM_MARKED,
       AuditAction.DKP_ITEM_UNMARKED,
+      AuditAction.DKP_ITEM_DISTRIBUTED,
     ],
   },
 ];
