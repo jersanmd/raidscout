@@ -24,7 +24,7 @@ import { fetchItemRarities } from "@/lib/api/games";
 export { fetchItemRarities };
 export function rarityColor(
   rarityName: string | null | undefined,
-  rarities: RarityRow[],
+  rarities: RarityRow[] = [],
 ): string {
   if (!rarityName) return "#71717a";
   const key = rarityName.toLowerCase();
@@ -47,7 +47,7 @@ export function rarityColorMap(rarities: RarityRow[]): Record<string, string> {
 /** Get a glow color (low-opacity) for a rarity. */
 export function rarityGlow(
   rarityName: string | null | undefined,
-  rarities: RarityRow[],
+  rarities: RarityRow[] = [],
 ): string {
   if (!rarityName) return "rgba(113,113,122,0.3)";
   const key = rarityName.toLowerCase();
@@ -59,7 +59,7 @@ export function rarityGlow(
 /** Map a rarity name to a sortable numeric score for ordering. */
 export function rarityScore(
   rarityName: string | null | undefined,
-  rarities: RarityRow[],
+  rarities: RarityRow[] = [],
 ): number {
   if (!rarityName) return 0;
   const key = rarityName.toLowerCase();
