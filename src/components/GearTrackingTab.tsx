@@ -776,14 +776,13 @@ export function GearTrackingTab() {
       )}
 
       {/* ── Gear Matrix — per-guild tables ── */}
-      {/* Loading state */}
-      {gearLoading ? (
+      {gearLoading && (
         <div className="flex items-center justify-center py-16">
           <Loader2 className="w-6 h-6 text-[#a1a1aa] animate-spin" />
           <span className="ml-3 text-sm text-[#71717a]">Loading gear data...</span>
         </div>
-      ) : (
-      <>
+      )}
+      {!gearLoading && (<>
       {/* Guild filter */}
       {orderedGuilds.length > 1 && (
         <div className="flex items-center gap-2 justify-end">
@@ -932,9 +931,8 @@ export function GearTrackingTab() {
             </table>
           </div>
         </div>
-      )}
     </>
-    )}    
+    )}
     </div>
   );
 }
