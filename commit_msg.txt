@@ -1,8 +1,0 @@
-fix: ui/ux improvements — font sizes, pricing flow, nav, discord auth, svg chart, focus indicators
-
-- Raised min font size to 11px across all 41 components (text-[9px]→text-[11px], text-[10px]→text-[11px])
-- Hero CTA now scrolls to pricing section before signup form
-- Bottom nav reduced from 8 to 5 items (Bosses, Sched, DKP, Members, Rank)
-- Added Sign in with Discord button to hero + auth card with Supabase OAuth support
-- Replaced Canvas TickChart with SVG — same visuals, 20% less code, accessible, no DPR math
-- Refined global focus-visible styles with inherit border-radius
