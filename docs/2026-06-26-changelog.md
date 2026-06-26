@@ -1,4 +1,16 @@
-# June 26, 2026 — Changelog (v0.15.8)
+# June 26, 2026 — Changelog (v0.15.9)
+
+## 📊 Bot Status Trend Chart
+
+- **Latest data point now renders at the chart's right edge** — The X-axis range was extending to `Date.now()` instead of the last data point's timestamp, leaving the latest tick stranded to the left. The range now ends at the data, and the last segment's line extends flat to the right edge.
+- **Red "no data" indicator for pending ticks** — When no new tick has arrived yet, the extension from the last data point to "now" renders as a red dashed line with a red fill, clearly distinguishing it from known-green data.
+- **X-axis labels show current time** — The rightmost label now displays the current time (in the user's timezone) instead of stopping at the last data point's time.
+- **Tick metrics range adapts to bot uptime** — The popup fetches `range={uptime}h` capped at 24h, so freshly restarted bots fill the chart from boot rather than fetching a large stale window.
+- **Popup no longer auto-refreshes** — The tick chart is fetched once on open. No interval, no distracting canvas redraws.
+
+## 🤖 Discord Bot
+
+- **Adaptive tick interval thresholds widened** — The bot now uses much more relaxed thresholds: `<15s → 30s, 15-45s → 60s, 45-75s → 90s, 75s+ → 120s` (was `<5s → 30s, 5-10s → 60s, 10-20s → 90s, 20s+ → 120s`). This reduces CPU churn under normal load and reserves fast ticks for truly light scans.
 
 ## 🔧 Admin Panel
 

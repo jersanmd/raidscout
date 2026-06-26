@@ -124,6 +124,7 @@ and responds to prefix commands:
 - **Role ping with spaces** — Ping roles with spaces in their names (e.g., `@Y2 | MC丶AngBeat`). The bot matches progressively shorter word combinations against the guild's role list.
 - **✅ Reaction** — The bot reacts with ✅ on every recognized command for instant feedback
 - **Smart dedup** — Spawn notifications fire exactly once per boss: one 5-min warning ⏰ + one spawn alert 🟢
+- **Adaptive tick interval** — The bot adjusts its scan frequency based on recent load: every 30s when scans are fast (<15s), slowing to 60s, 90s, or 120s under heavier load (>75s). Visible in the bot status popup chart.
 - **Timezone-aware** — Schedule times are interpreted in each server's configured timezone, not UTC
 - **Precise countdowns** — Spawn list shows `in 3h 15m` instead of vague "in 3 hours"
 - **Green circle** — Alive bosses show 🟢 in the spawn list

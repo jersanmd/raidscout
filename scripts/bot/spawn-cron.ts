@@ -121,9 +121,9 @@ export function startSpawnCron() {
 
     const avg = recentTickDurations.reduce((a, b) => a + b, 0) / recentTickDurations.length;
     let interval = 30_000;
-    if (avg >= 20_000) interval = 120_000;
-    else if (avg >= 10_000) interval = 90_000;
-    else if (avg >= 5_000) interval = 60_000;
+    if (avg >= 75_000) interval = 120_000;
+    else if (avg >= 45_000) interval = 90_000;
+    else if (avg >= 15_000) interval = 60_000;
 
     lastTickIntervalMs = interval;
     return interval;

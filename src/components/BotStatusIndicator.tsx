@@ -86,7 +86,7 @@ function TickChart({ metrics, timezone }: { metrics: TickMetric[]; timezone: str
     const minSec = Math.min(...secs);
     const range = maxSec - minSec || 1;
 
-    // Compute time range — start from first data point, end at "now"
+    // Compute time range — start from first data point, extend to now
     const dataStart = metrics[0].ts;
     const dataEnd = Math.max(metrics[metrics.length - 1].ts, Date.now());
     const timeRange = Math.max(dataEnd - dataStart, 60_000); // at least 1 minute
@@ -128,11 +128,15 @@ function TickChart({ metrics, timezone }: { metrics: TickMetric[]; timezone: str
     for (const seg of segments) {
       if (seg.points.length < 2) continue;
 
-      // Filled area under curve
+      const lastP = seg.points[seg.points.length - 1];
+      const isLast = seg === segments[segments.length - 1];
+      const rightEdge = pad.left + chartW;
+
+      // Filled area under curve — only up to the last real data point
       ctx.beginPath();
       ctx.moveTo(seg.points[0].x, pad.top + chartH);
       for (const p of seg.points) ctx.lineTo(p.x, p.y);
-      ctx.lineTo(seg.points[seg.points.length - 1].x, pad.top + chartH);
+      ctx.lineTo(lastP.x, pad.top + chartH);
       ctx.closePath();
       const areaGrad = ctx.createLinearGradient(0, pad.top, 0, pad.top + chartH);
       areaGrad.addColorStop(0, "rgba(74,222,128,0.20)");
@@ -140,7 +144,7 @@ function TickChart({ metrics, timezone }: { metrics: TickMetric[]; timezone: str
       ctx.fillStyle = areaGrad;
       ctx.fill();
 
-      // Trend line with glow
+      // Trend line with glow — only up to the last real data point
       ctx.save();
       ctx.shadowColor = "rgba(74,222,128,0.6)";
       ctx.shadowBlur = 6;
@@ -153,6 +157,29 @@ function TickChart({ metrics, timezone }: { metrics: TickMetric[]; timezone: str
       }
       ctx.stroke();
       ctx.restore();
+
+      // Red "no data" extension for the last segment (between last tick and now)
+      if (isLast && lastP.x < rightEdge) {
+        // Red filled area
+        ctx.beginPath();
+        ctx.moveTo(lastP.x, pad.top + chartH);
+        ctx.lineTo(lastP.x, lastP.y);
+        ctx.lineTo(rightEdge, lastP.y);
+        ctx.lineTo(rightEdge, pad.top + chartH);
+        ctx.closePath();
+        ctx.fillStyle = "rgba(239,68,68,0.08)";
+        ctx.fill();
+
+        // Red dashed line
+        ctx.setLineDash([3, 3]);
+        ctx.strokeStyle = "rgba(239,68,68,0.5)";
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(lastP.x, lastP.y);
+        ctx.lineTo(rightEdge, lastP.y);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
     }
 
     // Draw red dash at gap boundaries
@@ -312,6 +339,8 @@ export function BotStatusIndicator({ timezone }: { timezone: string }) {
   const [error, setError] = useState(false);
   const [showPopup, setShowPopup] = useState(false);
   const btnRef = useRef<HTMLButtonElement>(null);
+  const statusRef = useRef(status);
+  statusRef.current = status;
   const [popupPos, setPopupPos] = useState({ top: 0, right: 0 });
 
   const botUrl = getBotUrl();
@@ -343,7 +372,15 @@ export function BotStatusIndicator({ timezone }: { timezone: string }) {
   const fetchTickMetrics = useCallback(async () => {
     setTickMetricsLoading(true);
     try {
-      const resp = await fetch(`${botUrl}/tick-metrics?range=24h`);
+      // Use bot uptime as the range, capped at 24h — so fresh restarts fill the chart
+      let rangeHours = 24;
+      const s = statusRef.current;
+      if (s?.uptime_display) {
+        const uptimeSec = parseUptime(s.uptime_display);
+        rangeHours = Math.max(Math.ceil(uptimeSec / 3600), 1);
+        rangeHours = Math.min(rangeHours, 24);
+      }
+      const resp = await fetch(`${botUrl}/tick-metrics?range=${rangeHours}h`);
       if (resp.ok) {
         const data = await resp.json();
         setTickMetrics(data.metrics || []);
@@ -378,9 +415,10 @@ export function BotStatusIndicator({ timezone }: { timezone: string }) {
     return () => clearInterval(interval);
   }, [showPopup, baseUptimeSec, fetchedAt]);
 
-  // Fetch tick metrics only when popup opens
+  // Fetch tick metrics once when popup opens — historical view, no need to poll
   useEffect(() => {
-    if (showPopup) fetchTickMetrics();
+    if (!showPopup) return;
+    fetchTickMetrics();
   }, [showPopup, fetchTickMetrics]);
 
   const isOnline = status?.discord_connected === true;
