@@ -1,0 +1,6 @@
+fix: address top 4 priority items from site review
+
+- Killed 1-second forced switching overlay — now tracks actual React Query fetching state
+- Split Layout.tsx — extracted sidebar into dedicated SidebarNav component
+- Removed @ts-nocheck from spawn-cron.ts and fixed 2 type errors
+- Rewrote hero tagline: 'Guild Operations Platform' → 'Track Boss Spawns & Guild Rotations'

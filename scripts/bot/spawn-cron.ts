@@ -1,4 +1,3 @@
-// @ts-nocheck
 // Spawn cron -- 30s tick: bosses + activities, 5-min warnings + threads with party lists
 
 import { TOKEN, SUPABASE_URL, SUPABASE_KEY } from "./config";
@@ -69,9 +68,9 @@ async function preloadDedupFromDb() {
 // Clean up stale dedup entries every 10 minutes (keep 2 hours worth)
 setInterval(() => {
   const cutoff = Date.now() - 2 * 3600_000;
-  for (const [key, ts] of sentNotifs) {
+  sentNotifs.forEach((ts, key) => {
     if (ts < cutoff) sentNotifs.delete(key);
-  }
+  });
 }, 10 * 60_000);
 
 let cronStarted = false;
@@ -203,7 +202,7 @@ async function runSpawnCron() {
   }
 
   // Deduplicate by server_id
-  const serverIds = [...new Set((configs as any[]).map((c: any) => c.raidscout_server_id))]
+  const serverIds = Array.from(new Set((configs as any[]).map((c: any) => c.raidscout_server_id)))
     .filter((id: string) => activeServerIds.has(id));
 
   // Count only servers being processed (notification + thread + command channels)
