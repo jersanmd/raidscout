@@ -896,7 +896,9 @@ export function InventoryView() {
             </div>
           )}
         </div>
-      )}
+      );
+      })()}
+    })()}
 
       {/* ── Collections Tab ── */}
       {tab === "collections" && (() => {
@@ -1674,6 +1676,9 @@ export function InventoryView() {
 
       {/* ── Recipients Tab ── */}
       {tab === "recipients" && (() => {
+        if (distLoading || itemsLoading || membersLoading) {
+          return <div className="flex justify-center py-16"><Loader2 className="w-6 h-6 text-[#a1a1aa] animate-spin" /><span className="ml-3 text-sm text-[#71717a]">Loading recipients...</span></div>;
+        }
         // Group distributions by player
         const playerMap = new Map<string, { player_name: string; member_id: string; dists: Distribution[] }>();
         allDistributions.forEach(d => {
@@ -1878,7 +1883,11 @@ export function InventoryView() {
       })()}
 
       {/* â”€â”€ Analytics Tab â”€â”€ */}
-      {tab === "analytics" && (
+      {tab === "analytics" && (() => {
+        if (distLoading || itemsLoading) {
+          return <div className="flex justify-center py-16"><Loader2 className="w-6 h-6 text-[#a1a1aa] animate-spin" /><span className="ml-3 text-sm text-[#71717a]">Loading analytics...</span></div>;
+        }
+        return (
         <div className="space-y-4">
           {/* Category Distribution Chart */}
           <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-4">
@@ -2807,4 +2816,5 @@ function ItemTrendChart({ dates, series }: {
     </div>
   );
 }
+
 
