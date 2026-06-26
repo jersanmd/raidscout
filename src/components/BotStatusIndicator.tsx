@@ -48,7 +48,7 @@ function getBotUrl(): string {
 }
 
 // ── Interactive Trend Chart ────────────────────────────────
-function TickChart({ metrics }: { metrics: TickMetric[] }) {
+function TickChart({ metrics, timezone }: { metrics: TickMetric[]; timezone: string }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const pointsRef = useRef<{ x: number; y: number; idx: number }[]>([]);
   const [tooltip, setTooltip] = useState<{ x: number; y: number; label: string; time: string; date: string } | null>(null);
@@ -169,11 +169,11 @@ function TickChart({ metrics }: { metrics: TickMetric[] }) {
       const ts = nowDate.getTime() - (24 - hour) * 3600_000;
       const d = new Date(ts);
       const timeStr = d.toLocaleTimeString("en-US", {
-        hour: "2-digit",
-        minute: "2-digit",
-        hour12: false,
+        hour: "2-digit", minute: "2-digit", hour12: false, timeZone: timezone,
       });
-      const dateStr = d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+      const dateStr = d.toLocaleDateString("en-US", {
+        month: "short", day: "numeric", timeZone: timezone,
+      });
       const label = showDates && (hour === 0 || hour === 24)
         ? `${dateStr} ${timeStr}`
         : timeStr;
@@ -183,7 +183,7 @@ function TickChart({ metrics }: { metrics: TickMetric[] }) {
       else ctx.textAlign = "center";
       ctx.fillText(label, x, h - 4);
     }
-  }, [metrics]);
+  }, [metrics, timezone]);
 
   // ── Mouse interaction ──────────────────────────────────
   const handleMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -208,10 +208,14 @@ function TickChart({ metrics }: { metrics: TickMetric[] }) {
       x: rect.left + mx + 12,
       y: rect.top + my - 52,
       label: dur,
-      time: t.toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false }),
+      time: t.toLocaleString("en-US", {
+        month: "short", day: "numeric",
+        hour: "2-digit", minute: "2-digit", second: "2-digit",
+        hour12: false, timeZone: timezone,
+      }),
       date: "",
     });
-  }, [metrics]);
+  }, [metrics, timezone]);
 
   const handleMouseLeave = useCallback(() => {
     setTooltip(null);
@@ -248,7 +252,7 @@ function TickChart({ metrics }: { metrics: TickMetric[] }) {
 }
 
 // ── Component ──────────────────────────────────────────────
-export function BotStatusIndicator() {
+export function BotStatusIndicator({ timezone }: { timezone: string }) {
   const [status, setStatus] = useState<BotStatus | null>(null);
   const [baseUptimeSec, setBaseUptimeSec] = useState(0);
   const [fetchedAt, setFetchedAt] = useState(0);
@@ -489,7 +493,7 @@ export function BotStatusIndicator() {
                           <span className="text-[10px] text-[#52525b]">Fetching chart data…</span>
                         </div>
                       ) : (
-                        <TickChart metrics={tickMetrics} />
+                        <TickChart metrics={tickMetrics} timezone={timezone} />
                       )}
                     </div>
                   </>

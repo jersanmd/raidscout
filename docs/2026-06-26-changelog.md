@@ -13,4 +13,4 @@
 ## 🐛 Bug Fixes
 
 - **BotStatusIndicator TypeScript build errors** — The `BotStatus` interface was missing `spawn_cron`, `memory_mb`, `active_commands`, and `node_version` fields that the status API actually returns. Added all four, fixing 3 TS2339 errors.
-- **Trend chart `TickMetric.ts` type** — Was typed as `string` but the API sends Unix millisecond timestamps as numbers. Fixed to `number`.
+- **Trend chart uses server timezone** — X-axis labels, date labels, and hover tooltip now all respect the server's configured timezone instead of the browser's local timezone.

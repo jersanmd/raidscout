@@ -334,7 +334,7 @@ export function Layout() {
         <div className="flex-1" />
         {/* Bot status */}
         <ClaimNotificationBadge />
-        <BotStatusIndicator />
+        <BotStatusIndicator timezone={timezone} />
         {/* Activity Log button */}
         {currentServer && !isViewer && (
           <button
