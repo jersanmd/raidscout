@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useMemo } from "react";
 import { ChevronDown, ChevronRight, FileText, ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { detectTimezone, formatVersionInTimezone } from "@/hooks/useUserTimezone";
+import { SEOHead } from "@/components/SEOHead";
 
 declare const APP_VERSION: string;
 
@@ -127,6 +128,11 @@ export function ChangelogView() {
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-6 space-y-4">
+      <SEOHead
+        title="Changelog — RaidScout"
+        description="See what's new in RaidScout — a guild operations platform for MMO communities. Track the latest features, improvements, and bug fixes."
+        canonicalUrl="/changelog"
+      />
       <button
         onClick={() => navigate("/")}
         className="flex items-center gap-1 text-[#71717a] hover:text-[#fafafa] transition text-xs"
