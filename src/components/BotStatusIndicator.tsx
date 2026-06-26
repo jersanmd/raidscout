@@ -22,7 +22,7 @@ interface BotStatus {
 }
 
 interface TickMetric {
-  ts: string;
+  ts: number;
   duration_ms: number;
 }
 
@@ -160,17 +160,24 @@ function TickChart({ metrics }: { metrics: TickMetric[] }) {
       ctx.fillText(label, pad.left - 6, y + 3);
     }
 
-    // X-axis: time labels (every 6 hours)
-    const now = Date.now();
+    // X-axis: time labels (every 6 hours), with date on first/last when spanning days
+    const nowDate = new Date();
+    const firstDate = new Date(nowDate.getTime() - 24 * 3600_000);
+    const showDates = firstDate.getDate() !== nowDate.getDate();
+
     for (let hour = 0; hour <= 24; hour += 6) {
-      const ts = now - (24 - hour) * 3600_000;
-      const label = new Date(ts).toLocaleTimeString("en-US", {
+      const ts = nowDate.getTime() - (24 - hour) * 3600_000;
+      const d = new Date(ts);
+      const timeStr = d.toLocaleTimeString("en-US", {
         hour: "2-digit",
         minute: "2-digit",
         hour12: false,
       });
+      const dateStr = d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+      const label = showDates && (hour === 0 || hour === 24)
+        ? `${dateStr} ${timeStr}`
+        : timeStr;
       const x = pad.left + (hour / 24) * chartW;
-      // Clamp label alignment to prevent overflow: left-align first, right-align last
       if (hour === 0) ctx.textAlign = "left";
       else if (hour === 24) ctx.textAlign = "right";
       else ctx.textAlign = "center";
@@ -199,10 +206,10 @@ function TickChart({ metrics }: { metrics: TickMetric[] }) {
     const t = new Date(m.ts);
     setTooltip({
       x: rect.left + mx + 12,
-      y: rect.top + my - 40,
+      y: rect.top + my - 52,
       label: dur,
-      time: t.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false }),
-      date: t.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+      time: t.toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false }),
+      date: "",
     });
   }, [metrics]);
 
@@ -234,7 +241,6 @@ function TickChart({ metrics }: { metrics: TickMetric[] }) {
         >
           <div className="text-xs font-medium text-[#4ade80] font-mono">{tooltip.label}</div>
           <div className="text-[10px] text-[#a1a1aa]">{tooltip.time}</div>
-          <div className="text-[10px] text-[#71717a]">{tooltip.date}</div>
         </div>
       )}
     </div>
