@@ -1,7 +1,0 @@
-fix: replace hardcoded rarity color maps with DB-driven lookups
-
-- Created src/lib/rarity.ts with rarityColor(), rarityColorMap(), rarityGlow(), rarityScore() utilities
-- Updated InventoryView.tsx — 30+ RARITY_COLORS references replaced with colorMap from DB rarities
-- Updated AuctionTheater.tsx — RARITY_COLORS and RARITY_GLOW replaced with DB-driven rarityColor/rarityGlow
-- Updated GearTrackingTab.tsx — RARITY_SCORE and RARITY_COLORS replaced with rarityScore/rarityColor
-- ItemReviewTab.tsx and ApprovedItemsTab.tsx had no hardcoded maps to fix

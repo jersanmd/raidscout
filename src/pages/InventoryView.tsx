@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -323,6 +324,7 @@ export function InventoryView() {
     },
     enabled: showCreateItem,
   });
+  const colorMap = useMemo(() => rarityColorMap(gameRarities as any[]), [gameRarities]);
 
   // â”€â”€ Edit Item Modal â”€â”€
   const [editingItem, setEditingItem] = useState<Item | null>(null);
@@ -2806,3 +2808,4 @@ function ItemTrendChart({ dates, series }: {
     </div>
   );
 }
+
