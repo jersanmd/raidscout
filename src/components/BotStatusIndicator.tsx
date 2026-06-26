@@ -51,6 +51,8 @@ function getBotUrl(): string {
 function TickChart({ metrics, timezone }: { metrics: TickMetric[]; timezone: string }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const pointsRef = useRef<{ x: number; y: number; idx: number }[]>([]);
+  const timezoneRef = useRef(timezone);
+  timezoneRef.current = timezone;
   const [tooltip, setTooltip] = useState<{ x: number; y: number; label: string; time: string; date: string } | null>(null);
 
   useEffect(() => {
@@ -84,41 +86,87 @@ function TickChart({ metrics, timezone }: { metrics: TickMetric[]; timezone: str
     const minSec = Math.min(...secs);
     const range = maxSec - minSec || 1;
 
+    // Compute time range — start from first data point, end at "now"
+    const dataStart = metrics[0].ts;
+    const dataEnd = Math.max(metrics[metrics.length - 1].ts, Date.now());
+    const timeRange = Math.max(dataEnd - dataStart, 60_000); // at least 1 minute
+
     // Compute points + store in ref for mouse interaction
     const points: { x: number; y: number; idx: number }[] = [];
     for (let i = 0; i < metrics.length; i++) {
       const frac = (secs[i] - minSec) / range;
-      const x = pad.left + (i / Math.max(1, metrics.length - 1)) * chartW;
+      const timeFrac = (metrics[i].ts - dataStart) / timeRange;
+      const x = pad.left + timeFrac * chartW;
       const y = pad.top + chartH - frac * chartH;
       points.push({ x, y, idx: i });
     }
     pointsRef.current = points;
 
-    // Draw filled area under the curve
-    ctx.beginPath();
-    ctx.moveTo(points[0].x, pad.top + chartH);
-    for (const p of points) ctx.lineTo(p.x, p.y);
-    ctx.lineTo(points[points.length - 1].x, pad.top + chartH);
-    ctx.closePath();
-    const areaGrad = ctx.createLinearGradient(0, pad.top, 0, pad.top + chartH);
-    areaGrad.addColorStop(0, "rgba(74,222,128,0.20)");
-    areaGrad.addColorStop(1, "rgba(74,222,128,0.02)");
-    ctx.fillStyle = areaGrad;
-    ctx.fill();
-
-    // Draw trend line with glow
-    ctx.save();
-    ctx.shadowColor = "rgba(74,222,128,0.6)";
-    ctx.shadowBlur = 6;
-    ctx.strokeStyle = "#4ade80";
-    ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    ctx.moveTo(points[0].x, points[0].y);
-    for (let i = 1; i < points.length; i++) {
-      ctx.lineTo(points[i].x, points[i].y);
+    // Detect downtime gaps (>3 minutes between ticks = bot likely offline)
+    const GAP_THRESHOLD = 180_000; // 3 minutes
+    const segments: { start: number; end: number; points: typeof points }[] = [];
+    let segStart = 0;
+    for (let i = 1; i < metrics.length; i++) {
+      if (metrics[i].ts - metrics[i - 1].ts > GAP_THRESHOLD) {
+        segments.push({ start: segStart, end: i - 1, points: points.slice(segStart, i) });
+        segStart = i;
+      }
     }
-    ctx.stroke();
-    ctx.restore();
+    segments.push({ start: segStart, end: points.length - 1, points: points.slice(segStart) });
+
+    // Draw red gap backgrounds
+    ctx.fillStyle = "rgba(239,68,68,0.08)";
+    for (let s = 1; s < segments.length; s++) {
+      const gapStart = points[segments[s - 1].end].x;
+      const gapEnd = points[segments[s].start].x;
+      if (gapEnd > gapStart) {
+        ctx.fillRect(gapStart, pad.top, gapEnd - gapStart, chartH);
+      }
+    }
+
+    // Draw green filled area + line per segment
+    for (const seg of segments) {
+      if (seg.points.length < 2) continue;
+
+      // Filled area under curve
+      ctx.beginPath();
+      ctx.moveTo(seg.points[0].x, pad.top + chartH);
+      for (const p of seg.points) ctx.lineTo(p.x, p.y);
+      ctx.lineTo(seg.points[seg.points.length - 1].x, pad.top + chartH);
+      ctx.closePath();
+      const areaGrad = ctx.createLinearGradient(0, pad.top, 0, pad.top + chartH);
+      areaGrad.addColorStop(0, "rgba(74,222,128,0.20)");
+      areaGrad.addColorStop(1, "rgba(74,222,128,0.02)");
+      ctx.fillStyle = areaGrad;
+      ctx.fill();
+
+      // Trend line with glow
+      ctx.save();
+      ctx.shadowColor = "rgba(74,222,128,0.6)";
+      ctx.shadowBlur = 6;
+      ctx.strokeStyle = "#4ade80";
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(seg.points[0].x, seg.points[0].y);
+      for (let i = 1; i < seg.points.length; i++) {
+        ctx.lineTo(seg.points[i].x, seg.points[i].y);
+      }
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // Draw red dash at gap boundaries
+    ctx.setLineDash([2, 3]);
+    ctx.strokeStyle = "rgba(239,68,68,0.4)";
+    ctx.lineWidth = 0.5;
+    for (let s = 1; s < segments.length; s++) {
+      const x = points[segments[s].start].x;
+      ctx.beginPath();
+      ctx.moveTo(x, pad.top);
+      ctx.lineTo(x, pad.top + chartH);
+      ctx.stroke();
+    }
+    ctx.setLineDash([]);
 
     // Draw data points with glow
     ctx.save();
@@ -160,13 +208,13 @@ function TickChart({ metrics, timezone }: { metrics: TickMetric[]; timezone: str
       ctx.fillText(label, pad.left - 6, y + 3);
     }
 
-    // X-axis: time labels (every 6 hours), with date on first/last when spanning days
-    const nowDate = new Date();
-    const firstDate = new Date(nowDate.getTime() - 24 * 3600_000);
-    const showDates = firstDate.getDate() !== nowDate.getDate();
+    // X-axis: time labels based on actual data range (5 evenly-spaced ticks)
+    const tickCount = 5;
+    const showDates = new Date(dataStart).toLocaleDateString("en-US", { timeZone: timezone })
+      !== new Date(dataEnd).toLocaleDateString("en-US", { timeZone: timezone });
 
-    for (let hour = 0; hour <= 24; hour += 6) {
-      const ts = nowDate.getTime() - (24 - hour) * 3600_000;
+    for (let i = 0; i < tickCount; i++) {
+      const ts = dataStart + (timeRange / (tickCount - 1)) * i;
       const d = new Date(ts);
       const timeStr = d.toLocaleTimeString("en-US", {
         hour: "2-digit", minute: "2-digit", hour12: false, timeZone: timezone,
@@ -174,12 +222,12 @@ function TickChart({ metrics, timezone }: { metrics: TickMetric[]; timezone: str
       const dateStr = d.toLocaleDateString("en-US", {
         month: "short", day: "numeric", timeZone: timezone,
       });
-      const label = showDates && (hour === 0 || hour === 24)
+      const label = showDates && (i === 0 || i === tickCount - 1)
         ? `${dateStr} ${timeStr}`
         : timeStr;
-      const x = pad.left + (hour / 24) * chartW;
-      if (hour === 0) ctx.textAlign = "left";
-      else if (hour === 24) ctx.textAlign = "right";
+      const x = pad.left + (i / (tickCount - 1)) * chartW;
+      if (i === 0) ctx.textAlign = "left";
+      else if (i === tickCount - 1) ctx.textAlign = "right";
       else ctx.textAlign = "center";
       ctx.fillText(label, x, h - 4);
     }
@@ -204,6 +252,7 @@ function TickChart({ metrics, timezone }: { metrics: TickMetric[]; timezone: str
       ? `${(m.duration_ms / 1000).toFixed(2)}s`
       : `${m.duration_ms}ms`;
     const t = new Date(m.ts);
+    const tz = timezoneRef.current;
     setTooltip({
       x: rect.left + mx + 12,
       y: rect.top + my - 52,
@@ -211,11 +260,11 @@ function TickChart({ metrics, timezone }: { metrics: TickMetric[]; timezone: str
       time: t.toLocaleString("en-US", {
         month: "short", day: "numeric",
         hour: "2-digit", minute: "2-digit", second: "2-digit",
-        hour12: false, timeZone: timezone,
+        hour12: false, timeZone: tz,
       }),
       date: "",
     });
-  }, [metrics, timezone]);
+  }, [metrics]);
 
   const handleMouseLeave = useCallback(() => {
     setTooltip(null);
@@ -469,7 +518,11 @@ export function BotStatusIndicator({ timezone }: { timezone: string }) {
                     <div>
                       <div className="flex items-center justify-between mb-2">
                         <span className="text-[11px] text-[#a1a1aa]">
-                          Server Scan Duration (24h)
+                          Server Scan Duration
+                          {tickMetrics.length >= 2 ? (() => {
+                            const hrs = (tickMetrics[tickMetrics.length - 1].ts - tickMetrics[0].ts) / 3600_000;
+                            return hrs >= 1 ? ` (${hrs.toFixed(1)}h)` : ` (${Math.round(hrs * 60)}m)`;
+                          })() : ""}
                         </span>
                         <span className="text-[10px] text-[#52525b]">
                           {(() => {
