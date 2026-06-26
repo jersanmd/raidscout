@@ -2,16 +2,8 @@ import { useState, useEffect, useRef, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { X, Crown, Timer, Users } from "lucide-react";
 import { getActiveAuctions, getActiveBids, type ActiveAuction, type DkpBid } from "@/lib/api/dkp";
-
-const RARITY_COLORS: Record<string, string> = {
-  common: "#71717a", uncommon: "#22c55e", rare: "#3b82f6",
-  epic: "#a855f7", legendary: "#f59e0b", mythic: "#ef4444",
-};
-const RARITY_GLOW: Record<string, string> = {
-  common: "rgba(113,113,122,0.3)", uncommon: "rgba(34,197,94,0.3)",
-  rare: "rgba(59,130,246,0.3)", epic: "rgba(168,85,247,0.3)",
-  legendary: "rgba(245,158,11,0.3)", mythic: "rgba(239,68,68,0.3)",
-};
+import { supabase } from "@/lib/supabase";
+import { rarityColor, rarityGlow, fetchItemRarities } from "@/lib/rarity";
 
 export default function AuctionTheater({
   auctionId,
@@ -99,8 +91,9 @@ export default function AuctionTheater({
   const timeStr = ended ? "Ended" : `${mins}:${secs.toString().padStart(2, "0")}`;
 
   const rarity = auction?.rarity ?? "common";
-  const rarityColor = RARITY_COLORS[rarity.toLowerCase()] || "#71717a";
-  const rarityGlow = RARITY_GLOW[rarity.toLowerCase()] || "rgba(113,113,122,0.3)";
+  const rarityColStr = rarityColor(rarity, rarities as any[]);
+  const rarityGlStr = rarityGlow(rarity, rarities as any[]);
+  const rarityLabel = rarity;
 
   const barColor = remainingMs < 60_000 ? "#71717a"
     : remainingMs < 300_000 ? "#ef4444"
@@ -121,8 +114,8 @@ export default function AuctionTheater({
         className="relative w-full max-w-2xl mx-4 rounded-2xl border overflow-hidden flex flex-col"
         style={{
           background: "linear-gradient(180deg, #0c0a09 0%, #09090b 100%)",
-          borderColor: rarityColor + "40",
-          boxShadow: `0 0 80px ${rarityGlow}, 0 0 200px ${rarityGlow}`,
+          borderColor: rarityColStr + "40",
+          boxShadow: `0 0 80px ${rarityGlStr}, 0 0 200px ${rarityGlStr}`,
           maxHeight: "90vh",
         }}
         onClick={e => e.stopPropagation()}
@@ -143,23 +136,23 @@ export default function AuctionTheater({
           {auction.image_url && (
             <div
               className="w-24 h-24 rounded-2xl overflow-hidden mb-3"
-              style={{ boxShadow: `0 0 40px ${rarityGlow}`, backgroundColor: rarityColor + "18" }}
+              style={{ boxShadow: `0 0 40px ${rarityGlStr}`, backgroundColor: rarityColStr + "18" }}
             >
               <img src={auction.image_url} alt="" className="w-full h-full object-cover" />
             </div>
           )}
           <h1
             className="text-2xl font-extrabold text-center"
-            style={{ color: rarityColor, textShadow: `0 0 20px ${rarityGlow}` }}
+            style={{ color: rarityColStr, textShadow: `0 0 20px ${rarityGlStr}` }}
           >
             {auction.item_name}
           </h1>
           <div className="flex items-center gap-2 mt-1">
             <span
               className="text-[11px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full"
-              style={{ background: rarityColor + "20", color: rarityColor }}
+              style={{ background: rarityColStr + "20", color: rarityColStr }}
             >
-              {rarity}
+              {rarityLabel}
             </span>
             {auction.guild_name && (
               <span className="text-[11px] text-[#71717a]">· {auction.guild_name} only</span>
@@ -192,19 +185,19 @@ export default function AuctionTheater({
                 key={b.member_id}
                 className={`relative rounded-xl p-4 text-center overflow-hidden ${isNew(b.id) ? "animate-slide-up" : ""} ${topTwo.length === 1 ? "max-w-[240px] mx-auto w-full" : ""}`}
                 style={{
-                  background: i === 0 ? rarityColor + "10" : "#18181b",
-                  border: `1px solid ${i === 0 ? rarityColor + "40" : "#27272a"}`,
+                  background: i === 0 ? rarityColStr + "10" : "#18181b",
+                  border: `1px solid ${i === 0 ? rarityColStr + "40" : "#27272a"}`,
                 }}
               >
                 {i === 0 && (
                   <div className="absolute top-2 left-1/2 -translate-x-1/2">
-                    <Crown className="w-4 h-4" style={{ color: rarityColor }} />
+                    <Crown className="w-4 h-4" style={{ color: rarityColStr }} />
                   </div>
                 )}
                 <p className="text-[13px] font-bold text-[#fafafa] mt-2 truncate">{b.member_name}</p>
                 <p
                   className="text-2xl font-extrabold mt-1 tabular-nums"
-                  style={{ color: i === 0 ? rarityColor : "#a1a1aa" }}
+                  style={{ color: i === 0 ? rarityColStr : "#a1a1aa" }}
                 >
                   {b.bid_amount}
                 </p>
@@ -238,3 +231,4 @@ export default function AuctionTheater({
     </div>
   );
 }
+

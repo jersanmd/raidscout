@@ -20,23 +20,7 @@ const DEFAULT_TL_TEMPLATE = [
   { category: "Special", slots: ["Cloak", "Weapon", "Passive"] },
 ];
 
-const RARITY_COLORS: Record<string, string> = {
-  mythic: "#ef4444",
-  legendary: "#f59e0b",
-  epic: "#a855f7",
-  rare: "#3b82f6",
-  uncommon: "#22c55e",
-  common: "#a1a1aa",
-};
-
-const RARITY_SCORE: Record<string, number> = {
-  mythic: 20,
-  legendary: 10,
-  epic: 5,
-  rare: 3,
-  uncommon: 2,
-  common: 1,
-};
+import { rarityColor, rarityScore, fetchItemRarities } from "@/lib/rarity";
 
 const CLASS_ICONS: { name: string; icon: React.ElementType }[] = [
   { name: "Sword", icon: Sword },
@@ -138,8 +122,8 @@ export function GearTrackingTab() {
         const item = g?.catalog_item || itemCatalogItems.find((c: any) => c.id === g?.catalog_item_id) || catalog.find(c => c.id === g?.catalog_item_id);
         return (item?.rarity || "common").toLowerCase();
       };
-      const scoreA = RARITY_SCORE[resolveRarity(ga)] || 0;
-      const scoreB = RARITY_SCORE[resolveRarity(gb)] || 0;
+      const scoreA = rarityScore(resolveRarity(ga)] || 0;
+      const scoreB = rarityScore(resolveRarity(gb)] || 0;
       if (scoreA !== scoreB) return dir * (scoreB - scoreA);
       // Tiebreaker: higher CP first
       const cpA = a.combat_power ?? 0;
@@ -492,7 +476,7 @@ export function GearTrackingTab() {
           if (!item && g?.catalog_item_id) {
             item = itemCatalogItems.find((c: any) => c.id === g.catalog_item_id) || catalog.find(c => c.id === g.catalog_item_id);
           }
-          const rarityColor = item ? RARITY_COLORS[item.rarity?.toLowerCase()] || "#a1a1aa" : undefined;
+          const rarityColor = item ? rarityColor(item.rarity?.toLowerCase()] || "#a1a1aa" : undefined;
           const enh = g?.enhancement_level ?? 0;
 
           const handleSlotClick = () => {
@@ -660,7 +644,7 @@ export function GearTrackingTab() {
                     const currentItemId = edit?.itemId ?? existing?.catalog_item_id ?? "";
                     const currentEnh = edit?.enh ?? existing?.enhancement_level ?? 0;
                     const currentItem = itemCatalogItems.find((c: any) => c.id === currentItemId) || catalog.find(c => c.id === currentItemId);
-                    const rc = currentItem ? (RARITY_COLORS[currentItem.rarity?.toLowerCase()] || "#a1a1aa") : undefined;
+                    const rc = currentItem ? (rarityColor(currentItem.rarity?.toLowerCase()] || "#a1a1aa") : undefined;
                     const isActive = openSlotPicker === slotId;
 
                     return (
@@ -730,7 +714,7 @@ export function GearTrackingTab() {
                           — Empty —
                         </button>
                         {filtered.map((item: any) => {
-                          const rc = RARITY_COLORS[item.rarity?.toLowerCase()] || "#a1a1aa";
+                          const rc = rarityColor(item.rarity?.toLowerCase()] || "#a1a1aa";
                           const isSelected = item.id === currentItemId;
                           return (
                             <button
@@ -944,3 +928,5 @@ export function GearTrackingTab() {
     </div>
   );
 }
+
+

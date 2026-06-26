@@ -27,16 +27,9 @@ import {
   Sword, Swords, HandMetal, Shield, ShieldHalf, ShieldCheck, Gavel, Axe, Crosshair, Target, Wand, Heart, Zap, Flame, Snowflake, Skull, Crown, Anchor, Footprints, Eye,
 } from "lucide-react";
 
-const RARITY_COLORS: Record<ItemRarity, string> = {
-  common: "#71717a",
-  uncommon: "#22c55e",
-  rare: "#3b82f6",
-  epic: "#a855f7",
-  legendary: "#f59e0b",
-  mythic: "#ef4444",
-};
+import { rarityColorMap } from "@/lib/rarity";
 
-const RARITY_ORDER: ItemRarity[] = ["mythic", "legendary", "epic", "rare", "uncommon", "common"];
+const RARITY_ORDER: string[] = ["mythic", "legendary", "epic", "rare", "uncommon", "common"];
 
 const CLASS_ICONS = [
   { name: "Sword", icon: Sword, label: "Sword / Greatsword" },
@@ -791,7 +784,7 @@ export function InventoryView() {
                   All
                 </button>
                 {availableRarities.map(r => {
-                  const color = RARITY_COLORS[r as ItemRarity] || "#71717a";
+                  const color = colorMap[r as ItemRarity] || "#71717a";
                   return (
                     <button
                       key={r}
@@ -824,7 +817,7 @@ export function InventoryView() {
             <div className="space-y-3">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                 {displayItems.map(item => {
-                const rarityColor = RARITY_COLORS[item.rarity?.toLowerCase() as ItemRarity] || "#71717a";
+                const rarityColor = colorMap[item.rarity?.toLowerCase() as ItemRarity] || "#71717a";
                 const isCatalog = !item.server_id;
                 return (
                 <div
@@ -1041,7 +1034,7 @@ export function InventoryView() {
                       {previewItems.length > 0 && (
                         <div className="flex flex-wrap gap-1.5 mt-3">
                           {previewItems.map(item => {
-                            const rc = item.rarity ? RARITY_COLORS[item.rarity.toLowerCase() as ItemRarity] : "#a1a1aa";
+                            const rc = item.rarity ? colorMap[item.rarity.toLowerCase() as ItemRarity] : "#a1a1aa";
                             return (
                               <span key={item.id} className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-1 rounded-lg border bg-[#09090b]" style={{ color: rc, borderColor: rc + "20" }}>
                                 {item.image_url && <img src={item.image_url} alt="" className="w-3.5 h-3.5 rounded object-cover" />}
@@ -1146,7 +1139,7 @@ export function InventoryView() {
                     {collItemsWithData
                       .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
                       .map((ci, idx, arr) => {
-                      const rc = ci.item?.rarity ? RARITY_COLORS[ci.item.rarity.toLowerCase() as ItemRarity] : "#a1a1aa";
+                      const rc = ci.item?.rarity ? colorMap[ci.item.rarity.toLowerCase() as ItemRarity] : "#a1a1aa";
                       const isFirst = idx === 0;
                       const isLast = idx === arr.length - 1;
                       return (
@@ -1264,7 +1257,7 @@ export function InventoryView() {
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {filteredAvailable.slice(0, 50).map(item => {
-                    const rc = item.rarity ? RARITY_COLORS[item.rarity.toLowerCase() as ItemRarity] : "#a1a1aa";
+                    const rc = item.rarity ? colorMap[item.rarity.toLowerCase() as ItemRarity] : "#a1a1aa";
                     const isAlreadyAdded = collItemIds.has(item.id);
                     return (
                       <button
@@ -1426,7 +1419,7 @@ export function InventoryView() {
                                 className={`flex flex-col items-center gap-1 hover:text-[#d4d4d8] transition ${matrixItemSort === ci.item_id ? "text-[#fafafa]" : ""}`}
                               >
                                 {ci.item?.image_url && <img src={ci.item.image_url} alt="" className="w-5 h-5 rounded object-cover" />}
-                                <span className="truncate max-w-[70px] flex items-center gap-0.5" style={{ color: ci.item?.rarity ? RARITY_COLORS[ci.item.rarity.toLowerCase() as ItemRarity] : undefined }}>
+                                <span className="truncate max-w-[70px] flex items-center gap-0.5" style={{ color: ci.item?.rarity ? colorMap[ci.item.rarity.toLowerCase() as ItemRarity] : undefined }}>
                                   {ci.item?.name ?? "?"}
                                   {matrixItemSort === ci.item_id && (
                                     matrixItemSortDir === "has" ? <ChevronDown className="w-3 h-3" /> : <ChevronUp className="w-3 h-3" />
@@ -1564,7 +1557,7 @@ export function InventoryView() {
                   All
                 </button>
                 {availableRarities.map(r => {
-                  const color = RARITY_COLORS[r as ItemRarity] || "#71717a";
+                  const color = colorMap[r as ItemRarity] || "#71717a";
                   return (
                     <button
                       key={r}
@@ -1614,7 +1607,7 @@ export function InventoryView() {
                 <div className="space-y-1.5">
                   {dists.map(d => {
                     const item = items.find(i => i.id === d.item_id);
-                    const rc = item ? RARITY_COLORS[item.rarity?.toLowerCase() as ItemRarity] || "#a1a1aa" : "#71717a";
+                    const rc = item ? colorMap[item.rarity?.toLowerCase() as ItemRarity] || "#a1a1aa" : "#71717a";
                     return (
                       <div key={d.id} className="bg-[#18181b] border border-[#27272a] rounded-lg px-3 py-2.5 flex items-center gap-3 group hover:border-[#3f3f46] transition-all">
                         {/* Item thumbnail */}
@@ -1860,7 +1853,7 @@ export function InventoryView() {
                             <div className="flex flex-wrap gap-1">
                               {p.dists.map(d => {
                                 const item = items.find(i => i.id === d.item_id);
-                                const rc = item?.rarity ? RARITY_COLORS[item.rarity.toLowerCase() as ItemRarity] : "#a1a1aa";
+                                const rc = item?.rarity ? colorMap[item.rarity.toLowerCase() as ItemRarity] : "#a1a1aa";
                                 return (
                                   <span key={d.id} className="inline-flex items-center gap-1 text-[11px] font-medium px-1.5 py-0.5 rounded border border-[#27272a]" style={{ color: rc }}>
                                     {item?.image_url && <img src={item.image_url} alt="" className="w-3.5 h-3.5 rounded object-cover" style={{ backgroundColor: rc + "20" }} />}
@@ -1983,7 +1976,7 @@ export function InventoryView() {
                 <div className="space-y-1">
                   {list.map((stat, i) => {
                     const item = items.find(x => x.id === stat.item_id);
-                    const rc = item ? RARITY_COLORS[item.rarity?.toLowerCase() as ItemRarity] || "#a1a1aa" : "#71717a";
+                    const rc = item ? colorMap[item.rarity?.toLowerCase() as ItemRarity] || "#a1a1aa" : "#71717a";
                     const pct = Math.max(4, (stat.total_quantity / maxQty) * 100);
                     return (
                       <button key={stat.item_id} onClick={() => setSelectedDistItem({ item_id: stat.item_id, item_name: stat.item_name })} className="w-full flex items-center gap-3 py-1.5 group hover:bg-[#27272a]/30 rounded px-1 -mx-1 transition text-left">
@@ -2228,9 +2221,9 @@ export function InventoryView() {
                         onClick={() => setNewItemRarity(r)}
                         className="flex-1 py-1.5 rounded-md text-[11px] font-medium capitalize transition border"
                         style={{
-                          borderColor: newItemRarity === r ? RARITY_COLORS[r] : "#27272a",
-                          color: newItemRarity === r ? RARITY_COLORS[r] : "#52525b",
-                          backgroundColor: newItemRarity === r ? `${RARITY_COLORS[r]}15` : "transparent",
+                          borderColor: newItemRarity === r ? colorMap[r] : "#27272a",
+                          color: newItemRarity === r ? colorMap[r] : "#52525b",
+                          backgroundColor: newItemRarity === r ? `${colorMap[r]}15` : "transparent",
                         }}
                       >
                         {r}
@@ -2277,9 +2270,9 @@ export function InventoryView() {
                     <button key={r} onClick={() => setEditRarity(r)}
                       className="flex-1 py-1.5 rounded-md text-[11px] font-medium capitalize transition border"
                       style={{
-                        borderColor: editRarity === r ? RARITY_COLORS[r] : "#27272a",
-                        color: editRarity === r ? RARITY_COLORS[r] : "#52525b",
-                        backgroundColor: editRarity === r ? `${RARITY_COLORS[r]}15` : "transparent",
+                        borderColor: editRarity === r ? colorMap[r] : "#27272a",
+                        color: editRarity === r ? colorMap[r] : "#52525b",
+                        backgroundColor: editRarity === r ? `${colorMap[r]}15` : "transparent",
                       }}>{r}</button>
                   ))}
                 </div>
@@ -2323,7 +2316,7 @@ export function InventoryView() {
                 <h3 className="text-sm font-semibold text-[#fafafa]">Distribute Item</h3>
                 {distItem && (
                   <p className="text-[11px] text-[#a1a1aa] mt-0.5 flex items-center gap-2">
-                    <span className="capitalize font-medium" style={{ color: RARITY_COLORS[distItem.rarity?.toLowerCase() as ItemRarity] }}>{distItem.rarity}</span>
+                    <span className="capitalize font-medium" style={{ color: colorMap[distItem.rarity?.toLowerCase() as ItemRarity] }}>{distItem.rarity}</span>
                     <span>{"\u00B7"}</span>
                     <span>{distItem.name}</span>
                   </p>
@@ -2425,7 +2418,7 @@ export function InventoryView() {
                 <div className="space-y-2">
                   {memberItems.map(d => {
                     const item = items.find(i => i.id === d.item_id);
-                    const rc = item?.rarity ? RARITY_COLORS[item.rarity.toLowerCase() as ItemRarity] : "#a1a1aa";
+                    const rc = item?.rarity ? colorMap[item.rarity.toLowerCase() as ItemRarity] : "#a1a1aa";
                     return (
                       <div key={d.id} className="flex items-center gap-3 p-2 rounded-lg bg-[#18181b] border border-[#27272a]">
                         <div className="w-8 h-8 rounded flex items-center justify-center shrink-0 overflow-hidden" style={{ backgroundColor: rc + "25" }}>
@@ -2469,7 +2462,7 @@ export function InventoryView() {
         });
         const recipients = Array.from(byMember.entries()).map(([member_id, v]) => ({ member_id, ...v }));
         const item = items.find(i => i.id === selectedDistItem.item_id);
-        const rc = item?.rarity ? RARITY_COLORS[item.rarity.toLowerCase() as ItemRarity] : "#a1a1aa";
+        const rc = item?.rarity ? colorMap[item.rarity.toLowerCase() as ItemRarity] : "#a1a1aa";
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setSelectedDistItem(null)}>
             <div className="bg-[#09090b] border border-[#27272a] rounded-xl p-4 sm:p-5 w-full max-w-sm max-h-[80vh] overflow-y-auto animate-slide-up" onClick={(e) => e.stopPropagation()}>
@@ -2620,7 +2613,7 @@ export function InventoryView() {
                 return filtered.length === 0 ? (
                   <p className="text-xs text-[#52525b] text-center py-4">No items found.</p>
                 ) : filtered.map(item => {
-                  const rc = item.rarity ? RARITY_COLORS[item.rarity.toLowerCase() as ItemRarity] : "#a1a1aa";
+                  const rc = item.rarity ? colorMap[item.rarity.toLowerCase() as ItemRarity] : "#a1a1aa";
                   return (
                     <button
                       key={item.id}
