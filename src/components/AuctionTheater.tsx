@@ -50,6 +50,17 @@ export default function AuctionTheater({
     [bids, auctionId]
   );
 
+  // Fetch game rarities for color lookups
+  const { data: rarities = [] } = useQuery({
+    queryKey: ["auction_rarities", serverId],
+    queryFn: async () => {
+      const { data: srv } = await supabase.from("servers").select("game").eq("id", serverId).single();
+      if (!srv?.game) return [];
+      return fetchItemRarities(srv.game);
+    },
+    staleTime: 60_000,
+  });
+
   // Track new bids for slide-up animation via persistent version counter
   const recentBidIds = useRef<Set<string>>(new Set());
   const animVersion = useRef(0);
