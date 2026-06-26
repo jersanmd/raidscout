@@ -1,5 +1,7 @@
 // Spawn cron -- 30s tick: bosses + activities, 5-min warnings + threads with party lists
 
+declare const process: { env: Record<string, string | undefined> };
+
 import { TOKEN, SUPABASE_URL, SUPABASE_KEY } from "./config";
 import { discordFetch } from "./discord-api";
 import { supabaseQuery, supabaseQuerySafe, supabaseRpc, logError } from "./supabase";
@@ -113,7 +115,6 @@ export function startSpawnCron() {
   preloadDedupFromDb().catch((err) => logError("cron", "preloadDedupFromDb failed", err));
 
   // Adaptive tick interval: speed up when fast, slow down under load
-  const isStaging = process.env.FLY_APP_NAME === "raidscout-staging";
 
   function getAdaptiveInterval(): number {
     if (recentTickDurations.length < 3) return 30_000;

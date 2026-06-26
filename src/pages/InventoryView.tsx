@@ -1,4 +1,3 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -30,7 +29,7 @@ import {
 
 import { rarityColorMap } from "@/lib/rarity";
 
-const RARITY_ORDER: string[] = ["mythic", "legendary", "epic", "rare", "uncommon", "common"];
+const RARITY_ORDER: ItemRarity[] = ["mythic", "legendary", "epic", "rare", "uncommon", "common"];
 
 const CLASS_ICONS = [
   { name: "Sword", icon: Sword, label: "Sword / Greatsword" },
