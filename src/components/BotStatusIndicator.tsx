@@ -8,6 +8,17 @@ interface BotStatus {
   discord_connected: boolean;
   uptime_display: string;
   region: string;
+  memory_mb: number;
+  active_commands: number;
+  node_version: string;
+  spawn_cron: {
+    last_tick_seconds_ago: number | null;
+    last_tick_duration_ms: number | null;
+    tick_interval_ms: number | null;
+    servers_checked: number | null;
+    bosses_checked: number | null;
+    tick_history_ms: number[];
+  };
 }
 
 interface TickMetric {
