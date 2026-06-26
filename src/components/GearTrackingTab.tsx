@@ -934,8 +934,7 @@ export function GearTrackingTab() {
         </div>
       )}
     </>
+    )}    
     </div>
   );
 }
-
-
