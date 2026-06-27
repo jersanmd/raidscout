@@ -54,9 +54,9 @@ export default defineConfig({
         ],
       },
       manifest: {
-        name: "LordNine Boss Timer",
-        short_name: "Boss Timer",
-        description: "Track boss spawn timers for LordNine",
+        name: "RaidScout",
+        short_name: "RaidScout",
+        description: "Guild management for MMO communities — boss timers, DKP auctions, Discord integration, and analytics",
         theme_color: "#0f172a",
         background_color: "#0f172a",
         display: "standalone",
