@@ -18,11 +18,22 @@ interface DiscordEmbed {
   footer?: { text: string };
 }
 
-const CORS_HEADERS = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization, apikey, x-client-info",
-};
+const ALLOWED_ORIGINS = [
+  "https://www.raidscout.com",
+  "https://raidscout-staging.vercel.app",
+  "http://localhost:5173",
+  "http://localhost:3000",
+];
+
+function getCorsHeaders(req: Request): Record<string, string> {
+  const origin = req.headers.get("origin");
+  const allowedOrigin = (origin && ALLOWED_ORIGINS.includes(origin)) ? origin : ALLOWED_ORIGINS[0];
+  return {
+    "Access-Control-Allow-Origin": allowedOrigin,
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, apikey, x-client-info",
+  };
+}
 
 async function sendDiscordMessage(
   webhookUrl: string,
@@ -71,8 +82,10 @@ async function sendToAllWebhooks(webhooks: string[], content: string, embed: Dis
 
 serve(async (req: Request) => {
   // Handle CORS preflight
+  const corsHeaders = getCorsHeaders(req);
+
   if (req.method === "OPTIONS") {
-    return new Response(null, { status: 204, headers: CORS_HEADERS });
+    return new Response(null, { status: 204, headers: corsHeaders });
   }
 
   try {
@@ -90,7 +103,7 @@ serve(async (req: Request) => {
     const maintRows = await maintRes.json();
     if (maintRows?.[0]?.value === "true") {
       return new Response(JSON.stringify({ skipped: true, reason: "maintenance" }), {
-        status: 200, headers: { "Content-Type": "application/json", ...CORS_HEADERS },
+        status: 200, headers: { "Content-Type": "application/json", ...corsHeaders },
       });
     }
     
@@ -121,7 +134,7 @@ serve(async (req: Request) => {
     if (webhooks.length === 0) {
       return new Response(
         JSON.stringify({ ok: false, reason: "No webhook configured" }),
-        { status: 200, headers: { "Content-Type": "application/json", ...CORS_HEADERS } }
+        { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
     let content: string;
@@ -186,7 +199,7 @@ serve(async (req: Request) => {
     } else {
       return new Response(
         JSON.stringify({ ok: false, reason: "Unknown event" }),
-        { status: 400, headers: { "Content-Type": "application/json", ...CORS_HEADERS } }
+        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
 
@@ -195,12 +208,12 @@ serve(async (req: Request) => {
 
     return new Response(
       JSON.stringify({ ok: true }),
-      { status: 200, headers: { "Content-Type": "application/json", ...CORS_HEADERS } }
+      { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
   } catch (err) {
     return new Response(
       JSON.stringify({ ok: false, error: String(err) }),
-      { status: 500, headers: { "Content-Type": "application/json", ...CORS_HEADERS } }
+      { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
   }
 });

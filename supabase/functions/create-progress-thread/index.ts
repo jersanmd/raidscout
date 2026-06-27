@@ -6,22 +6,35 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
-const CORS_HEADERS = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization, apikey, x-client-info",
-};
+const ALLOWED_ORIGINS = [
+  "https://www.raidscout.com",
+  "https://raidscout-staging.vercel.app",
+  "http://localhost:5173",
+  "http://localhost:3000",
+];
+
+function getCorsHeaders(req: Request): Record<string, string> {
+  const origin = req.headers.get("origin");
+  const allowedOrigin = (origin && ALLOWED_ORIGINS.includes(origin)) ? origin : ALLOWED_ORIGINS[0];
+  return {
+    "Access-Control-Allow-Origin": allowedOrigin,
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, apikey, x-client-info",
+  };
+}
 
 serve(async (req: Request) => {
+  const corsHeaders = getCorsHeaders(req);
+
   if (req.method === "OPTIONS") {
-    return new Response(null, { status: 204, headers: CORS_HEADERS });
+    return new Response(null, { status: 204, headers: corsHeaders });
   }
 
   try {
     const { server_id, exclude_config_ids } = await req.json();
     if (!server_id) {
       return new Response(JSON.stringify({ ok: false, reason: "Missing server_id" }), {
-        status: 400, headers: { "Content-Type": "application/json", ...CORS_HEADERS },
+        status: 400, headers: { "Content-Type": "application/json", ...corsHeaders },
       });
     }
 
@@ -43,7 +56,7 @@ serve(async (req: Request) => {
     const activeConfigs = progressConfigs.filter((c: any) => !excludeSet.has(c.progress_channel_id));
     if (activeConfigs.length === 0) {
       return new Response(JSON.stringify({ ok: false, reason: "No progress channel configured" }), {
-        status: 200, headers: { "Content-Type": "application/json", ...CORS_HEADERS },
+        status: 200, headers: { "Content-Type": "application/json", ...corsHeaders },
       });
     }
 
@@ -57,6 +70,7 @@ serve(async (req: Request) => {
     const serverTz = servers?.[0]?.timezone || "UTC";
 
     const botUrl = Deno.env.get("BOT_SERVER_URL") || "https://raidscout-bot.fly.dev";
+    const botApiSecret = Deno.env.get("BOT_API_SECRET") || "";
     const now = new Date();
     const threadName = `Progress Report: ${now.toLocaleDateString("en-US", {
       weekday: "short", month: "short", day: "numeric", year: "numeric",
@@ -101,7 +115,10 @@ serve(async (req: Request) => {
         console.log(`[create-progress-thread] Creating thread in ${config.progress_channel_id} (${guildLabel}, prefix=${ping})...`);
         const res = await fetch(`${botUrl}/create-thread`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${botApiSecret}`,
+          },
           body: JSON.stringify({
             channel_id: config.progress_channel_id,
             thread_name: threadName,
@@ -134,13 +151,13 @@ serve(async (req: Request) => {
       failed,
       results,
     }), {
-      status: 200, headers: { "Content-Type": "application/json", ...CORS_HEADERS },
+      status: 200, headers: { "Content-Type": "application/json", ...corsHeaders },
     });
 
   } catch (err) {
     console.error("create-progress-thread error:", err);
     return new Response(JSON.stringify({ ok: false, error: String(err) }), {
-      status: 500, headers: { "Content-Type": "application/json", ...CORS_HEADERS },
+      status: 500, headers: { "Content-Type": "application/json", ...corsHeaders },
     });
   }
 });

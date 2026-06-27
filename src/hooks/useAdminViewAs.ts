@@ -1,7 +1,21 @@
 import { useEffect, useCallback, useRef, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/lib/supabase";
 
 const EDGE_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/admin-impersonate`;
+
+async function callEdge(body: Record<string, unknown>) {
+  const { data: { session } } = await supabase.auth.getSession();
+  const token = session?.access_token;
+  return fetch(EDGE_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify(body),
+  });
+}
 
 /**
  * When an admin views a server from the admin panel, this hook:
@@ -17,11 +31,7 @@ export function useAdminViewAs(serverId: string | null, refreshServers?: () => P
   // Cleanup stale admin memberships on mount (from crashes/disconnects)
   useEffect(() => {
     if (userRole !== "admin" || !user) return;
-    fetch(EDGE_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ user_id: user.id, action: "cleanup" }),
-    }).catch(() => {});
+    callEdge({ user_id: user.id, action: "cleanup" }).catch(() => {});
   }, [userRole, user]);
 
   // Join/leave server as admin viewing changes
@@ -32,21 +42,13 @@ export function useAdminViewAs(serverId: string | null, refreshServers?: () => P
 
     // Leave previous server
     if (prev && prev !== serverId) {
-      fetch(EDGE_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ user_id: user.id, server_id: prev, action: "leave" }),
-      }).catch(() => {});
+      callEdge({ user_id: user.id, server_id: prev, action: "leave" }).catch(() => {});
     }
 
     // Join new server
     if (serverId && serverId !== prev) {
       setJoining(true);
-      fetch(EDGE_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ user_id: user.id, server_id: serverId, action: "join" }),
-      })
+      callEdge({ user_id: user.id, server_id: serverId, action: "join" })
         .then(() => refreshServers?.())
         .catch(() => {})
         .finally(() => setJoining(false));
@@ -57,11 +59,7 @@ export function useAdminViewAs(serverId: string | null, refreshServers?: () => P
     // Leave on unmount
     return () => {
       if (serverId) {
-        fetch(EDGE_URL, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ user_id: user.id, server_id: serverId, action: "leave" }),
-        }).catch(() => {});
+        callEdge({ user_id: user.id, server_id: serverId, action: "leave" }).catch(() => {});
       }
     };
   }, [serverId, userRole, user]);

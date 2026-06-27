@@ -10,10 +10,21 @@ const BREVO_API_KEY = Deno.env.get("BREVO_API_KEY")!;
 
 const SENDER = { email: "noreply@raidscout.com", name: "RaidScout" };
 
-const CORS_HEADERS = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+const ALLOWED_ORIGINS = [
+  "https://www.raidscout.com",
+  "https://raidscout-staging.vercel.app",
+  "http://localhost:5173",
+  "http://localhost:3000",
+];
+
+function getCorsHeaders(req: Request): Record<string, string> {
+  const origin = req.headers.get("origin");
+  const allowedOrigin = (origin && ALLOWED_ORIGINS.includes(origin)) ? origin : ALLOWED_ORIGINS[0];
+  return {
+    "Access-Control-Allow-Origin": allowedOrigin,
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  };
+}
 
 function emailTemplate(email: string, url: string): string {
   return `<!DOCTYPE html>
@@ -53,8 +64,10 @@ function emailTemplate(email: string, url: string): string {
 }
 
 Deno.serve(async (req: Request) => {
+  const corsHeaders = getCorsHeaders(req);
+
   if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: CORS_HEADERS });
+    return new Response("ok", { headers: corsHeaders });
   }
 
   try {
@@ -62,7 +75,7 @@ Deno.serve(async (req: Request) => {
     if (!email) {
       return new Response(JSON.stringify({ error: "Missing email" }), {
         status: 400,
-        headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
@@ -80,7 +93,7 @@ Deno.serve(async (req: Request) => {
       console.error("Failed to generate recovery link:", linkError);
       return new Response(JSON.stringify({ error: "Failed to generate reset link" }), {
         status: 500,
-        headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
@@ -107,18 +120,18 @@ Deno.serve(async (req: Request) => {
       console.error("Brevo error:", await brevoRes.text());
       return new Response(JSON.stringify({ error: "Failed to send email" }), {
         status: 502,
-        headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     return new Response(JSON.stringify({ success: true }), {
-      headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {
     console.error("Error:", err);
     return new Response(JSON.stringify({ error: "Internal error" }), {
       status: 500,
-      headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 });

@@ -38,13 +38,10 @@ const FLY_REGIONS: Record<string, string> = {
   yyz: "🇨🇦 Toronto",
 };
 
-// ── BOT_URL ────────────────────────────────────────────────
+// ── BOT_URL (via edge function proxy) ──────────────────────
 function getBotUrl(): string {
-  const host = window.location.hostname;
-  const isDev = host === "localhost" || host === "127.0.0.1";
-  const isStaging = host.includes("staging") || host.endsWith(".vercel.app");
-  if (isDev || isStaging) return "https://raidscout-staging.fly.dev";
-  return "https://raidscout-bot.fly.dev";
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  return `${supabaseUrl}/functions/v1/bot-proxy`;
 }
 
 // ── Interactive Trend Chart (SVG) ─────────────────────────

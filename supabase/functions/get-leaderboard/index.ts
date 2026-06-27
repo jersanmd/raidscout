@@ -4,17 +4,29 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const CORS_HEADERS = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization, apikey",
-};
+const ALLOWED_ORIGINS = [
+  "https://www.raidscout.com",
+  "https://raidscout-staging.vercel.app",
+  "http://localhost:5173",
+  "http://localhost:3000",
+];
+
+function getCorsHeaders(req: Request): Record<string, string> {
+  const origin = req.headers.get("origin");
+  const allowedOrigin = (origin && ALLOWED_ORIGINS.includes(origin)) ? origin : ALLOWED_ORIGINS[0];
+  return {
+    "Access-Control-Allow-Origin": allowedOrigin,
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, apikey",
+  };
+}
 
 serve(async (req: Request) => {
-  if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS_HEADERS });
+  const corsHeaders = getCorsHeaders(req);
+  if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders });
   try {
     const { server_id, since } = await req.json();
-    if (!server_id) return new Response(JSON.stringify([]), { status: 200, headers: { "Content-Type": "application/json", ...CORS_HEADERS } });
+    if (!server_id) return new Response(JSON.stringify([]), { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } });
 
     const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
@@ -24,7 +36,7 @@ serve(async (req: Request) => {
 
     // Get members
     const { data: members } = await supabase.from("members").select("id, name, guild_id").eq("server_id", server_id);
-    if (!members?.length) return new Response(JSON.stringify([]), { status: 200, headers: { "Content-Type": "application/json", ...CORS_HEADERS } });
+    if (!members?.length) return new Response(JSON.stringify([]), { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } });
 
     // Get guild resets — fetch ALL app_settings and filter in JS
     const { data: allSettings } = await supabase.from("app_settings").select("key, value").eq("server_id", server_id);
@@ -129,8 +141,8 @@ serve(async (req: Request) => {
     }
 
     const entries = [...scores.entries()].sort((a, b) => b[1].points - a[1].points).map(([id, s]) => ({ id, name: s.name, points: s.points }));
-    return new Response(JSON.stringify(entries), { status: 200, headers: { "Content-Type": "application/json", ...CORS_HEADERS } });
+    return new Response(JSON.stringify(entries), { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } });
   } catch (err) {
-    return new Response(JSON.stringify({ error: err.message }), { status: 500, headers: { "Content-Type": "application/json", ...CORS_HEADERS } });
+    return new Response(JSON.stringify({ error: err.message }), { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } });
   }
 });

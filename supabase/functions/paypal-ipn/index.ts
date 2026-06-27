@@ -16,6 +16,10 @@ const PAYPAL_CLIENT_SECRET = Deno.env.get("PAYPAL_CLIENT_SECRET")!;
 
 const PAYPAL_API = "https://api-m.paypal.com";
 
+// NOTE: PayPal IPN uses wildcard CORS intentionally.
+// The IPN endpoint receives server-to-server callbacks from PayPal,
+// and the Smart Button flow is called from our frontend.
+// CORS origin validation is handled by verifying the PayPal order server-side.
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",

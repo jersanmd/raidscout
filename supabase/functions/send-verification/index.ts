@@ -14,10 +14,21 @@ const SECRET = SUPABASE_SERVICE_ROLE_KEY;
 
 const SENDER = { email: "noreply@raidscout.com", name: "RaidScout" };
 
-const CORS_HEADERS = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+const ALLOWED_ORIGINS = [
+  "https://www.raidscout.com",
+  "https://raidscout-staging.vercel.app",
+  "http://localhost:5173",
+  "http://localhost:3000",
+];
+
+function getCorsHeaders(req: Request): Record<string, string> {
+  const origin = req.headers.get("origin");
+  const allowedOrigin = (origin && ALLOWED_ORIGINS.includes(origin)) ? origin : ALLOWED_ORIGINS[0];
+  return {
+    "Access-Control-Allow-Origin": allowedOrigin,
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  };
+}
 
 // ── Signed token helpers ──────────────────────────────
 
@@ -95,8 +106,10 @@ function verificationEmailTemplate(email: string, confirmUrl: string): string {
 // ── Handler ───────────────────────────────────────────
 
 Deno.serve(async (req: Request) => {
+  const corsHeaders = getCorsHeaders(req);
+
   if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: CORS_HEADERS });
+    return new Response("ok", { headers: corsHeaders });
   }
 
   try {
@@ -108,20 +121,20 @@ Deno.serve(async (req: Request) => {
       const { token, userId } = body;
       if (!token || !userId) {
         return new Response(JSON.stringify({ error: "Missing token or userId" }), {
-          status: 400, headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
       const tokenUserId = await verifyToken(token);
       if (!tokenUserId || tokenUserId !== userId) {
         return new Response(JSON.stringify({ error: "Invalid or expired token" }), {
-          status: 400, headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
       // Unconfirm then reconfirm so email_confirmed_at gets a fresh timestamp
       await supabase.auth.admin.updateUserById(userId, { email_confirm: false });
       await supabase.auth.admin.updateUserById(userId, { email_confirm: true });
       return new Response(JSON.stringify({ success: true }), {
-        headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
@@ -129,12 +142,12 @@ Deno.serve(async (req: Request) => {
     const { email, userId } = body;
     if (!email) {
       return new Response(JSON.stringify({ error: "Missing email" }), {
-        status: 400, headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
     if (!userId) {
       return new Response(JSON.stringify({ error: "Missing userId" }), {
-        status: 400, headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
@@ -155,17 +168,17 @@ Deno.serve(async (req: Request) => {
     if (!brevoRes.ok) {
       console.error("Brevo error:", await brevoRes.text());
       return new Response(JSON.stringify({ error: "Failed to send email" }), {
-        status: 502, headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
+        status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     return new Response(JSON.stringify({ success: true }), {
-      headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {
     console.error("Error:", err);
     return new Response(JSON.stringify({ error: err instanceof Error ? err.message : "Internal error" }), {
-      status: 500, headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
+      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 });

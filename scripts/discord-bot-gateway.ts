@@ -7,7 +7,7 @@
 import { WebSocket } from "ws";
 import * as http from "http";
 import { TOKEN, setBotUserId, botUserId } from "./bot/config";
-import { SUPABASE_URL, SUPABASE_KEY } from "./bot/config";
+import { SUPABASE_URL, SUPABASE_KEY, BOT_API_SECRET } from "./bot/config";
 import { installLogging } from "./bot/logging";
 import { LOG_BUFFER } from "./bot/logging";
 import { handleGuildJoin } from "./bot/guild-join";
@@ -119,22 +119,53 @@ console.log("RaidScout Discord Bot starting...");
 const PORT = parseInt(process.env.PORT || "3003", 10);
 const startTime = Date.now();
 
-function corsHeaders(): Record<string, string> {
+const ALLOWED_ORIGINS = [
+  "https://www.raidscout.com",
+  "https://raidscout-staging.vercel.app",
+  "http://localhost:5173",
+  "http://localhost:3000",
+];
+
+function getOrigin(req: http.IncomingMessage): string {
+  const origin = req.headers["origin"];
+  if (origin && ALLOWED_ORIGINS.includes(origin)) return origin;
+  return ALLOWED_ORIGINS[0];
+}
+
+function corsHeaders(req: http.IncomingMessage): Record<string, string> {
   return {
-    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Origin": getOrigin(req),
     "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization",
   };
+}
+
+function checkAuth(req: http.IncomingMessage): boolean {
+  const auth = req.headers["authorization"];
+  return auth === `Bearer ${BOT_API_SECRET}`;
 }
 
 http.createServer(async (req, res) => {
   const url = new URL(req.url || "/", `http://localhost:${PORT}`);
-  const headers = { ...corsHeaders(), "Content-Type": "application/json" };
+  const headers = { ...corsHeaders(req), "Content-Type": "application/json" };
 
   // CORS preflight
   if (req.method === "OPTIONS") {
-    res.writeHead(204, corsHeaders());
+    res.writeHead(204, corsHeaders(req));
     return res.end();
+  }
+
+  // Health check is the only unauthenticated endpoint
+  if (req.method === "GET" && url.pathname === "/health") {
+    res.writeHead(200, { "Content-Type": "text/plain", ...corsHeaders(req) });
+    res.end(`OK — Discord ${discordConnected ? "connected" : "disconnected"}`);
+    return;
+  }
+
+  // All other endpoints require authentication
+  if (!checkAuth(req)) {
+    res.writeHead(401, headers);
+    return res.end(JSON.stringify({ error: "Unauthorized" }));
   }
 
   // GET /status
@@ -295,9 +326,9 @@ http.createServer(async (req, res) => {
     return;
   }
 
-  // Health check fallback
-  res.writeHead(200, { "Content-Type": "text/plain", ...corsHeaders() });
-  res.end(`OK — Discord ${discordConnected ? "connected" : "disconnected"}`);
+  // Unknown endpoint
+  res.writeHead(404, { "Content-Type": "text/plain", ...corsHeaders(req) });
+  res.end("Not found");
 }).listen(PORT, "0.0.0.0", () => {
   console.log(`HTTP API listening on 0.0.0.0:${PORT}`);
 });

@@ -7,19 +7,32 @@
 // @ts-nocheck -- Deno edge function, not Node.js
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
-const CORS_HEADERS = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization, apikey",
-};
+const ALLOWED_ORIGINS = [
+  "https://www.raidscout.com",
+  "https://raidscout-staging.vercel.app",
+  "http://localhost:5173",
+  "http://localhost:3000",
+];
+
+function getCorsHeaders(req: Request): Record<string, string> {
+  const origin = req.headers.get("origin");
+  const allowedOrigin = (origin && ALLOWED_ORIGINS.includes(origin)) ? origin : ALLOWED_ORIGINS[0];
+  return {
+    "Access-Control-Allow-Origin": allowedOrigin,
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, apikey",
+  };
+}
 
 interface AIResponse {
   choices: { message: { content: string } }[];
 }
 
 serve(async (req: Request) => {
+  const corsHeaders = getCorsHeaders(req);
+
   if (req.method === "OPTIONS") {
-    return new Response(null, { status: 204, headers: CORS_HEADERS });
+    return new Response(null, { status: 204, headers: corsHeaders });
   }
 
   try {
@@ -28,7 +41,17 @@ serve(async (req: Request) => {
     if (!imageBase64) {
       return new Response(
         JSON.stringify({ error: "Missing imageBase64" }),
-        { status: 400, headers: { "Content-Type": "application/json", ...CORS_HEADERS } }
+        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    // Validate base64 size — reject images larger than 10MB
+    const base64Size = typeof imageBase64 === "string" ? imageBase64.length : 0;
+    const MAX_BASE64_LENGTH = 14_000_000; // ~10MB raw -> ~13.3MB base64
+    if (base64Size > MAX_BASE64_LENGTH) {
+      return new Response(
+        JSON.stringify({ error: "Image too large. Maximum 10MB allowed." }),
+        { status: 413, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
 
@@ -43,7 +66,7 @@ serve(async (req: Request) => {
         }),
         {
           status: 400,
-          headers: { "Content-Type": "application/json", ...CORS_HEADERS },
+          headers: { "Content-Type": "application/json", ...corsHeaders },
         }
       );
     }
@@ -96,7 +119,7 @@ serve(async (req: Request) => {
         JSON.stringify({ error: `OpenAI API error (${openaiRes.status}): ${errText}` }),
         {
           status: 502,
-          headers: { "Content-Type": "application/json", ...CORS_HEADERS },
+          headers: { "Content-Type": "application/json", ...corsHeaders },
         }
       );
     }
@@ -109,12 +132,12 @@ serve(async (req: Request) => {
 
     return new Response(JSON.stringify({ names }), {
       status: 200,
-      headers: { "Content-Type": "application/json", ...CORS_HEADERS },
+      headers: { "Content-Type": "application/json", ...corsHeaders },
     });
   } catch (err) {
     return new Response(
       JSON.stringify({ error: err instanceof Error ? err.message : "Unknown error" }),
-      { status: 500, headers: { "Content-Type": "application/json", ...CORS_HEADERS } }
+      { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
   }
 });
