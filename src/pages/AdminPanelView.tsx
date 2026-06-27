@@ -93,6 +93,7 @@ export function SupabaseConnectionCard({ pings, pingLoading, metrics, metricsLoa
   const chartRef = useRef<HTMLDivElement | null>(null);
   const [chartW, setChartW] = useState(400);
   const [tip, setTip] = useState<{ i: number; v: number; x: number; y: number } | null>(null);
+  const hasData = pings.length > 1;
   useEffect(() => {
     const el = chartRef.current;
     if (!el) return;
@@ -102,9 +103,8 @@ export function SupabaseConnectionCard({ pings, pingLoading, metrics, metricsLoa
     ro.observe(el);
     setChartW(el.clientWidth);
     return () => ro.disconnect();
-  }, []);
+  }, [hasData]);
 
-  const hasData = pings.length > 1;
   const W = Math.max(chartW || 400, 200);
   const isNarrow = W < 640;
   const H = isNarrow ? Math.round(W * 2 / 3) : Math.round(W * 0.3);
@@ -152,7 +152,8 @@ export function SupabaseConnectionCard({ pings, pingLoading, metrics, metricsLoa
   const totalRows = metrics ? Object.values(metrics.tableCounts).reduce((a, b) => a + b, 0) : 0;
 
   return (
-    <div className="bg-[#0d0d11] border border-[#1e1e2a] rounded-xl p-3 sm:p-4 space-y-3">
+    <div className="bg-[#0d0d11] border border-[#1e1e2a] rounded-xl space-y-3">
+      <div className="px-3 sm:px-4 pt-3 sm:pt-4 space-y-3">
       <div className="flex items-center justify-between">
         <h4 className="text-sm font-semibold text-[#fafafa]">Supabase Connection</h4>
         <span className="text-[11px] text-[#52525b] font-mono truncate max-w-[160px]" title={projectUrl}>
@@ -167,10 +168,11 @@ export function SupabaseConnectionCard({ pings, pingLoading, metrics, metricsLoa
         {latest && <span className="text-[11px] text-[#52525b] ml-auto">{latest.ms.toFixed(0)}ms</span>}
         {isLoading && <Loader2 className="w-3 h-3 text-[#52525b] animate-spin ml-1" />}
       </div>
+      </div>
 
       {/* Latency Chart (SpawnCron style) */}
       {hasData && (
-        <div ref={chartRef} className="relative w-full max-w-[900px] aspect-[3/2] sm:aspect-[10/3] min-h-[350px] sm:min-h-[260px] mx-auto">
+        <div ref={chartRef} className="relative w-full max-w-[900px] aspect-[3/2] sm:aspect-[10/3] min-h-[350px] sm:min-h-[260px]">
           <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-full" preserveAspectRatio="xMidYMid meet">
             <style>{`
               @keyframes ldrawIn { from { stroke-dashoffset: var(--d); } to { stroke-dashoffset: 0; } }
@@ -288,7 +290,8 @@ export function SupabaseConnectionCard({ pings, pingLoading, metrics, metricsLoa
       )}
 
       {/* Latency stats bar (SpawnCron style) */}
-      <div className="relative flex items-center justify-center gap-3 sm:gap-10 px-3 sm:px-4 pb-3 sm:pb-4 pt-1 border-t border-[#1e1e2a]">
+      <div className="px-3 sm:px-4 pb-3 sm:pb-4 space-y-3">
+      <div className="relative flex items-center justify-center gap-3 sm:gap-10 pt-1 border-t border-[#1e1e2a]">
         <div className="text-center">
           <p className="text-[11px] text-[#52525b] uppercase tracking-wider">Average</p>
           <p className="text-sm font-bold text-[#fafafa] font-mono">
@@ -354,6 +357,7 @@ export function SupabaseConnectionCard({ pings, pingLoading, metrics, metricsLoa
             <p className="text-[11px] text-[#52525b] col-span-2">No metrics available</p>
           )}
         </div>
+      </div>
       </div>
     </div>
   );
@@ -2026,7 +2030,7 @@ export function AdminPanelView() {
       {tab === "infra" && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
           {/* Left column: Bot Logs */}
-          <div className="space-y-3 sm:space-y-4">
+          <div className="space-y-3 sm:space-y-4 flex flex-col">
           {/* Bot Logs Terminal */}
           <div className="bg-[#08080c] border border-[#1e1e2a] rounded-xl overflow-hidden shadow-inner">
             {/* Terminal header */}
@@ -2063,11 +2067,13 @@ export function AdminPanelView() {
           </div>
 
           {/* Supabase Connection Monitor */}
+          <div className="flex-1 min-h-0 [&>*]:h-full">
           <SupabaseConnectionCard pings={supabasePings} pingLoading={pingLoading} metrics={infraMetrics ?? null} metricsLoading={metricsLoading} projectUrl={supabaseProjectUrl} />
+          </div>
           </div>
 
           {/* Right column: Bot Status */}
-          <div className="space-y-3 sm:space-y-4">
+          <div className="space-y-3 sm:space-y-4 flex flex-col">
           {botLoading ? (
             <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 text-[#71717a] animate-spin" /></div>
           ) : !botStatus?.ok ? (
@@ -2075,7 +2081,9 @@ export function AdminPanelView() {
           ) : (
             <>
               {/* ── Spawn Cron Premium Card ── */}
+              <div className="flex-1 min-h-0 [&>*]:h-full">
               <SpawnCronCard data={botStatus.spawn_cron} connected={botStatus.discord_connected} timezone={timezone} onRefresh={refetchBot} />
+              </div>
 
               {/* Status Cards — 2-col on mobile, 4-col on desktop */}
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
@@ -2338,20 +2346,22 @@ function SpawnCronCard({ data, connected, timezone, onRefresh }: { data: any; co
 
   const chartRef = useRef<HTMLDivElement | null>(null);
   const [chartW, setChartW] = useState(1200);
+  const [chartH, setChartH] = useState(400);
   useEffect(() => {
     const el = chartRef.current;
     if (!el) return;
     const ro = new ResizeObserver(([entry]) => {
-      if (entry) setChartW(entry.contentRect.width);
+      if (entry) { setChartW(entry.contentRect.width); setChartH(entry.contentRect.height); }
     });
     ro.observe(el);
     setChartW(el.clientWidth);
+    setChartH(el.clientHeight);
     return () => ro.disconnect();
   }, []);
 
   const W = chartW || 350;
   const isNarrow = W < 640;
-  const H = isNarrow ? Math.round(W * 2 / 3) : Math.round(W * 0.3);
+  const H = chartH || (isNarrow ? Math.round(W * 2 / 3) : Math.round(W * 0.3));
   const LX = isNarrow ? 40 : 52, RX = isNarrow ? 20 : 36, TY = 16, BY = isNarrow ? 28 : 32;
   const fontSize = isNarrow ? 11 : 9;
   const fontSizeSm = isNarrow ? 9.5 : 7.5;
@@ -2470,7 +2480,7 @@ function SpawnCronCard({ data, connected, timezone, onRefresh }: { data: any; co
       </div>
 
       {/* Chart */}
-      <div ref={chartRef} className="relative w-full max-w-[900px] aspect-[3/2] sm:aspect-[10/3] min-h-[350px] sm:min-h-[260px] mx-auto">
+      <div ref={chartRef} className="relative w-full max-w-[900px] h-[36rem] sm:h-96 mx-auto">
         <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-full" preserveAspectRatio="xMidYMid meet">
           <style>{`
             @keyframes drawIn { from { stroke-dashoffset: var(--d); } to { stroke-dashoffset: 0; } }
