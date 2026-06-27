@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeAll } from "vitest";
 import { render, screen } from "@testing-library/react";
 import {
   SupabaseConnectionCard,
@@ -7,6 +7,15 @@ import {
   TABLE_NAMES,
   type InfraMetrics,
 } from "@/pages/AdminPanelView";
+
+// Mock ResizeObserver (not available in jsdom)
+beforeAll(() => {
+  (globalThis as any).ResizeObserver = class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  };
+});
 
 // ── formatBytes ─────────────────────────────────────────────
 
@@ -223,12 +232,12 @@ describe("SupabaseConnectionCard", () => {
         projectUrl="t.co"
       />
     );
-    // "342ms" appears in status row + avg/min/max cells (all same value with 1 ping)
+    // "342ms" appears in status row + Average/Current/Peak cells (all same with 1 ping)
     const matches = screen.getAllByText("342ms");
     expect(matches.length).toBeGreaterThanOrEqual(1);
   });
 
-  it("renders Avg/Min/Max for multiple pings", () => {
+  it("renders Average/Current/Peak for multiple pings", () => {
     const pings = [
       { ts: Date.now() - 30000, ms: 100, ok: true },
       { ts: Date.now() - 20000, ms: 300, ok: true },
@@ -243,11 +252,13 @@ describe("SupabaseConnectionCard", () => {
         projectUrl="t.co"
       />
     );
-    // Avg = (100+300+500)/3 = 300ms
+    // Average = (100+300+500)/3 = 300ms
+    expect(screen.getByText("Average")).toBeInTheDocument();
+    expect(screen.getByText("Current")).toBeInTheDocument();
+    expect(screen.getByText("Peak")).toBeInTheDocument();
+    // 300ms appears as Average value
     expect(screen.getByText("300ms")).toBeInTheDocument();
-    // Min = 100ms (appears once in the Min cell)
-    expect(screen.getByText("100ms")).toBeInTheDocument();
-    // Max = 500ms — also appears in status row, use getAllByText
+    // 500ms appears as Peak + in status row, use getAllByText
     const maxMatches = screen.getAllByText("500ms");
     expect(maxMatches.length).toBeGreaterThanOrEqual(1);
   });
@@ -413,7 +424,7 @@ describe("SupabaseConnectionCard", () => {
     });
   });
 
-  it("shows '—' for status when no pings", () => {
+  it("shows '—' for stats when no pings", () => {
     render(
       <SupabaseConnectionCard
         pings={[]}
@@ -423,7 +434,7 @@ describe("SupabaseConnectionCard", () => {
         projectUrl="t.co"
       />
     );
-    // "—" appears as status label + avg/min/max cells
+    // "—" appears as status label + Average/Current/Peak values
     const dashes = screen.getAllByText("—");
     expect(dashes.length).toBeGreaterThanOrEqual(1);
   });

@@ -89,21 +89,64 @@ export function SupabaseConnectionCard({ pings, pingLoading, metrics, metricsLoa
     : latest.ms < 800 ? "Degraded"
     : "Slow";
 
-  // SVG sparkline
-  const W = 280, H = 48;
-  const pad = { left: 4, right: 4, top: 4, bottom: 4 };
-  const chartW = W - pad.left - pad.right;
-  const chartH = H - pad.top - pad.bottom;
-  const rangeMs = Math.max(maxMs, 100) - Math.min(minMs, 0);
-  const yFor = (ms: number) => pad.top + chartH - (rangeMs > 0 ? ((ms - Math.min(minMs, 0)) / rangeMs) * chartH : chartH / 2);
-  const pts = pings.map((p, i) => ({
-    x: pad.left + (pings.length > 1 ? (i / (pings.length - 1)) * chartW : chartW / 2),
-    y: yFor(p.ms),
-  }));
-  const lineD = pts.length > 1 ? `M${pts.map(p => `${p.x},${p.y}`).join("L")}` : "";
-  const areaD = pts.length > 1 ? `${lineD} L${pts[pts.length - 1].x},${pad.top + chartH} L${pts[0].x},${pad.top + chartH} Z` : "";
-  const y200 = yFor(200);
-  const y800 = yFor(800);
+  // ── Chart layout (SpawnCron style) ──────────────────────
+  const chartRef = useRef<HTMLDivElement | null>(null);
+  const [chartW, setChartW] = useState(400);
+  const [tip, setTip] = useState<{ i: number; v: number; x: number; y: number } | null>(null);
+  useEffect(() => {
+    const el = chartRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([entry]) => {
+      if (entry) setChartW(entry.contentRect.width);
+    });
+    ro.observe(el);
+    setChartW(el.clientWidth);
+    return () => ro.disconnect();
+  }, []);
+
+  const hasData = pings.length > 1;
+  const W = Math.max(chartW || 400, 200);
+  const isNarrow = W < 640;
+  const H = isNarrow ? Math.round(W * 2 / 3) : Math.round(W * 0.3);
+  const LX = isNarrow ? 40 : 52, RX = isNarrow ? 20 : 36, TY = 16, BY = isNarrow ? 28 : 32;
+  const fontSize = isNarrow ? 11 : 9;
+  const fontSizeSm = isNarrow ? 9.5 : 7.5;
+  const lineW = isNarrow ? 2.5 : 1.8;
+  const glowW = isNarrow ? 7 : 5;
+  const hitW = isNarrow ? 44 : 36;
+  const dotR = isNarrow ? 3 : 2;
+  const dotHoverR = isNarrow ? 5 : 3.5;
+  const lastDotR = isNarrow ? 5 : 3.5;
+
+  const dataMin = hasData ? Math.min(...pings.map(p => p.ms)) : 0;
+  const dataMax = hasData ? Math.max(...pings.map(p => p.ms)) : 1000;
+  const padPct = 0.1;
+  const padVal = (dataMax - dataMin) * padPct || 50;
+  const min = Math.max(0, dataMin - padVal);
+  const max = dataMax + padVal;
+  const rng = max - min || 1;
+  const pw = W - LX - RX;
+  const ph = H - TY - BY;
+  const sx = hasData && pings.length > 1 ? pw / (pings.length - 1) : 0;
+
+  const yPos = (v: number) => TY + ph - ((v - min) / rng) * ph;
+  const xPos = (i: number) => LX + i * sx;
+  const pts = hasData ? pings.map((p, i) => `${xPos(i)},${yPos(p.ms)}`).join(" ") : "";
+  const avgY = yPos(avgMs);
+
+  // Y ticks
+  const yTicks: number[] = [];
+  let yStep = rng > 400 ? 200 : rng > 200 ? 100 : rng > 100 ? 50 : 25;
+  while ((rng / yStep) > (isNarrow ? 4 : 6)) yStep *= 2;
+  for (let v = Math.ceil(min / yStep) * yStep; v <= max; v += yStep) yTicks.push(v);
+  if (yTicks.length < 2) yTicks.push(min, max);
+
+  // X tick labels (time)
+  const labelStep = Math.max(1, Math.floor(pings.length / (isNarrow ? 2 : 4)));
+  const formatTime = (ts: number) => {
+    const d = new Date(ts);
+    return d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false });
+  };
 
   const isLoading = pingLoading || metricsLoading;
   const totalRows = metrics ? Object.values(metrics.tableCounts).reduce((a, b) => a + b, 0) : 0;
@@ -125,37 +168,146 @@ export function SupabaseConnectionCard({ pings, pingLoading, metrics, metricsLoa
         {isLoading && <Loader2 className="w-3 h-3 text-[#52525b] animate-spin ml-1" />}
       </div>
 
-      {/* Sparkline */}
-      {pings.length > 1 && (
-        <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-12">
-          <line x1={pad.left} y1={y200} x2={pad.left + chartW} y2={y200} stroke="rgba(234,179,8,0.2)" strokeWidth={0.5} strokeDasharray="2,3" />
-          <line x1={pad.left} y1={y800} x2={pad.left + chartW} y2={y800} stroke="rgba(239,68,68,0.15)" strokeWidth={0.5} strokeDasharray="2,3" />
-          <path d={areaD} fill="rgba(59,130,246,0.08)" />
-          <path d={lineD} fill="none" stroke="#3b82f6" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
-          {pts.length > 0 && (
-            <circle cx={pts[pts.length - 1].x} cy={pts[pts.length - 1].y} r={2.5} fill="#3b82f6" />
-          )}
-        </svg>
+      {/* Latency Chart (SpawnCron style) */}
+      {hasData && (
+        <div ref={chartRef} className="relative w-full max-w-[900px] aspect-[3/2] sm:aspect-[10/3] min-h-[350px] sm:min-h-[260px] mx-auto">
+          <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-full" preserveAspectRatio="xMidYMid meet">
+            <style>{`
+              @keyframes ldrawIn { from { stroke-dashoffset: var(--d); } to { stroke-dashoffset: 0; } }
+              @keyframes lfadeUp { from { opacity: 0; } to { opacity: 1; } }
+              @keyframes lpulseGlow { 0%,100% { opacity: 0.2; } 50% { opacity: 0.45; } }
+              .lcline { stroke-dasharray: var(--d); stroke-dashoffset: var(--d); animation: ldrawIn 1s cubic-bezier(0.33,1,0.68,1) forwards; }
+              .lglow  { stroke-dasharray: var(--d); stroke-dashoffset: var(--d); animation: ldrawIn 1s cubic-bezier(0.33,1,0.68,1) forwards, lpulseGlow 2.5s ease-in-out 1s infinite; }
+              .larea  { opacity: 0; animation: lfadeUp 0.6s ease-out 0.4s forwards; }
+            `}</style>
+            <defs>
+              <linearGradient id="latencyGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#22c55e" stopOpacity="0.30" />
+                <stop offset="50%" stopColor="#22c55e" stopOpacity="0.10" />
+                <stop offset="100%" stopColor="#22c55e" stopOpacity="0" />
+              </linearGradient>
+              <filter id="latencyGlow">
+                <feGaussianBlur stdDeviation="3" result="b" />
+                <feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
+              </filter>
+            </defs>
+
+            {/* Y-axis title */}
+            <text x={LX - 4} y={TY - 2} textAnchor="end" fill="#52525b" fontSize={fontSize} fontFamily="monospace" fontWeight="bold">ms</text>
+            {/* Grid + Y labels */}
+            {yTicks.map(v => (
+              <g key={`gy-${v}`}>
+                <line x1={LX} y1={yPos(v)} x2={W - RX} y2={yPos(v)} stroke="#1e1e2a" strokeWidth="0.5" />
+                <text x={LX - 6} y={yPos(v) + 3.5} textAnchor="end" fill="#71717a" fontSize={fontSize} fontFamily="monospace">{v.toFixed(0)}</text>
+              </g>
+            ))}
+            {/* X-axis baseline */}
+            <line x1={LX} y1={TY + ph} x2={W - RX} y2={TY + ph} stroke="#1e1e2a" strokeWidth="0.5" />
+
+            {/* Average line */}
+            <line x1={LX} y1={avgY} x2={W - RX} y2={avgY} stroke="#3f3f46" strokeWidth="0.5" strokeDasharray="4,6" />
+
+            {/* Area */}
+            <polygon points={`${xPos(0)},${TY + ph} ${pts} ${xPos(pings.length - 1)},${TY + ph}`} fill="url(#latencyGrad)" className="larea" />
+            {/* Glow line */}
+            <polyline points={pts} fill="none" stroke="#22c55e" strokeWidth={glowW} strokeLinecap="round" strokeLinejoin="round" opacity="0"
+              filter="url(#latencyGlow)" className="lglow" style={{ '--d': 99999 } as React.CSSProperties} />
+            {/* Main line */}
+            <polyline points={pts} fill="none" stroke="#4ade80" strokeWidth={lineW} strokeLinecap="round" strokeLinejoin="round"
+              className="lcline" style={{ '--d': 99999 } as React.CSSProperties} />
+
+            {/* Data points */}
+            {pings.map((p, i) => {
+              const isLast = i === pings.length - 1;
+              const x = xPos(i), y = yPos(p.ms);
+              const lbl = `${p.ms.toFixed(0)}ms`;
+              const isHovered = tip?.i === i;
+              const onEnter = () => setTip({ i, v: p.ms, x, y });
+              const onLeave = () => setTip(t => t?.i === i ? null : t);
+              const onClick = () => setTip(t => t?.i === i ? null : { i, v: p.ms, x, y });
+
+              return (
+                <g key={`dp-${i}`}>
+                  <rect x={x - hitW / 2} y={y - hitW / 2} width={hitW} height={hitW} fill="transparent"
+                    onMouseEnter={onEnter} onMouseLeave={onLeave} onClick={onClick}
+                    style={{ cursor: "pointer" }} />
+                  {isHovered && (
+                    <circle cx={x} cy={y} r={isNarrow ? "9" : "7"} fill="none" stroke="#4ade80" strokeWidth="1" opacity="0.5">
+                      <animate attributeName="r" from={isNarrow ? "7" : "5"} to={isNarrow ? "11" : "9"} dur="0.8s" repeatCount="indefinite" />
+                      <animate attributeName="opacity" from="0.5" to="0" dur="0.8s" repeatCount="indefinite" />
+                    </circle>
+                  )}
+                  {isLast ? (
+                    <>
+                      <circle cx={x} cy={y} r={isNarrow ? "7" : "5"} fill="#22c55e" opacity="0.2">
+                        <animate attributeName="opacity" values="0.2;0.45;0.2" dur="2s" repeatCount="indefinite" />
+                      </circle>
+                      <circle cx={x} cy={y} r={lastDotR} fill="#86efac" stroke="#0d0d11" strokeWidth="1.5" />
+                    </>
+                  ) : (
+                    <circle cx={x} cy={y} r={isHovered ? dotHoverR : dotR} fill={isHovered ? "#86efac" : "#4ade80"} stroke="#0d0d11" strokeWidth={isHovered ? "2" : "1"} />
+                  )}
+                  {!isHovered && (i % labelStep === 0 || isLast) && !isLast && (
+                    <text x={x} y={y - 8} textAnchor="middle" fill="#71717a" fontSize={fontSizeSm} fontFamily="monospace">{p.ms.toFixed(0)}</text>
+                  )}
+                </g>
+              );
+            })}
+
+            {/* X tick labels */}
+            {pings.map((p, i) => {
+              if (i % labelStep !== 0 && i !== pings.length - 1) return null;
+              return (
+                <text key={`xl-${i}`} x={xPos(i)} y={H - 4} textAnchor={i === 0 ? "start" : i === pings.length - 1 ? "end" : "middle"} fill="#52525b" fontSize={fontSizeSm} fontFamily="monospace">
+                  {formatTime(p.ts)}
+                </text>
+              );
+            })}
+          </svg>
+
+          {/* Hover tooltip — edge-aware positioning */}
+          {tip && (() => {
+            const pctX = ((tip.x - LX) / pw) * 100;
+            const pctY = ((tip.y - TY) / ph) * 100;
+            const nearRight = pctX > 70;
+            const nearLeft = pctX < 15;
+            const xStyle = nearRight ? { right: `${100 - pctX}%` }
+              : nearLeft ? { left: `${Math.max(0, pctX)}%` }
+              : { left: `${pctX}%`, transform: "translate(-50%, -120%)" };
+            const ts = pings[tip.i]?.ts;
+            const dateStr = ts ? new Date(ts).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false }) : null;
+            return (
+              <div className="absolute z-20 pointer-events-none px-2.5 py-1.5 rounded-lg bg-[#18181b] border border-[#3f3f46] shadow-xl"
+                style={{ top: `${pctY}%`, ...xStyle }}>
+                {dateStr && <div className="text-[11px] text-[#71717a] font-mono whitespace-nowrap mb-0.5">{dateStr}</div>}
+                <div className="text-xs font-medium text-[#4ade80] font-mono whitespace-nowrap">{tip.v.toFixed(0)}ms</div>
+              </div>
+            );
+          })()}
+        </div>
       )}
 
-      {/* Latency stats */}
-      <div className="grid grid-cols-3 gap-2 text-center">
-        <div>
-          <p className="text-[10px] text-[#52525b] uppercase">Avg</p>
-          <p className="text-xs font-mono text-[#a1a1aa]">{pings.length > 0 ? `${avgMs.toFixed(0)}ms` : "—"}</p>
+      {/* Latency stats bar (SpawnCron style) */}
+      <div className="relative flex items-center justify-center gap-3 sm:gap-10 px-3 sm:px-4 pb-3 sm:pb-4 pt-1 border-t border-[#1e1e2a]">
+        <div className="text-center">
+          <p className="text-[11px] text-[#52525b] uppercase tracking-wider">Average</p>
+          <p className="text-sm font-bold text-[#fafafa] font-mono">
+            {pings.length > 0 ? `${avgMs.toFixed(0)}ms` : "—"}
+          </p>
         </div>
-        <div>
-          <p className="text-[10px] text-[#52525b] uppercase">Min</p>
-          <p className="text-xs font-mono text-[#a1a1aa]">{pings.length > 0 ? `${minMs.toFixed(0)}ms` : "—"}</p>
+        <div className="text-center">
+          <p className="text-[11px] text-[#52525b] uppercase tracking-wider">Current</p>
+          <p className="text-sm font-bold text-[#fafafa] font-mono">
+            {latest ? `${latest.ms.toFixed(0)}ms` : "—"}
+          </p>
         </div>
-        <div>
-          <p className="text-[10px] text-[#52525b] uppercase">Max</p>
-          <p className="text-xs font-mono text-[#a1a1aa]">{pings.length > 0 ? `${maxMs.toFixed(0)}ms` : "—"}</p>
+        <div className="text-center">
+          <p className="text-[11px] text-[#52525b] uppercase tracking-wider">Peak</p>
+          <p className="text-sm font-bold text-[#fafafa] font-mono">
+            {pings.length > 0 ? `${maxMs.toFixed(0)}ms` : "—"}
+          </p>
         </div>
       </div>
-
-      {/* Divider */}
-      <div className="border-t border-[#1e1e2a]" />
 
       {/* Database Overview */}
       <div>
@@ -2262,7 +2414,7 @@ function SpawnCronCard({ data, connected, timezone, onRefresh }: { data: any; co
   return (
     <div className="relative rounded-xl bg-[#0d0d11] border border-[#1e1e2a]">
       {/* Ambient top glow bar */}
-      <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-violet-400/40 to-transparent" />
+      <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-emerald-400/40 to-transparent" />
 
       {/* Header bar */}
       <div className="relative flex flex-wrap items-center justify-between px-4 sm:px-5 pt-3 pb-1 gap-2">
@@ -2276,7 +2428,7 @@ function SpawnCronCard({ data, connected, timezone, onRefresh }: { data: any; co
           <select
             value={timeRange}
             onChange={e => setTimeRange(e.target.value)}
-            className="bg-[#0d0d11] border border-[#1e1e2a] rounded px-1.5 py-0.5 text-[11px] text-[#a1a1aa] font-mono focus:outline-none focus:border-violet-500/30 cursor-pointer"
+            className="bg-[#0d0d11] border border-[#1e1e2a] rounded px-1.5 py-0.5 text-[11px] text-[#a1a1aa] font-mono focus:outline-none focus:border-emerald-500/30 cursor-pointer"
           >
             <option value="live">Live</option>
             <option value="1h">1 Hour</option>
@@ -2332,9 +2484,9 @@ function SpawnCronCard({ data, connected, timezone, onRefresh }: { data: any; co
           `}</style>
           <defs>
             <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#8b5cf6" stopOpacity="0.15" />
-              <stop offset="50%" stopColor="#8b5cf6" stopOpacity="0.04" />
-              <stop offset="100%" stopColor="#8b5cf6" stopOpacity="0" />
+              <stop offset="0%" stopColor="#22c55e" stopOpacity="0.30" />
+              <stop offset="50%" stopColor="#22c55e" stopOpacity="0.10" />
+              <stop offset="100%" stopColor="#22c55e" stopOpacity="0" />
             </linearGradient>
             <filter id="glow">
               <feGaussianBlur stdDeviation="3" result="b" />
@@ -2364,10 +2516,10 @@ function SpawnCronCard({ data, connected, timezone, onRefresh }: { data: any; co
               {/* Area */}
               <polygon points={`${xPos(0)},${TY + ph} ${pts} ${xPos(history.length - 1)},${TY + ph}`} fill="url(#areaGrad)" className="area" />
               {/* Glow line */}
-              <polyline points={pts} fill="none" stroke="#8b5cf6" strokeWidth={glowW} strokeLinecap="round" strokeLinejoin="round" opacity="0"
+              <polyline points={pts} fill="none" stroke="#22c55e" strokeWidth={glowW} strokeLinecap="round" strokeLinejoin="round" opacity="0"
                 filter="url(#glow)" className="glow" style={{ '--d': 99999 } as React.CSSProperties} />
               {/* Main line */}
-              <polyline points={pts} fill="none" stroke="#a78bfa" strokeWidth={lineW} strokeLinecap="round" strokeLinejoin="round"
+              <polyline points={pts} fill="none" stroke="#4ade80" strokeWidth={lineW} strokeLinecap="round" strokeLinejoin="round"
                 className="cline" style={{ '--d': 99999 } as React.CSSProperties} />
 
               {/* Data points — always visible, hoverable, clickable */}
@@ -2388,7 +2540,7 @@ function SpawnCronCard({ data, connected, timezone, onRefresh }: { data: any; co
                       style={{ cursor: "pointer" }} />
                     {/* Hover ring */}
                     {isHovered && (
-                      <circle cx={x} cy={y} r={isNarrow ? "10" : "8"} fill="none" stroke="#a78bfa" strokeWidth="1" opacity="0.5">
+                      <circle cx={x} cy={y} r={isNarrow ? "10" : "8"} fill="none" stroke="#4ade80" strokeWidth="1" opacity="0.5">
                         <animate attributeName="r" from={isNarrow ? "8" : "6"} to={isNarrow ? "12" : "10"} dur="0.8s" repeatCount="indefinite" />
                         <animate attributeName="opacity" from="0.5" to="0" dur="0.8s" repeatCount="indefinite" />
                       </circle>
@@ -2396,11 +2548,11 @@ function SpawnCronCard({ data, connected, timezone, onRefresh }: { data: any; co
                     {/* Dot */}
                     {isLast ? (
                       <>
-                        <circle cx={x} cy={y} r={lastGlowR} fill="#8b5cf6" opacity="0.25" className="ldot" />
-                        <circle cx={x} cy={y} r={lastDotR} fill="#c4b5fd" stroke="#0d0d11" strokeWidth="1.5" />
+                        <circle cx={x} cy={y} r={lastGlowR} fill="#22c55e" opacity="0.25" className="ldot" />
+                        <circle cx={x} cy={y} r={lastDotR} fill="#86efac" stroke="#0d0d11" strokeWidth="1.5" />
                       </>
                     ) : (
-                      <circle cx={x} cy={y} r={isHovered ? dotHoverR : dotR} fill={isHovered ? "#c4b5fd" : "#a78bfa"} stroke="#0d0d11" strokeWidth={isHovered ? "2" : "1"} />
+                      <circle cx={x} cy={y} r={isHovered ? dotHoverR : dotR} fill={isHovered ? "#86efac" : "#4ade80"} stroke="#0d0d11" strokeWidth={isHovered ? "2" : "1"} />
                     )}
                     {/* Value label on hover */}
                     {isHovered && !isLast && (
@@ -2455,7 +2607,7 @@ function SpawnCronCard({ data, connected, timezone, onRefresh }: { data: any; co
             style={{ top: `${pctY}%`, ...xStyle }}>
             {dateStr && <div className="text-[11px] text-[#71717a] font-mono whitespace-nowrap mb-0.5">{dateStr}</div>}
             <div className="text-[11px] font-mono text-[#fafafa] whitespace-nowrap">
-              Tick {tooltip.i + 1}: <span className="text-[#a78bfa] font-bold">{(tooltip.v / 1000).toFixed(2)}s</span>
+              Tick {tooltip.i + 1}: <span className="text-[#4ade80] font-bold">{(tooltip.v / 1000).toFixed(2)}s</span>
             </div>
           </div>
         );
