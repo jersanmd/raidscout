@@ -1,8 +1,8 @@
 // Discord API -- rate-limit-aware fetch
 
-const DISCORD_FETCH_TIMEOUT_MS = 20_000; // 20s — prevents hung requests from blocking the bot
+const DISCORD_FETCH_TIMEOUT_MS = 10_000; // 10s — prevents hung requests from blocking the bot
 
-export async function discordFetch(url: string, options: RequestInit = {}, retries = 3): Promise<Response> {
+export async function discordFetch(url: string, options: RequestInit = {}, retries = 2): Promise<Response> {
   for (let attempt = 0; attempt < retries; attempt++) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), DISCORD_FETCH_TIMEOUT_MS);

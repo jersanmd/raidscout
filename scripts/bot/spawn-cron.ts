@@ -37,14 +37,24 @@ export function buildDedupKey(event: string, sid: string, tid: string, ts: numbe
   }
 }
 
-async function recordNotification(event: string, serverId: string, targetId: string, spawnUnix: number) {
-  await fetch(`${SUPABASE_URL}/rest/v1/spawn_notifications`, {
+// Batch queue for dedup notifications — flushed at end of tick
+let pendingDedupBatch: { event: string; serverId: string; targetId: string; spawnUnix: number }[] = [];
+
+function queueDedupRecord(event: string, serverId: string, targetId: string, spawnUnix: number) {
+  pendingDedupBatch.push({ event, serverId, targetId, spawnUnix });
+}
+
+async function flushDedupBatch() {
+  if (!pendingDedupBatch.length) return;
+  const batch = pendingDedupBatch.splice(0);
+  // Fire-and-forget — single POST with JSON array
+  fetch(`${SUPABASE_URL}/rest/v1/spawn_notifications`, {
     method: "POST",
     headers: { apikey: SUPABASE_KEY!, Authorization: `Bearer ${SUPABASE_KEY!}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      server_id: serverId, boss_id: targetId,
-      event, spawn_timestamp: spawnUnix,
-    }),
+    body: JSON.stringify(batch.map(r => ({
+      server_id: r.serverId, boss_id: r.targetId,
+      event: r.event, spawn_timestamp: r.spawnUnix,
+    }))),
   }).catch(() => {});
 }
 
@@ -114,16 +124,16 @@ export function startSpawnCron() {
   // Preload dedup cache from DB so restarts don't re-fire notifications
   preloadDedupFromDb().catch((err) => logError("cron", "preloadDedupFromDb failed", err));
 
-  // Adaptive tick interval: speed up when fast, slow down under load
-
+  // Adaptive tick interval: scales proportionally to load.
+  // interval = floor(avg / 30s) × 30s + 30s, minimum 30s.
+  // Avg is computed from the rolling buffer of last ~60 tick durations.
   function getAdaptiveInterval(): number {
     if (recentTickDurations.length < 3) return 30_000;
 
-    const avg = recentTickDurations.reduce((a, b) => a + b, 0) / recentTickDurations.length;
-    let interval = 30_000;
-    if (avg >= 75_000) interval = 120_000;
-    else if (avg >= 45_000) interval = 90_000;
-    else if (avg >= 15_000) interval = 60_000;
+    const sample = recentTickDurations.slice(-10);
+    const avg = sample.reduce((a, b) => a + b, 0) / sample.length;
+    const step = 30_000;
+    const interval = Math.max(30_000, Math.floor(avg / step) * step + step);
 
     lastTickIntervalMs = interval;
     return interval;
@@ -220,7 +230,7 @@ async function runSpawnCron() {
     }
   }).catch(() => {});
 
-  const serverResults = await concurrentMap(serverIds, 5, async (serverId) => {
+  const serverResults = await concurrentMap(serverIds, 8, async (serverId) => {
     let bossCount = 0;
     
     try {
@@ -229,8 +239,13 @@ async function runSpawnCron() {
     try {
       snap = await supabaseRpc("bot_server_snapshot", { p_server_id: serverId });
     } catch (err) {
-      logError("cron", "RPC failed, falling back to REST", null, { serverId });
-      snap = null;
+      // Retry once before falling back to REST
+      try {
+        snap = await supabaseRpc("bot_server_snapshot", { p_server_id: serverId });
+      } catch (err2) {
+        logError("cron", "RPC failed after retry, falling back to REST", null, { serverId });
+        snap = null;
+      }
     }
 
     if (!snap) {
@@ -317,7 +332,7 @@ async function runSpawnCron() {
           const spawnDedupKey = `${serverId}-${boss.id}-boss_spawned-${spawnUnix}`;
           if (!sentNotifs.has(spawnDedupKey)) {
             sentNotifs.set(spawnDedupKey, Date.now());
-            recordNotification("boss_spawned", serverId, boss.id, spawnUnix);
+            queueDedupRecord("boss_spawned", serverId, boss.id, spawnUnix);
             const timeStr = spawnTime.toLocaleString("en-US", { timeZone: tz || "Asia/Manila", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: true });
             const text = `🟢 **${boss.name}** has spawned -- **${guildName}** ${timeStr}`;
             notifPromises.push(
@@ -334,7 +349,7 @@ async function runSpawnCron() {
           const dedupKey = `${serverId}-${boss.id}-5min-${spawnUnix}`;
           if (!sentNotifs.has(dedupKey)) {
             sentNotifs.set(dedupKey, Date.now());
-            recordNotification("boss_spawning", serverId, boss.id, spawnUnix);
+            queueDedupRecord("boss_spawning", serverId, boss.id, spawnUnix);
             const timeStr = spawnTime.toLocaleString("en-US", { timeZone: tz || "Asia/Manila", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: true });
             const text = `⚠️ **${boss.name}** spawning in 5 min -- **${guildName}** ${timeStr}`;
             notifPromises.push(
@@ -345,7 +360,7 @@ async function runSpawnCron() {
           const threadDedupKey = `${serverId}-thread-${boss.id}-${spawnUnix}`;
           if (!sentNotifs.has(threadDedupKey)) {
             sentNotifs.set(threadDedupKey, Date.now());
-            recordNotification("boss_thread", serverId, boss.id, spawnUnix);
+            queueDedupRecord("boss_thread", serverId, boss.id, spawnUnix);
             const preFetchedThread = {
               configs: serverThreadConfigs.get(serverId),
               guildIdToName,
@@ -433,7 +448,7 @@ async function runSpawnCron() {
             const threadDedupKey = `${serverId}-thread-activity-${activity.id}-${startUnix}`;
             if (!sentNotifs.has(threadDedupKey)) {
               sentNotifs.set(threadDedupKey, Date.now());
-              recordNotification("activity_thread", serverId, activity.id, startUnix);
+              queueDedupRecord("activity_thread", serverId, activity.id, startUnix);
               const preFetchedAct = { configs: serverThreadConfigs.get(serverId), guildIdToName, tz };
               if (actGuildNames.length > 0) {
                 for (const gn of actGuildNames) {
@@ -456,7 +471,7 @@ async function runSpawnCron() {
             const warnDedupKey = `${serverId}-act-5min-${activity.id}-${startUnix}`;
             if (!sentNotifs.has(warnDedupKey)) {
               sentNotifs.set(warnDedupKey, Date.now());
-              recordNotification("activity_spawning", serverId, activity.id, startUnix);
+              queueDedupRecord("activity_spawning", serverId, activity.id, startUnix);
               const displayTz = activity.schedule_tz || tz;
               const timeStr = nextStart.toLocaleTimeString("en-US", { timeZone: displayTz, hour: "2-digit", minute: "2-digit", hour12: true });
               notifPromises.push(
@@ -470,7 +485,7 @@ async function runSpawnCron() {
             const startDedupKey = `${serverId}-act-started-${activity.id}-${startUnix}`;
             if (!sentNotifs.has(startDedupKey)) {
               sentNotifs.set(startDedupKey, Date.now());
-              recordNotification("activity_started", serverId, activity.id, startUnix);
+              queueDedupRecord("activity_started", serverId, activity.id, startUnix);
               notifPromises.push(
                 broadcastNotification(serverId, {}, "", `📋 **${activity.name}** is starting now!${guildTag}`, { configs: notifConfigs, serverPrefix }).catch(() => {})
               );
@@ -497,7 +512,8 @@ async function runSpawnCron() {
     recentTickDurations.push(lastTickDurationMs);
     if (recentTickDurations.length > MAX_TICK_HISTORY) recentTickDurations.shift();
 
-    // Persist tick metrics to DB for historical analysis
+    // Persist tick metrics + flush dedup batch to DB
+    flushDedupBatch().catch(() => {});
     fetch(`${SUPABASE_URL}/rest/v1/tick_metrics`, {
       method: "POST",
       headers: { apikey: SUPABASE_KEY!, Authorization: `Bearer ${SUPABASE_KEY!}`, "Content-Type": "application/json" },
