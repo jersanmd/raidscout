@@ -13,3 +13,5 @@
 ## 🐛 Bug Fixes
 
 - **Admin impersonation — stale build / reload loop** — `queueMicrotask(() => navigate("/"))` in the "View Server" button caused a timing gap between `setCurrentServer` and navigation, triggering Vite's "stale build detected" reload and MIME type errors when switching servers. Removed `queueMicrotask` — navigation now happens synchronously with the state update.
+- **Member Profile — Notes hidden for viewers/non-staff** — Notes section and delete buttons now only visible to owners and moderators. Regular members and viewers see no notes UI.
+- **Member Profile — Back button for viewers/non-staff** — "Back to Members" now navigates to the main Bosses/Activities tab for viewers and non-staff users, preventing broken history navigation from deep-linked profiles.

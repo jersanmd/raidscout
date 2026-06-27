@@ -80,6 +80,7 @@ export function MemberProfileView() {
   const serverId = useServerId();
   const { currentServer } = useServer();
   const { isViewer } = useAuth();
+  const isStaff = currentServer?.role === "owner" || currentServer?.role === "moderator";
   const serverTz = currentServer?.timezone || "UTC";
 
   // Compute week/month start in the server's timezone
@@ -676,7 +677,7 @@ export function MemberProfileView() {
   }, [profile]);
 
   if (isLoading) return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 text-[#71717a] animate-spin"/></div>;
-  if (!profile) return <div className="text-center py-20"><p className="text-[#71717a]">Member not found.</p><button onClick={() => isViewer ? navigate("/") : navigate(-1)} className="mt-4 text-[#a1a1aa] hover:text-[#fafafa] text-sm">← Go back</button></div>;
+  if (!profile) return <div className="text-center py-20"><p className="text-[#71717a]">Member not found.</p><button onClick={() => (isViewer || !isStaff) ? navigate("/") : navigate(-1)} className="mt-4 text-[#a1a1aa] hover:text-[#fafafa] text-sm">← Go back</button></div>;
 
   const filteredTimeline = timelineFilter === "all" ? timeline : timeline.filter(e => e.type === timelineFilter);
 
@@ -689,8 +690,8 @@ export function MemberProfileView() {
   return (
     <div className="w-full max-w-[100%] 2xl:max-w-[1600px] mx-auto px-3 sm:px-4 py-4 sm:py-6 space-y-4 sm:space-y-5">
       {/* Back */}
-      <button onClick={() => isViewer ? navigate("/") : navigate(-1)} className="flex items-center gap-1.5 text-[#a1a1aa] hover:text-[#fafafa] text-sm transition">
-        <ArrowLeft className="w-4 h-4"/>{isViewer ? "Back to RaidScout" : "Back to Members"}
+      <button onClick={() => (isViewer || !isStaff) ? navigate("/") : navigate(-1)} className="flex items-center gap-1.5 text-[#a1a1aa] hover:text-[#fafafa] text-sm transition">
+        <ArrowLeft className="w-4 h-4"/>{(isViewer || !isStaff) ? "Back to RaidScout" : "Back to Members"}
       </button>
 
       {/* ── Profile Header ── */}
@@ -1176,20 +1177,18 @@ export function MemberProfileView() {
       )}
 
       {/* ── Notes ── */}
-      {(!isViewer || profile.notes.length > 0) && (
+      {isStaff && !isViewer && (
       <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-4 sm:p-5">
           <div className="flex items-center gap-2 mb-3">
             <ScrollText className="w-4 h-4 text-purple-400"/>
             <h2 className="text-xs font-semibold text-[#a1a1aa] uppercase tracking-wider">Notes</h2>
           </div>
-          {!isViewer && (
           <div className="flex gap-2 mb-3">
             <input value={newNote} onChange={(e) => setNewNote(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleAddNote()}
               placeholder="Add a note..." className="flex-1 px-3 py-1.5 bg-[#09090b] border border-[#27272a] rounded-lg text-sm text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#52525b]"/>
             <button onClick={handleAddNote} disabled={!newNote.trim() || addingNote}
               className="px-3 py-1.5 bg-[#27272a] text-[#fafafa] rounded-lg text-sm hover:bg-[#3f3f46] transition disabled:opacity-50"><Plus className="w-4 h-4"/></button>
           </div>
-          )}
           {profile.notes.length === 0 ? (
             <p className="text-sm text-[#52525b] py-4 text-center">No notes yet</p>
           ) : (
@@ -1199,10 +1198,8 @@ export function MemberProfileView() {
                   <p className="text-sm text-[#d4d4d8]">{note.note}</p>
                   <div className="flex items-center justify-between mt-1.5">
                     <span className="text-[11px] text-[#52525b]">{timeAgo(note.created_at)}</span>
-                    {!isViewer && (
                     <button onClick={() => deleteNoteMutation.mutate(note.id)}
                       className="opacity-0 group-hover:opacity-100 text-[#52525b] hover:text-red-400 transition"><Trash2 className="w-3 h-3"/></button>
-                    )}
                   </div>
                 </div>
               ))}
