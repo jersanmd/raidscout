@@ -1184,7 +1184,11 @@ export async function handleMessage(msg: any) {
         try {
           const persistRes = await fetch(`${SUPABASE_URL}/functions/v1/persist-screenshot`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: {
+              "Content-Type": "application/json",
+              apikey: SUPABASE_KEY!,
+              Authorization: `Bearer ${SUPABASE_KEY!}`,
+            },
             body: JSON.stringify({
               attachment_url: screenshotUrl,
               guild_id: guildId,
