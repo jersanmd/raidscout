@@ -174,7 +174,6 @@ export async function fetchAnalytics(since: string, serverId?: string | null, ti
         .from("activity_instances")
         .select("id, activity_id, start_time, end_time")
         .in("activity_id", serverActivityIds)
-        .not("end_time", "is", null)
         .gte("end_time", since)
         .order("end_time", { ascending: false })
         .limit(5000);

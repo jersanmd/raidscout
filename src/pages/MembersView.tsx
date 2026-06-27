@@ -221,8 +221,7 @@ export function MembersView() {
         .from("activity_instances")
         .select("id, activity_guilds(guild_id), activities!inner(server_id)")
         .eq("activities.server_id", serverId)
-        .gte("end_time", weekStartISO)
-        .not("end_time", "is", null);
+        .gte("end_time", weekStartISO);
 
       const totals: Record<string, number> = {};
 

@@ -16,6 +16,16 @@
 
 - **`auto_kill_test_servers` type fix** — Fixed SQL STATE 22P02 caused by `picked INT[]` not matching `members.id` (UUID). Changed to `picked UUID[]`.
 - **Audit log sequence fix** — Added migration to reset `admin_audit_log_id_seq` to prevent duplicate key errors when writing audit entries.
+- **Fixed `fetch_moderator_permissions` RPC** — The function referenced outdated column names from an old schema. Recreated with `RETURNS SETOF` to automatically match the current table columns.
+
+## ⚡ Performance
+
+- **Fixed Supabase 400 errors on activity queries** — Removed duplicate `end_time` filter that PostgREST rejected with PGRST200. Affected Members, Member Profile, and Analytics pages.
+- **Fixed Supabase 400 errors on spawn notifications** — Bot was sending a non-existent column in POST requests to `spawn_notifications`, causing errors on every tick.
+
+## 🌐 SEO
+
+- **Changelog page now has meta tags** — Added title, description, and canonical URL for better search engine indexing.
 
 ## 🏦 DKP
 

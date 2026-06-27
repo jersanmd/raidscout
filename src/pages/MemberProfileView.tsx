@@ -142,7 +142,7 @@ export function MemberProfileView() {
       const [{ data: assistBosses }, { count: ownedKills }, { count: activities }] = await Promise.all([
         supabase.from("boss_assists").select("boss_id").eq("assistant_guild_id", guildId),
         supabase.from("death_records").select("*", { count: "exact", head: true }).eq("server_id", serverId).eq("owner_guild_id", guildId).gte("death_time", profile.created_at),
-        supabase.from("activity_instances").select("*, activities!inner(server_id), activity_guilds!inner(guild_id)", { count: "exact", head: true }).eq("activities.server_id", serverId).eq("activity_guilds.guild_id", guildId).gte("end_time", profile.created_at).not("end_time", "is", null),
+        supabase.from("activity_instances").select("*, activities!inner(server_id), activity_guilds!inner(guild_id)", { count: "exact", head: true }).eq("activities.server_id", serverId).eq("activity_guilds.guild_id", guildId).gte("end_time", profile.created_at),
       ]);
       let assistedKills = 0;
       if (assistBosses?.length) {
@@ -182,7 +182,7 @@ export function MemberProfileView() {
       const [{ data: assistBosses }, { count: ownedKills }, { count: activities }] = await Promise.all([
         supabase.from("boss_assists").select("boss_id").eq("assistant_guild_id", guildId),
         supabase.from("death_records").select("*", { count: "exact", head: true }).eq("server_id", serverId).eq("owner_guild_id", guildId).gte("death_time", weekStartISO),
-        supabase.from("activity_instances").select("*, activities!inner(server_id), activity_guilds!inner(guild_id)", { count: "exact", head: true }).eq("activities.server_id", serverId).eq("activity_guilds.guild_id", guildId).gte("end_time", weekStartISO).not("end_time", "is", null),
+        supabase.from("activity_instances").select("*, activities!inner(server_id), activity_guilds!inner(guild_id)", { count: "exact", head: true }).eq("activities.server_id", serverId).eq("activity_guilds.guild_id", guildId).gte("end_time", weekStartISO),
       ]);
       let assistedKills = 0;
       if (assistBosses?.length) {
@@ -202,7 +202,7 @@ export function MemberProfileView() {
       const [{ data: assistBosses }, { count: ownedKills }, { count: activities }] = await Promise.all([
         supabase.from("boss_assists").select("boss_id").eq("assistant_guild_id", guildId),
         supabase.from("death_records").select("*", { count: "exact", head: true }).eq("server_id", serverId).eq("owner_guild_id", guildId).gte("death_time", monthStartISO),
-        supabase.from("activity_instances").select("*, activities!inner(server_id), activity_guilds!inner(guild_id)", { count: "exact", head: true }).eq("activities.server_id", serverId).eq("activity_guilds.guild_id", guildId).gte("end_time", monthStartISO).not("end_time", "is", null),
+        supabase.from("activity_instances").select("*, activities!inner(server_id), activity_guilds!inner(guild_id)", { count: "exact", head: true }).eq("activities.server_id", serverId).eq("activity_guilds.guild_id", guildId).gte("end_time", monthStartISO),
       ]);
       let assistedKills = 0;
       if (assistBosses?.length) {

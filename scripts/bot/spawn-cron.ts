@@ -43,7 +43,7 @@ async function recordNotification(event: string, serverId: string, targetId: str
     headers: { apikey: SUPABASE_KEY!, Authorization: `Bearer ${SUPABASE_KEY!}`, "Content-Type": "application/json" },
     body: JSON.stringify({
       server_id: serverId, boss_id: targetId,
-      event, spawn_timestamp: spawnUnix, notified_via: "discord",
+      event, spawn_timestamp: spawnUnix,
     }),
   }).catch(() => {});
 }
