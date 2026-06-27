@@ -29,6 +29,15 @@
 - **Fixed Supabase 400 errors on activity queries** — Removed duplicate `end_time` filter that PostgREST rejected with PGRST200. Affected Members, Member Profile, and Analytics pages.
 - **Fixed Supabase 400 errors on spawn notifications** — Bot was sending a non-existent column in POST requests to `spawn_notifications`, causing errors on every tick.
 
+## 🔒 Security
+
+- **Bot HTTP API authentication** — All bot API endpoints (`/status`, `/logs`, `/tick-metrics`, `/create-thread`) now require `Authorization: Bearer <BOT_API_SECRET>`. Only `/health` remains public for Fly.io health checks.
+- **Edge function CORS restricted** — All 14 edge functions now validate origin against a whitelist (`raidscout.com`, staging, localhost) instead of using wildcard `*`. `paypal-ipn` keeps wildcard CORS because PayPal IPN callbacks are server-to-server.
+- **`dkp_auctions` RLS re-enabled** — Migration 189 restores Row Level Security with proper policies: members/viewers can read auctions for their servers, only owners and moderators can modify them.
+- **`ai-vision` input size limit** — Rejects images larger than 10MB with HTTP 413, preventing memory exhaustion attacks on the edge function.
+- **`create-progress-thread` bot auth** — Edge function now sends the `BOT_API_SECRET` when calling the bot's `/create-thread` endpoint.
+- **`bot-proxy` edge function** — New secure proxy so the admin panel can query bot status/logs/metrics without exposing the API secret to the browser.
+
 ## 🌐 SEO
 
 - **Changelog page now has meta tags** — Added title, description, and canonical URL for better search engine indexing.
