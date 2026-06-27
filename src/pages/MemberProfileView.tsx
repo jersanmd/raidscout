@@ -139,11 +139,26 @@ export function MemberProfileView() {
       const guildId = profile.guild_id;
       if (!guildId) return 0;
       // Owned boss kills + assisted boss kills
-      const [{ data: assistBosses }, { count: ownedKills }, { count: activities }] = await Promise.all([
+      const [{ data: assistBosses }, { count: ownedKills }] = await Promise.all([
         supabase.from("boss_assists").select("boss_id").eq("assistant_guild_id", guildId),
         supabase.from("death_records").select("*", { count: "exact", head: true }).eq("server_id", serverId).eq("owner_guild_id", guildId).gte("death_time", profile.created_at),
-        supabase.from("activity_instances").select("*, activities!inner(server_id), activity_guilds!inner(guild_id)", { count: "exact", head: true }).eq("activities.server_id", serverId).eq("activity_guilds.guild_id", guildId).gte("end_time", profile.created_at),
       ]);
+      // Count guild activity instances separately (avoids PGRST200 with double !inner joins)
+      let activities = 0;
+      {
+        const { data: guildActs } = await supabase.from("activity_guilds")
+          .select("activity_id, activities!inner(server_id)")
+          .eq("activities.server_id", serverId)
+          .eq("guild_id", guildId);
+        const actIds = (guildActs || []).map((a: any) => a.activity_id);
+        if (actIds.length > 0) {
+          const { count } = await supabase.from("activity_instances")
+            .select("*", { count: "exact", head: true })
+            .in("activity_id", actIds)
+            .gte("end_time", profile.created_at);
+          activities = count ?? 0;
+        }
+      }
       let assistedKills = 0;
       if (assistBosses?.length) {
         const bossIds = [...new Set(assistBosses.map((a: any) => a.boss_id))];
@@ -179,11 +194,25 @@ export function MemberProfileView() {
     queryFn: async () => {
       if (!serverId) return 0;
       const guildId = profile?.guild_id; if (!guildId) return 0;
-      const [{ data: assistBosses }, { count: ownedKills }, { count: activities }] = await Promise.all([
+      const [{ data: assistBosses }, { count: ownedKills }] = await Promise.all([
         supabase.from("boss_assists").select("boss_id").eq("assistant_guild_id", guildId),
         supabase.from("death_records").select("*", { count: "exact", head: true }).eq("server_id", serverId).eq("owner_guild_id", guildId).gte("death_time", weekStartISO),
-        supabase.from("activity_instances").select("*, activities!inner(server_id), activity_guilds!inner(guild_id)", { count: "exact", head: true }).eq("activities.server_id", serverId).eq("activity_guilds.guild_id", guildId).gte("end_time", weekStartISO),
       ]);
+      let activities = 0;
+      {
+        const { data: guildActs } = await supabase.from("activity_guilds")
+          .select("activity_id, activities!inner(server_id)")
+          .eq("activities.server_id", serverId)
+          .eq("guild_id", guildId);
+        const actIds = (guildActs || []).map((a: any) => a.activity_id);
+        if (actIds.length > 0) {
+          const { count } = await supabase.from("activity_instances")
+            .select("*", { count: "exact", head: true })
+            .in("activity_id", actIds)
+            .gte("end_time", weekStartISO);
+          activities = count ?? 0;
+        }
+      }
       let assistedKills = 0;
       if (assistBosses?.length) {
         const bossIds = [...new Set(assistBosses.map((a: any) => a.boss_id))];
@@ -199,11 +228,25 @@ export function MemberProfileView() {
     queryFn: async () => {
       if (!serverId) return 0;
       const guildId = profile?.guild_id; if (!guildId) return 0;
-      const [{ data: assistBosses }, { count: ownedKills }, { count: activities }] = await Promise.all([
+      const [{ data: assistBosses }, { count: ownedKills }] = await Promise.all([
         supabase.from("boss_assists").select("boss_id").eq("assistant_guild_id", guildId),
         supabase.from("death_records").select("*", { count: "exact", head: true }).eq("server_id", serverId).eq("owner_guild_id", guildId).gte("death_time", monthStartISO),
-        supabase.from("activity_instances").select("*, activities!inner(server_id), activity_guilds!inner(guild_id)", { count: "exact", head: true }).eq("activities.server_id", serverId).eq("activity_guilds.guild_id", guildId).gte("end_time", monthStartISO),
       ]);
+      let activities = 0;
+      {
+        const { data: guildActs } = await supabase.from("activity_guilds")
+          .select("activity_id, activities!inner(server_id)")
+          .eq("activities.server_id", serverId)
+          .eq("guild_id", guildId);
+        const actIds = (guildActs || []).map((a: any) => a.activity_id);
+        if (actIds.length > 0) {
+          const { count } = await supabase.from("activity_instances")
+            .select("*", { count: "exact", head: true })
+            .in("activity_id", actIds)
+            .gte("end_time", monthStartISO);
+          activities = count ?? 0;
+        }
+      }
       let assistedKills = 0;
       if (assistBosses?.length) {
         const bossIds = [...new Set(assistBosses.map((a: any) => a.boss_id))];

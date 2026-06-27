@@ -49,3 +49,6 @@
 - **InventoryView analytics IIFE closing** — Fixed the analytics tab closing to match its IIFE opening.
 - **Weekly Schedule — spinner disappeared before attendance loaded** — On first visit, the loading overlay dismissed immediately because the "no death records → skip waiting" logic fired before boss/death record data arrived. Now waits for `bossesLoading` and `recordsLoading` to both finish before skipping the overlay.
 - **Bot Status stat cards — responsive font sizing** — Removed `truncate` from Uptime, Memory, Machine, and Node.js stat card values. On small screens, font sizes now scale down to `text-[10px]` so full values display without being cut off.
+- **Member Profile — activity count PGRST200** — PostgREST rejected queries with two `!inner` joins (`activities` + `activity_guilds`) combined with `count: "exact"`. Replaced with a two-step query: first fetch guild activity IDs, then count instances by ID list.
+- **attendance_records RLS — missing UPDATE policy** — Upserts (`INSERT ON CONFLICT DO UPDATE`) failed because no UPDATE policy existed. Added server-scoped SELECT, INSERT, UPDATE, and DELETE policies for `attendance_records`.
+- **spawn_notifications CHECK constraint** — `boss_thread` event was missing from the allowed values, causing bot thread-creation notifications to fail. Added to the constraint.
