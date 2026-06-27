@@ -32,6 +32,181 @@ function SentinelAdminAudit({ onVisible, loading }: { onVisible: () => void; loa
   );
 }
 
+// ── Supabase Connection Monitor ────────────────────────────
+
+interface SupabasePing {
+  ts: number;
+  ms: number;
+  ok: boolean;
+}
+
+export interface InfraMetrics {
+  tableCounts: Record<string, number>;
+  tableCount: number | null;
+  dbSizeBytes: number | null;
+  dbSizePretty: string | null;
+  activeConnections: number | null;
+  totalConnections: number | null;
+  region: string;
+}
+
+export const SUPABASE_PING_HISTORY = 60;
+export const TABLE_NAMES = [
+  "servers", "members", "death_records", "bosses", "spawn_notifications",
+  "attendance_records", "items", "audit_log", "guilds", "boss_guilds",
+  "activity_instances", "activity_guilds", "activity_schedules",
+  "activity_point_rules", "cp_updates", "cp_screenshots",
+  "gear_slots", "gear_slot_categories", "member_gear",
+  "item_catalog", "item_collections", "collection_items",
+  "dkp_auctions", "dkp_bids", "dkp_distributed", "dkp_config",
+  "member_notes", "member_claim_requests", "payments", "app_settings",
+  "moderator_permissions", "server_members", "server_settings",
+  "subscriptions", "games", "boss_images", "point_adjustments",
+  "leaderboard_snapshots", "discord_configs", "notifications",
+] as const;
+
+export function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+}
+
+export function SupabaseConnectionCard({ pings, pingLoading, metrics, metricsLoading, projectUrl }: { pings: SupabasePing[]; pingLoading: boolean; metrics: InfraMetrics | null; metricsLoading: boolean; projectUrl: string }) {
+  const latest = pings[pings.length - 1];
+  const avgMs = pings.length > 0 ? pings.reduce((s, p) => s + p.ms, 0) / pings.length : 0;
+  const maxMs = pings.length > 0 ? Math.max(...pings.map(p => p.ms)) : 0;
+  const minMs = pings.length > 0 ? Math.min(...pings.map(p => p.ms)) : 0;
+
+  const statusColor = !latest ? "#52525b"
+    : !latest.ok ? "#ef4444"
+    : latest.ms < 200 ? "#22c55e"
+    : latest.ms < 800 ? "#eab308"
+    : "#ef4444";
+  const statusLabel = !latest ? "—"
+    : !latest.ok ? "Error"
+    : latest.ms < 200 ? "Healthy"
+    : latest.ms < 800 ? "Degraded"
+    : "Slow";
+
+  // SVG sparkline
+  const W = 280, H = 48;
+  const pad = { left: 4, right: 4, top: 4, bottom: 4 };
+  const chartW = W - pad.left - pad.right;
+  const chartH = H - pad.top - pad.bottom;
+  const rangeMs = Math.max(maxMs, 100) - Math.min(minMs, 0);
+  const yFor = (ms: number) => pad.top + chartH - (rangeMs > 0 ? ((ms - Math.min(minMs, 0)) / rangeMs) * chartH : chartH / 2);
+  const pts = pings.map((p, i) => ({
+    x: pad.left + (pings.length > 1 ? (i / (pings.length - 1)) * chartW : chartW / 2),
+    y: yFor(p.ms),
+  }));
+  const lineD = pts.length > 1 ? `M${pts.map(p => `${p.x},${p.y}`).join("L")}` : "";
+  const areaD = pts.length > 1 ? `${lineD} L${pts[pts.length - 1].x},${pad.top + chartH} L${pts[0].x},${pad.top + chartH} Z` : "";
+  const y200 = yFor(200);
+  const y800 = yFor(800);
+
+  const isLoading = pingLoading || metricsLoading;
+  const totalRows = metrics ? Object.values(metrics.tableCounts).reduce((a, b) => a + b, 0) : 0;
+
+  return (
+    <div className="bg-[#0d0d11] border border-[#1e1e2a] rounded-xl p-3 sm:p-4 space-y-3">
+      <div className="flex items-center justify-between">
+        <h4 className="text-sm font-semibold text-[#fafafa]">Supabase Connection</h4>
+        <span className="text-[11px] text-[#52525b] font-mono truncate max-w-[160px]" title={projectUrl}>
+          {projectUrl}
+        </span>
+      </div>
+
+      {/* Status row */}
+      <div className="flex items-center gap-2">
+        <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: statusColor }} />
+        <span className="text-sm font-medium" style={{ color: statusColor }}>{statusLabel}</span>
+        {latest && <span className="text-[11px] text-[#52525b] ml-auto">{latest.ms.toFixed(0)}ms</span>}
+        {isLoading && <Loader2 className="w-3 h-3 text-[#52525b] animate-spin ml-1" />}
+      </div>
+
+      {/* Sparkline */}
+      {pings.length > 1 && (
+        <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-12">
+          <line x1={pad.left} y1={y200} x2={pad.left + chartW} y2={y200} stroke="rgba(234,179,8,0.2)" strokeWidth={0.5} strokeDasharray="2,3" />
+          <line x1={pad.left} y1={y800} x2={pad.left + chartW} y2={y800} stroke="rgba(239,68,68,0.15)" strokeWidth={0.5} strokeDasharray="2,3" />
+          <path d={areaD} fill="rgba(59,130,246,0.08)" />
+          <path d={lineD} fill="none" stroke="#3b82f6" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+          {pts.length > 0 && (
+            <circle cx={pts[pts.length - 1].x} cy={pts[pts.length - 1].y} r={2.5} fill="#3b82f6" />
+          )}
+        </svg>
+      )}
+
+      {/* Latency stats */}
+      <div className="grid grid-cols-3 gap-2 text-center">
+        <div>
+          <p className="text-[10px] text-[#52525b] uppercase">Avg</p>
+          <p className="text-xs font-mono text-[#a1a1aa]">{pings.length > 0 ? `${avgMs.toFixed(0)}ms` : "—"}</p>
+        </div>
+        <div>
+          <p className="text-[10px] text-[#52525b] uppercase">Min</p>
+          <p className="text-xs font-mono text-[#a1a1aa]">{pings.length > 0 ? `${minMs.toFixed(0)}ms` : "—"}</p>
+        </div>
+        <div>
+          <p className="text-[10px] text-[#52525b] uppercase">Max</p>
+          <p className="text-xs font-mono text-[#a1a1aa]">{pings.length > 0 ? `${maxMs.toFixed(0)}ms` : "—"}</p>
+        </div>
+      </div>
+
+      {/* Divider */}
+      <div className="border-t border-[#1e1e2a]" />
+
+      {/* Database Overview */}
+      <div>
+        <p className="text-[11px] text-[#71717a] uppercase tracking-wider mb-2">Database Overview</p>
+        <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
+          {metricsLoading ? (
+            <div className="col-span-2 flex justify-center py-2">
+              <Loader2 className="w-4 h-4 text-[#52525b] animate-spin" />
+            </div>
+          ) : metrics ? (
+            <>
+              <div className="flex justify-between col-span-2">
+                <span className="text-[11px] text-[#a1a1aa]">Region</span>
+                <span className="text-[11px] text-[#d4d4d8] font-mono">{metrics.region}</span>
+              </div>
+              {metrics.dbSizePretty && (
+                <div className="flex justify-between col-span-2">
+                  <span className="text-[11px] text-[#a1a1aa]">DB Size</span>
+                  <span className="text-[11px] text-[#d4d4d8] font-mono">{metrics.dbSizePretty}</span>
+                </div>
+              )}
+              <div className="flex justify-between">
+                <span className="text-[11px] text-[#a1a1aa]">Total Rows</span>
+                <span className="text-[11px] text-[#d4d4d8] font-mono">{totalRows.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-[11px] text-[#a1a1aa]">Tables</span>
+                <span className="text-[11px] text-[#d4d4d8] font-mono">{metrics.tableCount ?? `${Object.keys(metrics.tableCounts).length}+`}</span>
+              </div>
+              {metrics.activeConnections != null && (
+                <>
+                  <div className="flex justify-between">
+                    <span className="text-[11px] text-[#a1a1aa]">Active Conns</span>
+                    <span className="text-[11px] text-[#d4d4d8] font-mono">{metrics.activeConnections}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-[11px] text-[#a1a1aa]">Total Conns</span>
+                    <span className="text-[11px] text-[#d4d4d8] font-mono">{metrics.totalConnections}</span>
+                  </div>
+                </>
+              )}
+            </>
+          ) : (
+            <p className="text-[11px] text-[#52525b] col-span-2">No metrics available</p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function AdminPanelView() {
   const [searchParams, setSearchParams] = useSearchParams();
   const tabParam = searchParams.get("tab") as "servers" | "users" | "audit" | "games" | "infra" | "database" | "cron" | "deleted" | "payments" | null;
@@ -310,6 +485,82 @@ export function AdminPanelView() {
       logScrollRef.current.scrollTop = 0;
     }
   }, [botLogs]);
+
+  // ── Supabase Connection Ping ─────────────────────────────
+  const supabasePingsRef = useRef<SupabasePing[]>([]);
+  const [supabasePings, setSupabasePings] = useState<SupabasePing[]>([]);
+  const supabaseProjectUrl = "oeugehqgpodzhagomeex.supabase.co";
+
+  const { isFetching: pingLoading, data: pingResult } = useQuery({
+    queryKey: ["admin", "supabase-ping"],
+    queryFn: async () => {
+      const start = performance.now();
+      try {
+        const { error } = await supabase.from("servers").select("id", { count: "exact", head: true });
+        const ms = performance.now() - start;
+        return { ok: !error, ms };
+      } catch {
+        return { ok: false, ms: performance.now() - start };
+      }
+    },
+    staleTime: 0,
+    refetchInterval: 30_000,
+    enabled: userRole === "admin" && tab === "infra",
+  });
+
+  // Collect ping results into history
+  useEffect(() => {
+    if (!pingResult) return;
+    const ping: SupabasePing = { ts: Date.now(), ms: pingResult.ms, ok: pingResult.ok };
+    supabasePingsRef.current = [...supabasePingsRef.current.slice(-(SUPABASE_PING_HISTORY - 1)), ping];
+    setSupabasePings([...supabasePingsRef.current]);
+  }, [pingResult]);
+
+  // ── Infra Metrics (table counts + DB stats) ──────────────
+  const { data: infraMetrics, isLoading: metricsLoading } = useQuery({
+    queryKey: ["admin", "infra-metrics"],
+    queryFn: async (): Promise<InfraMetrics> => {
+      // Region: Supabase project is hosted in ap-southeast-1 (Singapore/AWS)
+      const region = "🇸🇬 Singapore (ap-southeast-1)";
+
+      // Try RPC first for full metrics
+      try {
+        const { data: rpcData, error: rpcErr } = await supabase.rpc("get_infra_metrics");
+        if (!rpcErr && rpcData) {
+          return {
+            tableCounts: (rpcData as any).table_counts ?? {},
+            tableCount: (rpcData as any).table_count ?? null,
+            dbSizeBytes: (rpcData as any).db_size_bytes ?? null,
+            dbSizePretty: (rpcData as any).db_size_pretty ?? null,
+            activeConnections: (rpcData as any).active_connections ?? null,
+            totalConnections: (rpcData as any).total_connections ?? null,
+            region,
+          };
+        }
+      } catch { /* RPC not yet deployed, fall back to client queries */ }
+
+      // Fallback: count rows per table via parallel HEAD requests
+      const counts: Record<string, number> = {};
+      await Promise.allSettled(
+        TABLE_NAMES.map(async (table) => {
+          const { count, error } = await supabase.from(table).select("*", { count: "exact", head: true });
+          if (!error && count != null) counts[table] = count;
+        })
+      );
+      return {
+        tableCounts: counts,
+        tableCount: Object.keys(counts).length,
+        dbSizeBytes: null,
+        dbSizePretty: null,
+        activeConnections: null,
+        totalConnections: null,
+        region,
+      };
+    },
+    staleTime: 60_000,
+    refetchInterval: 120_000,
+    enabled: userRole === "admin" && tab === "infra",
+  });
 
   const { data: deletedServers = [], isLoading: deletedLoading, refetch: refetchDeleted } = useQuery({
     queryKey: ["admin", "deleted"],
@@ -1621,7 +1872,9 @@ export function AdminPanelView() {
 
       {/* Infra Tab */}
       {tab === "infra" && (
-        <div className="space-y-3 sm:space-y-4">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
+          {/* Left column: Bot Logs */}
+          <div className="space-y-3 sm:space-y-4">
           {/* Bot Logs Terminal */}
           <div className="bg-[#08080c] border border-[#1e1e2a] rounded-xl overflow-hidden shadow-inner">
             {/* Terminal header */}
@@ -1657,13 +1910,12 @@ export function AdminPanelView() {
             </div>
           </div>
 
-          {/* Bot Status Header */}
-          <div className="flex items-center justify-between">
-            <h4 className="text-sm font-semibold text-[#fafafa]">Bot Status</h4>
-            <button onClick={() => refetchBot()} className="p-1 rounded text-[#a1a1aa] hover:text-[#fafafa] transition" title="Refresh">
-              <RefreshCw className="w-3.5 h-3.5" />
-            </button>
+          {/* Supabase Connection Monitor */}
+          <SupabaseConnectionCard pings={supabasePings} pingLoading={pingLoading} metrics={infraMetrics ?? null} metricsLoading={metricsLoading} projectUrl={supabaseProjectUrl} />
           </div>
+
+          {/* Right column: Bot Status */}
+          <div className="space-y-3 sm:space-y-4">
           {botLoading ? (
             <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 text-[#71717a] animate-spin" /></div>
           ) : !botStatus?.ok ? (
@@ -1671,7 +1923,7 @@ export function AdminPanelView() {
           ) : (
             <>
               {/* ── Spawn Cron Premium Card ── */}
-              <SpawnCronCard data={botStatus.spawn_cron} connected={botStatus.discord_connected} timezone={timezone} />
+              <SpawnCronCard data={botStatus.spawn_cron} connected={botStatus.discord_connected} timezone={timezone} onRefresh={refetchBot} />
 
               {/* Status Cards — 2-col on mobile, 4-col on desktop */}
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
@@ -1684,17 +1936,17 @@ export function AdminPanelView() {
                 </div>
                 <div className="bg-[#0d0d11] border border-[#1e1e2a] rounded-xl p-2 sm:p-4 text-center">
                   <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#52525b] mx-auto mb-1 sm:mb-2" />
-                  <p className="text-[11px] sm:text-xs text-[#d4d4d8] font-mono truncate">{liveUptime || botStatus.uptime_display}</p>
+                  <p className="text-[10px] sm:text-xs text-[#d4d4d8] font-mono">{liveUptime || botStatus.uptime_display}</p>
                   <p className="text-[11px] sm:text-[11px] text-[#52525b] mt-0.5 sm:mt-1 uppercase tracking-wider">Uptime</p>
                 </div>
                 <div className="bg-[#0d0d11] border border-[#1e1e2a] rounded-xl p-2 sm:p-4 text-center">
                   <HardDrive className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#52525b] mx-auto mb-1 sm:mb-2" />
-                  <p className="text-xs sm:text-lg font-bold text-[#d4d4d8] truncate">{botStatus.memory_mb} / 1024 MB</p>
+                  <p className="text-[10px] sm:text-lg font-bold text-[#d4d4d8]">{botStatus.memory_mb} / 1024 MB</p>
                   <p className="text-[11px] sm:text-[11px] text-[#52525b] mt-0.5 sm:mt-1 uppercase tracking-wider">Memory</p>
                 </div>
                 <div className="bg-[#0d0d11] border border-[#1e1e2a] rounded-xl p-2 sm:p-4 text-center">
                   <Radio className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#52525b] mx-auto mb-1 sm:mb-2" />
-                  <p className="text-[11px] sm:text-xs text-[#d4d4d8] truncate">{botStatus.region ? (FLY_REGIONS[botStatus.region] || botStatus.region.toUpperCase()) : "—"} · 2 vCPU</p>
+                  <p className="text-[10px] sm:text-xs text-[#d4d4d8]">{botStatus.region ? (FLY_REGIONS[botStatus.region] || botStatus.region.toUpperCase()) : "—"} · 2 vCPU</p>
                   <p className="text-[11px] sm:text-[11px] text-[#52525b] mt-0.5 sm:mt-1 uppercase tracking-wider">Machine</p>
                 </div>
               </div>
@@ -1702,7 +1954,7 @@ export function AdminPanelView() {
               {/* Extra Info Cards — 3-col on all screens */}
               <div className="grid grid-cols-3 gap-2 sm:gap-3">
                 <div className="bg-[#0d0d11] border border-[#1e1e2a] rounded-xl p-2 sm:p-3 text-center">
-                  <p className="text-[11px] sm:text-xs text-[#d4d4d8] font-mono truncate">{botStatus.node_version}</p>
+                  <p className="text-[10px] sm:text-xs text-[#d4d4d8] font-mono">{botStatus.node_version}</p>
                   <p className="text-[11px] sm:text-[11px] text-[#52525b] mt-0.5 uppercase tracking-wider">Node.js</p>
                 </div>
                 <div className="bg-[#0d0d11] border border-[#1e1e2a] rounded-xl p-2 sm:p-3 text-center">
@@ -1760,6 +2012,7 @@ export function AdminPanelView() {
               </div>
             </>
           )}
+        </div>
         </div>
       )}
 
@@ -1899,7 +2152,7 @@ export function AdminPanelView() {
 }
 
 // ── Spawn Cron Premium Card ─────────────────────────────────
-function SpawnCronCard({ data, connected, timezone }: { data: any; connected: boolean; timezone: string }) {
+function SpawnCronCard({ data, connected, timezone, onRefresh }: { data: any; connected: boolean; timezone: string; onRefresh?: () => void }) {
   const [timeRange, setTimeRange] = useState("1h");
   const [tooltip, setTooltip] = useState<{ i: number; v: number; x: number; y: number } | null>(null);
   const inMemoryHistory: number[] = data?.tick_history_ms ?? [];
@@ -2039,6 +2292,11 @@ function SpawnCronCard({ data, connected, timezone }: { data: any; connected: bo
           </select>
         </div>
         <div className="flex items-center gap-1.5 sm:gap-3 flex-wrap">
+          {onRefresh && (
+            <button onClick={onRefresh} className="p-1 rounded text-[#52525b] hover:text-[#a1a1aa] transition" title="Refresh bot status">
+              <RefreshCw className="w-3 h-3" />
+            </button>
+          )}
           <div className="flex items-center gap-1 sm:gap-1.5 bg-[#18181b] rounded-lg px-2 sm:px-3 py-1 sm:py-1.5 border border-[#27272a]">
             <span className="text-[11px] sm:text-[11px] text-[#71717a] font-mono uppercase tracking-wider">avg</span>
             <span className="text-xs sm:text-sm font-bold text-[#fafafa] font-mono">{(avg / 1000).toFixed(2)}<span className="text-[11px] sm:text-[11px] text-[#71717a] ml-0.5">s</span></span>

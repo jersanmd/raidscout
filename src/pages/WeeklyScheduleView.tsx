@@ -140,13 +140,17 @@ export function WeeklyScheduleView() {
     }
   }, [attendanceFetching]);
 
-  // If no death records in this week, skip waiting — mark ready immediately
+  // If no death records in this week, skip waiting — mark ready immediately.
+  // Only skip if data has finished loading; otherwise death records may
+  // still be inflight and will populate shortly (triggering attendance fetch).
   useEffect(() => {
     if (deathRecordIds.length === 0) {
       setWeekLoading(false);
-      setPageReady(true);
+      if (!bossesLoading && !recordsLoading) {
+        setPageReady(true);
+      }
     }
-  }, [deathRecordIds.length]);
+  }, [deathRecordIds.length, bossesLoading, recordsLoading]);
 
   // Reset on week change: clear flags so overlay shows for new week's attendance.
   // Compare with prev value to skip initial mount (Strict Mode safe).

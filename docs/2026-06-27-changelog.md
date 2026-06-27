@@ -1,5 +1,11 @@
 # June 27, 2026 — Changelog (v0.15.10)
 
+## 💰 Paywall Gating
+
+- **DKP gated for expired servers** — DKP is now locked behind the paywall like other Pro features:
+  - **Main screen** (`/dkp`): Shows `ExpiredGate` when server access is expired, matching History, Leaderboard, Members, and Inventory.
+  - **Server Settings → DKP tab**: DKP settings tab is now gated when expired, matching Bosses, Activities, and Integrations tabs.
+
 ## 🎨 UI/UX
 
 - **Loading spinners added to Inventory tabs** — Recipients and Analytics tabs now show a spinner with descriptive text while data loads, instead of rendering empty/partial tables.
@@ -41,3 +47,5 @@
 - **InventoryView duplicate React imports** — Cleaned up duplicate `useState/useEffect/useMemo` import lines that were breaking the build.
 - **InventoryView catalog tab extra closings** — Removed three spurious IIFE closing structures that were left behind from a previous edit.
 - **InventoryView analytics IIFE closing** — Fixed the analytics tab closing to match its IIFE opening.
+- **Weekly Schedule — spinner disappeared before attendance loaded** — On first visit, the loading overlay dismissed immediately because the "no death records → skip waiting" logic fired before boss/death record data arrived. Now waits for `bossesLoading` and `recordsLoading` to both finish before skipping the overlay.
+- **Bot Status stat cards — responsive font sizing** — Removed `truncate` from Uptime, Memory, Machine, and Node.js stat card values. On small screens, font sizes now scale down to `text-[10px]` so full values display without being cut off.

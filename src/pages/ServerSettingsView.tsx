@@ -220,7 +220,7 @@ export function ServerSettingsView() {
     navigate(`?${params.toString()}`, { replace: true });
   };
 
-  const GATED_TABS = new Set(["bosses", "boss-points", "boss-guilds", "activities", "activity-points", "activity-guilds", "integrations"]);
+  const GATED_TABS = new Set(["bosses", "boss-points", "boss-guilds", "activities", "activity-points", "activity-guilds", "integrations", "dkp"]);
   const STAFF_TABS = new Set(["guilds", "members", "dkp"]);
   const isExpired = currentServer?.isExpired ?? false;
   const isStaff = currentServer?.role === "owner" || currentServer?.role === "moderator";
@@ -1138,7 +1138,7 @@ export function ServerSettingsView() {
 
       {/* Expired gate for locked tabs */}
       {isTabLocked ? (
-        <ExpiredGate page={tab === "bosses" ? "Bosses" : tab === "boss-points" ? "Boss Points" : tab === "boss-guilds" ? "Boss Guild Assignments" : tab === "activities" ? "Activities" : tab === "activity-points" ? "Activity Points" : "Activity Guild Assignments"} />
+        <ExpiredGate page={tab === "bosses" ? "Bosses" : tab === "boss-points" ? "Boss Points" : tab === "boss-guilds" ? "Boss Guild Assignments" : tab === "activities" ? "Activities" : tab === "activity-points" ? "Activity Points" : tab === "activity-guilds" ? "Activity Guild Assignments" : tab === "dkp" ? "DKP" : "Integrations"} />
       ) : (
       <>
       {/* General Tab */}
