@@ -17,6 +17,7 @@ import { useMembers } from "@/hooks/useMembers";
 import { Coins, TrendingUp, TrendingDown, History, Gavel, Loader2, Shield, Clock, Check, X, AlertTriangle, Image, Plus, Eye, Hourglass, Trash2, Pencil, CheckCircle, Package, Settings, Search, Gift, Minus } from "lucide-react";
 import { guildColor } from "@/lib/constants";
 import AuctionTheater from "@/components/AuctionTheater";
+import { ExpiredGate } from "@/components/ExpiredGate";
 
 export function DkpView() {
   const { user, isViewer } = useAuth();
@@ -24,6 +25,7 @@ export function DkpView() {
   const serverId = useServerId();
   if (isViewer) return <Empty icon={Shield} text="DKP is not available in viewer mode." />;
   if (!currentServer || !serverId) return <Empty icon={Shield} text="Select a server to view DKP." />;
+  if (currentServer?.isExpired) return <ExpiredGate page="DKP" />;
   return <DkpContent serverId={serverId} />;
 }
 
