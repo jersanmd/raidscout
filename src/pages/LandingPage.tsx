@@ -1112,7 +1112,7 @@ export function LandingPage() {
 
       {/* ── FAQ Section ── */}
       <section id="faq" className="relative bg-[#09090b] px-6 py-24" style={{ scrollSnapAlign: "start" }}>
-        <div className="max-w-3xl mx-auto">
+        <div className="max-w-4xl mx-auto">
           <div className="text-center mb-14">
             <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/[0.03] border border-white/[0.06] text-sky-300/80 text-xs font-medium mb-6 backdrop-blur-sm">
               <MessageSquare className="w-3.5 h-3.5" /> FAQ
@@ -1685,15 +1685,50 @@ function ScreenshotShowcase() {
 // ── FAQ Component ────────────────────────────────────────────
 
 const faqs = [
-  { q: "How does guild rotation work?", a: "Assign multiple guilds to a boss and it rotates on each kill (or daily). You can customize the order and even give guilds weighted turns." },
-  { q: "What's Viewer Mode?", a: "Generate a shareable link that lets your members watch timers in real-time — no account or login required." },
-  { q: "How do I set up the Discord bot?", a: "Invite the bot, type ;link in your channel, copy the Server ID into Server Settings → Integrations. Full setup takes under 2 minutes." },
-  { q: "Can I track multiple servers?", a: "Absolutely. Create separate RaidScout servers and link each to its own Discord server." },
-  { q: "How does the AI rally scanner work?", a: "Upload a screenshot of your rally results and AI automatically detects player names." },
-  { q: "What happens when a boss is killed?", a: "The timer resets. The kill is logged in History with timestamp, guild, and attendees. Discord gets notified." },
-  { q: "Can I customize point values per boss?", a: "Yes! Set different point values per boss and per guild. Weekly/monthly/all-time leaderboards auto-update." },
-  { q: "Is my data secure?", a: "Your data is stored on Supabase with Row-Level Security. Only invited members can access your server." },
-  { q: "How do I invite members?", a: "Go to Server Settings → General and share the invite code. Or use Viewer Mode for read-only access." },
+  {
+    q: "We already use a spreadsheet. Why do I need RaidScout?",
+    a: "Spreadsheets don't notify your Discord server when a boss spawns. They don't track who attended each kill. They don't automatically rotate guild turns or calculate leaderboard scores. RaidScout does all of this in real time. Your members always know what's spawning next, which guild's turn it is, and who's pulling their weight. Stop copy-pasting timestamps and let automation handle it."
+  },
+  {
+    q: "How does guild rotation prevent drama?",
+    a: "Assign multiple guilds to a boss and RaidScout rotates them fairly, either per kill, daily, or on a fixed schedule. Each guild sees exactly when their turn is, with color-coded badges and countdown timers. You can even give priority guilds weighted turns with 2:1 ratios. No more arguments about whose turn it is. The system is transparent and automatic."
+  },
+  {
+    q: "Can my members check timers without creating an account?",
+    a: "Yes. Viewer Mode generates a shareable link your members can open on any device. They see live countdown timers, guild rotations, and spawn schedules in real time. No account, no login, no app install. Perfect for your Discord community. Just pin the link and everyone stays in sync."
+  },
+  {
+    q: "How does the Discord bot save us time?",
+    a: "The bot posts spawn notifications directly to your Discord channels: 5-minute warnings, spawn alerts, and guild tags. It auto-creates discussion threads for each boss so your guilds can coordinate. Type ;nextspawn to see what's coming up, or ;killed BossName to log a kill and instantly reset the timer. Setup takes 2 minutes. Just invite the bot and type ;link."
+  },
+  {
+    q: "We run multiple games. Can RaidScout handle that?",
+    a: "Absolutely. Each game gets its own server with separate bosses, activities, guilds, and leaderboards. Switch between them with one click. Your Throne and Liberty server and your Albion Online server stay completely independent with different timers, different guilds, and different point systems."
+  },
+  {
+    q: "How do leaderboards and scoring work?",
+    a: "Every boss kill awards points based on configurable values per boss and per guild. The system tracks weekly, monthly, and all-time leaderboards automatically. Members earn points for attendance too, so even if they don't get the kill, they're rewarded for showing up. Point adjustments let you reward MVPs or penalize no-shows. It's a complete merit system, not just a timer."
+  },
+  {
+    q: "What about raid attendance tracking?",
+    a: "Every time a boss is marked killed, RaidScout logs who was there. Members see their personal attendance history, weekly stats, and activity trends. Guild leaders can filter by date range, export to CSV, and identify who's consistent versus who's coasting. No more manually counting Discord reactions to figure out who showed up."
+  },
+  {
+    q: "Can I track member gear and inventory?",
+    a: "Yes. RaidScout includes a full gear tracking system with slots for every equipment type. Members can update their Combat Power, and the system tracks growth over 7 and 30 day periods. The Items Catalog lets you create custom items with rarities, images, and categories. You can distribute items to members and track who received what, complete with a loot history timeline on every member's profile."
+  },
+  {
+    q: "Do you have DKP or loot auction support?",
+    a: "Yes. RaidScout has a complete DKP system with configurable earning rules, point caps, and decay. Run auctions directly in the app: create listings with images, set starting bids and buyout prices, and members place bids in real time. The seller dashboard tracks active listings, completed sales, and revenue. There's also a buyer dashboard where members manage their purchases and watch active auctions."
+  },
+  {
+    q: "Is it hard to switch from what we're using now?",
+    a: "Not at all. Create a server in 30 seconds and RaidScout seeds it with 22+ pre-configured bosses. Customize spawn windows, assign guilds, and set point values as you go. The bulk editor lets you update points across dozens of bosses in one click. Most guilds are fully set up within 10 minutes and never look back."
+  },
+  {
+    q: "How reliable is the uptime? What if it goes down during a spawn?",
+    a: "RaidScout runs on Supabase with a 99.9% uptime SLA and automated health checks. The Discord bot has built-in crash recovery and reconnects automatically. Timer state is persisted in the database. Even if everything restarts, your timers are exactly where they should be. No lost data, no missed spawns."
+  },
 ];
 
 function FAQ() {
@@ -1723,14 +1758,14 @@ function FAQ() {
   }, [openIndex, heights]);
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       {faqs.map((faq, i) => (
-        <div key={i} className="bg-white/[0.03] border border-white/[0.06] rounded-xl overflow-hidden backdrop-blur-sm transition-colors duration-200 hover:border-white/[0.10]">
+        <div key={i} className={`bg-white/[0.03] border rounded-xl overflow-hidden backdrop-blur-sm transition-all duration-200 hover:border-white/[0.12] ${openIndex === i ? 'border-white/[0.12]' : 'border-white/[0.06]'}`}>
           <button
             onClick={() => setOpenIndex(openIndex === i ? null : i)}
-            className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-white/[0.02] transition-colors"
+            className="w-full flex items-center justify-between px-6 py-5 text-left hover:bg-white/[0.02] transition-colors"
           >
-            <span className="text-sm font-medium text-[#fafafa] pr-4">{faq.q}</span>
+            <span className="text-base font-medium text-[#fafafa] pr-4">{faq.q}</span>
             <ChevronDown
               className={`w-4 h-4 text-[#fafafa]/40 shrink-0 transition-transform duration-300 ${openIndex === i ? "rotate-180" : ""}`}
             />
@@ -1745,9 +1780,9 @@ function FAQ() {
           >
             <div
               ref={el => { contentRefs.current[i] = el; }}
-              className="px-5 pb-4"
+              className="px-6 pb-6 pt-2"
             >
-              <p className="text-sm text-[#fafafa]/50 leading-relaxed">{faq.a}</p>
+              <p className="text-base text-[#fafafa]/65 leading-relaxed">{faq.a}</p>
             </div>
           </div>
         </div>

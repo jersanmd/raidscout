@@ -31,6 +31,12 @@
 - **Member Profile — Activity timeline shows 'Event' instead of boss/activity name** — Timeline rendering still used nested object paths (`death_records.bosses.name`) which are null from RPCs. Now checks flat RPC columns first (`boss_name`, `activity_name`, `boss_image_url`, `activity_image_url`) with nested fallback. Also respects `present: false` for activity attendance.
 - **Sync-staging improvements** — Added 9 new tables (DKP + misc), clears staging before insert, shows audit log count.
 
+## 🌐 Landing Page — FAQ Overhaul
+
+- **Rewritten all 9 FAQ questions & answers** — Now focused on selling RaidScout's value: why replace spreadsheets, how rotation prevents drama, viewer mode benefits, Discord bot time savings, multi-game support, leaderboard merit system, and attendance tracking.
+- **Added 2 new FAQs**: Gear & inventory tracking (CP growth, item catalog, loot history) and DKP / loot auction support (configurable points, real-time auctions, seller/buyer dashboards).
+- **Improved readability**: Removed em dashes, increased container width to `max-w-4xl`, larger text (`text-base`), more generous padding and spacing, better contrast on answers.
+
 ## 🐛 Test Fixes
 
 - **Bot tests: 218/218 passing** — Fixed `findNextScheduleSlot` using `now` instead of `after` base date, `corsHeaders()` missing `req` argument, `tsconfig.bot.json` missing `types: [node]`, and integrity test referencing deleted `000_initial_schema.sql` → `all_migrations.sql`.
