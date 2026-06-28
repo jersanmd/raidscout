@@ -341,28 +341,20 @@ export async function fetchMemberProfile(memberId: string): Promise<MemberWithPr
     ? recent30d[0].new_cp - recent30d[recent30d.length - 1].new_cp
     : null;
 
-  // Fetch attendance history with boss names
-  const { data: attendance } = await supabase
-    .from("attendance_records")
-    .select("death_record_id, created_at, death_records!inner(death_time, boss_id, bosses!inner(name, image_url))")
-    .eq("member_id", memberId)
-    .order("created_at", { ascending: false })
-    .limit(200);
+  // Fetch attendance history with boss names (uses RPC to bypass RLS for viewers)
+  const { data: attendance } = await supabase.rpc("get_member_attendance_history", {
+    p_member_id: memberId,
+  });
 
-  const { data: activityAttendance } = await supabase
-    .from("activity_attendance")
-    .select("activity_instance_id, created_at, present, activity_instances!inner(end_time, activity_id, activities!inner(name, image_url))")
-    .eq("member_id", memberId)
-    .order("created_at", { ascending: false })
-    .limit(100);
+  // Fetch activity attendance (uses RPC to bypass RLS for viewers)
+  const { data: activityAttendance } = await supabase.rpc("get_member_activity_attendance", {
+    p_member_id: memberId,
+  });
 
-  // Fetch loot history
-  const { data: lootHistory } = await supabase
-    .from("distributions")
-    .select("*, items:item_id(name, rarity, image_url)")
-    .eq("member_id", memberId)
-    .order("distributed_at", { ascending: false })
-    .limit(50);
+  // Fetch loot history (uses RPC to bypass RLS for viewers)
+  const { data: lootHistory } = await supabase.rpc("get_member_loot_history", {
+    p_member_id: memberId,
+  });
 
   return {
     ...member,

@@ -370,8 +370,11 @@ export function MemberProfileView() {
   [profile]);
 
   // Helper: get event time (death_time or end_time), fallback to created_at
+  // Supports both nested format (direct Supabase query) and flat format (RPC)
   const attEventTime = (a: any) => {
+    if (a.death_time) return new Date(a.death_time).getTime();
     if (a.death_records?.death_time) return new Date(a.death_records.death_time).getTime();
+    if (a.end_time) return new Date(a.end_time).getTime();
     if (a.activity_instances?.end_time) return new Date(a.activity_instances.end_time).getTime();
     return new Date(a.created_at).getTime();
   };
@@ -1099,8 +1102,8 @@ export function MemberProfileView() {
             <div className="p-3 sm:p-4 max-h-96 overflow-y-auto">
               <div className="space-y-1">
               {(profile.loot_history || []).map((loot: any, i: number) => {
-                const itemImage = loot.items?.image_url;
-                const rarity = loot.items?.rarity?.toLowerCase();
+                const itemImage = loot.item_image_url || loot.items?.image_url;
+                const rarity = (loot.item_rarity || loot.items?.rarity || "").toLowerCase();
                 const rc = rarity ? RARITY_COLORS[rarity as ItemRarity] : "#a1a1aa";
                 return (
                 <div key={i} className="flex items-center gap-3 px-2 py-1.5 rounded-lg hover:bg-[#09090b]/50 transition">
@@ -1114,7 +1117,7 @@ export function MemberProfileView() {
                     </div>
                   )}
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm truncate" style={{ color: rc }}>{loot.items?.name || "Unknown Item"}</p>
+                    <p className="text-sm truncate" style={{ color: rc }}>{loot.item_name || loot.items?.name || "Unknown Item"}</p>
                     <p className="text-[11px] text-[#52525b]">{timeAgo(loot.distributed_at)}{loot.reason ? ` · ${loot.reason}` : ""}</p>
                   </div>
                   <span className="text-[11px] font-mono text-[#a1a1aa]">×{loot.quantity}</span>

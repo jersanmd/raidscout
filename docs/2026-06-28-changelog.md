@@ -15,3 +15,22 @@
 - **Admin impersonation — stale build / reload loop** — `queueMicrotask(() => navigate("/"))` in the "View Server" button caused a timing gap between `setCurrentServer` and navigation, triggering Vite's "stale build detected" reload and MIME type errors when switching servers. Removed `queueMicrotask` — navigation now happens synchronously with the state update.
 - **Member Profile — Notes hidden for viewers/non-staff** — Notes section and delete buttons now only visible to owners and moderators. Regular members and viewers see no notes UI.
 - **Member Profile — Back button for viewers/non-staff** — "Back to Members" now navigates to the main Bosses/Activities tab for viewers and non-staff users, preventing broken history navigation from deep-linked profiles.
+
+## 🔐 Viewer RLS Fix — Weekly Attendance & Trend Charts
+
+- **Members page attendance showing 0/0 for viewers** — Root cause: `death_records` RLS policy is `TO authenticated`, blocking viewer (anon) queries. Fixed by:
+  - `get_weekly_attendance` RPC — added `SECURITY DEFINER` to bypass RLS
+  - `get_guild_weekly_totals` RPC — new SECURITY DEFINER function replacing 3 client-side direct queries (`death_records`, `boss_assists`, `activity_instances`)
+  - Frontend `guildWeeklyTotals` now calls RPC instead of direct Supabase queries
+- **Member profile trend chart — hunts/acts/loots showing 0 for viewers** — Same RLS issue in `fetchMemberProfile`. Created 3 new SECURITY DEFINER RPCs:
+  - `get_member_attendance_history` — replaces `attendance_records` + `death_records` inner join
+  - `get_member_activity_attendance` — replaces `activity_attendance` + `activity_instances` inner join
+  - `get_member_loot_history` — replaces `distributions` + `items` join
+  - Removed hardcoded limits (200/100/50 → 5000) so trend chart shows accurate counts for all time periods
+  - Updated `attEventTime` and loot display to handle both nested (old) and flat (RPC) data formats
+
+## 🎨 Admin Panel — Infra Tab Polish
+
+- **Spawn Cron chart matches Bot Logs Terminal height** — Chart container now `h-96` (384px), SVG viewBox uses actual container height via ResizeObserver
+- **Left/right columns equal height** — Both columns use `flex flex-col` with `flex-1` wrappers on main cards, ensuring SupabaseConnectionCard and SpawnCronCard fill equally
+- **SupabaseConnectionCard chart layout** — `isNarrow` uses chart container width (not `window.innerWidth`), card padding restructured for full-width chart matching SpawnCronCard style

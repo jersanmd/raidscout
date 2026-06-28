@@ -205,59 +205,24 @@ export function MembersView() {
     enabled: !!serverId && configured,
   });
 
-  // Fetch per-GUILD weekly totals (denominator — matches MemberProfileView formula:
-  // owned boss kills + assisted boss kills + guild activities)
+  // Fetch per-GUILD weekly totals (denominator — uses RPC to work for both logged-in users and viewers)
   const { data: guildWeeklyTotals = {}, error: guildTotalsError } = useQuery<Record<string, number>>({
     queryKey: ["guildWeeklyTotals", serverId, weekStartISO],
     queryFn: async () => {
       if (!serverId || !configured) return {};
-      try {
-      // All death records this week for the server
-      const { data: deaths, error: deathsErr } = await supabase
-        .from("death_records").select("owner_guild_id, boss_id").eq("server_id", serverId).gte("death_time", weekStartISO);
-      if (deathsErr) console.error("[guildWeeklyTotals] death_records error:", deathsErr);
-      // All boss-assist mappings (scoped to server)
-      const { data: assists, error: assistsErr } = await supabase.from("boss_assists").select("boss_id, assistant_guild_id, server_id").eq("server_id", serverId);
-      if (assistsErr) console.error("[guildWeeklyTotals] boss_assists error:", assistsErr);
-      // All activity instances this week with guild assignments
-      const { data: actInstances, error: actErr } = await supabase
-        .from("activity_instances")
-        .select("id, activity_guilds(guild_id), activities!inner(server_id)")
-        .eq("activities.server_id", serverId)
-        .gte("end_time", weekStartISO);
-      if (actErr) console.error("[guildWeeklyTotals] activity_instances error:", actErr);
-
-      const totals: Record<string, number> = {};
-
-      // Owned boss kills
-      (deaths || []).forEach((d: any) => {
-        if (d.owner_guild_id) totals[d.owner_guild_id] = (totals[d.owner_guild_id] || 0) + 1;
+      const { data, error } = await supabase.rpc("get_guild_weekly_totals", {
+        p_server_id: serverId,
+        p_since: weekStartISO,
       });
-
-      // Assisted boss kills: per guild, count deaths of bosses they assist
-      const assistMap: Record<string, Set<string>> = {};
-      (assists || []).forEach((a: any) => {
-        if (!assistMap[a.assistant_guild_id]) assistMap[a.assistant_guild_id] = new Set();
-        assistMap[a.assistant_guild_id].add(a.boss_id);
-      });
-      for (const [gid, bossIds] of Object.entries(assistMap)) {
-        const count = (deaths || []).filter((d: any) => bossIds.has(d.boss_id)).length;
-        if (count > 0) totals[gid] = (totals[gid] || 0) + count;
-      }
-
-      // Activities
-      (actInstances || []).forEach((a: any) => {
-        const guilds = a.activity_guilds || [];
-        guilds.forEach((g: any) => {
-          totals[g.guild_id] = (totals[g.guild_id] || 0) + 1;
-        });
-      });
-
-      return totals;
-      } catch (err) {
-        console.error("[guildWeeklyTotals] query failed:", err);
+      if (error) {
+        console.error("[guildWeeklyTotals] RPC error:", error);
         return {};
       }
+      const totals: Record<string, number> = {};
+      (data as { guild_id: string; total: number }[] || []).forEach(r => {
+        totals[r.guild_id] = (totals[r.guild_id] || 0) + r.total;
+      });
+      return totals;
     },
     staleTime: 120_000,
     enabled: !!serverId && configured,
