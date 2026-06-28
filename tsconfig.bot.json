@@ -14,7 +14,8 @@
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "lib": ["ES2022"]
+    "lib": ["ES2022"],
+    "types": ["node"]
   },
   "include": ["scripts/bot/**/*.ts", "scripts/discord-bot-gateway.ts"],
   "exclude": ["scripts/bot/**/*.test.ts"]

@@ -2082,18 +2082,11 @@ export function AdminPanelView() {
             <>
               {/* ── Spawn Cron Premium Card ── */}
               <div className="flex-1 min-h-0 [&>*]:h-full">
-              <SpawnCronCard data={botStatus.spawn_cron} connected={botStatus.discord_connected} timezone={timezone} onRefresh={refetchBot} />
+              <SpawnCronCard data={botStatus.spawn_cron} connected={botStatus.discord_connected} timezone={timezone} onRefresh={refetchBot} region={botStatus.region} cpuCount={botStatus.cpu_count} totalMemoryMb={botStatus.total_memory_mb} gatewayLatencyMs={botStatus.gateway?.latency_ms} />
               </div>
 
-              {/* Status Cards — 2-col on mobile, 4-col on desktop */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3">
-                <div className={`bg-[#0d0d11] border rounded-xl p-2 sm:p-4 text-center ${botStatus.discord_connected ? 'border-emerald-500/30 shadow-[0_0_12px_rgba(52,211,153,0.08)]' : 'border-[#1e1e2a]'}`}>
-                  <div className={`w-2 h-2 sm:w-3 sm:h-3 rounded-full mx-auto mb-1 sm:mb-2 ${botStatus.discord_connected ? 'bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.5)] animate-pulse' : 'bg-[#52525b]'}`} />
-                  <p className={`text-xs sm:text-lg font-bold ${botStatus.discord_connected ? 'text-emerald-300' : 'text-[#f87171]'}`}>
-                    {botStatus.discord_connected ? 'ONLINE' : 'OFFLINE'}
-                  </p>
-                  <p className="text-[11px] sm:text-[11px] text-[#52525b] mt-0.5 sm:mt-1 uppercase tracking-wider">Discord</p>
-                </div>
+              {/* Status Cards — Uptime, Memory, CPU */}
+              <div className="grid grid-cols-3 gap-2 sm:gap-3">
                 <div className="bg-[#0d0d11] border border-[#1e1e2a] rounded-xl p-2 sm:p-4 text-center">
                   <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#52525b] mx-auto mb-1 sm:mb-2" />
                   <p className="text-[10px] sm:text-xs text-[#d4d4d8] font-mono">{liveUptime || botStatus.uptime_display}</p>
@@ -2101,7 +2094,7 @@ export function AdminPanelView() {
                 </div>
                 <div className="bg-[#0d0d11] border border-[#1e1e2a] rounded-xl p-2 sm:p-4 text-center">
                   <HardDrive className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#52525b] mx-auto mb-1 sm:mb-2" />
-                  <p className="text-[10px] sm:text-lg font-bold text-[#d4d4d8]">{botStatus.memory_mb} / 1024 MB</p>
+                  <p className="text-[10px] sm:text-lg font-bold text-[#d4d4d8]">{botStatus.memory_mb} / {botStatus.total_memory_mb || 0} MB</p>
                   <p className="text-[11px] sm:text-[11px] text-[#52525b] mt-0.5 sm:mt-1 uppercase tracking-wider">Memory (RSS)</p>
                 </div>
                 <div className="bg-[#0d0d11] border border-[#1e1e2a] rounded-xl p-2 sm:p-4 text-center">
@@ -2120,15 +2113,10 @@ export function AdminPanelView() {
                   </p>
                   <p className="text-[11px] sm:text-[11px] text-[#52525b] mt-0.5 uppercase tracking-wider">CPU</p>
                 </div>
-                <div className="bg-[#0d0d11] border border-[#1e1e2a] rounded-xl p-2 sm:p-4 text-center">
-                  <Radio className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#52525b] mx-auto mb-1 sm:mb-2" />
-                  <p className="text-[10px] sm:text-xs text-[#d4d4d8]">{botStatus.region ? (FLY_REGIONS[botStatus.region] || botStatus.region.toUpperCase()) : "—"} · 2 vCPU</p>
-                  <p className="text-[11px] sm:text-[11px] text-[#52525b] mt-0.5 sm:mt-1 uppercase tracking-wider">Machine</p>
-                </div>
               </div>
 
-              {/* Extra Info Cards — 3-col on all screens */}
-              <div className="grid grid-cols-3 gap-2 sm:gap-3">
+              {/* Extra Info — Node.js + Platform */}
+              <div className="grid grid-cols-2 gap-2 sm:gap-3">
                 <div className="bg-[#0d0d11] border border-[#1e1e2a] rounded-xl p-2 sm:p-3 text-center">
                   <p className="text-[10px] sm:text-xs text-[#d4d4d8] font-mono">{botStatus.node_version}</p>
                   <p className="text-[11px] sm:text-[11px] text-[#52525b] mt-0.5 uppercase tracking-wider">Node.js</p>
@@ -2136,10 +2124,6 @@ export function AdminPanelView() {
                 <div className="bg-[#0d0d11] border border-[#1e1e2a] rounded-xl p-2 sm:p-3 text-center">
                   <p className="text-[11px] sm:text-xs text-[#d4d4d8] font-mono">fly.io</p>
                   <p className="text-[11px] sm:text-[11px] text-[#52525b] mt-0.5 uppercase tracking-wider">Platform</p>
-                </div>
-                <div className="bg-[#0d0d11] border border-[#1e1e2a] rounded-xl p-2 sm:p-3 text-center">
-                  <p className="text-[11px] sm:text-xs text-[#d4d4d8] font-mono">{botStatus.region}</p>
-                  <p className="text-[11px] sm:text-[11px] text-[#52525b] mt-0.5 uppercase tracking-wider">Region</p>
                 </div>
               </div>
 
@@ -2328,7 +2312,7 @@ export function AdminPanelView() {
 }
 
 // ── Spawn Cron Premium Card ─────────────────────────────────
-function SpawnCronCard({ data, connected, timezone, onRefresh }: { data: any; connected: boolean; timezone: string; onRefresh?: () => void }) {
+function SpawnCronCard({ data, connected, timezone, onRefresh, region, cpuCount, totalMemoryMb, gatewayLatencyMs }: { data: any; connected: boolean; timezone: string; onRefresh?: () => void; region?: string; cpuCount?: number; totalMemoryMb?: number; gatewayLatencyMs?: number }) {
   const [timeRange, setTimeRange] = useState("1h");
   const [tooltip, setTooltip] = useState<{ i: number; v: number; x: number; y: number } | null>(null);
   const inMemoryHistory: number[] = data?.tick_history_ms ?? [];
@@ -2442,57 +2426,104 @@ function SpawnCronCard({ data, connected, timezone, onRefresh }: { data: any; co
       {/* Ambient top glow bar */}
       <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-emerald-400/40 to-transparent" />
 
-      {/* Header bar */}
-      <div className="relative flex flex-wrap items-center justify-between px-4 sm:px-5 pt-3 pb-1 gap-2">
-        <div className="flex items-center gap-3">
+      {/* Header bar — three labeled rows */}
+      <div className="relative px-4 sm:px-5 pt-3 pb-1 space-y-2">
+        {/* Row 1: Connection status */}
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2">
-            <span className={`w-2 h-2 rounded-full ${connected ? 'bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.5)]' : 'bg-[#52525b]'}`} />
-            <span className="text-[11px] font-semibold text-[#e4e4e7] tracking-wide">SPAWN CRON</span>
+            <span className="text-[10px] text-[#52525b] font-mono uppercase tracking-wider w-14 shrink-0">Conn</span>
+            <div className="flex items-center gap-3 flex-wrap">
+              <div className="flex items-center gap-2">
+                <span className={`w-2 h-2 rounded-full ${connected ? 'bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.5)]' : 'bg-[#52525b]'}`} />
+                <span className="text-[11px] font-semibold text-[#e4e4e7] tracking-wide">SPAWN CRON</span>
+              </div>
+              <span className={`text-[10px] font-medium ${connected ? 'text-emerald-400' : 'text-[#f87171]'}`}>{connected ? 'ONLINE' : 'OFFLINE'}</span>
+              {gatewayLatencyMs != null && (
+                <span className={`text-[10px] font-medium ${gatewayLatencyMs > 500 ? 'text-red-400' : gatewayLatencyMs > 200 ? 'text-amber-400' : 'text-[#a1a1aa]'}`}>{gatewayLatencyMs}ms</span>
+              )}
+              {region && <span className="text-[10px] text-[#52525b]">{region.toUpperCase()} · {cpuCount || 1}vCPU · {totalMemoryMb || 0}MB</span>}
+              <span className="text-[11px] text-[#52525b] font-mono">every {intervalLabel}</span>
+              <select
+                value={timeRange}
+                onChange={e => setTimeRange(e.target.value)}
+                className="bg-[#0d0d11] border border-[#1e1e2a] rounded px-1.5 py-0.5 text-[11px] text-[#a1a1aa] font-mono focus:outline-none focus:border-emerald-500/30 cursor-pointer"
+              >
+                <option value="live">Live</option>
+                <option value="1h">1 Hour</option>
+                <option value="3h">3 Hours</option>
+                <option value="6h">6 Hours</option>
+                <option value="12h">12 Hours</option>
+                <option value="1d">1 Day</option>
+                <option value="3d">3 Days</option>
+                <option value="5d">5 Days</option>
+                <option value="7d">7 Days</option>
+                <option value="14d">14 Days</option>
+                <option value="30d">30 Days</option>
+              </select>
+            </div>
           </div>
-          <span className="text-[11px] text-[#52525b] font-mono">every {intervalLabel}</span>
-          {/* Time range filter */}
-          <select
-            value={timeRange}
-            onChange={e => setTimeRange(e.target.value)}
-            className="bg-[#0d0d11] border border-[#1e1e2a] rounded px-1.5 py-0.5 text-[11px] text-[#a1a1aa] font-mono focus:outline-none focus:border-emerald-500/30 cursor-pointer"
-          >
-            <option value="live">Live</option>
-            <option value="1h">1 Hour</option>
-            <option value="3h">3 Hours</option>
-            <option value="6h">6 Hours</option>
-            <option value="12h">12 Hours</option>
-            <option value="1d">1 Day</option>
-            <option value="3d">3 Days</option>
-            <option value="5d">5 Days</option>
-            <option value="7d">7 Days</option>
-            <option value="14d">14 Days</option>
-            <option value="30d">30 Days</option>
-          </select>
-        </div>
-        <div className="flex items-center gap-1.5 sm:gap-3 flex-wrap">
           {onRefresh && (
-            <button onClick={onRefresh} className="p-1 rounded text-[#52525b] hover:text-[#a1a1aa] transition" title="Refresh bot status">
+            <button onClick={onRefresh} className="p-1 rounded text-[#52525b] hover:text-[#a1a1aa] transition shrink-0" title="Refresh bot status">
               <RefreshCw className="w-3 h-3" />
             </button>
           )}
-          <div className="flex items-center gap-1 sm:gap-1.5 bg-[#18181b] rounded-lg px-2 sm:px-3 py-1 sm:py-1.5 border border-[#27272a]">
-            <span className="text-[11px] sm:text-[11px] text-[#71717a] font-mono uppercase tracking-wider">avg</span>
-            <span className="text-xs sm:text-sm font-bold text-[#fafafa] font-mono">{(avg / 1000).toFixed(2)}<span className="text-[11px] sm:text-[11px] text-[#71717a] ml-0.5">s</span></span>
-          </div>
-          <div className={`flex items-center gap-1 sm:gap-1.5 rounded-lg px-2 sm:px-3 py-1 sm:py-1.5 border ${trend === "up" ? "bg-emerald-500/10 border-emerald-500/20" : trend === "down" ? "bg-rose-500/10 border-rose-500/20" : "bg-[#18181b] border-[#27272a]"}`}>
-            <span className={`text-[11px] sm:text-xs ${trend === "up" ? "text-emerald-400" : trend === "down" ? "text-rose-400" : "text-[#71717a]"}`}>
-              {trend === "up" ? "▲" : trend === "down" ? "▼" : "─"}
-            </span>
-            <span className={`text-xs sm:text-sm font-bold font-mono ${trend === "up" ? "text-emerald-300" : trend === "down" ? "text-rose-300" : "text-[#a1a1aa]"}`}>{(latest / 1000).toFixed(2)}<span className="text-[11px] sm:text-[11px] opacity-60 ml-0.5">s</span></span>
-          </div>
-          {peakTime && (
-            <div className="flex items-center gap-1 bg-[#18181b] rounded-lg px-2 py-1 border border-[#27272a]">
-              <span className="text-[11px] text-[#71717a] font-mono uppercase tracking-wider">peak</span>
-              <span className="text-[11px] sm:text-xs font-bold text-amber-300 font-mono">{(peakTime.ms / 1000).toFixed(2)}<span className="text-[11px] text-[#71717a] ml-0.5">s</span></span>
-              <span className="text-[8px] text-[#52525b] hidden sm:inline">{peakTime.time}</span>
-            </div>
-          )}
         </div>
+
+        {/* Row 2: Tick performance */}
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-[10px] text-[#52525b] font-mono uppercase tracking-wider w-14 shrink-0">Tick</span>
+          <div className="flex items-center gap-1.5 sm:gap-3 flex-wrap">
+            <div className="flex items-center gap-1 sm:gap-1.5 bg-[#18181b] rounded-lg px-2 sm:px-3 py-1 sm:py-1.5 border border-[#27272a] h-[34px]">
+              <span className="text-[11px] sm:text-[11px] text-[#71717a] font-mono uppercase tracking-wider">avg</span>
+              <span className="text-xs sm:text-sm font-bold text-[#fafafa] font-mono">{(avg / 1000).toFixed(2)}<span className="text-[11px] sm:text-[11px] text-[#71717a] ml-0.5">s</span></span>
+            </div>
+            <div className={`flex items-center gap-1 sm:gap-1.5 rounded-lg px-2 sm:px-3 py-1 sm:py-1.5 border h-[34px] ${trend === "up" ? "bg-emerald-500/10 border-emerald-500/20" : trend === "down" ? "bg-rose-500/10 border-rose-500/20" : "bg-[#18181b] border-[#27272a]"}`}>
+              <span className={`text-[11px] sm:text-xs ${trend === "up" ? "text-emerald-400" : trend === "down" ? "text-rose-400" : "text-[#71717a]"}`}>
+                {trend === "up" ? "▲" : trend === "down" ? "▼" : "─"}
+              </span>
+              <span className={`text-xs sm:text-sm font-bold font-mono ${trend === "up" ? "text-emerald-300" : trend === "down" ? "text-rose-300" : "text-[#a1a1aa]"}`}>{(latest / 1000).toFixed(2)}<span className="text-[11px] sm:text-[11px] opacity-60 ml-0.5">s</span></span>
+            </div>
+            {peakTime && (
+              <div className="flex items-center gap-1 bg-[#18181b] rounded-lg px-2 sm:px-3 py-1 sm:py-1.5 border border-[#27272a] h-[34px]">
+                <span className="text-[11px] text-[#71717a] font-mono uppercase tracking-wider">peak</span>
+                <span className="text-[11px] sm:text-xs font-bold text-amber-300 font-mono">{(peakTime.ms / 1000).toFixed(2)}<span className="text-[11px] text-[#71717a] ml-0.5">s</span></span>
+                <span className="text-[8px] text-[#52525b] hidden sm:inline">{peakTime.time}</span>
+              </div>
+            )}
+            {data?.loop && (
+              <div className={`flex items-center gap-1 rounded-lg px-2 sm:px-3 py-1 sm:py-1.5 border h-[34px] ${
+                data.loop.latest > 100 ? "bg-red-500/10 border-red-500/20" :
+                data.loop.latest > 50 ? "bg-amber-500/10 border-amber-500/20" :
+                "bg-[#18181b] border-[#27272a]"
+              }`} title="Event loop lag: setTimeout(0) delay. <20ms excellent, 20-50ms good, >100ms blocked.">
+                <span className="text-[11px] text-[#71717a] font-mono uppercase tracking-wider">loop</span>
+                <span className={`text-[11px] sm:text-xs font-bold font-mono ${
+                  data.loop.latest > 100 ? "text-red-400" :
+                  data.loop.latest > 50 ? "text-amber-400" :
+                  "text-[#d4d4d8]"
+                }`}>{data.loop.latest}<span className="text-[11px] text-[#71717a] ml-0.5">ms</span></span>
+                <span className="text-[9px] text-[#52525b] cursor-help ml-0.5" title="Event loop lag: setTimeout(0) delay. <20ms excellent, 20-50ms good, >100ms blocked.">ⓘ</span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Row 3: Discord API */}
+        {data?.discord && (
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-[10px] text-[#52525b] font-mono uppercase tracking-wider w-14 shrink-0">Discord</span>
+            <div className="flex items-center gap-1 bg-[#18181b] rounded-lg px-2 sm:px-3 py-1 sm:py-1.5 border border-[#27272a] h-[34px]" title="Discord API stats for today">
+              <span className="text-[11px] text-[#71717a] font-mono uppercase tracking-wider">msg</span>
+              <span className="text-[11px] sm:text-xs font-bold text-[#d4d4d8] font-mono">{data.discord.messages_sent_today.toLocaleString()}</span>
+              <span className="text-[10px] text-[#52525b] mx-0.5">·</span>
+              <span className="text-[11px] text-[#71717a] font-mono uppercase tracking-wider">429</span>
+              <span className={`text-[11px] sm:text-xs font-bold font-mono ${data.discord.rate_limits_today > 0 ? 'text-amber-300' : 'text-[#d4d4d8]'}`}>{data.discord.rate_limits_today}</span>
+              <span className="text-[10px] text-[#52525b] mx-0.5">·</span>
+              <span className="text-[11px] text-[#71717a] font-mono uppercase tracking-wider">retry</span>
+              <span className={`text-[11px] sm:text-xs font-bold font-mono ${data.discord.retries_today > 10 ? 'text-red-400' : data.discord.retries_today > 0 ? 'text-amber-300' : 'text-[#d4d4d8]'}`}>{data.discord.retries_today}</span>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Chart */}

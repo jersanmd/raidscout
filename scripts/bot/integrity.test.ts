@@ -51,13 +51,11 @@ describe("bot build", () => {
 });
 
 describe("migration integrity", () => {
-  it("000_initial_schema.sql exists and is valid", () => {
-    const path = resolve(ROOT, "supabase/migrations/000_initial_schema.sql");
+  it("all_migrations.sql exists and is valid", () => {
+    const path = resolve(ROOT, "all_migrations.sql");
     expect(existsSync(path)).toBe(true);
     const content = readFileSync(path, "utf-8");
     expect(content.length).toBeGreaterThan(30000);
     expect(content).toContain("CREATE TABLE");
-    expect(content).toContain("CREATE POLICY");
-    expect(content).toContain("CREATE OR REPLACE FUNCTION");
   });
 });

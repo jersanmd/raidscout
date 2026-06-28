@@ -4,6 +4,7 @@ declare const process: { env: Record<string, string | undefined>; cpuUsage: (pre
 
 import { TOKEN, SUPABASE_URL, SUPABASE_KEY } from "./config";
 import { discordFetch } from "./discord-api";
+import { getDiscordStats } from "./discord-api";
 import { supabaseQuery, supabaseQuerySafe, supabaseRpc, logError } from "./supabase";
 import { resolveServerTimezone } from "./server-cache";
 import { addHours, computeOwnerGuild, getScheduleTz, scheduleSlotToUTC, findNextScheduleSlot } from "./spawn-utils";
@@ -125,6 +126,30 @@ function getCpuStats() {
   return { latest, avg_1min: avg1min, peak_24h: cpuPeak24h };
 }
 
+// ── Event loop lag tracking ───────────────────────────────
+// Measures how long a setTimeout(0) actually takes to fire —
+// if the event loop is blocked, this spikes.
+let loopLagMs = 0;
+const loopHistory: number[] = [];
+let loopPeak24h = 0;
+
+function sampleLoop() {
+  const start = Date.now();
+  setTimeout(() => {
+    loopLagMs = Date.now() - start;
+    loopHistory.push(loopLagMs);
+    if (loopHistory.length > MAX_TICK_HISTORY) loopHistory.shift();
+    if (loopLagMs > loopPeak24h) loopPeak24h = loopLagMs;
+  }, 0);
+}
+
+function getLoopStats() {
+  const latest = loopLagMs;
+  const sum = loopHistory.reduce((a, b) => a + b, 0);
+  const avg1min = loopHistory.length > 0 ? Math.round(sum / loopHistory.length) : 0;
+  return { latest, avg_1min: avg1min, peak_24h: loopPeak24h };
+}
+
 export function getCronStats() {
   return {
     last_tick_seconds_ago: lastTickTime ? Math.floor((Date.now() - lastTickTime) / 1000) : null,
@@ -134,6 +159,8 @@ export function getCronStats() {
     bosses_checked: lastBossesChecked,
     tick_history_ms: [...recentTickDurations],
     cpu: getCpuStats(),
+    loop: getLoopStats(),
+    discord: getDiscordStats(),
   };
 }
 
@@ -176,6 +203,7 @@ export function startSpawnCron() {
     } else {
       tickRunning = true;
       sampleCpu();
+      sampleLoop();
       try {
         await runSpawnCron();
       } catch (err: any) {

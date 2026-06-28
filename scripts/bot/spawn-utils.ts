@@ -97,9 +97,8 @@ export function scheduleSlotToUTC(tz: string, refDate: Date, day: number, time: 
 
 export function findNextScheduleSlot(schedule: { day: number; time: string }[], after: Date, tz: string): Date {
   let earliest: Date | null = null;
-  const now = new Date();
   for (let d = 0; d <= 7; d++) {
-    const check = new Date(now);
+    const check = new Date(after);
     check.setDate(check.getDate() + d);
     for (const slot of schedule) {
       const c = scheduleSlotToUTC(tz, check, slot.day, slot.time);
