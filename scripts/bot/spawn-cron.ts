@@ -48,9 +48,10 @@ async function flushDedupBatch() {
   if (!pendingDedupBatch.length) return;
   const batch = pendingDedupBatch.splice(0);
   // Fire-and-forget — single POST with JSON array
+  // FK violations (deleted bosses) are harmless — the row is simply not inserted
   fetch(`${SUPABASE_URL}/rest/v1/spawn_notifications`, {
     method: "POST",
-    headers: { apikey: SUPABASE_KEY!, Authorization: `Bearer ${SUPABASE_KEY!}`, "Content-Type": "application/json" },
+    headers: { apikey: SUPABASE_KEY!, Authorization: `Bearer ${SUPABASE_KEY!}`, "Content-Type": "application/json", Prefer: "resolution=ignore-duplicates" },
     body: JSON.stringify(batch.map(r => ({
       server_id: r.serverId, boss_id: r.targetId,
       event: r.event, spawn_timestamp: r.spawnUnix,
