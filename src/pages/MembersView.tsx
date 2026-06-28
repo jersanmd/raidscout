@@ -207,21 +207,25 @@ export function MembersView() {
 
   // Fetch per-GUILD weekly totals (denominator — matches MemberProfileView formula:
   // owned boss kills + assisted boss kills + guild activities)
-  const { data: guildWeeklyTotals = {} } = useQuery<Record<string, number>>({
+  const { data: guildWeeklyTotals = {}, error: guildTotalsError } = useQuery<Record<string, number>>({
     queryKey: ["guildWeeklyTotals", serverId, weekStartISO],
     queryFn: async () => {
       if (!serverId || !configured) return {};
+      try {
       // All death records this week for the server
-      const { data: deaths } = await supabase
+      const { data: deaths, error: deathsErr } = await supabase
         .from("death_records").select("owner_guild_id, boss_id").eq("server_id", serverId).gte("death_time", weekStartISO);
-      // All boss-assist mappings
-      const { data: assists } = await supabase.from("boss_assists").select("boss_id, assistant_guild_id");
+      if (deathsErr) console.error("[guildWeeklyTotals] death_records error:", deathsErr);
+      // All boss-assist mappings (scoped to server)
+      const { data: assists, error: assistsErr } = await supabase.from("boss_assists").select("boss_id, assistant_guild_id, server_id").eq("server_id", serverId);
+      if (assistsErr) console.error("[guildWeeklyTotals] boss_assists error:", assistsErr);
       // All activity instances this week with guild assignments
-      const { data: actInstances } = await supabase
+      const { data: actInstances, error: actErr } = await supabase
         .from("activity_instances")
         .select("id, activity_guilds(guild_id), activities!inner(server_id)")
         .eq("activities.server_id", serverId)
         .gte("end_time", weekStartISO);
+      if (actErr) console.error("[guildWeeklyTotals] activity_instances error:", actErr);
 
       const totals: Record<string, number> = {};
 
@@ -250,6 +254,10 @@ export function MembersView() {
       });
 
       return totals;
+      } catch (err) {
+        console.error("[guildWeeklyTotals] query failed:", err);
+        return {};
+      }
     },
     staleTime: 120_000,
     enabled: !!serverId && configured,
@@ -1630,6 +1638,7 @@ export function MembersView() {
                       <th className="text-center py-2.5 px-1 w-[7%] cursor-pointer select-none hover:bg-[#27272a]/30 transition group" onClick={() => toggleSort("weekly")} title="Weekly performance">
                         <span className="inline-flex items-center gap-1 justify-center">
                           <span className={sortColumn === "weekly" ? "text-[#fafafa]" : "group-hover:text-[#a1a1aa]"}>Weekly Attendance</span>
+                          {guildTotalsError && <span className="text-[10px] text-amber-400" title="Guild totals failed to load">⚠</span>}
                           <span className="inline-block w-3 text-center">{sortColumn === "weekly" ? (sortDir === "asc" ? "▲" : "▼") : "⇅"}</span>
                           <button
                             type="button"
