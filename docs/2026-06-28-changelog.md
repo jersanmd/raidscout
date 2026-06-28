@@ -28,9 +28,9 @@
   - `get_member_loot_history` — replaces `distributions` + `items` join
   - Removed hardcoded limits (200/100/50 → 5000) so trend chart shows accurate counts for all time periods
   - Updated `attEventTime` and loot display to handle both nested (old) and flat (RPC) data formats
+- **Member Profile — Activity timeline shows 'Event' instead of boss/activity name** — Timeline rendering still used nested object paths (`death_records.bosses.name`) which are null from RPCs. Now checks flat RPC columns first (`boss_name`, `activity_name`, `boss_image_url`, `activity_image_url`) with nested fallback. Also respects `present: false` for activity attendance.
+- **Sync-staging improvements** — Added 9 new tables (DKP + misc), clears staging before insert, shows audit log count.
 
-## 🎨 Admin Panel — Infra Tab Polish
+## 🐛 Test Fixes
 
-- **Spawn Cron chart matches Bot Logs Terminal height** — Chart container now `h-96` (384px), SVG viewBox uses actual container height via ResizeObserver
-- **Left/right columns equal height** — Both columns use `flex flex-col` with `flex-1` wrappers on main cards, ensuring SupabaseConnectionCard and SpawnCronCard fill equally
-- **SupabaseConnectionCard chart layout** — `isNarrow` uses chart container width (not `window.innerWidth`), card padding restructured for full-width chart matching SpawnCronCard style
+- **Bot tests: 218/218 passing** — Fixed `findNextScheduleSlot` using `now` instead of `after` base date, `corsHeaders()` missing `req` argument, `tsconfig.bot.json` missing `types: [node]`, and integrity test referencing deleted `000_initial_schema.sql` → `all_migrations.sql`.

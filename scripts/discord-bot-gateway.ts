@@ -6,6 +6,7 @@
 // Requires: DISCORD_BOT_TOKEN, SUPABASE_SERVICE_ROLE_KEY
 import { WebSocket } from "ws";
 import * as http from "http";
+import * as os from "os";
 import { TOKEN, setBotUserId, botUserId } from "./bot/config";
 import { SUPABASE_URL, SUPABASE_KEY, BOT_API_SECRET } from "./bot/config";
 import { installLogging } from "./bot/logging";
@@ -30,6 +31,12 @@ installLogging();
 
 // -- WebSocket Gateway --------------------------------------
 let discordConnected = false;
+let lastHeartbeatSent = 0;
+let gatewayLatencyMs = 0;
+
+export function getGatewayStats() {
+  return { latency_ms: gatewayLatencyMs };
+}
 
 async function connect() {
   let gatewayUrl: string;
@@ -77,9 +84,15 @@ async function connect() {
 
     if (op === 10) {
       heartbeatInterval = setInterval(() => {
+        lastHeartbeatSent = Date.now();
         ws.send(JSON.stringify({ op: 1, d: seq }));
       }, d.heartbeat_interval);
       console.log("Bot is online!");
+    }
+
+    // Heartbeat ACK (op 11) — measure gateway latency
+    if (op === 11) {
+      gatewayLatencyMs = Date.now() - lastHeartbeatSent;
     }
 
     if (t === "GUILD_CREATE") { handleGuildJoin(d).catch(console.error); }
@@ -181,11 +194,14 @@ http.createServer(async (req, res) => {
       ok: true,
       discord_connected: discordConnected,
       uptime_display: uptimeDisplay,
-      memory_mb: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
+      memory_mb: Math.round(process.memoryUsage().rss / 1024 / 1024),
+      total_memory_mb: Math.round(os.totalmem() / 1024 / 1024),
+      cpu_count: os.cpus().length,
       active_commands: getActiveCommandCount(),
       region: process.env.FLY_REGION || "unknown",
       node_version: process.version,
       spawn_cron: getCronStats(),
+      gateway: getGatewayStats(),
     }));
   }
 
@@ -226,7 +242,7 @@ http.createServer(async (req, res) => {
 
   // GET /health — Fly.io health check
   if (req.method === "GET" && (url.pathname === "/health")) {
-    res.writeHead(200, { "Content-Type": "text/plain", ...corsHeaders() });
+    res.writeHead(200, { "Content-Type": "text/plain", ...corsHeaders(req) });
     res.end(`OK — Discord ${discordConnected ? "connected" : "disconnected"}`);
     return;
   }
