@@ -12,7 +12,7 @@ if (!PROD_KEY || !STAGING_KEY) {
 }
 
 const PH = { apikey: PROD_KEY, Authorization: `Bearer ${PROD_KEY}` };
-const SH = { apikey: STAGING_KEY, Authorization: `Bearer ${STAGING_KEY}`, "Content-Type": "application/json", Prefer: "resolution=merge-duplicates" };
+const SH = { apikey: STAGING_KEY, Authorization: `Bearer ${STAGING_KEY}`, "Content-Type": "application/json" };
 
 // Load old→new user UUID map (created by migrate-users-full.mjs)
 let userMap = new Map();
@@ -39,6 +39,10 @@ const TABLES = [
   "notifications","payments","point_rules",
   "activity_guilds","activity_instances","spawn_notifications",
   "server_members","user_roles",
+  // DKP
+  "dkp_transactions","dkp_bids","dkp_config","dkp_distributed","dkp_auctions",
+  // Misc
+  "tick_metrics","member_claim_requests","gear_catalog","gear_slot_subclasses",
 ];
 
 async function fetchAll(table) {
@@ -58,8 +62,19 @@ async function fetchAll(table) {
   return rows;
 }
 
+// Delete helper: clear all rows from a staging table
+async function clearStagingTable(table) {
+  // Supabase requires a WHERE clause for DELETE. Use a dummy condition that matches all.
+  // For tables with 'id' UUID column, this matches everything except the nil UUID.
+  try {
+    await fetch(`${STAGING_URL}/rest/v1/${table}?id=neq.00000000-0000-0000-0000-000000000000`, { method: "DELETE", headers: SH });
+  } catch {}
+}
+
 async function upsertTable(table, rows) {
   if (!rows.length) return;
+  // Clear staging table before inserting fresh data
+  await clearStagingTable(table);
   const chunkSize = 500;
   for (let i = 0; i < rows.length; i += chunkSize) {
     const chunk = rows.slice(i, i + chunkSize);
@@ -86,3 +101,10 @@ for (const table of TABLES) {
   await upsertTable(table, rows);
 }
 console.log("\n✅ Clone complete!");
+
+// Show audit log count
+(async () => {
+  const res = await fetch(`${PROD_URL}/rest/v1/admin_audit_log?select=count`, { headers: { ...PH, Prefer: "count=exact" } });
+  const count = res.headers.get("content-range")?.split("/")[1] || "?";
+  console.log(`\n📋 Production audit log entries: ${count}`);
+})().catch(() => {});
