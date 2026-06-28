@@ -181,7 +181,7 @@ http.createServer(async (req, res) => {
       ok: true,
       discord_connected: discordConnected,
       uptime_display: uptimeDisplay,
-      memory_mb: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
+      memory_mb: Math.round(process.memoryUsage().rss / 1024 / 1024),
       active_commands: getActiveCommandCount(),
       region: process.env.FLY_REGION || "unknown",
       node_version: process.version,

@@ -1,6 +1,6 @@
 // Spawn cron -- 30s tick: bosses + activities, 5-min warnings + threads with party lists
 
-declare const process: { env: Record<string, string | undefined> };
+declare const process: { env: Record<string, string | undefined>; cpuUsage: (prev?: { user: number; system: number }) => { user: number; system: number }; memoryUsage: () => { rss: number; heapUsed: number } };
 
 import { TOKEN, SUPABASE_URL, SUPABASE_KEY } from "./config";
 import { discordFetch } from "./discord-api";
@@ -96,6 +96,35 @@ let lastTickIntervalMs = 30_000;
 const recentTickDurations: number[] = []; // rolling buffer, last ~60 ticks (~30 min)
 const MAX_TICK_HISTORY = 60;
 
+// ── CPU tracking ──────────────────────────────────────────
+let lastCpuUsage = process.cpuUsage();
+let lastCpuTime = Date.now();
+const cpuHistory: number[] = []; // rolling buffer, last 60 samples
+let cpuPeak24h = 0;
+let cpuPeakTime = 0;
+
+function sampleCpu(): number {
+  const now = Date.now();
+  const elapsed = now - lastCpuTime;
+  const usage = process.cpuUsage(lastCpuUsage); // delta since last call
+  lastCpuUsage = process.cpuUsage(); // reset baseline
+  lastCpuTime = now;
+  // CPU % = (user + system) microseconds / (elapsed ms * 1000) * 100
+  const pct = ((usage.user + usage.system) / (elapsed * 1000)) * 100;
+  const rounded = Math.round(pct * 10) / 10;
+  cpuHistory.push(rounded);
+  if (cpuHistory.length > MAX_TICK_HISTORY) cpuHistory.shift();
+  if (rounded > cpuPeak24h) { cpuPeak24h = rounded; cpuPeakTime = now; }
+  return rounded;
+}
+
+function getCpuStats() {
+  const latest = cpuHistory.length > 0 ? cpuHistory[cpuHistory.length - 1] : 0;
+  const last2 = cpuHistory.slice(-2);
+  const avg1min = last2.length > 0 ? Math.round(last2.reduce((a, b) => a + b, 0) / last2.length * 10) / 10 : 0;
+  return { latest, avg_1min: avg1min, peak_24h: cpuPeak24h };
+}
+
 export function getCronStats() {
   return {
     last_tick_seconds_ago: lastTickTime ? Math.floor((Date.now() - lastTickTime) / 1000) : null,
@@ -104,6 +133,7 @@ export function getCronStats() {
     servers_checked: lastServersChecked,
     bosses_checked: lastBossesChecked,
     tick_history_ms: [...recentTickDurations],
+    cpu: getCpuStats(),
   };
 }
 
@@ -145,6 +175,7 @@ export function startSpawnCron() {
       console.warn("[cron] Previous tick still running — skipping this tick");
     } else {
       tickRunning = true;
+      sampleCpu();
       try {
         await runSpawnCron();
       } catch (err: any) {

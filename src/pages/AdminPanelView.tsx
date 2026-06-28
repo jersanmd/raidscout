@@ -5,7 +5,7 @@ import { fetchAllServers, fetchAllUsers, fetchAuditLog, fetchServerStats, fetchD
 import { useServer } from "@/contexts/ServerContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
-import { Loader2, Shield, Server, Users, Eye, ChevronDown, ChevronUp, ClipboardList, HardDrive, BarChart3, Crosshair, Skull, Activity, Radio, Clock, Trash2, RefreshCw, LogOut, Gamepad2, Globe, Search, AlertTriangle, Crown, ScrollText, CheckCircle, XCircle, UserPlus, DollarSign, Check, Minus, X } from "lucide-react";
+import { Loader2, Shield, Server, Users, Eye, ChevronDown, ChevronUp, ClipboardList, HardDrive, BarChart3, Crosshair, Skull, Activity, Radio, Clock, Trash2, RefreshCw, LogOut, Gamepad2, Globe, Search, AlertTriangle, Crown, ScrollText, CheckCircle, XCircle, UserPlus, DollarSign, Check, Minus, X, Cpu } from "lucide-react";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { AdminGamesTab } from "@/components/AdminGamesTab";
 import { useUserTimezone } from "@/hooks/useUserTimezone";
@@ -2086,7 +2086,7 @@ export function AdminPanelView() {
               </div>
 
               {/* Status Cards — 2-col on mobile, 4-col on desktop */}
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3">
                 <div className={`bg-[#0d0d11] border rounded-xl p-2 sm:p-4 text-center ${botStatus.discord_connected ? 'border-emerald-500/30 shadow-[0_0_12px_rgba(52,211,153,0.08)]' : 'border-[#1e1e2a]'}`}>
                   <div className={`w-2 h-2 sm:w-3 sm:h-3 rounded-full mx-auto mb-1 sm:mb-2 ${botStatus.discord_connected ? 'bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.5)] animate-pulse' : 'bg-[#52525b]'}`} />
                   <p className={`text-xs sm:text-lg font-bold ${botStatus.discord_connected ? 'text-emerald-300' : 'text-[#f87171]'}`}>
@@ -2102,7 +2102,23 @@ export function AdminPanelView() {
                 <div className="bg-[#0d0d11] border border-[#1e1e2a] rounded-xl p-2 sm:p-4 text-center">
                   <HardDrive className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#52525b] mx-auto mb-1 sm:mb-2" />
                   <p className="text-[10px] sm:text-lg font-bold text-[#d4d4d8]">{botStatus.memory_mb} / 1024 MB</p>
-                  <p className="text-[11px] sm:text-[11px] text-[#52525b] mt-0.5 sm:mt-1 uppercase tracking-wider">Memory</p>
+                  <p className="text-[11px] sm:text-[11px] text-[#52525b] mt-0.5 sm:mt-1 uppercase tracking-wider">Memory (RSS)</p>
+                </div>
+                <div className="bg-[#0d0d11] border border-[#1e1e2a] rounded-xl p-2 sm:p-4 text-center">
+                  <Cpu className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#52525b] mx-auto mb-1 sm:mb-2" />
+                  {(() => {
+                    const cpu = botStatus.spawn_cron?.cpu;
+                    const latest = cpu?.latest ?? 0;
+                    const color = latest > 80 ? "text-red-400" : latest > 50 ? "text-amber-400" : "text-[#d4d4d8]";
+                    return <p className={`text-[10px] sm:text-lg font-bold ${color}`}>{latest.toFixed(1)}%</p>;
+                  })()}
+                  <p className="text-[9px] sm:text-[10px] text-[#52525b] mt-0.5">
+                    {(() => {
+                      const cpu = botStatus.spawn_cron?.cpu;
+                      return `avg ${cpu?.avg_1min?.toFixed(1) ?? "—"}% · peak ${cpu?.peak_24h?.toFixed(1) ?? "—"}%`;
+                    })()}
+                  </p>
+                  <p className="text-[11px] sm:text-[11px] text-[#52525b] mt-0.5 uppercase tracking-wider">CPU</p>
                 </div>
                 <div className="bg-[#0d0d11] border border-[#1e1e2a] rounded-xl p-2 sm:p-4 text-center">
                   <Radio className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#52525b] mx-auto mb-1 sm:mb-2" />
