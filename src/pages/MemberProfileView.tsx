@@ -1007,24 +1007,32 @@ export function MemberProfileView() {
                           </>
                         );
                         })()}
-                        {entry.type === "attendance" && (
+                        {entry.type === "attendance" && (() => {
+                          // Support both RPC flat format (boss_name, activity_name) and nested Supabase format
+                          const isHunt = !!(entry.data.death_time || entry.data.death_records);
+                          const bossName = entry.data.boss_name || entry.data.death_records?.bosses?.name;
+                          const bossImage = entry.data.boss_image_url || entry.data.death_records?.bosses?.image_url;
+                          const actName = entry.data.activity_name || entry.data.activity_instances?.activities?.name;
+                          const actImage = entry.data.activity_image_url || entry.data.activity_instances?.activities?.image_url;
+                          return (
                           <div className="flex items-center gap-2 mt-0.5">
-                            {entry.data.death_records ? (
-                              <BossImage bossName={entry.data.death_records.bosses?.name || "Boss"} imageUrl={entry.data.death_records.bosses?.image_url} size="sm" className="shrink-0"/>
+                            {isHunt ? (
+                              <BossImage bossName={bossName || "Boss"} imageUrl={bossImage} size="sm" className="shrink-0"/>
                             ) : (
                               <img
-                                src={entry.data.activity_instances?.activities?.image_url || "/activities/default.png"}
+                                src={actImage || "/activities/default.png"}
                                 alt=""
                                 className="w-8 h-8 rounded object-cover shrink-0 bg-[#09090b] border border-[#27272a]"
                                 onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
                               />
                             )}
                             <p className="text-sm text-[#d4d4d8]">
-                              {entry.data.death_records?.bosses?.name || entry.data.activity_instances?.activities?.name || "Event"}
-                              {" — "}<span className="text-green-400">Attended ✓</span>
+                              {bossName || actName || "Event"}
+                              {" — "}{entry.data.present === false ? <span className="text-red-400">Absent ✗</span> : <span className="text-green-400">Attended ✓</span>}
                             </p>
                           </div>
-                        )}
+                          );
+                        })()}
                         {entry.type === "note" && (
                           <p className="text-sm text-[#d4d4d8] mt-0.5">{entry.data.note}</p>
                         )}
