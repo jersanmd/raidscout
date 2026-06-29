@@ -20,6 +20,7 @@ const BossListView = lazy(() => import("@/pages/BossListView").then(m => ({ defa
 const WeeklyScheduleView = lazy(() => import("@/pages/WeeklyScheduleView").then(m => ({ default: m.WeeklyScheduleView })));
 const HistoryView = lazy(() => import("@/pages/HistoryView").then(m => ({ default: m.HistoryView })));
 const MembersView = lazy(() => import("@/pages/MembersView").then(m => ({ default: m.MembersView })));
+const MembersSummaryView = lazy(() => import("@/pages/MembersView").then(m => ({ default: m.MembersSummaryView })));
 const AnalyticsView = lazy(() => import("@/pages/AnalyticsView").then(m => ({ default: m.AnalyticsView })));
 const LeaderboardView = lazy(() => import("@/pages/LeaderboardView").then(m => ({ default: m.LeaderboardView })));
 const ServerSettingsView = lazy(() => import("@/pages/ServerSettingsView").then(m => ({ default: m.ServerSettingsView as ComponentType })));
@@ -155,6 +156,11 @@ function AppRoutes() {
         ) : (
           <Navigate to="/" replace />
         )
+      } />
+
+      {/* Member Summary — cross-server view for staff on 2+ servers */}
+      <Route path="/members-summary" element={
+        <Suspense fallback={<PageLoader />}><MembersSummaryView /></Suspense>
       } />
 
       <Route
