@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { useSearchParams, Link } from "react-router-dom";
+import { useSearchParams, Link, useNavigate } from "react-router-dom";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { useMembers } from "@/hooks/useMembers";
 import { useAuth } from "@/contexts/AuthContext";
@@ -16,9 +16,14 @@ import { GearTrackingTab } from "@/components/GearTrackingTab";
 export function MembersView() {
   const { user, isViewer } = useAuth();
   const serverId = useServerId();
-  const { currentServer, refreshServers } = useServer();
+  const { currentServer, refreshServers, servers } = useServer();
   const isStaff = currentServer?.role === "owner" || currentServer?.role === "moderator";
   const canManageRaidMembers = useHasPermission("can_manage_members");
+
+  // Cross-server summary for staff on 2+ servers
+  const navigate = useNavigate();
+  const staffServers = useMemo(() => servers.filter(s => s.role === "owner" || s.role === "moderator"), [servers]);
+  const showSummaryButton = staffServers.length >= 2 && !isViewer;
 
   if (currentServer?.isExpired) return <ExpiredGate page="Members" />;
   const queryClient = useQueryClient();
@@ -1106,6 +1111,16 @@ export function MembersView() {
         {/* Add member — button only, opens modal */}
         {canManageRaidMembers && (
         <div className="flex flex-wrap items-center gap-1.5">
+          {showSummaryButton && (
+            <button
+              type="button"
+              onClick={() => navigate("/members-summary")}
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-[#18181b] border border-[#27272a] text-[#a1a1aa] text-xs font-medium hover:bg-[#27272a] hover:text-[#fafafa] transition"
+            >
+              <Users className="w-3 h-3" />
+              Summary ({staffServers.length})
+            </button>
+          )}
           <button
             type="button"
             onClick={() => setShowAddModal(true)}
@@ -2997,6 +3012,675 @@ function ToastMessage({
           <X className="w-4 h-4" />
         </button>
       </div>
+    </div>
+  );
+}
+
+// ── Cross-Server Member Summary Page ─────────────────────────
+
+type SummaryRow = { id: string; name: string; serverName: string; guildName: string; guildTextClass: string; cp: number | null; className: string; growth30d: number | null };
+
+export function MembersSummaryView() {
+  const { isViewer } = useAuth();
+  const { servers, loading: serversLoading } = useServer();
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const staffServers = useMemo(() => servers.filter(s => s.role === "owner" || s.role === "moderator"), [servers]);
+  const [data, setData] = useState<SummaryRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState(() => searchParams.get("q") || "");
+  const [sortCol, setSortCol] = useState<keyof SummaryRow>(() => (localStorage.getItem("ms_sortCol") as keyof SummaryRow) || "name");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">(() => (localStorage.getItem("ms_sortDir") as "asc" | "desc") || "asc");
+  const [tab, setTab] = useState<"overview" | "members" | "gear">(() => {
+    const t = searchParams.get("tab");
+    return (t === "members" || t === "gear") ? t : "overview";
+  });
+  const switchTab = (t: "overview" | "members" | "gear") => {
+    setTab(t);
+    const params = new URLSearchParams(searchParams);
+    params.delete("q");
+    params.delete("gearq");
+    if (t !== "overview") params.set("tab", t);
+    setSearchParams(params, { replace: true });
+  };
+  const [gearData, setGearData] = useState<{ id: string; name: string; cp: number | null; serverName: string; guildName: string; slots: Record<string, { itemName?: string; rarity?: string; enh: number; imageUrl?: string }> }[]>([]);
+  const [gearLoading, setGearLoading] = useState(false);
+  const [gearSearch, setGearSearch] = useState(() => searchParams.get("gearq") || "");
+  const [gearSortCol, setGearSortCol] = useState<string | null>(() => localStorage.getItem("ms_gearSortCol") || null);
+  const [gearSortDir, setGearSortDir] = useState<"asc" | "desc">(() => (localStorage.getItem("ms_gearSortDir") as "asc" | "desc") || "desc");
+
+  const handleGearSort = (col: string) => {
+    if (gearSortCol === col) {
+      const d = gearSortDir === "asc" ? "desc" : "asc";
+      setGearSortDir(d);
+      localStorage.setItem("ms_gearSortDir", d);
+    } else {
+      setGearSortCol(col);
+      setGearSortDir("desc");
+      localStorage.setItem("ms_gearSortCol", col);
+      localStorage.setItem("ms_gearSortDir", "desc");
+    }
+  };
+
+  const gearSortArrow = (col: string) =>
+    gearSortCol === col ? (gearSortDir === "asc" ? " ▲" : " ▼") : " ⇅";
+
+  // Rarity sort order: legendary > epic > rare > uncommon > common > empty
+  const rarityRank: Record<string, number> = { mythic: 6, legendary: 5, epic: 4, rare: 3, uncommon: 2, common: 1 };
+
+  useEffect(() => {
+    if (serversLoading) return; // wait for servers to load
+    if (isViewer || staffServers.length < 2) { navigate("/members", { replace: true }); return; }
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      const allRows: SummaryRow[] = [];
+      for (const srv of staffServers) {
+        // Paginate to avoid Supabase 1000-row default limit
+        let offset = 0;
+        const limit = 900;
+        let members: any[] = [];
+        while (true) {
+          const { data: batch } = await supabase.from("members").select("id, name, combat_power, class, guild_id, guilds(name)").eq("server_id", srv.id).eq("is_active", true).order("name").range(offset, offset + limit - 1);
+          if (!batch || batch.length === 0) break;
+          members = members.concat(batch);
+          if (batch.length < limit) break;
+          offset += limit;
+        }
+        const scoresRes = await supabase.rpc("get_member_scores", { p_server_id: srv.id });
+        const scores = scoresRes.data || [];
+        const growthByMember: Record<string, number> = {};
+        for (const s of scores) {
+          growthByMember[s.member_id] = s.cp_growth_30d ?? 0;
+        }
+        if (members && !cancelled) {
+          for (const m of members) {
+            const guildName = (m.guilds as any)?.name || "—";
+            const growth = growthByMember[m.id] || 0;
+            const gColor = guildName !== "—" ? guildColor(guildName) : { text: "text-zinc-500" } as ReturnType<typeof guildColor>;
+            allRows.push({
+              id: m.id,
+              name: m.name,
+              serverName: srv.name,
+              guildName: guildName,
+              guildTextClass: gColor.text,
+              cp: m.combat_power ?? null,
+              className: m.class || "—",
+              growth30d: growth !== 0 ? growth : null,
+            });
+          }
+        }
+      }
+      if (!cancelled) { setData(allRows); setLoading(false); }
+    })();
+    return () => { cancelled = true; };
+  }, [staffServers, isViewer, navigate, serversLoading]);
+
+  const handleSort = (col: keyof SummaryRow) => {
+    if (sortCol === col) {
+      const d = sortDir === "asc" ? "desc" : "asc";
+      setSortDir(d);
+      localStorage.setItem("ms_sortDir", d);
+    } else {
+      setSortCol(col);
+      setSortDir("asc");
+      localStorage.setItem("ms_sortCol", col);
+      localStorage.setItem("ms_sortDir", "asc");
+    }
+  };
+
+  const filtered = useMemo(() => {
+    if (!search.trim()) return data;
+    const q = search.toLowerCase();
+    return data.filter(r =>
+      r.name.toLowerCase().includes(q) ||
+      r.serverName.toLowerCase().includes(q) ||
+      r.guildName.toLowerCase().includes(q) ||
+      r.className.toLowerCase().includes(q) ||
+      (r.cp != null && String(r.cp).includes(q))
+    );
+  }, [data, search]);
+
+  const sorted = useMemo(() => {
+    const dir = sortDir === "asc" ? 1 : -1;
+    return [...filtered].sort((a, b) => {
+      const av = a[sortCol], bv = b[sortCol];
+      if (av == null && bv == null) return 0;
+      if (av == null) return 1;
+      if (bv == null) return -1;
+      if (typeof av === "number" && typeof bv === "number") return (av - bv) * dir;
+      return String(av).localeCompare(String(bv)) * dir;
+    });
+  }, [filtered, sortCol, sortDir]);
+
+  const sortArrow = (col: keyof SummaryRow) =>
+    sortCol === col ? (sortDir === "asc" ? " ▲" : " ▼") : " ⇅";
+
+const [gearSlots, setGearSlots] = useState<{ id: string; name: string }[]>([]);
+
+  const fetchGear = useCallback(async () => {
+    setGearLoading(true);
+    // Collect all server member IDs first
+    const allMemberIds: string[] = [];
+    const memberMap = new Map<string, { name: string; cp: number | null; serverName: string; guildName: string }>();
+    for (const srv of staffServers) {
+      // Paginate to avoid Supabase 1000-row default limit
+      let offset = 0;
+      const limit = 900;
+      while (true) {
+        const { data: members } = await supabase.from("members").select("id, name, combat_power, guilds(name)").eq("server_id", srv.id).eq("is_active", true).order("name").range(offset, offset + limit - 1);
+        if (!members || members.length === 0) break;
+        for (const m of members) {
+          allMemberIds.push(m.id);
+          memberMap.set(m.id, { name: m.name, cp: m.combat_power ?? null, serverName: srv.name, guildName: (m.guilds as any)?.name || "—" });
+        }
+        if (members.length < limit) break;
+        offset += limit;
+      }
+    }
+    if (allMemberIds.length === 0) { setGearData([]); setGearLoading(false); return; }
+
+    // Fetch slots (global — scoped by game, readable by all)
+    const { data: slots } = await supabase.from("gear_slots").select("id, name, sort_order").eq("game", "lordnine").order("sort_order");
+    const slotList: { id: string; name: string }[] = (slots && slots.length > 0) ? slots as any : [
+      { id: "helmet", name: "Helmet" },
+      { id: "armor", name: "Armor" },
+      { id: "gloves", name: "Gloves" },
+      { id: "pants", name: "Pants" },
+      { id: "shoes", name: "Shoes" },
+      { id: "earrings", name: "Earrings" },
+      { id: "necklace", name: "Necklace" },
+      { id: "bracelet", name: "Bracelet" },
+      { id: "ring", name: "Ring" },
+      { id: "belt", name: "Belt" },
+      { id: "cloak", name: "Cloak" },
+      { id: "weapon", name: "Weapon" },
+      { id: "passive", name: "Passive" },
+    ];
+    if (slots && slots.length > 0) setGearSlots(slots); else setGearSlots(slotList);
+
+    // Fetch gear — paginate member_gear directly (avoids RPC 1000-row limit)
+    const chunkSize = 300;
+    const allGear: any[] = [];
+    for (let i = 0; i < allMemberIds.length; i += chunkSize) {
+      const chunk = allMemberIds.slice(i, i + chunkSize);
+      // Paginate within each chunk too (member_gear can have many rows per member)
+      let offset = 0;
+      const batchSize = 500;
+      while (true) {
+        const { data: gear, error: gearErr } = await supabase
+          .from("member_gear")
+          .select("member_id, slot_id, catalog_item_id, enhancement_level, items:catalog_item_id(name, rarity, image_url)")
+          .in("member_id", chunk)
+          .range(offset, offset + batchSize - 1)
+          .order("member_id");
+        if (gearErr) {
+          console.error("member_gear query error:", gearErr.message);
+          break;
+        }
+        if (!gear || gear.length === 0) break;
+        allGear.push(...gear);
+        if (gear.length < batchSize) break;
+        offset += batchSize;
+      }
+    }
+
+    const rows: typeof gearData = [];
+    for (const [mid, info] of memberMap) {
+      const memberGear = allGear.filter(g => g.member_id === mid);
+      const slotsMap: Record<string, { itemName?: string; rarity?: string; enh: number; imageUrl?: string }> = {};
+      for (const slot of slotList) {
+        const equipped = memberGear.find(g => g.slot_id === slot.name);
+        const item = (equipped as any)?.catalog_item_id ? (equipped as any).items : null;
+        slotsMap[slot.name] = equipped?.catalog_item_id ? {
+          itemName: item?.name || undefined,
+          rarity: item?.rarity || undefined,
+          enh: equipped.enhancement_level || 0,
+          imageUrl: item?.image_url || undefined,
+        } : { enh: equipped?.enhancement_level || 0 };
+      }
+      rows.push({ id: mid, ...info, slots: slotsMap });
+    }
+    setGearData(rows);
+    setGearLoading(false);
+  }, [staffServers]);
+
+  useEffect(() => { fetchGear(); }, [fetchGear]);
+
+  return (
+    <div className="w-full max-w-[100%] 2xl:max-w-[1600px] mx-auto px-3 sm:px-4 py-4 sm:py-6">
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h2 className="text-xl font-bold text-[#fafafa]">Member Summary</h2>
+          <p className="text-sm text-[#a1a1aa]">{staffServers.length} servers · {tab === "members" ? `${data.length} members` : tab === "gear" ? `${gearData.length} gear profiles` : `${data.length} members`}</p>
+        </div>
+        <button
+          onClick={() => navigate("/members")}
+          className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-[#18181b] border border-[#27272a] text-[#a1a1aa] text-xs font-medium hover:bg-[#27272a] hover:text-[#fafafa] transition"
+        >
+          <X className="w-3 h-3" />
+          Back to Members
+        </button>
+      </div>
+
+      {loading || gearLoading ? (
+        <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 text-[#a1a1aa] animate-spin" /></div>
+      ) : (<>
+      {/* Tab bar */}
+      <div className="flex items-center gap-1 border-b border-[#27272a] pb-2 mb-4">
+        <button onClick={() => switchTab("overview")} className={`px-3 py-1.5 rounded-t-md text-xs font-medium transition ${tab === "overview" ? "bg-[#18181b] text-[#fafafa] border border-[#27272a] border-b-transparent" : "text-[#71717a] hover:text-[#d4d4d8]"}`}>
+          <TrendingUp className="w-3.5 h-3.5 inline mr-1" />Overview
+        </button>
+        <button onClick={() => switchTab("members")} className={`px-3 py-1.5 rounded-t-md text-xs font-medium transition ${tab === "members" ? "bg-[#18181b] text-[#fafafa] border border-[#27272a] border-b-transparent" : "text-[#71717a] hover:text-[#d4d4d8]"}`}>
+          <Users className="w-3.5 h-3.5 inline mr-1" />Members
+        </button>
+        <button onClick={() => switchTab("gear")} className={`px-3 py-1.5 rounded-t-md text-xs font-medium transition ${tab === "gear" ? "bg-[#18181b] text-[#fafafa] border border-[#27272a] border-b-transparent" : "text-[#71717a] hover:text-[#d4d4d8]"}`}>
+          <Package className="w-3.5 h-3.5 inline mr-1" />Gear Tracking
+        </button>
+      </div>
+
+      {tab === "overview" && (() => {
+        // --- computed data for charts ---
+        const membersWithCp = data.filter(r => r.cp != null);
+        const avgCp = membersWithCp.length > 0 ? Math.round(membersWithCp.reduce((s, r) => s + (r.cp ?? 0), 0) / membersWithCp.length) : null;
+        const highestCp = membersWithCp.length > 0 ? Math.max(...membersWithCp.map(r => r.cp!)) : null;
+        const lowestCp = membersWithCp.length > 0 ? Math.min(...membersWithCp.map(r => r.cp!)) : null;
+        const growthValues = data.map(r => r.growth30d).filter((g): g is number => g != null);
+        const highestGrowth = growthValues.length > 0 ? Math.max(...growthValues) : null;
+        const lowestGrowth = growthValues.length > 0 ? Math.min(...growthValues) : null;
+
+        // Server → guild → member count
+        const serverGuilds: { server: string; guilds: { name: string; count: number }[]; total: number }[] = [];
+        const serverMap = new Map<string, Map<string, number>>();
+        for (const r of data) {
+          if (!serverMap.has(r.serverName)) serverMap.set(r.serverName, new Map());
+          const gm = serverMap.get(r.serverName)!;
+          gm.set(r.guildName, (gm.get(r.guildName) || 0) + 1);
+        }
+        for (const [server, guildMap] of serverMap) {
+          const guilds = [...guildMap.entries()].map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count);
+          serverGuilds.push({ server, guilds, total: guilds.reduce((s, g) => s + g.count, 0) });
+        }
+
+        // CP buckets — adaptive gap: wider at low CP, narrower at high CP, skip empties
+        const cpValues = membersWithCp.map(r => r.cp!).sort((a, b) => a - b);
+        const cpBuckets: { label: string; count: number; pct: number }[] = [];
+        if (cpValues.length > 0) {
+          const total = cpValues.length;
+          const maxCp = cpValues[cpValues.length - 1];
+          // gap shrinks linearly from ~20k at CP 0 to ~2k at high end
+          const gapAt = (cp: number) => Math.max(2000, Math.round(20000 - cp * 0.08));
+          let lo = Math.floor(cpValues[0] / 1000) * 1000;
+          let idx = 0;
+          while (lo <= maxCp && idx < cpValues.length) {
+            const gap = gapAt(lo);
+            const hi = lo + gap;
+            let count = 0;
+            while (idx < cpValues.length && cpValues[idx] < hi) { count++; idx++; }
+            if (count > 0) {
+              cpBuckets.push({ label: `${lo.toLocaleString()}-${hi.toLocaleString()}`, count, pct: count / total });
+            }
+            lo = hi;
+          }
+        }
+        const cpMaxCount = cpBuckets.length > 0 ? Math.max(...cpBuckets.map(b => b.count)) : 1;
+
+        // Class distribution
+        const classCounts: Record<string, number> = {};
+        for (const r of data) {
+          const cls = r.className || "Unknown";
+          classCounts[cls] = (classCounts[cls] || 0) + 1;
+        }
+        const classEntries = Object.entries(classCounts).sort((a, b) => b[1] - a[1]);
+        const maxClassCount = Math.max(...classEntries.map(([, c]) => c), 1);
+
+        // Gear completion by slot — with rarity breakdown
+        const rarityOrder = ["common", "uncommon", "rare", "epic", "legendary", "mythic"];
+        const rarityColors: Record<string, string> = { common: "#9ca3af", uncommon: "#22c55e", rare: "#3b82f6", epic: "#a855f7", legendary: "#f59e0b", mythic: "#f97316" };
+        const slotStats: { name: string; equipped: number; empty: number; avgEnh: number; equippedPct: number; rarityCounts: Record<string, number> }[] = [];
+        for (const slot of gearSlots) {
+          let equipped = 0;
+          let empty = 0;
+          let totalEnh = 0;
+          const rCounts: Record<string, number> = {};
+          for (const g of gearData) {
+            const s = g.slots[slot.name];
+            if (s?.itemName) {
+              equipped++;
+              totalEnh += s.enh || 0;
+              const r = (s.rarity || "common").toLowerCase();
+              rCounts[r] = (rCounts[r] || 0) + 1;
+            } else if ((s?.enh ?? 0) > 0) {
+              equipped++;
+              totalEnh += s.enh;
+              rCounts["common"] = (rCounts["common"] || 0) + 1;
+            } else {
+              empty++;
+            }
+          }
+          const total = equipped + empty;
+          slotStats.push({
+            name: slot.name,
+            equipped,
+            empty,
+            avgEnh: equipped > 0 ? Math.round((totalEnh / equipped) * 10) / 10 : 0,
+            equippedPct: total > 0 ? equipped / total : 0,
+            rarityCounts: rCounts,
+          });
+        }
+
+        return (
+          <div className="space-y-5">
+            {/* ── Key Metrics ── */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="rounded-xl border border-[#27272a] bg-[#18181b] p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-[11px] text-[#71717a] uppercase tracking-wider">Members</p>
+                  <p className="text-lg font-bold font-mono tabular-nums" style={{ color: "#3b82f6" }}>{data.length.toLocaleString()}</p>
+                </div>
+                <div className="space-y-1.5">
+                  {serverGuilds.map(sg => (
+                    <div key={sg.server} className="flex items-center gap-2 hover:bg-white/[0.04] rounded px-1 -mx-1 py-0.5 transition">
+                      <span className="text-[10px] text-[#a1a1aa] font-medium w-16 flex-shrink-0 truncate">{sg.server}</span>
+                      <span className="flex flex-wrap gap-x-1.5 gap-y-0 text-[10px] flex-1 min-w-0">
+                        {sg.guilds.map(g => (
+                          <span key={g.name} className="whitespace-nowrap"><span className={guildColor(g.name).text}>{g.name}</span> <span className="text-[#52525b]">{g.count}</span></span>
+                        ))}
+                      </span>
+                      <span className="text-[10px] text-[#52525b] tabular-nums flex-shrink-0">{sg.total}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="rounded-xl border border-[#27272a] bg-[#18181b] p-4">
+                <p className="text-[11px] text-[#71717a] uppercase tracking-wider mb-2">Combat Power</p>
+                <div className="space-y-1">
+                  <div className="flex justify-between items-center">
+                    <span className="text-[10px] text-[#52525b]">High</span>
+                    <span className="text-sm font-mono tabular-nums" style={{ color: "#f59e0b" }}>{highestCp != null ? highestCp.toLocaleString() : "—"}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-[10px] text-[#52525b]">Avg</span>
+                    <span className="text-sm font-mono tabular-nums" style={{ color: "#22c55e" }}>{avgCp != null ? avgCp.toLocaleString() : "—"}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-[10px] text-[#52525b]">Low</span>
+                    <span className="text-sm font-mono tabular-nums" style={{ color: "#ef4444" }}>{lowestCp != null ? lowestCp.toLocaleString() : "—"}</span>
+                  </div>
+                </div>
+              </div>
+              <div className="rounded-xl border border-[#27272a] bg-[#18181b] p-4">
+                <p className="text-[11px] text-[#71717a] uppercase tracking-wider mb-2">30-Day Growth</p>
+                <div className="space-y-1">
+                  <div className="flex justify-between items-center">
+                    <span className="text-[10px] text-[#52525b]">High</span>
+                    <span className="text-sm font-mono tabular-nums" style={{ color: "#22c55e" }}>{highestGrowth != null ? (highestGrowth > 0 ? `+${highestGrowth.toLocaleString()}` : highestGrowth.toLocaleString()) : "—"}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-[10px] text-[#52525b]">Low</span>
+                    <span className="text-sm font-mono tabular-nums" style={{ color: "#ef4444" }}>{lowestGrowth != null ? (lowestGrowth > 0 ? `+${lowestGrowth.toLocaleString()}` : lowestGrowth.toLocaleString()) : "—"}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* ── CP Distribution ── */}
+            <div className="rounded-xl border border-[#27272a] bg-[#18181b] p-5">
+              <h3 className="text-xs font-semibold text-[#a1a1aa] uppercase tracking-wider mb-4">CP Distribution</h3>
+              {cpBuckets.length === 0 ? (
+                <p className="text-sm text-[#52525b] py-8 text-center">No CP data available.</p>
+              ) : (
+                <div className="flex items-end gap-1 h-40">
+                  {cpBuckets.map(b => (
+                    <div key={b.label} className="flex-1 min-w-0 flex flex-col items-center h-full group relative">
+                      <span className="text-[10px] text-[#71717a] tabular-nums flex-shrink-0">{b.count}</span>
+                      <div className="flex-1 w-full relative min-h-0">
+                        <div
+                          className="absolute bottom-0 left-0 right-0 rounded-t-sm bg-[#3b82f6]/70 hover:bg-[#3b82f6] transition-colors"
+                          style={{ height: `${Math.max((b.count / cpMaxCount) * 100, 1)}%` }}
+                        />
+                      </div>
+                      <div className="flex-shrink-0 h-8 flex flex-col justify-start items-center w-full">
+                        <span className="text-[9px] text-[#52525b] truncate w-full text-center leading-tight">{b.label}</span>
+                        <span className="text-[9px] text-[#71717a] w-full text-center tabular-nums">{(b.pct * 100).toFixed(0)}%</span>
+                      </div>
+                      {/* tooltip */}
+                      <div className="absolute bottom-full mb-1 hidden group-hover:block bg-[#27272a] text-[#fafafa] text-[10px] px-2 py-1 rounded whitespace-nowrap z-10">
+                        {b.label}: {b.count} members ({(b.pct * 100).toFixed(1)}%)
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* ── Class Distribution ── */}
+            <div className="rounded-xl border border-[#27272a] bg-[#18181b] p-5">
+              <h3 className="text-xs font-semibold text-[#a1a1aa] uppercase tracking-wider mb-4">Class Distribution</h3>
+              {classEntries.length === 0 ? (
+                <p className="text-sm text-[#52525b] py-8 text-center">No class data available.</p>
+              ) : (
+                <div className="space-y-2.5">
+                  {classEntries.map(([cls, count]) => {
+                    const pct = (count / maxClassCount) * 100;
+                    const sharePct = ((count / data.length) * 100);
+                    return (
+                      <div key={cls} className="flex items-center gap-2">
+                        <span className="text-[11px] text-[#d4d4d8] w-20 truncate text-right">{cls}</span>
+                        <div className="flex-1 h-5 bg-[#0d0d11] rounded-full overflow-hidden">
+                          <div className="h-full rounded-full bg-[#a855f7]/70 transition-all" style={{ width: `${pct}%` }} />
+                        </div>
+                        <span className="text-[11px] text-[#71717a] tabular-nums w-12 text-right">{count}</span>
+                        <span className="text-[10px] text-[#52525b] tabular-nums w-10 text-right">{sharePct.toFixed(1)}%</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* ── Gear Completion by Slot ── */}
+            <div className="rounded-xl border border-[#27272a] bg-[#18181b] p-5">
+              <h3 className="text-xs font-semibold text-[#a1a1aa] uppercase tracking-wider mb-4">Gear Completion by Slot</h3>
+              {slotStats.length === 0 ? (
+                <p className="text-sm text-[#52525b] py-8 text-center">No gear data available.</p>
+              ) : (
+                <div className="space-y-3">
+                  {slotStats.map(s => {
+                    const total = s.equipped + s.empty;
+                    return (
+                      <div key={s.name} className="flex items-center gap-3">
+                        <span className="text-[11px] text-[#d4d4d8] w-20 truncate text-right">{s.name}</span>
+                        <div className="flex-1 h-6 bg-[#0d0d11] rounded-full overflow-hidden relative flex">
+                          {rarityOrder.map(r => {
+                            const c = s.rarityCounts[r] || 0;
+                            if (c === 0) return null;
+                            const w = (c / total) * 100;
+                            return (
+                              <div
+                                key={r}
+                                className="h-full flex items-center justify-center text-[9px] text-[#fafafa] font-mono drop-shadow-sm transition-all"
+                                style={{ width: `${w}%`, backgroundColor: rarityColors[r], minWidth: w > 5 ? 0 : undefined }}
+                                title={`${r}: ${c} members`}
+                              >
+                                {w > 8 ? c : ""}
+                              </div>
+                            );
+                          })}
+                        </div>
+                        <span className="text-[10px] text-[#52525b] tabular-nums w-14 text-right">{s.equipped}/{total}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
+
+      {(tab as string) === "members" && (<>
+      {/* Search */}
+      <div className="relative mb-4">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#52525b]" />
+        <input
+          type="text"
+          value={search}
+          onChange={e => { setSearch(e.target.value); const p = new URLSearchParams(searchParams); if (e.target.value) p.set("q", e.target.value); else p.delete("q"); setSearchParams(p, { replace: true }); }}
+          placeholder="Search by name, server, guild, class, or CP..."
+          className="w-full pl-9 pr-4 py-2 bg-[#0d0d11] border border-[#27272a] rounded-lg text-sm text-[#fafafa] placeholder-[#52525b] focus:outline-none focus:border-[#52525b] transition"
+        />
+        {search && (
+          <button onClick={() => { setSearch(""); const p = new URLSearchParams(searchParams); p.delete("q"); setSearchParams(p, { replace: true }); }} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#52525b] hover:text-[#a1a1aa] transition">
+            <X className="w-3.5 h-3.5" />
+          </button>
+        )}
+      </div>
+
+      {loading ? (
+        <div className="flex justify-center py-20"><Loader2 className="w-6 h-6 text-[#52525b] animate-spin" /></div>
+      ) : data.length === 0 ? (
+        <p className="text-sm text-[#52525b] text-center py-20">No members found.</p>
+      ) : (
+        <div className="rounded-xl border border-[#27272a] overflow-hidden">
+          <table className="w-full text-sm table-fixed">
+            <thead className="bg-[#0d0d11]">
+              <tr className="border-b border-[#27272a]">
+                <th className="text-left py-3 pl-4 pr-2 w-[40px] text-[11px] text-[#52525b] font-mono">#</th>
+                <th className="text-left py-3 px-3 w-[16.66%] text-[11px] text-[#71717a] uppercase tracking-wider font-medium cursor-pointer hover:text-[#d4d4d8] select-none" onClick={() => handleSort("name")}>Player Name{sortArrow("name")}</th>
+                <th className="text-left py-3 px-3 w-[16.66%] text-[11px] text-[#71717a] uppercase tracking-wider font-medium cursor-pointer hover:text-[#d4d4d8] select-none" onClick={() => handleSort("className")}>Class{sortArrow("className")}</th>
+                <th className="text-left py-3 px-3 w-[16.66%] text-[11px] text-[#71717a] uppercase tracking-wider font-medium cursor-pointer hover:text-[#d4d4d8] select-none" onClick={() => handleSort("cp")}>Current CP{sortArrow("cp")}</th>
+                <th className="text-left py-3 px-3 w-[16.66%] text-[11px] text-[#71717a] uppercase tracking-wider font-medium cursor-pointer hover:text-[#d4d4d8] select-none" onClick={() => handleSort("growth30d")}>30d Growth{sortArrow("growth30d")}</th>
+                <th className="text-left py-3 px-3 w-[16.66%] text-[11px] text-[#71717a] uppercase tracking-wider font-medium cursor-pointer hover:text-[#d4d4d8] select-none" onClick={() => handleSort("serverName")}>Server{sortArrow("serverName")}</th>
+                <th className="text-left py-3 pr-4 pl-3 w-[16.66%] text-[11px] text-[#71717a] uppercase tracking-wider font-medium cursor-pointer hover:text-[#d4d4d8] select-none" onClick={() => handleSort("guildName")}>Guild{sortArrow("guildName")}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sorted.length === 0 ? (
+                <tr><td colSpan={7} className="py-8 text-center text-sm text-[#52525b]">No results match your search.</td></tr>
+              ) : (
+                sorted.map((row, i) => (
+                  <tr key={i} className="border-b border-[#27272a]/30 hover:bg-white/[0.02] transition cursor-pointer" onClick={() => navigate(`/members/${row.id}`)}>
+                    <td className="py-2.5 pl-4 pr-2 text-[11px] text-[#52525b] font-mono">{i + 1}</td>
+                    <td className="py-2.5 px-3 text-[#fafafa] font-medium truncate">{row.name}</td>
+                    <td className="py-2.5 px-3 text-[#a1a1aa] truncate">{row.className}</td>
+                    <td className="py-2.5 px-3 text-[#a1a1aa] font-mono tabular-nums">{row.cp != null ? row.cp.toLocaleString() : "—"}</td>
+                    <td className="py-2.5 px-3 font-mono tabular-nums" style={{ color: row.growth30d != null ? (row.growth30d >= 0 ? "#22c55e" : "#ef4444") : "#52525b" }}>{row.growth30d != null ? (row.growth30d >= 0 ? `+${row.growth30d.toLocaleString()}` : row.growth30d.toLocaleString()) : "—"}</td>
+                    <td className="py-2.5 px-3 text-[#a1a1aa] truncate">{row.serverName}</td>
+                    <td className={`py-2.5 pr-4 pl-3 font-medium truncate ${row.guildTextClass}`}>{row.guildName}</td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
+      </>)}  {/* end members tab */}
+
+      {(tab as string) === "gear" && (
+        gearLoading ? (
+          <div className="flex justify-center py-20"><Loader2 className="w-6 h-6 text-[#52525b] animate-spin" /></div>
+        ) : gearData.length === 0 ? (
+          <p className="text-sm text-[#52525b] text-center py-20">No gear data found.</p>
+        ) : (
+          <>
+          {/* Gear Search */}
+          <div className="relative mb-4">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#52525b]" />
+            <input
+              type="text"
+              value={gearSearch}
+              onChange={e => { setGearSearch(e.target.value); const p = new URLSearchParams(searchParams); if (e.target.value) p.set("gearq", e.target.value); else p.delete("gearq"); setSearchParams(p, { replace: true }); }}
+              placeholder="Search by name, server, or guild..."
+              className="w-full pl-9 pr-4 py-2 bg-[#0d0d11] border border-[#27272a] rounded-lg text-sm text-[#fafafa] placeholder-[#52525b] focus:outline-none focus:border-[#52525b] transition"
+            />
+            {gearSearch && (
+              <button onClick={() => { setGearSearch(""); const p = new URLSearchParams(searchParams); p.delete("gearq"); setSearchParams(p, { replace: true }); }} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#52525b] hover:text-[#a1a1aa] transition">
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+          <div className="rounded-xl border border-[#27272a] overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-[#0d0d11]">
+                <tr className="border-b border-[#27272a]">
+                  <th className="text-left py-3 pl-4 pr-2 w-[36px] text-[11px] text-[#52525b] font-mono">#</th>
+                  <th className="text-left py-3 px-2 w-[130px] text-[11px] text-[#71717a] uppercase tracking-wider font-medium cursor-pointer hover:text-[#d4d4d8] select-none" onClick={() => handleGearSort("name")}>Player{gearSortArrow("name")}</th>
+                  <th className="text-left py-3 px-2 w-[70px] text-[11px] text-[#71717a] uppercase tracking-wider font-medium cursor-pointer hover:text-[#d4d4d8] select-none" onClick={() => handleGearSort("cp")}>CP{gearSortArrow("cp")}</th>
+                  {gearSlots.map(slot => (
+                    <th key={slot.id} className="text-center py-3 px-1.5 text-[10px] text-[#71717a] uppercase tracking-wider font-medium cursor-pointer hover:text-[#d4d4d8] select-none" onClick={() => handleGearSort(slot.name)}>{slot.name}{gearSortArrow(slot.name)}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {(() => {
+                  const q = gearSearch.toLowerCase();
+                  let filtered = q ? gearData.filter(r => r.name.toLowerCase().includes(q) || r.serverName.toLowerCase().includes(q) || r.guildName.toLowerCase().includes(q)) : gearData;
+                  // Apply sort
+                  if (gearSortCol) {
+                    const dir = gearSortDir === "asc" ? 1 : -1;
+                    filtered = [...filtered].sort((a, b) => {
+                      if (gearSortCol === "name") return a.name.localeCompare(b.name) * dir;
+                      if (gearSortCol === "cp") return ((a.cp ?? 0) - (b.cp ?? 0)) * dir;
+                      // Gear slot column — sort by rarity then enhancement
+                      const ga = a.slots[gearSortCol];
+                      const gb = b.slots[gearSortCol];
+                      const ra = ga?.rarity ? (rarityRank[ga.rarity.toLowerCase()] ?? 0) : 0;
+                      const rb = gb?.rarity ? (rarityRank[gb.rarity.toLowerCase()] ?? 0) : 0;
+                      if (ra !== rb) return (rb - ra) * dir; // higher rarity first for desc
+                      return ((gb?.enh ?? 0) - (ga?.enh ?? 0)) * dir;
+                    });
+                  }
+                  return filtered.length === 0 ? (
+                    <tr><td colSpan={3 + gearSlots.length} className="py-8 text-center text-sm text-[#52525b]">No results match your search.</td></tr>
+                  ) : filtered.map((row, i) => (
+                  <tr key={i} className="border-b border-[#27272a]/30 hover:bg-white/[0.02] transition cursor-pointer" onClick={() => navigate(`/members/${row.id}`)}>
+                    <td className="py-2 pl-4 pr-2 text-[11px] text-[#52525b] font-mono">{i + 1}</td>
+                    <td className="py-2 px-2">
+                      <span className="text-[#fafafa] font-medium text-xs truncate block">{row.name}</span>
+                      <span className="text-[10px] text-[#52525b] block truncate">{row.serverName} — {row.guildName}</span>
+                    </td>
+                    <td className="py-2 px-2 text-left text-[#a1a1aa] font-mono text-xs">{row.cp != null ? row.cp.toLocaleString() : "—"}</td>
+                    {(() => {
+                      const rarityColors: Record<string, string> = { common: "#9ca3af", uncommon: "#22c55e", rare: "#3b82f6", epic: "#a855f7", legendary: "#f59e0b", mythic: "#f97316" };
+                      return gearSlots.map(slot => {
+                      const gear = row.slots[slot.name];
+                      const hasItem = gear?.itemName != null;
+                      const hasEnh = (gear?.enh ?? 0) > 0;
+                      const rarityKey = gear?.rarity?.toLowerCase();
+                      const rc = rarityKey ? (rarityColors[rarityKey] || "#a1a1aa") : "#52525b";
+                      return (
+                        <td key={slot.id} className="py-1.5 px-1 text-center" title={hasItem ? `${gear!.itemName}${hasEnh ? ` +${gear!.enh}` : ""}` : hasEnh ? `+${gear!.enh}` : "Empty"}>
+                          {hasItem ? (
+                            <div className="flex items-center justify-center">
+                              <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 relative" style={{ backgroundColor: `${rc}18` }}>
+                                {gear!.imageUrl ? (
+                                  <img src={gear!.imageUrl} alt={gear!.itemName} className="w-7 h-7 rounded object-cover" />
+                                ) : (
+                                  <span className="text-[10px] font-medium" style={{ color: rc }}>{gear!.itemName?.charAt(0)}</span>
+                                )}
+                                {hasEnh && (
+                                  <span className="absolute right-0 bottom-0.5 text-[10px] font-black text-amber-400 bg-gradient-to-t from-black/20 to-transparent rounded-bl-lg rounded-tr-lg pl-1 pr-0.5 pt-0.5 pb-0 leading-none drop-shadow-[0_1px_1px_rgba(0,0,0,0.5)]">+{gear!.enh}</span>
+                                )}
+                              </div>
+                            </div>
+                          ) : hasEnh ? (
+                            <span className="text-[11px] text-amber-400/70 font-medium">+{gear!.enh}</span>
+                          ) : (
+                            <span className="text-[11px] text-[#3f3f46]">—</span>
+                          )}
+                        </td>
+                      );
+                    }); })()}
+                  </tr>
+                )); })()}
+              </tbody>
+            </table>
+          </div>
+          </>
+        )
+      )}
+      </>)}
     </div>
   );
 }

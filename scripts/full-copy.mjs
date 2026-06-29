@@ -25,24 +25,35 @@ try {
   }
 } catch {}
 
-// ALL tables — full copy, upsert everything
+// ALL tables — full copy, upsert everything. Order matters: parent tables first (FK dependencies).
 const TABLES = [
-  "app_settings","games","item_categories","servers","guilds","boss_templates",
-  "bosses","activities","boss_guilds","boss_assists","boss_spawn_overrides",
-  "static_parties","static_party_members","members","member_gear",
-  "death_records","attendance_records","activity_attendance",
-  "discord_configs","server_classes","point_adjustments","leaderboard_snapshots",
+  // Foundation (no FKs or self-contained)
+  "app_settings","games","item_categories","item_rarities",
+  // Servers & guilds
+  "servers","guilds",
+  // Items (must come before member_gear, dkp_auctions, etc.)
   "items","item_collections","item_collection_items","item_collection_manual_ownership",
-  "admin_audit_log","cp_updates","distributions",
-  "gear_slot_categories","gear_slots","gear_templates","gear_upgrade_history",
-  "item_rarities","member_notes","moderator_permissions",
-  "notifications","payments","point_rules",
-  "activity_guilds","activity_instances","spawn_notifications",
-  "server_members","user_roles",
-  // DKP
-  "dkp_transactions","dkp_bids","dkp_config","dkp_distributed","dkp_auctions",
-  // Misc
-  "tick_metrics","member_claim_requests","gear_catalog","gear_slot_subclasses",
+  // Bosses & activities
+  "boss_templates","bosses","activities",
+  "boss_guilds","boss_assists","boss_spawn_overrides",
+  "activity_guilds","activity_assists","activity_instances",
+  // Members & gear
+  "members","member_gear",
+  "gear_slots","gear_slot_categories","gear_slot_subclasses","gear_templates","gear_catalog","gear_upgrade_history",
+  // DKP (auctions before bids)
+  "dkp_auctions","dkp_bids","dkp_transactions","dkp_config","dkp_distributed",
+  // Attendance & death records
+  "death_records","attendance_records","activity_attendance",
+  // Parties (members must exist first)
+  "static_parties","static_party_members",
+  // Config & settings
+  "discord_configs","server_classes","server_members","user_roles",
+  "moderator_permissions","point_rules","point_adjustments",
+  "leaderboard_snapshots","notifications","payments",
+  "spawn_notifications","admin_audit_log","cp_updates","distributions",
+  "member_notes","member_claim_requests",
+  // Metrics
+  "tick_metrics",
 ];
 
 async function fetchAll(table) {
@@ -73,8 +84,7 @@ async function clearStagingTable(table) {
 
 async function upsertTable(table, rows) {
   if (!rows.length) return;
-  // Clear staging table before inserting fresh data
-  await clearStagingTable(table);
+  // Tables already cleared in Phase 1
   const chunkSize = 500;
   for (let i = 0; i < rows.length; i += chunkSize) {
     const chunk = rows.slice(i, i + chunkSize);
@@ -89,6 +99,14 @@ async function upsertTable(table, rows) {
 }
 
 console.log("Full clone PROD → STAGING\n");
+
+// Phase 1: Clear staging tables in REVERSE order (children before parents) to avoid FK violations
+console.log("Clearing staging tables...");
+for (const table of [...TABLES].reverse()) {
+  await clearStagingTable(table);
+}
+
+// Phase 2: Fetch from production and insert into staging
 for (const table of TABLES) {
   const rows = await fetchAll(table);
   if (!rows.length) continue;

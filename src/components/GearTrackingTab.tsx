@@ -512,6 +512,8 @@ export function GearTrackingTab() {
                     )}
                   </div>
                 </div>
+              ) : enh > 0 ? (
+                <span className="text-[11px] text-amber-400/70 font-medium">+{enh}</span>
               ) : (
                 <span className="text-[11px] text-[#3f3f46]">—</span>
               )}

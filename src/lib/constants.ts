@@ -107,5 +107,6 @@ export function guildColor(name: string) {
     hash = ((hash << 5) - hash) + name.charCodeAt(i);
     hash |= 0;
   }
-  return GUILD_COLORS[Math.abs(hash) % GUILD_COLORS.length];
+  // Safe modulo — avoids Math.abs(-2147483648) overflow in JS
+  return GUILD_COLORS[((hash % GUILD_COLORS.length) + GUILD_COLORS.length) % GUILD_COLORS.length];
 }
