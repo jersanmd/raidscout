@@ -537,7 +537,7 @@ export async function handleMessage(msg: any) {
       const batchSize = 100;
       for (let i = 0; i < actIds.length; i += batchSize) {
         const batch = actIds.slice(i, i + batchSize).map((id: string) => `"${id}"`).join(",");
-        const batchData = await supabaseQuerySafe(`activity_instances?activity_id=in.(${batch})&order=start_time.desc&limit=${batchSize}`);
+        const batchData = await supabaseQuerySafe(`activity_instances?activity_id=in.(${batch})&order=start_time.desc&limit=500`);
         if (batchData) activityInstances.push(...batchData);
       }
     }
