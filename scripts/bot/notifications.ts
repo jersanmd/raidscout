@@ -2,7 +2,7 @@
 
 import { TOKEN, SUPABASE_URL, SUPABASE_KEY } from "./config";
 import { discordFetch } from "./discord-api";
-import { supabaseQuerySafe } from "./supabase";
+import { supabaseQuerySafe, logError } from "./supabase";
 
 export const sentNotifs = new Map<string, number>();
 
@@ -69,7 +69,7 @@ export async function broadcastNotification(
 ) {
   try {
     const configs = preFetched?.configs
-      ?? await supabaseQuerySafe(`discord_configs?raidscout_server_id=eq.${serverId}&select=notification_channel_id,discord_guild_id,notification_prefix`);
+      ?? await supabaseQuerySafe(`discord_configs?raidscout_server_id=eq.${serverId}&select=id,notification_channel_id,discord_guild_id,notification_prefix`);
 
     if (!configs?.length) return;
 
@@ -88,13 +88,31 @@ export async function broadcastNotification(
         }
 
         const content = prefix ? `${prefix} ${message}` : message;
-        await discordFetch(`https://discord.com/api/v10/channels/${chId}/messages`, {
+        const res = await discordFetch(`https://discord.com/api/v10/channels/${chId}/messages`, {
           method: "POST",
           headers: { Authorization: `Bot ${TOKEN}`, "Content-Type": "application/json" },
           body: JSON.stringify({ content, allowed_mentions: { parse: ["everyone", "roles"] } }),
         });
+        // Self-heal: clear channel if Discord says it's gone or we lack access
+        if (!res.ok && (res.status === 404 || res.status === 403)) {
+          console.warn(`[notif] clearing dead channel config ${cfg.id} (guild ${cfg.discord_guild_id} ch ${chId}, status ${res.status})`);
+          fetch(`${SUPABASE_URL}/rest/v1/discord_configs?id=eq.${cfg.id}`, {
+            method: "PATCH",
+            headers: { apikey: SUPABASE_KEY!, Authorization: `Bearer ${SUPABASE_KEY!}`, "Content-Type": "application/json", Prefer: "return=minimal" },
+            body: JSON.stringify({ notification_channel_id: null }),
+          }).catch(() => {});
+        }
       } catch (cfgErr: any) {
         console.error(`[notif] failed to send to Discord guild ${cfg.discord_guild_id} ch ${chId}:`, cfgErr.message);
+        // Self-heal: clear channel on persistent network failures too
+        if (cfgErr.message?.includes("failed after") || cfgErr.message?.includes("fetch failed")) {
+          console.warn(`[notif] clearing unreachable channel config ${cfg.id} (guild ${cfg.discord_guild_id} ch ${chId})`);
+          fetch(`${SUPABASE_URL}/rest/v1/discord_configs?id=eq.${cfg.id}`, {
+            method: "PATCH",
+            headers: { apikey: SUPABASE_KEY!, Authorization: `Bearer ${SUPABASE_KEY!}`, "Content-Type": "application/json", Prefer: "return=minimal" },
+            body: JSON.stringify({ notification_channel_id: null }),
+          }).catch(() => {});
+        }
       }
     }
   } catch (err: any) {

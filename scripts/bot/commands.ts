@@ -449,25 +449,19 @@ export async function handleMessage(msg: any) {
       snap = await supabaseRpc("bot_server_snapshot", { p_server_id: serverId });
     } catch { snap = null; }
 
-    let tz: string, bosses: any[], deaths: any[], guilds: any[], overrides: any[], serverBossGuilds: any[], activities: any[], activityGuilds: any[];
+    let tz: string, bosses: any[], guilds: any[], serverBossGuilds: any[], activities: any[], activityGuilds: any[];
     if (snap) {
       tz = snap.timezone || "Asia/Manila";
       bosses = snap.bosses || [];
-      deaths = snap.deaths || [];
       guilds = snap.guilds || [];
-      overrides = snap.overrides || [];
       serverBossGuilds = snap.boss_guilds || [];
       activities = snap.activities || [];
       activityGuilds = snap.activity_guilds || [];
     } else {
       // REST fallback
       tz = await resolveServerTimezone(serverId);
-      [bosses, deaths, guilds, overrides] = await Promise.all([
-        supabaseQuerySafe(`bosses?server_id=eq.${serverId}&is_enabled=not.is.false&deleted_at=is.null&order=name`),
-        supabaseQuerySafe(`death_records?server_id=eq.${serverId}&is_initial_spawn=is.false&order=death_time.desc&limit=200`),
-        supabaseQuerySafe(`guilds?server_id=eq.${serverId}`),
-        supabaseQuerySafe(`boss_spawn_overrides?server_id=eq.${serverId}&select=boss_id,death_time`),
-      ]);
+      bosses = await supabaseQuerySafe(`bosses?server_id=eq.${serverId}&is_enabled=not.is.false&deleted_at=is.null&order=name`);
+      guilds = await supabaseQuerySafe(`guilds?server_id=eq.${serverId}`);
       const allBossGuilds = await supabaseQuerySafe(`boss_guilds?select=boss_id,guild_id,sort_order,day_of_week,mode`);
       const serverGuildIds = new Set((guilds || []).map((g: any) => g.id));
       serverBossGuilds = (allBossGuilds || []).filter((bg: any) => serverGuildIds.has(bg.guild_id));
@@ -475,59 +469,86 @@ export async function handleMessage(msg: any) {
       const allActivityGuilds = await supabaseQuerySafe(`activity_guilds?select=activity_id,guild_id,sort_order,day_of_week,mode`);
       activityGuilds = (allActivityGuilds || []).filter((ag: any) => serverGuildIds.has(ag.guild_id));
     }
-    const overrideMap = new Map((overrides || []).map((o: any) => [o.boss_id, o.death_time]));
+
     const filterGuild = filter ? guilds.find((g: any) => g.name.toLowerCase() === filter.toLowerCase()) : null;
     const now = new Date();
     const cutoff = addHours(now, 24);
     const upcoming: { name: string; time: string; unix: number; guild: string; isActivity?: boolean }[] = [];
 
-    for (const boss of bosses) {
-      if (filter && !boss.name.toLowerCase().includes(filter.toLowerCase())) {
-        if (!filterGuild) continue;
-        const lastDeath = deaths.filter((d: any) => d.boss_id === boss.id && !d.is_initial_spawn).sort((a: any, b: any) => new Date(b.death_time).getTime() - new Date(a.death_time).getTime())[0];
-        const gName = computeOwnerGuild(boss, serverBossGuilds, guilds, lastDeath, now, tz) || "";
-        if (gName.toLowerCase() !== filterGuild.name.toLowerCase()) continue;
+    // ── Boss spawns via RPC (fast, pre-computed in SQL) ──
+    const bossMap = new Map((bosses || []).map((b: any) => [b.id, b]));
+    let spawnRows: any[] = [];
+    try { spawnRows = await supabaseRpc("bot_next_spawns", { p_server_id: serverId, p_tz: tz }) || []; } catch { /* fallback below */ }
+
+    if (spawnRows.length > 0) {
+      for (const row of spawnRows) {
+        const boss = bossMap.get(row.boss_id);
+        if (!boss) continue;
+        const spawnTime = new Date(row.spawn_time);
+        const unix = Math.floor(spawnTime.getTime() / 1000);
+        // Compute guild (pass null for lastDeath — acceptable for preview, daily mode falls back to first guild)
+        const gName = computeOwnerGuild(boss, serverBossGuilds, guilds, null, spawnTime, tz) || "";
+
+        if (filter) {
+          const nameMatch = row.boss_name.toLowerCase().includes(filter.toLowerCase());
+          const guildMatch = filterGuild && gName.toLowerCase() === filterGuild.name.toLowerCase();
+          if (!nameMatch && !guildMatch) continue;
+        }
+
+        upcoming.push({
+          name: row.boss_name,
+          time: row.is_alive ? "**ALIVE NOW**" : `<t:${unix}:t>`,
+          unix,
+          guild: gName,
+        });
       }
-      const lastDeath = deaths.filter((d: any) => d.boss_id === boss.id && !d.is_initial_spawn).sort((a: any, b: any) => new Date(b.death_time).getTime() - new Date(a.death_time).getTime())[0];
-      let spawn: Date;
-      if (boss.spawn_type === "fixed_hours") {
-        const overrideDeathTime = overrideMap.get(boss.id);
-        const effectiveDeathTime = overrideDeathTime ?? lastDeath?.death_time ?? null;
-        if (effectiveDeathTime) {
-          spawn = addHours(new Date(effectiveDeathTime), boss.respawn_hours ?? 0);
-          if (spawn <= now) spawn = now;
-        } else {
-          // No death record — check utc_start from schedule for initial spawn time
-          const utcStart = (boss.schedule && typeof boss.schedule === "object" && !Array.isArray(boss.schedule) && boss.schedule.utc_start)
-            ? boss.schedule.utc_start
-            : null;
-          spawn = utcStart ? new Date(utcStart) : now;
-          if (spawn <= now) spawn = now;
+    } else {
+      // JS fallback — fetch deaths + overrides and compute spawns the old way
+      const deaths = await supabaseQuerySafe(`death_records?server_id=eq.${serverId}&is_initial_spawn=is.false&order=death_time.desc&limit=200`);
+      const overrides = await supabaseQuerySafe(`boss_spawn_overrides?server_id=eq.${serverId}&select=boss_id,death_time`);
+      const overrideMap = new Map((overrides || []).map((o: any) => [o.boss_id, o.death_time]));
+
+      for (const boss of bosses) {
+        if (filter && !boss.name.toLowerCase().includes(filter.toLowerCase())) {
+          if (!filterGuild) continue;
+          const lastDeath = (deaths || []).filter((d: any) => d.boss_id === boss.id && !d.is_initial_spawn).sort((a: any, b: any) => new Date(b.death_time).getTime() - new Date(a.death_time).getTime())[0];
+          const gName = computeOwnerGuild(boss, serverBossGuilds, guilds, lastDeath, now, tz) || "";
+          if (gName.toLowerCase() !== filterGuild.name.toLowerCase()) continue;
         }
-      } else if (boss.spawn_type === "fixed_schedule" && boss.schedule) {
-        const schedTz = getScheduleTz(boss, tz);
-        // Only check alive window if there's a death record (boss actually spawned before)
-        if (lastDeath) {
-          let recentTime: Date | null = null;
-          for (let d = 0; d <= 7; d++) { const check = new Date(now); check.setDate(check.getDate() - d);
-            for (const slot of boss.schedule) { const c = scheduleSlotToUTC(schedTz, check, slot.day, slot.time); if (c <= now && (!recentTime || c > recentTime)) recentTime = c; }
-          }
-          if (recentTime) {
-            const nextSlotTime = findNextScheduleSlot(boss.schedule, new Date(recentTime.getTime() + 60_000), schedTz);
-            const aliveUntil = new Date(Math.min(nextSlotTime.getTime() - 3600_000, recentTime.getTime() + 4 * 3600_000));
-            const wasKilled = new Date(lastDeath.death_time) >= recentTime;
-            spawn = (!wasKilled && now >= recentTime && now < aliveUntil) ? now : findNextScheduleSlot(boss.schedule, now, schedTz);
+        const lastDeath = (deaths || []).filter((d: any) => d.boss_id === boss.id && !d.is_initial_spawn).sort((a: any, b: any) => new Date(b.death_time).getTime() - new Date(a.death_time).getTime())[0];
+        let spawn: Date;
+        if (boss.spawn_type === "fixed_hours") {
+          const overrideDeathTime = overrideMap.get(boss.id);
+          const effectiveDeathTime = overrideDeathTime ?? lastDeath?.death_time ?? null;
+          if (effectiveDeathTime) {
+            spawn = addHours(new Date(effectiveDeathTime), boss.respawn_hours ?? 0);
+            if (spawn <= now) spawn = now;
           } else {
-            spawn = findNextScheduleSlot(boss.schedule, now, schedTz);
+            const utcStart = (boss.schedule && typeof boss.schedule === "object" && !Array.isArray(boss.schedule) && boss.schedule.utc_start)
+              ? boss.schedule.utc_start : null;
+            spawn = utcStart ? new Date(utcStart) : now;
+            if (spawn <= now) spawn = now;
           }
-        } else {
-          spawn = findNextScheduleSlot(boss.schedule, now, schedTz);
+        } else if (boss.spawn_type === "fixed_schedule" && boss.schedule) {
+          const schedTz = getScheduleTz(boss, tz);
+          if (lastDeath) {
+            let recentTime: Date | null = null;
+            for (let d = 0; d <= 7; d++) { const check = new Date(now); check.setDate(check.getDate() - d);
+              for (const slot of boss.schedule) { const c = scheduleSlotToUTC(schedTz, check, slot.day, slot.time); if (c <= now && (!recentTime || c > recentTime)) recentTime = c; }
+            }
+            if (recentTime) {
+              const nextSlotTime = findNextScheduleSlot(boss.schedule, new Date(recentTime.getTime() + 60_000), schedTz);
+              const aliveUntil = new Date(Math.min(nextSlotTime.getTime() - 3600_000, recentTime.getTime() + 4 * 3600_000));
+              const wasKilled = new Date(lastDeath.death_time) >= recentTime;
+              spawn = (!wasKilled && now >= recentTime && now < aliveUntil) ? now : findNextScheduleSlot(boss.schedule, now, schedTz);
+            } else { spawn = findNextScheduleSlot(boss.schedule, now, schedTz); }
+          } else { spawn = findNextScheduleSlot(boss.schedule, now, schedTz); }
+        } else continue;
+        if (spawn.getTime() <= cutoff.getTime() || filter) {
+          const gName = computeOwnerGuild(boss, serverBossGuilds, guilds, lastDeath, spawn, tz) || "";
+          const unix = Math.floor(spawn.getTime() / 1000);
+          upcoming.push({ name: boss.name, time: spawn <= now ? "**ALIVE NOW**" : `<t:${unix}:t>`, unix, guild: gName });
         }
-      } else continue;
-      if (spawn.getTime() <= cutoff.getTime() || filter) {
-        const gName = computeOwnerGuild(boss, serverBossGuilds, guilds, lastDeath, spawn, tz) || "";
-        const unix = Math.floor(spawn.getTime() / 1000);
-        upcoming.push({ name: boss.name, time: spawn <= now ? "**ALIVE NOW**" : `<t:${unix}:t>`, unix, guild: gName });
       }
     }
     // ── Activities (within 24h cutoff, merged and sorted with bosses) ──

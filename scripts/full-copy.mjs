@@ -128,6 +128,30 @@ for (const table of TABLES) {
 }
 console.log("\n✅ Clone complete!");
 
+// Phase 3: Clear Discord channel configs on staging (staging bot can't access production channels)
+console.log("Clearing staging Discord channel configs...");
+try {
+  // Fetch all discord_configs IDs from staging
+  const dcRes = await fetch(`${STAGING_URL}/rest/v1/discord_configs?select=id`, { headers: SH });
+  if (dcRes.ok) {
+    const dcRows = await dcRes.json();
+    if (dcRows.length) {
+      // PATCH all rows to null out channel columns (batch of 500)
+      for (let i = 0; i < dcRows.length; i += 500) {
+        const batch = dcRows.slice(i, i + 500);
+        for (const row of batch) {
+          await fetch(`${STAGING_URL}/rest/v1/discord_configs?id=eq.${row.id}`, {
+            method: "PATCH",
+            headers: { ...SH, Prefer: "return=minimal" },
+            body: JSON.stringify({ notification_channel_id: null, thread_channel_id: null, command_channel_id: null }),
+          }).catch(() => {});
+        }
+      }
+      console.log(`  Cleared ${dcRows.length} discord_configs channel columns`);
+    }
+  }
+} catch (e) { console.error(`  ⚠️ discord_configs cleanup: ${e.message}`); }
+
 // Show audit log count
 (async () => {
   const res = await fetch(`${PROD_URL}/rest/v1/admin_audit_log?select=count`, { headers: { ...PH, Prefer: "count=exact" } });

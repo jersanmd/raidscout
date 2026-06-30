@@ -197,20 +197,19 @@ export function startSpawnCron() {
     return interval;
   }
 
+  let firstTick = true;
+
   async function scheduleTick() {
     if (tickRunning) {
       console.warn("[cron] Previous tick still running — skipping this tick");
     } else {
       tickRunning = true;
-      sampleCpu();
-      sampleLoop();
+      sampleCpu(); sampleLoop();
       try {
-        await runSpawnCron();
-      } catch (err: any) {
-        logError("cron", "Tick error", err);
-      } finally {
-        tickRunning = false;
-      }
+        await runSpawnCron(!firstTick);
+        firstTick = false;
+      } catch (err: any) { logError("cron", "Tick error", err); }
+      finally { tickRunning = false; }
     }
     const next = getAdaptiveInterval();
     setTimeout(scheduleTick, next);
@@ -221,7 +220,7 @@ export function startSpawnCron() {
   console.log(`Spawn cron started (adaptive: 30s-120s based on load)`);
 }
 
-async function runSpawnCron() {
+async function runSpawnCron(sendNotifications = true) {
   const tickStart = Date.now();
   lastTickTime = tickStart;
   let serversChecked = 0;
@@ -230,7 +229,7 @@ async function runSpawnCron() {
   try {
 
   const configs = await supabaseQuerySafe(
-    `discord_configs?select=raidscout_server_id,discord_guild_id,notification_channel_id,notification_prefix,thread_channel_id,thread_guilds,command_channel_id&or=(notification_channel_id.not.is.null,thread_channel_id.not.is.null,command_channel_id.not.is.null)`
+    `discord_configs?select=id,raidscout_server_id,discord_guild_id,notification_channel_id,notification_prefix,thread_channel_id,thread_guilds,command_channel_id&or=(notification_channel_id.not.is.null,thread_channel_id.not.is.null,command_channel_id.not.is.null)`
   );
 
   // Fetch active servers (exclude soft-deleted AND expired)
@@ -344,41 +343,36 @@ async function runSpawnCron() {
     const serverPrefix = serverInfoMap.get(serverId)?.notification_prefix || "";
     const notifConfigs = serverNotifConfigs.get(serverId);
 
-    for (const boss of bosses) {
+    // Use pre-computed spawn RPC (avoids JS spawn loop blocking the event loop)
+    let spawnRows: any[] = [];
+    try { spawnRows = await supabaseRpc("bot_next_spawns", { p_server_id: serverId, p_tz: tz }) || []; } catch { /* fallback to JS below */ }
+
+    if (spawnRows.length === 0) {
+      // Fallback: compute spawns in JS (same as before)
+      for (const boss of bosses) {
+        try {
+          const lastDeath = (deaths || []).find((d: any) => d.boss_id === boss.id) ?? null;
+          const effectiveDeathTime = overrideMap.get(boss.id) ?? lastDeath?.death_time ?? null;
+          const now = new Date();
+          let spawnTime: Date;
+          if (boss.spawn_type === "fixed_hours") { if (!effectiveDeathTime) continue; spawnTime = new Date(new Date(effectiveDeathTime).getTime() + (boss.respawn_hours ?? 24) * 3600_000); }
+          else if (boss.spawn_type === "fixed_schedule" && boss.schedule) {
+            const schedTz = getScheduleTz(boss, tz); spawnTime = findNextScheduleSlot(boss.schedule, now, schedTz);
+          } else continue;
+          const isAlive = spawnTime <= now;
+          spawnRows.push({ boss_id: boss.id, boss_name: boss.name, spawn_time: spawnTime.toISOString(), is_alive: isAlive });
+        } catch {}
+      }
+    }
+
+    for (const s of spawnRows) {
       try {
         bossCount++;
-        // Deaths are pre-filtered: 1 row per boss (latest death, no initial_spawn)
-        const lastDeath = (deaths || []).find((d: any) => d.boss_id === boss.id) ?? null;
-        const overrideDeathTime = overrideMap.get(boss.id);
-        const effectiveDeathTime = overrideDeathTime ?? lastDeath?.death_time ?? null;
-
-        let spawnTime: Date;
-        if (boss.spawn_type === "fixed_hours") {
-          if (!effectiveDeathTime) continue;
-          spawnTime = new Date(new Date(effectiveDeathTime).getTime() + (boss.respawn_hours ?? 24) * 3600_000);
-        } else if (boss.spawn_type === "fixed_schedule" && boss.schedule) {
-          const schedTz = getScheduleTz(boss, tz);
-          let recentSlot: Date | null = null;
-          const now = new Date();
-          for (let d = 0; d <= 7; d++) {
-            const check = new Date(now); check.setDate(check.getDate() - d);
-            for (const slot of boss.schedule) {
-              const c = scheduleSlotToUTC(schedTz, check, slot.day, slot.time);
-              if (c <= now && (!recentSlot || c > recentSlot)) recentSlot = c;
-            }
-          }
-          if (!recentSlot) continue;
-          const nextSlot = findNextScheduleSlot(boss.schedule, new Date(recentSlot.getTime() + 60_000), schedTz);
-          const aliveUntil = new Date(Math.min(nextSlot.getTime() - 3600_000, recentSlot.getTime() + 4 * 3600_000));
-          const wasKilled = lastDeath && new Date(lastDeath.death_time) >= recentSlot;
-          if (wasKilled || now >= aliveUntil) {
-            spawnTime = findNextScheduleSlot(boss.schedule, now, schedTz);
-          } else {
-            continue;
-          }
-        } else {
-          continue;
-        }
+        const spawnTime = new Date(s.spawn_time);
+        const isAlive = !!s.is_alive;
+        const boss = bosses.find((b: any) => b.id === s.boss_id);
+        if (!boss) continue;
+        const lastDeath = (deaths || []).find((d: any) => d.boss_id === s.boss_id) ?? null;
 
         const spawnUnix = Math.floor(spawnTime.getTime() / 1000);
         const nowUnix = Math.floor(Date.now() / 1000);
@@ -388,58 +382,46 @@ async function runSpawnCron() {
         const guildName = computeOwnerGuild(boss, serverBossGuilds, (guilds || []), lastDeath, spawnTime, tz) || "";
 
         // ── Spawn-time notification (just spawned) ──
-        if (secsSinceSpawn >= 0 && secsSinceSpawn <= 60) {
+        if (isAlive && secsSinceSpawn >= 0 && secsSinceSpawn <= 60) {
           const spawnDedupKey = `${serverId}-${boss.id}-boss_spawned-${spawnUnix}`;
           if (!sentNotifs.has(spawnDedupKey)) {
             sentNotifs.set(spawnDedupKey, Date.now());
             queueDedupRecord("boss_spawned", serverId, boss.id, spawnUnix);
             const timeStr = spawnTime.toLocaleString("en-US", { timeZone: tz || "Asia/Manila", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: true });
             const text = `🟢 **${boss.name}** has spawned -- **${guildName}** ${timeStr}`;
-            notifPromises.push(
-              broadcastNotification(serverId, {}, "", text, { configs: notifConfigs, serverPrefix }).catch((err) => logError("cron", "broadcastNotification failed", err, { serverId, boss: boss.name }))
-            );
+            notifPromises.push(broadcastNotification(serverId, {}, "", text, { configs: notifConfigs, serverPrefix }).catch(() => {}));
           }
           continue;
         }
-
         if (secsUntilSpawn <= 0) continue;
 
         // ── 5-minute warning + thread ──
         if (secsUntilSpawn > 0 && secsUntilSpawn <= 300) {
           const dedupKey = `${serverId}-${boss.id}-5min-${spawnUnix}`;
           if (!sentNotifs.has(dedupKey)) {
-            sentNotifs.set(dedupKey, Date.now());
-            queueDedupRecord("boss_spawning", serverId, boss.id, spawnUnix);
+            sentNotifs.set(dedupKey, Date.now()); queueDedupRecord("boss_spawning", serverId, boss.id, spawnUnix);
             const timeStr = spawnTime.toLocaleString("en-US", { timeZone: tz || "Asia/Manila", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: true });
             const text = `⚠️ **${boss.name}** spawning in 5 min -- **${guildName}** ${timeStr}`;
-            notifPromises.push(
-              broadcastNotification(serverId, {}, "", text, { configs: notifConfigs, serverPrefix }).catch((err) => logError("cron", "broadcastNotification failed", err, { serverId, boss: boss.name }))
-            );
+            notifPromises.push(broadcastNotification(serverId, {}, "", text, { configs: notifConfigs, serverPrefix }).catch(() => {}));
           }
-
           const threadDedupKey = `${serverId}-thread-${boss.id}-${spawnUnix}`;
           if (!sentNotifs.has(threadDedupKey)) {
-            sentNotifs.set(threadDedupKey, Date.now());
-            queueDedupRecord("boss_thread", serverId, boss.id, spawnUnix);
-            const preFetchedThread = {
-              configs: serverThreadConfigs.get(serverId),
-              guildIdToName,
-              tz,
-              bossAssistRows: (serverBossAssists || []).filter((a: any) => a.boss_id === boss.id),
-            };
+            sentNotifs.set(threadDedupKey, Date.now()); queueDedupRecord("boss_thread", serverId, boss.id, spawnUnix);
             notifPromises.push(
-              createEventThreads(serverId, boss.name, guildName, spawnUnix, "boss", boss.id, preFetchedThread)
-                .catch((err) => logError("cron", "createEventThreads failed", err, { serverId, boss: boss.name }))
+              createEventThreads(serverId, boss.name, guildName, spawnUnix, "boss", boss.id, {
+                configs: serverThreadConfigs.get(serverId), guildIdToName, tz,
+                bossAssistRows: (serverBossAssists || []).filter((a: any) => a.boss_id === boss.id),
+              }).catch(() => {})
             );
           }
         }
       } catch (bossErr: any) {
-        logError("cron", "Error processing boss", bossErr, { serverId, bossId: boss.id, bossName: boss.name });
+        logError("cron", "Error processing boss", bossErr, { serverId, bossId: s.boss_id, bossName: s.boss_name });
       }
     }
 
     // ── Fire all boss notifications/threads concurrently ──
-    if (notifPromises.length > 0) await batchRun(notifPromises, 10);
+    if (sendNotifications && notifPromises.length > 0) await batchRun(notifPromises, 10);
 
     // ── Activities (from RPC snapshot) ──────────────────────
     const activities = snap?.activities ?? await supabaseQuerySafe(
@@ -558,7 +540,7 @@ async function runSpawnCron() {
     }
 
     // Fire activity notifications/threads (collected after boss batchRun above)
-    if (notifPromises.length > 0) await batchRun(notifPromises, 10);
+    if (sendNotifications && notifPromises.length > 0) await batchRun(notifPromises, 10);
 
     } catch (serverErr: any) {
       logError("cron", "Server processing failed", serverErr, { serverId });
