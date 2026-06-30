@@ -6,10 +6,10 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { updateMemberName, deleteMember, upsertMember, isSupabaseConfigured, fetchGuilds, setMemberGuild, bulkAddMembers, supabase, fetchStaticParties, createParty, deleteParty, addMemberToParty, removeMemberFromParty, type StaticParty, sendCpReminder, createProgressThread, addBackdatedCpUpdate, fetchMemberCpHistory, editCpUpdate, deleteCpUpdate, unlinkMember } from "@/lib/supabase";
 import { writeAuditEntry, AuditAction } from "@/lib/api/audit";
-import { useServerId, useHasPermission, useServer } from "@/contexts/ServerContext";
+import { useServerId, useHasPermission, useServer, type Server } from "@/contexts/ServerContext";
 import { ExpiredGate } from "@/components/ExpiredGate";
 import type { Guild, Member, CpUpdate } from "@/types";
-import { Users, Plus, Pencil, Trash2, Loader2, X, Check, UserPlus, CheckCircle, XCircle, AlertTriangle, Image, Upload, Copy, Shield, Search, ChevronLeft, ChevronRight, TrendingUp, ChevronUp, ChevronDown, Tag, Sword, Swords, ShieldHalf, ShieldCheck, Crosshair, Wand, Heart, Zap, Flame, Snowflake, Skull, Star, Crown, Anchor, Gavel, Axe, Target, Footprints, HandMetal, Megaphone, Calendar, Clock, Eye, EyeOff, Package, MoreHorizontal, Download } from "lucide-react";
+import { Users, Plus, Pencil, Trash2, Loader2, X, Check, UserPlus, CheckCircle, XCircle, AlertTriangle, Image, Upload, Copy, Shield, Search, ChevronLeft, ChevronRight, TrendingUp, ChevronUp, ChevronDown, Tag, Sword, Swords, ShieldHalf, ShieldCheck, Crosshair, Wand, Heart, Zap, Flame, Snowflake, Skull, Star, Crown, Anchor, Gavel, Axe, Target, Footprints, HandMetal, Megaphone, Calendar, Clock, Eye, EyeOff, Package, MoreHorizontal, Download, Settings, Gamepad2 } from "lucide-react";
 import { guildColor } from "@/lib/constants";
 import { GearTrackingTab } from "@/components/GearTrackingTab";
 
@@ -23,7 +23,7 @@ export function MembersView() {
   // Cross-server summary for staff on 2+ servers
   const navigate = useNavigate();
   const staffServers = useMemo(() => servers.filter(s => s.role === "owner" || s.role === "moderator"), [servers]);
-  const showSummaryButton = staffServers.length >= 2 && !isViewer;
+  const showSummaryButton = staffServers.length >= 1 && !isViewer;
 
   if (currentServer?.isExpired) return <ExpiredGate page="Members" />;
   const queryClient = useQueryClient();
@@ -3026,6 +3026,74 @@ export function MembersSummaryView() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const staffServers = useMemo(() => servers.filter(s => s.role === "owner" || s.role === "moderator"), [servers]);
+
+  // Fetch game icons
+  const { data: gameIcons = {} } = useQuery<Record<string, string>>({
+    queryKey: ["gameIcons"],
+    queryFn: async () => {
+      const { data } = await supabase.from("games").select("name, slug, icon_url");
+      const map: Record<string, string> = {};
+      for (const g of (data || [])) {
+        if (g.icon_url) {
+          map[g.name] = g.icon_url;
+          map[g.slug] = g.icon_url;
+        }
+      }
+      return map;
+    },
+    staleTime: 600_000,
+  });
+
+  // Group staff servers by game for multi-game picker
+  const gameGroups = useMemo(() => {
+    const map = new Map<string, Server[]>();
+    for (const s of staffServers) {
+      const g = s.game || "Unknown";
+      if (!map.has(g)) map.set(g, []);
+      map.get(g)!.push(s);
+    }
+    return [...map.entries()].map(([game, srvs]) => ({ game, servers: srvs, count: srvs.length })).sort((a, b) => b.count - a.count);
+  }, [staffServers]);
+
+  // Server toggle state — all included by default
+  const allServerIds = useMemo(() => new Set(staffServers.map(s => s.id)), [staffServers]);
+  const [excludedIds, setExcludedIds] = useState<Set<string>>(() => {
+    const raw = searchParams.get("exclude");
+    if (!raw) return new Set<string>();
+    return new Set(raw.split(",").filter(id => allServerIds.has(id)));
+  });
+  const [configured, setConfigured] = useState<boolean>(() => searchParams.get("exclude") != null || searchParams.get("game") != null);
+
+  const activeServers = useMemo(() => {
+    if (!configured) return [];
+    return staffServers.filter(s => !excludedIds.has(s.id));
+  }, [staffServers, excludedIds, configured]);
+
+  const toggleServer = (id: string) => {
+    setExcludedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleGame = (game: string) => {
+    setExcludedIds(prev => {
+      const gameSrvIds = gameGroups.find(g => g.game === game)?.servers.map(s => s.id) || [];
+      const allExcluded = gameSrvIds.every(id => prev.has(id));
+      const next = new Set(prev);
+      if (allExcluded) {
+        // Include all
+        for (const id of gameSrvIds) next.delete(id);
+      } else {
+        // Exclude all
+        for (const id of gameSrvIds) next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const includedCount = staffServers.length - excludedIds.size;
   const [data, setData] = useState<SummaryRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState(() => searchParams.get("q") || "");
@@ -3070,12 +3138,13 @@ export function MembersSummaryView() {
 
   useEffect(() => {
     if (serversLoading) return; // wait for servers to load
-    if (isViewer || staffServers.length < 2) { navigate("/members", { replace: true }); return; }
+    if (isViewer) { navigate("/members", { replace: true }); return; }
+    if (staffServers.length === 0) { navigate("/members", { replace: true }); return; }
     let cancelled = false;
     (async () => {
       setLoading(true);
       const allRows: SummaryRow[] = [];
-      for (const srv of staffServers) {
+      for (const srv of activeServers) {
         // Paginate to avoid Supabase 1000-row default limit
         let offset = 0;
         const limit = 900;
@@ -3114,7 +3183,7 @@ export function MembersSummaryView() {
       if (!cancelled) { setData(allRows); setLoading(false); }
     })();
     return () => { cancelled = true; };
-  }, [staffServers, isViewer, navigate, serversLoading]);
+  }, [activeServers, isViewer, navigate, serversLoading]);
 
   const handleSort = (col: keyof SummaryRow) => {
     if (sortCol === col) {
@@ -3163,7 +3232,7 @@ const [gearSlots, setGearSlots] = useState<{ id: string; name: string }[]>([]);
     // Collect all server member IDs first
     const allMemberIds: string[] = [];
     const memberMap = new Map<string, { name: string; cp: number | null; serverName: string; guildName: string }>();
-    for (const srv of staffServers) {
+    for (const srv of activeServers) {
       // Paginate to avoid Supabase 1000-row default limit
       let offset = 0;
       const limit = 900;
@@ -3243,16 +3312,106 @@ const [gearSlots, setGearSlots] = useState<{ id: string; name: string }[]>([]);
     }
     setGearData(rows);
     setGearLoading(false);
-  }, [staffServers]);
+  }, [activeServers]);
 
   useEffect(() => { fetchGear(); }, [fetchGear]);
+
+  // Show server picker before any page content
+  if (!configured) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#09090b]">
+        <div className="bg-[#18181b] border border-[#27272a] rounded-2xl p-6 w-full max-w-md mx-4 shadow-2xl max-h-[80vh] flex flex-col">
+          {/* Header */}
+          <div className="flex items-center gap-3 mb-4">
+            <button
+              onClick={() => navigate("/members")}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#27272a] text-[#a1a1aa] text-xs font-medium hover:bg-[#3f3f46] hover:text-[#fafafa] transition"
+            >
+              <ChevronLeft className="w-3.5 h-3.5" />
+              Back
+            </button>
+            <h3 className="text-base font-bold text-[#fafafa]">Select Servers</h3>
+          </div>
+          <p className="text-xs text-[#71717a] mb-4">Toggle servers to include in the summary. {includedCount} of {staffServers.length} selected.</p>
+
+          {/* Server list */}
+          <div className="flex-1 overflow-y-auto space-y-4 pr-1">
+            {gameGroups.map(gg => {
+              const allExcluded = gg.servers.every(s => excludedIds.has(s.id));
+              const someExcluded = gg.servers.some(s => excludedIds.has(s.id));
+              return (
+                <div key={gg.game}>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="flex items-center gap-1.5 text-[11px] text-[#a1a1aa] uppercase tracking-wider font-semibold">
+                      {gameIcons[gg.game] ? (
+                        <img src={gameIcons[gg.game]} alt="" className="w-4 h-4 rounded object-cover" />
+                      ) : (
+                        <Gamepad2 className="w-3.5 h-3.5 text-[#52525b]" />
+                      )}
+                      {gg.game}
+                    </span>
+                    <button
+                      onClick={() => toggleGame(gg.game)}
+                      className="text-[10px] text-[#52525b] hover:text-[#a1a1aa] transition"
+                    >
+                      {allExcluded ? "Select all" : "Deselect all"}
+                    </button>
+                  </div>
+                  <div className="space-y-1">
+                    {gg.servers.map(s => {
+                      const excluded = excludedIds.has(s.id);
+                      return (
+                        <button
+                          key={s.id}
+                          onClick={() => toggleServer(s.id)}
+                          className={`w-full flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs transition ${
+                            excluded
+                              ? "border-[#27272a] bg-transparent text-[#52525b]"
+                              : "border-[#3b82f6]/30 bg-[#3b82f6]/10 text-[#fafafa]"
+                          }`}
+                        >
+                          <div className={`w-3.5 h-3.5 rounded border flex items-center justify-center flex-shrink-0 transition ${
+                            excluded ? "border-[#3f3f46] bg-transparent" : "border-[#3b82f6] bg-[#3b82f6]"
+                          }`}>
+                            {!excluded && <Check className="w-2.5 h-2.5 text-white" />}
+                          </div>
+                          <span className="truncate">{s.name}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Confirm button */}
+          <button
+            onClick={() => { setConfigured(true); const p = new URLSearchParams(); if (excludedIds.size > 0) p.set("exclude", [...excludedIds].join(",")); setSearchParams(p, { replace: true }); }}
+            disabled={includedCount === 0}
+            className="w-full mt-4 py-2.5 rounded-xl bg-[#fafafa] text-[#09090b] text-sm font-semibold hover:bg-white transition disabled:opacity-30 disabled:cursor-not-allowed"
+          >
+            Show Summary ({includedCount} server{includedCount !== 1 ? "s" : ""})
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full max-w-[100%] 2xl:max-w-[1600px] mx-auto px-3 sm:px-4 py-4 sm:py-6">
       <div className="flex items-center justify-between mb-4">
         <div>
           <h2 className="text-xl font-bold text-[#fafafa]">Member Summary</h2>
-          <p className="text-sm text-[#a1a1aa]">{staffServers.length} servers · {tab === "members" ? `${data.length} members` : tab === "gear" ? `${gearData.length} gear profiles` : `${data.length} members`}</p>
+          <p className="text-sm text-[#a1a1aa]">{activeServers.length} servers · {tab === "members" ? `${data.length} members` : tab === "gear" ? `${gearData.length} gear profiles` : `${data.length} members`}</p>
+          {gameGroups.length >= 1 && (
+            <button
+              onClick={() => setConfigured(false)}
+              className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded-full bg-[#27272a] text-[10px] text-[#a1a1aa] hover:text-[#fafafa] hover:bg-[#3f3f46] transition"
+            >
+              <Settings className="w-2.5 h-2.5" /> {activeServers.length} of {staffServers.length} servers
+            </button>
+          )}
         </div>
         <button
           onClick={() => navigate("/members")}
