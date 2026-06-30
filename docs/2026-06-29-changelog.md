@@ -32,7 +32,11 @@
 ## 🔧 Fixes
 
 - **Gear data RLS bypass** — `get_member_gear_summary` SECURITY DEFINER RPC deployed to production
+- **Inventory History — day-based fetching** — Replaced cursor/limit pagination with `fetchDistributionsByDay`. Initial load fetches backward day-by-day until 10 items collected (max 90 days). Scroll loads previous days, skips empty days up to 30 before stopping.
+- **Inventory History — item leak** — `fetchItems` was using `.or()` returning items from all servers sharing a game. Fixed to `server_id = sid OR (game = slug AND server_id IS NULL)` for proper game-scoped items.
+- **Inventory History — infinite scroll fix** — Sentinel IntersectionObserver now reconnects on loading state changes, fixing stuck scroll after load-more completes.
 - **sync-staging FK ordering** — Tables reordered FK-safe (parents before children, clear in reverse)
+- **sync-staging app_settings clear** — `clearStagingTable` used `id` column filter which failed for tables without `id`. Added special case for `app_settings` (`?key=not.is.null`).
 - **`guildColor()` overflow** — Fixed `Math.abs(-2147483648)` with safe modulo
 - **CP histogram bar alignment** — Switched to absolute positioning to prevent flex-shrink from equalizing bar heights
 - **GearTrackingTab** — Empty slots now show `+{enh}` instead of "—"
@@ -41,7 +45,10 @@
 
 - `src/pages/MembersView.tsx` — Major overhaul: Overview tab charts, URL sync, localStorage sort, clickable gear rows, guild names, multi-game picker
 - `src/contexts/ServerContext.tsx` — Added `game` field to `Server` type and all fetch queries
+- `src/pages/InventoryView.tsx` — Day-based history fetching, sentinel fix, removed search polling
+- `src/lib/api/memberManagement.ts` — `fetchDistributionsByDay` + fixed `fetchItems` cross-server leak
+- `src/lib/supabase.ts` — Export `fetchDistributionsByDay`
 - `src/components/GearTrackingTab.tsx` — Enhancement level display for empty slots
 - `src/lib/constants.ts` — Safe modulo fix in `guildColor()`
-- `scripts/full-copy.mjs` — FK-safe table ordering, added `activity_assists`
+- `scripts/full-copy.mjs` — FK-safe table ordering, `app_settings` clear fix, added `activity_assists`
 - `supabase/migrations/20260629000001_get_member_gear_summary_rpc.sql` — New RPC
