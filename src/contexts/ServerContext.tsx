@@ -11,6 +11,7 @@ export interface Server {
   discord_webhook_url?: string;
   timezone?: string;
   notification_prefix?: string;
+  game?: string;
   role: "owner" | "moderator" | "viewer";
   viewer_can_edit?: boolean;
   viewer_can_mark_died?: boolean;
@@ -60,7 +61,7 @@ export function ServerProvider({ children }: { children: ReactNode }) {
       // Fetch trial/subscription info so we know if the server is expired
       supabase
         .from("servers")
-        .select("name, trial_ends_at, subscription_ends_at, timezone, discord_webhook_url")
+        .select("name, game, trial_ends_at, subscription_ends_at, timezone, discord_webhook_url")
         .eq("id", viewerServerId)
         .is("deleted_at", null)
         .maybeSingle()
@@ -75,6 +76,7 @@ export function ServerProvider({ children }: { children: ReactNode }) {
             created_at: undefined,
             discord_webhook_url: srv?.discord_webhook_url ?? viewerDiscordWebhookUrl ?? undefined,
             timezone: srv?.timezone ?? viewerTimezone ?? undefined,
+            game: srv?.game ?? undefined,
             role: "viewer",
             trial_ends_at: trialEnds,
             subscription_ends_at: subEnds,
@@ -95,6 +97,7 @@ export function ServerProvider({ children }: { children: ReactNode }) {
             created_at: undefined,
             discord_webhook_url: viewerDiscordWebhookUrl ?? undefined,
             timezone: viewerTimezone ?? undefined,
+            game: undefined,
             role: "viewer",
           };
           setServers([viewerServer]);
@@ -124,7 +127,7 @@ export function ServerProvider({ children }: { children: ReactNode }) {
       if (userRole === "admin") {
         const { data: allServers } = await supabase
           .from("servers")
-          .select("id, name, owner_id, invite_code, created_at, discord_webhook_url, timezone, notification_prefix, deleted_at, trial_ends_at, subscription_ends_at, paypal_subscription_id")
+          .select("id, name, owner_id, invite_code, created_at, discord_webhook_url, timezone, notification_prefix, game, deleted_at, trial_ends_at, subscription_ends_at, paypal_subscription_id")
           .is("deleted_at", null)
           .order("name");
 
@@ -138,6 +141,7 @@ export function ServerProvider({ children }: { children: ReactNode }) {
               discord_webhook_url: s.discord_webhook_url,
               timezone: s.timezone || 'Asia/Manila',
               notification_prefix: s.notification_prefix || '@everyone',
+              game: s.game ?? undefined,
               role: "owner" as "owner" | "moderator",
               trial_ends_at: s.trial_ends_at,
               subscription_ends_at: s.subscription_ends_at,
@@ -191,7 +195,7 @@ export function ServerProvider({ children }: { children: ReactNode }) {
       // Fetch servers with all fields
       const { data: srvData } = await supabase
         .from("servers")
-        .select("id, name, owner_id, invite_code, created_at, discord_webhook_url, timezone, notification_prefix, deleted_at, trial_ends_at, subscription_ends_at, paypal_subscription_id")
+        .select("id, name, owner_id, invite_code, created_at, discord_webhook_url, timezone, notification_prefix, game, deleted_at, trial_ends_at, subscription_ends_at, paypal_subscription_id")
         .in("id", uniqueIds);
 
       // Build role map
@@ -218,6 +222,7 @@ export function ServerProvider({ children }: { children: ReactNode }) {
             discord_webhook_url: s.discord_webhook_url,
             timezone: s.timezone || 'Asia/Manila',
             notification_prefix: s.notification_prefix || '@everyone',
+            game: s.game ?? undefined,
             role: (role ?? "owner") as "owner" | "moderator",
             trial_ends_at: s.trial_ends_at,
             subscription_ends_at: s.subscription_ends_at,
