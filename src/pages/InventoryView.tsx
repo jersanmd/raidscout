@@ -3,7 +3,7 @@ import { useSearchParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   fetchItemsPaginated, fetchItems, createItem, deleteItem, updateItem, searchItemsByGame,
-  fetchDistributions, createDistribution, deleteDistribution,
+  fetchDistributions, fetchDistributionsByDay, createDistribution, deleteDistribution,
   fetchItemDistributionStats, fetchTopRecipients,
   fetchMembers, isSupabaseConfigured,
   supabase as supabaseClient,
@@ -77,6 +77,7 @@ function Sentinel({ onVisible, loading }: { onVisible: () => void; loading: bool
     );
     obs.observe(el);
     return () => obs.disconnect();
+    // Reconnect when loading toggles so observer fires on next intersection check
   }, [loading]);
 
   return (
@@ -212,45 +213,57 @@ export function InventoryView() {
     }
   }, [collectionMode, selectedCollection, members, guilds, matrixGuildFilter]);
 
-  const [distCursor, setDistCursor] = useState<string | null>(null);
-  const [distAccum, setDistAccum] = useState<Distribution[]>([]);
+  // ── Day-based distribution fetching ──
+  const [distDays, setDistDays] = useState<Distribution[]>([]);
+  const [distLoading, setDistLoading] = useState(true);
   const [distLoadingMore, setDistLoadingMore] = useState(false);
-  const [distHasMore, setDistHasMore] = useState(false);
+  const [distHasMore, setDistHasMore] = useState(true);
 
-  const { data: distributionsRaw = [], isLoading: distLoading } = useQuery({
-    queryKey: ["distributions", serverId],
-    queryFn: () => fetchDistributions(serverId, undefined, undefined, 10),
-    enabled: configured,
-    staleTime: 30_000,
-  });
-
-  // Reset accumulator when server changes (not on every refetch)
-  const prevServerForDist = useRef(serverId);
+  // Initial fetch: go back day by day until 10 items or 90 days exhausted
   useEffect(() => {
-    if (prevServerForDist.current === serverId) return;
-    prevServerForDist.current = serverId;
-    setDistCursor(null);
-    setDistAccum([]);
-    setDistHasMore(distributionsRaw.length >= 10);
-  }, [serverId, distributionsRaw.length]);
-
-  const distributions = distCursor ? distAccum : distributionsRaw;
+    if (!serverId) return;
+    let cancelled = false;
+    (async () => {
+      setDistLoading(true);
+      setDistDays([]);
+      setDistHasMore(true);
+      const all: Distribution[] = [];
+      const cursor = new Date();
+      for (let i = 0; i < 90; i++) {
+        if (cancelled) return;
+        const dateStr = cursor.toISOString().slice(0, 10);
+        const items = await fetchDistributionsByDay(serverId, dateStr);
+        all.push(...items);
+        if (all.length >= 10) break;
+        cursor.setDate(cursor.getDate() - 1);
+      }
+      if (!cancelled) {
+        setDistDays(all);
+        setDistLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [serverId]);
 
   const handleLoadMoreDist = async () => {
-    if (distLoadingMore) return;
-    const source = distCursor ? distAccum : distributionsRaw;
-    if (source.length === 0) return;
-    const last = source[source.length - 1];
-    if (!last?.distributed_at) return;
+    if (distLoadingMore || !distHasMore || distDays.length === 0) return;
     setDistLoadingMore(true);
     try {
-      const more = await fetchDistributions(serverId, undefined, undefined, 10, last.distributed_at);
-      setDistHasMore(more.length >= 10);
-      if (!distCursor) setDistCursor(last.distributed_at);
-      setDistAccum(prev => {
-        const combined = prev.length === 0 ? [...source, ...more] : [...prev, ...more];
-        return combined;
-      });
+      const earliest = distDays[distDays.length - 1].distributed_at;
+      let cursor = new Date(earliest);
+      let found = false;
+      // Try up to 30 empty days before giving up
+      for (let i = 0; i < 30; i++) {
+        cursor.setDate(cursor.getDate() - 1);
+        const dateStr = cursor.toISOString().slice(0, 10);
+        const more = await fetchDistributionsByDay(serverId!, dateStr);
+        if (more.length > 0) {
+          setDistDays(prev => [...prev, ...more]);
+          found = true;
+          break;
+        }
+      }
+      if (!found) setDistHasMore(false);
     } catch { /* ignore */ }
     finally { setDistLoadingMore(false); }
   };
@@ -445,10 +458,16 @@ export function InventoryView() {
     if (showDistribute) setNeedFullItems(true);
   }, [showDistribute]);
 
-  // Distribution counts (computed before filteredDistItems which depends on them)
+  // ── Distribution counts (used by distribute modal) ──
+  const { data: allDistributions = [] } = useQuery({
+    queryKey: ["distributions", serverId, "all"],
+    queryFn: () => fetchDistributions(serverId),
+    enabled: configured && (tab === "recipients" || tab === "analytics"),
+  });
+
   const memberDistCounts: Record<string, number> = {};
   const itemDistCounts: Record<string, number> = {};
-  distributions.forEach(d => {
+  allDistributions.forEach(d => {
     memberDistCounts[d.member_id] = (memberDistCounts[d.member_id] || 0) + d.quantity;
     itemDistCounts[d.item_id] = (itemDistCounts[d.item_id] || 0) + d.quantity;
   });
@@ -524,20 +543,6 @@ export function InventoryView() {
   const [histSearchOpen, setHistSearchOpen] = useState(true);
   const histSearchRef = useRef<HTMLInputElement>(null);
   const [histRarityFilter, setHistRarityFilter] = useState<string | null>(null);
-
-  // When searching, fetch a larger batch so the search covers all history
-  const { data: searchDistributions = [], isFetching: searchFetching } = useQuery({
-    queryKey: ["distributions", serverId, "search", histSearch],
-    queryFn: () => fetchDistributions(serverId, undefined, undefined, 200),
-    enabled: configured && !!histSearch,
-  });
-
-  // Recipients tab + analytics detail modals: fetch all distributions
-  const { data: allDistributions = [] } = useQuery({
-    queryKey: ["distributions", serverId, "all"],
-    queryFn: () => fetchDistributions(serverId),
-    enabled: configured && (tab === "recipients" || tab === "analytics"),
-  });
 
   // Analytics: selected recipient for detail modal
   const [selectedRecipient, setSelectedRecipient] = useState<{ member_id: string; player_name: string } | null>(null);
@@ -636,11 +641,8 @@ export function InventoryView() {
     new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
 
   // Group distributions by date for history view
-  const HISTORY_PAGE_SIZE = 10; // date groups per page
-  const [historyPage, setHistoryPage] = useState(1);
-
   const filteredDistributions = useMemo(() => {
-    const source = histSearch ? searchDistributions : distributions;
+    const source = distDays;
     return source.filter(d => {
       if (histSearch || histRarityFilter) {
         const item = items.find(i => i.id === d.item_id);
@@ -652,7 +654,7 @@ export function InventoryView() {
       }
       return true;
     });
-  }, [distributions, searchDistributions, histSearch, histRarityFilter, items]);
+  }, [distDays, histSearch, histRarityFilter, items]);
 
   const groupedDistributions = useMemo(() => {
     return filteredDistributions.reduce<Record<string, Distribution[]>>((acc, d) => {
@@ -663,16 +665,9 @@ export function InventoryView() {
     }, {});
   }, [filteredDistributions]);
 
-  // Show all when searching, paginate otherwise
   const isSearching = !!(histSearch || histRarityFilter);
   const groupEntries = Object.entries(groupedDistributions) as [string, Distribution[]][];
-  const visibleEntries: [string, Distribution[]][] = isSearching
-    ? groupEntries
-    : groupEntries.slice(0, historyPage * HISTORY_PAGE_SIZE);
-  const hasMore = !isSearching && (visibleEntries.length < groupEntries.length || distHasMore);
-
-  // Reset page when search/filter changes
-  useEffect(() => { setHistoryPage(1); }, [histSearch, histRarityFilter]);
+  const hasMore = !isSearching && distHasMore;
 
   const isDataReady = !membersLoading && !guildsLoading && !classesLoading;
 
@@ -1532,13 +1527,10 @@ export function InventoryView() {
                   className="w-full pl-9 pr-9 py-2 sm:py-2.5 bg-[#18181b] border border-[#27272a] rounded-xl text-xs sm:text-sm text-[#fafafa] placeholder:text-[#52525b] focus:outline-none focus:border-[#52525b] animate-slide-up"
                   autoFocus
                 />
-                {histSearch && !searchFetching && (
+                {histSearch && (
                   <button onClick={() => { setHistSearch(""); histSearchRef.current?.focus(); }} className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded text-[#52525b] hover:text-[#a1a1aa]">
                     <X className="w-3.5 h-3.5" />
                   </button>
-                )}
-                {searchFetching && (
-                  <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#52525b] animate-spin" />
                 )}
               </div>
             ) : (
@@ -1582,21 +1574,12 @@ export function InventoryView() {
           ) : groupEntries.length === 0 ? (
             <div className="text-center py-16">
               <History className="w-12 h-12 text-[#27272a] mx-auto mb-3" />
-              {searchFetching ? (
-                <>
-                  <Loader2 className="w-5 h-5 text-[#52525b] animate-spin mx-auto mb-2" />
-                  <p className="text-sm text-[#52525b]">Searching...</p>
-                </>
-              ) : (
-                <>
-                  <p className="text-sm text-[#52525b]">{histSearch || histRarityFilter ? "No matches." : "No distributions yet."}</p>
-                  <p className="text-xs text-[#3f3f46] mt-1">Items given to players will appear here.</p>
-                </>
-              )}
+              <p className="text-sm text-[#52525b]">{histSearch || histRarityFilter ? "No matches." : "No distributions yet."}</p>
+              <p className="text-xs text-[#3f3f46] mt-1">Items given to players will appear here.</p>
             </div>
           ) : (
             <>
-            {visibleEntries.map(([date, dists]) => (
+            {groupEntries.map(([date, dists]) => (
               <div key={date}>
                 <div className="flex items-center gap-3 mb-3">
                   <div className="h-px flex-1 bg-[#27272a]" />
@@ -1657,13 +1640,7 @@ export function InventoryView() {
               </div>
             ))}
           {hasMore && !histSearch && (
-            <Sentinel onVisible={() => {
-              if (distHasMore) {
-                handleLoadMoreDist();
-              } else {
-                setHistoryPage(p => p + 1);
-              }
-            }} loading={distLoadingMore} />
+            <Sentinel onVisible={handleLoadMoreDist} loading={distLoadingMore} />
           )}
           </>
         )}
@@ -1895,7 +1872,7 @@ export function InventoryView() {
             {(() => {
               // Compute daily distribution counts per category
               const dateMap = new Map<string, Map<string, number>>(); // date -> category -> count
-              distributions.forEach(d => {
+              allDistributions.forEach(d => {
                 const date = d.created_at?.slice(0, 10);
                 if (!date) return;
                 const item = items.find(i => i.id === d.item_id);

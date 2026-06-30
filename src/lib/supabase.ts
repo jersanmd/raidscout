@@ -335,6 +335,7 @@ export {
   deleteItem,
   updateItem,
   fetchDistributions,
+  fetchDistributionsByDay,
   createDistribution,
   deleteDistribution,
   fetchTopCpGrowth,
