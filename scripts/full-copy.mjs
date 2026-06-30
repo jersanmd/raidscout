@@ -75,6 +75,14 @@ async function fetchAll(table) {
 
 // Delete helper: clear all rows from a staging table
 async function clearStagingTable(table) {
+  // Tables without an 'id' column need special handling
+  if (table === "app_settings") {
+    try {
+      // Use a condition that matches all rows on the composite key
+      await fetch(`${STAGING_URL}/rest/v1/${table}?key=not.is.null`, { method: "DELETE", headers: SH });
+    } catch {}
+    return;
+  }
   // Supabase requires a WHERE clause for DELETE. Use a dummy condition that matches all.
   // For tables with 'id' UUID column, this matches everything except the nil UUID.
   try {

@@ -401,7 +401,7 @@ export async function fetchItems(serverId?: string | null, limit?: number): Prom
   let query = supabase
     .from("items")
     .select("*")
-    .or(gameSlug ? `game.eq.${gameSlug},server_id.eq.${sid}` : `server_id.eq.${sid}`)
+    .or(gameSlug ? `server_id.eq.${sid},and(game.eq.${gameSlug},server_id.is.null)` : `server_id.eq.${sid}`)
     .neq("status", "rejected")
     .order("name");
   if (limit) query = query.limit(limit);
@@ -570,6 +570,24 @@ export async function fetchDistributions(
   if (error) throw error;
   return data as Distribution[];
 }
+
+export async function fetchDistributionsByDay(
+  serverId: string,
+  dateStr: string, // YYYY-MM-DD
+): Promise<Distribution[]> {
+  const start = `${dateStr}T00:00:00.000Z`;
+  const end = `${dateStr}T23:59:59.999Z`;
+  const { data, error } = await supabase
+    .from("distributions")
+    .select("*")
+    .eq("server_id", serverId)
+    .gte("distributed_at", start)
+    .lte("distributed_at", end)
+    .order("distributed_at", { ascending: false });
+  if (error) throw error;
+  return (data || []) as Distribution[];
+}
+
 
 export async function createDistribution(dist: {
   server_id: string;
