@@ -364,7 +364,7 @@ async function runSpawnCron(sendNotifications = true) {
           } else continue;
           const isAlive = spawnTime <= now;
           spawnRows.push({ boss_id: boss.id, boss_name: boss.name, spawn_time: spawnTime.toISOString(), is_alive: isAlive });
-        } catch {}
+        } catch (err) { console.warn("Spawn calc fallback error:", err); }
       }
     }
 
