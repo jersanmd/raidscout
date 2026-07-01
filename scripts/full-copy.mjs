@@ -36,12 +36,12 @@ const TABLES = [
   // Bosses & activities
   "boss_templates","activity_templates","bosses","activities",
   "boss_guilds","boss_assists","boss_spawn_overrides",
-  "activity_guilds","activity_assists","activity_instances",
+  "activity_guilds","activity_assists","activity_instances","activity_parties",
   // Members & gear
-  "members","member_gear",
-  "gear_slots","gear_slot_categories","gear_slot_subclasses","gear_templates","gear_catalog","gear_upgrade_history",
+  "members","member_gear","member_classes",
+  "gear_slots","gear_slot_categories","gear_templates","gear_catalog","gear_upgrade_history",
   // DKP (auctions before bids)
-  "dkp_auctions","dkp_bids","dkp_transactions","dkp_config","dkp_distributed",
+  "dkp_auctions","dkp_bids","dkp_transactions","dkp_config","dkp_distributed","dkp_balances",
   // Attendance & death records
   "death_records","attendance_records","activity_attendance",
   // Parties (members must exist first)
