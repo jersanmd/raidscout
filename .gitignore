@@ -7,3 +7,4 @@ supabase/.temp
 .env*
 .vscode/mcp.json
 .agents
+backups/
