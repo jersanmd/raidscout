@@ -13,12 +13,20 @@
 ## 🔧 Infra
 
 - **Staging `full-copy.mjs` Phase 3** — After cloning production data to staging, all `discord_configs` channel columns (`notification_channel_id`, `thread_channel_id`, `command_channel_id`) are now cleared. Prevents staging bot from trying to send to production Discord channels it doesn't have access to.
+- **All schedule times now UTC** — Legacy seed bosses had schedule times stored in GMT+8 while templates used UTC, causing the RPC to compute wrong spawn times. Migration converted legacy data to UTC, `getScheduleTz` simplified to always return `"UTC"`. All 938 production fixed_schedule bosses are now uniform UTC.
+- **Seed.sql fallback removed** — `create_server_with_bosses` no longer falls back to `seed_bosses_for_server()`. All servers use `boss_templates` which are already UTC.
+
+## 🐛 Bug Fixes
+
+- **`!nextspawn` guild mismatch** — RPC path was passing `null` for `lastDeath` to `computeOwnerGuild`, causing daily rotation bosses to always show the first guild. Now fetches death records and passes real last death for accurate rotation computation.
+- **Admin ForceSpawnAll broken** — RPC `admin_forcespawn_all` was inserting columns `spawn_window_start`/`spawn_window_end` that don't exist on `boss_spawn_overrides`. Fixed to use `death_time`.
+- **Self-healing too aggressive** — Catch block was clearing channels on ANY network error (timeouts during `forcespawnall`). Now only clears on 404/403 HTTP responses.
 
 ## 📦 Files Changed
 
-- `scripts/bot/spawn-cron.ts` — RPC-powered boss loop, `firstTick`, rate-limited `batchRun`, `id` in select
-- `scripts/bot/commands.ts` — RPC-powered `nextspawn` command
-- `scripts/bot/notifications.ts` — self-healing dead channel cleanup (404/403 only)
+- `scripts/bot/spawn-cron.ts` — RPC-powered boss loop, `firstTick`, rate-limited `batchRun`
+- `scripts/bot/commands.ts` — RPC-powered `nextspawn`, accurate guild computation
+- `scripts/bot/notifications.ts` — self-healing (404/403 only)
+- `scripts/bot/spawn-utils.ts` — `getScheduleTz` always returns `"UTC"`
 - `scripts/full-copy.mjs` — Phase 3 Discord channel clearing on staging
-- `supabase/migrations/` — `bot_next_spawns` RPC (v5 + stable spawn_time fix), `activity_instances` index, leaderboard RPC fix + GRANT
-- `supabase/migrations/` — `bot_next_spawns` RPC, `activity_instances` index, leaderboard RPC fix + GRANT
+- `supabase/migrations/` — `bot_next_spawns` RPC (v5 + stable time + 24h window), `admin_forcespawn_all` fix, UTC conversion, seed fallback removal, `activity_instances` index, leaderboard RPC fix
