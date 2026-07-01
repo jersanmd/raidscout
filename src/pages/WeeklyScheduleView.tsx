@@ -100,7 +100,7 @@ export function WeeklyScheduleView() {
     [...new Set(allDeathRecords.filter(dr => !dr.is_initial_spawn).map(dr => dr.id))],
   [allDeathRecords]);
   const { data: attendanceCounts, isLoading: attendanceLoading, isFetching: attendanceFetching } = useQuery({
-    queryKey: ["attendance_counts", currentServer?.id, weekMonday.toISOString()],
+    queryKey: ["attendance_counts", currentServer?.id, weekMonday.toISOString(), deathRecordIds.length],
     queryFn: async () => {
       if (!deathRecordIds.length) return new Map<string, number>();
       const map = new Map<string, number>();
@@ -120,25 +120,24 @@ export function WeeklyScheduleView() {
       }
       return map;
     },
-    enabled: deathRecordIds.length > 0,
     staleTime: 0,
     refetchInterval: 3_000,
   });
 
-  // Show overlay until attendance data finishes loading. Track whether
-  // a fetch actually started (isFetching went true) and then completed.
+  // Show overlay until attendance data finishes loading AND React commits the data.
+  // attendanceFetching tracks network activity; attendanceLoading ensures initial data is committed.
   const fetchStarted = useRef(false);
   useEffect(() => {
     if (attendanceFetching) fetchStarted.current = true;
   }, [attendanceFetching]);
 
   useEffect(() => {
-    if (!attendanceFetching && fetchStarted.current) {
+    if (!attendanceFetching && !attendanceLoading && fetchStarted.current) {
       setWeekLoading(false);
       setPageReady(true);
       fetchStarted.current = false;
     }
-  }, [attendanceFetching]);
+  }, [attendanceFetching, attendanceLoading]);
 
   // If no death records in this week, skip waiting — mark ready immediately.
   // Only skip if data has finished loading; otherwise death records may
@@ -700,7 +699,7 @@ export function WeeklyScheduleView() {
         </div>
       </div>
 
-      {(!pageReady || weekLoading) ? (
+      {(!pageReady || weekLoading || attendanceLoading) ? (
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/60">
           <div className="flex flex-col items-center gap-3">
             <Loader2 className="w-8 h-8 text-[#a1a1aa] animate-spin" />
