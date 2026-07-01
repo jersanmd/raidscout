@@ -78,9 +78,8 @@ async function clearStagingTable(table) {
   // Tables without an 'id' column need special handling
   if (table === "app_settings") {
     try {
-      // Use a condition that matches all rows on the composite key
-      await fetch(`${STAGING_URL}/rest/v1/${table}?key=not.is.null`, { method: "DELETE", headers: SH });
-    } catch {}
+      await fetch(`${STAGING_URL}/rest/v1/${table}?server_id=not.is.null`, { method: "DELETE", headers: SH });
+    } catch (e) { console.error(`  ⚠️ clear app_settings failed:`, e.message); }
     return;
   }
   // Supabase requires a WHERE clause for DELETE. Use a dummy condition that matches all.
