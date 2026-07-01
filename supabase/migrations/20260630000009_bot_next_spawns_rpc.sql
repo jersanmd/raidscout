@@ -1,4 +1,4 @@
--- RPC: Pre-compute next spawn times (schedule times are stored as UTC, no TZ conversion needed)
+-- RPC: Pre-compute next spawn times (all schedule times stored as UTC)
 DROP FUNCTION IF EXISTS public.bot_next_spawns(uuid, text);
 
 CREATE OR REPLACE FUNCTION public.bot_next_spawns(p_server_id uuid, p_tz text DEFAULT 'Asia/Manila')

@@ -573,7 +573,7 @@ export async function handleMessage(msg: any) {
       const raw = act.schedule;
       if (act.schedule_type === "fixed_schedule" && Array.isArray(raw)) {
         // Custom items store schedule in UTC, seed/template items in Asia/Manila
-        const actTz = (act.is_custom || act.template_id) ? "UTC" : "Asia/Manila";
+        const actTz = "UTC";
         // Only check active window if there's an instance (activity was actually started before)
         if (lastInst) {
           let recentSlot: Date | null = null;
@@ -759,7 +759,7 @@ export async function handleMessage(msg: any) {
 
       // For fixed_schedule activities: check if we're within a new active window.
       if (activity.schedule_type === "fixed_schedule" && Array.isArray(activity.schedule)) {
-        const actTz = (activity.is_custom || activity.template_id) ? "UTC" : "Asia/Manila";
+        const actTz = "UTC";
         const schedule = activity.schedule;
         const now2 = new Date();
         let recentSlot: Date | null = null;
