@@ -58,7 +58,7 @@ BEGIN
         END LOOP;
 
         IF v_next_slot IS NOT NULL THEN
-          v_alive_until := LEAST(v_next_slot - interval '1 hour', v_recent + interval '4 hours');
+          v_alive_until := LEAST(v_next_slot - interval '1 hour', v_recent + interval '24 hours');
           v_was_killed := v_last_death >= v_recent;
           IF NOT v_was_killed AND v_now >= v_recent AND v_now < v_alive_until THEN v_spawn := v_now;
           ELSE

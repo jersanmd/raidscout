@@ -76,7 +76,7 @@ describe("fixed_hours — multiple kills & edge cases", () => {
     const now = new Date(Date.UTC(2025,5,1,18,0,0)); // 4h before spawn
     const r = calculateSpawnInfo(boss, death, now);
     expect(r.status).toBe("countdown");
-    expect(r.nextSpawn!.getTime() - now.getTime()).toBe(4 * 3600_000);
+    expect(r.nextSpawn!.getTime() - now.getTime()).toBe(24 * 3600_000);
   });
 });
 

@@ -538,7 +538,7 @@ export async function handleMessage(msg: any) {
             }
             if (recentTime) {
               const nextSlotTime = findNextScheduleSlot(boss.schedule, new Date(recentTime.getTime() + 60_000), schedTz);
-              const aliveUntil = new Date(Math.min(nextSlotTime.getTime() - 3600_000, recentTime.getTime() + 4 * 3600_000));
+              const aliveUntil = new Date(Math.min(nextSlotTime.getTime() - 3600_000, recentTime.getTime() + 24 * 3600_000));
               const wasKilled = new Date(lastDeath.death_time) >= recentTime;
               spawn = (!wasKilled && now >= recentTime && now < aliveUntil) ? now : findNextScheduleSlot(boss.schedule, now, schedTz);
             } else { spawn = findNextScheduleSlot(boss.schedule, now, schedTz); }
@@ -582,7 +582,7 @@ export async function handleMessage(msg: any) {
           }
           if (recentSlot) {
             const nextSlotAfterRecent = findNextScheduleSlot(raw, new Date(recentSlot.getTime() + 60_000), actTz);
-            const maxActiveWindow = Math.min(nextSlotAfterRecent.getTime() - recentSlot.getTime() - 3600_000, 4 * 3600_000);
+            const maxActiveWindow = Math.min(nextSlotAfterRecent.getTime() - recentSlot.getTime() - 3600_000, 24 * 3600_000);
             const activeUntil = new Date(recentSlot.getTime() + maxActiveWindow);
             const wasFinished = lastInst?.end_time && new Date(lastInst.end_time) >= recentSlot;
             if (!wasFinished && now >= recentSlot && now < activeUntil) {
@@ -768,7 +768,7 @@ export async function handleMessage(msg: any) {
         }
         if (recentSlot) {
           const nextSlotAfterRecent = findNextScheduleSlot(schedule, new Date(recentSlot.getTime() + 60_000), actTz);
-          const maxActiveWindow = Math.min(nextSlotAfterRecent.getTime() - recentSlot.getTime() - 3600_000, 4 * 3600_000);
+          const maxActiveWindow = Math.min(nextSlotAfterRecent.getTime() - recentSlot.getTime() - 3600_000, 24 * 3600_000);
           const activeUntil = new Date(recentSlot.getTime() + maxActiveWindow);
           const inWindow = now2 >= recentSlot && now2 < activeUntil;
 
@@ -891,7 +891,7 @@ export async function handleMessage(msg: any) {
       }
       if (recentSlot) {
         const nextSlot = findNextScheduleSlot(boss.schedule, new Date(recentSlot.getTime() + 60_000), schedTz);
-        const aliveUntil = new Date(Math.min(nextSlot.getTime() - 3600_000, recentSlot.getTime() + 4 * 3600_000));
+        const aliveUntil = new Date(Math.min(nextSlot.getTime() - 3600_000, recentSlot.getTime() + 24 * 3600_000));
         const wasKilled = recentDeaths?.[0] && new Date(recentDeaths[0].death_time) >= recentSlot;
         isAlive = !wasKilled && aliveNow >= recentSlot && aliveNow < aliveUntil;
         // Track the slot start for the cooldown check below
