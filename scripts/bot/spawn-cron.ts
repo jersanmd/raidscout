@@ -13,13 +13,16 @@ import { createEventThreads } from "./threads";
 
 const sentNotifs = new Map<string, number>();
 
-// ── Concurrency-limited promise runner (avoids Discord 50/sec rate limit) ──
-async function batchRun(promises: Promise<void>[], concurrency = 10): Promise<void> {
+// ── Rate-limited promise runner (avoids Discord 5/5s per-channel + 50/s global limit) ──
+async function batchRun(promises: Promise<void>[], concurrency = 3, delayMs = 800): Promise<void> {
   const queue = [...promises];
   async function worker() {
     while (queue.length > 0) {
       const p = queue.shift();
-      if (p) await p;
+      if (p) {
+        await p;
+        if (queue.length > 0) await new Promise(r => setTimeout(r, delayMs));
+      }
     }
   }
   await Promise.all(Array.from({ length: Math.min(concurrency, queue.length) }, () => worker()));
@@ -421,7 +424,7 @@ async function runSpawnCron(sendNotifications = true) {
     }
 
     // ── Fire all boss notifications/threads concurrently ──
-    if (sendNotifications && notifPromises.length > 0) await batchRun(notifPromises, 10);
+    if (sendNotifications && notifPromises.length > 0) await batchRun(notifPromises);
 
     // ── Activities (from RPC snapshot) ──────────────────────
     const activities = snap?.activities ?? await supabaseQuerySafe(
@@ -539,8 +542,8 @@ async function runSpawnCron(sendNotifications = true) {
       }
     }
 
-    // Fire activity notifications/threads (collected after boss batchRun above)
-    if (sendNotifications && notifPromises.length > 0) await batchRun(notifPromises, 10);
+    // Fire activity notifications/threads
+    if (sendNotifications && notifPromises.length > 0) await batchRun(notifPromises);
 
     } catch (serverErr: any) {
       logError("cron", "Server processing failed", serverErr, { serverId });

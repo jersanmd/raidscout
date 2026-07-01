@@ -2,7 +2,7 @@
 
 import { TOKEN, SUPABASE_URL, SUPABASE_KEY } from "./config";
 import { discordFetch } from "./discord-api";
-import { supabaseQuerySafe, logError } from "./supabase";
+import { supabaseQuerySafe } from "./supabase";
 
 export const sentNotifs = new Map<string, number>();
 
@@ -104,15 +104,8 @@ export async function broadcastNotification(
         }
       } catch (cfgErr: any) {
         console.error(`[notif] failed to send to Discord guild ${cfg.discord_guild_id} ch ${chId}:`, cfgErr.message);
-        // Self-heal: clear channel on persistent network failures too
-        if (cfgErr.message?.includes("failed after") || cfgErr.message?.includes("fetch failed")) {
-          console.warn(`[notif] clearing unreachable channel config ${cfg.id} (guild ${cfg.discord_guild_id} ch ${chId})`);
-          fetch(`${SUPABASE_URL}/rest/v1/discord_configs?id=eq.${cfg.id}`, {
-            method: "PATCH",
-            headers: { apikey: SUPABASE_KEY!, Authorization: `Bearer ${SUPABASE_KEY!}`, "Content-Type": "application/json", Prefer: "return=minimal" },
-            body: JSON.stringify({ notification_channel_id: null }),
-          }).catch(() => {});
-        }
+        // Do NOT clear channel on network errors — timeouts/429s during high load (e.g. forcespawnall)
+        // are transient and don't mean the channel is dead.
       }
     }
   } catch (err: any) {
