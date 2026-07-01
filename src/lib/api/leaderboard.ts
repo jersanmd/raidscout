@@ -32,8 +32,10 @@ export async function fetchLeaderboardByPeriod(
   if (!sid) return [];
 
   // Use RPC first — includes both boss + activity points
+  const params: any = { p_server_id: sid };
+  if (since !== null) params.p_since = since;
   const { data, error } = await supabase
-    .rpc("get_leaderboard", { p_server_id: sid, p_since: since });
+    .rpc("get_leaderboard", params);
 
   if (!error && data) {
     return ((data as any[]) ?? []).map((row: any) => ({
