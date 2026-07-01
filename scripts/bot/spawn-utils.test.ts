@@ -109,21 +109,19 @@ describe("safeMod", () => {
 
 // ── getScheduleTz ────────────────────────────────────────────
 describe("getScheduleTz", () => {
-  it("returns Asia/Manila for non-template seed bosses", () => {
-    expect(getScheduleTz({ template_id: null }, "Asia/Manila")).toBe("Asia/Manila");
+  it("always returns UTC (all schedule times are now stored as UTC)", () => {
+    expect(getScheduleTz({ template_id: null }, "Asia/Manila")).toBe("UTC");
   });
 
-  it("returns UTC for custom/template bosses", () => {
+  it("returns UTC regardless of is_custom or template_id", () => {
     expect(getScheduleTz({ template_id: "tpl-123" }, "Asia/Manila")).toBe("UTC");
+    expect(getScheduleTz({ is_custom: true }, "Asia/Manila")).toBe("UTC");
   });
 
-  it("returns Asia/Manila even when server TZ differs (seed bosses are always Manila)", () => {
-    expect(getScheduleTz({}, "America/New_York")).toBe("Asia/Manila");
-  });
-
-  it("returns Asia/Manila for seed bosses regardless of server timezone", () => {
-    expect(getScheduleTz({ template_id: null }, "Europe/London")).toBe("Asia/Manila");
-    expect(getScheduleTz({ template_id: undefined }, "Pacific/Auckland")).toBe("Asia/Manila");
+  it("returns UTC regardless of server timezone", () => {
+    expect(getScheduleTz({}, "America/New_York")).toBe("UTC");
+    expect(getScheduleTz({ template_id: null }, "Europe/London")).toBe("UTC");
+    expect(getScheduleTz({ template_id: undefined }, "Pacific/Auckland")).toBe("UTC");
   });
 });
 
