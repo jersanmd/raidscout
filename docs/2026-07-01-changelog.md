@@ -4,6 +4,10 @@
 
 - **Weekly Schedule — attendance badge loading state** — The "Fetching data" overlay now waits for the attendance query to finish before hiding. The attendance query fires in the same render as death records completing (via `deathRecordIds.length` in the query key) instead of gating behind a separate `enabled` flag. This prevents the attendance count badge from appearing seconds after the spinner disappears.
 
+## 🧹 Cleanup
+
+- **Removed "Test Notifications" button** — Removed from Server Settings → Integrations. The button was a debug tool that sent 3 fake events (boss_spawning, boss_spawned, boss_died) to Discord channels.
+
 ## 🗄️ Database
 
 - **`bot_next_spawns` RPC v5** — Returns `spawn_time`, `is_alive`, and `id` columns. Uses actual spawn time (not `now()`) to fix dedup in the bot cron.

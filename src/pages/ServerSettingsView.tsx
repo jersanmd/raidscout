@@ -2639,29 +2639,6 @@ export function ServerSettingsView() {
                                 className="text-xs px-2 py-1 rounded-r bg-[#fafafa] text-[#09090b] hover:bg-[#e4e4e7] transition font-medium">Save</button>
                             )}
                           </div>
-                          <button onClick={async () => {
-                            if (!currentServer) return;
-                            setTestingDiscord(prev => new Set(prev).add(link.id));
-                            try {
-                              const events: Array<{ event: "boss_spawning" | "boss_spawned" | "boss_died"; delay: number }> = [
-                                { event: "boss_spawning", delay: 0 }, { event: "boss_spawned", delay: 800 }, { event: "boss_died", delay: 1600 },
-                              ];
-                              let okCount = 0;
-                              for (const { event, delay } of events) {
-                                await new Promise(r => setTimeout(r, delay));
-                                const r = await notifyDiscord(currentServer.id, event, { boss_name: "Test Notification (Ignore)", guild_name: "System" });
-                                if (r.ok) okCount++;
-                              }
-                              if (okCount === 3) toast("success", "All 3 test notifications sent!");
-                              else if (okCount > 0) toast("warning", `${okCount}/3 sent. Check channel IDs and bot status.`);
-                              else toast("error", "Failed to send. Check channel IDs and bot status.");
-                            } catch { toast("error", "Failed to send. Is the bot online?"); }
-                            finally { setTestingDiscord(prev => { const n = new Set(prev); n.delete(link.id); return n; }); }
-                          }} disabled={testingDiscord.has(link.id)}
-                            className="text-xs px-2.5 py-1 rounded bg-green-900/30 text-green-400 hover:bg-green-900/50 transition font-medium flex items-center gap-1.5 disabled:opacity-50">
-                            {testingDiscord.has(link.id) ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
-                            Test Notifications
-                          </button>
                         </div>
 
                         {/* Inline Command Aliases Editor */}
