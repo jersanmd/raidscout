@@ -481,13 +481,20 @@ export async function handleMessage(msg: any) {
     try { spawnRows = await supabaseRpc("bot_next_spawns", { p_server_id: serverId, p_tz: tz }) || []; } catch { /* fallback below */ }
 
     if (spawnRows.length > 0) {
+      // Fetch death records for accurate guild computation (rotation/daily modes need lastDeath)
+      const deaths = await supabaseQuerySafe(`death_records?server_id=eq.${serverId}&is_initial_spawn=is.false&order=death_time.desc&limit=200`);
+      const lastDeathMap = new Map<string, any>();
+      for (const d of (deaths || [])) {
+        if (!lastDeathMap.has(d.boss_id)) lastDeathMap.set(d.boss_id, d);
+      }
+
       for (const row of spawnRows) {
         const boss = bossMap.get(row.boss_id);
         if (!boss) continue;
         const spawnTime = new Date(row.spawn_time);
         const unix = Math.floor(spawnTime.getTime() / 1000);
-        // Compute guild (pass null for lastDeath — acceptable for preview, daily mode falls back to first guild)
-        const gName = computeOwnerGuild(boss, serverBossGuilds, guilds, null, spawnTime, tz) || "";
+        const lastDeath = lastDeathMap.get(row.boss_id) ?? null;
+        const gName = computeOwnerGuild(boss, serverBossGuilds, guilds, lastDeath, spawnTime, tz) || "";
 
         if (filter) {
           const nameMatch = row.boss_name.toLowerCase().includes(filter.toLowerCase());
