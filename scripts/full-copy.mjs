@@ -34,7 +34,7 @@ const TABLES = [
   // Items (must come before member_gear, dkp_auctions, etc.)
   "items","item_collections","item_collection_items","item_collection_manual_ownership",
   // Bosses & activities
-  "boss_templates","bosses","activities",
+  "boss_templates","activity_templates","bosses","activities",
   "boss_guilds","boss_assists","boss_spawn_overrides",
   "activity_guilds","activity_assists","activity_instances",
   // Members & gear
