@@ -118,6 +118,10 @@ and responds to prefix commands:
 
 **Bot highlights:**
 
+- **⚡ Sub-2s spawn ticks** — Boss spawn calculations run in PostgreSQL via `bot_next_spawns` RPC instead of JavaScript loops. Tick time dropped from 10-30s to under 2s. Falls back to JS if the RPC fails.
+- **🩹 Self-healing dead channels** — When Discord returns 403 (bot removed) or 404 (channel deleted), the bot automatically clears the `notification_channel_id` from that config. No manual cleanup needed.
+- **🐢 Rate-limited sends** — Notifications are sent 3-at-a-time with 800ms delay between each, keeping `forcespawnall` well under Discord's 5/5s per-channel and 50/s global rate limits.
+- **🕐 24h alive window** — Fixed-schedule bosses stay "alive" for up to 24 hours after their schedule slot (previously 4h). Cut short only by the next scheduled slot (minus 1 hour buffer).
 - **Multi-prefix support** — Each linked Discord server can use a different prefix (25 options: `!` `;` `$` `/` `//` `!!` `!?` `..` `rs!` `boss!` and more). Same Discord server can be linked multiple times with different prefixes.
 - **Custom command aliases** — Rename any command per server (e.g., `!s` → `!spawn`, `!k` → `!killed`)
 - **Day-grouped spawns** — `!nextspawn` groups bosses by day (Today, Tomorrow, etc.) using the server's configured timezone, with Discord native 12hr timestamps and live relative times.
