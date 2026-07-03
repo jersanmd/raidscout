@@ -181,7 +181,7 @@ function TickChart({ metrics, timezone }: { metrics: TickMetric[]; timezone: str
               <g key={`seg-${i}`}>
                 <polygon points={areaPoints(seg.points)} fill="url(#area-grad)" />
                 <path d={lineD(seg.points)} fill="none" stroke="#4ade80" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
-                {isLast && lastP.x < rightEdge && (
+                {isLast && Date.now() - lastP.ts > GAP_THRESHOLD && lastP.x < rightEdge && (
                   <>
                     <polygon points={`${lastP.x},${pad.top + chartH} ${lastP.x},${lastP.y} ${rightEdge},${lastP.y} ${rightEdge},${pad.top + chartH}`} fill="url(#red-grad)" />
                     <line x1={lastP.x} y1={lastP.y} x2={rightEdge} y2={lastP.y} stroke="rgba(239,68,68,0.5)" strokeWidth={1.5} strokeDasharray="3,3" />
