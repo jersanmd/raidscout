@@ -611,7 +611,7 @@ export function MemberProfileView() {
   // ── Daily Activity (filterable) ──
   const [activityDays, setActivityDays] = useState<number>(7);
   const activityRanges = [
-    { days: 7, label: "7d" },
+    { days: 7, label: "This Week" },
     { days: 30, label: "30d" },
     { days: 60, label: "60d" },
     { days: 90, label: "90d" },

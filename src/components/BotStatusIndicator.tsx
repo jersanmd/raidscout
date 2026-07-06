@@ -171,7 +171,7 @@ function TickChart({ metrics, timezone }: { metrics: TickMetric[]; timezone: str
             const prev = segments[i];
             const gapX = prev.points[prev.points.length - 1].x;
             const gapW = seg.points[0].x - gapX;
-            return gapW > 0 ? <rect key={`gap-${i}`} x={gapX} y={pad.top} width={gapW} height={chartH} fill="rgba(239,68,68,0.08)" /> : null;
+            return gapW > 0 ? <rect key={`gap-${i}`} x={gapX} y={pad.top} width={gapW} height={chartH} fill="rgba(82,82,91,0.06)" /> : null;
           })}
           {/* Segments */}
           {segments.map((seg, i) => {
@@ -192,7 +192,7 @@ function TickChart({ metrics, timezone }: { metrics: TickMetric[]; timezone: str
           })}
           {/* Gap boundary dashes */}
           {segments.length > 1 && segments.slice(1).map((seg, i) => (
-            <line key={`dash-${i}`} x1={seg.points[0].x} y1={pad.top} x2={seg.points[0].x} y2={pad.top + chartH} stroke="rgba(239,68,68,0.4)" strokeWidth={0.5} strokeDasharray="2,3" />
+            <line key={`dash-${i}`} x1={seg.points[0].x} y1={pad.top} x2={seg.points[0].x} y2={pad.top + chartH} stroke="rgba(82,82,91,0.3)" strokeWidth={0.5} strokeDasharray="2,3" />
           ))}
           {/* Data points */}
           {pts.filter((_, i) => i % Math.max(1, Math.floor(pts.length / 30)) === 0 || i === pts.length - 1).map((p) => (
