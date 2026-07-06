@@ -45,7 +45,7 @@ function getBotUrl(): string {
 }
 
 // ── Interactive Trend Chart (SVG) ─────────────────────────
-function TickChart({ metrics, timezone }: { metrics: TickMetric[]; timezone: string }) {
+function TickChart({ metrics, timezone, isOnline }: { metrics: TickMetric[]; timezone: string; isOnline: boolean }) {
   const svgRef = useRef<SVGSVGElement>(null);
   const timezoneRef = useRef(timezone);
   timezoneRef.current = timezone;
@@ -181,7 +181,7 @@ function TickChart({ metrics, timezone }: { metrics: TickMetric[]; timezone: str
               <g key={`seg-${i}`}>
                 <polygon points={areaPoints(seg.points)} fill="url(#area-grad)" />
                 <path d={lineD(seg.points)} fill="none" stroke="#4ade80" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
-                {isLast && Date.now() - lastP.ts > GAP_THRESHOLD && lastP.x < rightEdge && (
+                {isLast && !isOnline && Date.now() - lastP.ts > GAP_THRESHOLD && lastP.x < rightEdge && (
                   <>
                     <polygon points={`${lastP.x},${pad.top + chartH} ${lastP.x},${lastP.y} ${rightEdge},${lastP.y} ${rightEdge},${pad.top + chartH}`} fill="url(#red-grad)" />
                     <line x1={lastP.x} y1={lastP.y} x2={rightEdge} y2={lastP.y} stroke="rgba(239,68,68,0.5)" strokeWidth={1.5} strokeDasharray="3,3" />
@@ -274,7 +274,7 @@ export function BotStatusIndicator({ timezone }: { timezone: string }) {
       if (s?.uptime_display) {
         const uptimeSec = parseUptime(s.uptime_display);
         rangeHours = Math.max(Math.ceil(uptimeSec / 3600), 1);
-        rangeHours = Math.min(rangeHours, 24);
+        rangeHours = Math.min(rangeHours, 6);
       }
       const resp = await fetch(`${botUrl}/tick-metrics?range=${rangeHours}h`);
       if (resp.ok) {
@@ -480,7 +480,7 @@ export function BotStatusIndicator({ timezone }: { timezone: string }) {
                           <span className="text-[11px] text-[#52525b]">Fetching chart data…</span>
                         </div>
                       ) : (
-                        <TickChart metrics={tickMetrics} timezone={timezone} />
+                        <TickChart metrics={tickMetrics} timezone={timezone} isOnline={isOnline} />
                       )}
                     </div>
                   </>
