@@ -437,7 +437,7 @@ export async function fetchItemsPaginated(
   }
 
   let baseCondition = gameSlug
-    ? `game.eq.${gameSlug},server_id.eq.${sid}`
+    ? `server_id.eq.${sid}`  // non-pending: own server items only
     : `server_id.eq.${sid}`;
 
   let dataQuery = supabase
@@ -453,19 +453,32 @@ export async function fetchItemsPaginated(
     .neq("status", "rejected");
 
   if (pendingOnly) {
-    // Pending items are server-scoped — never show game-wide for pending
+    // Pending items are server-scoped
     dataQuery = supabase
       .from("items")
       .select("*")
       .eq("server_id", sid)
       .eq("status", "pending")
-      .neq("status", "rejected")
       .order("name");
     countQuery = supabase
       .from("items")
       .select("*", { count: "exact", head: true })
       .eq("server_id", sid)
-      .eq("status", "pending")
+      .eq("status", "pending");
+  } else if (gameSlug) {
+    // Non-pending catalog: include game-catalog items (server_id IS NULL, status approved)
+    // but exclude pending items from other servers
+    baseCondition = `server_id.eq.${sid},and(game.eq.${gameSlug},status.neq.pending)`;
+    dataQuery = supabase
+      .from("items")
+      .select("*")
+      .or(baseCondition)
+      .neq("status", "rejected")
+      .order("name");
+    countQuery = supabase
+      .from("items")
+      .select("*", { count: "exact", head: true })
+      .or(baseCondition)
       .neq("status", "rejected");
   }
 
