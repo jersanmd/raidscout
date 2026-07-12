@@ -453,8 +453,20 @@ export async function fetchItemsPaginated(
     .neq("status", "rejected");
 
   if (pendingOnly) {
-    dataQuery = dataQuery.eq("status", "pending");
-    countQuery = countQuery.eq("status", "pending");
+    // Pending items are server-scoped — never show game-wide for pending
+    dataQuery = supabase
+      .from("items")
+      .select("*")
+      .eq("server_id", sid)
+      .eq("status", "pending")
+      .neq("status", "rejected")
+      .order("name");
+    countQuery = supabase
+      .from("items")
+      .select("*", { count: "exact", head: true })
+      .eq("server_id", sid)
+      .eq("status", "pending")
+      .neq("status", "rejected");
   }
 
   if (search && search.trim()) {

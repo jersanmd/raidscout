@@ -64,7 +64,11 @@ async function fetchWithRetry(url: string, options: RequestInit, retries = MAX_R
 }
 
 export async function supabaseQuery<T = any>(path: string): Promise<T> {
-  const url = `${SUPABASE_URL}/rest/v1/${path}`;
+  // Add default limit if not explicitly set — PostgREST defaults to 1000
+  let url = `${SUPABASE_URL}/rest/v1/${path}`;
+  if (!/[?&]limit=/.test(path)) {
+    url += (path.includes("?") ? "&" : "?") + "limit=5000";
+  }
   const res = await fetchWithRetry(url, {
     headers: { apikey: SUPABASE_KEY!, Authorization: `Bearer ${SUPABASE_KEY!}` },
   });

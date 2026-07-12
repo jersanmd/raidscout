@@ -955,7 +955,7 @@ export async function handleMessage(msg: any) {
 
     const [serverGuilds, allBossGuilds, prevDeaths] = await Promise.all([
       supabaseQuery(`guilds?server_id=eq.${serverId}`),
-      supabaseQuery(`boss_guilds?select=boss_id,guild_id,sort_order,day_of_week,mode`),
+      supabaseQuery(`boss_guilds?select=boss_id,guild_id,sort_order,day_of_week,mode&boss_id=eq.${boss.id}`),
       supabaseQuery(`death_records?server_id=eq.${serverId}&boss_id=eq.${boss.id}&order=death_time.desc&limit=1`),
     ]);
     const sgIds = new Set(serverGuilds.map((g: any) => g.id));
@@ -1042,7 +1042,7 @@ export async function handleMessage(msg: any) {
 
     // Recalculate owner guild: find the death just before the NEW time (not today's)
     const serverGuilds = await supabaseQuery(`guilds?server_id=eq.${serverId}`);
-    const allBossGuilds = await supabaseQuery(`boss_guilds?select=boss_id,guild_id,sort_order,day_of_week,mode`);
+    const allBossGuilds = await supabaseQuery(`boss_guilds?select=boss_id,guild_id,sort_order,day_of_week,mode&boss_id=eq.${boss.id}`);
     const sgIds = new Set(serverGuilds.map((g: any) => g.id));
     const serverBossGuilds = allBossGuilds.filter((bg: any) => sgIds.has(bg.guild_id));
     // Look up the death that occurred just before the new time (excluding the record being edited)
