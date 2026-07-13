@@ -23,24 +23,20 @@ export default function AuctionTheater({
     return () => clearInterval(iv);
   }, []);
 
-  // Fetch auction + bids every 1s for live updates — never cache
+  // Fetch auction + bids — realtime pushes updates, no polling needed
   const { data: auction } = useQuery({
     queryKey: ["dkp_theater_auction", serverId, auctionId],
     queryFn: async () => {
       const auctions = await getActiveAuctions(serverId);
       return auctions.find(a => a.auction_id === auctionId) ?? null;
     },
-    refetchInterval: 1000,
-    staleTime: 0,
-    gcTime: 0,
+    staleTime: 2_000,
   });
 
   const { data: bids = [] } = useQuery({
     queryKey: ["dkp_theater_bids", serverId],
     queryFn: () => getActiveBids(serverId),
-    refetchInterval: 1000,
-    staleTime: 0,
-    gcTime: 0,
+    staleTime: 2_000,
   });
 
   const relevantBids = useMemo(() =>

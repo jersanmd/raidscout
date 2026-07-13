@@ -1550,15 +1550,35 @@ export function LeaderboardView() {
                 setShowFinalizeConfirm(null);
                 setFinalizeTime("");
                 try {
-                  const guildEntries = guildGroups.find(([n]) => n === guildName)?.[1] ?? [];
-                  const rankings = guildEntries.map((e, i) => ({ rank: i + 1, memberId: e.id, memberName: e.name, points: e.points }));
-                  let resetAt = new Date(0).toISOString();
-                  if (serverId) {
-                    const { data: setting } = await supabase
-                      .from("app_settings").select("value").eq("server_id", serverId).eq("key", `leaderboard_reset_at:${guildName}`).maybeSingle();
-                    if (setting) resetAt = (setting as any).value;
+                  // Use previous snapshot's finalized_at as the start, so each
+                  // snapshot captures only the points earned since the last one.
+                  // Falls back to server created_at for the very first finalize.
+                  const periodKey = `weekly:${guildName}`;
+                  let since: string | null = null;
+                  const { data: prevSnap } = await supabase
+                    .from("leaderboard_snapshots")
+                    .select("finalized_at")
+                    .eq("server_id", serverId)
+                    .eq("period", periodKey)
+                    .order("finalized_at", { ascending: false })
+                    .limit(1);
+                  if (prevSnap?.[0]) {
+                    since = (prevSnap[0] as any).finalized_at;
+                  } else {
+                    const { data: srv } = await supabase
+                      .from("servers").select("created_at").eq("id", serverId).maybeSingle();
+                    since = srv ? (srv as any).created_at : null;
                   }
-                  await finalizeResults(`weekly:${guildName}`, rankings, resetAt, customTime);
+                  const { data: freshRows } = await supabase
+                    .rpc("get_leaderboard", { p_server_id: serverId, p_since: since, p_until: customTime });
+                  // Filter to only this guild's members
+                  const guildMembers = (freshRows || []).filter((row: any) =>
+                    memberGuildNameMap.get(row.member_id) === guildName
+                  );
+                  const rankings = guildMembers.map((row: any, i: number) => ({
+                    rank: i + 1, memberId: row.member_id, memberName: row.member_name, points: row.total_points,
+                  }));
+                  await finalizeResults(`weekly:${guildName}`, rankings, since || new Date(0).toISOString(), customTime);
                   toast("success", `${guildName} finalized`);
                 } catch { toast("error", "Failed to finalize"); }
                 finally { setFinalizing(false); }

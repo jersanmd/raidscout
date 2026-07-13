@@ -50,7 +50,7 @@ serve(async (req: Request) => {
       .eq("server_id", server_id)
       .order("created_at", { ascending: false });
 
-    if (since) query = query.gte("created_at", since);
+    if (since) query = query.gte("death_records.death_time", since);
 
     const { data, error } = await query;
     if (error) throw error;

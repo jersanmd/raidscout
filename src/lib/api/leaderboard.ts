@@ -31,25 +31,9 @@ export async function fetchLeaderboardByPeriod(
   const sid = serverId ?? getCurrentServerId();
   if (!sid) return [];
 
-  // If since is null, read the per-guild reset date from app_settings.
-  // Use the earliest reset across all guilds so "Since Reset" shows only
-  // points earned after the most recent finalization.
-  let effectiveSince = since;
-  if (effectiveSince === null) {
-    const { data: settings } = await supabase
-      .from("app_settings")
-      .select("value")
-      .eq("server_id", sid)
-      .like("key", "leaderboard_reset_at:%");
-    if (settings && settings.length > 0) {
-      const dates = settings.map((s: any) => new Date(s.value).getTime());
-      effectiveSince = new Date(Math.max(...dates)).toISOString();
-    }
-  }
-
   // Use RPC first — includes both boss + activity points
   const params: any = { p_server_id: sid };
-  if (effectiveSince !== null) params.p_since = effectiveSince;
+  if (since !== null) params.p_since = since;
   const { data, error } = await supabase
     .rpc("get_leaderboard", params);
 
@@ -186,7 +170,7 @@ export async function fetchMemberKills(
     .eq("member_id", memberId)
     .order("created_at", { ascending: false });
 
-  if (since) query = query.gte("created_at", since);
+  if (since) query = query.gte("death_records.death_time", since);
   if (sid) query = query.eq("server_id", sid);
 
   const { data: rawData, error } = await query;

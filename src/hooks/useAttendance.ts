@@ -133,18 +133,18 @@ export function useLeaderboard(period: LeaderboardPeriod = "all") {
         return await fetchLeaderboard(serverId);
       }
 
-      // "Since Reset": pass null → RPC applies per-guild resets from app_settings.
-      // Each guild uses its own reset date (leaderboard_reset_at:GuildName).
-      // If never finalized, shows all-time for that guild.
+      // "Since Reset": the RPC already applies per-guild reset dates
+      // (leaderboard_reset_at:{guildName} in app_settings) when p_since is null.
       return await fetchLeaderboardByPeriod(null, serverId);
     },
     staleTime: 30_000,
     refetchOnMount: true,
-    refetchOnWindowFocus: true,
     retry: 2,
     enabled: configured && !!serverId,
   });
 }
+
+// ── Leaderboard (period-based) ──
 
 function getPeriodStart(period: LeaderboardPeriod): string {
   const now = new Date();

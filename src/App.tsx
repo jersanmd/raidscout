@@ -48,7 +48,15 @@ function PageLoader() {
 
 import { isSupabaseConfigured } from "@/lib/supabase";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 30_000,           // data is fresh for 30s — no refetch on remount
+      refetchOnWindowFocus: false,  // prevent API storms on tab switch
+      retry: 1,                     // single retry, not 3
+    },
+  },
+});
 
 function AppContent() {
   const { user, loading, isViewer, userRole } = useAuth();

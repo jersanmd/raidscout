@@ -43,6 +43,36 @@ function DkpContent({ serverId }: { serverId: string }) {
   const [searchParams] = useSearchParams();
   const highlightItemId = searchParams.get("highlight") || undefined;
 
+  // ── Realtime: push updates for DKP tables instead of polling ──
+  const [rtStatus, setRtStatus] = useState<string>("connecting");
+  useEffect(() => {
+    const channel = supabase.channel("dkp-realtime")
+      .on("postgres_changes", { event: "*", schema: "public", table: "dkp_auctions" }, (payload) => {
+        console.log("[DKP Realtime] auctions change:", payload.eventType);
+        queryClient.invalidateQueries({ queryKey: ["dkp_active_auctions"] });
+        queryClient.invalidateQueries({ queryKey: ["dkp_past_auctions"] });
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "dkp_bids" }, (payload) => {
+        console.log("[DKP Realtime] bids change:", payload.eventType);
+        queryClient.invalidateQueries({ queryKey: ["dkp_active_auctions"] });
+        queryClient.invalidateQueries({ queryKey: ["dkp_theater_bids"] });
+        queryClient.invalidateQueries({ queryKey: ["dkp_balance"] });
+        queryClient.invalidateQueries({ queryKey: ["dkp_rankings"] });
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "dkp_transactions" }, (payload) => {
+        console.log("[DKP Realtime] txns change:", payload.eventType);
+        queryClient.invalidateQueries({ queryKey: ["dkp_balance"] });
+        queryClient.invalidateQueries({ queryKey: ["dkp_rankings"] });
+        queryClient.invalidateQueries({ queryKey: ["dkp_history"] });
+      })
+      .subscribe((status) => {
+        console.log("[DKP Realtime] status:", status);
+        setRtStatus(status === "SUBSCRIBED" ? "connected" : status === "CHANNEL_ERROR" ? "error" : status === "TIMED_OUT" ? "timeout" : "connecting");
+      });
+
+    return () => { supabase.removeChannel(channel); };
+  }, [queryClient]);
+
   // Wrap in React Query so it can be invalidated after claim acceptance
   const { data: memberId, isLoading: memberLoading } = useQuery({
     queryKey: ["my_member_id", serverId, user?.id],
@@ -54,7 +84,6 @@ function DkpContent({ serverId }: { serverId: string }) {
     },
     enabled: !!serverId && !!user,
     staleTime: 30_000,
-    refetchInterval: 15_000,
   });
 
   const { data: dkpConfig } = useQuery({ queryKey: ["dkp_config", serverId], queryFn: () => getDkpConfig(serverId), enabled: !!serverId });
@@ -85,6 +114,19 @@ function DkpContent({ serverId }: { serverId: string }) {
           <Coins className="w-5 h-5 text-[#fafafa]" />
         </div>
         <h2 className="text-xl font-bold text-[#fafafa]">DKP</h2>
+        {/* Realtime status indicator — remove after verifying */}
+        <span className={`inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded ${
+          rtStatus === "connected" ? "bg-emerald-500/10 text-emerald-400" :
+          rtStatus === "error" || rtStatus === "timeout" ? "bg-red-500/10 text-red-400" :
+          "bg-amber-500/10 text-amber-400"
+        }`}>
+          <span className={`w-1.5 h-1.5 rounded-full ${
+            rtStatus === "connected" ? "bg-emerald-400 animate-pulse" :
+            rtStatus === "error" || rtStatus === "timeout" ? "bg-red-400" :
+            "bg-amber-400 animate-pulse"
+          }`} />
+          {rtStatus}
+        </span>
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left column */}
@@ -129,7 +171,7 @@ function AnimatedNumber({ value }: { value: number }) {
 }
 
 function Ledger({ memberId, serverId }: { memberId: string; serverId: string }) {
-  const { data: balance, isLoading } = useQuery({ queryKey: ["dkp_balance", memberId, serverId], queryFn: () => getMemberDkp(memberId, serverId), refetchInterval: 10_000 });
+  const { data: balance, isLoading } = useQuery({ queryKey: ["dkp_balance", memberId, serverId], queryFn: () => getMemberDkp(memberId, serverId), staleTime: 5_000 });
   if (isLoading) return <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 text-[#52525b] animate-spin" /></div>;
   return (
     <div className="bg-[#0d0d11] border border-[#1e1e2a] rounded-xl p-4 space-y-3">
@@ -144,7 +186,7 @@ function Ledger({ memberId, serverId }: { memberId: string; serverId: string }) 
 }
 
 function Leaderboard({ serverId, isStaff, toast, queryClient }: { serverId: string; isStaff: boolean; toast: any; queryClient: any }) {
-  const { data: rankings = [], isLoading } = useQuery({ queryKey: ["dkp_rankings", serverId], queryFn: () => getServerDkpRankings(serverId), refetchInterval: 30_000, staleTime: 0 });
+  const { data: rankings = [], isLoading } = useQuery({ queryKey: ["dkp_rankings", serverId], queryFn: () => getServerDkpRankings(serverId), staleTime: 10_000 });
   const [showCount, setShowCount] = useState(15);
   const [search, setSearch] = useState("");
   const [guildFilter, setGuildFilter] = useState<string>(() => {
@@ -477,7 +519,7 @@ function LiveAuction({ serverId, isStaff, memberId, tz, toast, queryClient, high
   const [acting, setActing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const { data: auctions = [], isLoading } = useQuery({ queryKey: ["dkp_active_auctions", serverId], queryFn: () => getActiveAuctions(serverId), refetchInterval: 5_000, staleTime: 0 });
+  const { data: auctions = [], isLoading } = useQuery({ queryKey: ["dkp_active_auctions", serverId], queryFn: () => getActiveAuctions(serverId), staleTime: 3_000 });
 
   // Fetch member's guild for guild-restriction filtering
   const [myGuildId, setMyGuildId] = useState<string | null>(null);
@@ -903,7 +945,6 @@ function AuctionHistory({ serverId, memberId, isStaff, queryClient, toast }: { s
   const { data: auctions = [], isLoading } = useQuery({
     queryKey: ["dkp_past_auctions", serverId],
     queryFn: () => getPastAuctions(serverId),
-    refetchInterval: 10_000,
     staleTime: 10_000,
   });
 
@@ -1030,8 +1071,8 @@ function AuctionHistory({ serverId, memberId, isStaff, queryClient, toast }: { s
 }
 
 function AuctionList({ auctions, auctionSearch, myName, isStaff, handleDelete, setSelectedItem, queryClient, serverId, toast }: { auctions: PastAuction[]; auctionSearch: string; myName: string | null; isStaff: boolean; handleDelete: (e: React.MouseEvent, a: PastAuction) => void; setSelectedItem: (v: any) => void; queryClient: any; serverId: string; toast: any }) {
-  const [showCount, setShowCount] = useState(30);
-  useEffect(() => { setShowCount(30); }, [auctionSearch]);
+  const [showCount, setShowCount] = useState(60);
+  useEffect(() => { setShowCount(60); }, [auctionSearch]);
   const filtered = auctionSearch ? auctions.filter(a => a.item_name.toLowerCase().includes(auctionSearch.toLowerCase())) : auctions;
   if (filtered.length === 0) return <div className="px-4 py-6 text-center"><p className="text-xs text-[#71717a]">No items match</p></div>;
 
@@ -1142,7 +1183,7 @@ function AuctionList({ auctions, auctionSearch, myName, isStaff, handleDelete, s
   });
 
   return (
-    <div className="max-h-96 overflow-y-auto">
+    <div className="max-h-[600px] overflow-y-auto">
       {groups.map(group => (
         <div key={group.label}>
           <div className="px-4 py-1.5 bg-[#0d0d11] border-b border-[#1e1e2a]/30 sticky top-0 z-10">
@@ -1289,6 +1330,7 @@ function AuctionList({ auctions, auctionSearch, myName, isStaff, handleDelete, s
 }
 
 function HistorySection({ memberId, serverId }: { memberId: string; serverId: string }) {
+  const [collapsed, setCollapsed] = useState(true);
   const [cursor, setCursor] = useState<string | undefined>();
   const [all, setAll] = useState<DkpTransaction[]>([]);
   const { data: txns = [], isLoading } = useQuery({ queryKey: ["dkp_history", memberId, serverId, cursor], queryFn: async () => { const r = await getMemberDkpHistory(memberId, serverId, 20, cursor); if (cursor) setAll(p => [...p, ...r]); else setAll(r); return r; }, staleTime: 0 });
@@ -1296,13 +1338,24 @@ function HistorySection({ memberId, serverId }: { memberId: string; serverId: st
   const [selectedTxn, setSelectedTxn] = useState<DkpTransaction | null>(null);
   return (
     <div className="bg-[#0d0d11] border border-[#1e1e2a] rounded-xl overflow-hidden">
-      <div className="px-4 py-3 border-b border-[#1e1e2a] flex items-center gap-2"><History className="w-4 h-4 text-[#52525b]" /><span className="text-xs font-semibold text-[#71717a] uppercase tracking-wider">DKP History</span></div>
-      {isLoading && display.length === 0 ? <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 text-[#52525b] animate-spin" /></div>
-      : display.length === 0 ? <div className="px-4 py-6 text-center"><p className="text-xs text-[#71717a]">No transactions yet.</p></div>
-      : <div className="divide-y divide-[#1e1e2a]/50">{display.map(txn => (
-          <div key={txn.id} onClick={() => setSelectedTxn(txn)} className="flex items-center justify-between px-4 py-2.5 cursor-pointer hover:bg-[#18181b] transition"><div className="min-w-0"><p className="text-xs text-[#d4d4d8] truncate">{txn.reason || txn.type}{txn.bidder_name && <> by <span className="text-[#a1a1aa]">{txn.bidder_name}</span></>}{txn.item_name && <> — <span style={{ color: rc(txn.item_rarity ?? undefined) }}>{txn.item_name}</span>{txn.item_guild_name && <span className={`inline-flex items-center gap-0.5 text-[8px] px-1 py-0.5 rounded border ml-1 align-middle ${guildColor(txn.item_guild_name).bg} ${guildColor(txn.item_guild_name).text} ${guildColor(txn.item_guild_name).border}`}><Shield className="w-2 h-2" />{txn.item_guild_name}</span>}</>}{txn.boss_name && <> — {txn.boss_name}{txn.guild_name && <span className="text-[#a1a1aa]"> ({txn.guild_name})</span>}</>}</p>
-            <p className="text-[11px] text-[#52525b]">{new Date(txn.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</p></div><span className={`text-sm font-bold tabular-nums shrink-0 ${txn.amount > 0 ? "text-emerald-400" : "text-red-400"}`}>{txn.amount > 0 ? "+" : ""}{txn.amount}</span></div>))}
-        {txns.length === 20 && <button onClick={() => setCursor(display[display.length - 1]?.created_at)} className="w-full px-4 py-2 text-xs text-[#a1a1aa] hover:text-[#fafafa] hover:bg-[#18181b] transition">Load more...</button>}</div>}
+      <button
+        onClick={() => setCollapsed(c => !c)}
+        className="w-full px-4 py-3 border-b border-[#1e1e2a] flex items-center gap-2 hover:bg-[#18181b] transition cursor-pointer"
+      >
+        <History className="w-4 h-4 text-[#52525b]" />
+        <span className="text-xs font-semibold text-[#71717a] uppercase tracking-wider">DKP History</span>
+        <span className="ml-auto text-[#52525b] text-xs">{collapsed ? "Show" : "Hide"}</span>
+      </button>
+      {!collapsed && (
+        <>
+          {isLoading && display.length === 0 ? <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 text-[#52525b] animate-spin" /></div>
+          : display.length === 0 ? <div className="px-4 py-6 text-center"><p className="text-xs text-[#71717a]">No transactions yet.</p></div>
+          : <div className="divide-y divide-[#1e1e2a]/50">{display.map(txn => (
+              <div key={txn.id} onClick={() => setSelectedTxn(txn)} className="flex items-center justify-between px-4 py-2.5 cursor-pointer hover:bg-[#18181b] transition"><div className="min-w-0"><p className="text-xs text-[#d4d4d8] truncate">{txn.reason || txn.type}{txn.bidder_name && <> by <span className="text-[#a1a1aa]">{txn.bidder_name}</span></>}{txn.item_name && <> — <span style={{ color: rc(txn.item_rarity ?? undefined) }}>{txn.item_name}</span>{txn.item_guild_name && <span className={`inline-flex items-center gap-0.5 text-[8px] px-1 py-0.5 rounded border ml-1 align-middle ${guildColor(txn.item_guild_name).bg} ${guildColor(txn.item_guild_name).text} ${guildColor(txn.item_guild_name).border}`}><Shield className="w-2 h-2" />{txn.item_guild_name}</span>}</>}{txn.boss_name && <> — {txn.boss_name}{txn.guild_name && <span className="text-[#a1a1aa]"> ({txn.guild_name})</span>}</>}</p>
+                <p className="text-[11px] text-[#52525b]">{new Date(txn.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</p></div><span className={`text-sm font-bold tabular-nums shrink-0 ${txn.amount > 0 ? "text-emerald-400" : "text-red-400"}`}>{txn.amount > 0 ? "+" : ""}{txn.amount}</span></div>))}
+            {txns.length === 20 && <button onClick={() => setCursor(display[display.length - 1]?.created_at)} className="w-full px-4 py-2 text-xs text-[#a1a1aa] hover:text-[#fafafa] hover:bg-[#18181b] transition">Load more...</button>}</div>}
+        </>
+      )}
       {selectedTxn && <TxnDetailModal txn={selectedTxn} onClose={() => setSelectedTxn(null)} />}
     </div>
   );

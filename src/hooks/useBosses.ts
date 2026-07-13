@@ -40,7 +40,6 @@ export function useBosses() {
     staleTime: 60_000,
     gcTime: 30 * 60_000,
     refetchOnMount: true,
-    refetchOnWindowFocus: true,
     refetchInterval: 10_000,
     placeholderData: (prev) => prev,
     retry: 2,

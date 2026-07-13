@@ -155,6 +155,19 @@ for (const table of TABLES) {
       if (row[key] && userMap.has(row[key])) row[key] = userMap.get(row[key]);
     }
   }
+  // server_members: use DELETE + re-insert to avoid composite-key upsert issues
+  if (table === "server_members") {
+    try {
+      await fetch(`${STAGING_URL}/rest/v1/server_members?server_id=not.is.null`, { method: "DELETE", headers: SH });
+    } catch {}
+    for (const row of rows) {
+      try {
+        await fetch(`${STAGING_URL}/rest/v1/server_members`, { method: "POST", headers: SH, body: JSON.stringify(row) });
+      } catch (e) { console.error(`  ⚠️ server_members insert failed: ${e.message}`); }
+    }
+    console.log(`  server_members: inserted ${rows.length} rows`);
+    continue;
+  }
   await upsertTable(table, rows);
 }
 console.log("\n✅ Clone complete!");
