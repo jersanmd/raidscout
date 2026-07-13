@@ -28,9 +28,11 @@ try {
 // ALL tables — full copy, upsert everything. Order matters: parent tables first (FK dependencies).
 const TABLES = [
   // Foundation (no FKs or self-contained)
-  "app_settings","games","item_categories","item_rarities",
+  "games","item_categories","item_rarities",
   // Servers & guilds
   "servers","guilds",
+  // Config that depends on servers
+  "app_settings",
   // Items (must come before member_gear, dkp_auctions, etc.)
   "items","item_collections","item_collection_items","item_collection_manual_ownership",
   // Bosses & activities
@@ -82,8 +84,26 @@ async function clearStagingTable(table) {
     } catch (e) { console.error(`  ⚠️ clear app_settings failed:`, e.message); }
     return;
   }
+  // Tables without an 'id' column — delete by a different column
+  if (table === "server_members") {
+    try {
+      await fetch(`${STAGING_URL}/rest/v1/${table}?server_id=not.is.null`, { method: "DELETE", headers: SH });
+    } catch {}
+    return;
+  }
+  if (table === "user_roles") {
+    try {
+      await fetch(`${STAGING_URL}/rest/v1/${table}?user_id=not.is.null`, { method: "DELETE", headers: SH });
+    } catch {}
+    return;
+  }
+  if (table === "activity_parties") {
+    try {
+      await fetch(`${STAGING_URL}/rest/v1/${table}?activity_instance_id=not.is.null`, { method: "DELETE", headers: SH });
+    } catch {}
+    return;
+  }
   // Supabase requires a WHERE clause for DELETE. Use a dummy condition that matches all.
-  // For tables with 'id' UUID column, this matches everything except the nil UUID.
   try {
     await fetch(`${STAGING_URL}/rest/v1/${table}?id=neq.00000000-0000-0000-0000-000000000000`, { method: "DELETE", headers: SH });
   } catch {}
@@ -91,7 +111,6 @@ async function clearStagingTable(table) {
 
 async function upsertTable(table, rows) {
   if (!rows.length) return;
-  // Tables already cleared in Phase 1
   const chunkSize = 500;
   for (let i = 0; i < rows.length; i += chunkSize) {
     const chunk = rows.slice(i, i + chunkSize);
@@ -99,7 +118,20 @@ async function upsertTable(table, rows) {
       const res = await fetch(`${STAGING_URL}/rest/v1/${table}`, { method: "POST", headers: SH, body: JSON.stringify(chunk) });
       if (!res.ok) {
         const err = await res.text().catch(() => "");
-        if (!err.includes("23505") && !err.includes("duplicate")) console.error(`  ⚠️ ${table} chunk ${i}: ${err.slice(0, 80)}`);
+        if (err.includes("23505") || err.includes("duplicate")) continue;
+        // FK violation or other error — retry row-by-row to skip bad rows
+        if (err.includes("23503") || err.includes("foreign key")) {
+          let ok = 0;
+          for (const row of chunk) {
+            try {
+              const r = await fetch(`${STAGING_URL}/rest/v1/${table}`, { method: "POST", headers: SH, body: JSON.stringify(row) });
+              if (r.ok) ok++;
+            } catch {}
+          }
+          if (ok < chunk.length) console.error(`  ⚠️ ${table}: ${ok}/${chunk.length} rows inserted (skipped ${chunk.length - ok} FK violations)`);
+          continue;
+        }
+        console.error(`  ⚠️ ${table} chunk ${i}: ${err.slice(0, 80)}`);
       }
     } catch (e) { console.error(`  ⚠️ ${table}: ${e.message}`); }
   }

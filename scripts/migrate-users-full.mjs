@@ -53,6 +53,34 @@ async function main() {
 
   console.log(`  Found ${prodUsers.length} production users`);
 
+  // 1.5 — Also pull users from server_members (catches users Admin API missed)
+  console.log("\nStep 1.5: Scanning production server_members for missing users...");
+  const existingIds = new Set(prodUsers.map(u => u.id));
+  const smRes = await fetch(
+    `${PROD_URL}/rest/v1/server_members?select=user_id&order=user_id`,
+    { headers: { apikey: PROD_KEY, Authorization: `Bearer ${PROD_KEY}` } }
+  );
+  if (smRes.ok) {
+    const members = await smRes.json();
+    const allIds = [...new Set(members.map(m => m.user_id))];
+    const missingIds = allIds.filter(id => !existingIds.has(id));
+    if (missingIds.length > 0) {
+      console.log(`  Found ${missingIds.length} additional users in server_members`);
+      for (const uid of missingIds) {
+        try {
+          const uRes = await fetch(`${PROD_URL}/auth/v1/admin/users/${uid}`, {
+            headers: { apikey: PROD_KEY, Authorization: `Bearer ${PROD_KEY}` }
+          });
+          if (uRes.ok) {
+            const u = await uRes.json();
+            prodUsers.push({ id: uid, email: u.email, created_at: u.created_at });
+            console.log(`    + ${u.email}`);
+          }
+        } catch {}
+      }
+    }
+  }
+
   // 2. Create users on staging
   console.log("\nStep 2: Creating users on staging...");
   const idMap = new Map(); // oldId → newId
@@ -72,14 +100,20 @@ async function main() {
       } else {
         const err = await res.text().catch(() => "");
         if (err.includes("already been registered") || err.includes("already exists")) {
-          // Find existing user on staging
-          const findRes = await fetch(`${STAGING_URL}/auth/v1/admin/users?per_page=100`, {
-            headers: { apikey: STAGING_KEY, Authorization: `Bearer ${STAGING_KEY}` }
-          });
-          if (findRes.ok) {
+          // Search ALL pages of staging users to find by email (not just page 1)
+          let existing = null;
+          let page = 1;
+          while (!existing) {
+            const findRes = await fetch(`${STAGING_URL}/auth/v1/admin/users?per_page=100&page=${page}`, {
+              headers: { apikey: STAGING_KEY, Authorization: `Bearer ${STAGING_KEY}` }
+            });
+            if (!findRes.ok) break;
             const data = await findRes.json();
-            const existing = (data.users || []).find(u => u.email === email);
-            if (existing) {
+            if (!data.users || !data.users.length) break;
+            existing = (data.users || []).find(u => u.email === email);
+            if (!existing && data.users.length === 100) { page++; } else { break; }
+          }
+          if (existing) {
               idMap.set(oldId, existing.id);
               // Update created_at to match production for email verification accuracy
               if (created_at) {
@@ -92,7 +126,6 @@ async function main() {
               if ((i + 1) % 10 === 0) process.stdout.write(`\r  Mapped ${i + 1}/${prodUsers.length}...`);
             }
           }
-        }
         // else: user creation failed, skip
       }
     } catch (e) {
