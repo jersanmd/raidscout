@@ -90,7 +90,7 @@ function Sentinel({ onVisible, loading }: { onVisible: () => void; loading: bool
 export function InventoryView() {
   const serverId = useServerId();
   const { currentServer } = useServer();
-  const { isViewer } = useAuth();
+  const { isViewer, user } = useAuth();
   const canManageItems = currentServer?.role === "owner" || currentServer?.role === "moderator";
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -488,6 +488,7 @@ export function InventoryView() {
         player_name: member?.name ?? "",
         quantity: distQuantity,
         reason: distReason,
+        distributed_by: user?.id,
       }, item?.name);
     },
     onSuccess: () => {
@@ -2611,6 +2612,7 @@ export function InventoryView() {
                             player_name: matrixDistributePlayer.name,
                             quantity: 1,
                             reason: "",
+                            distributed_by: user?.id,
                           }, item.name);
                           queryClient.invalidateQueries({ queryKey: ["distributions", serverId] });
                           queryClient.invalidateQueries({ queryKey: ["allDists", serverId] });

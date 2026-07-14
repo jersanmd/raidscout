@@ -621,8 +621,8 @@ export async function createDistribution(dist: {
   player_name: string;
   quantity: number;
   reason: string;
+  distributed_by?: string;
 }, itemName?: string): Promise<Distribution> {
-  const { data: userData } = await supabase.auth.getUser();
   const { data, error } = await supabase
     .from("distributions")
     .insert({
@@ -632,7 +632,7 @@ export async function createDistribution(dist: {
       player_name: dist.player_name.trim(),
       quantity: dist.quantity,
       reason: dist.reason,
-      distributed_by: userData.user?.id,
+      distributed_by: dist.distributed_by || null,
     })
     .select()
     .single();

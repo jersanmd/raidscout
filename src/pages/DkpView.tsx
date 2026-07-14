@@ -1143,6 +1143,7 @@ function AuctionList({ auctions, auctionSearch, myName, isStaff, handleDelete, s
         player_name: member?.name ?? distAuction.winner_name ?? "Unknown",
         quantity: distQuantity,
         reason: distReason,
+        distributed_by: user?.id,
       }, distAuction.item_name);
     },
     onSuccess: async () => {

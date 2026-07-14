@@ -1,4 +1,4 @@
-# July 13, 2026 — Changelog (v0.15.2)
+# July 13-14, 2026 — Changelog (v0.15.2)
 
 ## ⚡ Performance — Realtime DKP
 
@@ -18,11 +18,13 @@
 - **DKP History collapsible** — Default collapsed with "Show" button. Click header to expand/collapse.
 - **Auction History taller** — Increased from `max-h-96` (384px) to `max-h-[600px]`.
 
-## 🔧 Fixes
+## 🐛 Bug Fixes
 
 - **`auto_resolve_auction` 400** — Missing `GRANT EXECUTE` to `anon`/`authenticated`. Migration `20260713000000_grant_auto_resolve_auction.sql` created.
 - **DKP tables added to realtime publication** — Migration `20260713000001_dkp_realtime.sql` adds `dkp_auctions`, `dkp_bids`, `dkp_transactions` to `supabase_realtime`.
 - **`full-copy.mjs` server_members fix** — Composite-key table now uses DELETE + row-by-row INSERT instead of generic upsert to avoid silent failures.
+- **DKP distribute intermittent failure** — `createDistribution` was calling `supabase.auth.getUser()` (server round-trip), which could return null on production under load. Changed to accept `distributed_by` from AuthContext (local JWT, no server call). Affected DKP distribute + InventoryView distribute.
+- **Duplicate item name error** — `AdminGamesTab` now shows a friendly "An item named 'X' already exists" alert instead of raw Postgres error.
 
 ## 📦 Migrations (apply to both staging + production)
 

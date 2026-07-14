@@ -273,7 +273,14 @@ export function AdminGamesTab() {
       }
       setShowAddItem(false); setEditingItemId(null); setNewItem({ name: "", rarity: "", description: "", category_id: "", categoryLabel: "", image_url: "" }); setNewItemParent(""); setItemImage(null); setItemImagePreview(null);
       refreshTemplates();
-    } catch (err: any) { console.error("Failed to save catalog item:", err); alert(err?.message || "Failed to save item"); } finally { setSubmittingItem(false); }
+    } catch (err: any) {
+      console.error("Failed to save catalog item:", err);
+      if (err?.message?.includes("duplicate") || err?.code === "23505") {
+        alert(`An item named "${newItem.name.trim()}" already exists in this game.`);
+      } else {
+        alert(err?.message || "Failed to save item");
+      }
+    } finally { setSubmittingItem(false); }
   };
   const handleCreateCategory = async (e: React.FormEvent) => {
     e.preventDefault(); if (!newCategory.name.trim() || !expandedGame) return;
