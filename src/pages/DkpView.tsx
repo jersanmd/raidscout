@@ -1163,7 +1163,27 @@ function AuctionList({ auctions, auctionSearch, myName, isStaff, handleDelete, s
         distributed_by: userId,
       }, distAuction.item_name);
     },
-    onSuccess: async () => {
+    onMutate: async () => {
+      // Cancel in-flight refetches so they don't overwrite our optimistic update
+      await queryClient.cancelQueries({ queryKey: ["dkp_past_auctions", serverId] });
+      // Snapshot current cache for rollback
+      const previous = queryClient.getQueryData(["dkp_past_auctions", serverId]) as PastAuction[] | undefined;
+      // Optimistically mark as distributed
+      queryClient.setQueryData(["dkp_past_auctions", serverId], (old: PastAuction[] | undefined) =>
+        (old || []).map((a: PastAuction) => a.auction_id === distAuction?.auction_id ? { ...a, distributed: true } : a)
+      );
+      return { previous };
+    },
+    onError: (err: any, _vars: any, context: any) => {
+      // Rollback on failure
+      if (context?.previous) {
+        queryClient.setQueryData(["dkp_past_auctions", serverId], context.previous);
+      }
+      console.error("[distribute] failed:", err);
+      toast("error", err?.message || "Failed to distribute");
+    },
+    onSettled: async (_data: any, err: any) => {
+      if (err) return; // don't proceed if mutation failed
       if (distAuction) {
         await toggleItemDistributed(distAuction.item_id, distAuction.auction_round, distAuction.auction_id, true).catch(() => {});
         writeAuditEntry({
@@ -1182,6 +1202,7 @@ function AuctionList({ auctions, auctionSearch, myName, isStaff, handleDelete, s
           },
         });
       }
+      // Always sync with server after mutation settles
       queryClient.invalidateQueries({ queryKey: ["dkp_past_auctions", serverId] });
       queryClient.invalidateQueries({ queryKey: ["distributions", serverId] });
       toast("success", `"${distAuction?.item_name}" distributed to ${distMemberSearch || distAuction?.winner_name}!`);
@@ -1191,9 +1212,6 @@ function AuctionList({ auctions, auctionSearch, myName, isStaff, handleDelete, s
       setDistMemberSearch("");
       setDistQuantity(1);
       setDistReason("");
-    },
-    onError: (err: any) => {
-      toast("error", err?.message || "Failed to distribute");
     },
   });
 
@@ -1365,7 +1383,7 @@ function AuctionList({ auctions, auctionSearch, myName, isStaff, handleDelete, s
                 </div>
               </div>
 
-              <button onClick={() => distMutation.mutate()}
+              <button onClick={() => distMutation.mutate(undefined)}
                 disabled={!distMemberId || distMutation.isPending}
                 className="w-full py-2.5 bg-[#fafafa] text-[#09090b] rounded-lg text-sm font-semibold hover:bg-[#e4e4e7] transition disabled:opacity-40 flex items-center justify-center gap-2">
                 {distMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Gift className="w-4 h-4" />}
