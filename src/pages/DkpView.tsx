@@ -14,10 +14,11 @@ import {
 } from "@/lib/supabase";
 import { AuditAction, writeAuditEntry } from "@/lib/api/audit";
 import { useMembers } from "@/hooks/useMembers";
-import { Coins, TrendingUp, TrendingDown, History, Gavel, Loader2, Shield, Clock, Check, X, AlertTriangle, Image, Plus, Eye, Hourglass, Trash2, Pencil, CheckCircle, Package, Settings, Search, Gift, Minus } from "lucide-react";
+import { Coins, TrendingUp, TrendingDown, History, Gavel, Loader2, Shield, Clock, Check, X, AlertTriangle, Image, Plus, Eye, Hourglass, Trash2, Pencil, CheckCircle, Package, Settings, Search, Gift, Minus, Copy } from "lucide-react";
 import { guildColor } from "@/lib/constants";
 import AuctionTheater from "@/components/AuctionTheater";
 import { ExpiredGate } from "@/components/ExpiredGate";
+import { useUserTimezone } from "@/hooks/useUserTimezone";
 
 export function DkpView() {
   const { user, isViewer } = useAuth();
@@ -38,7 +39,7 @@ function DkpContent({ serverId }: { serverId: string }) {
   const { currentServer } = useServer();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const tz = currentServer?.timezone || "UTC";
+  const tz = useUserTimezone(currentServer?.timezone).timezone;
   const isStaff = currentServer?.role === "owner" || currentServer?.role === "moderator";
   const [searchParams] = useSearchParams();
   const highlightItemId = searchParams.get("highlight") || undefined;
@@ -542,7 +543,9 @@ function LiveAuction({ serverId, isStaff, memberId, tz, toast, queryClient, high
   }, [highlightItemId]);
 
   // Filter: non-staff only see unrestricted items or items for their guild
-  const visibleAuctions = isStaff ? auctions : auctions.filter((a: ActiveAuction) => !a.guild_id || a.guild_id === myGuildId);
+  // Sort by bid_end_time ASC so shortest remaining time is always at the top
+  const visibleAuctions = (isStaff ? auctions : auctions.filter((a: ActiveAuction) => !a.guild_id || a.guild_id === myGuildId))
+    .sort((a: ActiveAuction, b: ActiveAuction) => new Date(a.bid_end_time).getTime() - new Date(b.bid_end_time).getTime());
 
   // When bot resolves an item (it disappears from active), immediately refresh past auctions
   const prevIdsRef = useRef<Set<string>>(new Set());
@@ -583,6 +586,28 @@ function LiveAuction({ serverId, isStaff, memberId, tz, toast, queryClient, high
     catch (err: any) { setError(err?.message || "Failed"); toast("error", err?.message || "Failed to resolve auction"); } finally { setActing(false); }
   };
 
+  const doDuplicate = (item: ActiveAuction) => {
+    setMarkName(item.item_name);
+    setMarkCost(item.dkp_cost || 10);
+    setMarkQty(item.quantity || 1);
+    setMarkGuild(item.guild_id || null);
+    // Copy the original end date/time, converted to server timezone for the input
+    if (item.bid_end_time) {
+      const endDate = new Date(item.bid_end_time);
+      const local = new Date(endDate.toLocaleString("en-US", { timeZone: tz }));
+      const pad = (n: number) => String(n).padStart(2, "0");
+      setMarkEnd(`${local.getFullYear()}-${pad(local.getMonth() + 1)}-${pad(local.getDate())}T${pad(local.getHours())}:${pad(local.getMinutes())}`);
+    } else {
+      const now = new Date();
+      const local = new Date(now.toLocaleString("en-US", { timeZone: tz }));
+      local.setHours(23, 59, 0, 0);
+      const pad = (n: number) => String(n).padStart(2, "0");
+      setMarkEnd(`${local.getFullYear()}-${pad(local.getMonth() + 1)}-${pad(local.getDate())}T23:59`);
+    }
+    setError(null);
+    setShowMark(true);
+  };
+
   return (
     <div className="bg-[#0d0d11] rounded-xl overflow-hidden shadow-lg shadow-amber-500/5 gradient-border">
       <div className="px-4 py-3 border-b border-amber-500/10 flex items-center justify-between bg-gradient-to-r from-amber-500/[0.06] via-amber-500/[0.03] to-transparent">
@@ -597,7 +622,7 @@ function LiveAuction({ serverId, isStaff, memberId, tz, toast, queryClient, high
       </div>
       {isLoading ? <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 text-[#52525b] animate-spin" /></div>
       : visibleAuctions.length === 0 ? <div className="px-4 py-8 text-center"><Gavel className="w-8 h-8 text-[#3f3f46] mx-auto mb-2" /><p className="text-xs text-[#71717a]">No active auctions</p></div>
-      : <div className="divide-y divide-[#1e1e2a]/50">{visibleAuctions.map((it: ActiveAuction) => <AuctionRow key={it.auction_id} item={it} isStaff={isStaff} memberId={memberId} tz={tz} onBid={() => { setShowBid(it.auction_id); setBidAmt(Math.max(it.dkp_cost || 1, (it.highest_bid || 0) + 1)); setError(null); }} onResolve={() => setShowResolve(it.auction_id)} onViewBids={() => setShowBids({ itemId: it.item_id, auctionId: it.auction_id })} onTheater={() => setShowTheater(it.auction_id)} isHighlighted={activeHighlight === it.auction_id} />)}</div>}
+      : <div className="divide-y divide-[#1e1e2a]/50">{visibleAuctions.map((it: ActiveAuction) => <AuctionRow key={it.auction_id} item={it} isStaff={isStaff} memberId={memberId} tz={tz} onBid={() => { setShowBid(it.auction_id); setBidAmt(Math.max(it.dkp_cost || 1, (it.highest_bid || 0) + 1)); setError(null); }} onResolve={() => setShowResolve(it.auction_id)} onViewBids={() => setShowBids({ itemId: it.item_id, auctionId: it.auction_id })} onTheater={() => setShowTheater(it.auction_id)} onDuplicate={() => doDuplicate(it)} isHighlighted={activeHighlight === it.auction_id} />)}</div>}
 
       {showMark && <MarkModal name={markName} setName={setMarkName} cost={markCost} setCost={setMarkCost} end={markEnd} setEnd={setMarkEnd} acting={acting} error={error} onClose={() => setShowMark(false)} onMark={doMark} serverId={serverId} guildId={markGuild} setGuildId={setMarkGuild} qty={markQty} setQty={setMarkQty} />}
       {showBid && <BidModalUI auctionId={showBid} bidAmt={bidAmt} setBidAmt={setBidAmt} acting={acting} error={error} onClose={() => setShowBid(null)} onBid={() => doBid(showBid)} memberId={memberId} serverId={serverId} highestBid={auctions.find((a: ActiveAuction) => a.auction_id === showBid)?.highest_bid ?? 0} />}
@@ -645,7 +670,7 @@ function useCountdown(endTime: string | null) {
   return { ended: false, days: Math.floor(totalSec / 86400), hours: Math.floor((totalSec % 86400) / 3600), minutes: Math.floor((totalSec % 3600) / 60), seconds: totalSec % 60, totalMs };
 }
 
-function AuctionRow({ item, isStaff, memberId, tz, onBid, onResolve, onViewBids, onTheater, isHighlighted }: { item: ActiveAuction; isStaff: boolean; memberId: string | null; tz: string; onBid: () => void; onResolve: () => void; onViewBids: () => void; onTheater: () => void; isHighlighted?: boolean }) {
+function AuctionRow({ item, isStaff, memberId, tz, onBid, onResolve, onViewBids, onTheater, onDuplicate, isHighlighted }: { item: ActiveAuction; isStaff: boolean; memberId: string | null; tz: string; onBid: () => void; onResolve: () => void; onViewBids: () => void; onTheater: () => void; onDuplicate?: () => void; isHighlighted?: boolean }) {
   const cd = useCountdown(item.bid_end_time);
   const ended = cd.ended;
   const rarityColor = rc(item.rarity ?? undefined);
@@ -682,6 +707,7 @@ function AuctionRow({ item, isStaff, memberId, tz, onBid, onResolve, onViewBids,
         {memberId && !ended && isWinning && <span className="px-2 py-1 rounded text-[11px] bg-emerald-500/10 text-emerald-400 font-medium" title="You're the highest bidder. Wait to be outbid before bidding again."><Check className="w-3 h-3 inline mr-0.5" />You're Winning</span>}
         {memberId && ended && <span className="px-2 py-1 rounded text-[11px] bg-amber-500/10 text-amber-400 font-medium animate-pulse"><Loader2 className="w-3 h-3 inline mr-1 animate-spin" />Finalizing...</span>}
         {isStaff && <button onClick={(e) => { e.stopPropagation(); onResolve(); }} className="px-5 py-1.5 rounded text-xs font-medium bg-red-500/10 text-red-400 hover:bg-red-500/20 transition">Cancel</button>}
+        {isStaff && onDuplicate && <button onClick={(e) => { e.stopPropagation(); onDuplicate(); }} className="px-3 py-1.5 rounded text-[11px] bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition" title="Duplicate this auction with same details"><Copy className="w-3 h-3 inline mr-1" />Duplicate</button>}
       </div>
     </div>
   );
@@ -705,6 +731,19 @@ function MarkModal({ name, setName, cost, setCost, end, setEnd, acting, error, o
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
+
+  // Auto-search when name is pre-filled (duplicate) — select first result
+  useEffect(() => {
+    if (!name || selectedItem) return;
+    handleSearch(name);
+  }, []); // run once on mount
+
+  // After search results arrive, auto-select the matching item
+  useEffect(() => {
+    if (!name || selectedItem || !results.length) return;
+    const match = results.find((r: any) => r.name.toLowerCase() === name.toLowerCase()) || results[0];
+    if (match) selectItem(match);
+  }, [results]);
 
   const handleSearch = async (q: string) => {
     setSearch(q);
@@ -994,7 +1033,7 @@ function AuctionHistory({ serverId, memberId, isStaff, queryClient, toast }: { s
           <input
             ref={historySearchRef}
             type="text"
-            placeholder="Search auctions..."
+                        placeholder="Search items or winners..."
             value={auctionSearch}
             onChange={e => setAuctionSearch(e.target.value)}
             onBlur={() => { if (!auctionSearch) setHistorySearchOpen(false); }}
@@ -1072,8 +1111,93 @@ function AuctionHistory({ serverId, memberId, isStaff, queryClient, toast }: { s
 
 function AuctionList({ auctions, auctionSearch, myName, isStaff, handleDelete, setSelectedItem, queryClient, serverId, toast }: { auctions: PastAuction[]; auctionSearch: string; myName: string | null; isStaff: boolean; handleDelete: (e: React.MouseEvent, a: PastAuction) => void; setSelectedItem: (v: any) => void; queryClient: any; serverId: string; toast: any }) {
   const [showCount, setShowCount] = useState(60);
-  useEffect(() => { setShowCount(60); }, [auctionSearch]);
-  const filtered = auctionSearch ? auctions.filter(a => a.item_name.toLowerCase().includes(auctionSearch.toLowerCase())) : auctions;
+  const prevSearch = useRef(auctionSearch);
+  if (auctionSearch !== prevSearch.current) {
+    prevSearch.current = auctionSearch;
+    if (showCount !== 60) setShowCount(60);
+  }
+
+  // ── Hooks must be called before any early return ──
+  const { data: allMembers = [] } = useMembers({ includeInactive: true });
+  const [showDistModal, setShowDistModal] = useState(false);
+  const [distAuction, setDistAuction] = useState<PastAuction | null>(null);
+  const [distMemberId, setDistMemberId] = useState("");
+  const [distMemberSearch, setDistMemberSearch] = useState("");
+  const [distQuantity, setDistQuantity] = useState(1);
+  const [distReason, setDistReason] = useState("");
+
+  const openDistributeModal = (e: React.MouseEvent, a: PastAuction) => {
+    e.stopPropagation();
+    setDistAuction(a);
+    setDistQuantity(1);
+    setDistReason(`Auction won — ${a.item_name} — ${a.winning_bid} DKP`);
+    setDistMemberSearch("");
+    setDistMemberId("");
+    if (a.winner_name) {
+      const winner = allMembers.find(m => m.name.toLowerCase() === a.winner_name?.toLowerCase());
+      if (winner) {
+        setDistMemberId(winner.id);
+        setDistMemberSearch(winner.name);
+      } else {
+        setDistMemberSearch(a.winner_name ?? "");
+      }
+    }
+    setShowDistModal(true);
+  };
+
+  const distMutation = useMutation({
+    mutationFn: () => {
+      if (!distAuction) throw new Error("No auction selected");
+      const member = allMembers.find(m => m.id === distMemberId);
+      return createDistribution({
+        server_id: serverId,
+        item_id: distAuction.item_id,
+        member_id: distMemberId,
+        player_name: member?.name ?? distAuction.winner_name ?? "Unknown",
+        quantity: distQuantity,
+        reason: distReason,
+      }, distAuction.item_name);
+    },
+    onSuccess: async () => {
+      if (distAuction) {
+        await toggleItemDistributed(distAuction.item_id, distAuction.auction_round, distAuction.auction_id, true).catch(() => {});
+        writeAuditEntry({
+          action: AuditAction.DKP_ITEM_DISTRIBUTED,
+          server_id: serverId,
+          target_id: distAuction.item_id,
+          details: {
+            auction_id: distAuction.auction_id,
+            auction_round: distAuction.auction_round,
+            item_name: distAuction.item_name,
+            winner_name: distMemberSearch || distAuction.winner_name,
+            winning_bid: distAuction.winning_bid,
+            recipient_name: allMembers.find(m => m.id === distMemberId)?.name ?? distAuction.winner_name ?? "Unknown",
+            quantity: distQuantity,
+            reason: distReason,
+          },
+        });
+      }
+      queryClient.invalidateQueries({ queryKey: ["dkp_past_auctions", serverId] });
+      queryClient.invalidateQueries({ queryKey: ["distributions", serverId] });
+      toast("success", `"${distAuction?.item_name}" distributed to ${distMemberSearch || distAuction?.winner_name}!`);
+      setShowDistModal(false);
+      setDistAuction(null);
+      setDistMemberId("");
+      setDistMemberSearch("");
+      setDistQuantity(1);
+      setDistReason("");
+    },
+    onError: (err: any) => {
+      toast("error", err?.message || "Failed to distribute");
+    },
+  });
+
+  const filtered = auctionSearch
+    ? auctions.filter(a =>
+        a.item_name.toLowerCase().includes(auctionSearch.toLowerCase()) ||
+        (a.winner_name || "").toLowerCase().includes(auctionSearch.toLowerCase())
+      )
+    : auctions;
   if (filtered.length === 0) return <div className="px-4 py-6 text-center"><p className="text-xs text-[#71717a]">No items match</p></div>;
 
   const visible = filtered.slice(0, showCount);
@@ -1102,86 +1226,6 @@ function AuctionList({ auctions, auctionSearch, myName, isStaff, handleDelete, s
     if (last && last.label === group) last.items.push(a);
     else groups.push({ label: group, items: [a] });
   }
-
-  // ── Distribute Modal State ──
-  const { data: allMembers = [] } = useMembers({ includeInactive: true });
-  const [showDistModal, setShowDistModal] = useState(false);
-  const [distAuction, setDistAuction] = useState<PastAuction | null>(null);
-  const [distMemberId, setDistMemberId] = useState("");
-  const [distMemberSearch, setDistMemberSearch] = useState("");
-  const [distQuantity, setDistQuantity] = useState(1);
-  const [distReason, setDistReason] = useState("");
-
-  const openDistributeModal = (e: React.MouseEvent, a: PastAuction) => {
-    e.stopPropagation();
-    setDistAuction(a);
-    setDistQuantity(1);
-    setDistReason(`Auction won — ${a.item_name} — ${a.winning_bid} DKP`);
-    setDistMemberSearch("");
-    setDistMemberId("");
-    // Try to auto-select winner if they're in members
-    if (a.winner_name) {
-      const winner = allMembers.find(m => m.name.toLowerCase() === a.winner_name?.toLowerCase());
-      if (winner) {
-        setDistMemberId(winner.id);
-        setDistMemberSearch(winner.name);
-      } else {
-        setDistMemberSearch(a.winner_name ?? "");
-      }
-    }
-    setShowDistModal(true);
-  };
-
-  const distMutation = useMutation({
-    mutationFn: () => {
-      if (!distAuction) throw new Error("No auction selected");
-      const member = allMembers.find(m => m.id === distMemberId);
-      return createDistribution({
-        server_id: serverId,
-        item_id: distAuction.item_id,
-        member_id: distMemberId,
-        player_name: member?.name ?? distAuction.winner_name ?? "Unknown",
-        quantity: distQuantity,
-        reason: distReason,
-        distributed_by: user?.id,
-      }, distAuction.item_name);
-    },
-    onSuccess: async () => {
-      // Also mark as distributed in auction history
-      if (distAuction) {
-        await toggleItemDistributed(distAuction.item_id, distAuction.auction_round, distAuction.auction_id, true).catch(() => {});
-        // Detailed audit log for DKP distribution
-        writeAuditEntry({
-          action: AuditAction.DKP_ITEM_DISTRIBUTED,
-          server_id: serverId,
-          target_id: distAuction.item_id,
-          details: {
-            auction_id: distAuction.auction_id,
-            auction_round: distAuction.auction_round,
-            item_name: distAuction.item_name,
-            winner_name: distMemberSearch || distAuction.winner_name,
-            winning_bid: distAuction.winning_bid,
-            recipient_name: allMembers.find(m => m.id === distMemberId)?.name ?? distAuction.winner_name ?? "Unknown",
-            quantity: distQuantity,
-            reason: distReason,
-          },
-        });
-      }
-      queryClient.invalidateQueries({ queryKey: ["dkp_past_auctions", serverId] });
-      queryClient.invalidateQueries({ queryKey: ["distributions", serverId] });
-
-      toast("success", `"${distAuction?.item_name}" distributed to ${distMemberSearch || distAuction?.winner_name}!`);
-      setShowDistModal(false);
-      setDistAuction(null);
-      setDistMemberId("");
-      setDistMemberSearch("");
-      setDistQuantity(1);
-      setDistReason("");
-    },
-    onError: (err: any) => {
-      toast("error", err?.message || "Failed to distribute");
-    },
-  });
 
   return (
     <div className="max-h-[600px] overflow-y-auto">
