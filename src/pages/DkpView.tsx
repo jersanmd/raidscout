@@ -66,6 +66,10 @@ function DkpContent({ serverId }: { serverId: string }) {
         queryClient.invalidateQueries({ queryKey: ["dkp_rankings"] });
         queryClient.invalidateQueries({ queryKey: ["dkp_history"] });
       })
+      .on("postgres_changes", { event: "*", schema: "public", table: "dkp_distributed" }, (payload) => {
+        console.log("[DKP Realtime] distributed change:", payload.eventType);
+        queryClient.invalidateQueries({ queryKey: ["dkp_past_auctions"] });
+      })
       .subscribe((status) => {
         console.log("[DKP Realtime] status:", status);
         setRtStatus(status === "SUBSCRIBED" ? "connected" : status === "CHANNEL_ERROR" ? "error" : status === "TIMED_OUT" ? "timeout" : "connecting");

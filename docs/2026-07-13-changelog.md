@@ -28,6 +28,7 @@
 - **Auction history search now matches winners** — Search also matches `winner_name`, not just item names. Placeholder updated to "Search items or winners..."
 - **Auction history infinite render fix** — Moved hooks before early return in `AuctionList` to prevent "Rendered fewer hooks than expected" crash.
 - **DKP distribute `distributed_by` NOT NULL** — `AuctionList` now receives `userId` prop from `DkpContent` and passes it to `createDistribution`.
+- **DKP distribute label not updating** — Added `dkp_distributed` to realtime subscription + publication. When an item is marked as distributed, the Auction History now updates instantly.
 
 ## ✨ New Features — DKP
 
