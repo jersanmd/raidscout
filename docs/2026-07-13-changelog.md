@@ -34,6 +34,7 @@
 - **Duplicate live auction** — Staff can click "Duplicate" on any live auction item to open the Mark modal pre-filled with the same item, DKP cost, quantity, guild, and end date/time. Creates a new auction with zero bids.
 - **User timezone on DKP page** — All auction end times now display in the user's personal timezone (globe dropdown next to Sign Out) instead of server timezone.
 - **Live auctions sorted by remaining time** — Items now sorted by `bid_end_time` ascending (shortest time first), enforced client-side.
+- **Navbar shows claimed character name** — Top bar and dropdown now display your claimed in-game character name instead of email prefix. Falls back to email if no character claimed.
 
 ## 📦 Migrations (apply to both staging + production)
 
