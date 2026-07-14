@@ -25,6 +25,15 @@
 - **`full-copy.mjs` server_members fix** — Composite-key table now uses DELETE + row-by-row INSERT instead of generic upsert to avoid silent failures.
 - **DKP distribute intermittent failure** — `createDistribution` was calling `supabase.auth.getUser()` (server round-trip), which could return null on production under load. Changed to accept `distributed_by` from AuthContext (local JWT, no server call). Affected DKP distribute + InventoryView distribute.
 - **Duplicate item name error** — `AdminGamesTab` now shows a friendly "An item named 'X' already exists" alert instead of raw Postgres error.
+- **Auction history search now matches winners** — Search also matches `winner_name`, not just item names. Placeholder updated to "Search items or winners..."
+- **Auction history infinite render fix** — Moved hooks before early return in `AuctionList` to prevent "Rendered fewer hooks than expected" crash.
+- **DKP distribute `distributed_by` NOT NULL** — `AuctionList` now receives `userId` prop from `DkpContent` and passes it to `createDistribution`.
+
+## ✨ New Features — DKP
+
+- **Duplicate live auction** — Staff can click "Duplicate" on any live auction item to open the Mark modal pre-filled with the same item, DKP cost, quantity, guild, and end date/time. Creates a new auction with zero bids.
+- **User timezone on DKP page** — All auction end times now display in the user's personal timezone (globe dropdown next to Sign Out) instead of server timezone.
+- **Live auctions sorted by remaining time** — Items now sorted by `bid_end_time` ascending (shortest time first), enforced client-side.
 
 ## 📦 Migrations (apply to both staging + production)
 

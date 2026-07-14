@@ -139,7 +139,7 @@ function DkpContent({ serverId }: { serverId: string }) {
         {/* Right column */}
         <div className="lg:col-span-2 space-y-4">
           <LiveAuction serverId={serverId} isStaff={isStaff} memberId={memberId} tz={tz} toast={toast} queryClient={queryClient} highlightItemId={highlightItemId} />
-          <AuctionHistory serverId={serverId} memberId={memberId} isStaff={isStaff} queryClient={queryClient} toast={toast} />
+          <AuctionHistory serverId={serverId} memberId={memberId} isStaff={isStaff} queryClient={queryClient} toast={toast} userId={user?.id} />
           {memberId && <HistorySection memberId={memberId} serverId={serverId} />}
         </div>
       </div>
@@ -976,7 +976,7 @@ function BidsModal({ itemId, auctionId, onClose, startedAfter, resolvedBefore }:
   );
 }
 
-function AuctionHistory({ serverId, memberId, isStaff, queryClient, toast }: { serverId: string; memberId: string | null; isStaff: boolean; queryClient: any; toast: any }) {
+function AuctionHistory({ serverId, memberId, isStaff, queryClient, toast, userId }: { serverId: string; memberId: string | null; isStaff: boolean; queryClient: any; toast: any; userId?: string }) {
   const [selectedItem, setSelectedItem] = useState<{ itemId: string; auctionId: string; startedAt: string; resolvedAt: string } | null>(null);
   const [auctionSearch, setAuctionSearch] = useState("");
   const [historySearchOpen, setHistorySearchOpen] = useState(false);
@@ -1059,7 +1059,7 @@ function AuctionHistory({ serverId, memberId, isStaff, queryClient, toast }: { s
           <p className="text-xs text-[#71717a]">No past auctions</p>
         </div>
       ) : (
-        <AuctionList auctions={auctions} auctionSearch={auctionSearch} myName={myName} isStaff={isStaff} handleDelete={handleDelete} setSelectedItem={setSelectedItem} queryClient={queryClient} serverId={serverId} toast={toast} />
+        <AuctionList auctions={auctions} auctionSearch={auctionSearch} myName={myName} isStaff={isStaff} handleDelete={handleDelete} setSelectedItem={setSelectedItem} queryClient={queryClient} serverId={serverId} toast={toast} userId={userId} />
       )}
       {selectedItem && <BidsModal itemId={selectedItem.itemId} auctionId={selectedItem.auctionId} startedAfter={selectedItem.startedAt} resolvedBefore={selectedItem.resolvedAt} onClose={() => setSelectedItem(null)} />}
 
@@ -1109,7 +1109,7 @@ function AuctionHistory({ serverId, memberId, isStaff, queryClient, toast }: { s
   );
 }
 
-function AuctionList({ auctions, auctionSearch, myName, isStaff, handleDelete, setSelectedItem, queryClient, serverId, toast }: { auctions: PastAuction[]; auctionSearch: string; myName: string | null; isStaff: boolean; handleDelete: (e: React.MouseEvent, a: PastAuction) => void; setSelectedItem: (v: any) => void; queryClient: any; serverId: string; toast: any }) {
+function AuctionList({ auctions, auctionSearch, myName, isStaff, handleDelete, setSelectedItem, queryClient, serverId, toast, userId }: { auctions: PastAuction[]; auctionSearch: string; myName: string | null; isStaff: boolean; handleDelete: (e: React.MouseEvent, a: PastAuction) => void; setSelectedItem: (v: any) => void; queryClient: any; serverId: string; toast: any; userId?: string }) {
   const [showCount, setShowCount] = useState(60);
   const prevSearch = useRef(auctionSearch);
   if (auctionSearch !== prevSearch.current) {
@@ -1156,6 +1156,7 @@ function AuctionList({ auctions, auctionSearch, myName, isStaff, handleDelete, s
         player_name: member?.name ?? distAuction.winner_name ?? "Unknown",
         quantity: distQuantity,
         reason: distReason,
+        distributed_by: userId,
       }, distAuction.item_name);
     },
     onSuccess: async () => {
