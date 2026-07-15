@@ -64,7 +64,9 @@ try {
   data = await response.json();
 
   if (!response.ok) {
-    console.error(`OpenAI API error (${response.status}):`, JSON.stringify(data.error || data));
+    const errType = data.error?.type || "unknown";
+    const errMsg = data.error?.message || "no details";
+    console.error(`OpenAI API error (${response.status}): ${errType} — ${errMsg}`);
     process.exit(1);
   }
 } catch (err) {
@@ -72,10 +74,10 @@ try {
   process.exit(1);
 }
 
-const review = data.choices[0]?.message?.content;
+const review = data.choices?.[0]?.message?.content;
 
 if (!review) {
-  console.error("OpenAI returned empty response:", JSON.stringify(data));
+  console.error(`OpenAI returned empty response: choices=${data.choices?.length || 0}`);
   process.exit(1);
 }
 
@@ -99,8 +101,7 @@ try {
   );
 
   if (!commentRes.ok) {
-    const errText = await commentRes.text();
-    console.error(`GitHub API error (${commentRes.status}):`, errText);
+    console.error(`GitHub API error (${commentRes.status}): could not post review comment`);
     process.exit(1);
   }
 } catch (err) {
