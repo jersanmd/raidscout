@@ -17,7 +17,7 @@ export async function fetchActivityTemplates(gameId: string): Promise<any[]> {
 export async function createBossTemplate(template: {
   game_id: string; name: string; spawn_type: string; respawn_hours?: number | null;
   schedule?: any; is_recurring?: boolean; category?: string | null;
-  tags?: string[]; points?: number; image_url?: string;
+  tags?: string[]; points?: number;
 }): Promise<any> {
   const { data, error } = await supabase.from("boss_templates").insert(template).select().single();
   if (error) throw error;
