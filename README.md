@@ -16,7 +16,7 @@
   <a href="https://www.raidscout.com"><img src="https://img.shields.io/badge/live-raidscout.com-ef4444?style=flat-square" alt="Website" /></a>
   <a href="https://vercel.com"><img src="https://img.shields.io/badge/deployed%20on-Vercel-black?style=flat-square&logo=vercel" alt="Vercel" /></a>
   <a href="https://supabase.com"><img src="https://img.shields.io/badge/backend-Supabase-3ECF8E?style=flat-square&logo=supabase" alt="Supabase" /></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue?style=flat-square" alt="License" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPLv3-blue?style=flat-square" alt="License" /></a>
   <a href="https://discord.gg/738AmkeQtU"><img src="https://img.shields.io/badge/discord-join%20server-5865F2?style=flat-square&logo=discord" alt="Discord" /></a>
   <a href="#pricing"><img src="https://img.shields.io/badge/price-%249.99%2F30%20days-22c55e?style=flat-square" alt="Pricing" /></a>
 </p>
@@ -36,6 +36,26 @@ RaidScout is **$9.99 per server per 30 days** — one price, everything included
 | 🛡️ **PayPal secure** | Processed by PayPal — we never see your card |
 
 [View Pricing →](https://www.raidscout.com/#pricing) · [Refund Policy](https://www.raidscout.com/refund)
+
+---
+
+## 👐 Open Source & Self-Hosting
+
+RaidScout is **open source** under the [GNU AGPLv3](LICENSE). You can self-host your own instance.
+
+### Quick Start
+
+1. **Clone** the repo: `git clone https://github.com/jersanmd/raidscout.git`
+2. **Install** dependencies: `npm install`
+3. **Create** a [Supabase](https://supabase.com) project (free tier works)
+4. **Copy** `.env.example` to `.env.local` and fill in your Supabase URL + publishable key
+5. **Apply** all migrations in `supabase/migrations/` (run them in order via SQL Editor)
+6. **Deploy** edge functions in `supabase/functions/`
+7. **Start** dev server: `npm run dev`
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed setup instructions.
+
+> 💡 **Prefer the hosted version?** [raidscout.com](https://www.raidscout.com) handles everything — no setup, no maintenance. Your subscription supports the project.
 
 ---
 
@@ -602,6 +622,21 @@ Set these secrets on Fly.io:
 - `DISCORD_BOT_TOKEN` — Your Discord bot token
 - `SUPABASE_URL` — Your Supabase project URL
 - `SUPABASE_SERVICE_ROLE_KEY` — Your Supabase service role key
+
+---
+
+## 🤝 Contributing
+
+Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for setup instructions and guidelines.
+
+- **Bug reports & feature requests** → [GitHub Issues](https://github.com/jersanmd/raidscout/issues)
+- **Security vulnerabilities** → See [SECURITY.md](SECURITY.md)
+- **Questions?** → [Discord](https://discord.gg/738AmkeQtU)
+
+### Contributors
+
+<!-- ALL-CONTRIBUTORS-LIST:START -->
+<!-- ALL-CONTRIBUTORS-LIST:END -->
 
 ---
 
