@@ -1,8 +1,13 @@
 node_modules
 dist
 coverage
+.env
 .env.local
+.env.staging
+.env.production
 .vercel
+*.log
+public/google*.html
 supabase/.temp
 .env*
 .vscode/mcp.json

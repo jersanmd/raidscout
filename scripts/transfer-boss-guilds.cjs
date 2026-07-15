@@ -1,8 +1,8 @@
 // Transfer boss_guilds from old DB to new DB
 const https = require('https');
 
-const OLD = { host: 'oeugehqgpodzhagomeex.supabase.co', key: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9ldWdlaHFncG9kemhhZ29tZWV4Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3OTEyNjYwNiwiZXhwIjoyMDk0NzAyNjA2fQ.NXdVlAN6zanzfGggg960WVhtlliycdm_USV_m6YE1Ik' };
-const NEW = { host: 'cjuacehmienztxrhwnlg.supabase.co', key: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNqdWFjZWhtaWVuenR4cmh3bmxnIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MDUzMzE2NiwiZXhwIjoyMDk2MTA5MTY2fQ.IFjdQxy9_2a6KNCOj3y-2VYdhYr6BYjxgAGCW-5cv-c' };
+const OLD = { host: process.env.OLD_SUPABASE_HOST, key: process.env.OLD_SUPABASE_KEY };
+const NEW = { host: process.env.NEW_SUPABASE_HOST, key: process.env.NEW_SUPABASE_KEY };
 
 const h = (key) => ({ apikey: key, Authorization: 'Bearer ' + key, 'Content-Type': 'application/json' });
 

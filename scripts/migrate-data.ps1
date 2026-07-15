@@ -6,10 +6,10 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-$oldKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9ldWdlaHFncG9kemhhZ29tZWV4Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3OTEyNjYwNiwiZXhwIjoyMDk0NzAyNjA2fQ.NXdVlAN6zanzfGggg960WVhtlliycdm_USV_m6YE1Ik"
-$newKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNqdWFjZWhtaWVuenR4cmh3bmxnIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MDUzMzE2NiwiZXhwIjoyMDk2MTA5MTY2fQ.IFjdQxy9_2a6KNCOj3y-2VYdhYr6BYjxgAGCW-5cv-c"
-$oldUrl = "https://oeugehqgpodzhagomeex.supabase.co/rest/v1"
-$newUrl = "https://cjuacehmienztxrhwnlg.supabase.co/rest/v1"
+$oldKey = $env:OLD_SUPABASE_KEY
+$newKey = $env:NEW_SUPABASE_KEY
+$oldUrl = $env:OLD_SUPABASE_URL + "/rest/v1"
+$newUrl = $env:NEW_SUPABASE_URL + "/rest/v1"
 $gameId = "00000000-0000-0000-0000-000000000001"
 
 $oldHeaders = @{ apikey = $oldKey; Authorization = "Bearer $oldKey" }
