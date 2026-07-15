@@ -94,6 +94,7 @@ export function AddBossForm({ gameId, gameSlug, serverId, onCreated, onCancel, o
         points: isNaN(Number(points)) ? 1 : Number(points),
         category: category === "__custom__" ? customCategory || null : category || null,
         tags,
+        image_url: imageUrl,
       });
       }
       onCreated();
