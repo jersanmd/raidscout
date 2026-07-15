@@ -472,6 +472,13 @@ export function InventoryView() {
     itemDistCounts[d.item_id] = (itemDistCounts[d.item_id] || 0) + d.quantity;
   });
 
+  // O(1) item lookup map for recipients/analytics tabs
+  const itemsById = useMemo(() => {
+    const map = new Map<string, Item>();
+    items.forEach(i => map.set(i.id, i));
+    return map;
+  }, [items]);
+
   const distItem = items.find(i => i.id === distItemId);
   const filteredDistMembers = members.filter(m =>
     !distMemberSearch || m.name.toLowerCase().includes(distMemberSearch.toLowerCase())
@@ -568,6 +575,7 @@ export function InventoryView() {
   });
   const [recipientSort, setRecipientSort] = useState<string>("chrono");
   const [recipientPlayerSort, setRecipientPlayerSort] = useState<"most" | "name-asc">("most");
+  const [recipientDateGroup, setRecipientDateGroup] = useState<"none" | "day" | "3days">("none");
 
   // Rarity sort order (highest first)
   const RARITY_SORT_ORDER: Record<string, number> = { mythic: 0, legendary: 1, epic: 2, rare: 3, uncommon: 4, common: 5 };
@@ -1681,26 +1689,26 @@ export function InventoryView() {
             sorted.sort((a, b) => new Date(a.distributed_at).getTime() - new Date(b.distributed_at).getTime());
           } else if (sort === "name-asc") {
             sorted.sort((a, b) => {
-              const ia = items.find(i => i.id === a.item_id)?.name ?? "";
-              const ib = items.find(i => i.id === b.item_id)?.name ?? "";
+              const ia = itemsById.get(a.item_id)?.name ?? "";
+              const ib = itemsById.get(b.item_id)?.name ?? "";
               return ia.localeCompare(ib);
             });
           } else if (sort === "name-desc") {
             sorted.sort((a, b) => {
-              const ia = items.find(i => i.id === a.item_id)?.name ?? "";
-              const ib = items.find(i => i.id === b.item_id)?.name ?? "";
+              const ia = itemsById.get(a.item_id)?.name ?? "";
+              const ib = itemsById.get(b.item_id)?.name ?? "";
               return ib.localeCompare(ia);
             });
           } else if (sort === "rarity") {
             sorted.sort((a, b) => {
-              const ra = items.find(i => i.id === a.item_id)?.rarity?.toLowerCase() ?? "";
-              const rb = items.find(i => i.id === b.item_id)?.rarity?.toLowerCase() ?? "";
+              const ra = itemsById.get(a.item_id)?.rarity?.toLowerCase() ?? "";
+              const rb = itemsById.get(b.item_id)?.rarity?.toLowerCase() ?? "";
               return (RARITY_SORT_ORDER[ra] ?? 99) - (RARITY_SORT_ORDER[rb] ?? 99);
             });
           } else if (sort === "rarity-desc") {
             sorted.sort((a, b) => {
-              const ra = items.find(i => i.id === a.item_id)?.rarity?.toLowerCase() ?? "";
-              const rb = items.find(i => i.id === b.item_id)?.rarity?.toLowerCase() ?? "";
+              const ra = itemsById.get(a.item_id)?.rarity?.toLowerCase() ?? "";
+              const rb = itemsById.get(b.item_id)?.rarity?.toLowerCase() ?? "";
               return (RARITY_SORT_ORDER[rb] ?? 99) - (RARITY_SORT_ORDER[ra] ?? 99);
             });
           }
@@ -1760,6 +1768,18 @@ export function InventoryView() {
                 <option value="name-desc">Name Z→A</option>
                 <option value="rarity">Rarity ↑</option>
                 <option value="rarity-desc">Rarity ↓</option>
+              </select>
+              <select
+                value={recipientDateGroup}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  if (v === "none" || v === "day" || v === "3days") setRecipientDateGroup(v);
+                }}
+                className="text-xs sm:text-sm bg-[#18181b] border border-[#27272a] rounded-xl text-[#fafafa] px-2.5 sm:px-3 py-1.5 sm:py-2.5 focus:outline-none focus:border-[#52525b]"
+              >
+                <option value="none">No Grouping</option>
+                <option value="day">Group by Day</option>
+                <option value="3days">Group by 3 Days</option>
               </select>
               {recipientSearchOpen ? (
                 <div className="relative sm:ml-auto">
@@ -1831,18 +1851,85 @@ export function InventoryView() {
                             </div>
                           </td>
                           <td className="px-4 py-2.5">
-                            <div className="flex flex-wrap gap-1">
-                              {p.dists.map(d => {
-                                const item = items.find(i => i.id === d.item_id);
-                                const rc = item?.rarity ? colorMap[item.rarity.toLowerCase() as ItemRarity] : "#a1a1aa";
-                                return (
-                                  <span key={d.id} className="inline-flex items-center gap-1 text-[11px] font-medium px-1.5 py-0.5 rounded border border-[#27272a]" style={{ color: rc }}>
-                                    {item?.image_url && <img src={item.image_url} alt="" className="w-3.5 h-3.5 rounded object-cover" style={{ backgroundColor: rc + "20" }} />}
-                                    <span className="capitalize truncate max-w-[120px]">{item?.name ?? "Unknown"}</span>
-                                    {d.quantity > 1 && <span className="font-mono opacity-70">x{d.quantity}</span>}
-                                  </span>
-                                );
-                              })}
+                            <div className="max-h-[300px] overflow-y-auto flex flex-col gap-1.5" style={{ scrollbarWidth: "thin", scrollbarColor: "#27272a transparent" }}>
+                              {recipientDateGroup === "none" ? (
+                                <div className="flex flex-wrap gap-1">
+                                  {p.dists.map(d => {
+                                    const item = itemsById.get(d.item_id);
+                                    const rc = item?.rarity ? colorMap[item.rarity.toLowerCase() as ItemRarity] : "#a1a1aa";
+                                    return (
+                                      <span key={d.id} className="inline-flex items-center gap-1 text-[11px] font-medium px-1.5 py-0.5 rounded border border-[#27272a]" style={{ color: rc }}>
+                                        {item?.image_url && <img src={item.image_url} alt={item.name} className="w-3.5 h-3.5 rounded object-cover" style={{ backgroundColor: rc + "20" }} />}
+                                        <span className="capitalize truncate max-w-[120px]">{item?.name ?? "Unknown"}</span>
+                                        {d.quantity > 1 && <span className="font-mono opacity-70">x{d.quantity}</span>}
+                                      </span>
+                                    );
+                                  })}
+                                </div>
+                              ) : (
+                                (() => {
+                                  // Group distributions by date
+                                  const isValidDate = (dateStr: string) => {
+                                  const d = new Date(dateStr);
+                                  return !isNaN(d.getTime());
+                                };
+                                const getDateKey = (dateStr: string) => {
+                                    if (!isValidDate(dateStr)) return "Unknown";
+                                    const d = new Date(dateStr);
+                                    if (recipientDateGroup === "3days") {
+                                      const dayOfPeriod = Math.floor(d.getDate() / 3) * 3 + 1;
+                                      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(dayOfPeriod).padStart(2, "0")}`;
+                                    }
+                                    return dateStr.slice(0, 10); // YYYY-MM-DD
+                                  };
+
+                                  const formatDateLabel = (dateKey: string) => {
+                                    if (dateKey === "Unknown") return "Unknown Date";
+                                    const [y, m, d] = dateKey.split("-").map(Number);
+                                    const date = new Date(y, m - 1, d);
+                                    if (recipientDateGroup === "3days") {
+                                      const end = new Date(y, m - 1, Math.min(d + 2, new Date(y, m, 0).getDate()));
+                                      const opts: Intl.DateTimeFormatOptions = { month: "short", day: "numeric" };
+                                      return `${date.toLocaleDateString("en-US", opts)} — ${end.toLocaleDateString("en-US", opts)}`;
+                                    }
+                                    const today = new Date();
+                                    const yesterday = new Date(today);
+                                    yesterday.setDate(yesterday.getDate() - 1);
+                                    if (dateKey === today.toISOString().slice(0, 10)) return "Today";
+                                    if (dateKey === yesterday.toISOString().slice(0, 10)) return "Yesterday";
+                                    return date.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+                                  };
+
+                                  const groups = new Map<string, Distribution[]>();
+                                  p.dists.forEach(d => {
+                                    const key = getDateKey(d.distributed_at);
+                                    if (!groups.has(key)) groups.set(key, []);
+                                    groups.get(key)!.push(d);
+                                  });
+
+                                  return [...groups.entries()].map(([dateKey, dists]) => (
+                                    <div key={dateKey}>
+                                      <div className="text-[10px] font-semibold text-[#52525b] uppercase tracking-wider mb-1 pl-0.5">
+                                        {formatDateLabel(dateKey)}
+                                        <span className="ml-1 font-normal normal-case">({dists.length})</span>
+                                      </div>
+                                      <div className="flex flex-wrap gap-1">
+                                        {dists.map(d => {
+                                          const item = itemsById.get(d.item_id);
+                                          const rc = item?.rarity ? colorMap[item.rarity.toLowerCase() as ItemRarity] : "#a1a1aa";
+                                          return (
+                                            <span key={d.id} className="inline-flex items-center gap-1 text-[11px] font-medium px-1.5 py-0.5 rounded border border-[#27272a]" style={{ color: rc }}>
+                                              {item?.image_url && <img src={item.image_url} alt={item.name} className="w-3.5 h-3.5 rounded object-cover" style={{ backgroundColor: rc + "20" }} />}
+                                              <span className="capitalize truncate max-w-[120px]">{item?.name ?? "Unknown"}</span>
+                                              {d.quantity > 1 && <span className="font-mono opacity-70">x{d.quantity}</span>}
+                                            </span>
+                                          );
+                                        })}
+                                      </div>
+                                    </div>
+                                  ));
+                                })()
+                              )}
                             </div>
                           </td>
                         </tr>
