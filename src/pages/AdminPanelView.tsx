@@ -531,7 +531,6 @@ export function AdminPanelView() {
         }
       }
 
-      console.log("[admin] server roles:", { owners: owners.size, moderators: moderators.size });
       return { owners, moderators };
     },
     staleTime: 30_000,

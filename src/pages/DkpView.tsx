@@ -48,30 +48,25 @@ function DkpContent({ serverId }: { serverId: string }) {
   const [rtStatus, setRtStatus] = useState<string>("connecting");
   useEffect(() => {
     const channel = supabase.channel("dkp-realtime")
-      .on("postgres_changes", { event: "*", schema: "public", table: "dkp_auctions" }, (payload) => {
-        console.log("[DKP Realtime] auctions change:", payload.eventType);
+      .on("postgres_changes", { event: "*", schema: "public", table: "dkp_auctions" }, () => {
         queryClient.invalidateQueries({ queryKey: ["dkp_active_auctions"] });
         queryClient.invalidateQueries({ queryKey: ["dkp_past_auctions"] });
       })
-      .on("postgres_changes", { event: "*", schema: "public", table: "dkp_bids" }, (payload) => {
-        console.log("[DKP Realtime] bids change:", payload.eventType);
+      .on("postgres_changes", { event: "*", schema: "public", table: "dkp_bids" }, () => {
         queryClient.invalidateQueries({ queryKey: ["dkp_active_auctions"] });
         queryClient.invalidateQueries({ queryKey: ["dkp_theater_bids"] });
         queryClient.invalidateQueries({ queryKey: ["dkp_balance"] });
         queryClient.invalidateQueries({ queryKey: ["dkp_rankings"] });
       })
-      .on("postgres_changes", { event: "*", schema: "public", table: "dkp_transactions" }, (payload) => {
-        console.log("[DKP Realtime] txns change:", payload.eventType);
+      .on("postgres_changes", { event: "*", schema: "public", table: "dkp_transactions" }, () => {
         queryClient.invalidateQueries({ queryKey: ["dkp_balance"] });
         queryClient.invalidateQueries({ queryKey: ["dkp_rankings"] });
         queryClient.invalidateQueries({ queryKey: ["dkp_history"] });
       })
-      .on("postgres_changes", { event: "*", schema: "public", table: "dkp_distributed" }, (payload) => {
-        console.log("[DKP Realtime] distributed change:", payload.eventType);
+      .on("postgres_changes", { event: "*", schema: "public", table: "dkp_distributed" }, () => {
         queryClient.invalidateQueries({ queryKey: ["dkp_past_auctions"] });
       })
       .subscribe((status) => {
-        console.log("[DKP Realtime] status:", status);
         setRtStatus(status === "SUBSCRIBED" ? "connected" : status === "CHANNEL_ERROR" ? "error" : status === "TIMED_OUT" ? "timeout" : "connecting");
       });
 

@@ -110,3 +110,7 @@ export function guildColor(name: string) {
   // Safe modulo — avoids Math.abs(-2147483648) overflow in JS
   return GUILD_COLORS[((hash % GUILD_COLORS.length) + GUILD_COLORS.length) % GUILD_COLORS.length];
 }
+
+// ── App URLs ──────────────────────────────────────────────
+export const DISCORD_INVITE = "https://discord.gg/738AmkeQtU";
+export const GITHUB_REPO = "https://github.com/jersanmd/raidscout";
