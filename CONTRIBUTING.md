@@ -5,7 +5,7 @@ Thanks for your interest in contributing! 🏰
 ## Getting Started
 
 1. Fork the repo
-2. Clone your fork: `git clone https://github.com/YOUR_USERNAME/raidscout.git`
+2. Clone your fork: `git clone https://github.com/jersanmd/raidscout.git`
 3. Install dependencies: `npm install`
 4. Copy `.env.example` to `.env.local` and fill in your Supabase project details
 5. Start dev: `npm run dev`
