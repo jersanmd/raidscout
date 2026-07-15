@@ -201,12 +201,12 @@ place bids using earned DKP, and the highest bidder wins.
 - **Outbid refunds & notifications** — Previous highest bidder is automatically refunded and receives a toast notification with item image.
 - **Auto-resolve via Discord bot** — Bot picks the highest bidder when time expires. Losers refunded.
 - **Auction history** — Past auctions grouped by date with winner, bid count, distributed status. Delete with type-to-confirm modal.
-- **🎭 Auction Theater** — Full-screen live view for any active auction. Shows item image with rarity glow, countdown timer (green→amber→red→gray), top bidders side-by-side with crown on leader, sliding bid animations, and bid history. Ideal for Discord screen share during raid loot distribution.
+- **Auction Theater** — Full-screen live view with countdown timer, top bidders, sliding bid animations. Ideal for Discord screen share during raid loot.
 - **DKP ledger & leaderboard** — Per-member balance, earned/spent totals, guild-ranked leaderboard. Point adjustments with audit logging.
-- **DKP Settings** — Enable/disable per server, multiplier, default duration, hide leaderboard from players.
-- **Reset with history preservation** — Zero out balances via adjustments without deleting transaction history.
+- **DKP Settings** — Enable/disable per server, configurable duration, hide leaderboard from players.
+- **Duplicate auction** — One-click duplicate any live auction with same item, cost, guild, and end time.
 
-### 👥 Member Combat Power & Classes
+### 👥 Members & Classes
 
 - **Combat Power** — Numeric field per member, inline-editable.
 - **Class system** — Server owners define a class list (e.g., Warrior, Mage, Archer) and assign classes to members via dropdown.
@@ -298,23 +298,6 @@ Complete item and loot tracking across your entire guild:
 - **Date-based versioning** — Auto-generated build version shown in footer. Manual `WIPE_STORAGE_KEY` controls when user preferences reset; routine deploys keep all settings.
 - **Sidebar** — Collapsed sidebar shows abbreviated section labels (Svrs, Ops, Mgmt, Asts, Ins) at matching font sizes. All items use fixed heights for consistent alignment across collapsed, hover overlay, and expanded states. Auto-collapse on settings pages without persisting.
 
-### 🏦 DKP Auction System
-
-Live Dragon Kill Points bidding with full automation:
-
-- **Mark items for bid** — Staff mark catalog items with DKP cost, duration, quantity, and optional guild restrictions. Search across game-level and server-level catalogs.
-- **Live Auction panel** — Real-time countdown timers, current highest bid, bid count, guild badges, and rarity-colored item display. Click any auction to view all bids filtered per-auction.
-- **Bid with presets** — One-click +1/+5/+10/+25 DKP increments above current highest. Manual input with balance display and over-budget warning.
-- **Soft-close** — Last-minute bids (< 3 min remaining) extend the auction by 3 minutes to prevent sniping.
-- **Outbid refunds** — Automatically refunds the previous highest bidder and sends a notification.
-- **Auto-resolve** — Discord bot resolves expired auctions by picking the highest bidder. Losers refunded automatically.
-- **Resolve/Cancel** — Staff can manually pick a winner or cancel (refunds all bidders).
-- **Auction History** — Past auctions grouped by date with winner, winning bid, bid count, guild badge, and distributed status. Load More pagination.
-- **DKP Ledger** — Balance, earned/spent totals, transaction history with boss/item details.
-- **Guild-restricted auctions** — Optional guild filter. Only members of the specified guild can bid.
-- **Distributed tracking** — Toggle to mark past auctions as distributed. Green check in history.
-- **Hide from players** — Config option hides the DKP leaderboard from non-staff while auctions remain visible.
-
 ### 👤 Member Profiles
 
 Deep-dive pages for every member in your guild:
@@ -384,6 +367,26 @@ Install RaidScout as a native-like app on any device:
 - **Add to Home Screen** — works on iOS, Android, and desktop.
 - **Offline support** — service worker caches critical assets.
 - **Fast reloads** — Vite + code-splitting for instant page transitions.
+
+### 🎮 Landing Page & Onboarding
+
+- **Interactive landing page** — Feature showcase, pricing, FAQ, and social proof all on one page.
+- **Animated onboarding** — 4-step checklist guides new server owners through setup.
+- **Claim system** — Members verify their in-game identity and claim their profile.
+- **Server search** — Public server directory for finding and joining communities.
+
+### 🛡️ Admin & Security
+
+- **Maintenance mode** — Temporarily disable features site-wide with a custom message.
+- **Admin impersonation** — Admins can view any server as if they were the owner (debugging/support).
+- **Role-based access** — Owner, Moderator, and Member roles with granular permission controls.
+- **Viewer key system** — Share read-only access with configurable permissions per viewer link.
+
+### 💳 Payments
+
+- **PayPal & Stripe** — Dual payment gateways. PayPal for one-time payments, Stripe for card checkout.
+- **Trial management** — 7-day free trial auto-starts on server creation.
+- **Payment history** — Transaction log with receipt links and refund tracking.
 
 ---
 
