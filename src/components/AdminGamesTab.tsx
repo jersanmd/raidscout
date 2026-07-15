@@ -144,7 +144,7 @@ export function AdminGamesTab() {
       }
     } else {
       // Clear item loaded state when no game is expanded
-      setItemLoadedGames(new Set());
+      setItemLoadedGames(prev => prev.size > 0 ? new Set() : prev);
     }
   }, [expandedGame, games]);
 
