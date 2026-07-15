@@ -1,0 +1,51 @@
+name: AI Code Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  review:
+    name: AI Review
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Get PR diff
+        id: diff
+        run: |
+          set -e
+          git fetch origin "${{ github.base_ref }}" 2>&1 || {
+            echo "::warning::Failed to fetch base ref — skipping review"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          }
+          if ! git diff "origin/${{ github.base_ref }}...${{ github.sha }}" > diff.txt 2>&1; then
+            echo "::warning::Failed to generate diff — skipping review"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # Truncate to 50KB for OpenAI context limits
+          head -c 50000 diff.txt > diff_trimmed.txt
+          lines=$(wc -l < diff_trimmed.txt)
+          echo "lines=$lines" >> "$GITHUB_OUTPUT"
+          echo "skip=false" >> "$GITHUB_OUTPUT"
+
+      - name: Run AI review
+        if: steps.diff.outputs.skip != 'true' && steps.diff.outputs.lines != '0'
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: node scripts/ai-review.mjs
