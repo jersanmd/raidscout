@@ -1,5 +1,9 @@
 // Try multiple connection approaches
-const passwords = ['@Philippians419'];
+const passwords = [process.env.DB_PASSWORD].filter(Boolean);
+if (!passwords.length) {
+  console.error("Set DB_PASSWORD environment variable");
+  process.exit(1);
+}
 let connected = false;
 
 async function tryConnect(host, port, user) {

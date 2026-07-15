@@ -4,7 +4,7 @@
 
 If you discover a security vulnerability in RaidScout, please **do not** open a public issue.
 
-Email: **ceo@raidscout.com**
+Email: **security@raidscout.com**
 
 We'll respond within 48 hours and work with you on a fix.
 

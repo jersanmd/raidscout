@@ -9,6 +9,8 @@ coverage
 *.log
 public/google*.html
 supabase/.temp
+scripts/bot/out
+supabase/.temp
 .env*
 .vscode/mcp.json
 .agents
