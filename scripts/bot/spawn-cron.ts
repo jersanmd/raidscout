@@ -286,8 +286,10 @@ async function runSpawnCron(sendNotifications = true) {
     `dkp_auctions?select=id,item_id&status=eq.active&bid_end_time=lte.${new Date().toISOString()}&limit=50`
   ).then(rows => {
     if (rows?.length) {
-      for (const auction of rows) {
-        supabaseRpc("auto_resolve_auction", { p_item_id: auction.item_id }).catch(() => {});
+      // Deduplicate by item_id — auto_resolve_auction processes ALL expired auctions for an item in one call
+      const itemIds = [...new Set(rows.map((r: { item_id: string }) => r.item_id))];
+      for (const itemId of itemIds) {
+        supabaseRpc("auto_resolve_auction", { p_item_id: itemId }).catch(() => {});
       }
     }
   }).catch(() => {});
