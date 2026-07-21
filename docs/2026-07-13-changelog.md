@@ -1,15 +1,4 @@
-# July 13-21, 2026 — Changelog (v0.15.2)
-
-## ✨ New Features — Server Transfer
-
-- **Cross-server player transfer** — Staff can move players between servers from `/members-summary`. Search multiple players, bulk-assign target server & guild, and transfer with one click. Copies CP history, gear, and loot distribution to the new server. Soft-deletes source (unset guild) so all data stays recoverable if the player returns.
-- **7 unit tests** for server transfer logic — covers single/multiple transfers, missing targets, DB errors, mixed results, exceptions, and console logging.
-
-## 🎨 Members Summary — UX
-
-- **Server transfer notice** — Amber warning in the server selector: "Server transfers are only available to guilds on the servers you select below."
-- **Data refresh after transfer** — Page refreshes without resetting server selection (uses `refreshKey` instead of toggling `configured`).
-- **Soft-deleted members hidden** — Members with `guild_id = null` are excluded from summary views.
+# July 13-14, 2026 — Changelog (v0.15.2)
 
 ## ⚡ Performance — Realtime DKP
 
