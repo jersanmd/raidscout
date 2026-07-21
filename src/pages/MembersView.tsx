@@ -7,9 +7,10 @@ import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { updateMemberName, deleteMember, upsertMember, isSupabaseConfigured, fetchGuilds, setMemberGuild, bulkAddMembers, supabase, fetchStaticParties, createParty, deleteParty, addMemberToParty, removeMemberFromParty, type StaticParty, sendCpReminder, createProgressThread, addBackdatedCpUpdate, fetchMemberCpHistory, editCpUpdate, deleteCpUpdate, unlinkMember } from "@/lib/supabase";
 import { writeAuditEntry, AuditAction } from "@/lib/api/audit";
 import { useServerId, useHasPermission, useServer, type Server } from "@/contexts/ServerContext";
+import { useToast } from "@/contexts/ToastContext";
 import { ExpiredGate } from "@/components/ExpiredGate";
 import type { Guild, Member, CpUpdate } from "@/types";
-import { Users, Plus, Pencil, Trash2, Loader2, X, Check, UserPlus, CheckCircle, XCircle, AlertTriangle, Image, Upload, Copy, Shield, Search, ChevronLeft, ChevronRight, TrendingUp, ChevronUp, ChevronDown, Tag, Sword, Swords, ShieldHalf, ShieldCheck, Crosshair, Wand, Heart, Zap, Flame, Snowflake, Skull, Star, Crown, Anchor, Gavel, Axe, Target, Footprints, HandMetal, Megaphone, Calendar, Clock, Eye, EyeOff, Package, MoreHorizontal, Download, Settings, Gamepad2 } from "lucide-react";
+import { Users, Plus, Pencil, Trash2, Loader2, X, Check, UserPlus, CheckCircle, XCircle, AlertTriangle, Image, Upload, Copy, Shield, Search, ChevronLeft, ChevronRight, TrendingUp, ChevronUp, ChevronDown, Tag, Sword, Swords, ShieldHalf, ShieldCheck, Crosshair, Wand, Heart, Zap, Flame, Snowflake, Skull, Star, Crown, Anchor, Gavel, Axe, Target, Footprints, HandMetal, Megaphone, Calendar, Clock, Eye, EyeOff, Package, MoreHorizontal, Download, Settings, Gamepad2, ArrowRightLeft } from "lucide-react";
 import { guildColor } from "@/lib/constants";
 import { GearTrackingTab } from "@/components/GearTrackingTab";
 
@@ -3023,6 +3024,7 @@ type SummaryRow = { id: string; name: string; serverName: string; guildName: str
 export function MembersSummaryView() {
   const { isViewer } = useAuth();
   const { servers, loading: serversLoading } = useServer();
+  const { toast } = useToast();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const staffServers = useMemo(() => servers.filter(s => s.role === "owner" || s.role === "moderator"), [servers]);
@@ -3094,8 +3096,142 @@ export function MembersSummaryView() {
   };
 
   const includedCount = staffServers.length - excludedIds.size;
+
+  // ── Server Transfer Modal State ──
+  const [showTransferModal, setShowTransferModal] = useState(false);
+  const [transferList, setTransferList] = useState<SummaryRow[]>([]);
+  const [transferSearch, setTransferSearch] = useState("");
+  const [transferTargets, setTransferTargets] = useState<Record<string, { serverId: string; guildId: string }>>({});
+  const [transferGuilds, setTransferGuilds] = useState<Record<string, { id: string; name: string }[]>>({});
+  const [transferLoading, setTransferLoading] = useState(false);
+  const [bulkServerId, setBulkServerId] = useState("");
+  const [bulkGuildId, setBulkGuildId] = useState("");
+
+  const addToTransfer = (row: SummaryRow) => {
+    if (transferList.find(t => t.id === row.id)) return;
+    setTransferList(prev => [...prev, row]);
+    setTransferTargets(prev => ({ ...prev, [row.id]: { serverId: "", guildId: "" } }));
+    setTransferSearch("");
+  };
+
+  // Pre-fetch guilds for all active servers when modal opens
+  useEffect(() => {
+    if (!showTransferModal || activeServers.length === 0) return;
+    activeServers.forEach(s => fetchGuildsForServer(s.id));
+  }, [showTransferModal, activeServers]);
+
+  const removeFromTransfer = (id: string) => {
+    setTransferList(prev => prev.filter(t => t.id !== id));
+    setTransferTargets(prev => { const next = { ...prev }; delete next[id]; return next; });
+  };
+
+  const fetchGuildsForServer = async (serverId: string) => {
+    if (transferGuilds[serverId]) return;
+    const { data } = await supabase.from("guilds").select("id, name").eq("server_id", serverId).order("name");
+    setTransferGuilds(prev => ({ ...prev, [serverId]: data || [] }));
+  };
+
+  const handleTransferTarget = (memberId: string, serverId: string, guildId: string) => {
+    setTransferTargets(prev => ({ ...prev, [memberId]: { serverId, guildId } }));
+    if (serverId) fetchGuildsForServer(serverId);
+  };
+
+  const executeTransfers = async () => {
+    setTransferLoading(true);
+    console.log("[ServerTransfer] Starting transfer for", transferList.length, "players");
+    let success = 0;
+    let failed = 0;
+    try {
+      for (const row of transferList) {
+        const target = transferTargets[row.id];
+        if (!target?.serverId || !target?.guildId) {
+          console.warn("[ServerTransfer] Skipping", row.name, "- missing server or guild");
+          failed++;
+          continue;
+        }
+        console.log("[ServerTransfer] Moving", row.name, "→ server:", target.serverId, "guild:", target.guildId);
+
+        // Find source server ID
+        const sourceServer = staffServers.find(s => s.name === row.serverName);
+        const sourceServerId = sourceServer?.id;
+
+        // 1. Create member in target server
+        const { data: newMember, error: upsertErr } = await supabase.from("members")
+          .upsert({ name: row.name, server_id: target.serverId, guild_id: target.guildId, class: row.className || null, combat_power: row.cp ?? 0 }, { onConflict: "server_id, name" })
+          .select("id").single();
+
+        if (upsertErr || !newMember) {
+          console.error("[ServerTransfer] Upsert failed for", row.name, ":", upsertErr?.message);
+          failed++; continue;
+        }
+        const newId = (newMember as any).id;
+
+        // 2. Copy CP history
+        if (sourceServerId && row.id) {
+          const { data: cpRows } = await supabase.from("cp_updates").select("*").eq("member_id", row.id).eq("server_id", sourceServerId);
+          if (cpRows) for (const cp of cpRows as any[]) {
+            const { error } = await supabase.from("cp_updates").insert({
+              member_id: newId, server_id: target.serverId, player_name: cp.player_name,
+              old_cp: cp.old_cp, new_cp: cp.new_cp, screenshot_url: cp.screenshot_url,
+              status: cp.status, submitted_at: cp.submitted_at,
+            });
+            if (error) console.warn("[ServerTransfer] CP insert failed:", error.message);
+          }
+        }
+
+        // 3. Copy gear
+        if (sourceServerId && row.id) {
+          const { data: gearRows } = await supabase.from("member_gear").select("slot_id, catalog_item_id, enhancement_level").eq("member_id", row.id);
+          if (gearRows) for (const g of gearRows as any[]) {
+            const { error } = await supabase.from("member_gear").insert({
+              member_id: newId, slot_id: g.slot_id, catalog_item_id: g.catalog_item_id,
+              enhancement_level: g.enhancement_level || 0,
+            });
+            if (error) console.warn("[ServerTransfer] Gear insert failed:", error.message);
+          }
+        }
+
+        // 4. Copy loot/distribution history (skip items that don't exist on target server)
+        if (sourceServerId && row.id) {
+          const { data: distRows } = await supabase.from("distributions").select("item_id, player_name, quantity, reason, distributed_by").eq("member_id", row.id).eq("server_id", sourceServerId);
+          if (distRows) for (const d of distRows as any[]) {
+            const { error } = await supabase.from("distributions").insert({
+              member_id: newId, server_id: target.serverId, item_id: d.item_id,
+              player_name: d.player_name, quantity: d.quantity,
+              reason: d.reason || "Transferred", distributed_by: d.distributed_by || null,
+            });
+            if (error) console.warn("[ServerTransfer] Distribution insert failed:", error.message, "(item may not exist on target server)");
+          }
+        }
+
+        // 5. Soft-delete source: unset guild (all original data stays)
+        if (row.id && sourceServerId) {
+          const { error } = await supabase.from("members").update({ guild_id: null }).eq("id", row.id).eq("server_id", sourceServerId);
+          if (error) console.warn("[ServerTransfer] Soft-delete failed:", error.message);
+        }
+
+        console.log("[ServerTransfer] Success:", row.name);
+        success++;
+      }
+      console.log("[ServerTransfer] Done —", success, "success,", failed, "failed");
+      if (success > 0) toast("success", `${success} player${success !== 1 ? "s" : ""} transferred successfully`);
+      if (failed > 0) toast("error", `${failed} transfer${failed !== 1 ? "s" : ""} failed`);
+      setShowTransferModal(false);
+      setTransferList([]);
+      setTransferTargets({});
+      setBulkServerId("");
+      setBulkGuildId("");
+      // Refresh data without resetting server selection
+      setRefreshKey(k => k + 1);
+    } catch (err: any) {
+      console.error("[ServerTransfer] Unexpected error:", err);
+      toast("error", err?.message || "Transfer failed");
+    } finally { setTransferLoading(false); }
+  };
+
   const [data, setData] = useState<SummaryRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshKey, setRefreshKey] = useState(0);
   const [search, setSearch] = useState(() => searchParams.get("q") || "");
   const [sortCol, setSortCol] = useState<keyof SummaryRow>(() => (localStorage.getItem("ms_sortCol") as keyof SummaryRow) || "name");
   const [sortDir, setSortDir] = useState<"asc" | "desc">(() => (localStorage.getItem("ms_sortDir") as "asc" | "desc") || "asc");
@@ -3165,6 +3301,7 @@ export function MembersSummaryView() {
         if (members && !cancelled) {
           for (const m of members) {
             const guildName = (m.guilds as any)?.name || "—";
+            if (guildName === "—") continue; // skip soft-deleted (transferred out)
             const growth = growthByMember[m.id] || 0;
             const gColor = guildName !== "—" ? guildColor(guildName) : { text: "text-zinc-500" } as ReturnType<typeof guildColor>;
             allRows.push({
@@ -3183,7 +3320,7 @@ export function MembersSummaryView() {
       if (!cancelled) { setData(allRows); setLoading(false); }
     })();
     return () => { cancelled = true; };
-  }, [activeServers, isViewer, navigate, serversLoading]);
+  }, [activeServers, isViewer, navigate, serversLoading, refreshKey]);
 
   const handleSort = (col: keyof SummaryRow) => {
     if (sortCol === col) {
@@ -3312,7 +3449,7 @@ const [gearSlots, setGearSlots] = useState<{ id: string; name: string }[]>([]);
     }
     setGearData(rows);
     setGearLoading(false);
-  }, [activeServers]);
+  }, [activeServers, refreshKey]);
 
   useEffect(() => { fetchGear(); }, [fetchGear]);
 
@@ -3333,6 +3470,14 @@ const [gearSlots, setGearSlots] = useState<{ id: string; name: string }[]>([]);
             <h3 className="text-base font-bold text-[#fafafa]">Select Servers</h3>
           </div>
           <p className="text-xs text-[#71717a] mb-4">Toggle servers to include in the summary. {includedCount} of {staffServers.length} selected.</p>
+
+          {/* Server transfer notice */}
+          <div className="mb-4 px-3 py-2 bg-amber-500/10 border border-amber-500/20 rounded-lg flex items-start gap-2">
+            <AlertTriangle className="w-3.5 h-3.5 text-amber-400 mt-0.5 shrink-0" />
+            <p className="text-[11px] text-amber-300 leading-relaxed">
+              Server transfers are only available to guilds on the servers you select below.
+            </p>
+          </div>
 
           {/* Server list */}
           <div className="flex-1 overflow-y-auto space-y-4 pr-1">
@@ -3413,13 +3558,22 @@ const [gearSlots, setGearSlots] = useState<{ id: string; name: string }[]>([]);
             </button>
           )}
         </div>
-        <button
-          onClick={() => navigate("/members")}
-          className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-[#18181b] border border-[#27272a] text-[#a1a1aa] text-xs font-medium hover:bg-[#27272a] hover:text-[#fafafa] transition"
-        >
-          <X className="w-3 h-3" />
-          Back to Members
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => { setShowTransferModal(true); setTransferList([]); setTransferTargets({}); setBulkServerId(""); setBulkGuildId(""); }}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#3b82f6]/10 border border-[#3b82f6]/20 text-[#3b82f6] text-xs font-medium hover:bg-[#3b82f6]/20 transition"
+          >
+            <ArrowRightLeft className="w-3.5 h-3.5" />
+            Server Transfer
+          </button>
+          <button
+            onClick={() => navigate("/members")}
+            className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-[#18181b] border border-[#27272a] text-[#a1a1aa] text-xs font-medium hover:bg-[#27272a] hover:text-[#fafafa] transition"
+          >
+            <X className="w-3 h-3" />
+            Back to Members
+          </button>
+        </div>
       </div>
 
       {loading || gearLoading ? (
@@ -3840,6 +3994,165 @@ const [gearSlots, setGearSlots] = useState<{ id: string; name: string }[]>([]);
         )
       )}
       </>)}
+      {/* Server Transfer Modal */}
+      {showTransferModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => { setShowTransferModal(false); setTransferList([]); setTransferTargets({}); setBulkServerId(""); setBulkGuildId(""); }}>
+          <div className="bg-[#09090b] border border-[#27272a] rounded-2xl p-6 w-full max-w-xl mx-4 max-h-[85vh] flex flex-col shadow-2xl" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-5">
+              <div className="flex items-center gap-2">
+                <div className="flex items-center justify-center w-8 h-8 rounded-xl bg-[#3b82f6]/10">
+                  <ArrowRightLeft className="w-4 h-4 text-[#3b82f6]" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold text-[#fafafa]">Server Transfer</h3>
+                  <p className="text-[11px] text-[#52525b]">{transferList.length > 0 ? `${transferList.length} player${transferList.length !== 1 ? "s" : ""} selected` : "Move players between servers"}</p>
+                </div>
+              </div>
+              <button onClick={() => { setShowTransferModal(false); setTransferList([]); setTransferTargets({}); setBulkServerId(""); setBulkGuildId(""); }} className="p-1.5 rounded-lg text-[#52525b] hover:text-[#fafafa] hover:bg-[#27272a] transition"><X className="w-4 h-4" /></button>
+            </div>
+
+            {/* Search bar */}
+            <div className="relative mb-3">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#52525b]" />
+              <input
+                type="text"
+                value={transferSearch}
+                onChange={e => setTransferSearch(e.target.value)}
+                placeholder="Search players to transfer..."
+                className="w-full pl-9 pr-4 py-2 bg-[#18181b] border border-[#27272a] rounded-lg text-sm text-[#fafafa] placeholder-[#52525b] focus:outline-none focus:border-[#52525b] transition"
+                autoFocus
+              />
+              {transferSearch && (
+                <div className="absolute top-full mt-1 left-0 right-0 bg-[#18181b] border border-[#27272a] rounded-lg max-h-48 overflow-y-auto z-10 shadow-lg">
+                  {(() => {
+                    const q = transferSearch.toLowerCase();
+                    const matches = data.filter(r => r.name.toLowerCase().includes(q) && !transferList.find(t => t.id === r.id)).slice(0, 10);
+                    if (matches.length === 0) return <p className="px-3 py-2 text-[11px] text-[#52525b]">No matches</p>;
+                    return matches.map(r => (
+                      <button key={r.id} onClick={() => addToTransfer(r)} className="w-full text-left px-3 py-2 hover:bg-[#27272a] transition flex items-center justify-between">
+                        <span className="text-sm text-[#fafafa]">{r.name}</span>
+                        <span className="text-[11px] text-[#52525b]">{r.serverName} · {r.guildName}</span>
+                      </button>
+                    ));
+                  })()}
+                </div>
+              )}
+            </div>
+
+            {/* Transfer list */}
+            <div className="flex-1 overflow-y-auto space-y-2 mb-4 pr-1">
+              {transferList.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-10 text-center">
+                  <ArrowRightLeft className="w-8 h-8 text-[#3f3f46] mb-2" />
+                  <p className="text-xs text-[#52525b]">Search and add players above to begin</p>
+                </div>
+              ) : ([
+                <div key="bulk" className="bg-gradient-to-r from-[#3b82f6]/5 to-[#3b82f6]/10 border border-[#3b82f6]/20 rounded-xl p-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="flex items-center justify-center w-6 h-6 rounded-full bg-[#3b82f6]/20">
+                      <Users className="w-3 h-3 text-[#3b82f6]" />
+                    </div>
+                    <p className="text-xs font-semibold text-[#3b82f6]">Bulk Assign</p>
+                    <span className="text-[10px] text-[#52525b] ml-auto">{transferList.length} player{transferList.length !== 1 ? "s" : ""}</span>
+                  </div>
+                  <div className="flex gap-2">
+                    <div className="flex-1">
+                      <label className="text-[10px] text-[#71717a] block mb-1">Target Server</label>
+                      <select
+                        value={bulkServerId}
+                        onChange={e => {
+                          const serverId = e.target.value;
+                          setBulkServerId(serverId);
+                          setBulkGuildId("");
+                          if (serverId) fetchGuildsForServer(serverId);
+                          const next: Record<string, { serverId: string; guildId: string }> = {};
+                          for (const row of transferList) next[row.id] = { serverId, guildId: "" };
+                          setTransferTargets(next);
+                        }}
+                        className="w-full bg-[#0d0d11] border border-[#27272a] rounded-lg px-2.5 py-2 text-xs text-[#d4d4d8] focus:outline-none focus:border-[#3b82f6]/50 transition"
+                      >
+                        <option value="">Server...</option>
+                        {activeServers.map(s => (<option key={s.id} value={s.id}>{s.name}</option>))}
+                      </select>
+                    </div>
+                    <div className="flex-1">
+                      <label className="text-[10px] text-[#71717a] block mb-1">Target Guild</label>
+                      <select
+                        value={bulkGuildId}
+                        disabled={!bulkServerId}
+                        onChange={e => {
+                          const guildId = e.target.value;
+                          if (!guildId) return;
+                          setBulkGuildId(guildId);
+                          setTransferTargets(prev => {
+                            const next = { ...prev };
+                            for (const row of transferList) {
+                              next[row.id] = { serverId: bulkServerId, guildId };
+                            }
+                            return next;
+                          });
+                        }}
+                        className="w-full bg-[#0d0d11] border border-[#27272a] rounded-lg px-2.5 py-2 text-xs text-[#d4d4d8] focus:outline-none focus:border-[#3b82f6]/50 transition disabled:opacity-30 disabled:cursor-not-allowed"
+                      >
+                        <option value="">Guild...</option>
+                        {(transferGuilds[bulkServerId] || []).map(g => (<option key={g.id} value={g.id}>{g.name}</option>))}
+                      </select>
+                    </div>
+                  </div>
+                </div>,
+                ...transferList.map(row => {
+                  const target = transferTargets[row.id] || { serverId: "", guildId: "" };
+                  const targetGuilds = target.serverId ? (transferGuilds[target.serverId] || []) : [];
+                  return (
+                    <div key={row.id} className="bg-[#18181b] border border-[#27272a] rounded-xl p-3.5 hover:border-[#3f3f46] transition">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-[#fafafa] truncate">{row.name}</p>
+                          <p className="text-[11px] text-[#52525b] mt-0.5">
+                            {row.guildName && <span className="mr-2">{row.guildName}</span>}
+                            {row.cp != null && <span>CP {row.cp.toLocaleString()}</span>}
+                          </p>
+                        </div>
+                        <button onClick={() => removeFromTransfer(row.id)} className="p-1 rounded text-[#52525b] hover:text-red-400 hover:bg-red-400/10 transition ml-2 shrink-0"><X className="w-3.5 h-3.5" /></button>
+                      </div>
+                      <div className="flex gap-2">
+                        <select
+                          value={target.serverId}
+                          onChange={e => handleTransferTarget(row.id, e.target.value, "")}
+                          className="flex-1 bg-[#0d0d11] border border-[#27272a] rounded-lg px-2.5 py-2 text-xs text-[#d4d4d8] focus:outline-none focus:border-[#52525b] transition"
+                        >
+                          <option value="">Server...</option>
+                          {activeServers.map(s => (<option key={s.id} value={s.id}>{s.name}</option>))}
+                        </select>
+                        <select
+                          value={target.guildId}
+                          onChange={e => handleTransferTarget(row.id, target.serverId, e.target.value)}
+                          disabled={!target.serverId}
+                          className="flex-1 bg-[#0d0d11] border border-[#27272a] rounded-lg px-2.5 py-2 text-xs text-[#d4d4d8] focus:outline-none focus:border-[#52525b] transition disabled:opacity-30"
+                        >
+                          <option value="">Guild...</option>
+                          {targetGuilds.map(g => (
+                            <option key={g.id} value={g.id}>{g.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  );
+                })
+              ])}
+            </div>
+
+            {/* Confirm */}
+            <button
+              onClick={executeTransfers}
+              disabled={transferList.length === 0 || transferList.some(r => { const t = transferTargets[r.id]; return !t?.serverId || !t?.guildId; }) || transferLoading}
+              className="w-full py-3 rounded-xl bg-gradient-to-r from-[#3b82f6] to-[#2563eb] text-[#fafafa] text-sm font-semibold hover:from-[#2563eb] hover:to-[#1d4ed8] transition disabled:opacity-30 disabled:cursor-not-allowed shadow-lg shadow-blue-500/20"
+            >
+              {transferLoading ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : `Transfer ${transferList.length} member${transferList.length !== 1 ? "s" : ""}`}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

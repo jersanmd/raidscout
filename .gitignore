@@ -15,3 +15,4 @@ supabase/.temp
 .vscode/mcp.json
 .agents
 backups/
+commandcode
