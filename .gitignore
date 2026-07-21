@@ -16,3 +16,4 @@ supabase/.temp
 .agents
 backups/
 commandcode
+.commandcode
