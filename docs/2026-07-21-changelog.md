@@ -1,4 +1,4 @@
-# July 21, 2026 — Changelog
+# July 21-22, 2026 — Changelog
 
 ## ✨ New Features
 
@@ -19,6 +19,8 @@
 - **Auction history infinite render fix** — Moved hooks before early return in `AuctionList`.
 - **Duplicate item name error** — Friendly alert instead of raw Postgres error.
 - **Distributions `reason` NOT NULL** — Transfer defaults empty reason to `"Transferred"`.
+- **Gear duplicate slot fix** — Deletes existing gear on target before inserting to prevent UNIQUE `(member_id, slot_id)` conflicts from previous transfers.
+- **Transfer summary logging** — Console now shows per-player counts: `Success: Name (CP:5, gear:6, loot:12)`.
 
 ## 🧪 Tests
 

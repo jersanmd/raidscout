@@ -3167,6 +3167,7 @@ export function MembersSummaryView() {
         const newId = (newMember as any).id;
 
         // 2. Copy CP history
+        let cpCount = 0;
         if (sourceServerId && row.id) {
           const { data: cpRows } = await supabase.from("cp_updates").select("*").eq("member_id", row.id).eq("server_id", sourceServerId);
           if (cpRows) for (const cp of cpRows as any[]) {
@@ -3176,22 +3177,30 @@ export function MembersSummaryView() {
               status: cp.status, submitted_at: cp.submitted_at,
             });
             if (error) console.warn("[ServerTransfer] CP insert failed:", error.message);
+            else cpCount++;
           }
         }
 
-        // 3. Copy gear
+        // 3. Copy gear (upsert to handle duplicate slots from previous transfers)
+        let gearCount = 0;
         if (sourceServerId && row.id) {
           const { data: gearRows } = await supabase.from("member_gear").select("slot_id, catalog_item_id, enhancement_level").eq("member_id", row.id);
-          if (gearRows) for (const g of gearRows as any[]) {
-            const { error } = await supabase.from("member_gear").insert({
-              member_id: newId, slot_id: g.slot_id, catalog_item_id: g.catalog_item_id,
-              enhancement_level: g.enhancement_level || 0,
-            });
-            if (error) console.warn("[ServerTransfer] Gear insert failed:", error.message);
+          if (gearRows) {
+            // Delete existing gear on target to prevent UNIQUE constraint conflicts
+            await supabase.from("member_gear").delete().eq("member_id", newId);
+            for (const g of gearRows as any[]) {
+              const { error } = await supabase.from("member_gear").insert({
+                member_id: newId, slot_id: g.slot_id, catalog_item_id: g.catalog_item_id,
+                enhancement_level: g.enhancement_level || 0,
+              });
+              if (error) console.warn("[ServerTransfer] Gear insert failed:", error.message);
+              else gearCount++;
+            }
           }
         }
 
-        // 4. Copy loot/distribution history (skip items that don't exist on target server)
+        // 4. Copy loot/distribution history
+        let distCount = 0;
         if (sourceServerId && row.id) {
           const { data: distRows } = await supabase.from("distributions").select("item_id, player_name, quantity, reason, distributed_by").eq("member_id", row.id).eq("server_id", sourceServerId);
           if (distRows) for (const d of distRows as any[]) {
@@ -3200,7 +3209,8 @@ export function MembersSummaryView() {
               player_name: d.player_name, quantity: d.quantity,
               reason: d.reason || "Transferred", distributed_by: d.distributed_by || null,
             });
-            if (error) console.warn("[ServerTransfer] Distribution insert failed:", error.message, "(item may not exist on target server)");
+            if (error) console.warn("[ServerTransfer] Distribution insert failed:", error.message);
+            else distCount++;
           }
         }
 
@@ -3210,7 +3220,7 @@ export function MembersSummaryView() {
           if (error) console.warn("[ServerTransfer] Soft-delete failed:", error.message);
         }
 
-        console.log("[ServerTransfer] Success:", row.name);
+        console.log("[ServerTransfer] Success:", row.name, `(CP:${cpCount}, gear:${gearCount}, loot:${distCount})`);
         success++;
       }
       console.log("[ServerTransfer] Done —", success, "success,", failed, "failed");
