@@ -3181,13 +3181,14 @@ export function MembersSummaryView() {
           }
         }
 
-        // 3. Copy gear (upsert to handle duplicate slots from previous transfers)
+        // 3. Copy gear — only replace slots the source member has, leave others intact
         let gearCount = 0;
         if (sourceServerId && row.id) {
           const { data: gearRows } = await supabase.from("member_gear").select("slot_id, catalog_item_id, enhancement_level").eq("member_id", row.id);
-          if (gearRows) {
-            // Delete existing gear on target to prevent UNIQUE constraint conflicts
-            await supabase.from("member_gear").delete().eq("member_id", newId);
+          if (gearRows && gearRows.length > 0) {
+            // Only delete the slots we're about to overwrite
+            const slotIds = gearRows.map((g: any) => g.slot_id);
+            await supabase.from("member_gear").delete().eq("member_id", newId).in("slot_id", slotIds);
             for (const g of gearRows as any[]) {
               const { error } = await supabase.from("member_gear").insert({
                 member_id: newId, slot_id: g.slot_id, catalog_item_id: g.catalog_item_id,
