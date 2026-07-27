@@ -655,8 +655,8 @@ export function GearTrackingTab() {
         delete next[memberId];
         return next;
       });
-      queryClient.invalidateQueries({ queryKey: ["memberGear", serverId] });
-      queryClient.invalidateQueries({ queryKey: ["gearSummary", serverId] });
+      await queryClient.refetchQueries({ queryKey: ["memberGear", serverId] });
+      await queryClient.refetchQueries({ queryKey: ["gearSummary", serverId] });
       setToast({ type: "success", message: "Gear saved!" });
     } catch (e: any) {
       setToast({ type: "error", message: e.message });
