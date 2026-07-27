@@ -366,14 +366,19 @@ export function GearTrackingTab() {
   >({
     queryKey: ["memberGear", serverId],
     queryFn: async () => {
-      const { data } = await supabase
-        .from("member_gear")
-        .select("*")
-        .in(
-          "member_id",
-          members.map((m) => m.id),
-        );
-      return (data || []) as MemberGear[];
+      const ids = members.map((m) => m.id);
+      if (ids.length === 0) return [];
+      const allGear: any[] = [];
+      // Chunk member IDs to avoid PostgREST URL length limits
+      for (let i = 0; i < ids.length; i += 200) {
+        const chunk = ids.slice(i, i + 200);
+        const { data } = await supabase
+          .from("member_gear")
+          .select("*")
+          .in("member_id", chunk);
+        if (data) allGear.push(...data);
+      }
+      return allGear as MemberGear[];
     },
     enabled: members.length > 0 && !!serverId && configured,
   });
