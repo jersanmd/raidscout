@@ -631,9 +631,25 @@ export function GearTrackingTab() {
           }
         }
         // Upsert avoids 409 UNIQUE violation when local cache is stale
-        await supabase
+        const { data: upserted, error: upsertErr } = await supabase
           .from("member_gear")
-          .upsert(body, { onConflict: "member_id,slot_id" });
+          .upsert(body, { onConflict: "member_id,slot_id" })
+          .select()
+          .single();
+        if (upsertErr) throw upsertErr;
+
+        // Update React Query cache immediately so the grid refreshes
+        if (upserted) {
+          queryClient.setQueryData<MemberGear[]>(
+            ["memberGear", serverId],
+            (old) => {
+              const filtered = (old || []).filter(
+                (g) => !(g.member_id === memberId && g.slot_id === slotId),
+              );
+              return [...filtered, upserted as MemberGear];
+            },
+          );
+        }
       }
       if (auditChanges.length > 0 && serverId) {
         try {
