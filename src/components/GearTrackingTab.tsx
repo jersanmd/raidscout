@@ -368,7 +368,7 @@ export function GearTrackingTab() {
     queryFn: async () => {
       const { data } = await supabase
         .from("member_gear")
-        .select("*, catalog_item:catalog_item_id(*)")
+        .select("*")
         .in(
           "member_id",
           members.map((m) => m.id),
