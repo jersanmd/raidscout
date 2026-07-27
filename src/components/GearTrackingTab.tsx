@@ -369,14 +369,24 @@ export function GearTrackingTab() {
       const ids = members.map((m) => m.id);
       if (ids.length === 0) return [];
       const allGear: any[] = [];
-      // Chunk member IDs to avoid PostgREST URL length limits
-      for (let i = 0; i < ids.length; i += 200) {
-        const chunk = ids.slice(i, i + 200);
-        const { data } = await supabase
-          .from("member_gear")
-          .select("*")
-          .in("member_id", chunk);
-        if (data) allGear.push(...data);
+      // Chunk member IDs to avoid PostgREST URL length limits,
+      // and paginate within each chunk to avoid hitting the row limit
+      for (let i = 0; i < ids.length; i += 100) {
+        const chunk = ids.slice(i, i + 100);
+        let offset = 0;
+        const pageSize = 500;
+        while (true) {
+          const { data } = await supabase
+            .from("member_gear")
+            .select("*")
+            .in("member_id", chunk)
+            .range(offset, offset + pageSize - 1)
+            .order("member_id");
+          if (!data || data.length === 0) break;
+          allGear.push(...data);
+          if (data.length < pageSize) break;
+          offset += pageSize;
+        }
       }
       return allGear as MemberGear[];
     },
