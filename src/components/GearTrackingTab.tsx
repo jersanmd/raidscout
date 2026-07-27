@@ -583,7 +583,7 @@ export function GearTrackingTab() {
         };
         const resolvedNewName = itemName || null;
         if (existing) {
-          // Track history
+          // Track history before upserting
           if (
             existing.catalog_item_id !== itemId ||
             existing.enhancement_level !== enh
@@ -597,7 +597,6 @@ export function GearTrackingTab() {
               new_enhancement: enh || 0,
             });
           }
-          await supabase.from("member_gear").update(body).eq("id", existing.id);
           const oldItemName = existing.catalog_item_id
             ? existing.catalog_item?.name || null
             : null;
@@ -625,13 +624,16 @@ export function GearTrackingTab() {
             );
           }
         } else {
-          await supabase.from("member_gear").insert(body);
           if (resolvedNewName) {
             auditChanges.push(
               `${slotLabel}: ${enh ? `+${enh} ` : ""}${resolvedNewName}`,
             );
           }
         }
+        // Upsert avoids 409 UNIQUE violation when local cache is stale
+        await supabase
+          .from("member_gear")
+          .upsert(body, { onConflict: "member_id,slot_id" });
       }
       if (auditChanges.length > 0 && serverId) {
         try {
