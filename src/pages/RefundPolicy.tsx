@@ -58,7 +58,10 @@ export function RefundPolicyView() {
 
       <section className="space-y-2">
         <h2 className="text-lg font-semibold text-[#fafafa]">4. How to Request a Refund</h2>
-        <p>To request a refund, contact us through our{" "}
+        <p>To request a refund, email us at{" "}
+          <a href="mailto:admin@raidscout.com" className="text-indigo-400 hover:text-indigo-300 transition">
+            admin@raidscout.com
+          </a> or contact us through our{" "}
           <a href="https://discord.gg/738AmkeQtU" target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:text-indigo-300 transition">
             Discord Community
           </a> with the following information:
@@ -98,7 +101,10 @@ export function RefundPolicyView() {
       <section className="space-y-2">
         <h2 className="text-lg font-semibold text-[#fafafa]">7. Contact</h2>
         <p>
-          For refund inquiries, reach out via our{" "}
+          For refund inquiries, email us at{" "}
+          <a href="mailto:admin@raidscout.com" className="text-indigo-400 hover:text-indigo-300 transition">
+            admin@raidscout.com
+          </a> or reach out via our{" "}
           <a href="https://discord.gg/738AmkeQtU" target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:text-indigo-300 transition">
             Discord Community
           </a>.

@@ -246,8 +246,8 @@ export function PrivacyPolicyView() {
           <li><strong>Right to Withdraw Consent:</strong> Where processing is based on your consent, you may withdraw that consent at any time without affecting the lawfulness of prior processing</li>
         </ul>
         <p>
-          To exercise any of these rights, please contact us through our Discord Community or Facebook Page
-          (see Section 12). We will respond to verified requests within 30 calendar days. We may need to
+          To exercise any of these rights, please contact us at admin@raidscout.com, or through our Discord
+          Community or Facebook Page (see Section 12). We will respond to verified requests within 30 calendar days. We may need to
           verify your identity before fulfilling certain requests. There is no fee for exercising these
           rights unless a request is manifestly unfounded or excessive.
         </p>
@@ -316,6 +316,12 @@ export function PrivacyPolicyView() {
           please reach out through any of the following channels:
         </p>
         <ul className="list-disc pl-5 space-y-1">
+          <li>
+            <strong>Email:</strong>{" "}
+            <a href="mailto:admin@raidscout.com" className="text-indigo-400 hover:text-indigo-300 transition">
+              admin@raidscout.com
+            </a>
+          </li>
           <li>
             <strong>Discord Community:</strong>{" "}
             <a href="https://discord.gg/738AmkeQtU" target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:text-indigo-300 transition">

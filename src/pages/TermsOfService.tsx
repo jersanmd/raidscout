@@ -364,7 +364,11 @@ export function TermsOfServiceView() {
       <section className="space-y-2">
         <h2 className="text-lg font-semibold text-[#fafafa]">18. Contact</h2>
         <p>
-          For questions, concerns, feedback, or legal inquiries regarding these Terms, please reach out through our{" "}
+          For questions, concerns, feedback, or legal inquiries regarding these Terms, please email us at{" "}
+          <a href="mailto:admin@raidscout.com" className="text-indigo-400 hover:text-indigo-300 transition">
+            admin@raidscout.com
+          </a>{" "}
+          or reach out through our{" "}
           <a href="https://discord.gg/738AmkeQtU" target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:text-indigo-300 transition">
             Discord Community
           </a>{" "}

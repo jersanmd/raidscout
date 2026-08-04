@@ -8,7 +8,7 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const BREVO_API_KEY = Deno.env.get("BREVO_API_KEY")!;
 
-const SENDER = { email: "noreply@raidscout.com", name: "RaidScout" };
+const SENDER = { email: "admin@raidscout.com", name: "RaidScout" };
 
 const ALLOWED_ORIGINS = [
   "https://www.raidscout.com",
