@@ -525,9 +525,11 @@ export function InventoryView() {
 
   const deleteDistMutation = useMutation({
     mutationFn: async (distId: string) => {
-      // Clear dkp_distributed for this item (if distributed via DKP auction)
-      if (deleteConfirm?.itemId) {
-        await supabaseClient.rpc("clear_item_distributed", { p_item_id: deleteConfirm.itemId });
+      // Clear the "Distributed" marker for the auction this record came from -- and
+      // only that one. Older records have no auction_id; those clear nothing rather
+      // than guessing, since clearing the wrong auction's marker is the bug this fixes.
+      if (deleteConfirm?.auctionId) {
+        await supabaseClient.rpc("clear_distributed_for_auction", { p_auction_id: deleteConfirm.auctionId });
       }
       return deleteDistribution(distId);
     },
@@ -581,7 +583,7 @@ export function InventoryView() {
   const RARITY_SORT_ORDER: Record<string, number> = { mythic: 0, legendary: 1, epic: 2, rare: 3, uncommon: 4, common: 5 };
 
   // Delete confirmation
-  const [deleteConfirm, setDeleteConfirm] = useState<{ distId: string; itemId: string; itemName: string } | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ distId: string; itemId: string; auctionId: string | null; itemName: string } | null>(null);
   const [deleteConfirmName, setDeleteConfirmName] = useState("");
 
   // Lazy-loading state for catalog
@@ -1635,7 +1637,7 @@ export function InventoryView() {
                         </div>
                         {!isViewer && canManageItems && (
                         <button
-                          onClick={() => { setDeleteConfirm({ distId: d.id, itemId: d.item_id, itemName: item?.name ?? "Unknown" }); setDeleteConfirmName(""); }}
+                          onClick={() => { setDeleteConfirm({ distId: d.id, itemId: d.item_id, auctionId: d.auction_id ?? null, itemName: item?.name ?? "Unknown" }); setDeleteConfirmName(""); }}
                           className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-[#52525b] hover:text-red-400 hover:bg-red-400/10 transition-all shrink-0"
                           title="Delete distribution"
                         >

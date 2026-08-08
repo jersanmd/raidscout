@@ -622,6 +622,10 @@ export async function createDistribution(dist: {
   quantity: number;
   reason: string;
   distributed_by?: string;
+  /** Auction this distribution came from, when distributing a DKP auction win.
+   *  Lets deleting the record clear only that auction's "Distributed" marker
+   *  instead of every auction for the same item. */
+  auction_id?: string | null;
 }, itemName?: string): Promise<Distribution> {
   const { data, error } = await supabase
     .from("distributions")
@@ -633,6 +637,7 @@ export async function createDistribution(dist: {
       quantity: dist.quantity,
       reason: dist.reason,
       distributed_by: dist.distributed_by || null,
+      auction_id: dist.auction_id ?? null,
     })
     .select()
     .single();

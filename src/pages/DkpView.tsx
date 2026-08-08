@@ -1156,6 +1156,7 @@ function AuctionList({ auctions, auctionSearch, myName, isStaff, handleDelete, s
         quantity: distQuantity,
         reason: distReason,
         distributed_by: userId,
+        auction_id: distAuction.auction_id,
       }, distAuction.item_name);
     },
     onMutate: async () => {

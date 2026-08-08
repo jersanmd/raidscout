@@ -381,6 +381,9 @@ export interface Distribution {
   distributed_by: string;
   distributed_at: string;
   created_at: string;
+  /** Auction this came from, when distributing a DKP auction win. Null for
+   *  manual distributions and for older rows predating the column. */
+  auction_id?: string | null;
 }
 
 export interface CpGrowthEntry {
