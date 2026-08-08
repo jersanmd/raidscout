@@ -117,8 +117,11 @@ serve(async (req: Request) => {
         // Explicit since filter
         if (since && new Date(death.death_time) < new Date(since)) continue;
         // Per-guild reset filter: only if guild HAS a reset date
+        // Uses death.death_time (kill time), not a.created_at (row write time), so a
+        // corrected/re-matched attendance row on an already-finalized kill doesn't
+        // reappear on the live board.
         if (!since && hasReset) {
-          if (a.created_at && a.created_at < guildResets.get(guildName)!) continue;
+          if (death.death_time && death.death_time < guildResets.get(guildName)!) continue;
         }
         // Dedup
         if (seen.has(a.death_record_id)) continue;

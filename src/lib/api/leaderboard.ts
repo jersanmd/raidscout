@@ -282,12 +282,16 @@ export async function fetchMemberActivityHistory(
   const sid = serverId ?? getCurrentServerId();
   if (!sid) return [];
 
-  const { data, error } = await supabase
+  let query = supabase
     .from("activity_attendance")
     .select("activity_instance_id, activity_instances!inner(end_time, activity_id, activities!inner(name, points_per_participant))")
     .eq("member_id", memberId)
     .eq("present", true)
     .order("created_at", { ascending: false });
+
+  if (since) query = query.gte("activity_instances.end_time", since);
+
+  const { data, error } = await query;
 
   if (error || !data) return [];
 
