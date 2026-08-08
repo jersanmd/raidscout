@@ -309,15 +309,26 @@ export async function getActiveAuctions(serverId: string): Promise<ActiveAuction
   }));
 }
 
-export async function getPastAuctions(serverId: string): Promise<PastAuction[]> {
-  // Query resolved/cancelled auctions directly (not items) so each auction is separate
-  const { data: auctions } = await supabase.from("dkp_auctions")
-    .select("id, item_id, dkp_cost, guild_id, quantity, created_at, items:item_id(name, image_url, rarity), guilds:guild_id(name)")
-    .eq("server_id", serverId)
-    .in("status", ["resolved", "cancelled"])
-    .order("created_at", { ascending: false });
+// PostgREST returns at most 1000 rows per request; page through anything unbounded.
+const PAGE_SIZE = 1000;
 
-  if (!auctions?.length) return [];
+export async function getPastAuctions(serverId: string): Promise<PastAuction[]> {
+  // Query resolved/cancelled auctions directly (not items) so each auction is separate.
+  // Paginated: PostgREST caps responses at 1000 rows, and busy servers exceed that.
+  const auctions: any[] = [];
+  for (let offset = 0; ; offset += PAGE_SIZE) {
+    const { data: page } = await supabase.from("dkp_auctions")
+      .select("id, item_id, dkp_cost, guild_id, quantity, created_at, items:item_id(name, image_url, rarity), guilds:guild_id(name)")
+      .eq("server_id", serverId)
+      .in("status", ["resolved", "cancelled"])
+      .order("created_at", { ascending: false })
+      .range(offset, offset + PAGE_SIZE - 1);
+    if (!page?.length) break;
+    auctions.push(...page);
+    if (page.length < PAGE_SIZE) break;
+  }
+
+  if (!auctions.length) return [];
 
   // Build guild name lookup
   const guildIds = [...new Set(auctions.map(a => a.guild_id).filter(Boolean))] as string[];
@@ -329,11 +340,24 @@ export async function getPastAuctions(serverId: string): Promise<PastAuction[]> 
 
   const auctionIds = auctions.map(a => a.id);
 
-  // Get resolved bids for all past auctions
-  const { data: bids, error: bidsErr } = await supabase.rpc("get_resolved_bids", { p_server_id: serverId });
-  if (bidsErr) { console.error("get_resolved_bids RPC error:", bidsErr); return []; }
+  // Get resolved bids for all past auctions.
+  // Paginated: this RPC returns every resolved bid on the server (thousands on an
+  // active guild), and PostgREST silently truncates at 1000 rows. Unpaginated, only
+  // the most recent ~1000 bids came back and every older auction rendered as
+  // "no bids / no winner" even though its bids and winner were intact in the DB.
+  const bids: any[] = [];
+  for (let offset = 0; ; offset += PAGE_SIZE) {
+    const { data: page, error: bidsErr } = await supabase
+      .rpc("get_resolved_bids", { p_server_id: serverId })
+      .range(offset, offset + PAGE_SIZE - 1);
+    if (bidsErr) { console.error("get_resolved_bids RPC error:", bidsErr); return []; }
+    if (!page?.length) break;
+    bids.push(...(page as any[]));
+    if ((page as any[]).length < PAGE_SIZE) break;
+  }
 
-  const bidsForAuctions = ((bids as any[]) || []).filter((b: any) => b.auction_id && auctionIds.includes(b.auction_id));
+  const auctionIdSet = new Set(auctionIds);
+  const bidsForAuctions = bids.filter((b: any) => b.auction_id && auctionIdSet.has(b.auction_id));
   if (!bidsForAuctions.length && auctions.length === 0) return [];
 
   // Group bids by auction_id and extract auction_round
@@ -349,13 +373,25 @@ export async function getPastAuctions(serverId: string): Promise<PastAuction[]> 
     auctionBidMap.set(b.auction_id, e);
   }
 
-  // Query distributed status for all (item_id, auction_round, auction_id) tuples
-  const itemIds = auctions.map((a: any) => a.item_id);
-  const { data: distributedRows } = await supabase
-    .from("dkp_distributed")
-    .select("item_id, auction_round, auction_id")
-    .in("item_id", itemIds);
-  const distributedSet = new Set((distributedRows || []).map((d: any) => `${d.item_id}::${d.auction_round}::${d.auction_id}`));
+  // Query distributed status for all (item_id, auction_round, auction_id) tuples.
+  // Chunked to keep the URL short, and paged within each chunk for the row cap --
+  // same pattern as the gear queries (see 4b2672f / a18a4cd).
+  const itemIds = [...new Set(auctions.map((a: any) => a.item_id))];
+  const distributedSet = new Set<string>();
+  const ID_CHUNK = 100;
+  for (let i = 0; i < itemIds.length; i += ID_CHUNK) {
+    const chunk = itemIds.slice(i, i + ID_CHUNK);
+    for (let offset = 0; ; offset += PAGE_SIZE) {
+      const { data: page } = await supabase
+        .from("dkp_distributed")
+        .select("item_id, auction_round, auction_id")
+        .in("item_id", chunk)
+        .range(offset, offset + PAGE_SIZE - 1);
+      if (!page?.length) break;
+      for (const d of page as any[]) distributedSet.add(`${d.item_id}::${d.auction_round}::${d.auction_id}`);
+      if ((page as any[]).length < PAGE_SIZE) break;
+    }
+  }
 
   return auctions.map((a: any) => {
     const item = a.items as any;
