@@ -9,9 +9,17 @@
 
 - **DKP history showed dozens of duplicate "Removed from attendance" entries, and real balances were wrong** — `award_dkp_on_kill`'s removal loop reversed a member's kill DKP when they were removed from attendance, but had no idempotency check (unlike its sibling award loop). Every subsequent attendance edit on that same kill — even for completely unrelated members — re-ran the loop and re-inserted another identical reversal. Found and cleaned up 3,332 duplicate rows across 50 members on one server, restoring DKP that had been wrongly deducted (some members were docked up to 39 DKP for a single removal).
 
+## 🔒 Security
+
+- **DKP admin RPCs had no server-side authorization** — `mark_item_for_bid`, `adjust_member_dkp`, `resolve_auction`, and `delete_auction_round` were all granted `EXECUTE` to the public REST API but never checked who was calling them. Unlike their siblings `place_bid`/`cancel_bid`/`unmark_item_from_bid`, which correctly verify `auth.uid()` and membership, these could be invoked by anyone — including unauthenticated callers — to create auctions, mint or burn arbitrary DKP, crown auction winners, or delete bid history on any server. All four now require `owner`/`moderator` on `server_members`, matching the staff gate the UI already applied client-side. `auto_resolve_auction` is restricted to `service_role` (only the bot's cron calls it).
+- Two obsolete `mark_item_for_bid` overloads were dropped rather than patched — nothing called them, and leaving them in place would have kept an unauthenticated path to the same functions alive.
+
 ## 🗄️ Database
 
 - **Fix** — `20260808000000_fix_leaderboard_reset_time_basis.sql` recreates `get_leaderboard` to filter consistently on `death_time`/`end_time` and bound `point_adjustments` by `p_until`.
 - Redeployed the `get-leaderboard` edge function (RPC fallback path) with the matching fix.
 - Redeployed the `get-member-kills` edge function to pick up an already-correct fix that was sitting undeployed.
 - **Fix** — `20260808000001_fix_award_dkp_removal_duplicates.sql` adds the missing idempotency guard to `award_dkp_on_kill`'s removal loop and collapses existing duplicate reversal rows to one each, restoring wrongly-deducted DKP.
+- **Security** — `20260808000003_add_staff_auth_checks_to_dkp_admin_rpcs.sql` adds `auth.uid()` + staff-role checks to the four unprotected DKP admin RPCs.
+- **Security** — `20260808000004_revoke_public_execute_on_dkp_admin_rpcs.sql` revokes `EXECUTE` from `PUBLIC` on those RPCs. The preceding migration revoked from `anon`, which was ineffective: Postgres grants `EXECUTE` to `PUBLIC` by default and `anon` inherits it, so `has_function_privilege('anon', ...)` still returned true until this ran.
+- **Revert** — `20260808000005_remove_duplicate_auction_guard.sql` removes a guard briefly added in `...0003` that blocked creating a second active auction for the same item. That assumed concurrent same-item auctions were always accidental duplicates; they are not — staff legitimately auction multiple copies of one item (e.g. several mount parts from one raid), and the guard blocked that workflow. The staff authorization check is retained.
