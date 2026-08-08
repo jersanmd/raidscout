@@ -1009,7 +1009,7 @@ function AuctionHistory({ serverId, memberId, isStaff, queryClient, toast, userI
     if (!deleteAuction) return;
     setDeleteActing(true);
     try {
-      await deletePastAuction(deleteAuction.item_id, deleteAuction.auction_round);
+      await deletePastAuction(deleteAuction.auction_id, serverId, deleteAuction.item_name);
       queryClient.invalidateQueries({ queryKey: ["dkp_past_auctions", serverId] });
       queryClient.invalidateQueries({ queryKey: ["dkp_history"] });
       queryClient.invalidateQueries({ queryKey: ["dkp_rankings", serverId] });

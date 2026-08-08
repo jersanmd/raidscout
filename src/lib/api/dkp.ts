@@ -1,4 +1,4 @@
-import { supabase } from "./client";
+import { supabase, getCurrentServerId } from "./client";
 import { AuditAction, writeAuditEntry } from "./audit";
 
 // ── Types ───────────────────────────────────────────────────
@@ -423,12 +423,27 @@ export async function getPastAuctions(serverId: string): Promise<PastAuction[]> 
   }).sort((a, b) => new Date(b.resolved_at).getTime() - new Date(a.resolved_at).getTime());
 }
 
-export async function deletePastAuction(itemId: string, auctionRound: number): Promise<void> {
-  const { error } = await supabase.rpc("delete_auction_round", {
-    p_item_id: itemId,
-    p_auction_round: auctionRound,
-  });
+/** Deletes a single auction and only its own bids/transactions.
+ *  Previously called delete_auction_round(item_id, auction_round), which -- because
+ *  every bid is written with auction_round = 1 -- deleted the bid history of every
+ *  auction that item had ever had, not just this one. */
+export async function deletePastAuction(
+  auctionId: string,
+  serverId?: string | null,
+  itemName?: string,
+): Promise<void> {
+  const { error } = await supabase.rpc("delete_auction", { p_auction_id: auctionId });
   if (error) throw error;
+  const sid = serverId ?? getCurrentServerId();
+  if (sid) {
+    writeAuditEntry({
+      action: AuditAction.DKP_AUCTION_DELETED,
+      server_id: sid,
+      target_type: "auction",
+      target_id: auctionId,
+      details: { item_name: itemName },
+    }).catch(() => {});
+  }
 }
 
 export async function toggleItemDistributed(itemId: string, auctionRound: number, auctionId: string, distributed: boolean): Promise<void> {
