@@ -24,6 +24,18 @@
 
 - **Late-attendance credits named which date they were showing** — The label read "Late attendance — Shuliar Lvl 95 on Aug 09, 07:57 PM", which looked wrong next to an Aug 10, 1:22 AM cutoff. That timestamp is when the *boss was killed*, and it is necessarily before the cutoff — a kill after the cutoff scores normally and never needs a credit. Now reads "Late attendance — Shuliar Lvl 95, killed Aug 09 07:57 PM", with the credit's own date printed beside it as before. All 411 existing credits relabelled; point values untouched. (`20260814000002_clarify_late_attendance_credit_label.sql`)
 
-## ⚠️ Known Limitation
+## 🔁 Follow-up — points now land in the finalized results, not the current board
 
-- Points land in the period they were *entered*, not the period the kill happened in. A kill from last week checked in today shows up on this week's board. This keeps published results stable at the cost of exact period attribution — amending the snapshot instead would change results the guild has already announced.
+The first pass credited late attendance to the **current** period. That paid the players but put the points in the wrong week: a kill from Aug 9, 7:57 PM was scoring on a board whose period started Aug 10, 1:22 AM. Late attendance now amends the snapshot whose period contains the kill.
+
+- Verified before changing anything that the snapshot had never paid these: recomputing snapshot `db8830fd` (Jul 31 → Aug 9 17:22) gave gowlg 701 against a stored 629, Pakbet 657 against 569 — each gap exactly that member's late-attendance total. The attendance rows were written Aug 14, five days after the snapshot was taken. Dropping the credits would have stranded 2,253 points across 60 members and re-created the original complaint.
+- The Aug 9 BIGASAN results moved: gowlg 629 → 716, Dusk 580 → 681, Pakbet 569 → 672, BuTet3 533 → 625, FootLight 465 → 534. Ranks recomputed; every member not affected keeps their published entry byte-for-byte. All 38 touched members now match a full recompute of that window exactly.
+- Un-checking attendance withdraws the points from the snapshot too, via a `BEFORE DELETE` trigger that runs while the ledger row is still present.
+- The `point_adjustments` row is kept as a ledger — it carries the idempotency guarantee and records what was added where — but its `created_at` is backdated to the kill time so it sits inside the finalized period and can never surface on a live board. Confirmed 0 of 506 credits reach any live board.
+- Only the late-attendance delta is added; snapshots are not recomputed wholesale. That matters for the two older guilds: PARAK's and Divine's published numbers have drifted from a recompute in both directions (Ellegee 60 stored vs 57 recomputed, Makisig 332 vs 379) after six weeks of unrelated edits. Adding only the delta leaves that history alone.
+
+- **Fix** — `20260814000003_route_late_attendance_into_the_covering_snapshot.sql`. Re-runnable: the backdated `created_at` doubles as the already-migrated marker.
+
+## ✅ Confirmed in Production
+
+The trigger was verified firing on real staff activity, not just the backfill — 95 credits minted between 21:00 and 21:05 local by a logged-in staff member, each correctly attributed to that user, while the 411 backfilled rows stayed attributed to "System".
