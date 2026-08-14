@@ -36,6 +36,20 @@ The first pass credited late attendance to the **current** period. That paid the
 
 - **Fix** — `20260814000003_route_late_attendance_into_the_covering_snapshot.sql`. Re-runnable: the backdated `created_at` doubles as the already-migrated marker.
 
+## 🔁 Final placement — current week, published results frozen
+
+Reverted the snapshot routing above. Amending finalized results is defensible on accounting grounds but rewrites numbers the guild has already seen and announced, so published snapshots stay frozen and the points show on the current week instead — which is where staff look for them.
+
+- Aug 9 BIGASAN results restored exactly: gowlg back to 629, Dusk 580, Pakbet 569, BuTet3 533, zXiaoPang 531, FootLight 465, ranks included. Snapshot totals match their pre-amendment values to the point across all three guilds (BIGASAN 12,245, PARAK 808, Divine 2,537).
+- All 506 credits are back on the current boards, 2,253 points across 60 members.
+- Un-checking attendance withdraws the credit through the existing FK cascade again, so the `BEFORE DELETE` trigger was dropped.
+- The suppression guard from `20260814000001` stays and is still earning its keep: it prevents a credit double-counting alongside its own kill whenever one window contains both, which is exactly what a snapshot recompute does.
+- **Fix** — `20260815000000_put_late_attendance_back_on_the_current_board.sql`
+
+**Accepted trade-off:** a kill from last week checked in today scores on this week's board. Period attribution is inexact; published results are stable.
+
+**Cosmetic residue:** PARAK's Jul 12 snapshot keeps two extra zero-point rows (DarKaNgeL21, ZeemoCZ) that were appended when their points went in. Zero-point entries weren't deleted wholesale on the way back because Eliazz was legitimately in the BIGASAN snapshot at 0 before any of this, and removing all zeros would have dropped a published entry.
+
 ## ✅ Confirmed in Production
 
 The trigger was verified firing on real staff activity, not just the backfill — 95 credits minted between 21:00 and 21:05 local by a logged-in staff member, each correctly attributed to that user, while the 411 backfilled rows stayed attributed to "System".
