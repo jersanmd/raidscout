@@ -128,7 +128,15 @@ export async function fetchPointAdjustments(
   // Filter client-side by since date (RPC doesn't support this parameter yet)
   if (since) {
     const cutoff = new Date(since);
-    results = results.filter(a => new Date(a.created_at) >= cutoff);
+    results = results.filter(a => {
+      if (new Date(a.created_at) < cutoff) return false;
+      // Mirror the leaderboard's own rule: a late-attendance credit stands down
+      // once its kill is back inside the window and scoring directly. Without
+      // this the modal lists rows worth 0 and its total won't reconcile against
+      // the leaderboard — which is what happens after a finalization is cancelled.
+      if (a.kill_time && new Date(a.kill_time) >= cutoff) return false;
+      return true;
+    });
   }
   return results;
 }

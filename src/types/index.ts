@@ -123,6 +123,10 @@ export interface PointAdjustment {
   reason: string;
   adjusted_by_name: string;
   created_at: string;
+  /** Kill time of the attendance record this credit compensates for; null for
+   *  ordinary manual adjustments. A credit stops counting once its own kill is
+   *  back inside the window and scoring on its own account. */
+  kill_time?: string | null;
 }
 
 /** A single ranked member in a leaderboard snapshot */

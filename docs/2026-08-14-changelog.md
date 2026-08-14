@@ -48,6 +48,8 @@ Reverted the snapshot routing above. Amending finalized results is defensible on
 
 **Accepted trade-off:** a kill from last week checked in today scores on this week's board. Period attribution is inexact; published results are stable.
 
+**Member modal now matches the board after a cancelled finalization** — Pressing X on a finalization moves the cutoff back, the kill returns to the window and scores directly, and its late-attendance credit stands down. The modal's adjustment list filtered on `created_at` alone, so those rows stayed on screen worth 0 — and since `LeaderboardView` sums that same list into the member's adjustment total, the modal wouldn't reconcile against the leaderboard. `fetch_point_adjustments` now returns the linked kill's time (NULL for ordinary manual adjustments) and the client applies the same rule the leaderboard does. For gowlg: 18 rows / 87 points today, 2 rows / 288 points after a cancel — both matching the leaderboard exactly. (`20260815000001_expose_kill_time_on_point_adjustments.sql`, plus `leaderboard.ts` and `types/index.ts`. Needs a Vercel deploy.)
+
 **Cosmetic residue:** PARAK's Jul 12 snapshot keeps two extra zero-point rows (DarKaNgeL21, ZeemoCZ) that were appended when their points went in. Zero-point entries weren't deleted wholesale on the way back because Eliazz was legitimately in the BIGASAN snapshot at 0 before any of this, and removing all zeros would have dropped a published entry.
 
 ## ✅ Confirmed in Production
