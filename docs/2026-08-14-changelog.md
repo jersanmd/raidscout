@@ -20,6 +20,10 @@
 - **Fix** — `20260814000001_suppress_late_attendance_credit_when_kill_back_in_window.sql` stops a credit from double-counting when the kill it compensates for returns to the scoring window. `delete_leaderboard_snapshot` moves the reset *backward* — to the previous snapshot's `finalized_at`, or removes it entirely — so staff deleting a mis-timed finalize and redoing it would otherwise pay those members twice (1,768 points on SVEN 1). A credit tied to an attendance row now only counts while that row's kill is outside the window, which self-corrects in both directions and keeps the credit correctly absent from any snapshot whose period contains the original kill.
 - Redeployed the `get-leaderboard` edge function with the pagination, reset-filtering, and date-comparison fixes.
 
+## 💬 Wording
+
+- **Late-attendance credits named which date they were showing** — The label read "Late attendance — Shuliar Lvl 95 on Aug 09, 07:57 PM", which looked wrong next to an Aug 10, 1:22 AM cutoff. That timestamp is when the *boss was killed*, and it is necessarily before the cutoff — a kill after the cutoff scores normally and never needs a credit. Now reads "Late attendance — Shuliar Lvl 95, killed Aug 09 07:57 PM", with the credit's own date printed beside it as before. All 411 existing credits relabelled; point values untouched. (`20260814000002_clarify_late_attendance_credit_label.sql`)
+
 ## ⚠️ Known Limitation
 
 - Points land in the period they were *entered*, not the period the kill happened in. A kill from last week checked in today shows up on this week's board. This keeps published results stable at the cost of exact period attribution — amending the snapshot instead would change results the guild has already announced.
