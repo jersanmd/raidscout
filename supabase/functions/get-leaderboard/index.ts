@@ -57,7 +57,7 @@ serve(async (req: Request) => {
     const pageSize = 1000;
     while (true) {
       const { data: page, error: attErr } = await supabase.from("attendance_records")
-        .select("member_id, death_record_id, created_at")
+        .select("id, member_id, death_record_id, created_at")
         .eq("server_id", server_id)
         .order("created_at", { ascending: false })
         .range(offset, offset + pageSize - 1);
@@ -68,9 +68,26 @@ serve(async (req: Request) => {
     }
     const att = allAtt;
 
-    // Get deaths
+    // Get deaths — chunk the id list AND paginate. A single .in() over every death
+    // id on the server silently truncates at PostgREST's 1000-row cap, so most
+    // kills fell out of deathMap and were skipped by `if (!death) continue`, which
+    // drove this path's boss points to near zero. It also let late-attendance
+    // credits escape suppression, since that check no-ops when the linked kill is
+    // missing. Chunks stay small enough to keep the request URL under the limit.
     const deathIds = [...new Set((att || []).map(a => a.death_record_id))];
-    const { data: deaths } = await supabase.from("death_records").select("id, death_time, boss_id").in("id", deathIds.length ? deathIds : ["none"]);
+    const deaths: any[] = [];
+    for (let i = 0; i < deathIds.length; i += 150) {
+      const chunk = deathIds.slice(i, i + 150);
+      for (let off = 0; ; off += pageSize) {
+        const { data: page, error: drErr } = await supabase.from("death_records")
+          .select("id, death_time, boss_id")
+          .in("id", chunk)
+          .range(off, off + pageSize - 1);
+        if (drErr || !page?.length) break;
+        deaths.push(...page);
+        if (page.length < pageSize) break;
+      }
+    }
 
     // Get bosses
     const bossIds = [...new Set((deaths || []).map(d => d.boss_id))];
@@ -93,14 +110,33 @@ serve(async (req: Request) => {
       multipliers.get(r.guild_id)!.push({ s: r.config.start_hour, e: r.config.end_hour, m: r.config.multiplier });
     }
 
-    // Point adjustments
-    const { data: adj } = await supabase.from("point_adjustments").select("member_id, points").eq("server_id", server_id);
-    const adjMap = new Map<string, number>();
-    for (const a of (adj || [])) adjMap.set(a.member_id, (adjMap.get(a.member_id) || 0) + a.points);
+    // Point adjustments — paginated, and grouped per member so the same reset
+    // cutoff that gates kills can be applied to them below. Previously this summed
+    // every adjustment ever made on the server, ignoring the reset entirely.
+    let allAdj: any[] = [];
+    let adjOffset = 0;
+    while (true) {
+      const { data: page, error: adjErr } = await supabase.from("point_adjustments")
+        .select("member_id, points, created_at, attendance_record_id")
+        .eq("server_id", server_id)
+        .order("created_at", { ascending: false })
+        .range(adjOffset, adjOffset + pageSize - 1);
+      if (adjErr || !page?.length) break;
+      allAdj = allAdj.concat(page);
+      if (page.length < pageSize) break;
+      adjOffset += pageSize;
+    }
+    const adjByMember = new Map<string, any[]>();
+    for (const a of allAdj) {
+      if (!adjByMember.has(a.member_id)) adjByMember.set(a.member_id, []);
+      adjByMember.get(a.member_id)!.push(a);
+    }
 
     // Maps
     const deathMap = new Map((deaths || []).map(d => [d.id, d]));
     const bossMap = new Map((bosses || []).map(b => [b.id, b]));
+    // attendance id → its kill, for late-attendance credits (see 20260814000000)
+    const attById = new Map((att || []).map(a => [a.id, a]));
 
     // Compute per-member scores (same dedup logic as fetchMemberKills)
     const scores = new Map<string, { name: string; points: number }>();
@@ -120,8 +156,11 @@ serve(async (req: Request) => {
         // Uses death.death_time (kill time), not a.created_at (row write time), so a
         // corrected/re-matched attendance row on an already-finalized kill doesn't
         // reappear on the live board.
+        // Compare as Dates: app_settings stores "…T17:22:00.000Z" while PostgREST
+        // returns "… 13:36:02.373+00", and a raw string < on those two formats
+        // compares the space against the "T" rather than the time.
         if (!since && hasReset) {
-          if (death.death_time && death.death_time < guildResets.get(guildName)!) continue;
+          if (death.death_time && new Date(death.death_time) < new Date(guildResets.get(guildName)!)) continue;
         }
         // Dedup
         if (seen.has(a.death_record_id)) continue;
@@ -140,7 +179,23 @@ serve(async (req: Request) => {
         }
         points += basePts * mult;
       }
-      if (true) scores.set(m.id, { name: m.name, points: points + (adjMap.get(m.id) || 0) });
+      // Adjustments, gated by the same window as kills above.
+      const windowStartRaw = since || (hasReset ? guildResets.get(guildName)! : null);
+      const windowStart = windowStartRaw ? new Date(windowStartRaw) : null;
+      let adjPoints = 0;
+      for (const a of (adjByMember.get(m.id) || [])) {
+        if (windowStart && new Date(a.created_at) < windowStart) continue;
+        // A late-attendance credit stands down whenever its own kill is back
+        // inside the window and scoring on its own account (see 20260814000001).
+        if (a.attendance_record_id) {
+          const linked = attById.get(a.attendance_record_id);
+          const linkedDeath = linked ? deathMap.get(linked.death_record_id) : null;
+          if (linkedDeath?.death_time && (!windowStart || new Date(linkedDeath.death_time) >= windowStart)) continue;
+        }
+        adjPoints += a.points;
+      }
+
+      scores.set(m.id, { name: m.name, points: points + adjPoints });
     }
 
     const entries = [...scores.entries()].sort((a, b) => b[1].points - a[1].points).map(([id, s]) => ({ id, name: s.name, points: s.points }));
