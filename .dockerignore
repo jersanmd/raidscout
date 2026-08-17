@@ -1,0 +1,29 @@
+# Build context excludes -- the Dockerfile only needs
+# package.json, package-lock.json, and dist/bot.cjs
+
+# Installed in-image by `npm ci`, never copied
+node_modules/
+
+# Version control
+.git/
+.gitignore
+
+# Local env / secrets -- must never reach the builder
+.env
+.env.*
+
+# Editor / OS noise
+.vscode/
+.idea/
+.DS_Store
+
+# Logs and caches
+*.log
+npm-debug.log*
+.npm/
+.cache/
+
+# Fly / Docker files themselves
+fly.toml
+Dockerfile
+.dockerignore
