@@ -375,6 +375,9 @@ export async function fetchMemberProfile(memberId: string): Promise<MemberWithPr
 
 // ── Items (Catalog) ─────────────────────────────────────────
 
+// PostgREST returns at most 1000 rows per request; page through anything unbounded.
+const PAGE_SIZE = 1000;
+
 export async function fetchItems(serverId?: string | null, limit?: number): Promise<Item[]> {
   const sid = serverId ?? getCurrentServerId();
   if (!sid) return [];
@@ -398,16 +401,30 @@ export async function fetchItems(serverId?: string | null, limit?: number): Prom
     gameSlug = gameData?.slug ?? undefined;
   }
 
-  let query = supabase
-    .from("items")
-    .select("*")
-    .or(gameSlug ? `server_id.eq.${sid},and(game.eq.${gameSlug},server_id.is.null)` : `server_id.eq.${sid}`)
-    .neq("status", "rejected")
-    .order("name");
-  if (limit) query = query.limit(limit);
-  const { data, error } = await query;
-  if (error) throw error;
-  return data as Item[];
+  const filter = gameSlug
+    ? `server_id.eq.${sid},and(game.eq.${gameSlug},server_id.is.null)`
+    : `server_id.eq.${sid}`;
+  // Secondary sort on id keeps paging stable when two items share a name.
+  const build = () =>
+    supabase.from("items").select("*").or(filter).neq("status", "rejected").order("name").order("id");
+
+  if (limit) {
+    const { data, error } = await build().limit(limit);
+    if (error) throw error;
+    return (data || []) as Item[];
+  }
+
+  // Paginated: a shared game catalog runs well past PostgREST's 1000-row cap, and
+  // every truncated item renders as "Unknown Item" wherever history is displayed.
+  const all: Item[] = [];
+  for (let offset = 0; ; offset += PAGE_SIZE) {
+    const { data, error } = await build().range(offset, offset + PAGE_SIZE - 1);
+    if (error) throw error;
+    if (!data?.length) break;
+    all.push(...(data as Item[]));
+    if (data.length < PAGE_SIZE) break;
+  }
+  return all;
 }
 
 export async function fetchItemsPaginated(
@@ -416,6 +433,7 @@ export async function fetchItemsPaginated(
   offset: number,
   search?: string,
   pendingOnly?: boolean,
+  rarity?: string | null,
 ): Promise<{ items: Item[]; total: number }> {
   const sid = serverId ?? getCurrentServerId();
   if (!sid) return { items: [], total: 0 };
@@ -436,56 +454,29 @@ export async function fetchItemsPaginated(
     gameSlug = gameData?.slug ?? undefined;
   }
 
-  let baseCondition = gameSlug
-    ? `server_id.eq.${sid}`  // non-pending: own server items only
-    : `server_id.eq.${sid}`;
+  // Pending items are server-scoped; the normal catalog is this server's items plus
+  // the shared game catalog, minus other servers' pending submissions.
+  const applyScope = (q: any) =>
+    pendingOnly
+      ? q.eq("server_id", sid).eq("status", "pending")
+      : gameSlug
+        ? q.or(`server_id.eq.${sid},and(game.eq.${gameSlug},status.neq.pending)`).neq("status", "rejected")
+        : q.eq("server_id", sid).neq("status", "rejected");
 
-  let dataQuery = supabase
-    .from("items")
-    .select("*")
-    .or(baseCondition)
-    .neq("status", "rejected")
-    .order("name");
-  let countQuery = supabase
-    .from("items")
-    .select("*", { count: "exact", head: true })
-    .or(baseCondition)
-    .neq("status", "rejected");
-
-  if (pendingOnly) {
-    // Pending items are server-scoped
-    dataQuery = supabase
-      .from("items")
-      .select("*")
-      .eq("server_id", sid)
-      .eq("status", "pending")
-      .order("name");
-    countQuery = supabase
-      .from("items")
-      .select("*", { count: "exact", head: true })
-      .eq("server_id", sid)
-      .eq("status", "pending");
-  } else if (gameSlug) {
-    // Non-pending catalog: include game-catalog items (server_id IS NULL, status approved)
-    // but exclude pending items from other servers
-    baseCondition = `server_id.eq.${sid},and(game.eq.${gameSlug},status.neq.pending)`;
-    dataQuery = supabase
-      .from("items")
-      .select("*")
-      .or(baseCondition)
-      .neq("status", "rejected")
-      .order("name");
-    countQuery = supabase
-      .from("items")
-      .select("*", { count: "exact", head: true })
-      .or(baseCondition)
-      .neq("status", "rejected");
-  }
+  let dataQuery = applyScope(supabase.from("items").select("*")).order("name").order("id");
+  let countQuery = applyScope(supabase.from("items").select("*", { count: "exact", head: true }));
 
   if (search && search.trim()) {
     const term = `%${search.trim()}%`;
     dataQuery = dataQuery.ilike("name", term);
     countQuery = countQuery.ilike("name", term);
+  }
+
+  // Filtered server-side so the rarity chips page and count correctly instead of
+  // thinning out whichever 50 rows happen to be loaded.
+  if (rarity) {
+    dataQuery = dataQuery.ilike("rarity", rarity);
+    countQuery = countQuery.ilike("rarity", rarity);
   }
 
   const [{ data, error }, { count }] = await Promise.all([
@@ -586,22 +577,44 @@ export async function fetchDistributions(
 ): Promise<Distribution[]> {
   const sid = serverId ?? getCurrentServerId();
   if (!sid) return [];
-  let query = supabase.from("distributions").select("*").eq("server_id", sid).order("distributed_at", { ascending: false });
-  if (cursor) query = query.lt("distributed_at", cursor);
-  if (memberId) query = query.eq("member_id", memberId);
-  if (itemId) query = query.eq("item_id", itemId);
-  if (limit) query = query.limit(limit);
-  const { data, error } = await query;
-  if (error) throw error;
-  return data as Distribution[];
+  const build = () => {
+    // Secondary sort on id keeps paging stable across rows sharing a timestamp.
+    let q = supabase.from("distributions").select("*").eq("server_id", sid)
+      .order("distributed_at", { ascending: false }).order("id");
+    if (cursor) q = q.lt("distributed_at", cursor);
+    if (memberId) q = q.eq("member_id", memberId);
+    if (itemId) q = q.eq("item_id", itemId);
+    return q;
+  };
+
+  if (limit) {
+    const { data, error } = await build().limit(limit);
+    if (error) throw error;
+    return (data || []) as Distribution[];
+  }
+
+  // Paginated: an unbounded fetch stops at PostgREST's 1000-row cap, which silently
+  // undercounts the recipients and analytics tabs on any long-running server.
+  const all: Distribution[] = [];
+  for (let offset = 0; ; offset += PAGE_SIZE) {
+    const { data, error } = await build().range(offset, offset + PAGE_SIZE - 1);
+    if (error) throw error;
+    if (!data?.length) break;
+    all.push(...(data as Distribution[]));
+    if (data.length < PAGE_SIZE) break;
+  }
+  return all;
 }
 
 export async function fetchDistributionsByDay(
   serverId: string,
-  dateStr: string, // YYYY-MM-DD
+  dateStr: string, // YYYY-MM-DD, read as a day in the viewer's local timezone
 ): Promise<Distribution[]> {
-  const start = `${dateStr}T00:00:00.000Z`;
-  const end = `${dateStr}T23:59:59.999Z`;
+  // Local day bounds, not UTC: the history list groups rows by local date, so UTC
+  // bounds would split one displayed day across two fetches for any offset timezone.
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const start = new Date(y, m - 1, d, 0, 0, 0, 0).toISOString();
+  const end = new Date(y, m - 1, d, 23, 59, 59, 999).toISOString();
   const { data, error } = await supabase
     .from("distributions")
     .select("*")
@@ -611,6 +624,49 @@ export async function fetchDistributionsByDay(
     .order("distributed_at", { ascending: false });
   if (error) throw error;
   return (data || []) as Distribution[];
+}
+
+/** Search a server's whole distribution history rather than the days already loaded.
+ *  Item names are matched by resolving ids on the caller's side (distributions carry
+ *  no item name), player names are matched server-side. */
+export async function searchDistributions(
+  serverId: string,
+  opts: { itemIds?: string[]; playerQuery?: string; limit?: number },
+): Promise<Distribution[]> {
+  const limit = opts.limit ?? 500;
+  const byId = new Map<string, Distribution>();
+
+  // Chunked to keep the `in` list inside PostgREST's URL length budget.
+  const CHUNK = 150;
+  const itemIds = opts.itemIds ?? [];
+  for (let i = 0; i < itemIds.length; i += CHUNK) {
+    const { data, error } = await supabase
+      .from("distributions")
+      .select("*")
+      .eq("server_id", serverId)
+      .in("item_id", itemIds.slice(i, i + CHUNK))
+      .order("distributed_at", { ascending: false })
+      .limit(limit);
+    if (error) throw error;
+    (data || []).forEach((row: any) => byId.set(row.id, row as Distribution));
+  }
+
+  const playerQuery = opts.playerQuery?.trim();
+  if (playerQuery) {
+    const { data, error } = await supabase
+      .from("distributions")
+      .select("*")
+      .eq("server_id", serverId)
+      .ilike("player_name", `%${playerQuery}%`)
+      .order("distributed_at", { ascending: false })
+      .limit(limit);
+    if (error) throw error;
+    (data || []).forEach((row: any) => byId.set(row.id, row as Distribution));
+  }
+
+  return [...byId.values()]
+    .sort((a, b) => new Date(b.distributed_at).getTime() - new Date(a.distributed_at).getTime())
+    .slice(0, limit);
 }
 
 

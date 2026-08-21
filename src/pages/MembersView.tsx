@@ -14,7 +14,17 @@ import { Users, Plus, Pencil, Trash2, Loader2, X, Check, UserPlus, CheckCircle, 
 import { guildColor } from "@/lib/constants";
 import { GearTrackingTab } from "@/components/GearTrackingTab";
 
+/** The expiry gate sits in a wrapper so it can never change the hook count of the
+ *  view below it. `currentServer` resolves asynchronously, so an early return inside
+ *  the view drops every hook after it on the second render and crashes React with
+ *  "rendered fewer hooks than expected". */
 export function MembersView() {
+  const { currentServer } = useServer();
+  if (currentServer?.isExpired) return <ExpiredGate page="Members" />;
+  return <MembersViewContent />;
+}
+
+function MembersViewContent() {
   const { user, isViewer } = useAuth();
   const serverId = useServerId();
   const { currentServer, refreshServers, servers } = useServer();
@@ -26,7 +36,6 @@ export function MembersView() {
   const staffServers = useMemo(() => servers.filter(s => s.role === "owner" || s.role === "moderator"), [servers]);
   const showSummaryButton = staffServers.length >= 1 && !isViewer;
 
-  if (currentServer?.isExpired) return <ExpiredGate page="Members" />;
   const queryClient = useQueryClient();
   const configured = isSupabaseConfigured();
   const { data: members = [], isLoading } = useMembers({ includeInactive: true });

@@ -39,7 +39,17 @@ function SentinelHistory({ onVisible, loading }: { onVisible: () => void; loadin
   );
 }
 
+/** The expiry gate sits in a wrapper so it can never change the hook count of the
+ *  view below it. `currentServer` resolves asynchronously, so an early return inside
+ *  the view drops every hook after it on the second render and crashes React with
+ *  "rendered fewer hooks than expected". */
 export function HistoryView() {
+  const { currentServer } = useServer();
+  if (currentServer?.isExpired) return <ExpiredGate page="History" />;
+  return <HistoryViewContent />;
+}
+
+function HistoryViewContent() {
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -49,8 +59,6 @@ export function HistoryView() {
   const { currentServer } = useServer();
   const isStaff = currentServer?.role === "owner" || currentServer?.role === "moderator";
   const configured = isSupabaseConfigured();
-
-  if (currentServer?.isExpired) return <ExpiredGate page="History" />;
 
   // Initial fetch: last 2 days, 50 records
   const since = useMemo(() => {
