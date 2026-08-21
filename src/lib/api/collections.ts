@@ -106,14 +106,26 @@ export async function removeItemFromCollection(collectionId: string, itemId: str
   if (serverId && itemName) writeAuditEntry({ action: AuditAction.COLLECTION_ITEM_REMOVE, server_id: serverId, target_id: collectionId, details: { item_name: itemName, collection_name: collectionName || collectionId } });
 }
 
-// Get all distributions for a server (to check who owns what)
+// Get all distributions for a server (to check who owns what).
+// Paginated: PostgREST caps a response at 1000 rows, and a truncated fetch shows
+// owned items as missing in the ownership matrix.
+const PAGE_SIZE = 1000;
+
 export async function fetchServerDistributions(serverId: string): Promise<{ member_id: string; player_name: string; item_id: string; quantity: number }[]> {
-  const { data, error } = await supabase
-    .from("distributions")
-    .select("member_id, player_name, item_id, quantity")
-    .eq("server_id", serverId);
-  if (error) throw error;
-  return data || [];
+  const all: { member_id: string; player_name: string; item_id: string; quantity: number }[] = [];
+  for (let offset = 0; ; offset += PAGE_SIZE) {
+    const { data, error } = await supabase
+      .from("distributions")
+      .select("member_id, player_name, item_id, quantity")
+      .eq("server_id", serverId)
+      .order("id")
+      .range(offset, offset + PAGE_SIZE - 1);
+    if (error) throw error;
+    if (!data?.length) break;
+    all.push(...data);
+    if (data.length < PAGE_SIZE) break;
+  }
+  return all;
 }
 
 // ── Manual Ownership ──────────────────────────────────────
@@ -123,10 +135,19 @@ export type ManualOwnership = {
   collection_id: string;
   item_id: string;
   player_name: string;
+  /** The member the override belongs to. Null for players who are no longer members
+   *  of the server — those rows stay keyed by name, as the matrix displays them. */
+  member_id?: string | null;
   owned: boolean;
   set_by?: string;
   set_at: string;
 };
+
+/** Who an override is for. The member id is what survives a rename; the name is the
+ *  fallback for players who no longer have a member row. */
+export type OwnershipTarget = { memberId?: string | null; playerName: string };
+
+type OwnershipAudit = { serverId?: string; itemName?: string; collectionName?: string };
 
 export async function fetchManualOwnership(collectionId: string): Promise<ManualOwnership[]> {
   const { data, error } = await supabase
@@ -137,21 +158,31 @@ export async function fetchManualOwnership(collectionId: string): Promise<Manual
   return data || [];
 }
 
-export async function setManualOwnership(collectionId: string, itemId: string, playerName: string, owned: boolean, serverId?: string, itemName?: string, collectionName?: string): Promise<void> {
+export async function setManualOwnership(collectionId: string, itemId: string, target: OwnershipTarget, owned: boolean, audit?: OwnershipAudit): Promise<void> {
+  const { memberId, playerName } = target;
   const { error } = await supabase
     .from("item_collection_manual_ownership")
-    .upsert({ collection_id: collectionId, item_id: itemId, player_name: playerName, owned }, { onConflict: "collection_id,item_id,player_name" });
+    .upsert(
+      { collection_id: collectionId, item_id: itemId, player_name: playerName, member_id: memberId ?? null, owned },
+      // Keyed on the member where there is one, so an override written under the
+      // player's previous name is updated rather than duplicated.
+      { onConflict: memberId ? "collection_id,item_id,member_id" : "collection_id,item_id,player_name" },
+    );
   if (error) throw error;
-  if (serverId && itemName) writeAuditEntry({ action: AuditAction.COLLECTION_OWNERSHIP_SET, server_id: serverId, target_id: collectionId, details: { item_name: itemName, player_name: playerName, owned, collection_name: collectionName || collectionId } });
+  if (audit?.serverId && audit.itemName) writeAuditEntry({ action: AuditAction.COLLECTION_OWNERSHIP_SET, server_id: audit.serverId, target_id: collectionId, details: { item_name: audit.itemName, player_name: playerName, owned, collection_name: audit.collectionName || collectionId } });
 }
 
-export async function removeManualOwnership(collectionId: string, itemId: string, playerName: string, serverId?: string, itemName?: string, collectionName?: string): Promise<void> {
-  const { error } = await supabase
+export async function removeManualOwnership(collectionId: string, itemId: string, target: OwnershipTarget, audit?: OwnershipAudit): Promise<void> {
+  const { memberId, playerName } = target;
+  let query = supabase
     .from("item_collection_manual_ownership")
     .delete()
     .eq("collection_id", collectionId)
-    .eq("item_id", itemId)
-    .eq("player_name", playerName);
+    .eq("item_id", itemId);
+  // Deleting by member also clears a row left behind under an old name, which a
+  // name-keyed delete silently missed.
+  query = memberId ? query.eq("member_id", memberId) : query.eq("player_name", playerName);
+  const { error } = await query;
   if (error) throw error;
-  if (serverId && itemName) writeAuditEntry({ action: AuditAction.COLLECTION_OWNERSHIP_REMOVE, server_id: serverId, target_id: collectionId, details: { item_name: itemName, player_name: playerName, collection_name: collectionName || collectionId } });
+  if (audit?.serverId && audit.itemName) writeAuditEntry({ action: AuditAction.COLLECTION_OWNERSHIP_REMOVE, server_id: audit.serverId, target_id: collectionId, details: { item_name: audit.itemName, player_name: playerName, collection_name: audit.collectionName || collectionId } });
 }

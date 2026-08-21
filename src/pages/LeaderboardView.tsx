@@ -56,7 +56,17 @@ function getUtcDayRange(startDateStr: string, endDateStr: string, timezone: stri
   return { start: toUtc(startDateStr, false), end: toUtc(endDateStr, true) };
 }
 
+/** The expiry gate sits in a wrapper so it can never change the hook count of the
+ *  view below it. `currentServer` resolves asynchronously, so an early return inside
+ *  the view drops every hook after it on the second render and crashes React with
+ *  "rendered fewer hooks than expected". */
 export function LeaderboardView() {
+  const { currentServer } = useServer();
+  if (currentServer?.isExpired) return <ExpiredGate page="Leaderboard" />;
+  return <LeaderboardViewContent />;
+}
+
+function LeaderboardViewContent() {
   // ── Period tabs (synced to URL) ──
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -109,7 +119,6 @@ export function LeaderboardView() {
 
   // Attendance export state
   const { currentServer } = useServer();
-  if (currentServer?.isExpired) return <ExpiredGate page="Leaderboard" />;
   const serverTimezone = useServerTimezone();
   const todayInServerTz = (() => { const d = new Date(); return d.toLocaleDateString("en-CA", { timeZone: serverTimezone }); })();
   const weekAgoInServerTz = (() => { const d = new Date(Date.now() - 6 * 86400000); return d.toLocaleDateString("en-CA", { timeZone: serverTimezone }); })();

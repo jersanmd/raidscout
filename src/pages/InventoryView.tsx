@@ -3,7 +3,7 @@ import { useSearchParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   fetchItemsPaginated, fetchItems, createItem, deleteItem, updateItem, searchItemsByGame,
-  fetchDistributions, fetchDistributionsByDay, createDistribution, deleteDistribution,
+  fetchDistributions, fetchDistributionsByDay, searchDistributions, createDistribution, deleteDistribution,
   fetchItemDistributionStats, fetchTopRecipients,
   fetchMembers, isSupabaseConfigured,
   supabase as supabaseClient,
@@ -87,7 +87,22 @@ function Sentinel({ onVisible, loading }: { onVisible: () => void; loading: bool
   );
 }
 
+/** A day key in the viewer's local timezone, matching how the history list groups
+ *  rows. `toISOString().slice(0, 10)` would give the UTC day instead. */
+const localDateKey = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+/** The expiry gate sits in a wrapper so it can never change the hook count of the
+ *  view below it. `currentServer` resolves asynchronously, so an early return inside
+ *  the view itself drops ~60 hooks on the second render and crashes React with
+ *  "rendered fewer hooks than expected". */
 export function InventoryView() {
+  const { currentServer } = useServer();
+  if (currentServer?.isExpired) return <ExpiredGate page="Inventory" />;
+  return <InventoryViewContent />;
+}
+
+function InventoryViewContent() {
   const serverId = useServerId();
   const { currentServer } = useServer();
   const { isViewer, user } = useAuth();
@@ -106,8 +121,6 @@ export function InventoryView() {
       navigate(`/inventory?tab=${t}`, { replace: true });
     }
   };
-
-  if (currentServer?.isExpired) return <ExpiredGate page="Inventory" />;
 
   // Viewers can only see history, recipients, and analytics
   const VIEWER_TABS = ["history", "recipients", "analytics"] as const;
@@ -218,6 +231,10 @@ export function InventoryView() {
   const [distLoading, setDistLoading] = useState(true);
   const [distLoadingMore, setDistLoadingMore] = useState(false);
   const [distHasMore, setDistHasMore] = useState(true);
+  // Bumped after a distribution is created so the day-walk re-runs. Without it the
+  // history list is local state that nothing refreshes short of a page reload.
+  const [distReloadKey, setDistReloadKey] = useState(0);
+  const reloadDistHistory = useCallback(() => setDistReloadKey(k => k + 1), []);
 
   // Initial fetch: go back day by day until 10 items or 90 days exhausted
   useEffect(() => {
@@ -231,8 +248,7 @@ export function InventoryView() {
       const cursor = new Date();
       for (let i = 0; i < 90; i++) {
         if (cancelled) return;
-        const dateStr = cursor.toISOString().slice(0, 10);
-        const items = await fetchDistributionsByDay(serverId, dateStr);
+        const items = await fetchDistributionsByDay(serverId, localDateKey(cursor));
         all.push(...items);
         if (all.length >= 10) break;
         cursor.setDate(cursor.getDate() - 1);
@@ -243,7 +259,7 @@ export function InventoryView() {
       }
     })();
     return () => { cancelled = true; };
-  }, [serverId]);
+  }, [serverId, distReloadKey]);
 
   const handleLoadMoreDist = async () => {
     if (distLoadingMore || !distHasMore || distDays.length === 0) return;
@@ -255,8 +271,7 @@ export function InventoryView() {
       // Try up to 30 empty days before giving up
       for (let i = 0; i < 30; i++) {
         cursor.setDate(cursor.getDate() - 1);
-        const dateStr = cursor.toISOString().slice(0, 10);
-        const more = await fetchDistributionsByDay(serverId!, dateStr);
+        const more = await fetchDistributionsByDay(serverId!, localDateKey(cursor));
         if (more.length > 0) {
           setDistDays(prev => [...prev, ...more]);
           found = true;
@@ -334,7 +349,9 @@ export function InventoryView() {
       if (!srv?.game) return [];
       return fetchItemRarities(srv.game).catch(() => []);
     },
-    enabled: showCreateItem,
+    // Not just for the create modal: every tab colours items by rarity through
+    // colorMap, and the catalog builds its filter chips from this list.
+    enabled: configured && !!serverId,
   });
   const colorMap = useMemo(() => rarityColorMap(gameRarities as any[]), [gameRarities]);
 
@@ -502,6 +519,10 @@ export function InventoryView() {
       queryClient.invalidateQueries({ queryKey: ["distributions", serverId] });
       queryClient.invalidateQueries({ queryKey: ["itemDistributionStats", serverId] });
       queryClient.invalidateQueries({ queryKey: ["topRecipients", serverId] });
+      queryClient.invalidateQueries({ queryKey: ["allDists", serverId] });
+      queryClient.invalidateQueries({ queryKey: ["distSearch", serverId] });
+      // History is local state, not a query — re-walk the days so the new record shows.
+      reloadDistHistory();
       const member = members.find(m => m.id === distMemberId);
       toast("success", `${distItem?.name ?? "Item"} sent to ${member?.name ?? "member"}!`);
       setShowDistribute(false);
@@ -517,26 +538,36 @@ export function InventoryView() {
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["items", serverId] });
       // Reload with current filter state
-      loadCatalogPage(0, itemSearch.trim() || undefined, pendingFilter || undefined);
+      loadCatalogPage(0);
       toast("success", `"${variables.itemName}" deleted`);
     },
     onError: (err: any) => toast("error", err?.message ?? "Failed to delete"),
   });
 
   const deleteDistMutation = useMutation({
-    mutationFn: async (distId: string) => {
+    mutationFn: async ({ distId, auctionId }: { distId: string; auctionId: string | null }) => {
       // Clear the "Distributed" marker for the auction this record came from -- and
       // only that one. Older records have no auction_id; those clear nothing rather
       // than guessing, since clearing the wrong auction's marker is the bug this fixes.
-      if (deleteConfirm?.auctionId) {
-        await supabaseClient.rpc("clear_distributed_for_auction", { p_auction_id: deleteConfirm.auctionId });
+      // The id rides along as a mutation variable because reading it back off
+      // `deleteConfirm` raced with the dialog closing and silently lost it.
+      if (auctionId) {
+        await supabaseClient.rpc("clear_distributed_for_auction", { p_auction_id: auctionId });
       }
       return deleteDistribution(distId);
     },
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["distributions", serverId] });
       queryClient.invalidateQueries({ queryKey: ["itemDistributionStats", serverId] });
       queryClient.invalidateQueries({ queryKey: ["topRecipients", serverId] });
+      queryClient.invalidateQueries({ queryKey: ["allDists", serverId] });
+      queryClient.invalidateQueries({ queryKey: ["distSearch", serverId] });
+      // Drop the row from the locally held history instead of re-walking the days,
+      // so pages already scrolled into view stay loaded. If that emptied the list
+      // there is nothing left to page back from, so re-walk after all.
+      const remaining = distDays.filter(d => d.id !== variables.distId);
+      setDistDays(remaining);
+      if (remaining.length === 0) reloadDistHistory();
     },
   });
 
@@ -594,30 +625,45 @@ export function InventoryView() {
   const ITEMS_PER_PAGE = 50;
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const loadCatalogPage = async (offset: number, search?: string, pendingOnly?: boolean) => {
+  // Every catalog fetch reads its filters from here instead of taking them as
+  // arguments — passing them per call site is how "Load More" and the debounced
+  // search each ended up dropping the pending filter.
+  const catalogFiltersRef = useRef({ search: "", pendingOnly: false, rarity: null as string | null });
+  catalogFiltersRef.current = { search: itemSearch.trim(), pendingOnly: pendingFilter, rarity: rarityFilter };
+
+  // Toggling a chip is a round trip now, so tag each load and drop the response if a
+  // newer one has already been issued — otherwise a slow first request can land after
+  // a fast second one and repopulate the list with the filter the user just left.
+  const catalogReqRef = useRef(0);
+
+  const loadCatalogPage = async (offset: number) => {
     if (!serverId) return;
-    const isSearch = !!(search && search.trim());
+    const { search, pendingOnly, rarity } = catalogFiltersRef.current;
+    const req = ++catalogReqRef.current;
     setLoadingMore(true);
     try {
-      const { items: newItems, total } = await fetchItemsPaginated(serverId, ITEMS_PER_PAGE, offset, search, pendingOnly);
+      const { items: newItems, total } = await fetchItemsPaginated(
+        serverId, ITEMS_PER_PAGE, offset, search || undefined, pendingOnly || undefined, rarity,
+      );
+      if (catalogReqRef.current !== req) return;
       setCatalogItems(prev => offset === 0 ? newItems : [...prev, ...newItems]);
       setCatalogTotal(total);
-      if (!isSearch && !pendingOnly) setCatalogLoaded(true);
+      setCatalogLoaded(true);
     } catch (err) {
       console.error("Failed to load catalog items:", err);
     } finally {
-      setLoadingMore(false);
+      if (catalogReqRef.current === req) setLoadingMore(false);
     }
   };
 
-  // Load first page on mount / server change
+  // Reload page one on server change and whenever a non-text filter changes
   useEffect(() => {
     if (!configured || !serverId) return;
     setCatalogItems([]);
     setCatalogTotal(0);
     setCatalogLoaded(false);
     loadCatalogPage(0);
-  }, [serverId, configured]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [serverId, configured, pendingFilter, rarityFilter]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Debounced server-side search
   useEffect(() => {
@@ -625,9 +671,7 @@ export function InventoryView() {
     if (itemSearch === prevSearchRef.current) return;
     prevSearchRef.current = itemSearch;
     if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
-    searchTimerRef.current = setTimeout(() => {
-      loadCatalogPage(0, itemSearch.trim() || undefined);
-    }, 300);
+    searchTimerRef.current = setTimeout(() => { loadCatalogPage(0); }, 300);
     return () => { if (searchTimerRef.current) clearTimeout(searchTimerRef.current); };
   }, [itemSearch]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -636,27 +680,69 @@ export function InventoryView() {
     setCatalogItems([]);
     setCatalogTotal(0);
     setCatalogLoaded(false);
-    loadCatalogPage(0, itemSearch.trim() || undefined);
+    loadCatalogPage(0);
   };
 
-  // Use lazy-loaded catalog items for display (server-side search handled in loadCatalogPage)
-  const displayItems = catalogItems.filter(i => {
-    if (rarityFilter && i.rarity?.toLowerCase() !== rarityFilter) return false;
-    return true;
-  });
+  // Search, pending and rarity are all applied server-side now, so the loaded page
+  // is exactly what should be shown.
+  const displayItems = catalogItems;
 
-  // Get unique rarities from all items (from useQuery) for filter chips
-  const availableRarities = [...new Set(items.map(i => i.rarity?.toLowerCase()).filter(Boolean))] as string[];
+  // Filter chips: the game's configured rarities plus whatever the loaded items
+  // actually use. Deriving these from `items` alone left the catalog tab with no
+  // chips at all, because that query stays disabled while the catalog is showing.
+  const availableRarities = useMemo(() => {
+    const set = new Set<string>();
+    (gameRarities as any[]).forEach((r: any) => { if (r?.name) set.add(String(r.name).toLowerCase()); });
+    items.forEach(i => { if (i.rarity) set.add(i.rarity.toLowerCase()); });
+    catalogItems.forEach(i => { if (i.rarity) set.add(i.rarity.toLowerCase()); });
+    const known = RARITY_ORDER.filter(r => set.has(r)) as string[];
+    const custom = [...set].filter(r => !RARITY_ORDER.includes(r as ItemRarity)).sort();
+    return [...known, ...custom];
+  }, [gameRarities, items, catalogItems]);
 
   const formatDate = (d: string) =>
     new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
 
+  // ── History search ──
+  // Debounced so typing doesn't fire a query per keystroke.
+  const [histSearchDebounced, setHistSearchDebounced] = useState("");
+  useEffect(() => {
+    const t = setTimeout(() => setHistSearchDebounced(histSearch.trim()), 300);
+    return () => clearTimeout(t);
+  }, [histSearch]);
+
+  const isSearching = !!(histSearch.trim() || histRarityFilter);
+
+  // Searching has to hit the server: `distDays` only holds the days the list has
+  // scrolled through, so filtering it client-side reports "No matches" for anything
+  // older than the last loaded page.
+  const { data: searchResults = [], isFetching: searchFetching } = useQuery({
+    queryKey: ["distSearch", serverId, histSearchDebounced, histRarityFilter, items.length],
+    queryFn: () => {
+      const q = histSearchDebounced.toLowerCase();
+      // With a rarity filter on, pull every distribution of the matching items and
+      // let the text match narrow them below, so the two filters combine.
+      const matching = items.filter(i => {
+        if (histRarityFilter) return i.rarity?.toLowerCase() === histRarityFilter;
+        return !q || i.name.toLowerCase().includes(q);
+      });
+      return searchDistributions(serverId!, {
+        itemIds: matching.map(i => i.id),
+        playerQuery: histRarityFilter ? undefined : q || undefined,
+      });
+    },
+    enabled: configured && !!serverId && tab === "history" && isSearching,
+  });
+
+  // True while the debounce or the query is still catching up with what was typed.
+  const searchPending = isSearching && (histSearch.trim() !== histSearchDebounced || searchFetching);
+
   // Group distributions by date for history view
   const filteredDistributions = useMemo(() => {
-    const source = distDays;
+    const source = isSearching ? searchResults : distDays;
     return source.filter(d => {
       if (histSearch || histRarityFilter) {
-        const item = items.find(i => i.id === d.item_id);
+        const item = itemsById.get(d.item_id);
         if (histSearch) {
           const q = histSearch.toLowerCase();
           if (!item?.name.toLowerCase().includes(q) && !d.player_name.toLowerCase().includes(q)) return false;
@@ -665,7 +751,7 @@ export function InventoryView() {
       }
       return true;
     });
-  }, [distDays, histSearch, histRarityFilter, items]);
+  }, [distDays, searchResults, isSearching, histSearch, histRarityFilter, itemsById]);
 
   const groupedDistributions = useMemo(() => {
     return filteredDistributions.reduce<Record<string, Distribution[]>>((acc, d) => {
@@ -676,7 +762,6 @@ export function InventoryView() {
     }, {});
   }, [filteredDistributions]);
 
-  const isSearching = !!(histSearch || histRarityFilter);
   const groupEntries = Object.entries(groupedDistributions) as [string, Distribution[]][];
   const hasMore = !isSearching && distHasMore;
 
@@ -761,8 +846,11 @@ export function InventoryView() {
               {canManageItems && (
                 <button
                   onClick={() => {
-                    if (pendingFilter) { setPendingFilter(false); loadCatalogPage(0, itemSearch.trim() || undefined); }
-                    else { setPendingFilter(true); setItemSearch(""); loadCatalogPage(0, undefined, true); }
+                    const next = !pendingFilter;
+                    // Clearing the search in step with prevSearchRef keeps the debounced
+                    // search effect from firing a second, redundant reload.
+                    if (next) { setItemSearch(""); prevSearchRef.current = ""; }
+                    setPendingFilter(next);
                   }}
                   className={`flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-medium transition border shrink-0 ${pendingFilter ? "bg-amber-500/15 text-amber-400 border-amber-500/30" : "bg-[#18181b] border-[#27272a] text-[#71717a] hover:text-[#d4d4d8]"}`}
                 >
@@ -889,13 +977,8 @@ export function InventoryView() {
                 </div>
               );})}
               </div>
-              {!itemSearch.trim() && catalogLoaded && displayItems.length > 0 && displayItems.length < catalogTotal && (
+              {catalogLoaded && displayItems.length > 0 && displayItems.length < catalogTotal && (
                 <button onClick={() => loadCatalogPage(catalogItems.length)} disabled={loadingMore} className="w-full py-2.5 text-xs text-[#71717a] hover:text-[#d4d4d8] bg-[#18181b] hover:bg-[#222] border border-[#27272a] rounded-xl transition disabled:opacity-50">
-                  {loadingMore ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : `Load More (${catalogItems.length} of ${catalogTotal})`}
-                </button>
-              )}
-              {!!itemSearch.trim() && displayItems.length > 0 && displayItems.length < catalogTotal && (
-                <button onClick={() => loadCatalogPage(catalogItems.length, itemSearch)} disabled={loadingMore} className="w-full py-2.5 text-xs text-[#71717a] hover:text-[#d4d4d8] bg-[#18181b] hover:bg-[#222] border border-[#27272a] rounded-xl transition disabled:opacity-50">
                   {loadingMore ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : `Load More (${catalogItems.length} of ${catalogTotal})`}
                 </button>
               )}
@@ -908,44 +991,65 @@ export function InventoryView() {
         const currentCollection = collections.find(c => c.id === selectedCollection);
         const collItemIds = new Set(collItems.map(ci => ci.item_id));
 
-        // Ownership map: player_name → { distributed, manual }
-        const ownedMap = new Map<string, { distributed: Set<string>; manual: Set<string> }>();
+        // Ownership is keyed by member, not by name. Both distributions and manual
+        // overrides store the display name as it stood when they were written, so
+        // keying on the name splits a renamed player into a ghost row holding all
+        // their items and a live row holding none of them.
+        const memberById = new Map(members.map(m => [m.id, m]));
+        const memberByName = new Map(members.map(m => [m.name.toLowerCase().trim(), m]));
+        // Names a player used to go by, recovered from distributions — those rows
+        // carry both the name used at the time and the member id it belonged to.
+        const memberIdByFormerName = new Map<string, string>();
         allDists.forEach(d => {
-          if (!ownedMap.has(d.player_name)) ownedMap.set(d.player_name, { distributed: new Set(), manual: new Set() });
-          ownedMap.get(d.player_name)!.distributed.add(d.item_id);
+          if (d.member_id) memberIdByFormerName.set(d.player_name.toLowerCase().trim(), d.member_id);
         });
-        manualOwned.forEach(m => {
-          if (!ownedMap.has(m.player_name)) ownedMap.set(m.player_name, { distributed: new Set(), manual: new Set() });
-          if (m.owned) {
-            ownedMap.get(m.player_name)!.manual.add(m.item_id);
-          } else {
-            ownedMap.get(m.player_name)!.distributed.delete(m.item_id);
+        const resolveMember = (name: string, memberId?: string | null) => {
+          const key = name.toLowerCase().trim();
+          return (memberId ? memberById.get(memberId) : undefined)
+            ?? memberByName.get(key)
+            ?? memberById.get(memberIdByFormerName.get(key) ?? "");
+        };
+
+        type OwnerRow = { key: string; name: string; memberId: string | null; distributed: Set<string>; manual: Set<string> };
+        const ownedMap = new Map<string, OwnerRow>();
+        const ownershipFor = (name: string, memberId?: string | null) => {
+          const member = resolveMember(name, memberId);
+          // Players with no member row keep a name key — that is how they display.
+          const key = member ? member.id : `name:${name.toLowerCase().trim()}`;
+          let row = ownedMap.get(key);
+          if (!row) {
+            row = { key, name: member?.name ?? name, memberId: member?.id ?? null, distributed: new Set(), manual: new Set() };
+            ownedMap.set(key, row);
           }
+          return row;
+        };
+        allDists.forEach(d => { ownershipFor(d.player_name, d.member_id).distributed.add(d.item_id); });
+        manualOwned.forEach(m => {
+          const row = ownershipFor(m.player_name, m.member_id);
+          if (m.owned) row.manual.add(m.item_id);
+          else row.distributed.delete(m.item_id);
         });
 
         const collItemsWithData = collItems.map(ci => {
-          const item = items.find(i => i.id === ci.item_id);
+          const item = itemsById.get(ci.item_id);
           return { ...ci, item };
         });
 
         const playersWithOwnership = (() => {
-          const list = Array.from(ownedMap.entries())
-            .map(([name, sets]) => ({ name, distributed: sets.distributed, manual: sets.manual }));
-          // Include all members even if they have no distributions yet (so they appear for manual assignment)
-          const existingNames = new Set(list.map(p => p.name.toLowerCase().trim()));
+          const list = Array.from(ownedMap.values());
+          // Include all members even if they have no distributions yet (so they appear for manual assignment).
+          // Keying on the member id makes this exact — matching on name let two rows
+          // whose names differed only in case both through.
           for (const m of members) {
-            if (!existingNames.has(m.name.toLowerCase().trim())) {
-              list.push({ name: m.name, distributed: new Set<string>(), manual: new Set<string>() });
+            if (!ownedMap.has(m.id)) {
+              list.push({ key: m.id, name: m.name, memberId: m.id, distributed: new Set<string>(), manual: new Set<string>() });
             }
           }
           return list.sort((a, b) => {
             if (matrixSort === "cp-desc" || matrixSort === "cp-asc") {
-              const getCp = (name: string) => {
-                const m = members.find(m => m.name.toLowerCase().trim() === name.toLowerCase().trim());
-                return m?.combat_power ?? 0;
-              };
-              const aCp = getCp(a.name);
-              const bCp = getCp(b.name);
+              const getCp = (p: OwnerRow) => (p.memberId ? memberById.get(p.memberId)?.combat_power ?? 0 : 0);
+              const aCp = getCp(a);
+              const bCp = getCp(b);
               if (aCp !== bCp) return matrixSort === "cp-desc" ? bCp - aCp : aCp - bCp;
               return a.name.localeCompare(b.name);
             }
@@ -1301,7 +1405,7 @@ export function InventoryView() {
             let list = playersWithOwnership;
             if (matrixGuildFilter) {
               list = list.filter(p => {
-                const m = members.find(m => m.id === p.name || m.name.toLowerCase().trim() === p.name.toLowerCase().trim());
+                const m = p.memberId ? memberById.get(p.memberId) : undefined;
                 if (!m?.guild_id) return false;
                 const g = guilds.find(g => g.id === m.guild_id);
                 return g?.name === matrixGuildFilter;
@@ -1442,13 +1546,13 @@ export function InventoryView() {
                         ) : (
                           sortedPlayers.map((p, i) => {
                             return (
-                            <tr key={p.name} className="border-b border-[#27272a]/50 hover:bg-[#09090b]/30 transition group">
+                            <tr key={p.key} className="border-b border-[#27272a]/50 hover:bg-[#09090b]/30 transition group">
                               <td className="sticky left-0 z-10 bg-[#18181b] group-hover:bg-[#09090b]/30 px-4 py-2.5 font-medium text-xs transition-colors">
                                 <span className="flex items-center gap-2">
                                   <span className="text-[11px] text-[#52525b] tabular-nums w-5 text-right shrink-0">{i + 1}</span>
                                   <span className="text-[#fafafa]">{p.name}</span>
                                   {(() => {
-                                    const m = members.find(m => m.id === p.name || m.name.toLowerCase().trim() === p.name.toLowerCase().trim());
+                                    const m = p.memberId ? memberById.get(p.memberId) : undefined;
                                     const g = m?.guild_id ? guilds.find(g => g.id === m.guild_id) : null;
                                     const hasCp = (m?.combat_power ?? null) != null;
                                     if (!g && !hasCp) return null;
@@ -1466,12 +1570,13 @@ export function InventoryView() {
                                       </>
                                     );
                                   })()}
-                                  {canManageItems && (
+                                  {/* Only for rows that are still members — a distribution
+                                      needs a real member id to attach to. */}
+                                  {canManageItems && p.memberId && (
                                   <button
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      const m = members.find(m => m.id === p.name || m.name.toLowerCase().trim() === p.name.toLowerCase().trim());
-                                      setMatrixDistributePlayer({ name: p.name, memberId: m?.id ?? p.name });
+                                      setMatrixDistributePlayer({ name: p.name, memberId: p.memberId! });
                                       setMatrixDistributeSearch("");
                                     }}
                                     className="ml-auto p-0.5 rounded text-[#52525b] hover:text-[#fafafa] hover:bg-[#27272a] transition opacity-0 group-hover:opacity-100"
@@ -1491,12 +1596,14 @@ export function InventoryView() {
                                   <button
                                     onClick={canManageItems ? async () => {
                                       const collName = collections.find(c => c.id === selectedCollection)?.name;
+                                      const target = { memberId: p.memberId, playerName: p.name };
+                                      const audit = { serverId: serverId!, itemName: ci.item?.name, collectionName: collName };
                                       if (isManual) {
-                                        await removeManualOwnership(selectedCollection!, ci.item_id, p.name, serverId!, ci.item?.name, collName);
+                                        await removeManualOwnership(selectedCollection!, ci.item_id, target, audit);
                                       } else if (isDistributed) {
-                                        await setManualOwnership(selectedCollection!, ci.item_id, p.name, false, serverId!, ci.item?.name, collName);
+                                        await setManualOwnership(selectedCollection!, ci.item_id, target, false, audit);
                                       } else {
-                                        await setManualOwnership(selectedCollection!, ci.item_id, p.name, true, serverId!, ci.item?.name, collName);
+                                        await setManualOwnership(selectedCollection!, ci.item_id, target, true, audit);
                                       }
                                       queryClient.invalidateQueries({ queryKey: ["manualOwnership", selectedCollection] });
                                     } : undefined}
@@ -1580,7 +1687,7 @@ export function InventoryView() {
             )}
           </div>
           <div className="space-y-4">
-          {distLoading ? (
+          {distLoading || searchPending ? (
             <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 text-[#71717a] animate-spin" /></div>
           ) : groupEntries.length === 0 ? (
             <div className="text-center py-16">
@@ -1600,7 +1707,7 @@ export function InventoryView() {
                 </div>
                 <div className="space-y-1.5">
                   {dists.map(d => {
-                    const item = items.find(i => i.id === d.item_id);
+                    const item = itemsById.get(d.item_id);
                     const rc = item ? colorMap[item.rarity?.toLowerCase() as ItemRarity] || "#a1a1aa" : "#71717a";
                     return (
                       <div key={d.id} className="bg-[#18181b] border border-[#27272a] rounded-lg px-3 py-2.5 flex items-center gap-3 group hover:border-[#3f3f46] transition-all">
@@ -1664,26 +1771,35 @@ export function InventoryView() {
         if (distLoading || itemsLoading || membersLoading) {
           return <div className="flex justify-center py-16"><Loader2 className="w-6 h-6 text-[#a1a1aa] animate-spin" /><span className="ml-3 text-sm text-[#71717a]">Loading recipients...</span></div>;
         }
-        // Group distributions by player
+        // Group distributions by player, keyed on member id wherever there is one:
+        // rows carry the name as it stood at distribution time, so keying on the name
+        // splits a renamed player into two half-populated rows.
+        const memberById = new Map(members.map(m => [m.id, m]));
         const playerMap = new Map<string, { player_name: string; member_id: string; dists: Distribution[] }>();
         allDistributions.forEach(d => {
-          let entry = playerMap.get(d.player_name);
-          if (!entry) { entry = { player_name: d.player_name, member_id: d.member_id, dists: [] }; playerMap.set(d.player_name, entry); }
+          const key = d.member_id || `name:${d.player_name.toLowerCase().trim()}`;
+          let entry = playerMap.get(key);
+          if (!entry) {
+            entry = { player_name: memberById.get(d.member_id)?.name ?? d.player_name, member_id: d.member_id, dists: [] };
+            playerMap.set(key, entry);
+          }
           entry.dists.push(d);
         });
+        // Include all members who haven't received anything
+        const seenKeys = new Set<string>();
+        playerMap.forEach((p, key) => { seenKeys.add(key); seenKeys.add(`name:${p.player_name.toLowerCase().trim()}`); });
+        for (const m of members) {
+          if (seenKeys.has(m.id) || seenKeys.has(`name:${m.name.toLowerCase().trim()}`)) continue;
+          playerMap.set(m.id, { player_name: m.name, member_id: m.id, dists: [] });
+        }
+        // Sorted after that merge, not before: appending afterwards pinned every
+        // member with no items to the bottom in arbitrary order, whatever the sort.
         const players = Array.from(playerMap.values()).sort((a, b) => {
           if (recipientPlayerSort === "name-asc") {
             return a.player_name.localeCompare(b.player_name);
           }
           return b.dists.length - a.dists.length;
         });
-        // Include all members who haven't received anything
-        const existingNames = new Set(players.map(p => p.player_name.toLowerCase().trim()));
-        for (const m of members) {
-          if (!existingNames.has(m.name.toLowerCase().trim())) {
-            players.push({ player_name: m.name, member_id: m.id, dists: [] });
-          }
-        }
         // Sort each player's items based on selected sort
         const sortDists = (dists: Distribution[], sort: string) => {
           const sorted = [...dists];
@@ -1833,7 +1949,7 @@ export function InventoryView() {
                       const g = m?.guild_id ? guilds.find(g => g.id === m.guild_id) : null;
                       const gc = g ? guildColor(g.name) : null;
                       return (
-                        <tr key={p.player_name} className="border-b border-[#27272a] last:border-b-0 hover:bg-[#09090b]/50 transition">
+                        <tr key={p.member_id || p.player_name} className="border-b border-[#27272a] last:border-b-0 hover:bg-[#09090b]/50 transition">
                           <td className="px-4 py-2.5 align-top">
                             <div className="flex items-center gap-2">
                               <div className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 text-[11px] font-bold" style={{ backgroundColor: cc + "20", color: cc }}>
@@ -1963,9 +2079,12 @@ export function InventoryView() {
               // Compute daily distribution counts per category
               const dateMap = new Map<string, Map<string, number>>(); // date -> category -> count
               allDistributions.forEach(d => {
-                const date = d.created_at?.slice(0, 10);
-                if (!date) return;
-                const item = items.find(i => i.id === d.item_id);
+                // distributed_at, not created_at: a backfilled row's insert time has
+                // nothing to do with the day the loot was actually handed out.
+                const when = d.distributed_at ?? d.created_at;
+                if (!when) return;
+                const date = localDateKey(new Date(when));
+                const item = itemsById.get(d.item_id);
                 const catId = item?.category_id;
                 let catName: string;
                 if (catId) {
@@ -1992,14 +2111,6 @@ export function InventoryView() {
                 color: CAT_COLORS[ci % CAT_COLORS.length],
                 data: dates.map(date => ({ date, count: dateMap.get(date)?.get(cat) || 0 })),
               }));
-
-              const W = 800, H = 200, padL = 50, padR = 20, padT = 22, padB = 32;
-              const chartW = W - padL - padR, chartH = H - padT - padB;
-              const n = dates.length;
-              const maxCount = Math.max(1, ...series.flatMap(s => s.data.map(d => d.count)));
-              const xFor = (i: number) => padL + (n > 1 ? (i / (n - 1)) * chartW : chartW / 2);
-              const yFor = (c: number) => padT + chartH - (c / maxCount) * chartH;
-              const xLabelInterval = Math.max(1, Math.ceil(n / 7));
 
               return (
                 <ItemTrendChart dates={dates} series={series} />
@@ -2049,7 +2160,7 @@ export function InventoryView() {
                 return (
                 <div className="space-y-1">
                   {list.map((stat, i) => {
-                    const item = items.find(x => x.id === stat.item_id);
+                    const item = itemsById.get(stat.item_id);
                     const rc = item ? colorMap[item.rarity?.toLowerCase() as ItemRarity] || "#a1a1aa" : "#71717a";
                     const pct = Math.max(4, (stat.total_quantity / maxQty) * 100);
                     return (
@@ -2492,7 +2603,7 @@ export function InventoryView() {
               ) : (
                 <div className="space-y-2">
                   {memberItems.map(d => {
-                    const item = items.find(i => i.id === d.item_id);
+                    const item = itemsById.get(d.item_id);
                     const rc = item?.rarity ? colorMap[item.rarity.toLowerCase() as ItemRarity] : "#a1a1aa";
                     return (
                       <div key={d.id} className="flex items-center gap-3 p-2 rounded-lg bg-[#18181b] border border-[#27272a]">
@@ -2613,7 +2724,7 @@ export function InventoryView() {
             <button
               onClick={() => {
                 if (deleteConfirmName.toLowerCase().trim() === deleteConfirm.itemName.toLowerCase().trim()) {
-                  deleteDistMutation.mutate(deleteConfirm.distId);
+                  deleteDistMutation.mutate({ distId: deleteConfirm.distId, auctionId: deleteConfirm.auctionId });
                   setDeleteConfirm(null);
                 }
               }}
@@ -2706,6 +2817,10 @@ export function InventoryView() {
                           queryClient.invalidateQueries({ queryKey: ["distributions", serverId] });
                           queryClient.invalidateQueries({ queryKey: ["allDists", serverId] });
                           queryClient.invalidateQueries({ queryKey: ["manualOwnership", selectedCollection] });
+                          queryClient.invalidateQueries({ queryKey: ["itemDistributionStats", serverId] });
+                          queryClient.invalidateQueries({ queryKey: ["topRecipients", serverId] });
+                          queryClient.invalidateQueries({ queryKey: ["distSearch", serverId] });
+                          reloadDistHistory();
                           toast("success", `${item.name} → ${matrixDistributePlayer.name}`);
                           setMatrixDistributePlayer(null);
                         } catch (err: any) {
