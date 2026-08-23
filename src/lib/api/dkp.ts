@@ -226,6 +226,20 @@ export async function autoResolveAuction(itemId: string): Promise<void> {
   if (error) throw error;
 }
 
+/** One auction's ladder (active/lost/won bids), newest first, keyset-paginated.
+ *  Replaces get_active_bids for the theater: that RPC returns every bid on the
+ *  server — measured 7,296 rows (~1 MB) on the busiest one — to render a single
+ *  auction's feed. Pass `before` (the oldest loaded created_at) to page older. */
+export async function getAuctionBids(auctionId: string, limit = 100, before?: string): Promise<DkpBid[]> {
+  const { data, error } = await supabase.rpc("get_auction_bids", {
+    p_auction_id: auctionId,
+    p_limit: limit,
+    p_before: before ?? null,
+  });
+  if (error) throw error;
+  return (data as DkpBid[]) ?? [];
+}
+
 export async function getActiveBids(serverId: string): Promise<DkpBid[]> {
   const { data, error } = await supabase.rpc("get_active_bids", {
     p_server_id: serverId,

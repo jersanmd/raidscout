@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { QueryClient } from "@tanstack/react-query";
-import { applyBidEvent, mapBidError, type BidEvent } from "./dkp-live";
+import { applyBidEvent, applySyncEvent, mapBidError, type BidEvent, type SyncEvent } from "./dkp-live";
 import type { ActiveAuction, DkpBid } from "@/lib/api/dkp";
 
 const SERVER = "srv-1";
@@ -62,7 +62,7 @@ describe("applyBidEvent", () => {
     qc = new QueryClient();
     qc.setQueryData<ActiveAuction[]>(["dkp_active_auctions", SERVER], [auction()]);
     qc.setQueryData<ActiveAuction | null>(["dkp_theater_auction", SERVER, AUCTION], auction());
-    qc.setQueryData<DkpBid[]>(["dkp_theater_bids", SERVER], [bidRow()]);
+    qc.setQueryData<DkpBid[]>(["dkp_theater_bids", SERVER, AUCTION], [bidRow()]);
   });
 
   it("updates the auction list in place: highest bid, count, leader, deadline", () => {
@@ -76,18 +76,18 @@ describe("applyBidEvent", () => {
 
   it("marks the dethroned leader's feed row lost and prepends the new bid", () => {
     applyBidEvent(qc, SERVER, null, event());
-    const feed = qc.getQueryData<DkpBid[]>(["dkp_theater_bids", SERVER])!;
+    const feed = qc.getQueryData<DkpBid[]>(["dkp_theater_bids", SERVER, AUCTION])!;
     expect(feed[0]).toMatchObject({ id: "bid-new", member_id: "bob", bid_amount: 120, status: "active" });
     expect(feed.find((b) => b.member_id === "alice")!.status).toBe("lost");
   });
 
   it("drops the bidder's own replaced bid from the feed (it was cancelled)", () => {
-    qc.setQueryData<DkpBid[]>(["dkp_theater_bids", SERVER], [
+    qc.setQueryData<DkpBid[]>(["dkp_theater_bids", SERVER, AUCTION], [
       bidRow({ id: "bid-bob-old", member_id: "bob", member_name: "Bob", bid_amount: 90 }),
       bidRow(),
     ]);
     applyBidEvent(qc, SERVER, null, event());
-    const feed = qc.getQueryData<DkpBid[]>(["dkp_theater_bids", SERVER])!;
+    const feed = qc.getQueryData<DkpBid[]>(["dkp_theater_bids", SERVER, AUCTION])!;
     expect(feed.some((b) => b.id === "bid-bob-old")).toBe(false);
     expect(feed[0].id).toBe("bid-new");
   });
@@ -97,8 +97,21 @@ describe("applyBidEvent", () => {
     const echo = applyBidEvent(qc, SERVER, null, event());
     expect(first.stale).toBe(false);
     expect(echo.stale).toBe(true);
-    const feed = qc.getQueryData<DkpBid[]>(["dkp_theater_bids", SERVER])!;
+    const feed = qc.getQueryData<DkpBid[]>(["dkp_theater_bids", SERVER, AUCTION])!;
     expect(feed.filter((b) => b.id === "bid-new")).toHaveLength(1);
+  });
+
+  it("applies a re-bid whose bidCount is unchanged (dedup keys on highestBid, not count)", () => {
+    // A self-replacement swaps a ladder row, so bidCount stays flat while the
+    // (strictly monotonic) highest bid rises. Keying staleness on bidCount
+    // would wrongly drop this real event.
+    applyBidEvent(qc, SERVER, null, event());
+    const rebid = applyBidEvent(qc, SERVER, null,
+      event({ bidId: "bid-rebid", amount: 150, highestBid: 150, bidCount: 4 }));
+    expect(rebid.stale).toBe(false);
+    const [a] = qc.getQueryData<ActiveAuction[]>(["dkp_active_auctions", SERVER])!;
+    expect(a.highest_bid).toBe(150);
+    expect(a.bid_count).toBe(4);
   });
 
   it("ignores events for auctions not in the cache without corrupting others", () => {
@@ -123,6 +136,77 @@ describe("applyBidEvent", () => {
     qc.setQueryData(["dkp_balance", "bob", SERVER], { balance: 500 });
     applyBidEvent(qc, SERVER, "bob", event({ bidCount: 5 }));
     expect(qc.getQueryState(["dkp_balance", "bob", SERVER])!.isInvalidated).toBe(true);
+  });
+});
+
+describe("applySyncEvent", () => {
+  let qc: QueryClient;
+
+  const resolved = (over: Partial<SyncEvent> = {}): SyncEvent => ({
+    kind: "auction_resolved",
+    auctionId: AUCTION,
+    cancelled: false,
+    winnerId: "bob",
+    winnerName: "Bob",
+    winningBid: 120,
+    bidCount: 4,
+    refundedMemberIds: [],
+    ts: "2026-08-23T12:05:00Z",
+    ...over,
+  });
+
+  beforeEach(() => {
+    qc = new QueryClient();
+    qc.setQueryData<ActiveAuction[]>(["dkp_active_auctions", SERVER], [auction()]);
+    qc.setQueryData(["dkp_past_auctions", SERVER], []);
+  });
+
+  it("resolution removes the auction from the live list and prepends a past row — no refetch", () => {
+    applySyncEvent(qc, SERVER, null, resolved());
+    expect(qc.getQueryData<ActiveAuction[]>(["dkp_active_auctions", SERVER])).toHaveLength(0);
+    const past = qc.getQueryData<any[]>(["dkp_past_auctions", SERVER])!;
+    expect(past[0]).toMatchObject({
+      auction_id: AUCTION, item_name: "Serus Scythe",
+      winner_name: "Bob", winning_bid: 120, bid_count: 4, distributed: false,
+    });
+    expect(qc.getQueryState(["dkp_active_auctions", SERVER])!.isInvalidated).toBe(false);
+    expect(qc.getQueryState(["dkp_past_auctions", SERVER])!.isInvalidated).toBe(false);
+  });
+
+  it("cancellation records no winner", () => {
+    applySyncEvent(qc, SERVER, null, resolved({ cancelled: true, refundedMemberIds: ["alice"] }));
+    const past = qc.getQueryData<any[]>(["dkp_past_auctions", SERVER])!;
+    expect(past[0].winner_name).toBeNull();
+    expect(past[0].winning_bid).toBe(0);
+  });
+
+  it("refreshes balance only for refunded members", () => {
+    qc.setQueryData(["dkp_balance", "alice", SERVER], { balance: 0 });
+    qc.setQueryData(["dkp_balance", "carol", SERVER], { balance: 5 });
+    applySyncEvent(qc, SERVER, "carol", resolved({ cancelled: true, refundedMemberIds: ["alice"] }));
+    expect(qc.getQueryState(["dkp_balance", "carol", SERVER])!.isInvalidated).toBe(false);
+
+    qc.setQueryData<ActiveAuction[]>(["dkp_active_auctions", SERVER], [auction()]);
+    applySyncEvent(qc, SERVER, "alice", resolved({ cancelled: true, refundedMemberIds: ["alice"] }));
+    expect(qc.getQueryState(["dkp_balance", "alice", SERVER])!.isInvalidated).toBe(true);
+  });
+
+  it("falls back to targeted refetch when the auction is unknown locally", () => {
+    applySyncEvent(qc, SERVER, null, resolved({ auctionId: "unknown" }));
+    expect(qc.getQueryState(["dkp_active_auctions", SERVER])!.isInvalidated).toBe(true);
+    expect(qc.getQueryData<any[]>(["dkp_past_auctions", SERVER])).toHaveLength(0);
+  });
+
+  it("bid_cancelled patches the recomputed ladder top in place", () => {
+    applySyncEvent(qc, SERVER, null, {
+      kind: "bid_cancelled", auctionId: AUCTION,
+      highestBid: 0, highestBidderId: null, bidCount: 2, cancelledMemberId: "alice",
+    });
+    const [a] = qc.getQueryData<ActiveAuction[]>(["dkp_active_auctions", SERVER])!;
+    expect(a.highest_bid).toBe(0);
+    expect(a.top_bidder_member_id).toBeNull();
+    expect(a.bid_count).toBe(2);
+    expect(qc.getQueryState(["dkp_active_auctions", SERVER])!.isInvalidated).toBe(false);
   });
 });
 

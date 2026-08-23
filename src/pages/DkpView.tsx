@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, memo } from "react";
 import { createPortal } from "react-dom";
 import { Link, useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
@@ -13,13 +13,14 @@ import {
   type DkpBalance, type DkpRanking, type DkpTransaction, type ItemBid, type ActiveAuction, type PastAuction,
 } from "@/lib/supabase";
 import { AuditAction, writeAuditEntry } from "@/lib/api/audit";
-import { applyBidEvent, mapBidError, type BidEvent, type SyncEvent } from "@/lib/dkp-live";
+import { applyBidEvent, applySyncEvent, mapBidError, type BidEvent, type SyncEvent } from "@/lib/dkp-live";
 import { useMembers } from "@/hooks/useMembers";
 import { Coins, TrendingUp, TrendingDown, History, Gavel, Loader2, Shield, Clock, Check, X, AlertTriangle, Image, Plus, Eye, Hourglass, Trash2, Pencil, CheckCircle, Package, Settings, Search, Gift, Minus, Copy } from "lucide-react";
 import { guildColor } from "@/lib/constants";
 import AuctionTheater from "@/components/AuctionTheater";
 import { ExpiredGate } from "@/components/ExpiredGate";
 import { useUserTimezone } from "@/hooks/useUserTimezone";
+import { useNowSec, useEnded } from "@/hooks/useSharedTick";
 
 export function DkpView() {
   const { user, isViewer } = useAuth();
@@ -54,6 +55,9 @@ function DkpContent({ serverId }: { serverId: string }) {
   const [rtStatus, setRtStatus] = useState<string>("connecting");
   // memberId resolves asynchronously; a ref keeps the channel from resubscribing.
   const memberIdRef = useRef<string | null>(null);
+  // Distinguishes the initial subscribe (queries are fresh) from a re-join
+  // after a drop (events may have been missed).
+  const hadConnectedRef = useRef(false);
   useEffect(() => {
     if (!serverId) return;
     const channel = supabase.channel(`dkp:${serverId}`, { config: { private: true } })
@@ -63,19 +67,34 @@ function DkpContent({ serverId }: { serverId: string }) {
         if (res.outbidMe) toast("warning", `You've been outbid on ${evt.itemName} — your ${evt.previousBidderRefund ?? ""} DKP was refunded.`);
       })
       .on("broadcast", { event: "sync" }, ({ payload }) => {
-        const evt = payload as SyncEvent;
-        queryClient.invalidateQueries({ queryKey: ["dkp_active_auctions", serverId] });
-        if (evt.kind === "auction_resolved") {
-          queryClient.invalidateQueries({ queryKey: ["dkp_past_auctions", serverId] });
-          queryClient.invalidateQueries({ queryKey: ["dkp_balance"] });
-          queryClient.invalidateQueries({ queryKey: ["dkp_history"] });
-        }
+        // Lifecycle events carry enough state to patch caches directly; only
+        // auction_created (or an auction missing locally) falls back to a
+        // targeted refetch. Balance refreshes only for refunded members.
+        applySyncEvent(queryClient, serverId, memberIdRef.current, payload as SyncEvent);
       })
       .subscribe((status) => {
         setRtStatus(status === "SUBSCRIBED" ? "connected" : status === "CHANNEL_ERROR" ? "error" : status === "TIMED_OUT" ? "timeout" : "connecting");
+        // Catch-up after a reconnect: broadcast events missed during the gap
+        // are never re-delivered, and the worst case is a missed FINAL bid that
+        // no later event would heal. On every re-join (not the initial one),
+        // resync the auction state — jittered so a Realtime restart that
+        // reconnects everyone at once doesn't become a synchronized burst.
+        if (status === "SUBSCRIBED") {
+          if (hadConnectedRef.current) {
+            const jitter = Math.random() * 3000;
+            setTimeout(() => {
+              queryClient.invalidateQueries({ queryKey: ["dkp_active_auctions", serverId] });
+              queryClient.invalidateQueries({ queryKey: ["dkp_theater_bids", serverId] });
+            }, jitter);
+          }
+          hadConnectedRef.current = true;
+        }
       });
 
-    return () => { supabase.removeChannel(channel); };
+    return () => {
+      hadConnectedRef.current = false;
+      supabase.removeChannel(channel);
+    };
   }, [serverId, queryClient, toast]);
 
   // Wrap in React Query so it can be invalidated after claim acceptance
@@ -526,13 +545,15 @@ function LiveAuction({ serverId, isStaff, memberId, tz, toast, queryClient, high
   const [error, setError] = useState<string | null>(null);
 
   // Broadcast events keep this cache current; refetching per bid is exactly the
-  // amplification this design removes. If the realtime channel drops, degrade to
-  // a modest poll so the auction list can't silently go stale.
+  // amplification this design removes. Two safety nets: a 15s poll while the
+  // channel is down, and a slow 60s heartbeat while it's up — the convergence
+  // bound for the case where a broadcast fails server-side but the channel
+  // stays healthy (1 small request/min/client; ~8 req/s even at 500 players).
   const { data: auctions = [], isLoading } = useQuery({
     queryKey: ["dkp_active_auctions", serverId],
     queryFn: () => getActiveAuctions(serverId),
     staleTime: 10_000,
-    refetchInterval: live ? false : 15_000,
+    refetchInterval: live ? 60_000 : 15_000,
   });
 
   // Fetch member's guild for guild-restriction filtering
@@ -613,7 +634,19 @@ function LiveAuction({ serverId, isStaff, memberId, tz, toast, queryClient, high
     catch (err: any) { setError(err?.message || "Failed"); toast("error", err?.message || "Failed to resolve auction"); } finally { setActing(false); }
   };
 
-  const doDuplicate = (item: ActiveAuction) => {
+  // Stable per-row handlers taking the auction as an argument: inline closures
+  // would defeat React.memo on AuctionRow (new function identity every render)
+  // or, if ignored by a comparator, capture stale auction state.
+  const handleBid = useCallback((it: ActiveAuction) => {
+    setShowBid(it.auction_id);
+    setBidAmt(Math.max(it.dkp_cost || 1, (it.highest_bid || 0) + 1));
+    setError(null);
+  }, []);
+  const handleResolve = useCallback((it: ActiveAuction) => setShowResolve(it.auction_id), []);
+  const handleViewBids = useCallback((it: ActiveAuction) => setShowBids({ itemId: it.item_id, auctionId: it.auction_id }), []);
+  const handleTheater = useCallback((it: ActiveAuction) => setShowTheater(it.auction_id), []);
+
+  const doDuplicate = useCallback((item: ActiveAuction) => {
     setMarkName(item.item_name);
     setMarkCost(item.dkp_cost || 10);
     setMarkQty(item.quantity || 1);
@@ -633,7 +666,7 @@ function LiveAuction({ serverId, isStaff, memberId, tz, toast, queryClient, high
     }
     setError(null);
     setShowMark(true);
-  };
+  }, [tz]);
 
   return (
     <div className="bg-[#0d0d11] rounded-xl overflow-hidden shadow-lg shadow-amber-500/5 gradient-border">
@@ -649,7 +682,7 @@ function LiveAuction({ serverId, isStaff, memberId, tz, toast, queryClient, high
       </div>
       {isLoading ? <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 text-[#52525b] animate-spin" /></div>
       : visibleAuctions.length === 0 ? <div className="px-4 py-8 text-center"><Gavel className="w-8 h-8 text-[#3f3f46] mx-auto mb-2" /><p className="text-xs text-[#71717a]">No active auctions</p></div>
-      : <div className="divide-y divide-[#1e1e2a]/50">{visibleAuctions.map((it: ActiveAuction) => <AuctionRow key={it.auction_id} item={it} isStaff={isStaff} memberId={memberId} tz={tz} onBid={() => { setShowBid(it.auction_id); setBidAmt(Math.max(it.dkp_cost || 1, (it.highest_bid || 0) + 1)); setError(null); }} onResolve={() => setShowResolve(it.auction_id)} onViewBids={() => setShowBids({ itemId: it.item_id, auctionId: it.auction_id })} onTheater={() => setShowTheater(it.auction_id)} onDuplicate={() => doDuplicate(it)} isHighlighted={activeHighlight === it.auction_id} />)}</div>}
+      : <div className="divide-y divide-[#1e1e2a]/50">{visibleAuctions.map((it: ActiveAuction) => <AuctionRow key={it.auction_id} item={it} isStaff={isStaff} memberId={memberId} tz={tz} onBid={handleBid} onResolve={handleResolve} onViewBids={handleViewBids} onTheater={handleTheater} onDuplicate={doDuplicate} isHighlighted={activeHighlight === it.auction_id} />)}</div>}
 
       {showMark && <MarkModal name={markName} setName={setMarkName} cost={markCost} setCost={setMarkCost} end={markEnd} setEnd={setMarkEnd} acting={acting} error={error} onClose={() => setShowMark(false)} onMark={doMark} serverId={serverId} guildId={markGuild} setGuildId={setMarkGuild} qty={markQty} setQty={setMarkQty} />}
       {showBid && <BidModalUI auctionId={showBid} bidAmt={bidAmt} setBidAmt={setBidAmt} acting={acting} error={error} onClose={() => setShowBid(null)} onBid={() => doBid(showBid)} memberId={memberId} serverId={serverId} highestBid={auctions.find((a: ActiveAuction) => a.auction_id === showBid)?.highest_bid ?? 0} />}
@@ -683,34 +716,48 @@ function serverLocalToUTC(dateTimeLocal: string, tz: string): string {
   return new Date(utcMs).toISOString();
 }
 
-function useCountdown(endTime: string | null) {
-  const [now, setNow] = useState(Date.now());
-  useEffect(() => {
-    if (!endTime) return;
-    const t = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(t);
-  }, [endTime]);
-  if (!endTime) return { ended: false, days: 0, hours: 0, minutes: 0, seconds: 0, totalMs: 0 };
-  const totalMs = new Date(endTime).getTime() - now;
-  if (totalMs <= 0) return { ended: true, days: 0, hours: 0, minutes: 0, seconds: 0, totalMs: 0 };
+/** Per-second leaf: the countdown clock. Only this span re-renders each tick. */
+function RowCountdown({ endTime, ended }: { endTime: string; ended: boolean }) {
+  const now = useNowSec();
+  const fmt = (n: number) => String(n).padStart(2, "0");
+  if (ended) return <span className="text-red-400">Ended</span>;
+  const totalMs = Math.max(0, new Date(endTime).getTime() - now);
   const totalSec = Math.floor(totalMs / 1000);
-  return { ended: false, days: Math.floor(totalSec / 86400), hours: Math.floor((totalSec % 86400) / 3600), minutes: Math.floor((totalSec % 3600) / 60), seconds: totalSec % 60, totalMs };
+  const days = Math.floor(totalSec / 86400), hours = Math.floor((totalSec % 86400) / 3600),
+    minutes = Math.floor((totalSec % 3600) / 60), seconds = totalSec % 60;
+  const endingSoon = totalMs < 3600000;
+  return (
+    <span className={`flex items-center gap-0.5 tabular-nums ${endingSoon ? "text-red-400 animate-pulse" : "text-[#a1a1aa]"}`}>
+      <Clock className="w-3 h-3" />{days > 0 ? `${days}d ` : ""}{fmt(hours)}:{fmt(minutes)}:{fmt(seconds)}
+    </span>
+  );
 }
 
-function AuctionRow({ item, isStaff, memberId, tz, onBid, onResolve, onViewBids, onTheater, onDuplicate, isHighlighted }: { item: ActiveAuction; isStaff: boolean; memberId: string | null; tz: string; onBid: () => void; onResolve: () => void; onViewBids: () => void; onTheater: () => void; onDuplicate?: () => void; isHighlighted?: boolean }) {
-  const cd = useCountdown(item.bid_end_time);
-  const ended = cd.ended;
+/** Per-second leaf: the time-remaining bar along the row's bottom edge. */
+function RowProgressBar({ endTime, createdAt, ended }: { endTime: string; createdAt: string; ended: boolean }) {
+  const now = useNowSec();
+  const totalMs = Math.max(0, new Date(endTime).getTime() - now);
+  const totalDur = endTime && createdAt ? new Date(endTime).getTime() - new Date(createdAt).getTime() : 86400000;
+  const barPct = ended ? 0 : Math.max(0, Math.min(100, (totalMs / totalDur) * 100));
+  return (
+    <div className="absolute bottom-0 left-0 h-0.5 rounded-b-xl transition-all duration-1000"
+      style={{ width: `${barPct}%`, backgroundColor: ended ? '#52525b' : totalMs < 3600000 ? '#ef4444' : totalMs < 10800000 ? '#f59e0b' : '#22c55e' }} />
+  );
+}
+
+// Memoized: with 155 live auctions, a bid used to re-render every row every
+// second. Now a bid re-renders only the changed row (the cache patch gives
+// unchanged auctions stable identity), the shared ticker re-renders only the
+// two per-second leaves above, and the row itself re-renders once — when its
+// countdown crosses zero (useEnded returns a boolean snapshot).
+const AuctionRow = memo(function AuctionRow({ item, isStaff, memberId, tz, onBid, onResolve, onViewBids, onTheater, onDuplicate, isHighlighted }: { item: ActiveAuction; isStaff: boolean; memberId: string | null; tz: string; onBid: (it: ActiveAuction) => void; onResolve: (it: ActiveAuction) => void; onViewBids: (it: ActiveAuction) => void; onTheater: (it: ActiveAuction) => void; onDuplicate?: (it: ActiveAuction) => void; isHighlighted?: boolean }) {
+  const ended = useEnded(item.bid_end_time);
   const rarityColor = rc(item.rarity ?? undefined);
   const isWinning = memberId && item.top_bidder_member_id === memberId;
-  const endingSoon = !ended && cd.totalMs < 3600000; // < 1 hour
   const endLocal = item.bid_end_time ? new Date(item.bid_end_time).toLocaleString("en-US", { timeZone: tz, month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "";
-  const fmt = (n: number) => String(n).padStart(2, "0");
-  const totalDur = item.bid_end_time && item.created_at ? new Date(item.bid_end_time).getTime() - new Date(item.created_at).getTime() : 86400000;
-  const barPct = ended ? 0 : Math.max(0, Math.min(100, (cd.totalMs / totalDur) * 100));
   return (
-    <div id={`auction-${item.auction_id}`} className={`relative flex items-center gap-3 px-4 py-3 hover:bg-[#18181b]/50 transition cursor-pointer card-lift group ${isHighlighted ? "bg-amber-500/10 ring-1 ring-amber-500/40 animate-pulse" : ""}`} onClick={onViewBids}>
-      {/* Progress bar */}
-      <div className="absolute bottom-0 left-0 h-0.5 rounded-b-xl transition-all duration-1000" style={{ width: `${barPct}%`, backgroundColor: ended ? '#52525b' : cd.totalMs < 3600000 ? '#ef4444' : cd.totalMs < 10800000 ? '#f59e0b' : '#22c55e' }} />
+    <div id={`auction-${item.auction_id}`} className={`relative flex items-center gap-3 px-4 py-3 hover:bg-[#18181b]/50 transition cursor-pointer card-lift group ${isHighlighted ? "bg-amber-500/10 ring-1 ring-amber-500/40 animate-pulse" : ""}`} onClick={() => onViewBids(item)}>
+      <RowProgressBar endTime={item.bid_end_time} createdAt={item.created_at} ended={ended} />
       {item.image_url ? <img src={item.image_url} className="w-10 h-10 rounded-lg object-cover shrink-0 border border-[#1e1e2a]" style={{ backgroundColor: rarityColor + "20" }} /> : <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: rarityColor + "18" }}><Image className="w-4 h-4" style={{ color: rarityColor }} /></div>}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5">
@@ -723,22 +770,22 @@ function AuctionRow({ item, isStaff, memberId, tz, onBid, onResolve, onViewBids,
         </div>
         <div className="flex items-center gap-2 text-[11px]">
           <span className="text-amber-400 font-bold">{item.highest_bid || item.dkp_cost} DKP</span>
-          <button onClick={(e) => { e.stopPropagation(); onViewBids(); }} className="text-[#52525b] hover:text-[#d4d4d8] transition">{item.bid_count} bid{item.bid_count !== 1 ? "s" : ""}</button>
-          {!ended ? <span className={`flex items-center gap-0.5 tabular-nums ${endingSoon ? "text-red-400 animate-pulse" : "text-[#a1a1aa]"}`}><Clock className="w-3 h-3" />{cd.days > 0 ? `${cd.days}d ` : ""}{fmt(cd.hours)}:{fmt(cd.minutes)}:{fmt(cd.seconds)}</span> : <span className="text-red-400">Ended</span>}
+          <button onClick={(e) => { e.stopPropagation(); onViewBids(item); }} className="text-[#52525b] hover:text-[#d4d4d8] transition">{item.bid_count} bid{item.bid_count !== 1 ? "s" : ""}</button>
+          <RowCountdown endTime={item.bid_end_time} ended={ended} />
           <span className="text-[#52525b]">· {endLocal}</span>
         </div>
       </div>
       <div className="flex items-center gap-1 shrink-0">
-        <button onClick={(e) => { e.stopPropagation(); onTheater(); }} className="px-1.5 py-1 rounded text-[11px] bg-[#18181b] border border-[#27272a] text-[#a1a1aa] hover:text-[#fafafa] hover:border-[#3f3f46] transition-colors" title="Auction Theater">🎭</button>
-        {memberId && !ended && !isWinning && <button onClick={(e) => { e.stopPropagation(); onBid(); }} className="px-5 py-1.5 rounded text-xs font-medium bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 transition"><Coins className="w-3.5 h-3.5 inline mr-1" />Bid</button>}
+        <button onClick={(e) => { e.stopPropagation(); onTheater(item); }} className="px-1.5 py-1 rounded text-[11px] bg-[#18181b] border border-[#27272a] text-[#a1a1aa] hover:text-[#fafafa] hover:border-[#3f3f46] transition-colors" title="Auction Theater">🎭</button>
+        {memberId && !ended && !isWinning && <button onClick={(e) => { e.stopPropagation(); onBid(item); }} className="px-5 py-1.5 rounded text-xs font-medium bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 transition"><Coins className="w-3.5 h-3.5 inline mr-1" />Bid</button>}
         {memberId && !ended && isWinning && <span className="px-2 py-1 rounded text-[11px] bg-emerald-500/10 text-emerald-400 font-medium" title="You're the highest bidder. Wait to be outbid before bidding again."><Check className="w-3 h-3 inline mr-0.5" />You're Winning</span>}
         {memberId && ended && <span className="px-2 py-1 rounded text-[11px] bg-amber-500/10 text-amber-400 font-medium animate-pulse"><Loader2 className="w-3 h-3 inline mr-1 animate-spin" />Finalizing...</span>}
-        {isStaff && <button onClick={(e) => { e.stopPropagation(); onResolve(); }} className="px-5 py-1.5 rounded text-xs font-medium bg-red-500/10 text-red-400 hover:bg-red-500/20 transition">Cancel</button>}
-        {isStaff && onDuplicate && <button onClick={(e) => { e.stopPropagation(); onDuplicate(); }} className="px-3 py-1.5 rounded text-[11px] bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition" title="Duplicate this auction with same details"><Copy className="w-3 h-3 inline mr-1" />Duplicate</button>}
+        {isStaff && <button onClick={(e) => { e.stopPropagation(); onResolve(item); }} className="px-5 py-1.5 rounded text-xs font-medium bg-red-500/10 text-red-400 hover:bg-red-500/20 transition">Cancel</button>}
+        {isStaff && onDuplicate && <button onClick={(e) => { e.stopPropagation(); onDuplicate(item); }} className="px-3 py-1.5 rounded text-[11px] bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition" title="Duplicate this auction with same details"><Copy className="w-3 h-3 inline mr-1" />Duplicate</button>}
       </div>
     </div>
   );
-}
+});
 
 function MarkModal({ name, setName, cost, setCost, end, setEnd, acting, error, onClose, onMark, serverId, guildId, setGuildId, qty, setQty }: any) {
   const [search, setSearch] = useState("");

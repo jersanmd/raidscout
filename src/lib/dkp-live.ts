@@ -31,10 +31,43 @@ export interface BidEvent {
   ts: string;
 }
 
-/** Payload of a `sync` broadcast — rare lifecycle beats where a refetch is fine. */
+/** Payload of a `sync` broadcast — rare lifecycle beats. Since the hardening
+ *  pass these carry enough state to patch caches instead of forcing refetches;
+ *  the optional fields are absent only on events from the pre-hardening RPCs. */
 export interface SyncEvent {
   kind: "auction_created" | "auction_resolved" | "bid_cancelled";
   auctionId: string;
+  /** auction_resolved: true when the auction was cancelled rather than won. */
+  cancelled?: boolean;
+  winnerId?: string | null;
+  winnerName?: string | null;
+  winningBid?: number | null;
+  bidCount?: number | null;
+  /** Members whose escrowed DKP was returned by this resolution. */
+  refundedMemberIds?: string[] | null;
+  /** bid_cancelled: the recomputed ladder top after the cancellation. */
+  highestBid?: number | null;
+  highestBidderId?: string | null;
+  cancelledMemberId?: string | null;
+  ts?: string;
+}
+
+/** Shape of the rows in the past-auctions cache (mirrors dkp.ts PastAuction). */
+interface PastAuctionRow {
+  auction_id: string;
+  item_id: string;
+  item_name: string;
+  image_url: string | null;
+  rarity: string | null;
+  dkp_cost: number;
+  winner_name: string | null;
+  winning_bid: number;
+  bid_count: number;
+  started_at: string;
+  resolved_at: string;
+  auction_round: number;
+  distributed: boolean;
+  guild_name: string | null;
 }
 
 export interface ApplyResult {
@@ -56,8 +89,9 @@ const updateAuction = (a: ActiveAuction, evt: BidEvent): ActiveAuction => ({
  * Apply one bid event to every cache that renders auction state.
  *
  * Idempotent: the bidder receives the event twice (once as the RPC return,
- * once as the broadcast echo), so a bid_count that has already caught up is
- * treated as stale and skipped.
+ * once as the broadcast echo). Staleness is judged by highest_bid, which the
+ * strict greater-than rule makes strictly monotonic per auction — bid_count is
+ * NOT monotonic (a re-bid replaces the member's own bid and leaves it flat).
  */
 export function applyBidEvent(
   queryClient: QueryClient,
@@ -72,7 +106,7 @@ export function applyBidEvent(
     if (!old) return old;
     return old.map((a) => {
       if (a.auction_id !== evt.auctionId) return a;
-      if (a.bid_count >= evt.bidCount) { stale = true; return a; }
+      if (a.highest_bid >= evt.highestBid) { stale = true; return a; }
       return updateAuction(a, evt);
     });
   });
@@ -84,16 +118,17 @@ export function applyBidEvent(
       (old) => (old ? updateAuction(old, evt) : old),
     );
 
-    // Theater bid feed (active + lost bids, newest first). Mirror what the
-    // database just did: the bidder's replaced bid is cancelled (drops out of
-    // the feed), the dethroned leader's bid goes to 'lost', the new bid leads.
-    queryClient.setQueryData<DkpBid[]>(["dkp_theater_bids", serverId], (old) => {
+    // Theater bid feed — per-auction since the get_auction_bids change. Mirror
+    // what the database just did: the bidder's replaced bid is cancelled
+    // (drops out of the feed), the dethroned leader's goes to 'lost', the new
+    // bid leads.
+    queryClient.setQueryData<DkpBid[]>(["dkp_theater_bids", serverId, evt.auctionId], (old) => {
       if (!old) return old;
       if (old.some((b) => b.id === evt.bidId)) return old;
       const next: DkpBid[] = old
-        .filter((b) => !(b.auction_id === evt.auctionId && b.member_id === evt.bidderId && b.status === "active"))
+        .filter((b) => !(b.member_id === evt.bidderId && b.status === "active"))
         .map((b) =>
-          b.auction_id === evt.auctionId && b.member_id === evt.previousBidderId && b.status === "active"
+          b.member_id === evt.previousBidderId && b.status === "active"
             ? { ...b, status: "lost" }
             : b,
         );
@@ -130,6 +165,91 @@ export function applyBidEvent(
     outbidMe: !stale && myMemberId != null && myMemberId === evt.previousBidderId,
     stale,
   };
+}
+
+/**
+ * Apply one sync (lifecycle) event. Resolution and cancellation patch the
+ * caches directly — removing the auction from the live list and prepending a
+ * constructed row to past auctions — so mass expiry of same-deadline auctions
+ * no longer makes every client refetch four query keys. Refetch remains only
+ * where state genuinely cannot be derived: auction_created (a new row this
+ * client has never seen), or a resolved auction missing from the local cache.
+ */
+export function applySyncEvent(
+  queryClient: QueryClient,
+  serverId: string,
+  myMemberId: string | null,
+  evt: SyncEvent,
+): void {
+  if (evt.kind === "auction_created") {
+    queryClient.invalidateQueries({ queryKey: ["dkp_active_auctions", serverId] });
+    return;
+  }
+
+  if (evt.kind === "bid_cancelled") {
+    if (evt.highestBid != null) {
+      const patch = (a: ActiveAuction): ActiveAuction =>
+        a.auction_id !== evt.auctionId ? a : {
+          ...a,
+          highest_bid: evt.highestBid ?? 0,
+          top_bidder_member_id: evt.highestBidderId ?? null,
+          bid_count: evt.bidCount ?? a.bid_count,
+        };
+      queryClient.setQueryData<ActiveAuction[]>(["dkp_active_auctions", serverId],
+        (old) => old?.map(patch));
+      queryClient.setQueryData<ActiveAuction | null>(["dkp_theater_auction", serverId, evt.auctionId],
+        (old) => (old ? patch(old) : old));
+      queryClient.invalidateQueries({ queryKey: ["dkp_theater_bids", serverId, evt.auctionId] });
+    } else {
+      // Pre-hardening event without state: targeted refetch.
+      queryClient.invalidateQueries({ queryKey: ["dkp_active_auctions", serverId] });
+    }
+    if (myMemberId != null && myMemberId === evt.cancelledMemberId) {
+      queryClient.invalidateQueries({ queryKey: ["dkp_balance"] });
+      queryClient.invalidateQueries({ queryKey: ["dkp_history"] });
+    }
+    return;
+  }
+
+  // auction_resolved (won or cancelled).
+  let source: ActiveAuction | undefined;
+  queryClient.setQueryData<ActiveAuction[]>(["dkp_active_auctions", serverId], (old) => {
+    if (!old) return old;
+    source = old.find((a) => a.auction_id === evt.auctionId);
+    return source ? old.filter((a) => a.auction_id !== evt.auctionId) : old;
+  });
+
+  const past = queryClient.getQueryData<PastAuctionRow[]>(["dkp_past_auctions", serverId]);
+  if (source && past && !past.some((p) => p.auction_id === evt.auctionId)) {
+    const row: PastAuctionRow = {
+      auction_id: evt.auctionId,
+      item_id: source.item_id,
+      item_name: source.item_name,
+      image_url: source.image_url,
+      rarity: source.rarity,
+      dkp_cost: source.dkp_cost,
+      winner_name: evt.cancelled ? null : evt.winnerName ?? null,
+      winning_bid: evt.cancelled ? 0 : evt.winningBid ?? source.highest_bid,
+      bid_count: evt.bidCount ?? source.bid_count,
+      started_at: source.created_at,
+      resolved_at: evt.ts ?? new Date().toISOString(),
+      auction_round: 1,
+      distributed: false,
+      guild_name: source.guild_name,
+    };
+    queryClient.setQueryData<PastAuctionRow[]>(["dkp_past_auctions", serverId], [row, ...past]);
+  } else if (!source) {
+    // Auction unknown locally (older event, or list never loaded): fall back
+    // to targeted refetches of the two affected lists.
+    queryClient.invalidateQueries({ queryKey: ["dkp_active_auctions", serverId] });
+    queryClient.invalidateQueries({ queryKey: ["dkp_past_auctions", serverId] });
+  }
+
+  // Balance moved only for members this resolution refunded.
+  if (myMemberId != null && (evt.refundedMemberIds ?? []).includes(myMemberId)) {
+    queryClient.invalidateQueries({ queryKey: ["dkp_balance"] });
+    queryClient.invalidateQueries({ queryKey: ["dkp_history"] });
+  }
 }
 
 // ── Bid error mapping ────────────────────────────────────────

@@ -1,9 +1,11 @@
 import { useState, useEffect, useRef, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { X, Crown, Timer, Users } from "lucide-react";
-import { getActiveAuctions, getActiveBids, type ActiveAuction, type DkpBid } from "@/lib/api/dkp";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { X, Crown, Timer, Users, Loader2 } from "lucide-react";
+import { getActiveAuctions, getAuctionBids, type DkpBid } from "@/lib/api/dkp";
 import { supabase } from "@/lib/supabase";
 import { rarityColor, rarityGlow, fetchItemRarities } from "@/lib/rarity";
+
+const FEED_PAGE = 100;
 
 export default function AuctionTheater({
   auctionId,
@@ -35,17 +37,39 @@ export default function AuctionTheater({
     staleTime: 60_000,
   });
 
+  // Per-auction, keyset-paginated feed — the old get_active_bids call pulled
+  // every bid on the server (7k+ rows on busy servers) to render one auction.
+  const queryClient = useQueryClient();
   const { data: bids = [] } = useQuery({
-    queryKey: ["dkp_theater_bids", serverId],
-    queryFn: () => getActiveBids(serverId),
+    queryKey: ["dkp_theater_bids", serverId, auctionId],
+    queryFn: () => getAuctionBids(auctionId, FEED_PAGE),
     staleTime: 60_000,
   });
 
+  // "Load older": append the next page below the oldest loaded bid. maybeMore
+  // heuristic: a page shorter than the limit means the history is exhausted.
+  const [loadingOlder, setLoadingOlder] = useState(false);
+  const [exhausted, setExhausted] = useState(false);
+  const maybeMore = !exhausted && bids.length >= FEED_PAGE;
+  const loadOlder = async () => {
+    if (loadingOlder || bids.length === 0) return;
+    setLoadingOlder(true);
+    try {
+      const oldest = bids.reduce((min: DkpBid, b: DkpBid) => (b.created_at < min.created_at ? b : min), bids[0]);
+      const older = await getAuctionBids(auctionId, FEED_PAGE, oldest.created_at);
+      if (older.length < FEED_PAGE) setExhausted(true);
+      if (older.length > 0) {
+        queryClient.setQueryData<DkpBid[]>(["dkp_theater_bids", serverId, auctionId], (cur) => {
+          const seen = new Set((cur ?? []).map((b) => b.id));
+          return [...(cur ?? []), ...older.filter((b) => !seen.has(b.id))];
+        });
+      }
+    } finally { setLoadingOlder(false); }
+  };
+
   const relevantBids = useMemo(() =>
-    bids
-      .filter((b: DkpBid) => b.auction_id === auctionId)
-      .sort((a: DkpBid, b: DkpBid) => b.bid_amount - a.bid_amount),
-    [bids, auctionId]
+    [...bids].sort((a: DkpBid, b: DkpBid) => b.bid_amount - a.bid_amount),
+    [bids]
   );
 
   // Fetch game rarities for color lookups
@@ -233,6 +257,12 @@ export default function AuctionTheater({
                 </div>
               ))}
             </div>
+            {maybeMore && (
+              <button onClick={loadOlder} disabled={loadingOlder}
+                className="w-full mt-2 py-1 text-[11px] text-[#52525b] hover:text-[#a1a1aa] transition disabled:opacity-50">
+                {loadingOlder ? <Loader2 className="w-3 h-3 animate-spin mx-auto" /> : "Load older bids"}
+              </button>
+            )}
           </div>
         )}
 
