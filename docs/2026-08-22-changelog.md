@@ -32,7 +32,7 @@
 
   Rows for players who are no longer members of the server keep a `NULL` `member_id` and stay keyed by name, which is already how the matrix displays them, and the foreign key is `ON DELETE SET NULL` so removing a member doesn't delete the overrides recorded for them. Where a rename left one player holding two overrides for the same item, the more recent `set_at` wins. The new unique index is deliberately non-partial: PostgREST names an upsert conflict target by column list and can't restate an index predicate.
 
-  On staging: 1,553 rows, 1,055 linked to a member, 498 left name-keyed, 1 superseded row merged away. Verified afterwards with no member split across two names, no stale cached names, no duplicate overrides and no dangling references. Applied to staging and production.
+  1,553 rows on the live database: 1,055 linked to a member, 498 left name-keyed, 1 superseded row merged away. Verified afterwards with no member split across two names, no stale cached names, no duplicate overrides and no dangling references.
 
 ## 🚀 Deploy
 
