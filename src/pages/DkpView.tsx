@@ -20,7 +20,8 @@ import { guildColor } from "@/lib/constants";
 import AuctionTheater from "@/components/AuctionTheater";
 import { ExpiredGate } from "@/components/ExpiredGate";
 import { useUserTimezone } from "@/hooks/useUserTimezone";
-import { useNowSec, useEnded } from "@/hooks/useSharedTick";
+import { useServerNowSec, useServerEnded, serverRemainingMs, applyServerClockSample } from "@/hooks/useSharedTick";
+import { fetchServerTime } from "@/lib/api/dkp";
 
 export function DkpView() {
   const { user, isViewer } = useAuth();
@@ -58,11 +59,32 @@ function DkpContent({ serverId }: { serverId: string }) {
   // Distinguishes the initial subscribe (queries are fresh) from a re-join
   // after a drop (events may have been missed).
   const hadConnectedRef = useRef(false);
+
+  // ── Server clock ──
+  // Countdowns render server time; the deadline check in place_bid uses the
+  // database clock, and device clocks drift enough (10-20s observed in
+  // production) to show bidding time that doesn't exist. Sampled at natural
+  // boundaries: page mount, channel re-join (below), and tab return — the
+  // moments a device clock is most likely to have jumped. Failure is silent by
+  // design: the device clock is the fallback and the server still arbitrates.
+  const sampleServerClock = useCallback(() => {
+    fetchServerTime()
+      .then((ms) => applyServerClockSample(ms, true))
+      .catch(() => {});
+  }, []);
+  useEffect(() => {
+    sampleServerClock();
+    const onVisible = () => { if (!document.hidden) sampleServerClock(); };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [sampleServerClock]);
   useEffect(() => {
     if (!serverId) return;
     const channel = supabase.channel(`dkp:${serverId}`, { config: { private: true } })
       .on("broadcast", { event: "bid" }, ({ payload }) => {
         const evt = payload as BidEvent;
+        // Free clock refinement: the event's ts is the DB's now() at commit.
+        applyServerClockSample(Date.parse(evt.ts), false);
         const res = applyBidEvent(queryClient, serverId, memberIdRef.current, evt);
         if (res.outbidMe) toast("warning", `You've been outbid on ${evt.itemName} — your ${evt.previousBidderRefund ?? ""} DKP was refunded.`);
       })
@@ -81,6 +103,9 @@ function DkpContent({ serverId }: { serverId: string }) {
         // reconnects everyone at once doesn't become a synchronized burst.
         if (status === "SUBSCRIBED") {
           if (hadConnectedRef.current) {
+            // Re-joins often follow wake-from-sleep — the moment device clocks
+            // jump — so re-sample the server clock along with the state resync.
+            sampleServerClock();
             const jitter = Math.random() * 3000;
             setTimeout(() => {
               queryClient.invalidateQueries({ queryKey: ["dkp_active_auctions", serverId] });
@@ -95,7 +120,7 @@ function DkpContent({ serverId }: { serverId: string }) {
       hadConnectedRef.current = false;
       supabase.removeChannel(channel);
     };
-  }, [serverId, queryClient, toast]);
+  }, [serverId, queryClient, toast, sampleServerClock]);
 
   // Wrap in React Query so it can be invalidated after claim acceptance
   const { data: memberId, isLoading: memberLoading } = useQuery({
@@ -616,7 +641,10 @@ function LiveAuction({ serverId, isStaff, memberId, tz, toast, queryClient, high
       // bid_count) with zero refetches. The reducer invalidates balance and
       // ledger for the bidder only.
       const evt = await placeBid(auctionId, bidAmt, serverId, auctions.find((a: ActiveAuction) => a.auction_id === auctionId)?.item_name);
-      if (evt && typeof evt === "object") applyBidEvent(queryClient, serverId, memberId, evt);
+      if (evt && typeof evt === "object") {
+        applyServerClockSample(Date.parse(evt.ts), false);
+        applyBidEvent(queryClient, serverId, memberId, evt);
+      }
       toast("success", `Bid placed.`);
       setShowBid(null);
     } catch (err: any) {
@@ -716,12 +744,13 @@ function serverLocalToUTC(dateTimeLocal: string, tz: string): string {
   return new Date(utcMs).toISOString();
 }
 
-/** Per-second leaf: the countdown clock. Only this span re-renders each tick. */
+/** Per-second leaf: the countdown clock, in server time. Only this span
+ *  re-renders each tick. */
 function RowCountdown({ endTime, ended }: { endTime: string; ended: boolean }) {
-  const now = useNowSec();
+  const now = useServerNowSec();
   const fmt = (n: number) => String(n).padStart(2, "0");
   if (ended) return <span className="text-red-400">Ended</span>;
-  const totalMs = Math.max(0, new Date(endTime).getTime() - now);
+  const totalMs = serverRemainingMs(endTime, now);
   const totalSec = Math.floor(totalMs / 1000);
   const days = Math.floor(totalSec / 86400), hours = Math.floor((totalSec % 86400) / 3600),
     minutes = Math.floor((totalSec % 3600) / 60), seconds = totalSec % 60;
@@ -735,8 +764,8 @@ function RowCountdown({ endTime, ended }: { endTime: string; ended: boolean }) {
 
 /** Per-second leaf: the time-remaining bar along the row's bottom edge. */
 function RowProgressBar({ endTime, createdAt, ended }: { endTime: string; createdAt: string; ended: boolean }) {
-  const now = useNowSec();
-  const totalMs = Math.max(0, new Date(endTime).getTime() - now);
+  const now = useServerNowSec();
+  const totalMs = serverRemainingMs(endTime, now);
   const totalDur = endTime && createdAt ? new Date(endTime).getTime() - new Date(createdAt).getTime() : 86400000;
   const barPct = ended ? 0 : Math.max(0, Math.min(100, (totalMs / totalDur) * 100));
   return (
@@ -749,9 +778,9 @@ function RowProgressBar({ endTime, createdAt, ended }: { endTime: string; create
 // second. Now a bid re-renders only the changed row (the cache patch gives
 // unchanged auctions stable identity), the shared ticker re-renders only the
 // two per-second leaves above, and the row itself re-renders once — when its
-// countdown crosses zero (useEnded returns a boolean snapshot).
+// countdown crosses zero (useServerEnded returns a boolean snapshot).
 const AuctionRow = memo(function AuctionRow({ item, isStaff, memberId, tz, onBid, onResolve, onViewBids, onTheater, onDuplicate, isHighlighted }: { item: ActiveAuction; isStaff: boolean; memberId: string | null; tz: string; onBid: (it: ActiveAuction) => void; onResolve: (it: ActiveAuction) => void; onViewBids: (it: ActiveAuction) => void; onTheater: (it: ActiveAuction) => void; onDuplicate?: (it: ActiveAuction) => void; isHighlighted?: boolean }) {
-  const ended = useEnded(item.bid_end_time);
+  const ended = useServerEnded(item.bid_end_time);
   const rarityColor = rc(item.rarity ?? undefined);
   const isWinning = memberId && item.top_bidder_member_id === memberId;
   const endLocal = item.bid_end_time ? new Date(item.bid_end_time).toLocaleString("en-US", { timeZone: tz, month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "";
@@ -925,9 +954,11 @@ function BidModalUI({ auctionId, bidAmt, setBidAmt, acting, error, onClose, onBi
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  const end = item?.bid_end_time ? new Date(item.bid_end_time) : null;
-  const left = end ? Math.max(0, Math.ceil((end.getTime() - Date.now()) / 60000)) : 0;
-  const hasEnded = left <= 0;
+  // Server-corrected, live, and second-precise. The old version computed
+  // ceil-to-minutes from the device clock once per fetch — at 9 real seconds
+  // left on a slow clock it said "1min left" with the button enabled, and the
+  // server refused the bid.
+  const hasEnded = useServerEnded(item?.bid_end_time ?? null);
   const rarityColor = rc(item?.rarity);
   const effectiveMin = Math.max(item?.dkp_cost ?? 1, (highestBid ?? 0) + 1);
   const presets = [effectiveMin, effectiveMin + 5, effectiveMin + 10, effectiveMin + 25].filter((v, i, a) => a.indexOf(v) === i);
@@ -941,7 +972,8 @@ function BidModalUI({ auctionId, bidAmt, setBidAmt, acting, error, onClose, onBi
         </div>
         <h3 className="text-sm font-semibold" style={{ color: rarityColor }}>{item?.name || "Item"}</h3>
         <div className="flex items-center gap-2 mt-0.5">
-          <p className="text-[11px] text-[#71717a]">Min bid: {effectiveMin} DKP · {hasEnded ? "Ended" : `${left}min left`}</p>
+          <p className="text-[11px] text-[#71717a] flex items-center gap-1">Min bid: {effectiveMin} DKP ·{" "}
+            {item?.bid_end_time ? <RowCountdown endTime={item.bid_end_time} ended={hasEnded} /> : "…"}</p>
           {balance != null && <span className={`text-[11px] ml-auto ${overBudget ? "text-red-400" : "text-[#a1a1aa]"}`}>{balance.balance} DKP available</span>}
         </div>
         {hasEnded && <p className="text-xs text-[#a1a1aa] mt-2 flex items-center gap-1"><Hourglass className="w-3 h-3" />Bidding has ended — awaiting finalization.</p>}

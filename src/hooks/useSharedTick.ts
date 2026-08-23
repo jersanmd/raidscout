@@ -45,3 +45,66 @@ export function useEnded(endTime: string | null): boolean {
     () => (endTime ? now >= new Date(endTime).getTime() : false),
   );
 }
+
+// ── Server-corrected clock (DKP countdowns) ─────────────────
+//
+// place_bid enforces deadlines on the database clock; a device clock running
+// 10-20s behind renders a countdown for time that does not exist, and the
+// player's bid dies with AUCTION_CLOSED at "9 seconds left". The hooks below
+// render server time instead, built from an offset (serverNow - deviceNow):
+//
+//   * An RPC sample (get_server_time) is authoritative and RESETS the offset —
+//     it survives a device clock being step-corrected mid-session.
+//   * Broadcast `ts` samples may only RAISE it. Every sample source
+//     underestimates the true offset (RPC by return latency, events by
+//     delivery latency), and underestimating shows the player MORE time than
+//     exists — so between samples, the max is both closest to truth and the
+//     conservative choice.
+//
+// DEADLINE_SAFETY_MS leans the residual error the safe way: remaining time is
+// computed in exactly ONE place (serverRemainingMs) with a 1s pessimistic
+// margin, so the countdown, progress bar, ended flip, bid button, theater and
+// modal can never disagree — and can never re-invite this bug. Boss timers
+// intentionally keep the uncorrected hooks above: nothing server-side refuses
+// an action at their deadlines.
+
+const DEADLINE_SAFETY_MS = 1000;
+
+let serverOffsetMs = 0;
+
+/** Feed one server-time sample (ms since epoch). `authoritative` = an RPC
+ *  sample: resets the baseline. Non-authoritative (broadcast ts): only raises. */
+export function applyServerClockSample(serverTsMs: number, authoritative: boolean): void {
+  if (!Number.isFinite(serverTsMs)) return;
+  const sample = serverTsMs - Date.now();
+  serverOffsetMs = authoritative ? sample : Math.max(serverOffsetMs, sample);
+  // Wake subscribers so a corrected countdown shows up now, not next tick.
+  now = Date.now();
+  listeners.forEach((l) => l());
+}
+
+/** Current server time in ms (device clock + learned offset). */
+export function serverNow(): number {
+  return Date.now() + serverOffsetMs;
+}
+
+/** Milliseconds of bidding actually left, with the pessimistic margin applied.
+ *  THE single place remaining time is computed. `serverNowMs` is server-
+ *  corrected time (defaults to serverNow()). */
+export function serverRemainingMs(endTime: string | null, serverNowMs: number = serverNow()): number {
+  if (!endTime) return 0;
+  return Math.max(0, new Date(endTime).getTime() - serverNowMs - DEADLINE_SAFETY_MS);
+}
+
+/** Server-corrected once-per-second timestamp. */
+export function useServerNowSec(): number {
+  return useSyncExternalStore(subscribe, () => Math.floor((now + serverOffsetMs) / 1000) * 1000);
+}
+
+/** Server-corrected "has bidding ended" — re-renders only when the answer flips. */
+export function useServerEnded(endTime: string | null): boolean {
+  return useSyncExternalStore(
+    subscribe,
+    () => (endTime ? serverRemainingMs(endTime, now + serverOffsetMs) <= 0 : false),
+  );
+}

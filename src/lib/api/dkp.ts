@@ -171,6 +171,17 @@ export async function unmarkItemFromBid(itemId: string): Promise<void> {
   if (error) throw error;
 }
 
+/** Sample the database clock (get_server_time RPC). Returns ms since epoch.
+ *  Feeds the corrected countdown clock; callers treat failure as non-fatal
+ *  (device clock remains the fallback — the server still arbitrates bids). */
+export async function fetchServerTime(): Promise<number> {
+  const { data, error } = await supabase.rpc("get_server_time");
+  if (error) throw error;
+  const ms = Date.parse(data as string);
+  if (!Number.isFinite(ms)) throw new Error("unparseable server time");
+  return ms;
+}
+
 /** Place a bid. Returns the same compact bid event place_bid broadcasts, so the
  *  caller can apply it to local caches immediately instead of refetching. */
 export async function placeBid(auctionId: string, amount: number, serverId: string, itemName?: string): Promise<BidEvent> {

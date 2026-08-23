@@ -4,6 +4,7 @@ import { X, Crown, Timer, Users, Loader2 } from "lucide-react";
 import { getActiveAuctions, getAuctionBids, type DkpBid } from "@/lib/api/dkp";
 import { supabase } from "@/lib/supabase";
 import { rarityColor, rarityGlow, fetchItemRarities } from "@/lib/rarity";
+import { useServerNowSec, serverRemainingMs } from "@/hooks/useSharedTick";
 
 const FEED_PAGE = 100;
 
@@ -16,14 +17,11 @@ export default function AuctionTheater({
   serverId: string;
   onClose: () => void;
 }) {
-  const [, setTick] = useState(0);
   const bidScrollRef = useRef<HTMLDivElement>(null);
 
-  // Force re-render every second for smooth countdown
-  useEffect(() => {
-    const iv = setInterval(() => setTick(t => t + 1), 1000);
-    return () => clearInterval(iv);
-  }, []);
+  // Server-corrected shared ticker drives the countdown (one interval
+  // app-wide; renders server time, not the device clock).
+  const now = useServerNowSec();
 
   // Initial load only — after that, every bid arrives as a broadcast event and
   // applyBidEvent writes it into these exact cache keys. The long staleTime is
@@ -112,10 +110,9 @@ export default function AuctionTheater({
     }
   }, [bids.length]);
 
-  // Compute time remaining
-  const now = Date.now();
+  // Compute time remaining, per the server's clock
   const endTime = auction ? new Date(auction.bid_end_time).getTime() : now;
-  const remainingMs = Math.max(0, endTime - now);
+  const remainingMs = auction ? serverRemainingMs(auction.bid_end_time, now) : 0;
   const ended = remainingMs <= 0;
   const totalMs = auction ? endTime - new Date(auction.created_at).getTime() : 3600_000;
   const pctRemaining = totalMs > 0 ? Math.min(100, Math.max(0, (remainingMs / totalMs) * 100)) : 0;
