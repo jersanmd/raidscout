@@ -47,7 +47,9 @@ export function useClaimNotifications() {
     };
 
     check();
-    const interval = setInterval(check, 30_000); // Poll every 30s
+    // Safety-net cadence only (claim decisions are minutes-scale events), and
+    // skipped entirely while the tab is hidden.
+    const interval = setInterval(() => { if (!document.hidden) check(); }, 120_000);
     return () => clearInterval(interval);
   }, [user]);
 

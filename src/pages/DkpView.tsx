@@ -13,6 +13,7 @@ import {
   type DkpBalance, type DkpRanking, type DkpTransaction, type ItemBid, type ActiveAuction, type PastAuction,
 } from "@/lib/supabase";
 import { AuditAction, writeAuditEntry } from "@/lib/api/audit";
+import { applyBidEvent, mapBidError, type BidEvent, type SyncEvent } from "@/lib/dkp-live";
 import { useMembers } from "@/hooks/useMembers";
 import { Coins, TrendingUp, TrendingDown, History, Gavel, Loader2, Shield, Clock, Check, X, AlertTriangle, Image, Plus, Eye, Hourglass, Trash2, Pencil, CheckCircle, Package, Settings, Search, Gift, Minus, Copy } from "lucide-react";
 import { guildColor } from "@/lib/constants";
@@ -44,34 +45,38 @@ function DkpContent({ serverId }: { serverId: string }) {
   const [searchParams] = useSearchParams();
   const highlightItemId = searchParams.get("highlight") || undefined;
 
-  // ── Realtime: push updates for DKP tables instead of polling ──
+  // ── Realtime: one private broadcast channel per server ──
+  // place_bid broadcasts a compact event carrying the complete post-bid auction
+  // state; applyBidEvent writes it straight into the query caches. Nothing here
+  // triggers a refetch per bid — that was the old postgres_changes flow, where
+  // every bid on any of the 45 servers made every connected client fire ~5 HTTP
+  // requests. Rare lifecycle beats ('sync') still refetch, which is fine.
   const [rtStatus, setRtStatus] = useState<string>("connecting");
+  // memberId resolves asynchronously; a ref keeps the channel from resubscribing.
+  const memberIdRef = useRef<string | null>(null);
   useEffect(() => {
-    const channel = supabase.channel("dkp-realtime")
-      .on("postgres_changes", { event: "*", schema: "public", table: "dkp_auctions" }, () => {
-        queryClient.invalidateQueries({ queryKey: ["dkp_active_auctions"] });
-        queryClient.invalidateQueries({ queryKey: ["dkp_past_auctions"] });
+    if (!serverId) return;
+    const channel = supabase.channel(`dkp:${serverId}`, { config: { private: true } })
+      .on("broadcast", { event: "bid" }, ({ payload }) => {
+        const evt = payload as BidEvent;
+        const res = applyBidEvent(queryClient, serverId, memberIdRef.current, evt);
+        if (res.outbidMe) toast("warning", `You've been outbid on ${evt.itemName} — your ${evt.previousBidderRefund ?? ""} DKP was refunded.`);
       })
-      .on("postgres_changes", { event: "*", schema: "public", table: "dkp_bids" }, () => {
-        queryClient.invalidateQueries({ queryKey: ["dkp_active_auctions"] });
-        queryClient.invalidateQueries({ queryKey: ["dkp_theater_bids"] });
-        queryClient.invalidateQueries({ queryKey: ["dkp_balance"] });
-        queryClient.invalidateQueries({ queryKey: ["dkp_rankings"] });
-      })
-      .on("postgres_changes", { event: "*", schema: "public", table: "dkp_transactions" }, () => {
-        queryClient.invalidateQueries({ queryKey: ["dkp_balance"] });
-        queryClient.invalidateQueries({ queryKey: ["dkp_rankings"] });
-        queryClient.invalidateQueries({ queryKey: ["dkp_history"] });
-      })
-      .on("postgres_changes", { event: "*", schema: "public", table: "dkp_distributed" }, () => {
-        queryClient.invalidateQueries({ queryKey: ["dkp_past_auctions"] });
+      .on("broadcast", { event: "sync" }, ({ payload }) => {
+        const evt = payload as SyncEvent;
+        queryClient.invalidateQueries({ queryKey: ["dkp_active_auctions", serverId] });
+        if (evt.kind === "auction_resolved") {
+          queryClient.invalidateQueries({ queryKey: ["dkp_past_auctions", serverId] });
+          queryClient.invalidateQueries({ queryKey: ["dkp_balance"] });
+          queryClient.invalidateQueries({ queryKey: ["dkp_history"] });
+        }
       })
       .subscribe((status) => {
         setRtStatus(status === "SUBSCRIBED" ? "connected" : status === "CHANNEL_ERROR" ? "error" : status === "TIMED_OUT" ? "timeout" : "connecting");
       });
 
     return () => { supabase.removeChannel(channel); };
-  }, [queryClient]);
+  }, [serverId, queryClient, toast]);
 
   // Wrap in React Query so it can be invalidated after claim acceptance
   const { data: memberId, isLoading: memberLoading } = useQuery({
@@ -85,6 +90,7 @@ function DkpContent({ serverId }: { serverId: string }) {
     enabled: !!serverId && !!user,
     staleTime: 30_000,
   });
+  useEffect(() => { memberIdRef.current = memberId ?? null; }, [memberId]);
 
   const { data: dkpConfig } = useQuery({ queryKey: ["dkp_config", serverId], queryFn: () => getDkpConfig(serverId), enabled: !!serverId });
   if (!dkpConfig?.enabled) return (
@@ -137,7 +143,7 @@ function DkpContent({ serverId }: { serverId: string }) {
         </div>
         {/* Right column */}
         <div className="lg:col-span-2 space-y-4">
-          <LiveAuction serverId={serverId} isStaff={isStaff} memberId={memberId} tz={tz} toast={toast} queryClient={queryClient} highlightItemId={highlightItemId} />
+          <LiveAuction serverId={serverId} isStaff={isStaff} memberId={memberId} tz={tz} toast={toast} queryClient={queryClient} highlightItemId={highlightItemId} live={rtStatus === "connected"} />
           <AuctionHistory serverId={serverId} memberId={memberId} isStaff={isStaff} queryClient={queryClient} toast={toast} userId={user?.id} />
           {memberId && <HistorySection memberId={memberId} serverId={serverId} />}
         </div>
@@ -504,7 +510,7 @@ function MemberHistoryModal({ memberId, memberName, balance, serverId, onClose }
   );
 }
 
-function LiveAuction({ serverId, isStaff, memberId, tz, toast, queryClient, highlightItemId }: { serverId: string; isStaff: boolean; memberId: string | null; tz: string; toast: any; queryClient: any; highlightItemId?: string }) {
+function LiveAuction({ serverId, isStaff, memberId, tz, toast, queryClient, highlightItemId, live }: { serverId: string; isStaff: boolean; memberId: string | null; tz: string; toast: any; queryClient: any; highlightItemId?: string; live?: boolean }) {
   const [showMark, setShowMark] = useState(false);
   const [showBid, setShowBid] = useState<string | null>(null);
   const [showResolve, setShowResolve] = useState<string | null>(null);
@@ -519,7 +525,15 @@ function LiveAuction({ serverId, isStaff, memberId, tz, toast, queryClient, high
   const [acting, setActing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const { data: auctions = [], isLoading } = useQuery({ queryKey: ["dkp_active_auctions", serverId], queryFn: () => getActiveAuctions(serverId), staleTime: 3_000 });
+  // Broadcast events keep this cache current; refetching per bid is exactly the
+  // amplification this design removes. If the realtime channel drops, degrade to
+  // a modest poll so the auction list can't silently go stale.
+  const { data: auctions = [], isLoading } = useQuery({
+    queryKey: ["dkp_active_auctions", serverId],
+    queryFn: () => getActiveAuctions(serverId),
+    staleTime: 10_000,
+    refetchInterval: live ? false : 15_000,
+  });
 
   // Fetch member's guild for guild-restriction filtering
   const [myGuildId, setMyGuildId] = useState<string | null>(null);
@@ -575,8 +589,22 @@ function LiveAuction({ serverId, isStaff, memberId, tz, toast, queryClient, high
 
   const doBid = async (auctionId: string) => {
     setActing(true); setError(null);
-    try { await placeBid(auctionId, bidAmt, serverId, auctions.find((a: ActiveAuction) => a.auction_id === auctionId)?.item_name); queryClient.invalidateQueries({ queryKey: ["dkp_balance"] }); queryClient.invalidateQueries({ queryKey: ["dkp_active_auctions"] }); queryClient.invalidateQueries({ queryKey: ["dkp_theater_bids"] }); queryClient.invalidateQueries({ queryKey: ["dkp_rankings", serverId] }); queryClient.invalidateQueries({ queryKey: ["dkp_history"] }); toast("success", `Bid placed.`); setShowBid(null); }
-    catch (err: any) { setError(err?.message || "Failed"); toast("error", err?.message || "Failed to place bid"); } finally { setActing(false); }
+    try {
+      // place_bid returns the same event it broadcasts; applying it locally
+      // makes the UI correct immediately (the broadcast echo dedupes by
+      // bid_count) with zero refetches. The reducer invalidates balance and
+      // ledger for the bidder only.
+      const evt = await placeBid(auctionId, bidAmt, serverId, auctions.find((a: ActiveAuction) => a.auction_id === auctionId)?.item_name);
+      if (evt && typeof evt === "object") applyBidEvent(queryClient, serverId, memberId, evt);
+      toast("success", `Bid placed.`);
+      setShowBid(null);
+    } catch (err: any) {
+      const mapped = mapBidError(err);
+      setError(mapped.message);
+      toast("error", mapped.message);
+      // Losing a race means our local auction state is behind — refresh it once.
+      if (mapped.refreshAuctions) queryClient.invalidateQueries({ queryKey: ["dkp_active_auctions", serverId] });
+    } finally { setActing(false); }
   };
 
   const doResolve = async (auctionId: string, winnerId: string | null) => {

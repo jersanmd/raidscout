@@ -30,9 +30,12 @@ export function ClaimNotificationBadge() {
     queryKey: ["pending_claims", serverId],
     queryFn: () => getPendingClaims(serverId!),
     enabled: !!serverId && !!user && !isViewer,
-    refetchInterval: 30_000,
+    // The realtime subscription below is the primary signal (and the dropdown
+    // refetches on open); this interval is only a safety net. At 30s it was a
+    // permanent 2 req/min per client floor from the always-mounted Layout.
+    refetchInterval: 120_000,
     refetchOnMount: true,
-    staleTime: 0,
+    staleTime: 60_000,
   });
 
   // Realtime subscription: detect new claims instantly

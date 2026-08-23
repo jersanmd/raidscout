@@ -288,10 +288,11 @@ export function BotStatusIndicator({ timezone }: { timezone: string }) {
     }
   }, [botUrl]);
 
-  // Poll status every 30 seconds
+  // Poll status every 60 seconds, skipping hidden tabs — this widget is
+  // informational and mounted in Layout on every page.
   useEffect(() => {
     fetchStatus();
-    const interval = setInterval(fetchStatus, 30_000);
+    const interval = setInterval(() => { if (!document.hidden) fetchStatus(); }, 60_000);
     return () => clearInterval(interval);
   }, [fetchStatus]);
 

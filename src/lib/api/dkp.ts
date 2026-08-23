@@ -1,5 +1,6 @@
 import { supabase, getCurrentServerId } from "./client";
 import { AuditAction, writeAuditEntry } from "./audit";
+import type { BidEvent } from "@/lib/dkp-live";
 
 // ── Types ───────────────────────────────────────────────────
 
@@ -170,7 +171,9 @@ export async function unmarkItemFromBid(itemId: string): Promise<void> {
   if (error) throw error;
 }
 
-export async function placeBid(auctionId: string, amount: number, serverId: string, itemName?: string): Promise<string> {
+/** Place a bid. Returns the same compact bid event place_bid broadcasts, so the
+ *  caller can apply it to local caches immediately instead of refetching. */
+export async function placeBid(auctionId: string, amount: number, serverId: string, itemName?: string): Promise<BidEvent> {
   const { data, error } = await supabase.rpc("place_bid", {
     p_auction_id: auctionId,
     p_amount: amount,
@@ -183,7 +186,7 @@ export async function placeBid(auctionId: string, amount: number, serverId: stri
     target_id: auctionId,
     details: { item_name: itemName, bid_amount: amount },
   }).catch(() => {});
-  return data as string;
+  return data as BidEvent;
 }
 
 export async function cancelBid(bidId: string): Promise<void> {
@@ -266,32 +269,17 @@ export interface PastAuction {
 }
 
 export async function getActiveAuctions(serverId: string): Promise<ActiveAuction[]> {
-  const { data: auctions } = await supabase.from("dkp_auctions")
-    .select("id, item_id, dkp_cost, bid_end_time, guild_id, quantity, created_at, items:item_id(name, image_url, rarity), guilds:guild_id(name)")
+  // Single round trip: the auction row carries its own denormalized state
+  // (highest_bid / highest_bidder_id / bid_count, maintained by place_bid), so
+  // the per-call server-wide bid scan and the second guild fetch are gone.
+  const { data: auctions, error } = await supabase.from("dkp_auctions")
+    .select("id, item_id, dkp_cost, bid_end_time, guild_id, quantity, created_at, highest_bid, highest_bidder_id, bid_count, items:item_id(name, image_url, rarity), guilds:guild_id(name)")
     .eq("server_id", serverId)
     .eq("status", "active")
     .order("bid_end_time", { ascending: true });
+  if (error) throw error;
 
-  if (!auctions?.length) return [];
-
-  const activeGuildIds = [...new Set(auctions.map(a => a.guild_id).filter(Boolean))] as string[];
-  const activeGuildMap = new Map<string, string>();
-  if (activeGuildIds.length > 0) {
-    const { data: guilds } = await supabase.from("guilds").select("id, name").in("id", activeGuildIds);
-    (guilds || []).forEach((g: any) => activeGuildMap.set(g.id, g.name));
-  }
-
-  const bids = await getActiveBids(serverId);
-  const bidMap: Record<string, { total: number; highest: number; topBidderId: string | null }> = {};
-  bids.forEach((b: DkpBid) => {
-    const key = b.auction_id || b.item_id; // fallback for old bids
-    const e = bidMap[key] || { total: 0, highest: 0, topBidderId: null };
-    e.total++;
-    if (b.status === 'active' && b.bid_amount > e.highest) { e.highest = b.bid_amount; e.topBidderId = b.member_id; }
-    bidMap[key] = e;
-  });
-
-  return auctions.map((a: any) => ({
+  return (auctions ?? []).map((a: any) => ({
     auction_id: a.id,
     item_id: a.item_id,
     item_name: a.items?.name ?? "Unknown",
@@ -299,11 +287,11 @@ export async function getActiveAuctions(serverId: string): Promise<ActiveAuction
     rarity: a.items?.rarity,
     dkp_cost: a.dkp_cost ?? 0,
     bid_end_time: a.bid_end_time,
-    highest_bid: bidMap[a.id]?.highest ?? 0,
-    bid_count: bidMap[a.id]?.total ?? 0,
-    top_bidder_member_id: bidMap[a.id]?.topBidderId ?? null,
+    highest_bid: a.highest_bid ?? 0,
+    bid_count: a.bid_count ?? 0,
+    top_bidder_member_id: a.highest_bidder_id ?? null,
     guild_id: a.guild_id ?? null,
-    guild_name: a.guild_id ? (activeGuildMap.get(a.guild_id) ?? null) : null,
+    guild_name: a.guilds?.name ?? null,
     quantity: a.quantity ?? 1,
     created_at: a.created_at,
   }));

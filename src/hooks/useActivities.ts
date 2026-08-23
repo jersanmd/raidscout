@@ -62,7 +62,9 @@ export function useActivities() {
       return (data || []) as ActivityInstance[];
     },
     staleTime: 0,
-    refetchInterval: 2_000,
+    // 10s, matching useBosses/useDeathRecords. The previous 2s interval made
+    // every client on an activities page a permanent 0.5 req/s load by itself.
+    refetchInterval: 10_000,
     enabled: configured && !!serverId && activities.length > 0,
   });
 

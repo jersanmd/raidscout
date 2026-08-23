@@ -23,20 +23,22 @@ export default function AuctionTheater({
     return () => clearInterval(iv);
   }, []);
 
-  // Fetch auction + bids — realtime pushes updates, no polling needed
+  // Initial load only — after that, every bid arrives as a broadcast event and
+  // applyBidEvent writes it into these exact cache keys. The long staleTime is
+  // deliberate: a remount must not refetch what events keep current.
   const { data: auction } = useQuery({
     queryKey: ["dkp_theater_auction", serverId, auctionId],
     queryFn: async () => {
       const auctions = await getActiveAuctions(serverId);
       return auctions.find(a => a.auction_id === auctionId) ?? null;
     },
-    staleTime: 2_000,
+    staleTime: 60_000,
   });
 
   const { data: bids = [] } = useQuery({
     queryKey: ["dkp_theater_bids", serverId],
     queryFn: () => getActiveBids(serverId),
-    staleTime: 2_000,
+    staleTime: 60_000,
   });
 
   const relevantBids = useMemo(() =>
