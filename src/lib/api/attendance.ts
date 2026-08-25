@@ -157,15 +157,29 @@ export async function clearAllData(): Promise<void> {
  * Skips members that already have attendance on the target.
  * Returns the number of records copied.
  */
+/** Party leaders a copy should carry over: the source's per-guild leader map
+ *  filtered down to guilds the target has no leader for. Never overwrites a
+ *  leader someone set on the target deliberately. Pure — unit tested. */
+export function mergePartyLeaders(
+  source: Record<string, string> | null | undefined,
+  target: Record<string, string> | null | undefined,
+): Record<string, string> {
+  const add: Record<string, string> = {};
+  for (const [guildId, memberId] of Object.entries(source ?? {})) {
+    if (memberId && !(target ?? {})[guildId]) add[guildId] = memberId;
+  }
+  return add;
+}
+
 export async function copyAttendanceToDeath(
   sourceDeathRecordId: string,
   targetDeathRecordId: string,
-): Promise<{ copied: number; skipped: number }> {
+): Promise<{ copied: number; skipped: number; leadersCopied: number }> {
   const sid = getCurrentServerId();
 
   // Fetch source attendance
   const sourceAttendance = await fetchAttendanceForDeath(sourceDeathRecordId);
-  if (!sourceAttendance.length) return { copied: 0, skipped: 0 };
+  if (!sourceAttendance.length) return { copied: 0, skipped: 0, leadersCopied: 0 };
 
   // Fetch existing target attendance to avoid duplicates
   const targetAttendance = await fetchAttendanceForDeath(targetDeathRecordId);
@@ -175,8 +189,6 @@ export async function copyAttendanceToDeath(
   const toInsert = sourceAttendance.filter(a => !existingMemberIds.has(a.member_id));
   const skipped = sourceAttendance.length - toInsert.length;
 
-  if (!toInsert.length) return { copied: 0, skipped };
-
   const rows = toInsert.map(a => ({
     death_record_id: targetDeathRecordId,
     member_id: a.member_id,
@@ -185,30 +197,55 @@ export async function copyAttendanceToDeath(
 
   const { data: { session } } = await supabase.auth.getSession();
 
-  // Fetch boss names and death times for audit
+  // Fetch boss names, death times (audit) and party-leader maps (carried over
+  // below — the leader lives on the death record, not on attendance rows).
   let sourceBoss = sourceDeathRecordId, targetBoss = targetDeathRecordId, sourceTime = "", targetTime = "";
+  let sourceLeaders: Record<string, string> = {}, targetLeaders: Record<string, string> = {};
   try {
-    const { data: drs } = await supabase.from("death_records").select("id,death_time,boss_id,bosses(name)").in("id", [sourceDeathRecordId, targetDeathRecordId]);
+    const { data: drs } = await supabase.from("death_records").select("id,death_time,boss_id,party_leaders,bosses(name)").in("id", [sourceDeathRecordId, targetDeathRecordId]);
     for (const dr of (drs || [])) {
       const bossName = (dr as any).bosses?.name || "?";
       const dt = (dr as any).death_time ? new Date((dr as any).death_time).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "";
-      if (dr.id === sourceDeathRecordId) { sourceBoss = bossName; sourceTime = dt; }
-      if (dr.id === targetDeathRecordId) { targetBoss = bossName; targetTime = dt; }
+      if (dr.id === sourceDeathRecordId) { sourceBoss = bossName; sourceTime = dt; sourceLeaders = (dr as any).party_leaders ?? {}; }
+      if (dr.id === targetDeathRecordId) { targetBoss = bossName; targetTime = dt; targetLeaders = (dr as any).party_leaders ?? {}; }
     }
   } catch { /* non-critical */ }
 
   if (session?.user) {
-    const { error } = await supabase
-      .from("attendance_records")
-      .insert(rows);
-    if (error) throw error;
-    writeAuditEntry({ action: AuditAction.ATTENDANCE_COPY, server_id: sid!, details: { copied: rows.length, skipped, from_boss: sourceBoss, from_time: sourceTime, to_boss: targetBoss, to_time: targetTime } });
-    return { copied: rows.length, skipped };
+    if (rows.length) {
+      const { error } = await supabase
+        .from("attendance_records")
+        .insert(rows);
+      if (error) throw error;
+    }
+
+    // Carry the source's party leaders onto the target death record, filling
+    // only guilds with no leader yet. Runs even when every member was skipped
+    // (a re-copy after a partial state should still complete the leaders).
+    // Non-critical: a failure here must not undo a successful attendance copy.
+    let leadersCopied = 0;
+    const leadersToAdd = mergePartyLeaders(sourceLeaders, targetLeaders);
+    if (Object.keys(leadersToAdd).length) {
+      try {
+        const { error: leaderErr } = await supabase
+          .from("death_records")
+          .update({ party_leaders: { ...targetLeaders, ...leadersToAdd } })
+          .eq("id", targetDeathRecordId);
+        if (!leaderErr) leadersCopied = Object.keys(leadersToAdd).length;
+      } catch { /* non-critical */ }
+    }
+
+    writeAuditEntry({ action: AuditAction.ATTENDANCE_COPY, server_id: sid!, details: { copied: rows.length, skipped, party_leaders_copied: leadersCopied, from_boss: sourceBoss, from_time: sourceTime, to_boss: targetBoss, to_time: targetTime } });
+    return { copied: rows.length, skipped, leadersCopied };
   }
+
+  if (!rows.length) return { copied: 0, skipped, leadersCopied: 0 };
 
   const viewerKey = getCurrentViewerKey();
   if (viewerKey) {
-    // Insert one at a time via viewer RPC (there's no bulk viewer RPC)
+    // Insert one at a time via viewer RPC (there's no bulk viewer RPC).
+    // Viewers cannot update death_records, so party leaders are not carried
+    // over on this path — in practice the copy UI is staff-only anyway.
     let copied = 0;
     for (const r of rows) {
       const { error } = await supabase
@@ -220,7 +257,7 @@ export async function copyAttendanceToDeath(
       if (!error) copied++;
     }
     writeAuditEntry({ action: AuditAction.ATTENDANCE_COPY, server_id: sid!, details: { copied, skipped: rows.length - copied, from_boss: sourceBoss, from_time: sourceTime, to_boss: targetBoss, to_time: targetTime }, viewer_key: viewerKey });
-    return { copied, skipped: rows.length - copied };
+    return { copied, skipped: rows.length - copied, leadersCopied: 0 };
   }
 
   throw new Error("Not authenticated");

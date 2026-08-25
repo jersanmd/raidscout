@@ -253,7 +253,7 @@ export function WeeklyScheduleView() {
         sourceDeathRecordId: copySource.deathRecordId,
         targetDeathRecordId: copyConfirm.deathRecordId,
       });
-      setCopyToast({ type: "success", message: `Copied ${result.copied} attendance${result.copied !== 1 ? "s" : ""}${result.skipped > 0 ? ` (${result.skipped} already present)` : ""}.` });
+      setCopyToast({ type: "success", message: `Copied ${result.copied} attendance${result.copied !== 1 ? "s" : ""}${result.skipped > 0 ? ` (${result.skipped} already present)` : ""}${result.leadersCopied > 0 ? ` · party leader${result.leadersCopied !== 1 ? "s" : ""} carried over` : ""}.` });
     } catch (err: any) {
       setCopyToast({ type: "error", message: err?.message ?? "Failed to copy attendance." });
     }
