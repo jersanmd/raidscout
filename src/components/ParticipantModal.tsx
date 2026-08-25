@@ -907,7 +907,15 @@ export function ParticipantModal({
                       No members found.
                     </p>
                   ) : (
-                    guildGroups.map((group) => (
+                    guildGroups.map((group) => {
+                      // Per-guild checked-attendance counter, so staff can
+                      // verify a guild's headcount without counting checkboxes.
+                      // Counted over the FULL member list, not group.members —
+                      // that one is search-filtered, and the headcount must not
+                      // shrink while typing in the search box.
+                      const guildMembers = members.filter((m) => ((m as any).guild_id ?? null) === group.guildId);
+                      const checkedCount = guildMembers.filter((m) => attendedIds.has(m.id)).length;
+                      return (
                       <div key={group.guildId ?? "noguild"}>
                         {/* Guild header */}
                         {group.guildId && (
@@ -954,11 +962,23 @@ export function ParticipantModal({
                                     ))}
                                 </select>
                               ))}
+                            <span
+                              className={`text-[11px] font-semibold px-1.5 py-0.5 rounded tabular-nums ${checkedCount > 0 ? "bg-emerald-500/10 text-emerald-400" : "bg-[#27272a] text-[#71717a]"}`}
+                              title={`${checkedCount} of ${guildMembers.length} members checked`}
+                            >
+                              ✓ {checkedCount}
+                            </span>
                           </div>
                         )}
                         {!group.guildId && guilds.length > 0 && (
-                          <p className="text-[11px] font-medium text-[#71717a] uppercase tracking-wider mb-1 px-1">
+                          <p className="flex items-center gap-2 text-[11px] font-medium text-[#71717a] uppercase tracking-wider mb-1 px-1">
                             No Guild
+                            <span
+                              className={`font-semibold px-1.5 py-0.5 rounded tabular-nums normal-case tracking-normal ${checkedCount > 0 ? "bg-emerald-500/10 text-emerald-400" : "bg-[#27272a] text-[#71717a]"}`}
+                              title={`${checkedCount} of ${guildMembers.length} members checked`}
+                            >
+                              ✓ {checkedCount}
+                            </span>
                           </p>
                         )}
                         {/* Member chips */}
@@ -993,7 +1013,8 @@ export function ParticipantModal({
                           })}
                         </div>
                       </div>
-                    ))
+                      );
+                    })
                   )}
                 </div>
               </div>
