@@ -934,10 +934,10 @@ export function ParticipantModal({
                         >
                           <option value="">—</option>
                           {(() => {
-                            // Attending members, plus the current looter even if
-                            // their attendance was later unchecked (so the select
-                            // never displays blank while a value is set).
-                            const opts = members.filter((m) => attendedIds.has(m.id) || m.id === lootedBy);
+                            // Strictly the kill's checked attendees. If the stored
+                            // looter's attendance is later unchecked, the select
+                            // shows "—" until a new looter is picked.
+                            const opts = members.filter((m) => attendedIds.has(m.id));
                             opts.sort((a, b) => a.name.localeCompare(b.name));
                             return opts.map((m) => (
                               <option key={m.id} value={m.id}>{m.name}</option>
