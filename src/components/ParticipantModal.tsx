@@ -83,6 +83,74 @@ function findClosestMember(
   return best;
 }
 
+// ── Looted-by searchable picker ─────────────────────────────
+// Same combobox pattern as DeathRecordModal's PartyLeaderSearch: rosters run
+// to dozens of names, so the looter is picked by typing, not scrolling.
+
+function LooterSearch({
+  members, selectedId, selectedName, onSelect,
+}: {
+  members: { id: string; name: string }[];
+  selectedId: string | null;
+  selectedName?: string;
+  onSelect: (id: string | null) => void;
+}) {
+  const [search, setSearch] = useState("");
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const filtered = search.trim()
+    ? members.filter((m) => m.name.toLowerCase().includes(search.toLowerCase()))
+    : members;
+
+  return (
+    <div ref={ref} className="relative w-36">
+      <input
+        type="text"
+        value={open ? search : (selectedName ?? "")}
+        onChange={(e) => { setSearch(e.target.value); setOpen(true); }}
+        onFocus={() => { setSearch(""); setOpen(true); }}
+        placeholder={selectedName ?? "Search looter…"}
+        className={`w-full px-2 py-1 pr-6 bg-[#18181b] border rounded text-xs placeholder-[#52525b] focus:outline-none focus:ring-1 focus:ring-[#27272a] ${selectedId ? "border-amber-500/30 text-amber-400" : "border-[#27272a] text-[#fafafa]"}`}
+      />
+      {selectedId && (
+        <button
+          onClick={() => { setSearch(""); setOpen(false); onSelect(null); }}
+          className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[#52525b] hover:text-[#f87171]"
+          title="Clear looter"
+        >
+          <X className="w-3 h-3" />
+        </button>
+      )}
+      {open && (
+        <div className="absolute z-20 left-0 right-0 mt-1 max-h-40 overflow-y-auto bg-[#18181b] border border-[#27272a] rounded shadow-lg">
+          {filtered.length === 0 ? (
+            <p className="px-2 py-1.5 text-[11px] text-[#52525b]">No attending member matches.</p>
+          ) : (
+            filtered.slice(0, 30).map((m) => (
+              <button
+                key={m.id}
+                onClick={() => { onSelect(m.id); setSearch(""); setOpen(false); }}
+                className={`w-full text-left px-2 py-1 text-xs hover:bg-[#27272a] transition ${m.id === selectedId ? "text-amber-400 bg-[#27272a]" : "text-[#a1a1aa]"}`}
+              >
+                {m.name}
+              </button>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Component ───────────────────────────────────────────────
 
 interface ParticipantModalProps {
@@ -927,23 +995,18 @@ export function ParticipantModal({
                       <label className="inline-flex items-center gap-1.5 text-xs text-[#a1a1aa]">
                         <Gem className="w-3 h-3 text-amber-400" />
                         Looted by
-                        <select
-                          value={lootedBy ?? ""}
-                          onChange={(e) => saveLootedBy(e.target.value || null)}
-                          className="text-xs px-2 py-1 rounded border font-medium bg-[#18181b] border-amber-500/30 text-amber-400 focus:outline-none focus:ring-1 focus:ring-[#27272a]"
-                        >
-                          <option value="">—</option>
-                          {(() => {
-                            // Strictly the kill's checked attendees. If the stored
-                            // looter's attendance is later unchecked, the select
-                            // shows "—" until a new looter is picked.
-                            const opts = members.filter((m) => attendedIds.has(m.id));
-                            opts.sort((a, b) => a.name.localeCompare(b.name));
-                            return opts.map((m) => (
-                              <option key={m.id} value={m.id}>{m.name}</option>
-                            ));
-                          })()}
-                        </select>
+                        <LooterSearch
+                          // Strictly the kill's checked attendees. If the stored
+                          // looter's attendance is later unchecked, the box shows
+                          // its placeholder until a new looter is picked.
+                          members={members
+                            .filter((m) => attendedIds.has(m.id))
+                            .sort((a, b) => a.name.localeCompare(b.name))
+                            .map((m) => ({ id: m.id, name: m.name }))}
+                          selectedId={lootedBy}
+                          selectedName={lootedBy ? members.find((m) => m.id === lootedBy)?.name : undefined}
+                          onSelect={(id) => saveLootedBy(id)}
+                        />
                       </label>
                     )
                   )}
