@@ -451,7 +451,7 @@ function LeaderboardViewContent() {
       if (candidateDeathIds.length > 0) {
         const { data: d, error: deathsErr } = await supabase
           .from("death_records")
-          .select("id,boss_id,death_time,party_leaders,owner_guild_id")
+          .select("id,boss_id,death_time,party_leaders,owner_guild_id,looted_by")
           .in("id", candidateDeathIds)
           .gte("death_time", startISO)
           .lte("death_time", endISO)
@@ -468,6 +468,18 @@ function LeaderboardViewContent() {
         .select("id,name,boss_points")
         .in("id", bossIds);
       const bossMap = new Map((bosses || []).map((b: any) => [b.id, b]));
+
+      // Resolve looter names separately: on shared kills the looter can belong
+      // to another guild, so the guild-scoped memberMap may not know them.
+      const lootedNameMap = new Map<string, string>();
+      const lootedByIds = [...new Set(deaths.map((d: any) => d.looted_by).filter(Boolean))] as string[];
+      if (lootedByIds.length > 0) {
+        const { data: looters } = await supabase
+          .from("members")
+          .select("id,name")
+          .in("id", lootedByIds);
+        (looters || []).forEach((m: any) => lootedNameMap.set(m.id, m.name));
+      }
 
       // Fetch per-guild point overrides + salary flags for this guild's bosses
       const { data: bgData } = await supabase
@@ -640,6 +652,7 @@ function LeaderboardViewContent() {
                 actTimeFmt.format(new Date(ai.end_time)),
                 `\u{1F3AF} ${activity?.name || "Activity"}`,  // 🎯 marker for activity
                 "",  // no party leader
+                "",  // no looter (activities have no drop)
                 "—", // no salary
               ];
               sortedMembers.forEach(mid => {
@@ -707,14 +720,14 @@ function LeaderboardViewContent() {
         // ── Data + Rankings ──
         const playerColors = ["#7C3AED","#059669","#D97706","#0891B2","#DB2777","#4F46E5"];
         // Header row 0: player names + ranking header
-        html += `<tr><th class="hdr">#</th><th class="hdr">Date</th><th class="hdr">Time</th><th class="hdr boss" style="text-align:left">Boss / Activity</th><th class="hdr">Party Leader</th><th class="hdr">Salary</th>`;
+        html += `<tr><th class="hdr">#</th><th class="hdr">Date</th><th class="hdr">Time</th><th class="hdr boss" style="text-align:left">Boss / Activity</th><th class="hdr">Party Leader</th><th class="hdr">Looted By</th><th class="hdr">Salary</th>`;
         sortedMembers.forEach((mid, i) => {
           html += `<th class="hdr" style="background:${playerColors[i % 6]}">${memberMap.get(mid) || "?"}</th>`;
         });
         html += `<th class="hdr" style="background:#1E293B;min-width:16px"></th><th class="hdr" colspan="3" style="background:#7C3AED">\u{1F3C6} Ranking</th></tr>`;
 
         // Header row 1: player totals + ranking sub-header
-        html += `<tr><th class="hdr">#</th><th class="hdr">Date</th><th class="hdr">Time</th><th class="hdr">Boss / Activity</th><th class="hdr">Party Leader</th><th class="hdr">Salary</th>`;
+        html += `<tr><th class="hdr">#</th><th class="hdr">Date</th><th class="hdr">Time</th><th class="hdr">Boss / Activity</th><th class="hdr">Party Leader</th><th class="hdr">Looted By</th><th class="hdr">Salary</th>`;
         sortedMembers.forEach((mid, i) => {
           html += `<th class="hdr" style="background:${playerColors[i % 6]};font-size:14px">${memberTotals.get(mid) || 0}</th>`;
         });
@@ -746,6 +759,7 @@ function LeaderboardViewContent() {
             timeFmt.format(new Date(death.death_time)),
             `${boss?.name || "?"}${isAssist ? ` \u2014 ${assistLabel}` : ""}`,
             leaderName,
+            death.looted_by ? (lootedNameMap.get(death.looted_by) || "") : "",
             salaryYes,
           ];
           sortedMembers.forEach(mid => {
@@ -766,12 +780,12 @@ function LeaderboardViewContent() {
           html += `<tr>`;
           if (ri < dataRows.length) {
             const row = dataRows[ri];
-            html += `<td class="${cls}">${row[0]}</td><td class="${cls}">${row[1]}</td><td class="${cls}">${row[2]}</td><td class="boss ${cls}" style="text-align:left">${row[3]}</td><td class="${cls}">${row[4] || ""}</td><td class="num ${cls}" style="color:${row[5] === 'YES' ? '#34D399' : '#64748B'}">${row[5]}</td>`;
-            for (let c = 6; c < row.length; c++) {
+            html += `<td class="${cls}">${row[0]}</td><td class="${cls}">${row[1]}</td><td class="${cls}">${row[2]}</td><td class="boss ${cls}" style="text-align:left">${row[3]}</td><td class="${cls}">${row[4] || ""}</td><td class="${cls}">${row[5] || ""}</td><td class="num ${cls}" style="color:${row[6] === 'YES' ? '#34D399' : '#64748B'}">${row[6]}</td>`;
+            for (let c = 7; c < row.length; c++) {
               html += `<td class="${cls} ${row[c] > 0 ? 'pts-yes' : 'pts-no'}">${row[c] || ""}</td>`;
             }
           } else {
-            html += `<td class="${cls}"></td><td class="${cls}"></td><td class="${cls}"></td><td class="${cls}"></td><td class="${cls}"></td><td class="${cls}"></td>`;
+            html += `<td class="${cls}"></td><td class="${cls}"></td><td class="${cls}"></td><td class="${cls}"></td><td class="${cls}"></td><td class="${cls}"></td><td class="${cls}"></td>`;
             for (let c = 0; c < sortedMembers.length; c++) html += `<td class="${cls}"></td>`;
           }
           html += `<td class="${cls}"></td>`;
