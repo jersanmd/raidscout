@@ -1457,6 +1457,7 @@ export function AdminPanelView() {
             case "death_guild_clear": return `${d.boss_name || "?"}: display guild cleared`;
             case "death_time_edit": return `${d.boss_name || "?"}: death time edited${d.new_time ? ` (${fmtTime(d.new_time)})` : ""}`;
             case "party_leaders_set": return `Party leaders set for ${d.boss_name || "?"}: ${d.leaders || "—"}`;
+            case "looted_by_set": return `Looted by set for ${d.boss_name || "?"}: ${d.looted_by || "—"}`;
             case "boss_spawn_set": return `${d.boss_name || "?"}: spawn set to ${d.spawn_date || "?"}`;
             case "activity_toggle": return `${d.activity_name || "?"} ${d.enabled ? "enabled" : "disabled"}`;
             case "activity_create": case "activity_update": return `${d.activity_name || d.name || "—"}${d.schedule_type ? ` · ${d.schedule_type}` : ""}${d.points != null ? ` · ${d.points}pts` : ""}${d.party_size ? ` · ${d.party_size}p` : ""}${d.changes ? ` · ${d.changes}` : ""}`;

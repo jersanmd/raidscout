@@ -3624,6 +3624,7 @@ export function ServerActivityLogTab({ serverId, timezone = "UTC" }: { serverId:
       case "party_member_add": return `${d.member_name || "?"} added to ${d.party_name || "party"}`;
       case "party_member_remove": return `${d.member_name || "?"} removed from ${d.party_name || "party"}`;
       case "party_leaders_set": return `Party leaders set for ${d.boss_name || "?"}: ${d.leaders || "—"}`;
+      case "looted_by_set": return `Looted by set for ${d.boss_name || "?"}: ${d.looted_by || "—"}`;
       case "class_create": return `${d.class_name || d.name || "?"} created${d.icon ? ` · icon: ${d.icon}` : ""}${d.color ? ` · color: ${d.color}` : ""}`;
       case "class_update": return `${d.class_name || d.name || "?"} updated${d.icon ? ` · icon: ${d.icon}` : ""}${d.color ? ` · color: ${d.color}` : ""}`;
       case "class_delete": return `${d.class_name || d.name || "?"} deleted`;

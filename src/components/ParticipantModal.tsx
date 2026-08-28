@@ -35,6 +35,7 @@ import {
   ImagePlus,
   Shield,
   Pencil,
+  Gem,
 } from "lucide-react";
 import type { Guild, Member } from "@/types";
 
@@ -252,10 +253,11 @@ export function ParticipantModal({
         try {
           const { data } = await supabase
             .from("death_records")
-            .select("party_leaders")
+            .select("party_leaders, looted_by")
             .eq("id", deathRecordId)
             .single();
           setPartyLeaders((data as any)?.party_leaders || {});
+          setLootedBy((data as any)?.looted_by ?? null);
         } catch {
           setPartyLeaders({});
         } finally {
@@ -266,6 +268,25 @@ export function ParticipantModal({
       setPartyLeadersLoading(false);
     }
   }, [deathRecordId, activityInstanceId]);
+
+  // "Looted by" — the member who picked up the boss drop. A property of the
+  // kill (death_records.looted_by), like party leaders; boss kills only.
+  const [lootedBy, setLootedBy] = useState<string | null>(null);
+  const saveLootedBy = async (memberId: string | null) => {
+    setLootedBy(memberId);
+    try {
+      await supabase
+        .from("death_records")
+        .update({ looted_by: memberId })
+        .eq("id", deathRecordId);
+      writeAuditEntry({
+        action: AuditAction.LOOTED_BY_SET,
+        server_id: serverId!,
+        target_id: deathRecordId,
+        details: { boss_name: bossName, looted_by: memberId ? (members.find(m => m.id === memberId)?.name ?? memberId) : "—" },
+      });
+    } catch (err) { console.error("[ParticipantModal] saveLootedBy failed:", err); }
+  };
 
   const savePartyLeaders = async (updated: Record<string, string>) => {
     try {
@@ -893,6 +914,39 @@ export function ParticipantModal({
                   <p className="text-[11px] text-[#71717a] uppercase tracking-wider">
                     Participants ({attendance.length})
                   </p>
+                  {/* Looted by — boss kills only (activities have no drop) */}
+                  {!activityInstanceId && !partyLeadersLoading && (
+                    readOnly ? (
+                      lootedBy && (
+                        <span className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded border border-amber-500/30 bg-amber-500/10 text-amber-400 font-medium">
+                          <Gem className="w-3 h-3" />
+                          Looted by: {members.find((m) => m.id === lootedBy)?.name ?? "—"}
+                        </span>
+                      )
+                    ) : (
+                      <label className="inline-flex items-center gap-1.5 text-xs text-[#a1a1aa]">
+                        <Gem className="w-3 h-3 text-amber-400" />
+                        Looted by
+                        <select
+                          value={lootedBy ?? ""}
+                          onChange={(e) => saveLootedBy(e.target.value || null)}
+                          className="text-xs px-2 py-1 rounded border font-medium bg-[#18181b] border-amber-500/30 text-amber-400 focus:outline-none focus:ring-1 focus:ring-[#27272a]"
+                        >
+                          <option value="">—</option>
+                          {(() => {
+                            // Attending members, plus the current looter even if
+                            // their attendance was later unchecked (so the select
+                            // never displays blank while a value is set).
+                            const opts = members.filter((m) => attendedIds.has(m.id) || m.id === lootedBy);
+                            opts.sort((a, b) => a.name.localeCompare(b.name));
+                            return opts.map((m) => (
+                              <option key={m.id} value={m.id}>{m.name}</option>
+                            ));
+                          })()}
+                        </select>
+                      </label>
+                    )
+                  )}
                 </div>
                 <input
                   type="text"
