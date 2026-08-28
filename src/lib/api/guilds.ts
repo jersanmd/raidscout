@@ -68,19 +68,29 @@ export async function toggleBossAssist(
   assistantGuildId: string,
   serverId: string,
 ): Promise<boolean> {
-  const { data: existing } = await supabase
+  // .maybeSingle() ERRORS when more than one row matches. The old code
+  // destructured only `data` and dropped the error, so once duplicate rows
+  // existed every click read "no assist yet" and inserted another duplicate —
+  // including clicks on the × meant to remove one. Read with limit(1) instead,
+  // and check errors.
+  const { data: existing, error: readError } = await supabase
     .from("boss_assists")
     .select("id")
     .eq("boss_id", bossId)
     .eq("owner_guild_id", ownerGuildId)
     .eq("assistant_guild_id", assistantGuildId)
-    .maybeSingle();
+    .limit(1);
+  if (readError) throw readError;
 
-  if (existing) {
+  if (existing?.length) {
+    // Delete by the composite key, not a single id: one click also clears any
+    // stray duplicates left from before the unique constraint existed.
     const { error } = await supabase
       .from("boss_assists")
       .delete()
-      .eq("id", existing.id);
+      .eq("boss_id", bossId)
+      .eq("owner_guild_id", ownerGuildId)
+      .eq("assistant_guild_id", assistantGuildId);
     if (error) throw error;
     return false;
   }
@@ -88,6 +98,8 @@ export async function toggleBossAssist(
   const { error } = await supabase
     .from("boss_assists")
     .insert({ boss_id: bossId, owner_guild_id: ownerGuildId, assistant_guild_id: assistantGuildId, server_id: serverId });
-  if (error) throw error;
+  // 23505 = the unique constraint caught a concurrent insert of the same pair.
+  // The assist exists, which is what this branch wanted — not an error.
+  if (error && error.code !== "23505") throw error;
   return true;
 }

@@ -10,4 +10,10 @@
 
 No database changes — the leader map and the write path it uses (the same one the participant modal's leader selector uses) already existed.
 
+## 🐛 Bug Fixes
+
+- **Assist chips multiplied on every click in Boss Points** — One boss on the points matrix (`/server-settings?tab=boss-points`) showed the same assist guild chip repeated six times, and clicking × grew the pile instead of shrinking it. The bug was self-amplifying: `toggleBossAssist` read the existing row with `.maybeSingle()` — which errors when more than one row matches — and silently discarded that error, so once a first duplicate slipped in (a double-click race; `boss_assists` had no unique constraint, unlike its twin `activity_assists`), every subsequent click concluded "no assist yet" and inserted another duplicate. The delete branch became unreachable.
+
+  Fixed at all three layers: a migration collapsed the duplicates and added the unique constraint `boss_assists` should always have had (the same fix `boss_guilds` got in migration 076 for the same disease); the toggle now checks its read errors, deletes by the composite key so one click also clears any strays, and treats a concurrent-insert conflict as success; and both points matrices dedupe the chips defensively. The identically-flawed `toggleActivityAssist` got the same code hardening even though its table's constraint had kept it from ever running away. Verified after applying: zero duplicate groups remain, and the affected boss is back to its distinct assist pairs. (`20260826000000_boss_assists_unique.sql`, applied.)
+
 - **Per-guild checked counter in the participants modal** — Each guild header in the attendance modal now shows a ✓ N badge counting that guild's checkmarked members (green when non-zero, with "N of M members checked" on hover), so staff can verify a guild's headcount at a glance instead of counting checkboxes. The count updates live as boxes are toggled, covers the "No Guild" group too, and is deliberately counted over the guild's full roster — typing in the member search box narrows the visible list but never changes the counter.

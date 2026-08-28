@@ -195,7 +195,9 @@ export function BossPointsMatrix({
                     <td className="px-1 py-1 text-center border-l border-[#27272a]/30">
                       {(() => {
                         const myAssists = bossAssists.filter(a => a.boss_id === boss.id && a.assistant_guild_id === guild.id);
-                        const ownerIds = myAssists.map(a => a.owner_guild_id);
+                        // Deduped defensively: duplicate rows once rendered as a
+                        // pile of identical chips with duplicate React keys.
+                        const ownerIds = [...new Set(myAssists.map(a => a.owner_guild_id))];
                         return (
                           <div className="flex flex-wrap items-center justify-center gap-0.5 min-w-[28px]">
                             {ownerIds.map(oid => {

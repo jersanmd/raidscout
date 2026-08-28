@@ -136,7 +136,8 @@ export function ActivityPointsMatrix({
                       <td className="px-1 py-1 text-center border-l border-[#27272a]/30">
                         {(() => {
                           const myAssists = activityAssists.filter(a => a.activity_id === activity.id && a.assistant_guild_id === guild.id);
-                          const ownerIds = myAssists.map(a => a.owner_guild_id);
+                          // Deduped defensively — see BossPointsMatrix; same chip UI.
+                          const ownerIds = [...new Set(myAssists.map(a => a.owner_guild_id))];
                           return (
                             <div className="flex flex-wrap items-center justify-center gap-0.5 min-w-[28px]">
                               {ownerIds.map(oid => {

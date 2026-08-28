@@ -143,16 +143,26 @@ export async function toggleActivityAssist(
   assistantGuildId: string,
   serverId: string,
 ): Promise<boolean> {
-  const { data: existing } = await supabase
+  // Same hardening as toggleBossAssist: .maybeSingle() errors on multiple rows
+  // and the old code dropped that error, turning every click into an insert.
+  // This table has had its unique constraint all along, so the runaway never
+  // fired here — but the code pattern was identical.
+  const { data: existing, error: readError } = await supabase
     .from("activity_assists")
     .select("id")
     .eq("activity_id", activityId)
     .eq("owner_guild_id", ownerGuildId)
     .eq("assistant_guild_id", assistantGuildId)
-    .maybeSingle();
+    .limit(1);
+  if (readError) throw readError;
 
-  if (existing) {
-    const { error } = await supabase.from("activity_assists").delete().eq("id", existing.id);
+  if (existing?.length) {
+    const { error } = await supabase
+      .from("activity_assists")
+      .delete()
+      .eq("activity_id", activityId)
+      .eq("owner_guild_id", ownerGuildId)
+      .eq("assistant_guild_id", assistantGuildId);
     if (error) throw error;
     return false;
   }
@@ -160,6 +170,6 @@ export async function toggleActivityAssist(
   const { error } = await supabase
     .from("activity_assists")
     .insert({ activity_id: activityId, owner_guild_id: ownerGuildId, assistant_guild_id: assistantGuildId, server_id: serverId });
-  if (error) throw error;
+  if (error && error.code !== "23505") throw error;
   return true;
 }
