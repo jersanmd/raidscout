@@ -367,6 +367,10 @@ export function WeeklyScheduleView() {
         guildOverrides.current.set(editGuildDeath.deathRecordId, null);
       }
       queryClient.invalidateQueries({ queryKey: ["death_records"] });
+      // The grid on this page reads deaths_in_window, not death_records. Editing
+      // a death time can move a kill into or out of the visible week, so the
+      // windowed query has to be invalidated or the change doesn't show up here.
+      queryClient.invalidateQueries({ queryKey: ["deaths_in_window"] });
       setGuildChangeKey(k => k + 1);
       setEditToast({ type: "success", message: "Guild updated!" });
       setEditGuildDeath(null);
@@ -390,6 +394,10 @@ export function WeeklyScheduleView() {
         writeAuditEntry({ action: AuditAction.DEATH_TIME_EDIT, server_id: getCurrentServerId()!, target_id: editDeath.deathRecordId, details: { boss_name: editDeath.bossName, old_time: editDeath.deathTime, new_time: newTime.toISOString() } });
       }
       queryClient.invalidateQueries({ queryKey: ["death_records"] });
+      // The grid on this page reads deaths_in_window, not death_records. Editing
+      // a death time can move a kill into or out of the visible week, so the
+      // windowed query has to be invalidated or the change doesn't show up here.
+      queryClient.invalidateQueries({ queryKey: ["deaths_in_window"] });
       setEditToast({ type: "success", message: "Death time updated!" });
       setEditDeath(null);
     } catch (err: any) {

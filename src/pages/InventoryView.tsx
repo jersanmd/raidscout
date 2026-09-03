@@ -177,6 +177,16 @@ function InventoryViewContent() {
     enabled: !!selectedCollection,
   });
 
+  // Both caches above are built from the same collection_items rows:
+  // "collectionItems" backs the editor list, "allCollectionItems" backs the card
+  // previews in list mode. Every mutation site only invalidated the first, so a
+  // reorder or a remove left the previews showing the old set until the cache
+  // aged out. Invalidate them together.
+  const invalidateCollectionItems = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ["collectionItems", selectedCollection] });
+    queryClient.invalidateQueries({ queryKey: ["allCollectionItems", serverId] });
+  }, [queryClient, selectedCollection, serverId]);
+
   // All distributions for ownership checking
   const { data: allDists = [] } = useQuery({
     queryKey: ["allDists", serverId],
@@ -1267,7 +1277,7 @@ function InventoryViewContent() {
                                 await reorderCollectionItem(selectedCollection!, ci.item_id, TEMP);
                                 await reorderCollectionItem(selectedCollection!, prev.item_id, ciOrder);
                                 await reorderCollectionItem(selectedCollection!, ci.item_id, prevOrder);
-                                queryClient.invalidateQueries({ queryKey: ["collectionItems", selectedCollection] });
+                                invalidateCollectionItems();
                               }}
                               disabled={isFirst}
                               className="px-1 py-1 text-[#52525b] hover:text-[#d4d4d8] disabled:opacity-30 disabled:cursor-default transition"
@@ -1283,7 +1293,7 @@ function InventoryViewContent() {
                                 await reorderCollectionItem(selectedCollection!, ci.item_id, TEMP);
                                 await reorderCollectionItem(selectedCollection!, next.item_id, ciOrder);
                                 await reorderCollectionItem(selectedCollection!, ci.item_id, nextOrder);
-                                queryClient.invalidateQueries({ queryKey: ["collectionItems", selectedCollection] });
+                                invalidateCollectionItems();
                               }}
                               disabled={isLast}
                               className="px-1 py-1 text-[#52525b] hover:text-[#d4d4d8] disabled:opacity-30 disabled:cursor-default transition border-t border-[#27272a]"
@@ -1298,7 +1308,7 @@ function InventoryViewContent() {
                             onClick={() => {
                               const collName = collections.find(c => c.id === selectedCollection)?.name;
                               removeItemFromCollection(selectedCollection!, ci.item_id, serverId!, ci.item?.name, collName)
-                                .then(() => queryClient.invalidateQueries({ queryKey: ["collectionItems", selectedCollection] }));
+                                .then(() => invalidateCollectionItems());
                             }}
                             className="pr-2 text-[#71717a] hover:text-[#f87171]"
                           ><X className="w-3 h-3" /></button>
@@ -1376,7 +1386,7 @@ function InventoryViewContent() {
                           if (isAlreadyAdded) return;
                           const collName = collections.find(c => c.id === selectedCollection)?.name;
                           addItemToCollection(selectedCollection!, item.id, serverId!, item.name, collName)
-                            .then(() => { queryClient.invalidateQueries({ queryKey: ["collectionItems", selectedCollection] }); toast("success", `Added ${item.name}`); })
+                            .then(() => { invalidateCollectionItems(); toast("success", `Added ${item.name}`); })
                             .catch(() => toast("error", "Failed to add item"));
                         }}
                         disabled={isAlreadyAdded}

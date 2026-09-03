@@ -613,7 +613,13 @@ function MembersViewContent() {
     setToast({ type, message });
   }, []);
 
-  const invalidate = () => queryClient.invalidateQueries({ queryKey: ["members", serverId] });
+  // memberStats holds the get_member_scores RPC behind the Score and 30-day
+  // Growth columns of the same table these handlers edit; without it those two
+  // columns kept pre-edit values for up to its 120s staleTime.
+  const invalidate = () => {
+    queryClient.invalidateQueries({ queryKey: ["members", serverId] });
+    queryClient.invalidateQueries({ queryKey: ["memberStats", serverId] });
+  };
 
   // ── Demand CP Update ──────────────────────────────────────
   const startDemandConfirm = async () => {
@@ -3032,6 +3038,7 @@ type SummaryRow = { id: string; name: string; serverName: string; guildName: str
 
 export function MembersSummaryView() {
   const { isViewer } = useAuth();
+  const queryClient = useQueryClient();
   const { servers, loading: serversLoading } = useServer();
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -3150,6 +3157,9 @@ export function MembersSummaryView() {
     console.log("[ServerTransfer] Starting transfer for", transferList.length, "players");
     let success = 0;
     let failed = 0;
+    // Destination + name per successful move, so the audit lands on the server
+    // that actually received the players (this view spans several servers).
+    const transferred: { serverId: string; name: string }[] = [];
     try {
       for (const row of transferList) {
         const target = transferTargets[row.id];
@@ -3231,6 +3241,7 @@ export function MembersSummaryView() {
         }
 
         console.log("[ServerTransfer] Success:", row.name, `(CP:${cpCount}, gear:${gearCount}, loot:${distCount})`);
+        transferred.push({ serverId: target.serverId, name: row.name });
         success++;
       }
       console.log("[ServerTransfer] Done —", success, "success,", failed, "failed");
@@ -3243,6 +3254,29 @@ export function MembersSummaryView() {
       setBulkGuildId("");
       // Refresh data without resetting server selection
       setRefreshKey(k => k + 1);
+      // A cross-server transfer writes members, cp_updates, member_gear and
+      // distributions on the DESTINATION server, none of which this page's
+      // refreshKey touches — switching to the target server showed none of the
+      // transferred players until those caches expired.
+      queryClient.invalidateQueries({ queryKey: ["members"] });
+      queryClient.invalidateQueries({ queryKey: ["memberStats"] });
+      queryClient.invalidateQueries({ queryKey: ["memberGear"] });
+      queryClient.invalidateQueries({ queryKey: ["gearSummary"] });
+      queryClient.invalidateQueries({ queryKey: ["distributions"] });
+      // A bulk move of players, their CP history, gear and loot previously left
+      // no audit trail at all. One entry per destination server.
+      const byServer = new Map<string, string[]>();
+      for (const t of transferred) {
+        if (!byServer.has(t.serverId)) byServer.set(t.serverId, []);
+        byServer.get(t.serverId)!.push(t.name);
+      }
+      for (const [destServerId, names] of byServer) {
+        writeAuditEntry({
+          action: AuditAction.MEMBER_BULK_ADD,
+          server_id: destServerId,
+          details: { count: names.length, names, source: "server transfer" },
+        });
+      }
     } catch (err: any) {
       console.error("[ServerTransfer] Unexpected error:", err);
       toast("error", err?.message || "Transfer failed");

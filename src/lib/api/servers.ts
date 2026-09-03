@@ -30,6 +30,19 @@ export async function updateServerName(serverId: string, name: string): Promise<
   writeAuditEntry({ action: AuditAction.SETTINGS_UPDATE, server_id: serverId, details: { setting: "server_name", value: name.trim() } });
 }
 
+/**
+ * The Discord bot reads this to resolve !kill / !nextspawn times, so a change
+ * shifts every displayed spawn time. Audited for the same reason renames are.
+ */
+export async function updateServerTimezone(serverId: string, timezone: string): Promise<void> {
+  const { error } = await supabase
+    .from("servers")
+    .update({ timezone })
+    .eq("id", serverId);
+  if (error) throw error;
+  writeAuditEntry({ action: AuditAction.SETTINGS_UPDATE, server_id: serverId, details: { setting: "timezone", value: timezone } });
+}
+
 export async function deleteServer(serverId: string): Promise<void> {
   const { data, error } = await supabase
     .from("servers")

@@ -11,7 +11,7 @@ import {
   fetchItemRarities, createItemRarity, deleteItemRarity, updateItemRarity,
   fetchGearSlots, createGearSlot, deleteGearSlot, updateGearSlot,
   fetchGearSlotCategories, assignGearSlotCategory, removeGearSlotCategory,
-  writeAuditEntry, AuditAction,
+  writeAuditEntry, AuditAction, GLOBAL_AUDIT_SERVER_ID,
 } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
@@ -154,6 +154,14 @@ export function AdminGamesTab() {
   const refreshTemplates = () => {
     if (!expandedGame) return;
     const s = slug();
+    // This tab keeps taxonomy in local state, but the rest of the app reads the
+    // same rows through React Query — the gear planner, member profiles, the
+    // inventory filters and the gear-tracking catalog. Refreshing only local
+    // state meant a new gear slot or rarity stayed invisible everywhere else
+    // until a hard reload. Prefix keys, so every game slug / server id matches.
+    for (const key of ["itemCategories", "itemRarities", "gearSlots", "gameItems", "itemCatalogForGear"]) {
+      queryClient.invalidateQueries({ queryKey: [key] });
+    }
     Promise.all([
       fetchBossTemplates(expandedGame).catch(() => []),
       fetchActivityTemplates(expandedGame).catch(() => []),
@@ -229,7 +237,7 @@ export function AdminGamesTab() {
     let iconUrl: string | undefined;
     if (iconFile) { try { iconUrl = await uploadGameIcon(s, iconFile); } catch {} }
     await createGame(newGame.name.trim(), s, newGame.supported_spawn_types, iconUrl);
-    writeAuditEntry({ action: AuditAction.GAME_CREATE, server_id: "00000000-0000-0000-0000-000000000000", details: { game_name: newGame.name.trim(), game_slug: s } });
+    writeAuditEntry({ action: AuditAction.GAME_CREATE, server_id: GLOBAL_AUDIT_SERVER_ID, details: { game_name: newGame.name.trim(), game_slug: s } });
     setShowAddGame(false); setNewGame({ name: "", slug: "", supported_spawn_types: ["fixed_hours", "fixed_schedule"] }); setIconFile(null); setIconPreview(null);
     queryClient.invalidateQueries({ queryKey: ["admin", "games"] });
   };
@@ -237,7 +245,7 @@ export function AdminGamesTab() {
     if (!editingGame?.id || !editingGame.name?.trim()) return;
     const types = Array.isArray(editingGame.supported_spawn_types) ? editingGame.supported_spawn_types : [];
     await updateGame(editingGame.id, { name: editingGame.name.trim(), slug: editingGame.slug?.trim().toLowerCase(), supported_spawn_types: types, icon_url: editingGame.icon_url?.trim() || null, is_visible: editingGame.is_visible });
-    writeAuditEntry({ action: AuditAction.GAME_UPDATE, server_id: "00000000-0000-0000-0000-000000000000", target_id: editingGame.id, details: { game_name: editingGame.name.trim() } });
+    writeAuditEntry({ action: AuditAction.GAME_UPDATE, server_id: GLOBAL_AUDIT_SERVER_ID, target_id: editingGame.id, details: { game_name: editingGame.name.trim() } });
     setEditingGame(null); queryClient.invalidateQueries({ queryKey: ["admin", "games"] });
   };
   const handleToggleVisibility = async (game: Game) => {
@@ -247,10 +255,18 @@ export function AdminGamesTab() {
   const confirmToggleVisibility = async () => {
     if (!visibilityConfirm) return;
     await updateGame(visibilityConfirm.id, { is_visible: visibilityConfirm.next });
+    // Hiding a game takes it off the signup picker for every future server, so
+    // it belongs in the log next to create/update/delete.
+    writeAuditEntry({
+      action: AuditAction.GAME_UPDATE,
+      server_id: GLOBAL_AUDIT_SERVER_ID,
+      target_id: visibilityConfirm.id,
+      details: { game_name: visibilityConfirm.name, is_visible: visibilityConfirm.next },
+    });
     queryClient.invalidateQueries({ queryKey: ["admin", "games"] });
     setVisibilityConfirm(null);
   };
-  const handleDeleteGame = async () => { if (!deleteConfirm || deleteConfirm.type !== "game") return; await deleteGame(deleteConfirm.id); writeAuditEntry({ action: AuditAction.GAME_DELETE, server_id: "00000000-0000-0000-0000-000000000000", target_id: deleteConfirm.id, details: { game_name: deleteConfirm.name } }); setDeleteConfirm(null); setExpandedGame(null); queryClient.invalidateQueries({ queryKey: ["admin", "games"] }); };
+  const handleDeleteGame = async () => { if (!deleteConfirm || deleteConfirm.type !== "game") return; await deleteGame(deleteConfirm.id); writeAuditEntry({ action: AuditAction.GAME_DELETE, server_id: GLOBAL_AUDIT_SERVER_ID, target_id: deleteConfirm.id, details: { game_name: deleteConfirm.name } }); setDeleteConfirm(null); setExpandedGame(null); queryClient.invalidateQueries({ queryKey: ["admin", "games"] }); };
   const handleDeleteBoss = async () => { if (!deleteConfirm || deleteConfirm.type !== "boss") return; await deleteBossTemplate(deleteConfirm.id); setDeleteConfirm(null); refreshTemplates(); };
   const handleDeleteActivity = async () => { if (!deleteConfirm || deleteConfirm.type !== "activity") return; await deleteActivityTemplate(deleteConfirm.id); setDeleteConfirm(null); refreshTemplates(); };
   const handleDeleteItem = async () => { if (!deleteConfirm || deleteConfirm.type !== "item") return; await deleteItemCatalogItem(deleteConfirm.id); setDeleteConfirm(null); refreshTemplates(); };
@@ -269,7 +285,7 @@ export function AdminGamesTab() {
         await updateItemCatalogItem(editingItemId, { name: newItem.name.trim(), rarity: newItem.rarity, description: newItem.description || undefined, image_url: imageUrl, category_id: newItem.category_id || undefined });
       } else {
         await createItemCatalogItem({ game: slug(), name: newItem.name.trim(), rarity: newItem.rarity, description: newItem.description, image_url: imageUrl, category_id: newItem.category_id || undefined });
-        writeAuditEntry({ action: AuditAction.ITEM_CREATE, server_id: "00000000-0000-0000-0000-000000000000", details: { item_name: newItem.name.trim(), rarity: newItem.rarity, category: newItem.categoryLabel, game: slug(), description: newItem.description.trim() || null, has_image: !!imageUrl } });
+        writeAuditEntry({ action: AuditAction.ITEM_CREATE, server_id: GLOBAL_AUDIT_SERVER_ID, details: { item_name: newItem.name.trim(), rarity: newItem.rarity, category: newItem.categoryLabel, game: slug(), description: newItem.description.trim() || null, has_image: !!imageUrl } });
       }
       setShowAddItem(false); setEditingItemId(null); setNewItem({ name: "", rarity: "", description: "", category_id: "", categoryLabel: "", image_url: "" }); setNewItemParent(""); setItemImage(null); setItemImagePreview(null);
       refreshTemplates();

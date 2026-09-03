@@ -45,7 +45,11 @@ export function ClaimNotificationBadge() {
       .channel("claim-changes")
       .on("postgres_changes",
         { event: "*", schema: "public", table: "member_claim_requests", filter: `server_id=eq.${serverId}` },
-        () => { queryClient.invalidateQueries({ queryKey: ["pending_claims", serverId] }); }
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["pending_claims", serverId] });
+          queryClient.invalidateQueries({ queryKey: ["members", serverId] });
+          queryClient.invalidateQueries({ queryKey: ["my_claims"] });
+        }
       )
       .subscribe();
     return () => { supabase.removeChannel(channel); };
@@ -77,6 +81,11 @@ export function ClaimNotificationBadge() {
     try {
       await reviewClaimRequest(requestId, "accept");
       queryClient.invalidateQueries({ queryKey: ["pending_claims", serverId] });
+      // Accepting binds the requester's account to the member row, so Members
+      // must refresh too — it otherwise kept showing the member as unclaimed,
+      // with no Unlink action, until that cache aged out.
+      queryClient.invalidateQueries({ queryKey: ["members", serverId] });
+      queryClient.invalidateQueries({ queryKey: ["my_claims"] });
       writeAuditEntry({
         action: AuditAction.MEMBER_CLAIM_ACCEPT,
         server_id: serverId!,
@@ -105,6 +114,9 @@ export function ClaimNotificationBadge() {
       setDeclineReason("");
       setDecliningId(null);
       queryClient.invalidateQueries({ queryKey: ["pending_claims", serverId] });
+      // A decline leaves the member row alone, but the requester's own claim
+      // list has to show the new status.
+      queryClient.invalidateQueries({ queryKey: ["my_claims"] });
       writeAuditEntry({
         action: AuditAction.MEMBER_CLAIM_DECLINE,
         server_id: serverId!,

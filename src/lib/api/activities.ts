@@ -122,8 +122,25 @@ export async function fetchActivityInstance(activityInstanceId: string): Promise
 }
 
 export async function setActivityRallyImages(activityInstanceId: string, images: string[]): Promise<void> {
+  // This replaces the whole array, so compare against what's stored to tell an
+  // add from a remove. The death-record path audits both; activities logged
+  // nothing at all, which left rally screenshots deletable without a trace.
+  const before = await fetchActivityInstance(activityInstanceId).catch(() => ({} as { rally_images?: string[] }));
+  const prev = before.rally_images ?? [];
+
   const { error } = await supabase.rpc("set_activity_rally_images", { p_activity_instance_id: activityInstanceId, p_images: images });
   if (error) throw error;
+
+  const sid = getCurrentServerId();
+  if (!sid || images.length === prev.length) return;
+  const added = images.length > prev.length;
+  writeAuditEntry({
+    action: added ? AuditAction.RALLY_IMAGE_ADD : AuditAction.RALLY_IMAGE_DELETE,
+    server_id: sid,
+    target_type: "activity",
+    target_id: activityInstanceId,
+    details: { count: images.length, previous_count: prev.length },
+  }).catch(() => { /* non-critical */ });
 }
 
 export async function setActivityPartyLeaders(activityInstanceId: string, leaders: Record<string, string>): Promise<void> {

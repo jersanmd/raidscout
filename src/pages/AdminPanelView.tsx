@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { fetchAllServers, fetchAllUsers, fetchAuditLog, fetchServerStats, fetchDatabaseStats, fetchPlanUsage, fetchCronStatus, restoreServer, addServerModerator, supabase, writeAuditEntry, AuditAction, AUDIT_ACTION_GROUPS } from "@/lib/supabase";
+import { fetchAllServers, fetchAllUsers, fetchAuditLog, fetchServerStats, fetchDatabaseStats, fetchPlanUsage, fetchCronStatus, restoreServer, addServerModerator, supabase, writeAuditEntry, AuditAction, AUDIT_ACTION_GROUPS, GLOBAL_AUDIT_SERVER_ID } from "@/lib/supabase";
 import { useServer } from "@/contexts/ServerContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
@@ -10,6 +10,7 @@ import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { AdminGamesTab } from "@/components/AdminGamesTab";
 import { useUserTimezone } from "@/hooks/useUserTimezone";
 import { TIMEZONES } from "@/lib/timezones";
+import { formatAuditDetails } from "@/lib/auditFormat";
 
 function SentinelAdminAudit({ onVisible, loading }: { onVisible: () => void; loading: boolean }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -1424,101 +1425,9 @@ export function AdminPanelView() {
           return { dot: "bg-[#52525b]", text: "text-[#a1a1aa]" };
         };
 
-        const formatDetails = (entry: any): string => {
-          const d = entry.details || {};
-          const fmtTime = (iso: string) => {
-            try { return new Date(iso).toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "UTC" }); }
-            catch { return iso; }
-          };
-          switch (entry.action) {
-            case "boss_kill": return `${d.boss_name || "?"} — ${d.attendees ?? 0} attendees${d.guild ? ` (${d.guild})` : ""}`;
-            case "attendance_copy": return `Copied ${d.copied ?? 0} from ${d.from_boss || "?"}${d.from_time ? ` (${d.from_time})` : ""} → ${d.to_boss || "?"}${d.to_time ? ` (${d.to_time})` : ""}${d.skipped ? ` (${d.skipped} skipped)` : ""}`;
-            case "attendance_add": return `${d.member_name || "?"} attended ${d.boss_name || "?"}${d.death_time ? ` (${fmtTime(d.death_time)})` : ""}`;
-            case "attendance_remove": return `${d.member_name || "?"} removed from ${d.boss_name || "?"}${d.death_time ? ` (${fmtTime(d.death_time)})` : ""}`;
-            case "member_cp_add": case "member_cp_update": return `${d.player_name || "?"}: ${d.old_cp != null ? Number(d.old_cp).toLocaleString() : "—"} → ${d.new_cp != null ? Number(d.new_cp).toLocaleString() : "?"}${d.date ? ` · ${new Date(d.date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}` : ""}`;
-            case "member_cp_delete": return `Deleted CP update for ${d.player_name || "?"}`;
-            case "member_cp_reminder": return `CP update reminder sent to Discord`;
-            case "member_add": return d.member_name || "—";
-            case "member_remove": return d.member_name || "Member removed";
-            case "member_claim_accept": return `Claim accepted: ${d.requested_name || "?"}`;
-            case "member_unlink": return `Unlinked from user: ${d.member_name || "?"}`;
-            case "member_claim_decline": return `Claim declined: ${d.requested_name || "?"}${d.reason ? ` — ${d.reason}` : ""}`;
-            case "member_note_add": return d.note_preview || "—";
-            case "member_note_delete": return "Deleted note";
-            case "moderator_add": return d.target_email || "Moderator added";
-            case "mod_perms_update": return `Permissions updated: ${d.target_email || d.target_user_id?.substring(0, 8) + "…" || "—"}`;
-            case "moderator_remove": return d.target_email || "Moderator removed";
-            case "ownership_transfer": return "Owner changed";
-            case "boss_toggle": return `${d.boss_name || "?"} ${d.enabled ? "enabled" : "disabled"}`;
-            case "boss_create": case "boss_update": return `${d.boss_name || d.name || "—"}${d.spawn_type ? ` · ${d.spawn_type}` : ""}${d.respawn_hours ? ` · ${d.respawn_hours}h` : ""}${d.points != null ? ` · ${d.points}pts` : ""}${d.changes ? ` · ${d.changes}` : ""}`;
-            case "boss_delete": return d.boss_name || d.name || "—";
-            case "boss_time_edit": return `${d.boss_name || d.activity_name || "?"}: ${d.old_time && d.new_time ? `${d.old_time} → ${d.new_time}` : d.new_time ? `changed to ${d.new_time}` : "time changed"}${d.direction ? ` (${d.direction > 0 ? "+" : ""}${d.direction})` : ""}`;
-            case "boss_rotation_advance": return `${d.boss_name || "?"}: rotation advanced${d.target_guild ? ` to ${d.target_guild}` : ""}${d.mode ? ` (${d.mode})` : ""}`;
-            case "boss_guilds_set": return `Boss guilds updated${d.boss_name ? ` for "${d.boss_name}"` : ""}${d.guild_count ? ` (${d.guild_count} guilds, ${d.mode})` : ""}`;
-            case "death_guild_set": return `${d.boss_name || "?"}: guild changed from ${d.old_guild || "?"} to ${d.new_guild || "?"}`;
-            case "death_guild_clear": return `${d.boss_name || "?"}: display guild cleared`;
-            case "death_time_edit": return `${d.boss_name || "?"}: death time edited${d.new_time ? ` (${fmtTime(d.new_time)})` : ""}`;
-            case "party_leaders_set": return `Party leaders set for ${d.boss_name || "?"}: ${d.leaders || "—"}`;
-            case "looted_by_set": return `Looted by set for ${d.boss_name || "?"}: ${d.looted_by || "—"}`;
-            case "boss_spawn_set": return `${d.boss_name || "?"}: spawn set to ${d.spawn_date || "?"}`;
-            case "activity_toggle": return `${d.activity_name || "?"} ${d.enabled ? "enabled" : "disabled"}`;
-            case "activity_create": case "activity_update": return `${d.activity_name || d.name || "—"}${d.schedule_type ? ` · ${d.schedule_type}` : ""}${d.points != null ? ` · ${d.points}pts` : ""}${d.party_size ? ` · ${d.party_size}p` : ""}${d.changes ? ` · ${d.changes}` : ""}`;
-            case "activity_delete": return d.activity_name || d.name || "—";
-            case "activity_time_edit": return `Activity time edited${d.activity_name ? ` for "${d.activity_name}"` : ""}`;
-            case "activity_finalize": case "activity_end_record": return `${d.activity_name || "?"} completed${d.attendees ? ` (${d.attendees} attendees)` : ""}${d.attendee_names ? `: ${d.attendee_names}` : ""}${d.end_time ? ` at ${d.end_time}` : ""}`;
-            case "activity_guilds_set": return `Activity guilds updated${d.activity_name ? ` for "${d.activity_name}"` : ""}${d.guild_count ? ` (${d.guild_count} guilds, ${d.mode})` : ""}`;
-            case "activity_rotation_advance": return `Activity rotation advanced${d.activity_name ? ` for "${d.activity_name}"` : ""}`;
-            case "boss_guild_points_edit": return `${d.boss_name || "?"} · ${d.guild_name || "?"}: points → ${d.points ?? "—"}`;
-            case "boss_guild_salary_edit": return `${d.boss_name || "?"} · ${d.guild_name || "?"}: salary ${d.has_salary ? "ON" : "OFF"}`;
-            case "boss_guild_salary_batch": return `${d.guild_name || "?"}: salary ${d.has_salary ? "ON" : "OFF"} for ${d.boss_count ?? 0} bosses`;
-            case "boss_assist_toggle": return `${d.boss_name || "?"}: ${d.assistant_guild || "?"} ${d.added ? "added as" : "removed from"} assist${d.owner_guild ? ` (owner: ${d.owner_guild})` : ""}`;
-            case "activity_guild_points_edit": return `${d.activity_name || "?"} · ${d.guild_name || "?"}: points → ${d.points ?? "—"}`;
-            case "activity_guild_salary_edit": return `${d.activity_name || "?"} · ${d.guild_name || "?"}: salary ${d.has_salary ? "ON" : "OFF"}`;
-            case "activity_assist_toggle": return `${d.activity_name || "?"}: ${d.assistant_guild || "?"} ${d.added ? "added as" : "removed from"} assist${d.owner_guild ? ` (owner: ${d.owner_guild})` : ""}`;
-            case "guild_create": return `Guild "${d.guild_name || "?"}" created`;
-            case "guild_update": return `Guild "${d.old_name || "?"}" → "${d.guild_name || "?"}"`;
-            case "guild_delete": return `Guild "${d.guild_name || "?"}" deleted`;
-            case "gear_equip": return d.changes ? `${d.member_name || "?"} · ${(d.changes as string[]).join(" · ")}` : `${d.member_name || "?"} equipped ${d.item_name || "?"}${d.enhancement ? ` (+${d.enhancement})` : ""}`;
-            case "gear_unequip": return `${d.member_name || "?"} unequipped ${d.item_name || "?"}`;
-            case "party_assign": return `${d.party_name || "?"}${d.guild_name ? ` (${d.guild_name})` : ""} assigned to ${d.boss_name || d.activity_name || "?"}`;
-            case "party_unlink": return `${d.party_name || "?"}${d.guild_name ? ` (${d.guild_name})` : ""} unlinked from ${d.boss_name || "?"}`;
-            case "party_create": return `${d.party_name || d.name || "—"}${d.guild_name ? ` · ${d.guild_name}` : ""}${d.member_count ? ` · ${d.member_count} members` : ""}${d.boss_name && d.boss_name !== "—" ? ` · ${d.boss_name}` : ""}`;
-            case "party_delete": return d.party_name || "Party deleted";
-            case "item_create": return `${d.item_name || d.name || "?"}${d.rarity ? ` · ${d.rarity}` : ""}${d.category ? ` · ${d.category}` : ""}${d.game ? ` · ${d.game}` : ""}${d.description ? ` · ${d.description}` : ""}${d.has_image !== undefined ? (d.has_image ? " · with image" : " · no image") : ""}`;
-            case "item_update": case "item_delete": return d.item_name || d.name || "—";
-            case "item_distribute": return `${d.item_name || "?"} → ${d.player_name || "?"}${d.quantity ? ` x${d.quantity}` : ""}${d.reason ? ` · ${d.reason}` : ""}`;
-            case "item_approve": return `Item approved: ${d.item_name || "?"}`;
-            case "item_reject": return `Item rejected: ${d.item_name || "?"}`;
-            case "item_distribute_delete": return `Distribution deleted: ${d.item_name || "?"} → ${d.player_name || "?"}${d.quantity ? ` x${d.quantity}` : ""}`;
-            case "force_spawn": return `${d.boss_name || d.activity_name || `${d.boss_count ?? 0} bosses`} in "${d.server_name || "?"}"`;
-            case "subscription_extend": return `+${d.days ?? 30} days for "${d.server_name || "?"}"`;
-            case "dkp_config_update": return `DKP settings: ${d.enabled !== undefined ? (d.enabled ? "enabled" : "disabled") : ""}${d.dkp_multiplier != null ? ` · ${d.dkp_multiplier}x` : ""}${d.bid_duration_minutes != null ? ` · ${d.bid_duration_minutes}min` : ""}`;
-            case "dkp_adjust": return `${d.member_name || "?"}: ${d.amount != null ? (d.amount > 0 ? "+" : "") + d.amount + " DKP" : "?"}`;
-            case "maintenance_on": return d.ends_at ? `Until ${new Date(d.ends_at).toLocaleString()}` : "—";
-            case "maintenance_off": return "Turned off";
-            case "discord_link_add": return `Linked Discord ${d.discord_guild_id || "?"}${d.label ? ` ("${d.label}")` : ""}`;
-            case "discord_link_remove": return `Unlinked Discord ${d.discord_guild_id || "?"}`;
-            case "discord_link_edit": return `Edited Discord link ${d.discord_guild_id || "?"}`;
-            case "discord_channels_set": return `Channels: alert ${d.alert || "—"}, cmd ${d.command || "—"}, progress ${d.progress || "—"}`;
-            case "discord_channel_clear": return `Cleared ${d.field || "?"} channel`;
-            case "discord_threads_set": return `Threads configured: ${d.guild_count ?? 0} guilds`;
-            case "discord_aliases_set": return `${d.count ?? 0} aliases updated`;
-            case "discord_ping_set": return `Ping set to "${d.ping || "(default)"}"`;
-            case "leaderboard_finalize": return `${d.period || "?"}: ${d.rankings ?? 0} players`;
-            case "leaderboard_reset": return `${d.unfinalized ? "Undo finalization" : "Finalized"}${d.guild ? ` (${d.guild})` : ""} · ${d.from ? new Date(d.from).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "?"} → ${d.to ? new Date(d.to).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "?"}`;
-            case "leaderboard_adjust_points": return `${d.member_name ? d.member_name + ": " : ""}${d.points != null ? (d.points > 0 ? "+" : "") + d.points + " pts" : "?"}${d.reason ? ` — ${d.reason}` : ""}`;
-            case "leaderboard_reset_guild": return `Guild reset: ${d.deleted_attendance ?? 0} att, ${d.deleted_adjustments ?? 0} adj`;
-            case "settings_update": {
-              const entries = Object.entries(d).filter(([k]) => k !== "discord_user");
-              return entries.map(([k,v]) => `${k.replace(/_/g, " ")}: ${v}`).join(", ") || "Settings updated";
-            }
-            case "viewer_edit_toggle": return `Viewer can edit spawns: ${d.enabled ? "ON" : "OFF"}`;
-            case "viewer_mark_died_toggle": return `Viewer can mark died: ${d.enabled ? "ON" : "OFF"}`;
-            case "server_create": case "server_delete": case "server_restore": return d.server_name || "—";
-            case "game_create": case "game_update": case "game_delete": return d.game_name || "—";
-            default: return Object.entries(d).filter(([k]) => k !== "discord_user").slice(0, 2).map(([k,v]) => `${k}: ${v}`).join(", ") || "—";
-          }
-        };
+        // Shared formatter — this view used to keep its own fork that labelled
+        // 86 actions to the settings view's 119. UTC: super-admins span servers.
+        const formatDetails = (entry: any): string => formatAuditDetails(entry, "UTC");
 
         return (
         <div className="space-y-3">
@@ -2150,10 +2059,10 @@ export function AdminPanelView() {
                         const endISO = new Date(`${maintEndDate}T${maintEndTime}:00`).toISOString();
                         await supabase.from("app_settings").upsert({ key: "maintenance_end", value: endISO }, { onConflict: "key" });
                         await supabase.from("app_settings").upsert({ key: "maintenance_mode", value: "true" }, { onConflict: "key" });
-                        writeAuditEntry({ action: AuditAction.MAINTENANCE_ON, server_id: "00000000-0000-0000-0000-000000000000", details: { ends_at: endISO } });
+                        writeAuditEntry({ action: AuditAction.MAINTENANCE_ON, server_id: GLOBAL_AUDIT_SERVER_ID, details: { ends_at: endISO } });
                       } else {
                         await supabase.from("app_settings").upsert({ key: "maintenance_mode", value: "false" }, { onConflict: "key" });
-                        writeAuditEntry({ action: AuditAction.MAINTENANCE_OFF, server_id: "00000000-0000-0000-0000-000000000000" });
+                        writeAuditEntry({ action: AuditAction.MAINTENANCE_OFF, server_id: GLOBAL_AUDIT_SERVER_ID });
                       }
                       setMaintenance(!maintenance);
                     }}

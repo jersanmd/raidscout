@@ -21,6 +21,7 @@ export async function createPointRule(
   guildId: string,
   ruleType: "time_multiplier",
   config: Record<string, unknown>,
+  guildName?: string,
 ): Promise<PointRule> {
   const { data, error } = await supabase
     .from("point_rules")
@@ -28,7 +29,15 @@ export async function createPointRule(
     .select()
     .single();
   if (error) throw error;
-  writeAuditEntry({ action: AuditAction.POINT_RULE_CREATE, server_id: serverId, target_id: data.id, details: { rule_type: ruleType } });
+  // The caller used to write its own richer entry on top of this one, so every
+  // rule produced two log rows. Auditing stays here — at the boundary, where it
+  // can't be forgotten — and takes guildName since only the UI resolves it.
+  writeAuditEntry({
+    action: AuditAction.POINT_RULE_CREATE,
+    server_id: serverId,
+    target_id: data.id,
+    details: { rule_type: ruleType, guild_name: guildName ?? guildId, ...config },
+  });
   return data as PointRule;
 }
 

@@ -64,7 +64,13 @@ export async function addRallyImageToDeath(deathRecordId: string, newUrl: string
     .update({ rally_image_url: JSON.stringify(existing) })
     .eq("id", deathRecordId);
   if (error) console.error("Failed to add rally image:", error);
-  else if (serverId) writeAuditEntry({ action: AuditAction.RALLY_IMAGE_ADD, server_id: serverId, target_id: deathRecordId });
+  else {
+    // No caller passed serverId, so this audit never actually fired — the
+    // action was declared, labelled and filterable but had zero rows. Fall back
+    // to the ambient server the way the remove path below already does.
+    const sid = serverId ?? getCurrentServerId();
+    if (sid) writeAuditEntry({ action: AuditAction.RALLY_IMAGE_ADD, server_id: sid, target_id: deathRecordId });
+  }
 }
 
 /** Remove a rally image URL from a death record. */

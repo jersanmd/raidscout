@@ -1,5 +1,5 @@
 import { supabase } from "./client";
-import { writeAuditEntry, AuditAction } from "./audit";
+import { writeAuditEntry, AuditAction, GLOBAL_AUDIT_SERVER_ID } from "./audit";
 
 // ── Games ───────────────────────────────────────────────────
 
@@ -223,9 +223,18 @@ export async function createItemCatalogItem(item: {
   return data;
 }
 
-export async function deleteItemCatalogItem(itemId: string): Promise<void> {
+export async function deleteItemCatalogItem(itemId: string, serverId?: string): Promise<void> {
+  // Capture identity first: createItemCatalogItem is audited at its caller, so
+  // without this the shared catalog could be edited and emptied with only the
+  // creations on record.
+  let name: string | undefined, sid = serverId;
+  try {
+    const { data } = await supabase.from("items").select("name, server_id").eq("id", itemId).single();
+    name = (data as any)?.name; sid = sid ?? (data as any)?.server_id ?? undefined;
+  } catch { /* non-critical */ }
   const { error } = await supabase.from("items").delete().eq("id", itemId);
   if (error) throw error;
+  if (sid) writeAuditEntry({ action: AuditAction.ITEM_DELETE, server_id: sid, target_id: itemId, details: { item_name: name ?? itemId, scope: "game catalog" } });
 }
 
 export async function updateItemCatalogItem(itemId: string, updates: {
@@ -235,11 +244,25 @@ export async function updateItemCatalogItem(itemId: string, updates: {
   image_url?: string;
   category_id?: string | null;
 }): Promise<void> {
+  // Read identity first so a rename is auditable as old → new.
+  const ctx = await itemAuditContext(itemId);
+
   const { error } = await supabase
     .from("items")
     .update(updates)
     .eq("id", itemId);
   if (error) throw error;
+
+  // Only community items carry a server_id; purely global catalog rows have
+  // none and the audit log is server-scoped, so those stay unaudited by design.
+  if (ctx.serverId) {
+    writeAuditEntry({
+      action: AuditAction.ITEM_UPDATE,
+      server_id: ctx.serverId,
+      target_id: itemId,
+      details: { item_name: updates.name ?? ctx.name ?? itemId, old_name: ctx.name, scope: "game catalog" },
+    });
+  }
 }
 
 export async function uploadItemCatalogImage(gameSlug: string, itemName: string, file: File): Promise<string> {
@@ -249,6 +272,37 @@ export async function uploadItemCatalogImage(gameSlug: string, itemName: string,
   if (error) throw error;
   const { data: { publicUrl } } = supabase.storage.from("game-icons").getPublicUrl(path);
   return publicUrl;
+}
+
+// ── Game taxonomy auditing ──────────────────────────────────
+// item_categories, item_rarities and gear_slots are game-wide structure that
+// only super-admins can change, and all three carry the same (name, game)
+// shape. Deletes and updates arrive with nothing but an id, so read the row
+// first — an audit entry naming a UUID is no better than no entry at all.
+
+type TaxonomyKind = "category" | "rarity" | "gear slot" | "gear slot category";
+
+async function taxonomyRow(table: string, id: string): Promise<{ name?: string; game?: string }> {
+  try {
+    const { data } = await supabase.from(table).select("name, game").eq("id", id).single();
+    return { name: (data as any)?.name, game: (data as any)?.game };
+  } catch { return {}; }
+}
+
+function auditTaxonomy(
+  action: string,
+  kind: TaxonomyKind,
+  id: string,
+  ctx: { name?: string; game?: string },
+  extra?: Record<string, any>
+) {
+  writeAuditEntry({
+    action,
+    server_id: GLOBAL_AUDIT_SERVER_ID,
+    target_type: kind,
+    target_id: id,
+    details: { kind, name: ctx.name ?? id, game: ctx.game, ...extra },
+  }).catch(() => { /* auditing must never fail the admin's edit */ });
 }
 
 // ── Item Categories (Admin) ─────────────────────────────────
@@ -278,20 +332,25 @@ export async function createItemCategory(cat: {
     .select()
     .single();
   if (error) throw error;
+  auditTaxonomy(AuditAction.GAME_TAXONOMY_CREATE, "category", (data as any).id, { name: cat.name.trim(), game: cat.game }, { parent_id: cat.parent_id || null });
   return data;
 }
 
 export async function deleteItemCategory(catId: string): Promise<void> {
+  const ctx = await taxonomyRow("item_categories", catId);
   const { error } = await supabase.from("item_categories").delete().eq("id", catId);
   if (error) throw error;
+  auditTaxonomy(AuditAction.GAME_TAXONOMY_DELETE, "category", catId, ctx);
 }
 
 export async function updateItemCategory(catId: string, updates: { name?: string; parent_id?: string | null }): Promise<void> {
+  const ctx = await taxonomyRow("item_categories", catId);
   const { error } = await supabase
     .from("item_categories")
     .update(updates)
     .eq("id", catId);
   if (error) throw error;
+  auditTaxonomy(AuditAction.GAME_TAXONOMY_UPDATE, "category", catId, { name: updates.name ?? ctx.name, game: ctx.game }, { old_name: ctx.name });
 }
 
 // ── Item Rarities (Admin) ───────────────────────────────────
@@ -323,12 +382,15 @@ export async function createItemRarity(rarity: {
     .select()
     .single();
   if (error) throw error;
+  auditTaxonomy(AuditAction.GAME_TAXONOMY_CREATE, "rarity", (data as any).id, { name: rarity.name.trim(), game: rarity.game }, { color: rarity.color });
   return data;
 }
 
 export async function deleteItemRarity(rarityId: string): Promise<void> {
+  const ctx = await taxonomyRow("item_rarities", rarityId);
   const { error } = await supabase.from("item_rarities").delete().eq("id", rarityId);
   if (error) throw error;
+  auditTaxonomy(AuditAction.GAME_TAXONOMY_DELETE, "rarity", rarityId, ctx);
 }
 
 export async function updateItemRarity(rarityId: string, updates: {
@@ -336,11 +398,13 @@ export async function updateItemRarity(rarityId: string, updates: {
   color?: string;
   sort_order?: number;
 }): Promise<void> {
+  const ctx = await taxonomyRow("item_rarities", rarityId);
   const { error } = await supabase
     .from("item_rarities")
     .update(updates)
     .eq("id", rarityId);
   if (error) throw error;
+  auditTaxonomy(AuditAction.GAME_TAXONOMY_UPDATE, "rarity", rarityId, { name: updates.name ?? ctx.name, game: ctx.game }, { old_name: ctx.name, color: updates.color });
 }
 
 // ── Gear Slots (Admin — game-level) ──────────────────────
@@ -362,20 +426,25 @@ export async function createGearSlot(slot: { game: string; name: string; sort_or
     .select()
     .single();
   if (error) throw error;
+  auditTaxonomy(AuditAction.GAME_TAXONOMY_CREATE, "gear slot", (data as any).id, { name: slot.name.trim(), game: slot.game });
   return data;
 }
 
 export async function deleteGearSlot(slotId: string): Promise<void> {
+  const ctx = await taxonomyRow("gear_slots", slotId);
   const { error } = await supabase.from("gear_slots").delete().eq("id", slotId);
   if (error) throw error;
+  auditTaxonomy(AuditAction.GAME_TAXONOMY_DELETE, "gear slot", slotId, ctx);
 }
 
 export async function updateGearSlot(slotId: string, updates: { name?: string; sort_order?: number }): Promise<void> {
+  const ctx = await taxonomyRow("gear_slots", slotId);
   const { error } = await supabase
     .from("gear_slots")
     .update(updates)
     .eq("id", slotId);
   if (error) throw error;
+  auditTaxonomy(AuditAction.GAME_TAXONOMY_UPDATE, "gear slot", slotId, { name: updates.name ?? ctx.name, game: ctx.game }, { old_name: ctx.name });
 }
 
 // ── Gear Slot Categories (junction: slot ↔ item_categories) ──
@@ -397,10 +466,33 @@ export async function assignGearSlotCategory(slotId: string, categoryId: string)
     .select()
     .single();
   if (error) throw error;
+  // Which categories feed a slot decides what every server can equip there, so
+  // the entry names both sides rather than the junction row's own id.
+  const [slot, category] = await Promise.all([
+    taxonomyRow("gear_slots", slotId),
+    taxonomyRow("item_categories", categoryId),
+  ]);
+  auditTaxonomy(
+    AuditAction.GAME_TAXONOMY_CREATE, "gear slot category", (data as any).id,
+    { name: `${slot.name ?? slotId} ← ${category.name ?? categoryId}`, game: slot.game ?? category.game }
+  );
   return data;
 }
 
 export async function removeGearSlotCategory(assignmentId: string): Promise<void> {
+  // The junction row is gone after the delete, so resolve both names first.
+  let label = assignmentId, game: string | undefined;
+  try {
+    const { data } = await supabase
+      .from("gear_slot_categories")
+      .select("slot:slot_id(name, game), category:category_id(name)")
+      .eq("id", assignmentId)
+      .single();
+    const slot = (data as any)?.slot, category = (data as any)?.category;
+    if (slot?.name) { label = `${slot.name} ← ${category?.name ?? "?"}`; game = slot.game; }
+  } catch { /* non-critical */ }
+
   const { error } = await supabase.from("gear_slot_categories").delete().eq("id", assignmentId);
   if (error) throw error;
+  auditTaxonomy(AuditAction.GAME_TAXONOMY_DELETE, "gear slot category", assignmentId, { name: label, game });
 }

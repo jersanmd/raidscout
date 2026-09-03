@@ -1,5 +1,13 @@
 import { supabase } from "./client";
 
+/**
+ * server_id for actions that aren't scoped to any one server — game catalog,
+ * templates, maintenance mode. The audit log requires a server_id, so these
+ * park on the nil UUID and surface only in the super-admin global log, never
+ * in a server owner's Activity Log.
+ */
+export const GLOBAL_AUDIT_SERVER_ID = "00000000-0000-0000-0000-000000000000";
+
 // ── Audit Action Constants ──────────────────────────────────
 
 export const AuditAction = {
@@ -53,14 +61,12 @@ export const AuditAction = {
   MEMBER_CP_REMINDER: "member_cp_reminder",
   MEMBER_NOTE_ADD: "member_note_add",
   MEMBER_NOTE_DELETE: "member_note_delete",
-  MEMBER_PROGRESS_UPDATE: "member_progress_update",
   MEMBER_GUILD_CHANGE: "member_guild_change",
   MEMBER_NAME_EDIT: "member_name_edit",
   MEMBER_BULK_ADD: "member_bulk_add",
 
   // Gear
   GEAR_EQUIP: "gear_equip",
-  GEAR_UNEQUIP: "gear_unequip",
 
   // Parties & Classes
   PARTY_CREATE: "party_create",
@@ -72,7 +78,6 @@ export const AuditAction = {
   PARTY_LEADERS_SET: "party_leaders_set",
   LOOTED_BY_SET: "looted_by_set",
   CLASS_CREATE: "class_create",
-  CLASS_UPDATE: "class_update",
   CLASS_DELETE: "class_delete",
 
   // Inventory & Catalog
@@ -141,11 +146,20 @@ export const AuditAction = {
   GAME_CREATE: "game_create",
   GAME_UPDATE: "game_update",
   GAME_DELETE: "game_delete",
+  // Game-wide structure edited only from the Admin Panel. One action per verb
+  // rather than per entity — details.kind carries "category" / "rarity" /
+  // "gear slot" / "gear slot category", and "boss" / "activity" for templates.
+  // Splitting them per entity would have added 17 near-identical filter rows.
+  GAME_TAXONOMY_CREATE: "game_taxonomy_create",
+  GAME_TAXONOMY_UPDATE: "game_taxonomy_update",
+  GAME_TAXONOMY_DELETE: "game_taxonomy_delete",
+  GAME_TEMPLATE_CREATE: "game_template_create",
+  GAME_TEMPLATE_UPDATE: "game_template_update",
+  GAME_TEMPLATE_DELETE: "game_template_delete",
 
   // Discord Integrations
   DISCORD_LINK_ADD: "discord_link_add",
   DISCORD_LINK_REMOVE: "discord_link_remove",
-  DISCORD_LINK_EDIT: "discord_link_edit",
   DISCORD_CHANNELS_SET: "discord_channels_set",
   DISCORD_CHANNEL_CLEAR: "discord_channel_clear",
   DISCORD_THREADS_SET: "discord_threads_set",
@@ -155,14 +169,10 @@ export const AuditAction = {
   // DKP
   DKP_CONFIG_UPDATE: "dkp_config_update",
   DKP_ADJUST: "dkp_adjust",
-  DKP_EARN_KILL: "dkp_earn_kill",
   DKP_BID_PLACED: "dkp_bid_placed",
   DKP_BID_CANCELLED: "dkp_bid_cancelled",
   DKP_BID_WON: "dkp_bid_won",
-  DKP_BID_LOST: "dkp_bid_lost",
-  DKP_BID_REFUND: "dkp_bid_refund",
   DKP_ITEM_MARKED: "dkp_item_marked",
-  DKP_ITEM_UNMARKED: "dkp_item_unmarked",
   DKP_ITEM_DISTRIBUTED: "dkp_item_distributed",
   DKP_AUCTION_DELETED: "dkp_auction_deleted",
 } as const;
@@ -245,12 +255,11 @@ export const AUDIT_ACTION_GROUPS: { label: string; actions: AuditActionType[] }[
       AuditAction.MEMBER_CP_REMINDER,
       AuditAction.MEMBER_NOTE_ADD,
       AuditAction.MEMBER_NOTE_DELETE,
-      AuditAction.MEMBER_PROGRESS_UPDATE,
     ],
   },
   {
     label: "Gear",
-    actions: [AuditAction.GEAR_EQUIP, AuditAction.GEAR_UNEQUIP],
+    actions: [AuditAction.GEAR_EQUIP],
   },
   {
     label: "Parties & Classes",
@@ -264,7 +273,6 @@ export const AUDIT_ACTION_GROUPS: { label: string; actions: AuditActionType[] }[
       AuditAction.PARTY_LEADERS_SET,
       AuditAction.LOOTED_BY_SET,
       AuditAction.CLASS_CREATE,
-      AuditAction.CLASS_UPDATE,
       AuditAction.CLASS_DELETE,
     ],
   },
@@ -308,7 +316,6 @@ export const AUDIT_ACTION_GROUPS: { label: string; actions: AuditActionType[] }[
     actions: [
       AuditAction.DISCORD_LINK_ADD,
       AuditAction.DISCORD_LINK_REMOVE,
-      AuditAction.DISCORD_LINK_EDIT,
       AuditAction.DISCORD_CHANNELS_SET,
       AuditAction.DISCORD_CHANNEL_CLEAR,
       AuditAction.DISCORD_THREADS_SET,
@@ -356,6 +363,12 @@ export const AUDIT_ACTION_GROUPS: { label: string; actions: AuditActionType[] }[
       AuditAction.GAME_CREATE,
       AuditAction.GAME_UPDATE,
       AuditAction.GAME_DELETE,
+      AuditAction.GAME_TAXONOMY_CREATE,
+      AuditAction.GAME_TAXONOMY_UPDATE,
+      AuditAction.GAME_TAXONOMY_DELETE,
+      AuditAction.GAME_TEMPLATE_CREATE,
+      AuditAction.GAME_TEMPLATE_UPDATE,
+      AuditAction.GAME_TEMPLATE_DELETE,
     ],
   },
   {
@@ -363,14 +376,10 @@ export const AUDIT_ACTION_GROUPS: { label: string; actions: AuditActionType[] }[
     actions: [
       AuditAction.DKP_CONFIG_UPDATE,
       AuditAction.DKP_ADJUST,
-      AuditAction.DKP_EARN_KILL,
       AuditAction.DKP_BID_PLACED,
       AuditAction.DKP_BID_CANCELLED,
       AuditAction.DKP_BID_WON,
-      AuditAction.DKP_BID_LOST,
-      AuditAction.DKP_BID_REFUND,
       AuditAction.DKP_ITEM_MARKED,
-      AuditAction.DKP_ITEM_UNMARKED,
       AuditAction.DKP_ITEM_DISTRIBUTED,
       AuditAction.DKP_AUCTION_DELETED,
     ],
