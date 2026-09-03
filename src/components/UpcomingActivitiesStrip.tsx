@@ -26,7 +26,12 @@ export function UpcomingActivitiesStrip() {
   });
 
   const { data: activityGuilds = [] } = useQuery({
-    queryKey: ["activity_guilds", serverId],
+    // Hyphenated to match the key every other activity-guild reader and
+    // invalidator uses (ActivityGuildsTab, ServerBossesActivitiesTab). While
+    // this read used an underscore it lived in a separate cache entry that
+    // those ten invalidations never touched, so the strip's guild badges kept
+    // showing stale assignments after an edit in Server Settings.
+    queryKey: ["activity-guilds", serverId],
     queryFn: async () => {
       if (!serverId) return [];
       const { data } = await supabase.from("activity_guilds").select("*");

@@ -45,7 +45,7 @@ export function AddActivityModal({ open, onClose }: Props) {
     queryClient.invalidateQueries({ queryKey: ["activities", currentServer.id] });
     queryClient.invalidateQueries({ queryKey: ["activity_instances", currentServer.id] });
     queryClient.invalidateQueries({ queryKey: ["activities-all", currentServer.id] });
-    queryClient.invalidateQueries({ queryKey: ["activity_guilds"] });
+    queryClient.invalidateQueries({ queryKey: ["activity-guilds"] });
     onClose();
   };
 
