@@ -13,3 +13,15 @@
   Verified after applying: exactly one overload remains; the probe that previously returned `42725` now resolves cleanly; and a full end-to-end call inside a deliberately-aborted transaction returned a new activity id and left no row behind. Creating a **boss** was never affected — `create_custom_boss` has only ever had one signature, which is why only activities broke. (`20260827000000_fix_create_custom_activity_ambiguity.sql`, applied.)
 
   No deploy required — the fix is entirely in the database and took effect immediately.
+
+## 🔒 Security
+
+- **Nine database functions were callable by anyone, unauthenticated** — Found while fixing the activity bug. Nine `SECURITY DEFINER` write RPCs were executable by the `anon` role — the public key that ships in the browser bundle — and none of them verified the caller. Being `SECURITY DEFINER`, they also bypass row-level security, so table policies were not a fallback. The worst two: `create_moderator_permissions` (unauthenticated privilege escalation) and `delete_leaderboard_snapshot` (unauthenticated destruction of finalized results); the rest could create, edit or delete bosses, activities, static parties and member stats on any server.
+
+  `EXECUTE` is now revoked from `anon` and `PUBLIC` on all nine, and granted explicitly to `authenticated`. Nothing legitimate breaks: every caller lives in the authenticated web app, logged-out viewer flows use the separate `viewer_*` RPCs, and the Discord bot runs as `service_role`. Two of the nine (`create_moderator_permissions`, `update_member_stats`) have no caller in the codebase at all. (`20260827000001_revoke_anon_on_staff_write_rpcs.sql`, applied and verified.)
+
+  **Still open, deliberately:** this closes *unauthenticated* access only. An authenticated user of one server can still call these for another, because the functions accept a `server_id` and never check membership. Closing that means adding staff checks inside each function body — a behavior change that deserves its own review rather than riding along with a lockout.
+
+## 🧹 Housekeeping
+
+- **Quarantined the loose SQL files** that caused the activity outage — `rpc_img.sql`, `fix_rpc_img.sql`, `all_rpcs.sql`, `all_rpcs_extra.sql`, `FIX_LEADERBOARD.sql` and `apply-migrations-018-023.sql` sat at `supabase/` root, outside `migrations/`, defining stale versions of live functions. Two of them were run by hand against production and planted the duplicate that broke activity creation. They now live in `supabase/adhoc-archive/` behind a README explaining the `CREATE OR REPLACE` trap, the rule that schema changes belong in `migrations/`, and a query that detects this class of problem before users do.
