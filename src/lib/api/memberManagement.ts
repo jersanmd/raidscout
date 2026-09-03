@@ -703,8 +703,28 @@ export async function createDistribution(dist: {
 }
 
 export async function deleteDistribution(distId: string): Promise<void> {
+  // Capture what is being erased before it is gone. createDistribution audits
+  // ITEM_DISTRIBUTE, so without this a loot award could be logged and then
+  // quietly removed, leaving the log claiming the player still holds it.
+  let ctx: any = null;
+  try {
+    const { data } = await supabase.from("distributions")
+      .select("server_id, member_id, player_name, quantity, item_id, items:item_id(name)")
+      .eq("id", distId).single();
+    ctx = data;
+  } catch { /* non-critical */ }
+
   const { error } = await supabase.from("distributions").delete().eq("id", distId);
   if (error) throw error;
+
+  if (ctx?.server_id) {
+    writeAuditEntry({
+      action: AuditAction.ITEM_DISTRIBUTE_DELETE,
+      server_id: ctx.server_id,
+      target_id: ctx.member_id,
+      details: { item_name: ctx.items?.name ?? ctx.item_id, player_name: ctx.player_name, quantity: ctx.quantity },
+    });
+  }
 }
 
 // ── Analytics ───────────────────────────────────────────────

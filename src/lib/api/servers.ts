@@ -205,7 +205,15 @@ export async function updateModeratorPermissions(
       p_can_manage_integrations: permissions.can_manage_integrations ?? false,
       p_can_manage_server_content: permissions.can_manage_server_content ?? false,
     });
-    if (!error) return; // RPC succeeded
+    if (!error) {
+      // Audit BEFORE returning. This early return used to skip the
+      // writeAuditEntry at the end of the function, so MOD_PERMS_UPDATE only
+      // fired on the legacy fallback — i.e. never, since the RPC is deployed.
+      // Verified in production: zero mod_perms_update rows despite 34 members
+      // holding active grants, leaving privilege changes untraceable.
+      writeAuditEntry({ action: AuditAction.MOD_PERMS_UPDATE, server_id: serverId, details: { target_user_id: userId, permissions } });
+      return;
+    }
     // If error is NOT "function not found", throw it
     if (error.code !== "42883" && !error.message?.includes("Could not find the function")) {
       throw error;

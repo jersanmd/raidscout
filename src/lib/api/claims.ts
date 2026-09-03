@@ -1,4 +1,5 @@
 import { supabase } from "./client";
+import { writeAuditEntry, AuditAction } from "./audit";
 
 export interface ClaimRequest {
   id: string;
@@ -63,11 +64,31 @@ export async function reviewClaimRequest(
 }
 
 /** Unlink a claimed member — clears members.user_id (owner/mod only) */
-export async function unlinkMember(memberId: string): Promise<void> {
+export async function unlinkMember(memberId: string, serverId?: string): Promise<void> {
+  // Read the name before the RPC — afterwards the binding is gone.
+  let memberName: string | undefined;
+  let sid = serverId;
+  try {
+    const { data } = await supabase.from("members").select("name, server_id").eq("id", memberId).single();
+    memberName = (data as any)?.name;
+    sid = sid ?? (data as any)?.server_id;
+  } catch { /* non-critical */ }
+
   const { error } = await supabase.rpc("unlink_member", {
     p_member_id: memberId,
   });
   if (error) throw error;
+
+  // Granting a claim is audited (MEMBER_CLAIM_ACCEPT); revoking it was not, so
+  // the log showed claims accepted and never revoked.
+  if (sid) {
+    writeAuditEntry({
+      action: AuditAction.MEMBER_UNLINK,
+      server_id: sid,
+      target_id: memberId,
+      details: { member_name: memberName ?? memberId },
+    });
+  }
 }
 
 /** Mark a claim as read (player dismisses notification) */

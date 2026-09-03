@@ -850,6 +850,10 @@ export function ServerSettingsView() {
       const g = await createGuild(name, currentServer.id);
       writeAuditEntry({ action: AuditAction.GUILD_CREATE, server_id: currentServer.id, target_id: g.id, details: { guild_name: name } });
       setGuilds(prev => [...prev, g].sort((a, b) => a.name.localeCompare(b.name)));
+      // ["guilds", serverId] is read by seven other views (gear, inventory,
+      // DKP, analytics, member profile, activity guilds, upcoming strip).
+      // Local state alone left all of them showing the stale guild list.
+      queryClient.invalidateQueries({ queryKey: ["guilds"] });
       setNewGuildName("");
       toast("success", `Guild "${name}" created`);
     } catch (err: any) {
@@ -871,6 +875,7 @@ export function ServerSettingsView() {
       await updateGuildName(id, name);
       writeAuditEntry({ action: AuditAction.GUILD_UPDATE, server_id: currentServer.id, target_id: id, details: { guild_name: name, old_name: oldName } });
       setGuilds(prev => prev.map(g => g.id === id ? { ...g, name } : g).sort((a, b) => a.name.localeCompare(b.name)));
+      queryClient.invalidateQueries({ queryKey: ["guilds"] });
       setEditingGuildId(null);
       toast("success", `Guild renamed to "${name}"`);
     } catch (err: any) {
@@ -883,6 +888,7 @@ export function ServerSettingsView() {
       await deleteGuild(id);
       writeAuditEntry({ action: AuditAction.GUILD_DELETE, server_id: currentServer.id, target_id: id, details: { guild_name: name } });
       setGuilds(prev => prev.filter(g => g.id !== id));
+      queryClient.invalidateQueries({ queryKey: ["guilds"] });
       toast("success", `Guild "${name}" deleted`);
     } catch (err: any) {
       toast("error", err?.message ?? "Failed to delete guild");
@@ -3568,6 +3574,7 @@ export function ServerActivityLogTab({ serverId, timezone = "UTC" }: { serverId:
       case "member_add": return `${d.member_name || "—"}${d.class ? ` · ${d.class}` : ""}${d.cp ? ` · ${d.cp} CP` : ""}${d.guild_name ? ` · ${d.guild_name}` : ""}`;
       case "member_remove": return d.member_name || "Member removed";
       case "member_claim_accept": return `Claim accepted: ${d.requested_name || "?"}${d.user_email ? ` (${d.user_email})` : ""}`;
+      case "member_unlink": return `Unlinked from user: ${d.member_name || "?"}`;
       case "member_claim_decline": return `Claim declined: ${d.requested_name || "?"}${d.user_email ? ` (${d.user_email})` : ""}${d.reason ? ` — ${d.reason}` : ""}`;
       case "member_class_set": return `${d.member_name || "?"}: class set to ${d.class || "none"}`;
       case "member_active_toggle": return `${d.member_name || "?"} marked ${d.is_active ? "active" : "inactive"}`;
@@ -3610,6 +3617,7 @@ export function ServerActivityLogTab({ serverId, timezone = "UTC" }: { serverId:
       case "item_create": return `${d.item_name || d.name || "?"}${d.rarity ? ` · ${d.rarity}` : ""}${d.category ? ` · ${d.category}` : ""}${d.game ? ` · ${d.game}` : ""}${d.description ? ` · ${d.description}` : ""}${d.has_image !== undefined ? (d.has_image ? " · with image" : " · no image") : ""}`;
       case "item_update": case "item_delete": return d.item_name || d.name || "—";
       case "item_distribute": return `${d.item_name || "?"} → ${d.player_name || "?"}${d.quantity ? ` x${d.quantity}` : ""}${d.reason ? ` · ${d.reason}` : ""}`;
+      case "item_distribute_delete": return `Distribution deleted: ${d.item_name || "?"} → ${d.player_name || "?"}${d.quantity ? ` x${d.quantity}` : ""}`;
       case "item_approve": case "item_reject": return d.item_name || "—";
       case "collection_create": return `${d.collection_name || "?"} created`;
       case "collection_delete": return `${d.collection_name || "?"} deleted`;

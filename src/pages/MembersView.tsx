@@ -1076,7 +1076,7 @@ function MembersViewContent() {
     const memberName = members.find((m) => m.id === id)?.name ?? "";
     setUnlinking(true);
     try {
-      await unlinkMember(id);
+      await unlinkMember(id, serverId ?? undefined);
       setUnlinkId(null);
       setUnlinkConfirmName("");
       invalidate();

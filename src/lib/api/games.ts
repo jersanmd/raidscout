@@ -1,4 +1,5 @@
 import { supabase } from "./client";
+import { writeAuditEntry, AuditAction } from "./audit";
 
 // ── Games ───────────────────────────────────────────────────
 
@@ -163,14 +164,33 @@ export async function fetchApprovedCommunityItems(
   return { items: data || [], total: count || 0 };
 }
 
+/** Read an item's identity for the audit trail before moderating it. */
+async function itemAuditContext(itemId: string): Promise<{ serverId?: string; name?: string }> {
+  try {
+    const { data } = await supabase.from("items").select("name, server_id").eq("id", itemId).single();
+    return { serverId: (data as any)?.server_id ?? undefined, name: (data as any)?.name };
+  } catch { return {}; }
+}
+
 export async function approveItem(itemId: string): Promise<void> {
+  const ctx = await itemAuditContext(itemId);
   const { error } = await supabase.rpc("approve_item", { p_item_id: itemId });
   if (error) throw error;
+  // Approving publishes a submission into the game-wide catalog every server
+  // reads; ITEM_APPROVE existed in the catalog but was never written, so the
+  // Activity Log filter for it could only ever return an empty list.
+  if (ctx.serverId) {
+    writeAuditEntry({ action: AuditAction.ITEM_APPROVE, server_id: ctx.serverId, target_id: itemId, details: { item_name: ctx.name ?? itemId } });
+  }
 }
 
 export async function rejectItem(itemId: string): Promise<void> {
+  const ctx = await itemAuditContext(itemId);
   const { error } = await supabase.rpc("reject_item", { p_item_id: itemId });
   if (error) throw error;
+  if (ctx.serverId) {
+    writeAuditEntry({ action: AuditAction.ITEM_REJECT, server_id: ctx.serverId, target_id: itemId, details: { item_name: ctx.name ?? itemId } });
+  }
 }
 
 export async function createItemCatalogItem(item: {

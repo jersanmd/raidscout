@@ -140,7 +140,6 @@ export function ServerBossesActivitiesTab({ mode = "all" }: { mode?: "all" | "bo
     queryClient.invalidateQueries({ queryKey: ["activities-all", serverId] });
     queryClient.invalidateQueries({ queryKey: ["activities"] });
     queryClient.invalidateQueries({ queryKey: ["activity-guilds", serverId] });
-    queryClient.invalidateQueries({ queryKey: ["activity-points"] });
   };
 
   const handleDelete = async () => {
@@ -162,7 +161,6 @@ export function ServerBossesActivitiesTab({ mode = "all" }: { mode?: "all" | "bo
       queryClient.refetchQueries({ queryKey: [queryKey, serverId] });
       queryClient.invalidateQueries({ queryKey: [deleteTarget.type === "boss" ? "bosses" : "activities"] });
       queryClient.invalidateQueries({ queryKey: ["activity-guilds", serverId] });
-      queryClient.invalidateQueries({ queryKey: ["activity-points"] });
       toast("success", deleteTarget.type === "activity" ? `"${deleteTarget.name}" disabled` : `"${deleteTarget.name}" deleted`);
       setDeleteTarget(null);
     } catch (err: any) {
@@ -186,7 +184,6 @@ export function ServerBossesActivitiesTab({ mode = "all" }: { mode?: "all" | "bo
       queryClient.invalidateQueries({ queryKey: ["activities-all", serverId] });
       queryClient.invalidateQueries({ queryKey: ["activities"] });
       queryClient.invalidateQueries({ queryKey: ["activity-guilds", serverId] });
-      queryClient.invalidateQueries({ queryKey: ["activity-points"] });
     } catch (err: any) {
       setSeedResult(err?.message ?? "Seeding failed.");
     } finally {
@@ -558,7 +555,6 @@ export function ServerBossesActivitiesTab({ mode = "all" }: { mode?: "all" | "bo
                 queryClient.refetchQueries({ queryKey: ["activities-all", serverId] });
                 queryClient.invalidateQueries({ queryKey: ["activities"] });
                 queryClient.invalidateQueries({ queryKey: ["activity-guilds", serverId] });
-                queryClient.invalidateQueries({ queryKey: ["activity-points"] });
               }}
               onCancel={() => setShowAddActivity(false)}
               onCreatedWithId={async (activityId) => {
@@ -773,7 +769,6 @@ export function ServerBossesActivitiesTab({ mode = "all" }: { mode?: "all" | "bo
                       queryClient.invalidateQueries({ queryKey: ["activities-all", serverId] });
                       queryClient.invalidateQueries({ queryKey: ["activities"] });
                       queryClient.invalidateQueries({ queryKey: ["activity-guilds", serverId] });
-                      queryClient.invalidateQueries({ queryKey: ["activity-points"] });
                     }}
                     onCancel={() => setEditingActivityId(null)}
                   />
