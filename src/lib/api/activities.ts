@@ -1,5 +1,6 @@
-import { supabase } from "./client";
+import { supabase, getCurrentServerId } from "./client";
 import { writeAuditEntry, AuditAction } from "./audit";
+import { mergePartyLeaders } from "./attendance";
 
 // ── Activity Parties ────────────────────────────────────────
 
@@ -19,12 +20,14 @@ export async function markActivityAttendance(activityInstanceId: string, memberI
   if (error) throw error;
 }
 
-export async function copyActivityAttendance(sourceInstanceId: string, targetInstanceId: string): Promise<{ copied: number; skipped: number }> {
+export async function copyActivityAttendance(sourceInstanceId: string, targetInstanceId: string): Promise<{ copied: number; skipped: number; leadersCopied: number }> {
+  const sid = getCurrentServerId();
+
   const { data: sourceRecords } = await supabase
     .from("activity_attendance")
     .select("member_id, present")
     .eq("activity_instance_id", sourceInstanceId);
-  if (!sourceRecords?.length) return { copied: 0, skipped: 0 };
+  if (!sourceRecords?.length) return { copied: 0, skipped: 0, leadersCopied: 0 };
 
   const { data: existingRecords } = await supabase
     .from("activity_attendance")
@@ -44,7 +47,52 @@ export async function copyActivityAttendance(sourceInstanceId: string, targetIns
     if (error) throw error;
   }
 
-  return { copied: toInsert.length, skipped: sourceRecords.length - toInsert.length };
+  // Party leaders live on the instance, not on attendance rows — the same shape
+  // as boss kills, where they live on the death record. Carry them over with the
+  // identical fill-only-missing policy (shared, unit-tested mergePartyLeaders):
+  // a leader set on the target deliberately is never overwritten. Runs even when
+  // every member was skipped as already present, so a re-copy completes leaders.
+  // One round trip fetches both instances' leaders and their activity names.
+  let leadersCopied = 0;
+  let sourceName = sourceInstanceId, targetName = targetInstanceId;
+  try {
+    const { data: instances } = await supabase
+      .from("activity_instances")
+      .select("id, party_leaders, activities:activity_id(name)")
+      .in("id", [sourceInstanceId, targetInstanceId]);
+
+    let sourceLeaders: Record<string, string> = {}, targetLeaders: Record<string, string> = {};
+    for (const inst of (instances ?? []) as any[]) {
+      const name = inst.activities?.name;
+      if (inst.id === sourceInstanceId) { sourceLeaders = inst.party_leaders ?? {}; if (name) sourceName = name; }
+      if (inst.id === targetInstanceId) { targetLeaders = inst.party_leaders ?? {}; if (name) targetName = name; }
+    }
+
+    const toAdd = mergePartyLeaders(sourceLeaders, targetLeaders);
+    if (Object.keys(toAdd).length) {
+      // Same RPC the participant modal's leader selector uses — no new permissions.
+      await setActivityPartyLeaders(targetInstanceId, { ...targetLeaders, ...toAdd });
+      leadersCopied = Object.keys(toAdd).length;
+    }
+  } catch {
+    // Non-critical: a leader-step failure must not undo a successful copy.
+  }
+
+  if (sid) {
+    writeAuditEntry({
+      action: AuditAction.ATTENDANCE_COPY,
+      server_id: sid,
+      details: {
+        copied: toInsert.length,
+        skipped: sourceRecords.length - toInsert.length,
+        party_leaders_copied: leadersCopied,
+        from_activity: sourceName,
+        to_activity: targetName,
+      },
+    });
+  }
+
+  return { copied: toInsert.length, skipped: sourceRecords.length - toInsert.length, leadersCopied };
 }
 
 export async function finalizeActivity(activityId: string, serverId?: string): Promise<string> {

@@ -1,9 +1,12 @@
 import { describe, it, expect } from "vitest";
 import { mergePartyLeaders } from "./attendance";
 
-// The copy-attendance flow carries the source death record's per-guild party
-// leaders ({guild_id: member_id}) onto the target. The policy under test:
-// fill only guilds the target has no leader for — never overwrite.
+// Both copy-attendance flows carry the source's per-guild party leaders
+// ({guild_id: member_id}) onto the target: boss kills read/write
+// death_records.party_leaders, activities read/write
+// activity_instances.party_leaders. They share this one policy function, so
+// these cases cover both paths: fill only guilds the target has no leader for
+// — never overwrite.
 
 describe("mergePartyLeaders", () => {
   it("copies the source's leaders when the target has none", () => {

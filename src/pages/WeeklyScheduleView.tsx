@@ -297,12 +297,19 @@ export function WeeklyScheduleView() {
     }
     try {
       const result = await copyActivityAttendance(activityCopySource.activityInstanceId, targetInstanceId);
-      setActivityCopyToast({ type: "success", message: `Copied ${result.copied} attendance${result.copied !== 1 ? "s" : ""}${result.skipped > 0 ? ` (${result.skipped} already present)` : ""}.` });
+      // This path calls the API directly rather than through a mutation, so it
+      // had no cache invalidation at all — the copied attendance only appeared
+      // on the next poll. Invalidate the target's attendance plus the instance
+      // lists that render the counts.
+      queryClient.invalidateQueries({ queryKey: ["activity_attendance", targetInstanceId] });
+      queryClient.invalidateQueries({ queryKey: ["activity_instances"] });
+      queryClient.invalidateQueries({ queryKey: ["attendance_counts"] });
+      setActivityCopyToast({ type: "success", message: `Copied ${result.copied} attendance${result.copied !== 1 ? "s" : ""}${result.skipped > 0 ? ` (${result.skipped} already present)` : ""}${result.leadersCopied > 0 ? ` · party leader${result.leadersCopied !== 1 ? "s" : ""} carried over` : ""}.` });
     } catch (err: any) {
       setActivityCopyToast({ type: "error", message: err?.message ?? "Failed to copy attendance." });
     }
     setActivityCopySource(null);
-  }, [activityCopySource]);
+  }, [activityCopySource, queryClient]);
 
   useEffect(() => {
     if (!activityCopyToast) return;
