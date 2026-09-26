@@ -12,10 +12,36 @@ interface PayPalSubscribeButtonProps {
   serverId: string;
   onSuccess?: () => void;
   onError?: (err: Error) => void;
+  /** The money was captured but the time isn't credited yet. Falls back to onError. */
+  onPending?: (message: string) => void;
   className?: string;
 }
 
 const SCRIPT_ID = "paypal-sdk-script";
+
+/**
+ * Credit a captured order. paypal-ipn credits each capture at most once, so
+ * retrying is safe; a 4xx means PayPal says the order itself can't be credited.
+ */
+async function activateOrder(serverId: string, orderId: string): Promise<{ pending?: boolean }> {
+  const delaysMs = [0, 2000, 5000];
+  let lastError: any;
+  for (const delay of delaysMs) {
+    if (delay) await new Promise((resolve) => setTimeout(resolve, delay));
+    const { data, error } = await supabase.functions.invoke("paypal-ipn", {
+      body: { server_id: serverId, order_id: orderId },
+    });
+    if (!error) return data ?? {};
+    const status = error?.context?.status;
+    if (status >= 400 && status < 500) {
+      // paid: false means PayPal never took the money.
+      const body = await error.context.json().catch(() => null);
+      throw Object.assign(new Error(body?.error || error.message), { status, paid: body?.paid });
+    }
+    lastError = error;
+  }
+  throw lastError;
+}
 
 /**
  * PayPal one-time checkout button ($9.99 for 30 days).
@@ -25,6 +51,7 @@ export function PayPalSubscribeButton({
   serverId,
   onSuccess,
   onError,
+  onPending,
   className = "",
 }: PayPalSubscribeButtonProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -34,6 +61,10 @@ export function PayPalSubscribeButton({
   const [sdkError, setSdkError] = useState<string | null>(null);
   const [processing, setProcessing] = useState(false);
   const [cardError, setCardError] = useState<string | null>(null);
+  // Callbacks are read through a ref so a parent re-render (with fresh inline
+  // callbacks) doesn't tear down and rebuild the buttons — possibly mid-checkout.
+  const callbacksRef = useRef({ onSuccess, onError, onPending });
+  callbacksRef.current = { onSuccess, onError, onPending };
 
   useEffect(() => {
     if (document.getElementById(SCRIPT_ID)) {
@@ -88,33 +119,59 @@ export function PayPalSubscribeButton({
     };
 
     const onApprove = async (data: any, actions: any) => {
+      const { onSuccess, onError, onPending } = callbacksRef.current;
       setProcessing(true);
       setCardError(null);
+      let capture: any;
       try {
-        const capture = await actions.order.capture();
-        // Check for payer-action errors from card declines
-        if (capture?.status === "DECLINED" || capture?.purchase_units?.[0]?.payments?.captures?.[0]?.status === "DECLINED") {
-          const rawReason = capture?.purchase_units?.[0]?.payments?.captures?.[0]?.status_details?.reason || "";
-          const declineReason = rawReason
-            ? `Card declined: ${rawReason}. Try a different card or use PayPal checkout above.`
-            : "Card was declined by your bank. Try a different card or use PayPal checkout above.";
-          setCardError(declineReason);
-          setProcessing(false);
-          return;
-        }
-        const { error } = await supabase.functions.invoke("paypal-ipn", {
-          body: { server_id: serverId, order_id: data.orderID },
-        });
-        if (error) {
-          console.error("paypal-ipn error:", error);
-          onError?.(new Error(error.message || "Failed to activate access"));
+        capture = await actions.order.capture();
+      } catch (err: any) {
+        console.error("PayPal capture failed:", err);
+        setCardError(err?.message || "Payment failed. Please try again.");
+        onError?.(err instanceof Error ? err : new Error("Payment failed. Please try again."));
+        setProcessing(false);
+        return;
+      }
+      // Card declines, and any capture status other than COMPLETED/PENDING: no money moved
+      const captureStatus = capture?.purchase_units?.[0]?.payments?.captures?.[0]?.status;
+      if (capture?.status === "DECLINED" || (captureStatus && captureStatus !== "COMPLETED" && captureStatus !== "PENDING")) {
+        const rawReason = capture?.purchase_units?.[0]?.payments?.captures?.[0]?.status_details?.reason || "";
+        const declineReason = rawReason
+          ? `Card declined: ${rawReason}. Try a different card or use PayPal checkout above.`
+          : "Card was declined by your bank. Try a different card or use PayPal checkout above.";
+        setCardError(declineReason);
+        setProcessing(false);
+        return;
+      }
+
+      // From here the money is captured, so every failure message must say so
+      // and carry the order id support needs to find the payment.
+      const reportPending = (message: string) => {
+        if (onPending) onPending(message);
+        else onError?.(new Error(message));
+      };
+      try {
+        const result = await activateOrder(serverId, data.orderID);
+        if (result.pending) {
+          reportPending(`PayPal is still processing your payment (order ${data.orderID}). Your 30 days will be added automatically as soon as it clears.`);
           return;
         }
         onSuccess?.();
       } catch (err: any) {
-        console.error("Failed to activate subscription:", err);
-        setCardError(err?.message || "Payment failed. Please try again.");
-        onError?.(err instanceof Error ? err : new Error("Failed to activate access. Your payment was processed — please contact support."));
+        console.error("paypal-ipn error:", err);
+        // Only trust "not paid" when the browser didn't itself see the capture go through.
+        if (err?.paid === false && !captureStatus) {
+          const message = "Your payment didn't complete and no money was taken. Please try again.";
+          setCardError(message);
+          onError?.(new Error(message));
+          return;
+        }
+        const status = err?.status ?? err?.context?.status;
+        reportPending(
+          status >= 400 && status < 500
+            ? `Your payment went through, but we couldn't apply it automatically (PayPal order ${data.orderID}). Please contact admin@raidscout.com with this order ID and we'll add your time.`
+            : `Your payment went through (PayPal order ${data.orderID}). Activation is taking longer than usual — your 30 days will be added automatically within a few minutes. If not, contact admin@raidscout.com with this order ID.`,
+        );
       } finally {
         setProcessing(false);
       }
@@ -124,7 +181,7 @@ export function PayPalSubscribeButton({
       console.error("PayPal button error:", err);
       const msg = typeof err === "string" ? err : err?.message || String(err);
       setCardError(msg);
-      onError?.(err instanceof Error ? err : new Error(msg));
+      callbacksRef.current.onError?.(err instanceof Error ? err : new Error(msg));
     };
 
     containerRef.current.style.minWidth = "400px";
@@ -191,7 +248,7 @@ export function PayPalSubscribeButton({
       }
       if (containerRef.current) containerRef.current.innerHTML = "";
     };
-  }, [sdkReady, serverId, onSuccess, onError]);
+  }, [sdkReady, serverId]);
 
   if (sdkError) {
     return (
