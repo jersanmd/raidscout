@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { CheckCircle, PartyPopper, Sparkles, Clock, Shield } from "lucide-react";
+import { CheckCircle, PartyPopper, Sparkles, Clock, Shield, Hourglass } from "lucide-react";
 
 interface PaymentSuccessModalProps {
   open: boolean;
@@ -7,10 +7,12 @@ interface PaymentSuccessModalProps {
   daysExtended?: number;
   newExpiryDate?: string;
   error?: string | null;
+  /** Payment captured but not credited yet — reassure instead of alarming. */
+  pending?: string | null;
 }
 
-/** Celebratory modal shown after payment — success or error. */
-export function PaymentSuccessModal({ open, onClose, daysExtended = 30, newExpiryDate, error }: PaymentSuccessModalProps) {
+/** Celebratory modal shown after payment — success, pending or error. */
+export function PaymentSuccessModal({ open, onClose, daysExtended = 30, newExpiryDate, error, pending }: PaymentSuccessModalProps) {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
@@ -35,7 +37,26 @@ export function PaymentSuccessModal({ open, onClose, daysExtended = 30, newExpir
 
       {/* Modal */}
       <div className={`relative bg-[#0a0a0f] border border-[#27272a] rounded-2xl max-w-md w-full p-8 shadow-2xl shadow-black/40 transition-all duration-500 ${visible ? "opacity-100 scale-100 translate-y-0" : "opacity-0 scale-95 translate-y-4"}`}>
-        {isError ? (
+        {pending ? (
+          <>
+            {/* Pending State — paid, not yet credited */}
+            <div className="text-center space-y-4">
+              <div className="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center mx-auto">
+                <Hourglass className="w-8 h-8 text-amber-400" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-[#fafafa] mb-1">Payment received</h3>
+                <p className="text-sm text-[#a1a1aa]">{pending}</p>
+              </div>
+              <button
+                onClick={onClose}
+                className="w-full py-2.5 rounded-xl bg-[#27272a] text-[#fafafa] text-sm font-medium hover:bg-[#3f3f46] transition"
+              >
+                Close
+              </button>
+            </div>
+          </>
+        ) : isError ? (
           <>
             {/* Error State */}
             <div className="text-center space-y-4">

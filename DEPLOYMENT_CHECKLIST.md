@@ -8,6 +8,8 @@
 ## Database (Production Supabase `cjuacehmienztxrhwnlg`)
 
 - [ ] Push migrations: `npx supabase db push --include-all`
+  (Historical. Prod's migration history now has versions applied through MCP with no local file, so
+  `db push` refuses to run against it — apply new migration files with MCP `apply_migration` or the SQL editor.)
 - [ ] Verify migrations 099-154 applied
 - [ ] Enable Realtime: `ALTER PUBLICATION supabase_realtime ADD TABLE public.member_claim_requests`
 - [ ] Set replica identity: `ALTER TABLE public.member_claim_requests REPLICA IDENTITY FULL`
@@ -192,13 +194,56 @@
 - [ ] Verify: `VITE_PAYPAL_PLAN_ID` is NOT needed (we use `intent=capture`, not subscriptions)
 
 ## 2. Supabase — Edge Functions
-- [ ] Deploy `paypal-ipn`:
+Do these IN ORDER. The pre-fix `paypal-ipn` must never run with the PayPal
+secrets set before the migration is in: it credits without writing a payments
+row, so the IPN retry credits the same payment a second time.
+- [ ] Apply `supabase/migrations/20260924000000_fix_paypal_payment_crediting.sql` to prod
+  (MCP `apply_migration` or the SQL editor — not `db push`, see the note under Database above), then check:
+  ```sql
+  SELECT to_regprocedure('public.record_paypal_payment(uuid,text,text,numeric,integer,text)') IS NOT NULL AS rpc,
+         EXISTS (SELECT 1 FROM information_schema.columns
+                 WHERE table_name = 'payments' AND column_name = 'paypal_capture_id') AS capture_col;
   ```
-  supabase functions deploy paypal-ipn --project-ref cjuacehmienztxrhwnlg
+- [ ] Deploy `paypal-ipn` with JWT verification OFF (PayPal's IPN sends no JWT; `supabase/config.toml` pins this too):
   ```
+  supabase functions deploy paypal-ipn --no-verify-jwt --project-ref cjuacehmienztxrhwnlg
+  ```
+  Deploying through the Supabase MCP `deploy_edge_function`: pass `verify_jwt: false` explicitly — it defaults to true.
+- [ ] After every deploy of the fixed function, confirm Dashboard → Edge Functions → `paypal-ipn` shows JWT verification off
+- [ ] BEFORE setting the secrets, check the exact values locally, without moving money:
+  `GET https://api-m.paypal.com/v2/checkout/orders/4KJ61408G9015335X` with the client ID/secret must return
+  `purchase_units[0].custom_id = cf0d1eff-f583-4a00-8138-e1776a0b1d91` and
+  `purchase_units[0].payee.merchant_id` equal to the merchant ID you are about to set.
+  (A wrong merchant ID makes the function reject every payment until it's fixed.)
+- [ ] BEFORE setting the secrets, deal with payments an admin already credited by hand. Once the
+  secrets are set, PayPal's queued IPN retries (up to ~4 days after each payment) credit those
+  payments again — +30 days on top of the comp. For each one, either accept the extra 30 days, or
+  record the payment WITHOUT extending, so the IPN becomes a no-op:
+  ```sql
+  -- capture id = the IPN's txn_id (PayPal → Activity, or IPN History)
+  INSERT INTO public.payments (server_id, paypal_capture_id, amount, days_added, status)
+  VALUES ('<server id>', '<capture id>', 9.99, 30, 'completed');
+  ```
+  As of 2026-09-24: SVEN 1 `3058e4df-0b0a-472e-ac9f-69c2c4f250ff` (paid 09-22 ~11:42Z, comped +150d)
+  and CoffeeVN `35e97ca4-47c8-4090-be0c-43ec193a7786` (paid 09-24 ~07:21Z, comped +90d).
+- [ ] Set the PayPal secrets LAST (until then the function answers "retry" and PayPal keeps IPNs from
+  the last ~4 days queued; they credit on the next retry):
+  ```
+  supabase secrets set PAYPAL_CLIENT_ID=... PAYPAL_CLIENT_SECRET=... PAYPAL_MERCHANT_ID=... --project-ref cjuacehmienztxrhwnlg
+  ```
+  - `PAYPAL_CLIENT_ID` / `PAYPAL_CLIENT_SECRET`: the LIVE REST app whose client ID is `VITE_PAYPAL_CLIENT_ID`
+  - `PAYPAL_MERCHANT_ID`: PayPal → Account Settings → Business information → PayPal Merchant ID.
+    Only payments made to this account are credited.
+- [ ] Backfill older outage payments, which PayPal no longer retries: enable "Transaction search" on the
+  LIVE REST app (developer dashboard → app → Features; can take hours to activate), then follow the
+  header of `scripts/reconcile-paypal-payments.mjs` — dry run with `--since 2026-06-21`, review
+  MISSING / COMPED / CHECK BY HAND, then `--apply`.
 - [ ] Verify `paypal-ipn` has these env vars set (Supabase Dashboard → Edge Functions):
   - `SUPABASE_URL` (auto-set)
   - `SUPABASE_SERVICE_ROLE_KEY` (auto-set)
+  - `PAYPAL_CLIENT_ID`
+  - `PAYPAL_CLIENT_SECRET`
+  - `PAYPAL_MERCHANT_ID`
 - [ ] Deploy `discord-bot` (if used for Interactions endpoint):
   ```
   supabase functions deploy discord-bot --project-ref cjuacehmienztxrhwnlg
@@ -234,7 +279,8 @@ Go to Vercel Dashboard → Project Settings → Environment Variables:
 - [ ] Click "Pay with PayPal" — opens PayPal popup (NOT sandbox)
 - [ ] Complete a $9.99 payment with a real card/PayPal account
 - [ ] Verify: `subscription_ends_at` updated in database
-- [ ] Verify: `payments` table has a new row
+- [ ] Verify: `payments` table has exactly ONE new row, with both `paypal_order_id` and `paypal_capture_id`
+- [ ] Verify: `paypal-ipn` logs show the IPN for that capture arriving a few seconds later with `credited=false` (no double credit)
 - [ ] Verify: celebratory modal appears after payment
 - [ ] Verify: page updates to "Pro" without refresh
 - [ ] Verify: no "Access active" banner (Pro users don't see it)
@@ -254,3 +300,7 @@ If something breaks:
 - [ ] Remove `VITE_PAYPAL_CLIENT_ID` env var (hides PayPal buttons)
 - [ ] All servers default to `trial_ends_at` behavior
 - [ ] No data loss — payments table is append-only
+- [ ] NEVER redeploy the pre-2026-09-24 `paypal-ipn` while JWT verification is off: its IPN branch has
+  no duplicate check and credits every payment a second time. Roll back by hiding the buttons and leaving
+  the fixed function in place, or redeploy the old code only with JWT verification ON. The
+  `20260924000000` migration can stay applied either way.

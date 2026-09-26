@@ -48,7 +48,7 @@ export function BillingView() {
 
   const [payments, setPayments] = useState<any[]>([]);
   const [paymentsLoading, setPaymentsLoading] = useState(false);
-  const [paymentResult, setPaymentResult] = useState<{ success: boolean; error?: string } | null>(null);
+  const [paymentResult, setPaymentResult] = useState<{ success: boolean; error?: string; pending?: string } | null>(null);
 
   const handlePaymentSuccess = async () => {
     await refreshServers();
@@ -194,6 +194,7 @@ export function BillingView() {
                     serverId={currentServer.id}
                     onSuccess={handlePaymentSuccess}
                     onError={(err) => setPaymentResult({ success: false, error: err.message })}
+                    onPending={(message) => setPaymentResult({ success: false, pending: message })}
                   />
                 </div>
               </div>
@@ -208,6 +209,7 @@ export function BillingView() {
                     serverId={currentServer.id}
                     onSuccess={handlePaymentSuccess}
                     onError={(err) => setPaymentResult({ success: false, error: err.message })}
+                    onPending={(message) => setPaymentResult({ success: false, pending: message })}
                   />
                 </div>
               </div>
@@ -276,9 +278,9 @@ export function BillingView() {
                   </span>
                 </div>
                 <span className="col-span-2 text-right">
-                  {p.paypal_order_id ? (
+                  {p.paypal_capture_id || p.paypal_order_id ? (
                     <a
-                      href={`https://www.paypal.com/myaccount/transactions/details/${p.paypal_order_id}`}
+                      href={`https://www.paypal.com/myaccount/transactions/details/${p.paypal_capture_id || p.paypal_order_id}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-flex items-center gap-1 text-[11px] font-medium text-sky-600 hover:text-sky-700 hover:underline transition"
@@ -357,6 +359,7 @@ export function BillingView() {
         open={!!paymentResult}
         onClose={() => setPaymentResult(null)}
         error={paymentResult?.success === false ? paymentResult.error : undefined}
+        pending={paymentResult?.pending}
         daysExtended={
           currentServer.subscription_ends_at
             ? Math.ceil((new Date(currentServer.subscription_ends_at).getTime() - Date.now()) / 86400000)

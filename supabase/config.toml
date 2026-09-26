@@ -1,0 +1,17 @@
+# Supabase CLI config. Only per-function settings are pinned here; everything
+# else uses the CLI defaults.
+project_id = "raidscout"
+
+# PayPal's IPN POSTs carry no Supabase JWT. With verify_jwt on, the gateway
+# rejects every one with 401 before the function runs, and paid orders go
+# uncredited (2026-06 → 2026-09 incident). The function verifies with PayPal.
+[functions.paypal-ipn]
+verify_jwt = false
+
+# Already deployed with verify_jwt off; pinned so a bulk deploy with an older
+# CLI (which defaults unlisted functions to true) doesn't turn it back on.
+[functions.get-discord-guild]
+verify_jwt = false
+
+[functions.bot-proxy]
+verify_jwt = false
