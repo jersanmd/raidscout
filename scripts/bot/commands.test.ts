@@ -428,10 +428,6 @@ function formatBossNotAliveError(bossName: string, prefix: string): string {
   return `❌ **${bossName}** is not currently alive.\n-# Wrong kill time? Use \`${prefix}editkilltime ${bossName} HH:MM\` to fix the previous kill instead.`;
 }
 
-function formatBossCooldownError(bossName: string, killedAtUnix: number, prefix: string): string {
-  return `⏳ **${bossName}** already declared dead at <t:${killedAtUnix}:t>.\n-# Wrong time? Use \`${prefix}editkilltime ${bossName} HH:MM\` to fix it.`;
-}
-
 describe("killed error messages", () => {
   const prefix = "!";
 
@@ -440,14 +436,6 @@ describe("killed error messages", () => {
     expect(msg).toContain("is not currently alive");
     expect(msg).toContain("!editkilltime Clemantis");
     expect(msg).toContain("fix the previous kill");
-  });
-
-  it("boss cooldown message includes Discord timestamp", () => {
-    const unix = Math.floor(Date.now() / 1000) - 600; // 10 min ago
-    const msg = formatBossCooldownError("Clemantis", unix, prefix);
-    expect(msg).toContain("already declared dead");
-    expect(msg).toContain(`<t:${unix}:t>`);
-    expect(msg).toContain("!editkilltime Clemantis");
   });
 
   it("activity not active message uses different wording than boss", () => {

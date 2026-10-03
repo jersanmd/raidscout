@@ -6,7 +6,7 @@ import { discordFetch } from "./discord-api";
 import { supabaseQuery, supabaseQuerySafe, supabaseRpc, logError } from "./supabase";
 import { writeBotAudit } from "./supabase";
 import { getGuildPrefixes, resolveServerId, resolveServerTimezone, bustPrefixCache } from "./server-cache";
-import { addHours, computeOwnerGuild, getScheduleTz, scheduleSlotToUTC, findNextScheduleSlot } from "./spawn-utils";
+import { addHours, computeOwnerGuild, getScheduleTz, scheduleSlotToUTC, findNextScheduleSlot, formatAlreadyDeadReply, killedThisWindow, scheduledSpawnWindow } from "./spawn-utils";
 import { fetchPartyList } from "./party-utils";
 import { broadcastNotification } from "./notifications";
 
@@ -891,23 +891,29 @@ export async function handleMessage(msg: any) {
       if (effectiveDt) { const st = new Date(new Date(effectiveDt).getTime() + (boss.respawn_hours ?? 0) * 3600000); isAlive = st <= aliveNow; }
       else isAlive = true;
     } else if (boss.spawn_type === "fixed_schedule" && boss.schedule) {
-      const schedTz = getScheduleTz(boss, tz);
-      let recentSlot: Date | null = null;
-      for (let d = 0; d <= 7; d++) { const check = new Date(aliveNow); check.setDate(check.getDate() - d);
-        for (const slot of boss.schedule) { const c = scheduleSlotToUTC(schedTz, check, slot.day, slot.time); if (c <= aliveNow && (!recentSlot || c > recentSlot)) recentSlot = c; }
-      }
-      if (recentSlot) {
-        const nextSlot = findNextScheduleSlot(boss.schedule, new Date(recentSlot.getTime() + 60_000), schedTz);
-        const aliveUntil = new Date(Math.min(nextSlot.getTime() - 3600_000, recentSlot.getTime() + 24 * 3600_000));
+      const spawnWindow = scheduledSpawnWindow(boss.schedule, aliveNow, getScheduleTz(boss, tz));
+      if (spawnWindow) {
+        const { recentSlot, aliveUntil } = spawnWindow;
         const wasKilled = recentDeaths?.[0] && new Date(recentDeaths[0].death_time) >= recentSlot;
         isAlive = !wasKilled && aliveNow >= recentSlot && aliveNow < aliveUntil;
-        // Track the slot start for the cooldown check below
+        // Track the window for the not-alive reply and cooldown check below
         (aliveNow as any)._recentSlot = recentSlot;
+        (aliveNow as any)._aliveUntil = aliveUntil;
       }
     }
+    // A mention-invoked command has no matched prefix; hints still need a real one.
+    const hintPrefix = matchedPrefix || prefixes[0] || "!";
     if (!isAlive) {
       await cmdLog(cmd, "fail", `${boss.name} not alive`);
       discordFetch(`https://discord.com/api/v10/channels/${channelId}/messages/${msg.id}/reactions/${encodeURIComponent("❌")}/@me`, { method: "PUT", headers: { Authorization: `Bot ${TOKEN}` } }).catch(() => {});
+      // Not alive only because someone already recorded this spawn's kill (often
+      // on the website): say when and where instead of a bare "not alive".
+      const lastDeath = recentDeaths?.[0];
+      if (killedThisWindow(boss, lastDeath?.death_time, {
+        now: aliveNow, recentSlot: (aliveNow as any)._recentSlot, aliveUntil: (aliveNow as any)._aliveUntil, overrideDeathTime,
+      })) {
+        return reply(formatAlreadyDeadReply(boss.name, new Date(lastDeath.death_time), !!lastDeath.user_id, hintPrefix, tz));
+      }
       return reply(`❌ **${boss.name}** is not currently alive.${timeStr ? `\n-# Wrong time? Use \`${matchedPrefix}editkilltime ${boss.name} HH:MM\` to fix the previous kill instead.` : ""}`);
     }
     if (recentDeaths?.length && !overrideDeathTime) {
@@ -931,8 +937,7 @@ export async function handleMessage(msg: any) {
         const cooldownEnd = new Date(lastKill.getTime() + 2 * 3600_000);
         if (new Date() < cooldownEnd) {
           discordFetch(`https://discord.com/api/v10/channels/${channelId}/messages/${msg.id}/reactions/${encodeURIComponent("❌")}/@me`, { method: "PUT", headers: { Authorization: `Bot ${TOKEN}` } }).catch(() => {});
-          const killedAt = Math.floor(lastKill.getTime() / 1000);
-          return reply(`⏳ **${boss.name}** already declared dead at <t:${killedAt}:t>.${timeStr ? `\n-# Wrong time? Use \`${matchedPrefix}editkilltime ${boss.name} HH:MM\` to fix it.` : ""}`);
+          return reply(formatAlreadyDeadReply(boss.name, lastKill, !!recentDeaths[0].user_id, hintPrefix, tz));
         }
       }
     }

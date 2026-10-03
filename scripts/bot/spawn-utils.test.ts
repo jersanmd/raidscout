@@ -8,6 +8,9 @@ import {
   getScheduleTz,
   scheduleSlotToUTC,
   findNextScheduleSlot,
+  killedThisWindow,
+  formatAlreadyDeadReply,
+  scheduledSpawnWindow,
 } from "./spawn-utils";
 
 // ── addHours ─────────────────────────────────────────────────
@@ -466,5 +469,113 @@ describe("scheduleSlotToUTC edge cases", () => {
     // dayDiff = 5 - 2 = 3, 3 is not < -3 and not > 3, so no adjustment
     // Should be Friday of the same week
     expect(result.getUTCDay()).toBe(5);
+  });
+});
+
+// ── !kill on a boss whose current spawn was already killed ──────────────────
+// CoffeeVN, 2026-10-03: Libitina (Sat 13:00 UTC) was marked dead on the website
+// at 13:06; a Discord !kill at 13:16 got a bare "is not currently alive".
+
+describe("killedThisWindow", () => {
+  const scheduled = { spawn_type: "fixed_schedule" };
+  const slot = new Date("2026-10-03T13:00:00Z");
+  const aliveUntil = new Date("2026-10-04T13:00:00Z");
+  const now = new Date("2026-10-03T13:16:00Z");
+
+  it("scheduled boss killed after the current slot opened", () => {
+    expect(killedThisWindow(scheduled, "2026-10-03T13:06:27.295Z", { now, recentSlot: slot, aliveUntil })).toBe(true);
+  });
+
+  it("scheduled boss killed exactly at the slot start", () => {
+    expect(killedThisWindow(scheduled, slot.toISOString(), { now, recentSlot: slot, aliveUntil })).toBe(true);
+  });
+
+  it("scheduled boss whose last kill is from a previous slot", () => {
+    expect(killedThisWindow(scheduled, "2026-10-01T16:50:08Z", { now, recentSlot: slot, aliveUntil })).toBe(false);
+  });
+
+  it("scheduled boss killed in its window, but the window has since closed", () => {
+    // Un-doing that kill wouldn't make it alive, so it isn't the reason.
+    const later = new Date("2026-10-04T14:00:00Z");
+    expect(killedThisWindow(scheduled, "2026-10-03T13:06:27Z", { now: later, recentSlot: slot, aliveUntil })).toBe(false);
+  });
+
+  it("scheduled boss with no slot in range or no kill", () => {
+    expect(killedThisWindow(scheduled, "2026-10-03T13:06:27Z", { now, recentSlot: null, aliveUntil: null })).toBe(false);
+    expect(killedThisWindow(scheduled, null, { now, recentSlot: slot, aliveUntil })).toBe(false);
+  });
+
+  const timer = { spawn_type: "fixed_hours", respawn_hours: 3 };
+
+  it("timer boss still inside its respawn", () => {
+    expect(killedThisWindow(timer, "2026-10-03T12:00:00Z", { now })).toBe(true);
+  });
+
+  it("timer boss whose respawn has elapsed", () => {
+    expect(killedThisWindow(timer, "2026-10-03T10:00:00Z", { now })).toBe(false);
+  });
+
+  it("timer boss held back by a force-spawn override, not a kill", () => {
+    expect(killedThisWindow(timer, "2026-10-03T12:00:00Z", { now, overrideDeathTime: "2026-10-03T12:30:00Z" })).toBe(false);
+  });
+
+  it("other spawn types never claim a kill", () => {
+    expect(killedThisWindow({ spawn_type: "daily" }, "2026-10-03T13:06:27Z", { now })).toBe(false);
+  });
+});
+
+describe("formatAlreadyDeadReply", () => {
+  const killedAt = new Date("2026-10-03T13:06:27.295Z");
+  const unix = Math.floor(killedAt.getTime() / 1000);
+  const tz = "Asia/Bangkok";
+
+  it("says the kill was recorded on the website, with when", () => {
+    const msg = formatAlreadyDeadReply("Libitina", killedAt, true, "!", tz);
+    expect(msg).toContain("**Libitina** was already marked dead on the website");
+    expect(msg).toContain(`<t:${unix}:t>`);
+    expect(msg).toContain(`<t:${unix}:R>`);
+    expect(msg).not.toContain("not currently alive");
+  });
+
+  it("doesn't claim a source for Discord, viewer-link or automated kills", () => {
+    const msg = formatAlreadyDeadReply("Libitina", killedAt, false, "!", tz);
+    expect(msg).toContain("**Libitina** was already marked dead at");
+    expect(msg).not.toContain("dead on the website");
+  });
+
+  it("editkilltime hint carries the kill's own date in server time", () => {
+    // Without a date the command assumes today and would move an older kill.
+    expect(formatAlreadyDeadReply("Libitina", killedAt, true, ";", tz))
+      .toContain("`;editkilltime Libitina HH:MM 2026-10-03` (server time)");
+    // 18:30 UTC on Oct 1 is already Oct 2 in Bangkok.
+    expect(formatAlreadyDeadReply("Camalia", new Date("2026-10-01T18:30:00Z"), true, "!", tz))
+      .toContain("`!editkilltime Camalia HH:MM 2026-10-02`");
+  });
+
+  it("only offers fixes that exist (History edits times; it has no delete)", () => {
+    const msg = formatAlreadyDeadReply("Libitina", killedAt, true, "!", tz);
+    expect(msg).toContain("edit it on the website's History page");
+    expect(msg).not.toMatch(/remove|delete/i);
+  });
+});
+
+// The CoffeeVN case end to end, through the same window the !kill handler uses.
+describe("CoffeeVN !kill after a website kill", () => {
+  const libitina = [{ day: 1, time: "13:00" }, { day: 6, time: "13:00" }];
+  const camalia = [{ day: 4, time: "13:00" }];
+  const now = new Date("2026-10-03T13:16:00Z"); // Sat, 20:16 in Bangkok
+
+  it("Libitina: inside its Sat window, killed at 13:06 -> already marked dead", () => {
+    const w = scheduledSpawnWindow(libitina, now, "UTC");
+    expect(w.recentSlot.toISOString()).toBe("2026-10-03T13:00:00.000Z");
+    expect(w.aliveUntil.toISOString()).toBe("2026-10-04T13:00:00.000Z");
+    expect(killedThisWindow({ spawn_type: "fixed_schedule" }, "2026-10-03T13:06:27.295Z", { now, ...w })).toBe(true);
+  });
+
+  it("Camalia: Thursday's window closed Friday -> plain not-alive, not a kill", () => {
+    const w = scheduledSpawnWindow(camalia, now, "UTC");
+    expect(w.recentSlot.toISOString()).toBe("2026-10-01T13:00:00.000Z");
+    expect(w.aliveUntil.toISOString()).toBe("2026-10-02T13:00:00.000Z");
+    expect(killedThisWindow({ spawn_type: "fixed_schedule" }, "2026-10-01T16:50:08.04Z", { now, ...w })).toBe(false);
   });
 });

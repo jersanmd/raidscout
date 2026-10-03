@@ -15,6 +15,72 @@ export function formatRelative(unix: number): string {
 
 export function safeMod(v: number, n: number) { return ((v % n) + n) % n; }
 
+/**
+ * A scheduled boss's current spawn window: its latest slot at or before `now`,
+ * and when that spawn stops counting as alive -- an hour before the next slot
+ * or 24h after this one, whichever comes first. Null if no slot in the past week.
+ */
+export function scheduledSpawnWindow(
+  schedule: { day: number; time: string }[], now: Date, tz: string,
+): { recentSlot: Date; aliveUntil: Date } | null {
+  let recentSlot: Date | null = null;
+  for (let d = 0; d <= 7; d++) {
+    const check = new Date(now);
+    check.setDate(check.getDate() - d);
+    for (const slot of schedule) {
+      const c = scheduleSlotToUTC(tz, check, slot.day, slot.time);
+      if (c <= now && (!recentSlot || c > recentSlot)) recentSlot = c;
+    }
+  }
+  if (!recentSlot) return null;
+  const nextSlot = findNextScheduleSlot(schedule, new Date(recentSlot.getTime() + 60_000), tz);
+  const aliveUntil = new Date(Math.min(nextSlot.getTime() - 3600_000, recentSlot.getTime() + 24 * 3600_000));
+  return { recentSlot, aliveUntil };
+}
+
+/**
+ * Whether the boss is not alive only because its current spawn was already
+ * killed -- so un-doing that kill would make it alive again.
+ * Scheduled bosses: the last death is inside the still-open spawn window.
+ * Timer bosses: the last death's respawn hasn't elapsed -- unless a force-spawn
+ * override drives the timer, in which case it isn't a kill holding it back.
+ */
+export function killedThisWindow(
+  boss: { spawn_type: string; respawn_hours?: number | null },
+  lastDeathTime: string | null | undefined,
+  opts: { now: Date; recentSlot?: Date | null; aliveUntil?: Date | null; overrideDeathTime?: string | null },
+): boolean {
+  if (!lastDeathTime) return false;
+  const deathMs = new Date(lastDeathTime).getTime();
+  if (boss.spawn_type === "fixed_schedule") {
+    return !!opts.recentSlot && !!opts.aliveUntil
+      && deathMs >= opts.recentSlot.getTime() && opts.now < opts.aliveUntil;
+  }
+  if (boss.spawn_type === "fixed_hours") {
+    return !opts.overrideDeathTime && deathMs + (boss.respawn_hours ?? 0) * 3600_000 > opts.now.getTime();
+  }
+  return false;
+}
+
+/**
+ * Reply to !kill when the boss already has a kill in its current spawn window.
+ * recordedOnWebsite: the death row carries a user_id, i.e. a signed-in website
+ * user marked it -- the case Discord members can't see, so without it "not
+ * alive" reads as a bot error while the boss stands in game. (Viewer-link kills
+ * have no user_id either, so they get no source rather than a wrong one.)
+ * The editkilltime hint carries the kill's own date in server time: without a
+ * date the command assumes today and would move an older kill to the wrong day.
+ */
+export function formatAlreadyDeadReply(
+  bossName: string, killedAt: Date, recordedOnWebsite: boolean, prefix: string, serverTz: string,
+): string {
+  const unix = Math.floor(killedAt.getTime() / 1000);
+  const where = recordedOnWebsite ? " on the website" : "";
+  const killDate = killedAt.toLocaleDateString("en-CA", { timeZone: serverTz });
+  return `⏳ **${bossName}** was already marked dead${where} at <t:${unix}:t> (<t:${unix}:R>).\n` +
+    `-# Wrong time? Use \`${prefix}editkilltime ${bossName} HH:MM ${killDate}\` (server time), or edit it on the website's History page.`;
+}
+
 export function computeOwnerGuild(
   boss: any, bossGuilds: any[], guilds: any[], lastDeath: any, spawn: Date, tz: string
 ): string | undefined {
