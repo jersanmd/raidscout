@@ -59,13 +59,15 @@ export function ServerProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (isViewer && viewerServerId) {
       // Fetch trial/subscription info so we know if the server is expired
+      // Viewers are anon, which can't read servers.discord_webhook_url; the
+      // viewer-key lookup already returned it (viewerDiscordWebhookUrl).
       supabase
         .from("servers")
-        .select("name, game, trial_ends_at, subscription_ends_at, timezone, discord_webhook_url")
+        .select("name, game, trial_ends_at, subscription_ends_at, timezone")
         .eq("id", viewerServerId)
         .is("deleted_at", null)
         .maybeSingle()
-        .then(({ data: srv }) => {
+        .then(({ data: srv, error }) => {
           const trialEnds = srv?.trial_ends_at ?? null;
           const subEnds = srv?.subscription_ends_at ?? null;
           const viewerServer: Server = {
@@ -74,13 +76,17 @@ export function ServerProvider({ children }: { children: ReactNode }) {
             owner_id: "",
             invite_code: "",
             created_at: undefined,
-            discord_webhook_url: srv?.discord_webhook_url ?? viewerDiscordWebhookUrl ?? undefined,
+            discord_webhook_url: viewerDiscordWebhookUrl ?? undefined,
             timezone: srv?.timezone ?? viewerTimezone ?? undefined,
             game: srv?.game ?? undefined,
             role: "viewer",
-            trial_ends_at: trialEnds,
-            subscription_ends_at: subEnds,
-            isExpired: computeIsExpired(trialEnds, subEnds),
+            // A failed read says nothing about expiry -- computing it from
+            // nulls would lock every viewer behind the expired gate.
+            ...(error ? {} : {
+              trial_ends_at: trialEnds,
+              subscription_ends_at: subEnds,
+              isExpired: computeIsExpired(trialEnds, subEnds),
+            }),
           };
           setServers([viewerServer]);
           setCurrentServer(viewerServer);

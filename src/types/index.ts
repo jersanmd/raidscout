@@ -53,6 +53,7 @@ export interface DeathRecord {
 export interface Member {
   id: string;
   name: string;
+  server_id?: string;
   guild_id?: string | null;
   combat_power?: number | null;
   class?: string | null;

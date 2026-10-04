@@ -92,7 +92,8 @@ export function subscribeToServerSettings(
     const callbacks = new Set<(payload: any) => void>();
     (channel as any).__callbacks = callbacks;
     callbacks.add(onUpdate);
-    channel.on("postgres_changes", { event: "UPDATE", schema: "public", table: "servers" },
+    // Only this server's row: unfiltered, every client received every server's updates.
+    channel.on("postgres_changes", { event: "UPDATE", schema: "public", table: "servers", filter: `id=eq.${serverId}` },
       (payload) => callbacks.forEach(cb => cb(payload)));
     channel.subscribe((status) => {
       if (status === "CLOSED" || status === "CHANNEL_ERROR") activeChannels.delete(chanName);

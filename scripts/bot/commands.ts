@@ -1152,13 +1152,6 @@ export async function handleMessage(msg: any) {
       let oldCp: number | null = null;
       let resolvedName = playerName;
       let memberSlug: string | undefined;
-      let viewerKey: string | null = null;
-
-      // Fetch viewer key for the server (for public profile links)
-      try {
-        const vkRes = await supabaseQuerySafe(`servers?id=eq.${serverId}&select=viewer_key`);
-        if (vkRes?.[0]?.viewer_key) viewerKey = vkRes[0].viewer_key;
-      } catch { /* ignore */ }
 
       // Try exact match first (case-insensitive)
       let memberRows = await supabaseQuerySafe(
@@ -1178,7 +1171,7 @@ export async function handleMessage(msg: any) {
         memberId = memberRows[0].id;
         oldCp = memberRows[0].combat_power ?? null;
         resolvedName = memberRows[0].name;
-        const memberSlug = memberRows[0].public_slug as string | undefined;
+        memberSlug = memberRows[0].public_slug as string | undefined;
         // Update member's combat_power
         await fetch(`${SUPABASE_URL}/rest/v1/members?id=eq.${memberId}`, {
           method: "PATCH",
@@ -1279,10 +1272,10 @@ export async function handleMessage(msg: any) {
       }
 
       const screenshotNote = screenshotUrl ? " 📸 Screenshot saved." : "";
+      // A public profile link, never the viewer link: a viewer key posted in a
+      // channel hands the whole server's view to anyone who reads it.
       const memberPath = memberSlug ? `/m/${memberSlug}` : `/members/${memberId}`;
-      const profileUrl = viewerKey
-        ? `${SITE_URL}/view/${viewerKey}?redirect=${encodeURIComponent(memberPath)}`
-        : `${SITE_URL}${memberPath}`;
+      const profileUrl = `${SITE_URL}${memberPath}`;
       const profileLink = `🔗 Click here to check your member page on RaidScout: <${profileUrl}>`;
       await cmdLog(cmd, "ok", `${resolvedName} → ${cpValue.toLocaleString()} CP`);
       writeBotAudit({ action: "member_cp_update", server_id: serverId, discord_user: author, target_id: memberId, details: { player_name: resolvedName, new_cp: cpValue } });

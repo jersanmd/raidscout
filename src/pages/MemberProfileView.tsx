@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fetchMemberProfile, addMemberNote, deleteMemberNote, isSupabaseConfigured, fetchGuilds, supabase } from "@/lib/supabase";
-import { useServerId, useServer } from "@/contexts/ServerContext";
+import { useServer } from "@/contexts/ServerContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { guildColor } from "@/lib/constants";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
@@ -77,11 +77,31 @@ function GearSlot({ slotName, item, enh, rc }: { slotName: string; item: any; en
 export function MemberProfileView() {
   const { memberId } = useParams<{ memberId: string }>();
   const navigate = useNavigate();
-  const serverId = useServerId();
   const { currentServer } = useServer();
   const { isViewer } = useAuth();
-  const isStaff = currentServer?.role === "owner" || currentServer?.role === "moderator";
-  const serverTz = currentServer?.timezone || "UTC";
+  const queryClient = useQueryClient();
+  const configured = isSupabaseConfigured();
+
+  const { data: profile, isLoading } = useQuery({
+    queryKey: ["memberProfile", memberId],
+    queryFn: () => fetchMemberProfile(memberId!),
+    enabled: !!memberId && configured,
+  });
+  // The member's own server, not the visitor's current one: the bot's
+  // /m/<slug> links reach signed-out visitors and members of other servers.
+  const serverId = profile?.server_id ?? null;
+  const isOwnServer = !!serverId && serverId === currentServer?.id;
+  const isStaff = isOwnServer && (currentServer?.role === "owner" || currentServer?.role === "moderator");
+  const { data: memberServerTz } = useQuery({
+    queryKey: ["serverTimezone", serverId],
+    queryFn: async () => {
+      const { data } = await supabase.from("servers").select("timezone").eq("id", serverId!).maybeSingle();
+      return (data?.timezone as string | null) ?? null;
+    },
+    staleTime: 300000,
+    enabled: !!serverId && !isOwnServer && configured,
+  });
+  const serverTz = (isOwnServer ? currentServer?.timezone : memberServerTz) || "UTC";
 
   // Compute week/month start in the server's timezone
   const weekStart = (() => {
@@ -116,14 +136,6 @@ export function MemberProfileView() {
     const offsetMs = Date.UTC(sy, sm - 1, sd, sh, smm, 0) - Date.UTC(uy, um - 1, ud, uh, umm, 0);
     return new Date(Date.UTC(sy, sm - 1, 1, 0, 0, 0) - offsetMs);
   })();
-  const queryClient = useQueryClient();
-  const configured = isSupabaseConfigured();
-
-  const { data: profile, isLoading } = useQuery({
-    queryKey: ["memberProfile", memberId],
-    queryFn: () => fetchMemberProfile(memberId!),
-    enabled: !!memberId && configured,
-  });
 
   const { data: guilds = [] } = useQuery({
     queryKey: ["guilds", serverId],
